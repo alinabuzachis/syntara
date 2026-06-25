@@ -65,6 +65,7 @@ class TestCancelExecution:
             created_by=test_user.id,
             input_data={},
             labels={},
+            project_id=test_workflow.project_id,
         )
         test_db_session.add(execution)
         await test_db_session.commit()
@@ -104,6 +105,7 @@ class TestCancelExecution:
             created_by=test_user.id,
             input_data={},
             labels={},
+            project_id=test_workflow.project_id,
         )
         test_db_session.add(execution)
         await test_db_session.commit()
@@ -170,6 +172,7 @@ class TestCancelExecution:
             created_by=test_user.id,
             input_data={},
             labels={},
+            project_id=test_workflow.project_id,
         )
         test_db_session.add(execution)
         await test_db_session.commit()

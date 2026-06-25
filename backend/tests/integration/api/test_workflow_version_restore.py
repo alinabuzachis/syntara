@@ -10,7 +10,7 @@ from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio
-async def test_restore_version_creates_new_draft(jwt_client: AsyncClient) -> None:
+async def test_restore_version_creates_new_draft(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Restoring a previous version creates a new draft with that definition.
 
     Expected: current_version bumps, new version has status=draft and matches
@@ -21,7 +21,7 @@ async def test_restore_version_creates_new_draft(jwt_client: AsyncClient) -> Non
 
     create_resp = await jwt_client.post(
         "/api/v1/workflows",
-        json={"name": "restore-test", "workflow_definition": defn_v1},
+        json={"name": "restore-test", "project_id": test_project_id, "workflow_definition": defn_v1},
     )
     assert create_resp.status_code == 201
     workflow_id = create_resp.json()["id"]
@@ -45,7 +45,7 @@ async def test_restore_version_creates_new_draft(jwt_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_restore_current_version_is_noop(jwt_client: AsyncClient) -> None:
+async def test_restore_current_version_is_noop(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Restoring the current version does not create a new version.
 
     Expected: current_version remains unchanged (change detection skips duplicate).
@@ -54,7 +54,7 @@ async def test_restore_current_version_is_noop(jwt_client: AsyncClient) -> None:
 
     create_resp = await jwt_client.post(
         "/api/v1/workflows",
-        json={"name": "restore-noop", "workflow_definition": defn},
+        json={"name": "restore-noop", "project_id": test_project_id, "workflow_definition": defn},
     )
     workflow_id = create_resp.json()["id"]
 
@@ -65,7 +65,7 @@ async def test_restore_current_version_is_noop(jwt_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_restore_nonexistent_version_returns_404(jwt_client: AsyncClient) -> None:
+async def test_restore_nonexistent_version_returns_404(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Restoring a version that does not exist returns 404.
 
     Expected: 404 Not Found
@@ -74,7 +74,7 @@ async def test_restore_nonexistent_version_returns_404(jwt_client: AsyncClient) 
 
     create_resp = await jwt_client.post(
         "/api/v1/workflows",
-        json={"name": "restore-404-version", "workflow_definition": defn},
+        json={"name": "restore-404-version", "project_id": test_project_id, "workflow_definition": defn},
     )
     workflow_id = create_resp.json()["id"]
 
@@ -97,7 +97,7 @@ async def test_restore_nonexistent_workflow_returns_404(jwt_client: AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_restore_published_version_creates_draft(jwt_client: AsyncClient) -> None:
+async def test_restore_published_version_creates_draft(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Restoring a published version creates a new draft, not a published version.
 
     Expected: new version has status=draft, published_version is unchanged.
@@ -107,7 +107,7 @@ async def test_restore_published_version_creates_draft(jwt_client: AsyncClient) 
 
     create_resp = await jwt_client.post(
         "/api/v1/workflows",
-        json={"name": "restore-pub", "workflow_definition": defn_v1},
+        json={"name": "restore-pub", "project_id": test_project_id, "workflow_definition": defn_v1},
     )
     workflow_id = create_resp.json()["id"]
 
@@ -132,7 +132,7 @@ async def test_restore_published_version_creates_draft(jwt_client: AsyncClient) 
 
 
 @pytest.mark.asyncio
-async def test_restore_preserves_workflow_definition(jwt_client: AsyncClient) -> None:
+async def test_restore_preserves_workflow_definition(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Restored version's workflow_definition matches the source version exactly.
 
     Expected: field-by-field match of workflow_definition.
@@ -142,7 +142,7 @@ async def test_restore_preserves_workflow_definition(jwt_client: AsyncClient) ->
 
     create_resp = await jwt_client.post(
         "/api/v1/workflows",
-        json={"name": "restore-preserve", "workflow_definition": defn_v1},
+        json={"name": "restore-preserve", "project_id": test_project_id, "workflow_definition": defn_v1},
     )
     workflow_id = create_resp.json()["id"]
 

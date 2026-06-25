@@ -24775,10 +24775,8 @@ components:
             region: us-east-1
             team: platform
         project_id:
-          anyOf:
-            - format: uuid
-              type: string
-            - type: 'null'
+          type: string
+          format: uuid
           description: Project this approval belongs to (denormalized from execution)
           title: Project Id
         execution_id:
@@ -24852,6 +24850,7 @@ components:
           description: Notes provided with decision
           title: Decision Notes
       required:
+        - project_id
         - name
         - execution_id
         - approval_node_id
@@ -24911,6 +24910,7 @@ components:
         This is an internal schema used by the Workflows component.
       required:
         - execution_id
+        - project_id
         - approval_node_id
         - name
         - next_step_approved
@@ -24922,10 +24922,8 @@ components:
           title: Execution Id
           description: Parent workflow execution ID
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Project Id
           description: Project ID (denormalized from execution)
         approval_node_id:
@@ -31219,6 +31217,7 @@ components:
         - id
         - workflow_id
         - workflow_version_id
+        - project_id
         - temporal_workflow_id
         - status
         - created_by
@@ -31242,10 +31241,8 @@ components:
           format: uuid
           title: Workflow Version Id
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Project Id
         temporal_workflow_id:
           type: string
@@ -31731,6 +31728,7 @@ components:
         - current_version
         - is_enabled
         - created_by
+        - project_id
         - created_at
         - updated_at
       properties:
@@ -31771,10 +31769,8 @@ components:
           format: uuid
           title: Created By
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Project Id
         published_version:
           anyOf:
@@ -31814,6 +31810,7 @@ components:
         - current_version
         - is_enabled
         - created_by
+        - project_id
         - created_at
         - updated_at
         - version
@@ -31855,10 +31852,8 @@ components:
           format: uuid
           title: Created By
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Project Id
         published_version:
           anyOf:
@@ -32048,6 +32043,7 @@ components:
       required:
         - name
         - workflow_definition
+        - project_id
       properties:
         name:
           type: string
@@ -32071,10 +32067,8 @@ components:
           $ref: '#/components/schemas/WorkflowDefinition'
           description: Workflow definition object
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Project Id
           description: Project to assign workflow to
     WorkflowUpdate:

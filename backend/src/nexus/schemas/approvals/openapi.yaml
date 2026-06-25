@@ -304,6 +304,7 @@ components:
             so API consumers get proper validation and type safety. Pydantic coerces
             the raw dicts from the database into these typed models during serialization.
           required:
+            - project_id
             - name
             - execution_id
             - approval_node_id
@@ -311,10 +312,8 @@ components:
             - workflow_context
           properties:
             project_id:
-              anyOf:
-                - format: uuid
-                  type: string
-                - type: "null"
+              type: string
+              format: uuid
               description: Project this approval belongs to (denormalized from execution)
               title: Project Id
             execution_id:
@@ -436,6 +435,7 @@ components:
         This is an internal schema used by the Workflows component.
       required:
         - execution_id
+        - project_id
         - approval_node_id
         - name
         - next_step_approved
@@ -447,10 +447,8 @@ components:
           title: Execution Id
           description: Parent workflow execution ID
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: "null"
+          type: string
+          format: uuid
           title: Project Id
           description: Project ID (denormalized from execution)
         approval_node_id:

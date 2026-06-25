@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
@@ -33,7 +33,9 @@ pytestmark = [pytest.mark.e2e]
 class TestWorkflowVersionListing:
     """E2E tests for listing workflow versions."""
 
-    def test_list_workflow_versions(self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory) -> None:
+    def test_list_workflow_versions(
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
+    ) -> None:
         """Test listing all versions for a workflow.
 
         Expected: 200 OK with versions array ordered by version DESC
@@ -50,6 +52,7 @@ class TestWorkflowVersionListing:
             WorkflowCreate(
                 name="multi-version-workflow",
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         ).id
 
@@ -117,7 +120,7 @@ class TestWorkflowVersionListing:
         assert versions[2].version == 1
 
     def test_list_workflow_versions_single_version(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test listing versions for workflow with only initial version.
 
@@ -135,6 +138,7 @@ class TestWorkflowVersionListing:
             WorkflowCreate(
                 name="single-version-workflow",
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         ).id
 
@@ -156,7 +160,7 @@ class TestWorkflowVersionListing:
         assert response.status_code == HTTPStatus.NOT_FOUND
 
     def test_list_versions_includes_metadata(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test that version list includes metadata.
 
@@ -174,6 +178,7 @@ class TestWorkflowVersionListing:
             WorkflowCreate(
                 name="metadata-test",
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         ).id
 
@@ -194,7 +199,7 @@ class TestWorkflowVersionRetrieval:
     """E2E tests for retrieving specific workflow versions."""
 
     def test_get_workflow_version_by_number(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test retrieving a specific version by number.
 
@@ -212,6 +217,7 @@ class TestWorkflowVersionRetrieval:
             WorkflowCreate(
                 name="versioned-workflow",
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         ).id
 
@@ -239,7 +245,9 @@ class TestWorkflowVersionRetrieval:
         assert version_data.workflow_id == workflow_id
         assert version_data.workflow_definition is not None
 
-    def test_get_workflow_version_1(self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory) -> None:
+    def test_get_workflow_version_1(
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
+    ) -> None:
         """Test retrieving version 1 (initial version).
 
         Expected: 200 OK with initial version details
@@ -256,6 +264,7 @@ class TestWorkflowVersionRetrieval:
             WorkflowCreate(
                 name="version-1-test",
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         ).id
 
@@ -266,7 +275,9 @@ class TestWorkflowVersionRetrieval:
         assert version_data.version == 1
         assert version_data.workflow_definition is not None
 
-    def test_get_nonexistent_version(self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory) -> None:
+    def test_get_nonexistent_version(
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
+    ) -> None:
         """Test retrieving a non-existent version number.
 
         Expected: 404 Not Found
@@ -283,6 +294,7 @@ class TestWorkflowVersionRetrieval:
             WorkflowCreate(
                 name="test-workflow",
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         ).id
 
@@ -301,7 +313,9 @@ class TestWorkflowVersionRetrieval:
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
-    def test_get_version_response_schema(self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory) -> None:
+    def test_get_version_response_schema(
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
+    ) -> None:
         """Test that response matches expected schema.
 
         Expected: All required fields present
@@ -318,6 +332,7 @@ class TestWorkflowVersionRetrieval:
             WorkflowCreate(
                 name="schema-test",
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         ).id
 
@@ -335,7 +350,7 @@ class TestWorkflowVersionRetrieval:
         assert version.created_at is not None
 
     def test_get_version_includes_full_definition(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test that response includes complete workflow definition.
 
@@ -372,6 +387,7 @@ class TestWorkflowVersionRetrieval:
             WorkflowCreate(
                 name="detailed-workflow",
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         ).id
 

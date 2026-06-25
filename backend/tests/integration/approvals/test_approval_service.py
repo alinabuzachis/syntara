@@ -67,6 +67,7 @@ class TestApprovalServiceBase:
     def _create_approval_request(
         self,
         execution_id: UUID,
+        project_id: UUID | None = None,
         approval_node_id: str = "approval_1",
         name: str = "Test Approval",
         timeout_at: datetime | None = None,
@@ -86,6 +87,7 @@ class TestApprovalServiceBase:
 
         return ApprovalCreateRequest(
             execution_id=execution_id,
+            project_id=project_id or uuid4(),
             approval_node_id=approval_node_id,
             name=name,
             timeout_at=timeout_at,
@@ -283,11 +285,13 @@ class TestApprovalServiceCreate(TestApprovalServiceBase):
 
         # Create a test execution first
         executions = await executions_factory.create_executions(count=1)
-        execution_id = executions[0].id
+        execution = executions[0]
+        execution_id = execution.id
         timeout_at = datetime.now(UTC) + timedelta(hours=24)
 
         request = self._create_approval_request(
             execution_id=execution_id,
+            project_id=execution.project_id,
             name="Test Create Approval",
             timeout_at=timeout_at,
         )
@@ -315,10 +319,11 @@ class TestApprovalServiceCreate(TestApprovalServiceBase):
 
         # Create a test execution first
         executions = await executions_factory.create_executions(count=1)
-        execution_id = executions[0].id
+        execution = executions[0]
 
         request = self._create_approval_request(
-            execution_id=execution_id,
+            execution_id=execution.id,
+            project_id=execution.project_id,
             approval_node_id="minimal_approval",
             name="Minimal Approval",
             timeout_at=None,
@@ -326,7 +331,7 @@ class TestApprovalServiceCreate(TestApprovalServiceBase):
 
         result = await service.create(request)
 
-        assert result.execution_id == execution_id
+        assert result.execution_id == execution.id
         assert result.approval_node_id == "minimal_approval"
         assert result.name == "Minimal Approval"
         assert result.timeout_at is None
@@ -344,23 +349,25 @@ class TestApprovalServiceCreate(TestApprovalServiceBase):
 
         # Create a test execution first
         executions = await executions_factory.create_executions(count=1)
-        execution_id = executions[0].id
+        execution = executions[0]
 
         # Create the first approval request
         request1 = self._create_approval_request(
-            execution_id=execution_id,
+            execution_id=execution.id,
+            project_id=execution.project_id,
             approval_node_id="duplicate_test",
             name="First Approval",
         )
 
         # Create the first approval successfully
         result1 = await service.create(request1)
-        assert result1.execution_id == execution_id
+        assert result1.execution_id == execution.id
         assert result1.approval_node_id == "duplicate_test"
 
         # Attempt to create a duplicate approval request with the same execution_id and approval_node_id
         request2 = self._create_approval_request(
-            execution_id=execution_id,
+            execution_id=execution.id,
+            project_id=execution.project_id,
             approval_node_id="duplicate_test",  # Same approval_node_id
             name="Second Approval (should fail)",
         )
@@ -370,7 +377,7 @@ class TestApprovalServiceCreate(TestApprovalServiceBase):
             await service.create(request2)
 
         # Verify the exception contains the correct execution_id and approval_node_id
-        assert exc_info.value.execution_id == execution_id
+        assert exc_info.value.execution_id == execution.id
         assert exc_info.value.approval_node_id == "duplicate_test"
 
 

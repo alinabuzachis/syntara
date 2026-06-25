@@ -45,6 +45,7 @@ class TestExecutionServiceBase:
         labels: dict[str, Any] | None = None,
         deleted_at: datetime | None = None,
         deleted_by: UUID | None = None,
+        project_id: UUID | None = None,
     ) -> Execution:
         """Create a test Execution object with realistic data.
 
@@ -64,6 +65,7 @@ class TestExecutionServiceBase:
             labels: Labels dict (defaults to empty dict if None)
             deleted_at: Deletion timestamp (None by default)
             deleted_by: Deleter user UUID (None by default)
+            project_id: Project UUID (generates random if None)
 
         Returns:
             Execution object with realistic data suitable for testing
@@ -112,6 +114,7 @@ class TestExecutionServiceBase:
             labels=labels,
             deleted_at=deleted_at,
             deleted_by=deleted_by,
+            project_id=project_id or uuid4(),
         )
 
 
@@ -159,7 +162,7 @@ class TestCreateExecution:
         workflow.id = workflow_id
         workflow.name = "test-workflow"
         workflow.is_enabled = True
-        workflow.project_id = None
+        workflow.project_id = uuid4()
 
         workflow_version = Mock(spec=WorkflowVersion)
         workflow_version.id = version_id
@@ -229,7 +232,7 @@ class TestCreateExecution:
         workflow.id = workflow_id
         workflow.name = "test-workflow"
         workflow.is_enabled = True
-        workflow.project_id = None
+        workflow.project_id = uuid4()
 
         workflow_version = Mock(spec=WorkflowVersion)
         workflow_version.id = version_id
@@ -295,7 +298,7 @@ class TestCreateExecution:
         workflow.name = "test-workflow"
         workflow.is_enabled = True
         workflow.published_version = 1
-        workflow.project_id = None
+        workflow.project_id = uuid4()
 
         workflow_version = Mock(spec=WorkflowVersion)
         workflow_version.id = version_id

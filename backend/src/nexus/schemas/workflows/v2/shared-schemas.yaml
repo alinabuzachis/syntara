@@ -20,6 +20,7 @@ components:
         - current_version
         - is_enabled
         - created_by
+        - project_id
         - created_at
         - updated_at
       properties:
@@ -60,10 +61,8 @@ components:
           format: uuid
           title: Created By
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Project Id
         published_version:
           anyOf:
@@ -104,6 +103,7 @@ components:
         - current_version
         - is_enabled
         - created_by
+        - project_id
         - created_at
         - updated_at
         - version
@@ -145,10 +145,8 @@ components:
           format: uuid
           title: Created By
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Project Id
         published_version:
           anyOf:
@@ -228,6 +226,7 @@ components:
         - id
         - workflow_id
         - workflow_version_id
+        - project_id
         - temporal_workflow_id
         - status
         - created_by
@@ -251,10 +250,8 @@ components:
           format: uuid
           title: Workflow Version Id
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Project Id
         temporal_workflow_id:
           type: string
@@ -571,6 +568,7 @@ components:
       required:
         - name
         - workflow_definition
+        - project_id
       properties:
         name:
           type: string
@@ -594,10 +592,8 @@ components:
           $ref: "#/components/schemas/WorkflowDefinition"
           description: Workflow definition object
         project_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Project Id
           description: Project to assign workflow to
 

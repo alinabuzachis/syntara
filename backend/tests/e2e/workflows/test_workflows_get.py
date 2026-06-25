@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
@@ -49,6 +49,7 @@ class TestWorkflowListing:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test listing workflows with name filter.
 
@@ -71,6 +72,7 @@ class TestWorkflowListing:
                             description=f"Workflow {i}",
                         )
                     ),
+                    project_id=first_project_id,
                 )
             )
             created_workflows.append(workflow)
@@ -88,6 +90,7 @@ class TestWorkflowListing:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test filtering workflows by creator.
 
@@ -108,6 +111,7 @@ class TestWorkflowListing:
                         description="Creator test workflow 1",
                     )
                 ),
+                project_id=first_project_id,
             )
         )
 
@@ -122,6 +126,7 @@ class TestWorkflowListing:
                         description="Creator test workflow 2",
                     )
                 ),
+                project_id=first_project_id,
             )
         )
 
@@ -157,6 +162,7 @@ class TestWorkflowListing:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test cursor-based pagination with name filtering for deterministic results.
 
@@ -178,6 +184,7 @@ class TestWorkflowListing:
                             description=f"Paginated workflow {i}",
                         )
                     ),
+                    project_id=first_project_id,
                 )
             )
 
@@ -204,6 +211,7 @@ class TestWorkflowListing:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test that soft-deleted workflows are excluded.
 
@@ -224,6 +232,7 @@ class TestWorkflowListing:
                         description="Workflow to be deleted",
                     )
                 ),
+                project_id=first_project_id,
             )
         )
 
@@ -240,6 +249,7 @@ class TestWorkflowListing:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test filtering workflows by labels with unique values for deterministic results.
 
@@ -267,6 +277,7 @@ class TestWorkflowListing:
                     )
                 ),
                 labels=WorkflowCreateLabels.from_dict({"environment": prod_label_value}),
+                project_id=first_project_id,
             )
         )
 
@@ -282,6 +293,7 @@ class TestWorkflowListing:
                     )
                 ),
                 labels=WorkflowCreateLabels.from_dict({"environment": dev_label_value}),
+                project_id=first_project_id,
             )
         )
 
@@ -297,6 +309,7 @@ class TestWorkflowListing:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test default page size is 20 items with name filtering for deterministic results.
 
@@ -318,6 +331,7 @@ class TestWorkflowListing:
                             description=f"Workflow page {i}",
                         )
                     ),
+                    project_id=first_project_id,
                 )
             )
 

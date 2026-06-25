@@ -10,6 +10,8 @@ Tests the complete workflow management lifecycle:
 7. Verify soft delete prevents access
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
 
@@ -20,7 +22,7 @@ from tests.helpers.workflow import (
 
 
 @pytest.mark.asyncio
-async def test_workflow_complete_lifecycle(jwt_client: AsyncClient) -> None:  # noqa: PLR0915
+async def test_workflow_complete_lifecycle(jwt_client: AsyncClient, test_project_id: UUID) -> None:  # noqa: PLR0915
     """Test complete workflow lifecycle from creation to deletion.
 
     This test verifies that all workflow operations work together correctly:
@@ -34,6 +36,7 @@ async def test_workflow_complete_lifecycle(jwt_client: AsyncClient) -> None:  # 
     create_payload = {
         "name": "lifecycle-test-workflow",
         "description": "Testing complete lifecycle",
+        "project_id": str(test_project_id),
         "labels": {"env": "test", "purpose": "integration"},
         "workflow_definition": create_minimal_workflow_definition(
             name="lifecycle-test",
@@ -227,11 +230,12 @@ async def test_workflow_complete_lifecycle(jwt_client: AsyncClient) -> None:  # 
 
 
 @pytest.mark.asyncio
-async def test_workflow_version_immutability(jwt_client: AsyncClient) -> None:
+async def test_workflow_version_immutability(jwt_client: AsyncClient, test_project_id: UUID) -> None:
     """Test that workflow versions are read-only and immutable."""
     # Create workflow
     create_payload = {
         "name": "immutable-test",
+        "project_id": str(test_project_id),
         "workflow_definition": create_minimal_workflow_definition(
             name="immutable-test",
             description="Immutability test",

@@ -32,12 +32,12 @@ class WorkflowRead:
             current_version (int):
             is_enabled (bool):
             created_by (UUID):
+            project_id (UUID):
             created_at (datetime.datetime):
             updated_at (datetime.datetime):
             description (None | str | Unset): Workflow description
             labels (WorkflowReadLabels | Unset): Workflow labels
             is_builtin (bool | Unset):  Default: False.
-            project_id (None | Unset | UUID):
             published_version (int | None | Unset):
             deleted_at (datetime.datetime | None | Unset):
             deleted_by (None | Unset | UUID):
@@ -48,12 +48,12 @@ class WorkflowRead:
     current_version: int
     is_enabled: bool
     created_by: UUID
+    project_id: UUID
     created_at: datetime.datetime
     updated_at: datetime.datetime
     description: None | str | Unset = UNSET
     labels: WorkflowReadLabels | Unset = UNSET
     is_builtin: bool | Unset = False
-    project_id: None | Unset | UUID = UNSET
     published_version: int | None | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
     deleted_by: None | Unset | UUID = UNSET
@@ -70,6 +70,8 @@ class WorkflowRead:
 
         created_by = str(self.created_by)
 
+        project_id = str(self.project_id)
+
         created_at = self.created_at.isoformat()
 
         updated_at = self.updated_at.isoformat()
@@ -85,14 +87,6 @@ class WorkflowRead:
             labels = self.labels.to_dict()
 
         is_builtin = self.is_builtin
-
-        project_id: None | str | Unset
-        if isinstance(self.project_id, Unset):
-            project_id = UNSET
-        elif isinstance(self.project_id, UUID):
-            project_id = str(self.project_id)
-        else:
-            project_id = self.project_id
 
         published_version: int | None | Unset
         if isinstance(self.published_version, Unset):
@@ -125,6 +119,7 @@ class WorkflowRead:
                 "current_version": current_version,
                 "is_enabled": is_enabled,
                 "created_by": created_by,
+                "project_id": project_id,
                 "created_at": created_at,
                 "updated_at": updated_at,
             }
@@ -135,8 +130,6 @@ class WorkflowRead:
             field_dict["labels"] = labels
         if is_builtin is not UNSET:
             field_dict["is_builtin"] = is_builtin
-        if project_id is not UNSET:
-            field_dict["project_id"] = project_id
         if published_version is not UNSET:
             field_dict["published_version"] = published_version
         if deleted_at is not UNSET:
@@ -161,6 +154,8 @@ class WorkflowRead:
 
         created_by = UUID(d.pop("created_by"))
 
+        project_id = UUID(d.pop("project_id"))
+
         created_at = isoparse(d.pop("created_at"))
 
         updated_at = isoparse(d.pop("updated_at"))
@@ -182,23 +177,6 @@ class WorkflowRead:
             labels = WorkflowReadLabels.from_dict(_labels)
 
         is_builtin = d.pop("is_builtin", UNSET)
-
-        def _parse_project_id(data: object) -> None | Unset | UUID:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                project_id_type_0 = UUID(data)
-
-                return project_id_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(None | Unset | UUID, data)
-
-        project_id = _parse_project_id(d.pop("project_id", UNSET))
 
         def _parse_published_version(data: object) -> int | None | Unset:
             if data is None:
@@ -249,12 +227,12 @@ class WorkflowRead:
             current_version=current_version,
             is_enabled=is_enabled,
             created_by=created_by,
+            project_id=project_id,
             created_at=created_at,
             updated_at=updated_at,
             description=description,
             labels=labels,
             is_builtin=is_builtin,
-            project_id=project_id,
             published_version=published_version,
             deleted_at=deleted_at,
             deleted_by=deleted_by,

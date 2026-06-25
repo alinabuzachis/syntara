@@ -31,7 +31,9 @@ class TestWorkflowCreation:
     These tests focus on new scenarios not covered elsewhere.
     """
 
-    def test_create_workflow_with_labels(self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID]) -> None:
+    def test_create_workflow_with_labels(
+        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
+    ) -> None:
         """Test creating a workflow with labels.
 
         Expected: 201 Created with labels included
@@ -54,6 +56,7 @@ class TestWorkflowCreation:
                         "team": "engineering",
                     }
                 ),
+                project_id=first_project_id,
             )
         ).assert_and_get()
         cleanup_workflows.append(workflow.id)
@@ -62,7 +65,7 @@ class TestWorkflowCreation:
         assert workflow.labels["environment"] == "test"
         assert workflow.labels["team"] == "engineering"
 
-    def test_create_workflow_with_long_description(self, nexus_api: NexusApiRegistry) -> None:
+    def test_create_workflow_with_long_description(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
         """Test creating a workflow with a long description. The field limit is 2,000 characters.
 
         Expected: 422 Unprocessable
@@ -80,6 +83,7 @@ class TestWorkflowCreation:
                 name=workflow_name,
                 description="=" * 2001,
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         )
 

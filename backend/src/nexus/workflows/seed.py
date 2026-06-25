@@ -33,7 +33,7 @@ def _load_workflow_from_file(
     yaml_file: Path,
     existing_names: set[str],
     creator_id: UUID,
-    project_id: UUID | None,
+    project_id: UUID,
 ) -> tuple[Workflow, WorkflowVersion] | None:
     """Parse a YAML file and return Workflow + WorkflowVersion, or None to skip."""
     yaml_content = yaml_file.read_text()
@@ -124,11 +124,11 @@ async def seed_sample_workflows(
         )
     )
     default_project = project_result.first()
-    project_id = default_project.id if default_project else None
-    if default_project:
-        logger.info("Using default project", project_name=default_project.name, project_id=project_id)
-    else:
-        logger.warning("No default project found, workflows will be created without a project")
+    if not default_project:
+        logger.error("No default project found — cannot seed sample workflows")
+        return
+    project_id = default_project.id
+    logger.info("Using default project", project_name=default_project.name, project_id=project_id)
 
     # Get existing workflow names to check for duplicates
     existing_workflows_result = await session.exec(

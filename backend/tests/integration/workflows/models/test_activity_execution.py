@@ -191,6 +191,7 @@ async def test_activity_allows_same_temporal_id_different_executions(
         workflow_version_id=test_workflow_version_minimal.id,
         temporal_workflow_id="test-workflow-123",
         created_by=test_user.id,
+        project_id=test_workflow_minimal.project_id,
     )
     execution2 = Execution(
         id=uuid4(),
@@ -198,6 +199,7 @@ async def test_activity_allows_same_temporal_id_different_executions(
         workflow_version_id=test_workflow_version_minimal.id,
         temporal_workflow_id="test-workflow-456",
         created_by=test_user.id,
+        project_id=test_workflow_minimal.project_id,
     )
     test_db_session.add_all([execution1, execution2])
     await test_db_session.commit()

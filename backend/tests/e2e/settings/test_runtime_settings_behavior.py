@@ -46,7 +46,11 @@ def _poll(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> E
 
 
 def _run_workflow(
-    api: NexusApiRegistry, name: str, definition: dict[str, Any], timeout: int = POLL_TIMEOUT
+    api: NexusApiRegistry,
+    name: str,
+    definition: dict[str, Any],
+    timeout: int = POLL_TIMEOUT,
+    project_id: UUID | None = None,
 ) -> ExecutionRead:
     workflows_list = api.workflows.list(additional_params={"name": name}).assert_and_get()
     existing = [w for w in workflows_list.resources if w.name == name]
@@ -62,6 +66,7 @@ def _run_workflow(
                 name=name,
                 description=f"E2E: {name}",
                 workflow_definition=WorkflowDefinition.from_dict(definition),
+                project_id=project_id,
             )
         ).assert_and_get()
         wf_id = workflow.id
@@ -83,6 +88,7 @@ def _patch_setting(api: NexusApiRegistry, key: str, *, value: int | bool) -> Non
 @pytest.mark.e2e
 def test_script_timeout_setting_affects_execution(
     nexus_api: NexusApiRegistry,
+    first_project_id: UUID,
 ) -> None:
     """Changing script_timeout_seconds causes a slow script to time out."""
     key = "workflow_engine.script_timeout_seconds"
@@ -110,6 +116,7 @@ def test_script_timeout_setting_affects_execution(
                 ],
                 "edges": [{"from": "trigger", "to": "slow_script"}],
             },
+            project_id=first_project_id,
         )
 
         assert result.status == ExecutionStatus.FAILED, f"Expected FAILED (timeout), got {result.status}"
@@ -125,6 +132,7 @@ def test_script_timeout_setting_affects_execution(
 @pytest.mark.e2e
 def test_max_loop_iterations_setting_affects_execution(
     nexus_api: NexusApiRegistry,
+    first_project_id: UUID,
 ) -> None:
     """Changing max_loop_iterations causes an infinite loop to fail with MaxIterationsError."""
     key = "workflow_engine.max_loop_iterations"
@@ -165,6 +173,7 @@ def test_max_loop_iterations_setting_affects_execution(
                     {"from": "body", "to": "loop", "to_port": "iterate"},
                 ],
             },
+            project_id=first_project_id,
         )
 
         # Exceeding max_iterations raises MaxIterationsError → execution fails

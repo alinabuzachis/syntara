@@ -2729,6 +2729,7 @@ class TestUpdatePendingActivitiesToCancelled:
             created_by=uuid4(),
             input_data={},
             labels={},
+            project_id=uuid4(),
         )
 
         pending_activity = ActivityExecution(
@@ -2837,6 +2838,7 @@ class TestInitializeMonitoringWorkflowLookup:
             workflow_version_id=self.workflow_version_id,
             status=ExecutionStatus.PENDING,
             last_processed_event_id=0,
+            project_id=uuid4(),
         )
 
     def _create_mock_workflow(self, name: str = "test-workflow") -> Mock:

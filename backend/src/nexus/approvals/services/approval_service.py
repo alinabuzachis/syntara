@@ -264,16 +264,6 @@ class ApprovalService(BaseService):
 
         return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 
-    async def _resolve_project_id(self, request: ApprovalCreateRequest) -> UUID | None:
-        """Resolve project_id from request or by looking up the execution."""
-        if request.project_id is not None:
-            return request.project_id
-
-        from nexus.workflows.models.execution import Execution  # noqa: PLC0415
-
-        result = await self.session.exec(select(Execution.project_id).where(Execution.id == request.execution_id))
-        return result.first()
-
     async def _is_user_authorized_approver(self, approval: ApprovalRequest) -> bool:  # noqa: C901
         """Check if current user is authorized to approve this request.
 
@@ -398,8 +388,14 @@ class ApprovalService(BaseService):
         if existing_approval is not None:
             raise ApprovalAlreadyRequestedError(request.execution_id, request.approval_node_id)
 
-        # Resolve project_id from request or execution
-        project_id = await self._resolve_project_id(request)
+        project_id = request.project_id
+
+        from nexus.workflows.models.execution import Execution  # noqa: PLC0415
+
+        execution = await self.session.get(Execution, request.execution_id)
+        if execution and execution.project_id != project_id:
+            msg = f"project_id {project_id} does not match execution's project {execution.project_id}"
+            raise ValueError(msg)
 
         # Convert typed models to dicts for database storage
         next_step_approved_dict = (

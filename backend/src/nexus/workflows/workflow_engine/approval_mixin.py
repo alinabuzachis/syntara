@@ -40,6 +40,7 @@ class WorkflowApprovalMixin:
     """
 
     execution_id: str
+    _project_id: str | None
     resolver: NamespaceResolver
     _runtime_settings: dict[str, Any]
     skipped_nodes: set[str]
@@ -145,6 +146,7 @@ class WorkflowApprovalMixin:
             [6] next_step_rejected: dict[str, Any] | None — first activity if rejected
             [7] approver_user_ids:  list[str] | None — user UUIDs who can approve
             [8] approver_group_ids: list[str] | None — group UUIDs whose members can approve
+            [9] project_id:         str | None      — project ID for the approval request
 
         """
         name = resolved_parameters.get("name") or f"Approval for {node.id}"
@@ -221,6 +223,7 @@ class WorkflowApprovalMixin:
             next_step_rejected,
             approver_user_ids,
             approver_group_ids,
+            self._project_id,
         ]
 
     async def _execute_approval_node(

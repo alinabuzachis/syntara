@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 async def test_delete_workflow_is_soft_delete_not_hard(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
+    test_project_id: str,
 ) -> None:
     """Test that DELETE performs soft delete, not hard delete.
 
@@ -46,6 +47,7 @@ async def test_delete_workflow_is_soft_delete_not_hard(
         "/api/v1/workflows",
         json={
             "name": workflow_name,
+            "project_id": test_project_id,
             "workflow_definition": workflow_def,
         },
     )

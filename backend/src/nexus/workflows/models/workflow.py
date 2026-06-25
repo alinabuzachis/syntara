@@ -89,8 +89,7 @@ class Workflow(Resource, table=True):
         sa_column_kwargs={"server_default": text("false")},
     )
 
-    project_id: UUID | None = Field(
-        default=None,
+    project_id: UUID = Field(
         foreign_key="projects.id",
         description="Project namespace for resource isolation",
         index=True,
@@ -176,7 +175,7 @@ class WorkflowCreate(WorkflowBase):
     """
 
     workflow_definition: WorkflowDefinition = Field(..., description="Workflow definition object")
-    project_id: UUID | None = Field(default=None, description="Project to assign workflow to")
+    project_id: UUID = Field(..., description="Project to assign workflow to")
 
 
 class WorkflowUpdate(SQLModel):
@@ -212,7 +211,7 @@ class WorkflowRead(WorkflowBase):
     is_enabled: bool
     published_version: int | None = None
     created_by: UUID
-    project_id: UUID | None = None
+    project_id: UUID
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None

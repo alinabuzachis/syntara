@@ -19,6 +19,7 @@ Test Plan Coverage:
 
 from collections.abc import Callable
 from typing import Any
+from uuid import UUID
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry
@@ -56,7 +57,10 @@ class TestExpressionResolution:
     """Tests for ${...} expression resolution in workflow execution."""
 
     def test_node_output_reference_resolution(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """Test that ${node_id.field} expressions resolve to upstream node outputs.
 
@@ -83,6 +87,7 @@ class TestExpressionResolution:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing expression resolution",
+            project_id=first_project_id,
             workflow_definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {
@@ -180,7 +185,10 @@ class TestExpressionResolution:
         )
 
     def test_multiple_expression_references(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """Test multiple ${...} expressions in a single node configuration.
 
@@ -200,6 +208,7 @@ class TestExpressionResolution:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing multiple expression resolution",
+            project_id=first_project_id,
             workflow_definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {
@@ -299,7 +308,10 @@ class TestExpressionResolution:
         )
 
     def test_trigger_input_reference_resolution(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """Test that ${trigger_node.field} expressions resolve trigger output values.
 
@@ -331,6 +343,7 @@ class TestExpressionResolution:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing trigger input resolution",
+            project_id=first_project_id,
             workflow_definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {

@@ -38,6 +38,12 @@ from nexus.workflows.services.workflow_service import WorkflowConvertResourceMix
 class TestWorkflowServiceBase:
     """Base test class with helper methods for WorkflowService tests."""
 
+    _test_project_id: UUID
+
+    @pytest.fixture(autouse=True)
+    def _inject_project_id(self, test_project_id: UUID) -> None:
+        self._test_project_id = test_project_id
+
     def _create_test_workflow(
         self,
         workflow_id: UUID | None = None,
@@ -46,6 +52,7 @@ class TestWorkflowServiceBase:
         labels: dict[str, Any] | None = None,
         current_version: int = 1,
         created_by: UUID | None = None,
+        project_id: UUID | None = None,
         *,
         is_enabled: bool = True,
         is_builtin: bool = False,
@@ -62,6 +69,7 @@ class TestWorkflowServiceBase:
             labels=labels or {},
             current_version=current_version,
             created_by=created_by or uuid4(),
+            project_id=project_id or self._test_project_id,
             is_enabled=is_enabled,
             is_builtin=is_builtin,
             published_version=current_version if is_enabled else None,
@@ -228,7 +236,9 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
     """Test create_workflow functionality."""
 
     @pytest.mark.asyncio
-    async def test_create_workflow_success(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_create_workflow_success(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test successful workflow creation."""
         service = WorkflowService(test_db_session, test_user)
 
@@ -243,6 +253,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
                 description="Test description",
                 labels={"env": "test"},
                 workflow_definition=workflow_definition,
+                project_id=test_project_id,
             )
 
             workflow, version = result
@@ -266,7 +277,9 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
             assert db_workflow.name == "test-workflow"
 
     @pytest.mark.asyncio
-    async def test_create_workflow_validation_error(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_create_workflow_validation_error(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test workflow creation with invalid definition."""
         service = WorkflowService(test_db_session, test_user)
 
@@ -282,6 +295,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
                     description=None,
                     labels={},
                     workflow_definition=workflow_definition,
+                    project_id=test_project_id,
                 )
 
             # Verify no workflow was created in database
@@ -289,7 +303,9 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
             assert len(workflows.all()) == 0
 
     @pytest.mark.asyncio
-    async def test_create_workflow_duplicate_name(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_create_workflow_duplicate_name(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test workflow creation with duplicate name."""
         service = WorkflowService(test_db_session, test_user)
 
@@ -303,6 +319,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_definition,
+                project_id=test_project_id,
             )
 
         # Now try to create another with the same name
@@ -315,6 +332,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_definition,
+                project_id=test_project_id,
             )
 
 
@@ -1183,7 +1201,9 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
     """Test publish_workflow_version method."""
 
     @pytest.mark.asyncio
-    async def test_publish_version_success(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_publish_version_success(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test publishing a version creates a published copy and sets workflow state."""
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
@@ -1194,6 +1214,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
+                project_id=test_project_id,
             )
 
         mock_wh_svc = MagicMock()
@@ -1215,7 +1236,9 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         assert result_workflow.is_enabled is True
 
     @pytest.mark.asyncio
-    async def test_publish_demotes_previous(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_publish_demotes_previous(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test publishing a new version demotes the previous published copy.
 
         With always-copy publish:
@@ -1233,6 +1256,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
+                project_id=test_project_id,
             )
 
         mock_wh_svc = MagicMock()
@@ -1263,7 +1287,9 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         assert published_copy_v2.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
 
     @pytest.mark.asyncio
-    async def test_publish_idempotent(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_publish_idempotent(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test publishing the same version twice creates two copies.
 
         With always-copy publish:
@@ -1279,6 +1305,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
+                project_id=test_project_id,
             )
 
         mock_wh_svc = MagicMock()
@@ -1292,7 +1319,9 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         assert result_workflow.published_version == 3
 
     @pytest.mark.asyncio
-    async def test_publish_nonexistent_version_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_publish_nonexistent_version_raises(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test publishing a nonexistent version raises error."""
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
@@ -1303,6 +1332,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
+                project_id=test_project_id,
             )
 
         with pytest.raises(WorkflowVersionNotFoundError):
@@ -1318,7 +1348,9 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
             await service.publish_workflow_version(workflow_id=fake_id, version=1)
 
     @pytest.mark.asyncio
-    async def test_publish_syncs_all_trigger_types(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_publish_syncs_all_trigger_types(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test that publish syncs both webhook and EDA trigger types."""
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
@@ -1329,6 +1361,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
+                project_id=test_project_id,
             )
 
         mock_wh_svc = MagicMock()
@@ -1350,7 +1383,9 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
     """Test unpublish_workflow method."""
 
     @pytest.mark.asyncio
-    async def test_unpublish_success(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_unpublish_success(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test unpublishing sets workflow state correctly.
 
         With always-copy publish:
@@ -1366,6 +1401,7 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
+                project_id=test_project_id,
             )
 
         mock_wh_svc = MagicMock()
@@ -1386,7 +1422,9 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
         assert published_copy_v2.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def ***REMOVED***(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test unpublishing when no version is published raises error."""
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
@@ -1397,6 +1435,7 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
+                project_id=test_project_id,
             )
 
         with pytest.raises(WorkflowNotPublishedError):
@@ -1412,7 +1451,9 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
             await service.unpublish_workflow(workflow_id=fake_id)
 
     @pytest.mark.asyncio
-    async def test_unpublish_syncs_all_trigger_types(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_unpublish_syncs_all_trigger_types(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test that unpublish syncs both webhook and EDA trigger types."""
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
@@ -1423,6 +1464,7 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
+                project_id=test_project_id,
             )
 
         # Publish first (mock webhook service)
@@ -1451,7 +1493,9 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
     """Test restore_workflow_version method."""
 
     @pytest.mark.asyncio
-    async def test_restore_creates_new_draft(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_restore_creates_new_draft(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test restoring a version creates a new draft with the original definition."""
         service = WorkflowService(test_db_session, test_user)
         defn_v1 = self._create_workflow_definition()
@@ -1462,6 +1506,7 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=defn_v1,
+                project_id=test_project_id,
             )
 
         defn_v2 = self._create_workflow_definition(description="Updated workflow")  # type: ignore[arg-type]
@@ -1491,7 +1536,9 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
         assert result_version.workflow_definition == defn_v1
 
     @pytest.mark.asyncio
-    async def test_restore_current_version_is_noop(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_restore_current_version_is_noop(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test restoring the current version returns it without creating a new one."""
         service = WorkflowService(test_db_session, test_user)
         defn = self._create_workflow_definition()
@@ -1502,6 +1549,7 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=defn,
+                project_id=test_project_id,
             )
 
         result_workflow, _ = await service.restore_workflow_version(
@@ -1512,7 +1560,9 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
         assert result_workflow.current_version == 1
 
     @pytest.mark.asyncio
-    async def test_restore_nonexistent_version_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_restore_nonexistent_version_raises(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test restoring a nonexistent version raises error."""
         service = WorkflowService(test_db_session, test_user)
         defn = self._create_workflow_definition()
@@ -1523,6 +1573,7 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=defn,
+                project_id=test_project_id,
             )
 
         with pytest.raises(WorkflowVersionNotFoundError):
@@ -1771,8 +1822,12 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
     """Test that built-in workflows cannot be deleted, updated, or unpublished."""
 
     @pytest.mark.asyncio
-    async def test_delete_builtin_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
-        workflow = self._create_test_workflow(name="Builtin WF", created_by=test_user.id, is_builtin=True)
+    async def test_delete_builtin_workflow_raises(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        workflow = self._create_test_workflow(
+            name="Builtin WF", created_by=test_user.id, is_builtin=True, project_id=test_project_id
+        )
         version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
         test_db_session.add(workflow)
         test_db_session.add(version)
@@ -1783,8 +1838,10 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
             await service.delete_workflow(workflow.id)
 
     @pytest.mark.asyncio
-    async def test_delete_non_builtin_workflow_succeeds(self, test_db_session: AsyncSession, test_user: User) -> None:
-        workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id)
+    async def test_delete_non_builtin_workflow_succeeds(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id, project_id=test_project_id)
         version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
         test_db_session.add(workflow)
         test_db_session.add(version)
@@ -1798,8 +1855,12 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
         assert result.deleted_at is not None
 
     @pytest.mark.asyncio
-    async def test_update_builtin_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
-        workflow = self._create_test_workflow(name="Builtin WF", created_by=test_user.id, is_builtin=True)
+    async def test_update_builtin_workflow_raises(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        workflow = self._create_test_workflow(
+            name="Builtin WF", created_by=test_user.id, is_builtin=True, project_id=test_project_id
+        )
         version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
         test_db_session.add(workflow)
         test_db_session.add(version)
@@ -1810,8 +1871,10 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
             await service.update_workflow(workflow.id, description="hacked")
 
     @pytest.mark.asyncio
-    async def test_update_non_builtin_workflow_succeeds(self, test_db_session: AsyncSession, test_user: User) -> None:
-        workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id)
+    async def test_update_non_builtin_workflow_succeeds(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id, project_id=test_project_id)
         version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
         test_db_session.add(workflow)
         test_db_session.add(version)
@@ -1822,8 +1885,12 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
         assert updated.description == "updated desc"
 
     @pytest.mark.asyncio
-    async def test_unpublish_builtin_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
-        workflow = self._create_test_workflow(name="Builtin WF", created_by=test_user.id, is_builtin=True)
+    async def test_unpublish_builtin_workflow_raises(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        workflow = self._create_test_workflow(
+            name="Builtin WF", created_by=test_user.id, is_builtin=True, project_id=test_project_id
+        )
         version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
         version.status = WorkflowVersionStatus.PUBLISHED
         test_db_session.add(workflow)
@@ -1836,9 +1903,9 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
 
     @pytest.mark.asyncio
     async def test_unpublish_non_builtin_workflow_succeeds(
-        self, test_db_session: AsyncSession, test_user: User
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
     ) -> None:
-        workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id)
+        workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id, project_id=test_project_id)
         version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
         version.status = WorkflowVersionStatus.PUBLISHED
         test_db_session.add(workflow)

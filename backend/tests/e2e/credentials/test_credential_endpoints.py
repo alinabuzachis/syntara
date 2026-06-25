@@ -208,7 +208,9 @@ class TestCredentialScrubbing:
             "edges": [{"from": "trigger_manual", "to": "echo_secret"}],
         }
 
-        execution = create_and_run_workflow(nexus_api, "e2e-scrub-stdout-test", definition, timeout=30)
+        execution = create_and_run_workflow(
+            nexus_api, "e2e-scrub-stdout-test", definition, timeout=30, project_id=first_project_id
+        )
         status_str = str(execution.status)
         assert status_str in {"completed", "completed_with_errors"}, f"Unexpected status: {status_str}"
 

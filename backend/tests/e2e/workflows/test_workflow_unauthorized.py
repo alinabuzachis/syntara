@@ -6,6 +6,7 @@ and that no workflow data is leaked in error responses.
 
 from collections.abc import Callable
 from http import HTTPStatus
+from uuid import UUID
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry
@@ -46,7 +47,7 @@ class TestWorkflowUnauthorizedAccess:
             f"Expected 401 Unauthorized for unauthenticated GET /workflows, got {resp.status_code}"
         )
 
-    def test_create_workflow_without_auth(self, unauth_api: NexusApiRegistry):
+    def test_create_workflow_without_auth(self, unauth_api: NexusApiRegistry, first_project_id: UUID):
         """POST /api/v1/workflows without authentication returns 401.
 
         Objective: Verify that creating a workflow requires authentication.
@@ -59,6 +60,7 @@ class TestWorkflowUnauthorizedAccess:
             body=WorkflowCreate(
                 name=workflow_name,
                 workflow_definition=_minimal_workflow_definition(workflow_name),
+                project_id=first_project_id,
             )
         )
 
@@ -70,6 +72,7 @@ class TestWorkflowUnauthorizedAccess:
         self,
         unauth_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """GET /api/v1/workflows/{id} without authentication returns 401.
 
@@ -87,6 +90,7 @@ class TestWorkflowUnauthorizedAccess:
             WorkflowCreate(
                 name=workflow_name,
                 workflow_definition=_minimal_workflow_definition(workflow_name),
+                project_id=first_project_id,
             )
         )
 
@@ -100,6 +104,7 @@ class TestWorkflowUnauthorizedAccess:
         self,
         unauth_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """PATCH /api/v1/workflows/{id} without authentication returns 401.
 
@@ -117,6 +122,7 @@ class TestWorkflowUnauthorizedAccess:
             WorkflowCreate(
                 name=workflow_name,
                 workflow_definition=_minimal_workflow_definition(workflow_name),
+                project_id=first_project_id,
             )
         )
 
@@ -134,6 +140,7 @@ class TestWorkflowUnauthorizedAccess:
         unauth_api: NexusApiRegistry,
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """DELETE /api/v1/workflows/{id} without authentication returns 401.
 
@@ -153,6 +160,7 @@ class TestWorkflowUnauthorizedAccess:
             WorkflowCreate(
                 name=workflow_name,
                 workflow_definition=_minimal_workflow_definition(workflow_name),
+                project_id=first_project_id,
             )
         )
 
@@ -169,6 +177,7 @@ class TestWorkflowUnauthorizedAccess:
         self,
         unauth_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """POST /api/v1/executions without authentication returns 401.
 
@@ -186,6 +195,7 @@ class TestWorkflowUnauthorizedAccess:
             WorkflowCreate(
                 name=workflow_name,
                 workflow_definition=_minimal_workflow_definition(workflow_name),
+                project_id=first_project_id,
             )
         )
 

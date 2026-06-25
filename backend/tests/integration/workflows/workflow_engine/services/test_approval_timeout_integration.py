@@ -37,6 +37,7 @@ async def _test_approval_activity(
     next_step_rejected: dict[str, Any] | None = None,
     approver_user_ids: list[str] | None = None,
     approver_group_ids: list[str] | None = None,
+    project_id: str | None = None,
 ) -> dict[str, Any]:
     """Test approval activity that blocks until Temporal times it out.
 

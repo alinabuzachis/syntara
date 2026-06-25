@@ -265,6 +265,7 @@ async def test_list_execution_activities_multiple_executions_isolated(
         workflow_version_id=test_execution.workflow_version_id,
         temporal_workflow_id="workflow-2",
         created_by=test_execution.created_by,
+        project_id=test_execution.project_id,
     )
     test_db_session.add(execution2)
     await test_db_session.commit()

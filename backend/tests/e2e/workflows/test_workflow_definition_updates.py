@@ -4,6 +4,7 @@ Tests workflow adding, updating, and removing nodes/edges
 """
 
 from collections.abc import Callable
+from uuid import UUID
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry
@@ -31,7 +32,10 @@ class TestWorkflowDefinitionUpdates:
     """Tests for updating workflow definitions (nodes, edges)."""
 
     def test_add_node_to_workflow(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 6: Add a node to an existing workflow definition."""
         workflow_name = unique_name("e2e-add-node")
@@ -39,6 +43,7 @@ class TestWorkflowDefinitionUpdates:
             name=workflow_name,
             description="Workflow for testing node addition",
             workflow_definition=_minimal_workflow_definition(workflow_name=workflow_name),
+            project_id=first_project_id,
         )
         workflow = workflow_factory(workflow_data)
 
@@ -76,7 +81,10 @@ class TestWorkflowDefinitionUpdates:
         assert updated_workflow.current_version == 2  # Started at 1, now 2
 
     def test_update_node_configuration(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 7: Update an existing node's configuration.
 
@@ -89,6 +97,7 @@ class TestWorkflowDefinitionUpdates:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing node configuration update",
+            project_id=first_project_id,
             workflow_definition=WorkflowDefinition.from_dict(
                 {
                     "name": workflow_name,
@@ -154,7 +163,10 @@ class TestWorkflowDefinitionUpdates:
         assert updated_def["edges"][0]["to"] == "aap_job_node"
 
     def test_delete_node_from_workflow(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 8: Delete a node from workflow and verify connected edges are cleaned up.
 
@@ -167,6 +179,7 @@ class TestWorkflowDefinitionUpdates:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing node deletion",
+            project_id=first_project_id,
             workflow_definition=WorkflowDefinition.from_dict(
                 {
                     "name": workflow_name,
@@ -257,7 +270,10 @@ class TestWorkflowDefinitionUpdates:
             assert edge["to"] != "script_node_b", "No edge should point to deleted node"
 
     def test_add_and_delete_edges(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 9: Add and delete edges between nodes via PATCH.
 
@@ -270,6 +286,7 @@ class TestWorkflowDefinitionUpdates:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing edge management",
+            project_id=first_project_id,
             workflow_definition=WorkflowDefinition.from_dict(
                 {
                     "name": workflow_name,

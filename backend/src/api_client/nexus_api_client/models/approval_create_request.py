@@ -27,6 +27,7 @@ class ApprovalCreateRequest:
 
         Attributes:
             execution_id (UUID): Parent workflow execution ID
+            project_id (UUID): Project ID (denormalized from execution)
             approval_node_id (str): Activity ID from workflow definition
             name (str): Display name for the approval request
             next_step_approved (ActivitySummary): Activity summary for workflow context.
@@ -39,7 +40,6 @@ class ApprovalCreateRequest:
                 Essential context for approvers to make a decision.
                 Contains workflow identification, inputs, and the output from the immediately
                 preceding activity.
-            project_id (None | Unset | UUID): Project ID (denormalized from execution)
             timeout_at (datetime.datetime | None | Unset): When this request expires (null = no timeout)
             next_step_rejected (ActivitySummary | None | Unset): First activity that executes if rejected
             approver_user_ids (list[UUID] | None | Unset): User IDs who can approve (null = any user with approval:decide
@@ -48,11 +48,11 @@ class ApprovalCreateRequest:
     """
 
     execution_id: UUID
+    project_id: UUID
     approval_node_id: str
     name: str
     next_step_approved: ActivitySummary
     workflow_context: WorkflowContext
-    project_id: None | Unset | UUID = UNSET
     timeout_at: datetime.datetime | None | Unset = UNSET
     next_step_rejected: ActivitySummary | None | Unset = UNSET
     approver_user_ids: list[UUID] | None | Unset = UNSET
@@ -64,6 +64,8 @@ class ApprovalCreateRequest:
 
         execution_id = str(self.execution_id)
 
+        project_id = str(self.project_id)
+
         approval_node_id = self.approval_node_id
 
         name = self.name
@@ -71,14 +73,6 @@ class ApprovalCreateRequest:
         next_step_approved = self.next_step_approved.to_dict()
 
         workflow_context = self.workflow_context.to_dict()
-
-        project_id: None | str | Unset
-        if isinstance(self.project_id, Unset):
-            project_id = UNSET
-        elif isinstance(self.project_id, UUID):
-            project_id = str(self.project_id)
-        else:
-            project_id = self.project_id
 
         timeout_at: None | str | Unset
         if isinstance(self.timeout_at, Unset):
@@ -125,14 +119,13 @@ class ApprovalCreateRequest:
         field_dict.update(
             {
                 "execution_id": execution_id,
+                "project_id": project_id,
                 "approval_node_id": approval_node_id,
                 "name": name,
                 "next_step_approved": next_step_approved,
                 "workflow_context": workflow_context,
             }
         )
-        if project_id is not UNSET:
-            field_dict["project_id"] = project_id
         if timeout_at is not UNSET:
             field_dict["timeout_at"] = timeout_at
         if next_step_rejected is not UNSET:
@@ -152,6 +145,8 @@ class ApprovalCreateRequest:
         d = dict(src_dict)
         execution_id = UUID(d.pop("execution_id"))
 
+        project_id = UUID(d.pop("project_id"))
+
         approval_node_id = d.pop("approval_node_id")
 
         name = d.pop("name")
@@ -159,23 +154,6 @@ class ApprovalCreateRequest:
         next_step_approved = ActivitySummary.from_dict(d.pop("next_step_approved"))
 
         workflow_context = WorkflowContext.from_dict(d.pop("workflow_context"))
-
-        def _parse_project_id(data: object) -> None | Unset | UUID:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                project_id_type_0 = UUID(data)
-
-                return project_id_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(None | Unset | UUID, data)
-
-        project_id = _parse_project_id(d.pop("project_id", UNSET))
 
         def _parse_timeout_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -257,11 +235,11 @@ class ApprovalCreateRequest:
 
         approval_create_request = cls(
             execution_id=execution_id,
+            project_id=project_id,
             approval_node_id=approval_node_id,
             name=name,
             next_step_approved=next_step_approved,
             workflow_context=workflow_context,
-            project_id=project_id,
             timeout_at=timeout_at,
             next_step_rejected=next_step_rejected,
             approver_user_ids=approver_user_ids,

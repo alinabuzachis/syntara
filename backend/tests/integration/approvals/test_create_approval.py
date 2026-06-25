@@ -16,6 +16,7 @@ import pytest
 from httpx import AsyncClient
 
 from nexus.approvals.models import ApprovalRequestStatus
+from nexus.workflows.models import Workflow
 from tests.helpers.error_data import assert_error_data
 from tests.helpers.workflow import ExecutionsFactory
 
@@ -28,6 +29,7 @@ class TestCreateApprovalContract:
         self,
         auth_client: AsyncClient,
         executions_factory: ExecutionsFactory,
+        test_workflow: Workflow,
     ) -> None:
         """Test that valid request creates approval and returns correct response schema.
 
@@ -46,6 +48,7 @@ class TestCreateApprovalContract:
 
         request_payload = {
             "execution_id": execution_id,
+            "project_id": str(test_workflow.project_id),
             "approval_node_id": "test_approval_node",
             "name": "Test Approval Request",
             "description": "This is a test approval request for contract testing",
@@ -123,6 +126,7 @@ class TestCreateApprovalContract:
         self,
         auth_client: AsyncClient,
         executions_factory: ExecutionsFactory,
+        test_workflow: Workflow,
     ) -> None:
         """Test creation with only required fields (optional fields as null).
 
@@ -139,6 +143,7 @@ class TestCreateApprovalContract:
 
         request_payload = {
             "execution_id": execution_id,
+            "project_id": str(test_workflow.project_id),
             "approval_node_id": "minimal_approval",
             "name": "Minimal Approval",
             "next_step_approved": {
@@ -178,6 +183,7 @@ class TestCreateApprovalContract:
         self,
         auth_client: AsyncClient,
         executions_factory: ExecutionsFactory,
+        test_workflow: Workflow,
     ) -> None:
         """Test that UUID format validation works correctly.
 
@@ -190,6 +196,7 @@ class TestCreateApprovalContract:
         executions = await executions_factory.create_executions(count=1)
         valid_payload = {
             "execution_id": str(executions[0].id),
+            "project_id": str(test_workflow.project_id),
             "approval_node_id": "uuid_test",
             "name": "UUID Test",
             "next_step_approved": {
@@ -253,11 +260,13 @@ class TestCreateApprovalContract:
         self,
         auth_client: AsyncClient,
         executions_factory: ExecutionsFactory,
+        test_workflow: Workflow,
     ) -> None:
         """Test that missing required fields return validation errors.
 
         Validates:
         - Missing execution_id returns 422
+        - Missing project_id returns 422
         - Missing approval_node_id returns 422
         - Missing name returns 422
         - Missing workflow_context returns 422
@@ -267,6 +276,7 @@ class TestCreateApprovalContract:
         executions = await executions_factory.create_executions(count=1)
         base_payload = {
             "execution_id": str(executions[0].id),
+            "project_id": str(test_workflow.project_id),
             "approval_node_id": "test_node",
             "name": "Test Name",
             "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},
@@ -283,6 +293,20 @@ class TestCreateApprovalContract:
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: execution_id: Field required",
+            code="REQUEST_VALIDATION_ERROR",
+            retryable=False,
+        )
+
+        # Test missing project_id
+        payload = dict(base_payload)
+        del payload["project_id"]
+        response = await auth_client.post("/api/v1/approvals", json=payload)
+        assert response.status_code == 422
+        assert_error_data(
+            response,
+            error_type="https://api.nexus.com/errors/validation-error",
+            title="Request Validation Error",
+            detail="Validation failed: project_id: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -334,6 +358,7 @@ class TestCreateApprovalContract:
         self,
         auth_client: AsyncClient,
         executions_factory: ExecutionsFactory,
+        test_workflow: Workflow,
     ) -> None:
         """Test that ActivitySummary structures are validated correctly.
 
@@ -347,6 +372,7 @@ class TestCreateApprovalContract:
         executions = await executions_factory.create_executions(count=1)
         base_payload = {
             "execution_id": str(executions[0].id),
+            "project_id": str(test_workflow.project_id),
             "name": "Activity Test",
             "workflow_context": {"workflow_version_id": str(uuid4()), "workflow_name": "Test Workflow", "inputs": {}},
         }
@@ -394,6 +420,7 @@ class TestCreateApprovalContract:
         self,
         auth_client: AsyncClient,
         executions_factory: ExecutionsFactory,
+        test_workflow: Workflow,
     ) -> None:
         """Test that WorkflowContext structure is validated correctly.
 
@@ -407,6 +434,7 @@ class TestCreateApprovalContract:
         executions = await executions_factory.create_executions(count=1)
         base_payload = {
             "execution_id": str(executions[0].id),
+            "project_id": str(test_workflow.project_id),
             "name": "Context Test",
             "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},
         }
@@ -476,6 +504,7 @@ class TestCreateApprovalContract:
         self,
         auth_client: AsyncClient,
         executions_factory: ExecutionsFactory,
+        test_workflow: Workflow,
     ) -> None:
         """Test that duplicate approval requests return 409 Conflict error.
 
@@ -492,6 +521,7 @@ class TestCreateApprovalContract:
 
         base_payload = {
             "execution_id": execution_id,
+            "project_id": str(test_workflow.project_id),
             "approval_node_id": "duplicate_test_node",
             "name": "First Approval Request",
             "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},

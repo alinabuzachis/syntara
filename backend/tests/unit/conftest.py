@@ -7,13 +7,15 @@ via the ``session_app`` fixture's lifespan startup instead.
 """
 
 from collections.abc import Generator
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+import pytest_asyncio
 from fastapi import FastAPI
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import clear_opa_cache, init_opa_cache
+from nexus.authz.models.project import Project
 from nexus.authz.resource_actions import _registry, build_resource_actions
 from nexus.core.models import User
 
@@ -45,6 +47,15 @@ def _reset_opa_cache() -> Generator[None, None, None]:
     yield
     clear_opa_cache()
     init_opa_cache(enabled=False)
+
+
+@pytest_asyncio.fixture
+async def test_project_id(test_db_session: AsyncSession) -> UUID:
+    """Create a test project and return its ID."""
+    project = Project(name=f"unit-test-project-{uuid4().hex[:8]}", description="Unit test project")
+    test_db_session.add(project)
+    await test_db_session.flush()
+    return project.id
 
 
 @pytest.fixture

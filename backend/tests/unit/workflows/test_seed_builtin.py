@@ -61,6 +61,12 @@ class TestSeedBuiltinWorkflows:
             await seed_builtin_workflows(session)
 
     @pytest.mark.asyncio
+    async def test_raises_when_no_builtin_project(self) -> None:
+        session = _mock_session(_mock_admin(), None)
+        with pytest.raises(RuntimeError, match="Built-in project not found"):
+            await seed_builtin_workflows(session)
+
+    @pytest.mark.asyncio
     async def test_creates_all_builtin_workflows(self) -> None:
         admin, project = _mock_admin(), _mock_project()
         # exec sequence per definition: admin (shared), project (shared),
@@ -99,14 +105,16 @@ class TestSeedBuiltinWorkflows:
         existing = MagicMock(spec=Workflow)
         existing.id = uuid4()
         existing.current_version = 1
-        existing.project_id = None
+        existing.project_id = uuid4()
 
         cur_ver = MagicMock(spec=WorkflowVersion)
         cur_ver.workflow_definition = first_def
         cur_ver.status = WorkflowVersionStatus.PUBLISHED
 
-        # admin, project(None), existing workflow, current version, then remaining defs as new
-        session = _mock_session(_mock_admin(), None, existing, cur_ver, *[None] * (len(_BUILTIN_DEFINITIONS) - 1))
+        # admin, project, existing workflow, current version, then remaining defs as new
+        session = _mock_session(
+            _mock_admin(), _mock_project(), existing, cur_ver, *[None] * (len(_BUILTIN_DEFINITIONS) - 1)
+        )
 
         await seed_builtin_workflows(session)
 
@@ -122,15 +130,17 @@ class TestSeedBuiltinWorkflows:
         existing = MagicMock(spec=Workflow)
         existing.id = uuid4()
         existing.current_version = 1
-        existing.project_id = None
+        existing.project_id = uuid4()
         existing.increment_version.return_value = 2
 
         cur_ver = MagicMock(spec=WorkflowVersion)
         cur_ver.workflow_definition = old_def
         cur_ver.status = WorkflowVersionStatus.PUBLISHED
 
-        # admin, project(None), existing workflow, current version, then remaining defs as new
-        session = _mock_session(_mock_admin(), None, existing, cur_ver, *[None] * (len(_BUILTIN_DEFINITIONS) - 1))
+        # admin, project, existing workflow, current version, then remaining defs as new
+        session = _mock_session(
+            _mock_admin(), _mock_project(), existing, cur_ver, *[None] * (len(_BUILTIN_DEFINITIONS) - 1)
+        )
 
         await seed_builtin_workflows(session)
 
@@ -148,7 +158,7 @@ class TestSeedBuiltinWorkflows:
             ValueError("bad"),
             *[None] * (len(_BUILTIN_DEFINITIONS) - 1),
         ]
-        session = _mock_session(_mock_admin(), None, *[None] * (len(_BUILTIN_DEFINITIONS) - 1))
+        session = _mock_session(_mock_admin(), _mock_project(), *[None] * (len(_BUILTIN_DEFINITIONS) - 1))
 
         await seed_builtin_workflows(session)
 

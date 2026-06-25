@@ -6,6 +6,7 @@ dataset, including edge cases.
 """
 
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
@@ -21,7 +22,7 @@ DATASET_SIZE = 25  # Number of workflows created by workflows_dataset fixture
 
 
 @pytest_asyncio.fixture
-async def workflows_dataset(test_db_session: AsyncSession, test_user: User) -> list[Workflow]:
+async def workflows_dataset(test_db_session: AsyncSession, test_user: User, test_project_id: UUID) -> list[Workflow]:
     """Create a dataset of workflows with predictable timestamps for testing pagination.
 
     Creates DATASET_SIZE workflows with timestamps spaced 1 hour apart, ensuring
@@ -30,6 +31,7 @@ async def workflows_dataset(test_db_session: AsyncSession, test_user: User) -> l
     Args:
         test_db_session: Database session
         test_user: Admin user for creating workflows
+        test_project_id: Project ID for workflow creation
 
     Returns:
         List of created workflows in chronological order (oldest to newest)
@@ -50,6 +52,7 @@ async def workflows_dataset(test_db_session: AsyncSession, test_user: User) -> l
                 name=f"test-workflow-{i:02d}",
                 description=f"Workflow for pagination testing - number {i}",
             ),
+            project_id=test_project_id,
         )
 
         workflows.append(workflow)
@@ -310,7 +313,9 @@ class TestBidirectionalPagination:
             assert prev_cursor_data["direction"] == "prev", "Prev cursor should have direction='prev'"
 
     @pytest.mark.asyncio
-    async def test_single_page_dataset(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_single_page_dataset(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test pagination with a dataset that fits on a single page.
 
         When all data fits on one page:
@@ -329,6 +334,7 @@ class TestBidirectionalPagination:
                     name=f"single-page-workflow-{i}",
                     description="Test",
                 ),
+                project_id=test_project_id,
             )
 
         response = await service.list_workflows_cursor(
@@ -665,7 +671,9 @@ class TestBidirectionalPagination:
             assert backward_pages[-1].prev is None, "Last backward page (first page) should have prev=None"
 
     @pytest.mark.asyncio
-    async def test_backward_pagination_single_item_pages(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_backward_pagination_single_item_pages(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
         """Test backward pagination with single-item pages.
 
         Edge case: When page size is 1, backward navigation should still work correctly.
@@ -682,6 +690,7 @@ class TestBidirectionalPagination:
                     name=f"single-item-test-{i}",
                     description="Test",
                 ),
+                project_id=test_project_id,
             )
 
         # Get page 1 (1 item)

@@ -49,6 +49,12 @@ async def multi_node_workflow(test_db_session: AsyncSession, test_user: User) ->
             {"from": "predecessor_node", "to": "test_activity"},
         ],
     }
+    from nexus.authz.models.project import Project
+
+    project = Project(name=f"test-node-project-{uuid.uuid4().hex[:8]}")
+    test_db_session.add(project)
+    await test_db_session.flush()
+
     workflow = Workflow(
         name=f"multi-node-test-{uuid.uuid4().hex[:8]}",
         is_enabled=True,
@@ -56,6 +62,7 @@ async def multi_node_workflow(test_db_session: AsyncSession, test_user: User) ->
         created_by=test_user.id,
         updated_by=test_user.id,
         current_version=1,
+        project_id=project.id,
     )
     test_db_session.add(workflow)
     await test_db_session.flush()

@@ -117,6 +117,7 @@ class TestRejectSignal:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ) -> None:
         """Rejecting ends the execution and does not run the approved-path node.
 
@@ -136,6 +137,7 @@ class TestRejectSignal:
                 name=name,
                 description="E2E: reject signal terminates execution",
                 workflow_definition=_reject_only_workflow(name),
+                project_id=first_project_id,
             )
         )
 
@@ -181,6 +183,7 @@ class TestRejectSignal:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ) -> None:
         """The node connected on the 'rejected' port executes after rejection.
 
@@ -199,6 +202,7 @@ class TestRejectSignal:
                 name=name,
                 description="E2E: rejected-path node executes on rejection",
                 workflow_definition=_branched_workflow(name),
+                project_id=first_project_id,
             )
         )
 
@@ -232,6 +236,7 @@ class TestRejectSignal:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ) -> None:
         """Rejection records decision, decided_by, and decided_at in the activity output.
 
@@ -253,6 +258,7 @@ class TestRejectSignal:
                 name=name,
                 description="E2E: reject signal output field verification",
                 workflow_definition=_reject_only_workflow(name),
+                project_id=first_project_id,
             )
         )
 

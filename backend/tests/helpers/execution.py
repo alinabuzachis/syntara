@@ -35,6 +35,7 @@ class ExecutionFactory:
             created_by=self.user.id,
             completed_at=completed_at,
             input_data={},
+            project_id=workflow.project_id,
         )
         self.session.add(execution)
         await self.session.flush()

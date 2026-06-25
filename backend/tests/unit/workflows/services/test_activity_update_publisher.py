@@ -63,6 +63,7 @@ def execution_with_activities() -> Execution:
         updated_by=uuid4(),
         input_data={},
         labels={},
+        project_id=uuid4(),
     )
     execution.activities = activities
 
@@ -148,6 +149,7 @@ class TestPublishSnapshot:
             updated_by=uuid4(),
             input_data={},
             labels={},
+            project_id=uuid4(),
         )
         execution.activities = []
 

@@ -8,6 +8,7 @@ Run with:
 """
 
 from typing import Any
+from uuid import UUID
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry
@@ -422,7 +423,7 @@ def test_multi_node_workflow(nexus_api: NexusApiRegistry):
 
 @pytest.mark.e2e
 def test_script_then_agentic(
-    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str
+    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
 ):
     """A script node feeds into an agentic node."""
     result = create_and_run_workflow(
@@ -464,6 +465,7 @@ def test_script_then_agentic(
             ],
         },
         timeout=AGENTIC_POLL_TIMEOUT,
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
@@ -474,7 +476,7 @@ def test_script_then_agentic(
 
 @pytest.mark.e2e
 def test_agentic_then_script(
-    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str
+    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
 ):
     """An agentic node feeds into a script node."""
     result = create_and_run_workflow(
@@ -516,6 +518,7 @@ def test_agentic_then_script(
             ],
         },
         timeout=AGENTIC_POLL_TIMEOUT,
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
@@ -526,7 +529,7 @@ def test_agentic_then_script(
 
 @pytest.mark.e2e
 def test_loop_with_agentic_body(
-    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str
+    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
 ):
     """A loop iterates with an agentic node as the loop body."""
     result = create_and_run_workflow(
@@ -569,6 +572,7 @@ def test_loop_with_agentic_body(
             ],
         },
         timeout=AGENTIC_POLL_TIMEOUT,
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
@@ -579,7 +583,7 @@ def test_loop_with_agentic_body(
 
 @pytest.mark.e2e
 def test_http_request_then_agentic(
-    nexus_api: NexusApiRegistry, worker_base_url: str, llm_credential_id: str, llm_model: str
+    nexus_api: NexusApiRegistry, worker_base_url: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
 ):
     """An HTTP request node feeds into an agentic node."""
     result = create_and_run_workflow(
@@ -618,6 +622,7 @@ def test_http_request_then_agentic(
             ],
         },
         timeout=AGENTIC_POLL_TIMEOUT,
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
@@ -882,7 +887,7 @@ def test_switch_in_operator(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry):
+def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry, first_project_id: UUID):
     """Switch with empty cases array is rejected at schema validation."""
     wf_def = WorkflowDefinition.from_dict(
         {
@@ -916,6 +921,7 @@ def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry):
             name="e2e-switch-empty-cases",
             description="E2E test: empty switch cases",
             workflow_definition=wf_def,
+            project_id=first_project_id,
         )
     )
     assert not response.is_success, "Empty cases should be rejected by schema validation"

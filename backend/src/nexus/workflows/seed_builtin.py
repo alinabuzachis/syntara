@@ -112,7 +112,10 @@ async def seed_builtin_workflows(session: AsyncSession) -> None:
         )
     )
     system_project = project_result.first()
-    project_id = system_project.id if system_project else None
+    if not system_project:
+        msg = "Built-in project not found — cannot seed builtin workflows. Ensure authz seeder runs first."
+        raise RuntimeError(msg)
+    project_id = system_project.id
 
     for workflow_dict in _BUILTIN_DEFINITIONS:
         try:
@@ -129,7 +132,7 @@ async def _seed_one(
     session: AsyncSession,
     workflow_dict: dict[str, Any],
     creator_id: UUID,
-    project_id: UUID | None,
+    project_id: UUID,
 ) -> None:
     name = workflow_dict["name"]
 

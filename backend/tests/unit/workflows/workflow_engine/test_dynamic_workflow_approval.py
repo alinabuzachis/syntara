@@ -40,6 +40,7 @@ def _make_workflow(
     """Create a NexusWorkflow with initialized state, bypassing __init__."""
     wf = NexusWorkflow.__new__(NexusWorkflow)
     wf.execution_id = execution_id
+    wf._project_id = None
     wf.skipped_nodes = set()
     wf.failed_nodes = {}
     wf.resolver = resolver if resolver is not None else NamespaceResolver()
@@ -194,7 +195,7 @@ class TestPrepareApprovalArgs:
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
             args = await wf._prepare_approval_args(node, graph, node.parameters)
 
-        assert len(args) == 9
+        assert len(args) == 10
         assert args[0] == "exec-456"  # execution_id
         assert args[1] == "approval"  # approval_node_id
         assert args[2] == "Review Deployment"  # name
@@ -226,7 +227,7 @@ class TestPrepareApprovalArgs:
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
             args = await wf._prepare_approval_args(node, graph, config)
 
-        assert len(args) == 9
+        assert len(args) == 10
         assert args[7] == [alice_id, bob_id]  # approver_user_ids
         assert args[8] == [security_team_id, admins_id]  # approver_group_ids
 
@@ -419,7 +420,7 @@ class TestDispatchApprovalNode:
         approval_call = mock_activity.call_args_list[0]
         assert approval_call.args[0] == ActivityName.APPROVAL
         activity_args = approval_call.kwargs["args"]
-        assert len(activity_args) == 9  # Updated: added approver_user_ids and approver_group_ids
+        assert len(activity_args) == 10
         assert activity_args[0] == "exec-789"  # execution_id
         assert activity_args[1] == "approval"  # approval_node_id
         assert activity_args[2] == "Review Deployment"  # name

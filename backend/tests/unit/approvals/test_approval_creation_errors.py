@@ -21,6 +21,7 @@ def _create_test_approval_request(
     approval_node_id: str,
     approver_user_ids: list[UUID] | None = None,
     approver_group_ids: list[UUID] | None = None,
+    project_id: UUID | None = None,
 ) -> ApprovalCreateRequest:
     """Helper to create a valid ApprovalCreateRequest for testing."""
     workflow_context = WorkflowContext(
@@ -43,6 +44,7 @@ def _create_test_approval_request(
         workflow_context=workflow_context,
         approver_user_ids=approver_user_ids or [],
         approver_group_ids=approver_group_ids or [],
+        project_id=project_id or uuid4(),
     )
 
 
@@ -50,6 +52,7 @@ def _create_test_approval_request(
 async def test_concurrent_approval_creation_race_condition(
     test_db_session: AsyncSession,
     admin_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test that duplicate approval creation is prevented by unique constraint.
 
@@ -65,7 +68,7 @@ async def test_concurrent_approval_creation_race_condition(
 
     service = ApprovalService(test_db_session, admin_user)
 
-    request = _create_test_approval_request(execution_id, approval_node_id)
+    request = _create_test_approval_request(execution_id, approval_node_id, project_id=test_project_id)
 
     # Create first approval - should succeed
     first_result = await service.create(request)
@@ -85,6 +88,7 @@ async def test_concurrent_approval_creation_race_condition(
 async def test_approval_creation_with_invalid_user_id(
     test_db_session: AsyncSession,
     admin_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test that approval creation with invalid user_id raises ValueError (400).
 
@@ -96,7 +100,12 @@ async def test_approval_creation_with_invalid_user_id(
 
     service = ApprovalService(test_db_session, admin_user)
 
-    request = _create_test_approval_request(execution_id, "test_node", approver_user_ids=[invalid_user_id])
+    request = _create_test_approval_request(
+        execution_id,
+        "test_node",
+        approver_user_ids=[invalid_user_id],
+        project_id=test_project_id,
+    )
 
     # Should raise ValueError (not IntegrityError)
     with pytest.raises(ValueError) as exc_info:
@@ -112,6 +121,7 @@ async def test_approval_creation_with_invalid_user_id(
 async def test_approval_creation_with_invalid_group_id(
     test_db_session: AsyncSession,
     admin_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test that approval creation with invalid group_id raises ValueError (400).
 
@@ -123,7 +133,12 @@ async def test_approval_creation_with_invalid_group_id(
 
     service = ApprovalService(test_db_session, admin_user)
 
-    request = _create_test_approval_request(execution_id, "test_node", approver_group_ids=[invalid_group_id])
+    request = _create_test_approval_request(
+        execution_id,
+        "test_node",
+        approver_group_ids=[invalid_group_id],
+        project_id=test_project_id,
+    )
 
     # Should raise ValueError (not IntegrityError)
     with pytest.raises(ValueError) as exc_info:
@@ -140,6 +155,7 @@ async def test_approval_creation_with_mixed_valid_invalid_approvers(
     test_db_session: AsyncSession,
     admin_user: User,
     user_factory: Callable[..., Awaitable[User]],
+    test_project_id: UUID,
 ) -> None:
     """Test that approval creation fails if ANY approver UUID is invalid.
 
@@ -154,7 +170,10 @@ async def test_approval_creation_with_mixed_valid_invalid_approvers(
     service = ApprovalService(test_db_session, admin_user)
 
     request = _create_test_approval_request(
-        execution_id, "test_node", approver_user_ids=[valid_user_id, invalid_user_id]
+        execution_id,
+        "test_node",
+        approver_user_ids=[valid_user_id, invalid_user_id],
+        project_id=test_project_id,
     )
 
     # Should raise ValueError due to invalid UUID
@@ -170,6 +189,7 @@ async def test_approval_creation_with_mixed_valid_invalid_approvers(
 async def test_approval_already_requested_error_message(
     test_db_session: AsyncSession,
     admin_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test that attempting to create duplicate approval raises clear error."""
     execution_id = uuid4()
@@ -177,7 +197,7 @@ async def test_approval_already_requested_error_message(
 
     service = ApprovalService(test_db_session, admin_user)
 
-    request = _create_test_approval_request(execution_id, approval_node_id)
+    request = _create_test_approval_request(execution_id, approval_node_id, project_id=test_project_id)
 
     # Create first approval
     await service.create(request)

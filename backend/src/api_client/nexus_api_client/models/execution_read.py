@@ -35,6 +35,7 @@ class ExecutionRead:
             id (UUID):
             workflow_id (UUID):
             workflow_version_id (UUID):
+            project_id (UUID):
             temporal_workflow_id (str):
             status (ExecutionStatus): Current state of a workflow execution lifecycle.
             created_by (UUID):
@@ -44,7 +45,6 @@ class ExecutionRead:
             updated_by (None | UUID):
             input_data (ExecutionReadInputData):
             error_details (None | str):
-            project_id (None | Unset | UUID):
             trigger_node_id (None | str | Unset):
             mode (ExecutionMode | Unset): Execution mode for workflow runs.
             execution_metadata (ExecutionReadExecutionMetadataType0 | None | Unset):
@@ -61,6 +61,7 @@ class ExecutionRead:
     id: UUID
     workflow_id: UUID
     workflow_version_id: UUID
+    project_id: UUID
     temporal_workflow_id: str
     status: ExecutionStatus
     created_by: UUID
@@ -70,7 +71,6 @@ class ExecutionRead:
     updated_by: None | UUID
     input_data: ExecutionReadInputData
     error_details: None | str
-    project_id: None | Unset | UUID = UNSET
     trigger_node_id: None | str | Unset = UNSET
     mode: ExecutionMode | Unset = UNSET
     execution_metadata: ExecutionReadExecutionMetadataType0 | None | Unset = UNSET
@@ -91,6 +91,8 @@ class ExecutionRead:
         workflow_id = str(self.workflow_id)
 
         workflow_version_id = str(self.workflow_version_id)
+
+        project_id = str(self.project_id)
 
         temporal_workflow_id = self.temporal_workflow_id
 
@@ -118,14 +120,6 @@ class ExecutionRead:
 
         error_details: None | str
         error_details = self.error_details
-
-        project_id: None | str | Unset
-        if isinstance(self.project_id, Unset):
-            project_id = UNSET
-        elif isinstance(self.project_id, UUID):
-            project_id = str(self.project_id)
-        else:
-            project_id = self.project_id
 
         trigger_node_id: None | str | Unset
         if isinstance(self.trigger_node_id, Unset):
@@ -199,6 +193,7 @@ class ExecutionRead:
                 "id": id,
                 "workflow_id": workflow_id,
                 "workflow_version_id": workflow_version_id,
+                "project_id": project_id,
                 "temporal_workflow_id": temporal_workflow_id,
                 "status": status,
                 "created_by": created_by,
@@ -210,8 +205,6 @@ class ExecutionRead:
                 "error_details": error_details,
             }
         )
-        if project_id is not UNSET:
-            field_dict["project_id"] = project_id
         if trigger_node_id is not UNSET:
             field_dict["trigger_node_id"] = trigger_node_id
         if mode is not UNSET:
@@ -248,6 +241,8 @@ class ExecutionRead:
         workflow_id = UUID(d.pop("workflow_id"))
 
         workflow_version_id = UUID(d.pop("workflow_version_id"))
+
+        project_id = UUID(d.pop("project_id"))
 
         temporal_workflow_id = d.pop("temporal_workflow_id")
 
@@ -297,23 +292,6 @@ class ExecutionRead:
             return cast(None | str, data)
 
         error_details = _parse_error_details(d.pop("error_details"))
-
-        def _parse_project_id(data: object) -> None | Unset | UUID:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                project_id_type_0 = UUID(data)
-
-                return project_id_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(None | Unset | UUID, data)
-
-        project_id = _parse_project_id(d.pop("project_id", UNSET))
 
         def _parse_trigger_node_id(data: object) -> None | str | Unset:
             if data is None:
@@ -441,6 +419,7 @@ class ExecutionRead:
             id=id,
             workflow_id=workflow_id,
             workflow_version_id=workflow_version_id,
+            project_id=project_id,
             temporal_workflow_id=temporal_workflow_id,
             status=status,
             created_by=created_by,
@@ -450,7 +429,6 @@ class ExecutionRead:
             updated_by=updated_by,
             input_data=input_data,
             error_details=error_details,
-            project_id=project_id,
             trigger_node_id=trigger_node_id,
             mode=mode,
             execution_metadata=execution_metadata,

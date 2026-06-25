@@ -97,6 +97,7 @@ def create_test_approval_request(
 
     return ApprovalRequest(
         execution_id=execution_id,
+        project_id=uuid4(),
         approval_node_id=approval_node_id,
         name=name,
         status=status,
@@ -208,16 +209,18 @@ def create_cancelled_approval_request(
 class ApprovalsFactory:
     """Factory class for creating test approval requests with configurable properties."""
 
-    def __init__(self, session: AsyncSession, user: User) -> None:
+    def __init__(self, session: AsyncSession, user: User, project_id: UUID) -> None:
         """Initialize the ApprovalsFactory with database session and required entities.
 
         Args:
             session: AsyncSession for database operations
             user: User instance to set as creator/decider of approval requests
+            project_id: Project UUID to assign to created approval requests
 
         """
         self.session = session
         self.user = user
+        self.project_id = project_id
         self._node_counter = 0  # Global counter for unique approval_node_id values
 
     def _get_decision_fields(
@@ -287,6 +290,7 @@ class ApprovalsFactory:
 
         return ApprovalRequest(
             execution_id=execution_id,
+            project_id=self.project_id,
             approval_node_id=f"approval_node_{self._node_counter}",
             name=f"{name_prefix} {index + 1}",
             status=status,

@@ -35,22 +35,24 @@ class WorkflowCreate:
                     triggers: Trigger nodes that define how the workflow is initiated
                     nodes: Execution and control nodes in the workflow graph
                     edges: Directed edges connecting triggers and nodes in the workflow graph
+            project_id (UUID): Project to assign workflow to
             description (None | str | Unset): Workflow description
             labels (WorkflowCreateLabels | Unset): Workflow labels
-            project_id (None | Unset | UUID): Project to assign workflow to
     """
 
     name: str
     workflow_definition: WorkflowDefinition
+    project_id: UUID
     description: None | str | Unset = UNSET
     labels: WorkflowCreateLabels | Unset = UNSET
-    project_id: None | Unset | UUID = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         name = self.name
 
         workflow_definition = self.workflow_definition.to_dict()
+
+        project_id = str(self.project_id)
 
         description: None | str | Unset
         if isinstance(self.description, Unset):
@@ -62,28 +64,19 @@ class WorkflowCreate:
         if not isinstance(self.labels, Unset):
             labels = self.labels.to_dict()
 
-        project_id: None | str | Unset
-        if isinstance(self.project_id, Unset):
-            project_id = UNSET
-        elif isinstance(self.project_id, UUID):
-            project_id = str(self.project_id)
-        else:
-            project_id = self.project_id
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "name": name,
                 "workflow_definition": workflow_definition,
+                "project_id": project_id,
             }
         )
         if description is not UNSET:
             field_dict["description"] = description
         if labels is not UNSET:
             field_dict["labels"] = labels
-        if project_id is not UNSET:
-            field_dict["project_id"] = project_id
 
         return field_dict
 
@@ -96,6 +89,8 @@ class WorkflowCreate:
         name = d.pop("name")
 
         workflow_definition = WorkflowDefinition.from_dict(d.pop("workflow_definition"))
+
+        project_id = UUID(d.pop("project_id"))
 
         def _parse_description(data: object) -> None | str | Unset:
             if data is None:
@@ -113,29 +108,12 @@ class WorkflowCreate:
         else:
             labels = WorkflowCreateLabels.from_dict(_labels)
 
-        def _parse_project_id(data: object) -> None | Unset | UUID:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                project_id_type_0 = UUID(data)
-
-                return project_id_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(None | Unset | UUID, data)
-
-        project_id = _parse_project_id(d.pop("project_id", UNSET))
-
         workflow_create = cls(
             name=name,
             workflow_definition=workflow_definition,
+            project_id=project_id,
             description=description,
             labels=labels,
-            project_id=project_id,
         )
 
         workflow_create.additional_properties = d

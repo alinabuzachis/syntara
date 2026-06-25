@@ -93,10 +93,29 @@ def poll_for_pending_approval(
 
 
 def create_and_run_workflow(
-    api: NexusApiRegistry, name: str, definition: dict[str, Any], timeout: int = POLL_TIMEOUT
+    api: NexusApiRegistry,
+    name: str,
+    definition: dict[str, Any],
+    timeout: int = POLL_TIMEOUT,
+    project_id: UUID | None = None,
 ) -> ExecutionRead:
-    """Create (or update) a workflow, execute it, and return the completed ExecutionRead."""
-    list_response = _retry_api_call(lambda: api.workflows.list(additional_params={"name": name}))
+    """Create (or update) a workflow, execute it, and return the completed ExecutionRead.
+
+    If *project_id* is not provided, the first available project is looked up from the API.
+    """
+    if project_id is None:
+        projects_list = api.projects.list().assert_and_get()
+        for project in projects_list.resources:
+            if not getattr(project, "is_builtin", False):
+                project_id = UUID(str(project.id))
+                break
+        assert project_id is not None, "No non-builtin projects available"
+
+    list_response = _retry_api_call(
+        lambda: api.workflows.list(
+            additional_params={"name": name, "project_id[eq]": str(project_id)},
+        )
+    )
     workflows_list = list_response.assert_and_get()
     existing = [w for w in workflows_list.resources if w.name == name]
 
@@ -115,6 +134,7 @@ def create_and_run_workflow(
                     name=name,
                     description=f"E2E test: {name}",
                     workflow_definition=wf_def,
+                    project_id=project_id,
                 )
             )
         )

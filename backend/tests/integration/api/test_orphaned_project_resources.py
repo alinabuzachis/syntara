@@ -292,8 +292,8 @@ async def test_create_workflow_with_nonexistent_project_returns_404(jwt_client: 
 
 
 @pytest.mark.asyncio
-async def test_create_workflow_without_project_still_works(jwt_client: AsyncClient) -> None:
-    """POST /workflows with no project_id must still succeed (regression guard)."""
+async def test_create_workflow_without_project_returns_422(jwt_client: AsyncClient) -> None:
+    """POST /workflows with no project_id must return 422 (project_id is required)."""
     resp = await jwt_client.post(
         "/api/v1/workflows",
         json={
@@ -302,4 +302,4 @@ async def test_create_workflow_without_project_still_works(jwt_client: AsyncClie
         },
     )
 
-    assert resp.status_code == 201
+    assert resp.status_code == 422

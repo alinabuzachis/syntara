@@ -61,6 +61,7 @@ class TestWorkflowCompletedEventEmission:
             workflow_id=workflow_id,
             status=ExecutionStatus.RUNNING,
             created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
         )
 
         # Create metadata with workflow_name
@@ -118,6 +119,7 @@ class TestWorkflowCompletedEventEmission:
             workflow_id=workflow_id,
             status=ExecutionStatus.RUNNING,
             created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
         )
 
         # Create metadata with None workflow_name (workflow was deleted)
@@ -164,6 +166,7 @@ class TestWorkflowCompletedEventEmission:
             workflow_id=workflow_id,
             status=ExecutionStatus.RUNNING,
             created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
         )
 
         fallback_name = f"<workflow-{workflow_id}>"
@@ -215,6 +218,7 @@ class TestWorkflowExecutionErrorEventEmission:
             workflow_id=workflow_id,
             status=ExecutionStatus.RUNNING,
             created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
         )
 
         metadata = ExecutionMonitorMetadata(
@@ -273,6 +277,7 @@ class TestWorkflowExecutionErrorEventEmission:
             workflow_id=workflow_id,
             status=ExecutionStatus.RUNNING,
             created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
         )
 
         metadata = ExecutionMonitorMetadata(

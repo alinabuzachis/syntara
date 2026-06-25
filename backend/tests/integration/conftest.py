@@ -12,7 +12,7 @@ across multiple database connections (e.g. API clients, concurrent sessions).
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -22,6 +22,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import clear_opa_cache, init_opa_cache
+from nexus.authz.models.project import Project
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.models.group import Group
 
@@ -83,6 +84,19 @@ async def test_db_session(
         raise
     finally:
         await session.close()
+
+
+@pytest_asyncio.fixture
+async def test_project_id(test_db_session: AsyncSession) -> UUID:
+    """Create a test project and return its ID.
+
+    Provides a non-builtin project for tests that create project-scoped resources.
+    """
+    project = Project(name=f"test-project-{uuid4().hex[:8]}", description="Test project")
+    test_db_session.add(project)
+    await test_db_session.flush()
+    await test_db_session.refresh(project)
+    return project.id
 
 
 @pytest_asyncio.fixture(autouse=True)

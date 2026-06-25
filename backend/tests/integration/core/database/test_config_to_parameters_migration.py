@@ -7,7 +7,7 @@ covering both the "nodes" and "triggers" arrays.
 
 import json
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import text
@@ -136,6 +136,7 @@ async def _insert_version(
     session: AsyncSession,
     workflow_def: dict[str, Any],
     user_id: str,
+    project_id: str,
 ) -> str:
     """Insert a workflow + workflow_version row and return the version ID."""
     wf_id = str(uuid4())
@@ -144,14 +145,15 @@ async def _insert_version(
         text("""
             INSERT INTO workflows
                 (id, name, current_version, is_enabled, published_version,
-                 created_by, updated_by, labels)
-            VALUES (:wf_id, :name, 1, true, 1, :user_id, :user_id, :empty_json)
+                 created_by, updated_by, labels, project_id)
+            VALUES (:wf_id, :name, 1, true, 1, :user_id, :user_id, :empty_json, :project_id)
         """),
         params={
             "wf_id": wf_id,
             "name": f"mig-test-{wf_id[:8]}",
             "user_id": user_id,
             "empty_json": "{}",
+            "project_id": project_id,
         },
     )
     await session.exec(  # type: ignore[call-overload]
@@ -212,14 +214,14 @@ async def _run_downgrade(session: AsyncSession) -> None:
 class TestConfigToParametersMigrationNodes:
     """Tests for the config→parameters JSONB rename SQL on nodes."""
 
-    async def test_basic_rename(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_basic_rename(self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID) -> None:
         """Single node with "config" is renamed to "parameters"."""
         wd = _make_workflow_def(
             [
                 {"id": "n1", "type": "script", "config": {"language": "python", "code": "print(1)"}},
             ]
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
 
@@ -228,7 +230,9 @@ class TestConfigToParametersMigrationNodes:
         assert "config" not in nodes[0]
         assert nodes[0]["parameters"] == {"language": "python", "code": "print(1)"}
 
-    async def test_multiple_nodes(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_multiple_nodes(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """All nodes with "config" are renamed."""
         wd = _make_workflow_def(
             [
@@ -237,7 +241,7 @@ class TestConfigToParametersMigrationNodes:
                 {"id": "n3", "type": "condition", "config": {"condition": "1 == 1"}},
             ]
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
 
@@ -246,14 +250,16 @@ class TestConfigToParametersMigrationNodes:
             assert "parameters" in node, f"node {node['id']} missing 'parameters'"
             assert "config" not in node, f"node {node['id']} still has 'config'"
 
-    async def test_already_migrated_unchanged(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_already_migrated_unchanged(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Node already using "parameters" is left unchanged."""
         wd = _make_workflow_def(
             [
                 {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "x"}},
             ]
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
 
@@ -262,7 +268,7 @@ class TestConfigToParametersMigrationNodes:
         assert "config" not in nodes[0]
         assert nodes[0]["parameters"] == {"language": "python", "code": "x"}
 
-    async def test_mixed_nodes(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_mixed_nodes(self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID) -> None:
         """Only nodes with "config" are renamed; "parameters" nodes stay."""
         wd = _make_workflow_def(
             [
@@ -270,7 +276,7 @@ class TestConfigToParametersMigrationNodes:
                 {"id": "new", "type": "script", "parameters": {"language": "bash", "code": "echo new"}},
             ]
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
 
@@ -281,10 +287,12 @@ class TestConfigToParametersMigrationNodes:
         assert by_id["old"]["parameters"] == {"language": "bash", "code": "echo old"}
         assert by_id["new"]["parameters"] == {"language": "bash", "code": "echo new"}
 
-    async def test_no_nodes_key_untouched(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_no_nodes_key_untouched(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Row without "nodes" in workflow_definition is not modified."""
         wd: dict[str, Any] = {"schema_version": "1.0.0", "metadata": {"name": "legacy"}}
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
 
@@ -296,14 +304,16 @@ class TestConfigToParametersMigrationNodes:
         stored = json.loads(row) if isinstance(row, str) else row
         assert "nodes" not in stored
 
-    async def test_downgrade_reverts(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_downgrade_reverts(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Downgrade renames "parameters" back to "config"."""
         wd = _make_workflow_def(
             [
                 {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "x"}},
             ]
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_downgrade(test_db_session)
 
@@ -312,7 +322,9 @@ class TestConfigToParametersMigrationNodes:
         assert "parameters" not in nodes[0]
         assert nodes[0]["config"] == {"language": "python", "code": "x"}
 
-    async def test_upgrade_then_downgrade_roundtrip(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_upgrade_then_downgrade_roundtrip(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Upgrade followed by downgrade restores original data."""
         original_config = {"language": "bash", "code": "echo roundtrip"}
         wd = _make_workflow_def(
@@ -320,7 +332,7 @@ class TestConfigToParametersMigrationNodes:
                 {"id": "n1", "type": "script", "config": original_config},
             ]
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
         nodes = await _get_nodes(test_db_session, ver_id)
@@ -337,13 +349,15 @@ class TestConfigToParametersMigrationNodes:
 class TestConfigToParametersMigrationTriggers:
     """Tests for the config→parameters JSONB rename SQL on triggers."""
 
-    async def test_trigger_config_renamed(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_trigger_config_renamed(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Trigger with "config" is renamed to "parameters"."""
         wd = _make_workflow_def(
             nodes=[{"id": "n1", "type": "script", "parameters": {}}],
             triggers=[{"id": "t1", "type": "webhook", "config": {"secret": "abc"}}],
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
 
@@ -352,13 +366,15 @@ class TestConfigToParametersMigrationTriggers:
         assert "config" not in triggers[0]
         assert triggers[0]["parameters"] == {"secret": "abc"}
 
-    async def test_trigger_already_migrated(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_trigger_already_migrated(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Trigger already using "parameters" is left unchanged."""
         wd = _make_workflow_def(
             nodes=[{"id": "n1", "type": "script", "parameters": {}}],
             triggers=[{"id": "t1", "type": "manual_trigger", "parameters": {"key": "val"}}],
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
 
@@ -367,7 +383,9 @@ class TestConfigToParametersMigrationTriggers:
         assert "config" not in triggers[0]
         assert triggers[0]["parameters"] == {"key": "val"}
 
-    async def test_mixed_triggers(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_mixed_triggers(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Multiple triggers: only those with "config" are renamed."""
         wd = _make_workflow_def(
             nodes=[{"id": "n1", "type": "script", "parameters": {}}],
@@ -376,7 +394,7 @@ class TestConfigToParametersMigrationTriggers:
                 {"id": "t2", "type": "manual_trigger", "parameters": {"key": "new"}},
             ],
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
 
@@ -387,13 +405,15 @@ class TestConfigToParametersMigrationTriggers:
         assert by_id["t1"]["parameters"] == {"secret": "old"}
         assert by_id["t2"]["parameters"] == {"key": "new"}
 
-    async def test_trigger_downgrade_reverts(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_trigger_downgrade_reverts(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Downgrade renames trigger "parameters" back to "config"."""
         wd = _make_workflow_def(
             nodes=[{"id": "n1", "type": "script", "parameters": {}}],
             triggers=[{"id": "t1", "type": "webhook", "parameters": {"secret": "abc"}}],
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_downgrade(test_db_session)
 
@@ -402,13 +422,15 @@ class TestConfigToParametersMigrationTriggers:
         assert "parameters" not in triggers[0]
         assert triggers[0]["config"] == {"secret": "abc"}
 
-    async def test_nodes_and_triggers_both_migrated(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_nodes_and_triggers_both_migrated(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Both nodes and triggers with "config" are renamed in the same row."""
         wd = _make_workflow_def(
             nodes=[{"id": "n1", "type": "script", "config": {"code": "x"}}],
             triggers=[{"id": "t1", "type": "webhook", "config": {"secret": "s"}}],
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
 
@@ -420,13 +442,15 @@ class TestConfigToParametersMigrationTriggers:
         assert "parameters" in triggers[0]
         assert "config" not in triggers[0]
 
-    async def test_full_roundtrip_nodes_and_triggers(self, test_db_session: AsyncSession, test_user: "User") -> None:
+    async def test_full_roundtrip_nodes_and_triggers(
+        self, test_db_session: AsyncSession, test_user: "User", test_project_id: UUID
+    ) -> None:
         """Upgrade then downgrade restores both nodes and triggers."""
         wd = _make_workflow_def(
             nodes=[{"id": "n1", "type": "script", "config": {"code": "x"}}],
             triggers=[{"id": "t1", "type": "webhook", "config": {"secret": "s"}}],
         )
-        ver_id = await _insert_version(test_db_session, wd, str(test_user.id))
+        ver_id = await _insert_version(test_db_session, wd, str(test_user.id), str(test_project_id))
 
         await _run_upgrade(test_db_session)
         nodes = await _get_nodes(test_db_session, ver_id)

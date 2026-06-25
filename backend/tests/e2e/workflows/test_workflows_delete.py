@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
@@ -50,6 +50,7 @@ class TestWorkflowDeletion:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test deleting an already soft-deleted workflow.
 
@@ -67,6 +68,7 @@ class TestWorkflowDeletion:
                         description="Double delete test",
                     )
                 ),
+                project_id=first_project_id,
             )
         )
 

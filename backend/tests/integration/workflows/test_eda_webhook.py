@@ -9,7 +9,7 @@ Run with: pytest tests/integration/workflows/test_eda_webhook.py -v
 
 from collections.abc import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -60,7 +60,7 @@ def _no_temporal(session_app: FastAPI) -> Generator[None]:
 
 
 @pytest_asyncio.fixture
-async def eda_workflow(test_db_session: AsyncSession, test_user: User) -> Workflow:
+async def eda_workflow(test_db_session: AsyncSession, test_user: User, test_project_id: UUID) -> Workflow:
     """Create a published workflow with an EDA trigger via the service layer."""
     workflow_definition = {
         "schema_version": "2.0.0",
@@ -84,6 +84,7 @@ async def eda_workflow(test_db_session: AsyncSession, test_user: User) -> Workfl
         description="Test workflow for EDA triggers",
         labels={},
         workflow_definition=workflow_definition,
+        project_id=test_project_id,
     )
     workflow, _version = await service.publish_workflow_version(workflow.id, version=1)
 
@@ -91,7 +92,7 @@ async def eda_workflow(test_db_session: AsyncSession, test_user: User) -> Workfl
 
 
 @pytest_asyncio.fixture
-async def eda_workflow_with_schema(test_db_session: AsyncSession, test_user: User) -> Workflow:
+async def eda_workflow_with_schema(test_db_session: AsyncSession, test_user: User, test_project_id: UUID) -> Workflow:
     """Create a published EDA workflow whose trigger has an input_schema.
 
     The schema requires ``event_type`` (string).  Any extra fields are allowed.
@@ -128,6 +129,7 @@ async def eda_workflow_with_schema(test_db_session: AsyncSession, test_user: Use
         description="EDA workflow with input_schema for validation tests",
         labels={},
         workflow_definition=workflow_definition,
+        project_id=test_project_id,
     )
     workflow, _version = await service.publish_workflow_version(workflow.id, version=1)
 
@@ -390,7 +392,9 @@ class TestCrossTypePathIsolation:
     """Verify that webhook_trigger and eda_trigger with the same path are isolated."""
 
     @pytest_asyncio.fixture
-    async def shared_path_workflows(self, test_db_session: AsyncSession, test_user: User) -> tuple[Workflow, Workflow]:
+    async def shared_path_workflows(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> tuple[Workflow, Workflow]:
         """Create a generic and an EDA workflow that share the same webhook_path.
 
         Returns (generic_workflow, eda_workflow).
@@ -412,6 +416,7 @@ class TestCrossTypePathIsolation:
                 "nodes": [],
                 "edges": [],
             },
+            project_id=test_project_id,
         )
         wf_a, _v_a = await service.publish_workflow_version(wf_a.id, version=1)
 
@@ -429,6 +434,7 @@ class TestCrossTypePathIsolation:
                 "nodes": [],
                 "edges": [],
             },
+            project_id=test_project_id,
         )
         wf_b, _v_b = await service.publish_workflow_version(wf_b.id, version=1)
 
@@ -492,6 +498,7 @@ class TestCrossTypePathIsolation:
         temporal_client: AsyncClient,
         test_db_session: AsyncSession,
         test_user: User,
+        test_project_id: UUID,
     ) -> None:
         """Generic webhook with path 'eda' at /webhooks/eda doesn't shadow /webhooks/eda/*."""
         service = WorkflowService(test_db_session, test_user)
@@ -510,6 +517,7 @@ class TestCrossTypePathIsolation:
                 "nodes": [],
                 "edges": [],
             },
+            project_id=test_project_id,
         )
         wf_generic, _ = await service.publish_workflow_version(wf_generic.id, version=1)
 
@@ -527,6 +535,7 @@ class TestCrossTypePathIsolation:
                 "nodes": [],
                 "edges": [],
             },
+            project_id=test_project_id,
         )
         wf_eda, _ = await service.publish_workflow_version(wf_eda.id, version=1)
 

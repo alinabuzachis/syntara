@@ -73,7 +73,11 @@ def _poll(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> E
 
 
 def _run_workflow(
-    api: NexusApiRegistry, name: str, definition: dict[str, Any], timeout: int = POLL_TIMEOUT
+    api: NexusApiRegistry,
+    name: str,
+    definition: dict[str, Any],
+    timeout: int = POLL_TIMEOUT,
+    project_id: UUID | None = None,
 ) -> ExecutionRead:
     workflows_list = api.workflows.list(additional_params={"name": name}).assert_and_get()
     existing = [w for w in workflows_list.resources if w.name == name]
@@ -89,6 +93,7 @@ def _run_workflow(
                 name=name,
                 description=f"E2E: {name}",
                 workflow_definition=WorkflowDefinition.from_dict(definition),
+                project_id=project_id,
             )
         ).assert_and_get()
         wf_id = workflow.id
@@ -120,7 +125,7 @@ def _get_activities(execution: ExecutionRead) -> dict[str, Any]:
 
 
 @pytest.mark.e2e
-def test_per_node_timeout_overrides_global(nexus_api: NexusApiRegistry) -> None:
+def test_per_node_timeout_overrides_global(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """Per-node settings.timeout (2s) kills a script faster than global default (300s)."""
     result = _run_workflow(
         nexus_api,
@@ -140,13 +145,14 @@ def test_per_node_timeout_overrides_global(nexus_api: NexusApiRegistry) -> None:
             ],
             "edges": [{"from": "trigger", "to": "slow_script"}],
         },
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.FAILED, f"Expected FAILED (timeout), got {result.status}"
 
 
 @pytest.mark.e2e
-def test_per_node_timeout_allows_longer_execution(nexus_api: NexusApiRegistry) -> None:
+def test_per_node_timeout_allows_longer_execution(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """Per-node timeout (15s) overrides a restrictive global setting (2s)."""
     key = "workflow_engine.script_timeout_seconds"
     original = nexus_api.settings.get(key=key).assert_and_get().to_dict()
@@ -172,6 +178,7 @@ def test_per_node_timeout_allows_longer_execution(nexus_api: NexusApiRegistry) -
                 ],
                 "edges": [{"from": "trigger", "to": "script"}],
             },
+            project_id=first_project_id,
         )
 
         assert result.status == ExecutionStatus.COMPLETED, f"Expected COMPLETED, got {result.status}"
@@ -180,7 +187,7 @@ def test_per_node_timeout_allows_longer_execution(nexus_api: NexusApiRegistry) -
 
 
 @pytest.mark.e2e
-def test_timeout_fallback_to_global(nexus_api: NexusApiRegistry) -> None:
+def test_timeout_fallback_to_global(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """No per-node timeout → falls back to global setting."""
     key = "workflow_engine.script_timeout_seconds"
     original = nexus_api.settings.get(key=key).assert_and_get().to_dict()
@@ -205,6 +212,7 @@ def test_timeout_fallback_to_global(nexus_api: NexusApiRegistry) -> None:
                 ],
                 "edges": [{"from": "trigger", "to": "slow_script"}],
             },
+            project_id=first_project_id,
         )
 
         assert result.status == ExecutionStatus.FAILED, f"Expected FAILED (global timeout), got {result.status}"
@@ -218,7 +226,7 @@ def test_timeout_fallback_to_global(nexus_api: NexusApiRegistry) -> None:
 
 
 @pytest.mark.e2e
-def test_continue_on_failure_downstream_executes(nexus_api: NexusApiRegistry) -> None:
+def test_continue_on_failure_downstream_executes(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """continue_on_failure=true → downstream node still executes after failure."""
     result = _run_workflow(
         nexus_api,
@@ -247,6 +255,7 @@ def test_continue_on_failure_downstream_executes(nexus_api: NexusApiRegistry) ->
                 {"from": "failing_script", "to": "downstream"},
             ],
         },
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.COMPLETED_WITH_ERRORS, (
@@ -259,7 +268,7 @@ def test_continue_on_failure_downstream_executes(nexus_api: NexusApiRegistry) ->
 
 
 @pytest.mark.e2e
-def test_continue_on_failure_false_skips_downstream(nexus_api: NexusApiRegistry) -> None:
+def test_continue_on_failure_false_skips_downstream(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """continue_on_failure=false (default) → downstream is skipped after failure."""
     result = _run_workflow(
         nexus_api,
@@ -287,6 +296,7 @@ def test_continue_on_failure_false_skips_downstream(nexus_api: NexusApiRegistry)
                 {"from": "failing_script", "to": "downstream"},
             ],
         },
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.FAILED, f"Expected FAILED, got {result.status}"
@@ -297,7 +307,7 @@ def test_continue_on_failure_false_skips_downstream(nexus_api: NexusApiRegistry)
 
 
 @pytest.mark.e2e
-def test_global_cof_default_applies(nexus_api: NexusApiRegistry) -> None:
+def test_global_cof_default_applies(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """Global continue_on_failure=true applies when no per-node setting is set."""
     key = "workflow_engine.continue_on_failure"
     original = nexus_api.settings.get(key=key).assert_and_get().to_dict()
@@ -331,6 +341,7 @@ def test_global_cof_default_applies(nexus_api: NexusApiRegistry) -> None:
                     {"from": "failing_script", "to": "downstream"},
                 ],
             },
+            project_id=first_project_id,
         )
 
         assert result.status == ExecutionStatus.COMPLETED_WITH_ERRORS, (
@@ -343,7 +354,7 @@ def test_global_cof_default_applies(nexus_api: NexusApiRegistry) -> None:
 
 
 @pytest.mark.e2e
-def test_per_node_cof_overrides_global(nexus_api: NexusApiRegistry) -> None:
+def test_per_node_cof_overrides_global(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """Per-node continue_on_failure=false overrides global true."""
     key = "workflow_engine.continue_on_failure"
     original = nexus_api.settings.get(key=key).assert_and_get().to_dict()
@@ -378,6 +389,7 @@ def test_per_node_cof_overrides_global(nexus_api: NexusApiRegistry) -> None:
                     {"from": "failing_script", "to": "downstream"},
                 ],
             },
+            project_id=first_project_id,
         )
 
         assert result.status == ExecutionStatus.FAILED, (
@@ -394,7 +406,7 @@ def test_per_node_cof_overrides_global(nexus_api: NexusApiRegistry) -> None:
 
 @requires_httpbin
 @pytest.mark.e2e
-def test_retry_policy_retries_on_transient_error(nexus_api: NexusApiRegistry) -> None:
+def test_retry_policy_retries_on_transient_error(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """HTTP request with retry_policy retries on 503 (transient). Slower than no-retry."""
     start = time.monotonic()
     result = _run_workflow(
@@ -425,6 +437,7 @@ def test_retry_policy_retries_on_transient_error(nexus_api: NexusApiRegistry) ->
             ],
             "edges": [{"from": "trigger", "to": "http_node"}],
         },
+        project_id=first_project_id,
     )
     elapsed = time.monotonic() - start
 
@@ -435,7 +448,7 @@ def test_retry_policy_retries_on_transient_error(nexus_api: NexusApiRegistry) ->
 
 @requires_httpbin
 @pytest.mark.e2e
-def test_retry_policy_max_retries_zero_no_retry(nexus_api: NexusApiRegistry) -> None:
+def test_retry_policy_max_retries_zero_no_retry(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """max_retries=0 disables retry — fails faster than max_retries=2 on same 503."""
     start = time.monotonic()
     result = _run_workflow(
@@ -462,6 +475,7 @@ def test_retry_policy_max_retries_zero_no_retry(nexus_api: NexusApiRegistry) -> 
             ],
             "edges": [{"from": "trigger", "to": "http_node"}],
         },
+        project_id=first_project_id,
     )
     elapsed = time.monotonic() - start
 
@@ -470,7 +484,7 @@ def test_retry_policy_max_retries_zero_no_retry(nexus_api: NexusApiRegistry) -> 
 
 
 @pytest.mark.e2e
-def test_retry_not_applied_to_script_nodes(nexus_api: NexusApiRegistry) -> None:
+def test_retry_not_applied_to_script_nodes(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """Script nodes ignore global retry defaults — fail immediately even with aggressive global retry."""
     key_max = "workflow_engine.retry_max_retries"
     key_interval = "workflow_engine.retry_initial_interval"
@@ -499,6 +513,7 @@ def test_retry_not_applied_to_script_nodes(nexus_api: NexusApiRegistry) -> None:
                 ],
                 "edges": [{"from": "trigger", "to": "script"}],
             },
+            project_id=first_project_id,
         )
         elapsed = time.monotonic() - start
 
@@ -515,7 +530,7 @@ def test_retry_not_applied_to_script_nodes(nexus_api: NexusApiRegistry) -> None:
 
 
 @pytest.mark.e2e
-def test_cof_with_multiple_branches_mixed_status(nexus_api: NexusApiRegistry) -> None:
+def test_cof_with_multiple_branches_mixed_status(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """Parallel branches: one fails with CoF=true, one succeeds → completed_with_errors."""
     result = _run_workflow(
         nexus_api,
@@ -559,6 +574,7 @@ def test_cof_with_multiple_branches_mixed_status(nexus_api: NexusApiRegistry) ->
                 {"from": "converge", "to": "final"},
             ],
         },
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.COMPLETED_WITH_ERRORS, (
@@ -572,7 +588,7 @@ def test_cof_with_multiple_branches_mixed_status(nexus_api: NexusApiRegistry) ->
 
 
 @pytest.mark.e2e
-def test_control_node_with_empty_settings_completes(nexus_api: NexusApiRegistry) -> None:
+def test_control_node_with_empty_settings_completes(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """Switch node with empty settings field completes normally — no validation error."""
     result = _run_workflow(
         nexus_api,
@@ -613,6 +629,7 @@ def test_control_node_with_empty_settings_completes(nexus_api: NexusApiRegistry)
                 {"from": "sw", "to": "default_action", "from_port": "default"},
             ],
         },
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.COMPLETED, f"Expected COMPLETED, got {result.status}"
@@ -628,7 +645,7 @@ def test_control_node_with_empty_settings_completes(nexus_api: NexusApiRegistry)
 
 @requires_httpbin
 @pytest.mark.e2e
-def test_http_request_per_node_timeout(nexus_api: NexusApiRegistry) -> None:
+def test_http_request_per_node_timeout(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """HTTP request node per-node timeout (2s) overrides global http_request_timeout_seconds."""
     result = _run_workflow(
         nexus_api,
@@ -651,6 +668,7 @@ def test_http_request_per_node_timeout(nexus_api: NexusApiRegistry) -> None:
             ],
             "edges": [{"from": "trigger", "to": "http_node"}],
         },
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.FAILED, f"Expected FAILED (timeout), got {result.status}"
@@ -662,7 +680,9 @@ def test_http_request_per_node_timeout(nexus_api: NexusApiRegistry) -> None:
 
 
 @pytest.mark.e2e
-def test_retry_no_retry_on_permanent_error(nexus_api: NexusApiRegistry, worker_base_url: str) -> None:
+def test_retry_no_retry_on_permanent_error(
+    nexus_api: NexusApiRegistry, worker_base_url: str, first_project_id: UUID
+) -> None:
     """HTTP 404 (permanent) is not retried even with retry_policy configured."""
     start = time.monotonic()
     result = _run_workflow(
@@ -693,6 +713,7 @@ def test_retry_no_retry_on_permanent_error(nexus_api: NexusApiRegistry, worker_b
             ],
             "edges": [{"from": "trigger", "to": "http_node"}],
         },
+        project_id=first_project_id,
     )
     elapsed = time.monotonic() - start
 
@@ -709,7 +730,7 @@ def test_retry_no_retry_on_permanent_error(nexus_api: NexusApiRegistry, worker_b
 
 @requires_httpbin
 @pytest.mark.e2e
-def test_global_retry_defaults_apply_to_http_request(nexus_api: NexusApiRegistry) -> None:
+def test_global_retry_defaults_apply_to_http_request(nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
     """HTTP request with no per-node retry_policy uses global retry defaults."""
     key_max = "workflow_engine.retry_max_retries"
     key_interval = "workflow_engine.retry_initial_interval"
@@ -742,6 +763,7 @@ def test_global_retry_defaults_apply_to_http_request(nexus_api: NexusApiRegistry
                 ],
                 "edges": [{"from": "trigger", "to": "http_node"}],
             },
+            project_id=first_project_id,
         )
         elapsed = time.monotonic() - start
 
@@ -758,7 +780,9 @@ def test_global_retry_defaults_apply_to_http_request(nexus_api: NexusApiRegistry
 
 
 @pytest.mark.e2e
-def test_sequential_cof_second_failure_without_cof_is_failed(nexus_api: NexusApiRegistry) -> None:
+def test_sequential_cof_second_failure_without_cof_is_failed(
+    nexus_api: NexusApiRegistry, first_project_id: UUID
+) -> None:
     """Node A fails (CoF=true) → Node B runs → Node B fails (CoF=false) → execution is 'failed'."""
     result = _run_workflow(
         nexus_api,
@@ -794,6 +818,7 @@ def test_sequential_cof_second_failure_without_cof_is_failed(nexus_api: NexusApi
                 {"from": "second_fail", "to": "final"},
             ],
         },
+        project_id=first_project_id,
     )
 
     assert result.status == ExecutionStatus.FAILED, (

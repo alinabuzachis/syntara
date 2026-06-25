@@ -6,7 +6,7 @@ updates, and deletion via the REST API.
 
 from collections.abc import Callable
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry
@@ -51,7 +51,10 @@ class TestWorkflowAPI:
     """Workflow API tests - CRUD operations and validation."""
 
     def test_create_workflow_minimal(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 1: Create workflow with minimal definition (empty nodes/edges)."""
         workflow_name = unique_name("e2e-create-minimal")
@@ -60,6 +63,7 @@ class TestWorkflowAPI:
             name=workflow_name,
             description="E2E test workflow",
             workflow_definition=_minimal_workflow_definition(workflow_name=workflow_name),
+            project_id=first_project_id,
         )
 
         workflow = workflow_factory(workflow_data)
@@ -84,7 +88,10 @@ class TestWorkflowAPI:
         assert definition["triggers"][0]["type"] == "manual_trigger"
 
     def test_get_workflow_with_nodes_and_edges(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 2: Retrieve workflow by ID including its graph-based definition."""
         workflow_name = unique_name("e2e-get-with-nodes")
@@ -92,6 +99,7 @@ class TestWorkflowAPI:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing retrieval with nodes",
+            project_id=first_project_id,
             workflow_definition=_workflow_definition_with_nodes(
                 {
                     "id": "script_node_1",
@@ -171,7 +179,10 @@ class TestWorkflowAPI:
         nexus_api.workflows.get(workflow_id=non_existent_id).assert_error()
 
     def test_update_workflow_metadata(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 3: Update workflow metadata (name, description)."""
         # Create initial workflow
@@ -180,6 +191,7 @@ class TestWorkflowAPI:
             name=workflow_name,
             description="Original description",
             workflow_definition=_minimal_workflow_definition(workflow_name=workflow_name),
+            project_id=first_project_id,
         )
 
         workflow = workflow_factory(workflow_data)
@@ -202,7 +214,10 @@ class TestWorkflowAPI:
         )
 
     def test_delete_workflow(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 4: Delete workflow and verify it's no longer accessible."""
         # Create a workflow with nodes and edges
@@ -210,6 +225,7 @@ class TestWorkflowAPI:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow to be deleted",
+            project_id=first_project_id,
             workflow_definition=_workflow_definition_with_nodes(
                 {
                     "id": "script_node_1",
@@ -233,7 +249,10 @@ class TestWorkflowAPI:
         nexus_api.workflows.get(workflow_id=workflow.id).assert_error()
 
     def test_list_workflows_with_pagination_filtering_sorting(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 5: List workflows with pagination, filtering, and sorting."""
         # Create multiple workflows with different names and statuses
@@ -252,6 +271,7 @@ class TestWorkflowAPI:
                 name=wf_config["name"],
                 description="Test workflow for listing",
                 workflow_definition=_minimal_workflow_definition(workflow_name=wf_config["name"]),
+                project_id=first_project_id,
             )
             workflow_factory(workflow_data)
 

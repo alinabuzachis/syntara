@@ -141,8 +141,7 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         description="Workflow version ID executed",
     )
 
-    project_id: UUID | None = Field(
-        default=None,
+    project_id: UUID = Field(
         foreign_key="projects.id",
         description="Project this execution belongs to (denormalized from workflow)",
         index=True,
@@ -385,7 +384,7 @@ class ExecutionRead(SQLModel):
     id: UUID
     workflow_id: UUID
     workflow_version_id: UUID
-    project_id: UUID | None = None
+    project_id: UUID
     temporal_workflow_id: str
     status: ExecutionStatus
     created_by: UUID  # User who started the execution

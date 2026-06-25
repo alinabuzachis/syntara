@@ -4,7 +4,7 @@ Tests the full stack: router → service → SecretService → DatabaseBackend �
 Requires a running database with migrations applied.
 """
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -282,6 +282,7 @@ class TestCredentialWorkflows:
             is_enabled=True,
             published_version=1,
             current_version=1,
+            project_id=UUID(test_project_id),
         )
         test_db_session.add(workflow)
 
@@ -348,6 +349,7 @@ class TestCredentialWorkflows:
             is_enabled=True,
             published_version=1,
             current_version=1,
+            project_id=UUID(test_project_id),
         )
         test_db_session.add(workflow)
 

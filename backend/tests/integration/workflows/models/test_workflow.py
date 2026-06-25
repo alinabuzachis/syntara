@@ -11,7 +11,7 @@ Tests cover:
 
 from datetime import UTC, datetime
 from typing import Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.orm import selectinload
@@ -27,6 +27,7 @@ from tests.helpers.workflow import create_minimal_workflow_definition
 async def test_create_workflow_with_required_fields(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test creating a workflow with required fields only."""
     # Create workflow
@@ -34,6 +35,7 @@ async def test_create_workflow_with_required_fields(
         id=uuid4(),
         name="test-workflow",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -55,6 +57,7 @@ async def test_create_workflow_with_required_fields(
 async def test_create_workflow_with_all_fields(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test creating a workflow with all fields."""
     labels = {"environment": "production", "team": "platform"}
@@ -66,6 +69,7 @@ async def test_create_workflow_with_all_fields(
         current_version=2,
         is_enabled=False,
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -80,6 +84,7 @@ async def test_create_workflow_with_all_fields(
 async def test_workflow_soft_delete(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test soft delete sets deleted_at and deleted_by correctly."""
     # Create workflow
@@ -87,6 +92,7 @@ async def test_workflow_soft_delete(
         id=uuid4(),
         name="delete-me",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -105,6 +111,7 @@ async def test_workflow_soft_delete(
 async def test_workflow_labels_jsonb_operations(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test JSONB labels can be queried and updated."""
     # Create workflow with labels
@@ -114,6 +121,7 @@ async def test_workflow_labels_jsonb_operations(
         name="labeled-workflow",
         labels=labels,
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -132,12 +140,14 @@ async def test_workflow_labels_jsonb_operations(
 async def test_workflow_is_enabled_toggle(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test toggling is_enabled field."""
     workflow = Workflow(
         id=uuid4(),
         name="toggle-workflow",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -166,12 +176,14 @@ async def test_workflow_is_enabled_toggle(
 async def test_workflow_increment_version(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test increment_version method."""
     workflow = Workflow(
         id=uuid4(),
         name="version-workflow",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -197,12 +209,14 @@ async def test_workflow_increment_version(
 async def test_workflow_relationship_with_user(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test that Workflow tracks created_by user ID."""
     workflow = Workflow(
         id=uuid4(),
         name="relationship-workflow",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -215,12 +229,14 @@ async def test_workflow_relationship_with_user(
 async def test_workflow_relationship_with_versions(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test relationship between Workflow and WorkflowVersion."""
     workflow = Workflow(
         id=uuid4(),
         name="versioned-workflow",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -257,6 +273,7 @@ async def test_workflow_relationship_with_versions(
 async def test_workflow_repr(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test string representation of Workflow."""
     workflow_id = uuid4()
@@ -265,6 +282,7 @@ async def test_workflow_repr(
         name="repr-workflow",
         created_by=test_user.id,
         current_version=3,
+        project_id=test_project_id,
     )
 
     repr_str = repr(workflow)
@@ -278,12 +296,14 @@ async def test_workflow_repr(
 async def test_workflow_labels_default(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test that labels defaults to empty dict."""
     workflow = Workflow(
         id=uuid4(),
         name="default-labels",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -296,12 +316,14 @@ async def test_workflow_labels_default(
 async def test_workflow_is_enabled_default(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test that is_enabled defaults to False (unpublished)."""
     workflow = Workflow(
         id=uuid4(),
         name="default-enabled",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -313,12 +335,14 @@ async def test_workflow_is_enabled_default(
 async def test_workflow_current_version_default(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> None:
     """Test that current_version defaults to 1."""
     workflow = Workflow(
         id=uuid4(),
         name="default-version",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()

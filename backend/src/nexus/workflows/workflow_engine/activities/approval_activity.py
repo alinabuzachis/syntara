@@ -41,6 +41,7 @@ async def create_approval_request_activity(
     next_step_rejected: dict[str, Any] | None = None,
     approver_user_ids: list[str] | None = None,
     approver_group_ids: list[str] | None = None,
+    project_id: str | None = None,
 ) -> NoReturn:
     """Create an approval request via the Approvals API.
 
@@ -58,6 +59,7 @@ async def create_approval_request_activity(
         next_step_rejected: First activity if rejected (id, name, type), or None.
         approver_user_ids: List of user UUIDs who can approve (None = any user with permission).
         approver_group_ids: List of group UUIDs whose members can approve.
+        project_id: Project ID for the approval request (from parent execution).
 
     Raises:
         ApprovalActivityError: If approval request creation fails.
@@ -73,6 +75,7 @@ async def create_approval_request_activity(
 
     request_data: dict[str, Any] = {
         "execution_id": execution_id,
+        "project_id": project_id,
         "approval_node_id": approval_node_id,
         "name": name,
         "next_step_approved": next_step_approved,

@@ -13,7 +13,7 @@ Tests cover response logging:
 
 # mypy: disable-error-code="attr-defined"
 
-from collections.abc import Callable, MutableMapping
+from collections.abc import MutableMapping
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
@@ -27,7 +27,6 @@ from nexus.audit.events.http_request import HTTPRequestEvent, HTTPRequestHandler
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.models.audit_event import AuditEvent, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
-from nexus.core.models.user import User
 
 _EMIT_PATCH = "nexus.audit.emitter._do_emit_audit_event"
 
@@ -387,13 +386,18 @@ class TestAuditMiddlewareUserContext:
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
 
     @pytest.mark.asyncio
-    async def test_logs_user_information(self, test_user: User, create_jwt_for_user: Callable[[User], str]) -> None:
+    async def test_logs_user_information(self) -> None:
         """User information is included in request logs when authenticated."""
+        import jwt
+
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        # Create JWT token for test user
-        auth_token = create_jwt_for_user(test_user)
+        # Create JWT token inline
+        user_id = str(uuid4())
+        username = "test-audit-user"
+        claims = {"sub": user_id, "preferred_username": username}
+        auth_token = jwt.encode(claims, key="", algorithm="none")
         scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)
 
         with patch(_EMIT_PATCH) as mock_emit:
@@ -401,9 +405,9 @@ class TestAuditMiddlewareUserContext:
 
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
-        assert events[0].actor_id == test_user.id
+        assert str(events[0].actor_id) == user_id
         assert events[0].actor_type == "user"
-        assert events[0].actor_username == test_user.username
+        assert events[0].actor_username == username
         assert isinstance(events[0].structured_data, AuditContextData)
 
     @pytest.mark.asyncio
@@ -809,34 +813,41 @@ class TestAuditMiddlewareResponse:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
     @pytest.mark.asyncio
-    async def test_completed_event_has_actor(self, test_user: User, create_jwt_for_user: Callable[[User], str]) -> None:
+    async def test_completed_event_has_actor(self) -> None:
         """The request_completed event carries the authenticated actor."""
+        import jwt
+
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        auth_token = create_jwt_for_user(test_user)
+        user_id = str(uuid4())
+        username = "test-completed-user"
+        claims = {"sub": user_id, "preferred_username": username}
+        auth_token = jwt.encode(claims, key="", algorithm="none")
         scope = _make_scope(auth_token=auth_token)
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
-        assert events[0].actor_id == test_user.id
+        assert str(events[0].actor_id) == user_id
         assert events[0].actor_type == "user"
-        assert events[0].actor_username == test_user.username
+        assert events[0].actor_username == username
 
     @pytest.mark.asyncio
-    async def test_exception_preserves_actor_context(
-        self, test_user: User, create_jwt_for_user: Callable[[User], str]
-    ) -> None:
+    async def test_exception_preserves_actor_context(self) -> None:
         """Actor context is preserved in request_completed on exception path."""
+        import jwt
 
         async def failing_app(scope: MutableMapping[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
             msg = "boom"
             raise RuntimeError(msg)
 
         middleware = AuditMiddleware(failing_app, _make_fastapi_app())
-        auth_token = create_jwt_for_user(test_user)
+        user_id = str(uuid4())
+        username = "test-exception-user"
+        claims = {"sub": user_id, "preferred_username": username}
+        auth_token = jwt.encode(claims, key="", algorithm="none")
         scope = _make_scope(auth_token=auth_token)
 
         with (
@@ -846,9 +857,9 @@ class TestAuditMiddlewareResponse:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
-        assert events[0].actor_id == test_user.id
+        assert str(events[0].actor_id) == user_id
         assert events[0].actor_type == "user"
-        assert events[0].actor_username == test_user.username
+        assert events[0].actor_username == username
 
 
 # =============================================================================

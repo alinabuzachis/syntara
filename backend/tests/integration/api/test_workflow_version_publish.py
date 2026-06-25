@@ -11,13 +11,14 @@ from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio
-async def test_publish_version_returns_200(jwt_client: AsyncClient) -> None:
+async def test_publish_version_returns_200(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test publishing a workflow version.
 
     Expected: 200 with workflow including published_version
     """
     workflow = {
         "name": "publish-test",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="publish-test", description="Test", activity_id="task1"
         ),
@@ -43,13 +44,14 @@ async def test_publish_version_returns_200(jwt_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_publish_version_with_publish_name(jwt_client: AsyncClient) -> None:
+async def test_publish_version_with_publish_name(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test publishing with a publish_name.
 
     Expected: 200 with publish_name set on the version
     """
     workflow = {
         "name": "publish-named-test",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="publish-named", description="Test", activity_id="task1"
         ),
@@ -71,13 +73,14 @@ async def test_publish_version_with_publish_name(jwt_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_publish_version_with_change_description(jwt_client: AsyncClient) -> None:
+async def test_publish_version_with_change_description(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test publishing with a change_description.
 
     Expected: 200 with change_description set on the version
     """
     workflow = {
         "name": "publish-desc-test",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="publish-desc", description="Test", activity_id="task1"
         ),
@@ -100,13 +103,14 @@ async def test_publish_version_with_change_description(jwt_client: AsyncClient) 
 
 
 @pytest.mark.asyncio
-async def test_publish_demotes_previous_version(jwt_client: AsyncClient) -> None:
+async def test_publish_demotes_previous_version(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test that publishing a new version demotes the previous.
 
     Expected: Old published version becomes previously_published
     """
     workflow = {
         "name": "publish-demote-test",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="publish-demote", description="Test v1", activity_id="task1"
         ),
@@ -154,13 +158,14 @@ async def test_publish_demotes_previous_version(jwt_client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_unpublish_workflow(jwt_client: AsyncClient) -> None:
+async def test_unpublish_workflow(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test unpublishing a workflow.
 
     Expected: 200 with is_enabled=False, published_version=None
     """
     workflow = {
         "name": "unpublish-test",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="unpublish-test", description="Test", activity_id="task1"
         ),
@@ -189,13 +194,14 @@ async def test_unpublish_workflow(jwt_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_unpublish_when_not_published_returns_400(jwt_client: AsyncClient) -> None:
+async def test_unpublish_when_not_published_returns_400(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test unpublishing a workflow that is not published.
 
     Expected: 400 Bad Request
     """
     workflow = {
         "name": "unpublish-not-published",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="unpublish-not-published", description="Test", activity_id="task1"
         ),
@@ -211,13 +217,14 @@ async def test_unpublish_when_not_published_returns_400(jwt_client: AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_publish_nonexistent_version_returns_404(jwt_client: AsyncClient) -> None:
+async def test_publish_nonexistent_version_returns_404(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test publishing a version that does not exist.
 
     Expected: 404 Not Found
     """
     workflow = {
         "name": "publish-nonexistent-version",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="publish-nonexistent", description="Test", activity_id="task1"
         ),
@@ -235,13 +242,14 @@ async def test_publish_nonexistent_version_returns_404(jwt_client: AsyncClient) 
 
 
 @pytest.mark.asyncio
-async def test_version_list_includes_status(jwt_client: AsyncClient) -> None:
+async def test_version_list_includes_status(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test that version list includes status field.
 
     Expected: Versions include status (draft/published)
     """
     workflow = {
         "name": "version-status-list",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="version-status-list", description="Test", activity_id="task1"
         ),
@@ -281,13 +289,14 @@ async def test_version_list_includes_status(jwt_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_workflow_defaults_to_unpublished(jwt_client: AsyncClient) -> None:
+async def test_create_workflow_defaults_to_unpublished(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test new workflows start unpublished.
 
     Expected: 201 with is_enabled=False, published_version=None
     """
     workflow = {
         "name": "default-unpublished",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="default-unpublished", description="Test", activity_id="task1"
         ),
@@ -301,13 +310,14 @@ async def test_create_workflow_defaults_to_unpublished(jwt_client: AsyncClient) 
 
 
 @pytest.mark.asyncio
-async def test_republish_previously_published_version(jwt_client: AsyncClient) -> None:
+async def test_republish_previously_published_version(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test re-publishing a previously_published version.
 
     Expected: publish v1 → publish v2 (v1 demoted) → publish v1 again (v2 demoted)
     """
     workflow = {
         "name": "republish-test",
+        "project_id": test_project_id,
         "workflow_definition": create_minimal_workflow_definition(
             name="republish", description="Test v1", activity_id="task1"
         ),
@@ -358,7 +368,7 @@ async def test_republish_previously_published_version(jwt_client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_publish_with_unsaved_step_includes_all_nodes(jwt_client: AsyncClient) -> None:
+async def test_publish_with_unsaved_step_includes_all_nodes(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Publish with unsaved canvas changes must include those changes.
 
     Reproduces the user flow:
@@ -394,7 +404,11 @@ async def test_publish_with_unsaved_step_includes_all_nodes(jwt_client: AsyncCli
     # Step 1: create with trigger + step1
     create_resp = await jwt_client.post(
         "/api/v1/workflows",
-        json={"name": "unsaved-step-publish", "workflow_definition": _build_definition(["step1"])},
+        json={
+            "name": "unsaved-step-publish",
+            "project_id": test_project_id,
+            "workflow_definition": _build_definition(["step1"]),
+        },
     )
     assert create_resp.status_code == 201
     workflow_id = create_resp.json()["id"]

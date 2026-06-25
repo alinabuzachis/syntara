@@ -24,7 +24,7 @@ class WorkflowFactory(Protocol):
     def __call__(
         self,
         api: NexusApiRegistry,
-        project_id: UUID | None = None,
+        project_id: UUID,
         prefix: str | None = None,
         name: str | None = None,
         definition: dict[str, Any] | WorkflowDefinition | None = None,
@@ -39,7 +39,7 @@ def create_workflow() -> Generator[WorkflowFactory, None, None]:
 
     def _create_workflow(
         api: NexusApiRegistry,
-        project_id: UUID | None = None,
+        project_id: UUID,
         prefix: str | None = None,
         name: str | None = None,
         definition: dict[str, Any] | WorkflowDefinition | None = None,

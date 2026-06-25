@@ -58,6 +58,7 @@ class TestApprovalFKValidation:
             workflow_context=workflow_context,
             approver_user_ids=[invalid_user_id],
             approver_group_ids=None,
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -98,6 +99,7 @@ class TestApprovalFKValidation:
             workflow_context=workflow_context,
             approver_user_ids=None,
             approver_group_ids=[invalid_group_id],
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -142,6 +144,7 @@ class TestApprovalFKValidation:
             workflow_context=workflow_context,
             approver_user_ids=[user.id],
             approver_group_ids=[group.id],
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)

@@ -115,6 +115,7 @@ class TestApprovalAuthorizationBase:
         approval_node_id: str = "approval_1",
         approver_user_ids: list[UUID] | None = None,
         approver_group_ids: list[UUID] | None = None,
+        project_id: UUID | None = None,
     ) -> ApprovalCreateRequest:
         """Create a typed approval request for testing."""
         workflow_context = WorkflowContext(
@@ -139,6 +140,7 @@ class TestApprovalAuthorizationBase:
             workflow_context=workflow_context,
             approver_user_ids=approver_user_ids,
             approver_group_ids=approver_group_ids,
+            project_id=project_id or uuid4(),
         )
 
 
@@ -155,7 +157,10 @@ class TestApprovalServiceIsUserAuthorizedApprover(TestApprovalAuthorizationBase)
         execution = executions[0]
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=None, approver_group_ids=None
+            execution_id=execution.id,
+            approver_user_ids=None,
+            approver_group_ids=None,
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -178,7 +183,10 @@ class TestApprovalServiceIsUserAuthorizedApprover(TestApprovalAuthorizationBase)
         execution = executions[0]
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=[user.id], approver_group_ids=None
+            execution_id=execution.id,
+            approver_user_ids=[user.id],
+            approver_group_ids=None,
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -203,7 +211,10 @@ class TestApprovalServiceIsUserAuthorizedApprover(TestApprovalAuthorizationBase)
         other_user = users["user_2"]
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=[other_user.id], approver_group_ids=None
+            execution_id=execution.id,
+            approver_user_ids=[other_user.id],
+            approver_group_ids=None,
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -234,7 +245,10 @@ class TestApprovalServiceIsUserAuthorizedApprover(TestApprovalAuthorizationBase)
         await test_db_session.commit()
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=None, approver_group_ids=[group.id]
+            execution_id=execution.id,
+            approver_user_ids=None,
+            approver_group_ids=[group.id],
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -261,7 +275,10 @@ class TestApprovalServiceIsUserAuthorizedApprover(TestApprovalAuthorizationBase)
         await test_db_session.commit()
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=None, approver_group_ids=[group.id]
+            execution_id=execution.id,
+            approver_user_ids=None,
+            approver_group_ids=[group.id],
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -290,7 +307,10 @@ class TestApprovalServiceIsUserAuthorizedApprover(TestApprovalAuthorizationBase)
 
         # User is in the approver_user_ids list but not in any group
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=[user.id], approver_group_ids=[group.id]
+            execution_id=execution.id,
+            approver_user_ids=[user.id],
+            approver_group_ids=[group.id],
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -315,7 +335,11 @@ class TestApprovalServiceDecideAuthorization(TestApprovalAuthorizationBase):
         executions = await executions_factory.create_executions(count=1)
         execution = executions[0]
 
-        request = self._create_approval_request(execution_id=execution.id, approver_user_ids=[user.id])
+        request = self._create_approval_request(
+            execution_id=execution.id,
+            approver_user_ids=[user.id],
+            project_id=execution.project_id,
+        )
 
         service = ApprovalService(test_db_session, user)
         approval_read = await service.create(request)
@@ -339,7 +363,11 @@ class TestApprovalServiceDecideAuthorization(TestApprovalAuthorizationBase):
 
         # Create approval with different approver (use user_2 from fixture)
         other_user = users["user_2"]
-        request = self._create_approval_request(execution_id=execution.id, approver_user_ids=[other_user.id])
+        request = self._create_approval_request(
+            execution_id=execution.id,
+            approver_user_ids=[other_user.id],
+            project_id=execution.project_id,
+        )
 
         service = ApprovalService(test_db_session, user)
         approval_read = await service.create(request)
@@ -368,13 +396,19 @@ class TestApprovalServiceBatchDecideAuthorization(TestApprovalAuthorizationBase)
 
         # Create one approval user is authorized for
         request1 = self._create_approval_request(
-            execution_id=execution.id, approval_node_id="approval_1", approver_user_ids=[user.id]
+            execution_id=execution.id,
+            approval_node_id="approval_1",
+            approver_user_ids=[user.id],
+            project_id=execution.project_id,
         )
 
         # Create one approval user is NOT authorized for (use user_2 from fixture)
         other_user = users["user_2"]
         request2 = self._create_approval_request(
-            execution_id=execution.id, approval_node_id="approval_2", approver_user_ids=[other_user.id]
+            execution_id=execution.id,
+            approval_node_id="approval_2",
+            approver_user_ids=[other_user.id],
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -418,10 +452,16 @@ class TestApprovalServiceBatchDecideAuthorization(TestApprovalAuthorizationBase)
 
         # Create two approvals user is authorized for
         request1 = self._create_approval_request(
-            execution_id=execution.id, approval_node_id="approval_1", approver_user_ids=[user.id]
+            execution_id=execution.id,
+            approval_node_id="approval_1",
+            approver_user_ids=[user.id],
+            project_id=execution.project_id,
         )
         request2 = self._create_approval_request(
-            execution_id=execution.id, approval_node_id="approval_2", approver_user_ids=[user.id]
+            execution_id=execution.id,
+            approval_node_id="approval_2",
+            approver_user_ids=[user.id],
+            project_id=execution.project_id,
         )
 
         service = ApprovalService(test_db_session, user)
@@ -466,7 +506,10 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
         execution = executions[0]
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=None, approver_group_ids=None
+            execution_id=execution.id,
+            approver_user_ids=None,
+            approver_group_ids=None,
+            project_id=execution.project_id,
         )
 
         # Create service WITHOUT opa_client (None)
@@ -494,7 +537,10 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
         execution = executions[0]
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=[user.id], approver_group_ids=None
+            execution_id=execution.id,
+            approver_user_ids=[user.id],
+            approver_group_ids=None,
+            project_id=execution.project_id,
         )
 
         # Mock OPA client to deny permission
@@ -538,7 +584,10 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
         execution = executions[0]
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=[user.id], approver_group_ids=None
+            execution_id=execution.id,
+            approver_user_ids=[user.id],
+            approver_group_ids=None,
+            project_id=execution.project_id,
         )
 
         # Mock OPA client to allow permission
@@ -583,7 +632,10 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
         execution = executions[0]
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=[other_user.id], approver_group_ids=None
+            execution_id=execution.id,
+            approver_user_ids=[other_user.id],
+            approver_group_ids=None,
+            project_id=execution.project_id,
         )
 
         # Mock OPA client to allow permission
@@ -627,7 +679,10 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
         execution = executions[0]
 
         request = self._create_approval_request(
-            execution_id=execution.id, approver_user_ids=None, approver_group_ids=None
+            execution_id=execution.id,
+            approver_user_ids=None,
+            approver_group_ids=None,
+            project_id=execution.project_id,
         )
 
         # Mock OPA client to allow permission

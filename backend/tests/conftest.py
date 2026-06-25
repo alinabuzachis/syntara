@@ -1032,6 +1032,12 @@ async def test_workflow(
         Workflow: Test workflow instance
 
     """
+    from nexus.authz.models.project import Project
+
+    project = Project(name=f"test-project-{uuid4().hex[:8]}", description="Test project")
+    test_db_session.add(project)
+    await test_db_session.flush()
+
     workflow = Workflow(
         name="test-workflow",
         description="Test workflow for execution tests",
@@ -1039,6 +1045,7 @@ async def test_workflow(
         is_enabled=True,
         published_version=1,
         current_version=1,
+        project_id=project.id,
     )
     test_db_session.add(workflow)
 
@@ -1084,6 +1091,7 @@ async def test_execution(test_db_session: AsyncSession, test_user: "User", test_
         status=ExecutionStatus.PENDING,
         input_data={},
         created_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -1548,7 +1556,12 @@ async def activities_factory(test_db_session: AsyncSession) -> ActivitiesFactory
 @pytest_asyncio.fixture
 async def workflow_factory(test_db_session: AsyncSession, test_user: User) -> WorkflowFactory:
     """Factory for creating workflows with versions for telemetry tests."""
-    return WorkflowFactory(test_db_session, test_user)
+    from nexus.authz.models.project import Project
+
+    project = Project(name=f"wf-factory-project-{uuid4().hex[:8]}", description="Workflow factory project")
+    test_db_session.add(project)
+    await test_db_session.flush()
+    return WorkflowFactory(test_db_session, test_user, project.id)
 
 
 @pytest_asyncio.fixture
@@ -1582,7 +1595,9 @@ async def integration_factory(test_db_session: AsyncSession, test_user: User) ->
 
 
 @pytest_asyncio.fixture
-async def approvals_factory(test_db_session: AsyncSession, test_user: User) -> ApprovalsFactory:
+async def approvals_factory(
+    test_db_session: AsyncSession, test_user: User, test_workflow: Workflow
+) -> ApprovalsFactory:
     """Create a factory fixture for multiple test approval requests with configurable properties.
 
     Returns an ApprovalsFactory instance that can create approval requests with various
@@ -1606,7 +1621,7 @@ async def approvals_factory(test_db_session: AsyncSession, test_user: User) -> A
             statuses=[ApprovalRequestStatus.PENDING, ApprovalRequestStatus.APPROVED]
         )
     """
-    return ApprovalsFactory(test_db_session, test_user)
+    return ApprovalsFactory(test_db_session, test_user, test_workflow.project_id)
 
 
 @pytest.fixture

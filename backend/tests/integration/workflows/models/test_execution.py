@@ -54,6 +54,7 @@ async def test_create_execution_with_required_fields(
         temporal_workflow_id="test-workflow-123",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -97,6 +98,7 @@ async def test_create_execution_with_all_fields(
         input_data=input_data,
         error_details="Test error details",
         labels=labels,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -123,6 +125,7 @@ async def test_execution_soft_delete(
         temporal_workflow_id="test-workflow-789",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -155,6 +158,7 @@ async def test_execution_labels_jsonb_operations(
         labels=labels,
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -193,6 +197,7 @@ async def test_execution_input_data_jsonb_operations(
         input_data=input_data,
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -230,6 +235,7 @@ async def test_execution_status_enum_values(
             status=status,
             created_by=test_user.id,
             updated_by=test_user.id,
+            project_id=test_workflow.project_id,
         )
         test_db_session.add(execution)
 
@@ -251,6 +257,7 @@ async def test_execution_completed_at_constraint_valid(
         temporal_workflow_id="test-workflow-valid-time",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -279,6 +286,7 @@ async def test_execution_completed_at_constraint_invalid(
         temporal_workflow_id="test-workflow-invalid-time",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -309,6 +317,7 @@ async def test_execution_status_default(
         temporal_workflow_id="test-workflow-default-status",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -331,6 +340,7 @@ async def test_execution_labels_default(
         temporal_workflow_id="test-workflow-default-labels",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -354,6 +364,7 @@ async def test_execution_input_data_default(
         temporal_workflow_id="test-workflow-default-input",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -378,6 +389,7 @@ async def test_execution_relationship_with_workflow(
         temporal_workflow_id="test-workflow-rel",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -407,6 +419,7 @@ async def test_execution_relationship_with_workflow_version(
         temporal_workflow_id="test-workflow-version-rel",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -436,6 +449,7 @@ async def test_execution_relationship_with_user(
         temporal_workflow_id="test-workflow-user-rel",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()
@@ -461,6 +475,7 @@ async def test_execution_temporal_workflow_id_unique(
         temporal_workflow_id="unique-temporal-id",
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution1)
     await test_db_session.commit()
@@ -473,6 +488,7 @@ async def test_execution_temporal_workflow_id_unique(
         temporal_workflow_id="unique-temporal-id",  # Duplicate
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution2)
 
@@ -499,6 +515,7 @@ async def test_execution_repr(
         status=ExecutionStatus.RUNNING,
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
 
     repr_str = repr(execution)
@@ -525,6 +542,7 @@ async def test_execution_error_details_storage(
         error_details=large_error,
         created_by=test_user.id,
         updated_by=test_user.id,
+        project_id=test_workflow.project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()

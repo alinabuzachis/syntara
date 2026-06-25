@@ -32,6 +32,7 @@ class ApprovalRequestRead:
     the raw dicts from the database into these typed models during serialization.
 
         Attributes:
+            project_id (UUID): Project this approval belongs to (denormalized from execution)
             execution_id (UUID): Parent execution ID
             approval_node_id (str): Activity ID from workflow definition
             name (str): Human-readable name for the approval request
@@ -50,7 +51,6 @@ class ApprovalRequestRead:
             updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
             labels (ApprovalRequestReadLabels | Unset): Key-value pairs for resource labeling and filtering Example:
                 {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
-            project_id (None | Unset | UUID): Project this approval belongs to (denormalized from execution)
             status (ApprovalRequestStatus | Unset): Approval request status enumeration.
             timeout_at (datetime.datetime | None | Unset): When this request expires
             next_step_rejected (ActivitySummary | None | Unset): First activity that executes if rejected
@@ -62,6 +62,7 @@ class ApprovalRequestRead:
             decision_notes (None | str | Unset): Notes provided with decision
     """
 
+    project_id: UUID
     execution_id: UUID
     approval_node_id: str
     name: str
@@ -71,7 +72,6 @@ class ApprovalRequestRead:
     created_at: datetime.datetime | Unset = UNSET
     updated_at: datetime.datetime | Unset = UNSET
     labels: ApprovalRequestReadLabels | Unset = UNSET
-    project_id: None | Unset | UUID = UNSET
     status: ApprovalRequestStatus | Unset = UNSET
     timeout_at: datetime.datetime | None | Unset = UNSET
     next_step_rejected: ActivitySummary | None | Unset = UNSET
@@ -84,6 +84,8 @@ class ApprovalRequestRead:
     def to_dict(self) -> dict[str, Any]:
         from ..models.activity_summary import ActivitySummary
         from ..models.user_reference import UserReference
+
+        project_id = str(self.project_id)
 
         execution_id = str(self.execution_id)
 
@@ -110,14 +112,6 @@ class ApprovalRequestRead:
         labels: dict[str, Any] | Unset = UNSET
         if not isinstance(self.labels, Unset):
             labels = self.labels.to_dict()
-
-        project_id: None | str | Unset
-        if isinstance(self.project_id, Unset):
-            project_id = UNSET
-        elif isinstance(self.project_id, UUID):
-            project_id = str(self.project_id)
-        else:
-            project_id = self.project_id
 
         status: str | Unset = UNSET
         if not isinstance(self.status, Unset):
@@ -179,6 +173,7 @@ class ApprovalRequestRead:
 
         field_dict.update(
             {
+                "project_id": project_id,
                 "execution_id": execution_id,
                 "approval_node_id": approval_node_id,
                 "name": name,
@@ -194,8 +189,6 @@ class ApprovalRequestRead:
             field_dict["updated_at"] = updated_at
         if labels is not UNSET:
             field_dict["labels"] = labels
-        if project_id is not UNSET:
-            field_dict["project_id"] = project_id
         if status is not UNSET:
             field_dict["status"] = status
         if timeout_at is not UNSET:
@@ -225,6 +218,8 @@ class ApprovalRequestRead:
         from ..models.workflow_context import WorkflowContext
 
         d = dict(src_dict)
+        project_id = UUID(d.pop("project_id"))
+
         execution_id = UUID(d.pop("execution_id"))
 
         approval_node_id = d.pop("approval_node_id")
@@ -262,23 +257,6 @@ class ApprovalRequestRead:
             labels = UNSET
         else:
             labels = ApprovalRequestReadLabels.from_dict(_labels)
-
-        def _parse_project_id(data: object) -> None | Unset | UUID:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                project_id_type_0 = UUID(data)
-
-                return project_id_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(None | Unset | UUID, data)
-
-        project_id = _parse_project_id(d.pop("project_id", UNSET))
 
         _status = d.pop("status", UNSET)
         status: ApprovalRequestStatus | Unset
@@ -383,6 +361,7 @@ class ApprovalRequestRead:
         decision_notes = _parse_decision_notes(d.pop("decision_notes", UNSET))
 
         approval_request_read = cls(
+            project_id=project_id,
             execution_id=execution_id,
             approval_node_id=approval_node_id,
             name=name,
@@ -392,7 +371,6 @@ class ApprovalRequestRead:
             created_at=created_at,
             updated_at=updated_at,
             labels=labels,
-            project_id=project_id,
             status=status,
             timeout_at=timeout_at,
             next_step_rejected=next_step_rejected,

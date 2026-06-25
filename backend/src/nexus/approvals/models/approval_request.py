@@ -38,8 +38,7 @@ class BaseApprovalRequest(BaseResource, table=False):
     """
 
     # Project scoping (denormalized from execution for efficient filtering)
-    project_id: UUID | None = Field(
-        default=None,
+    project_id: UUID = Field(
         foreign_key="projects.id",
         description="Project this approval belongs to (denormalized from execution)",
         index=True,

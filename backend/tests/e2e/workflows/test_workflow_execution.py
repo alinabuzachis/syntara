@@ -56,7 +56,10 @@ class TestWorkflowExecution:
     """Workflow execution tests - triggering and status tracking."""
 
     def test_execute_workflow_with_script_node(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 14: Execute workflow and track execution status.
 
@@ -88,6 +91,7 @@ class TestWorkflowExecution:
                 },
                 edges=[{"from": "trigger_manual", "to": "script_node"}],
             ),
+            project_id=first_project_id,
         )
         workflow = workflow_factory(workflow_data)
 
@@ -154,7 +158,10 @@ class TestWorkflowExecution:
         assert final_execution.temporal_workflow_id is not None, "Execution should have a Temporal workflow ID"
 
     def test_get_execution_status_with_per_node_details(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 15: Get execution status with per-node activity details.
 
@@ -177,6 +184,7 @@ class TestWorkflowExecution:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing execution details with multiple nodes",
+            project_id=first_project_id,
             workflow_definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {
@@ -285,7 +293,10 @@ class TestWorkflowExecution:
         assert final_execution.error_details is None, "Successful execution should have no errors"
 
     def test_list_executions_with_filtering(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 16: List executions with filtering by status.
 
@@ -308,6 +319,7 @@ class TestWorkflowExecution:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing execution listing and filtering",
+            project_id=first_project_id,
             workflow_definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {
@@ -436,7 +448,10 @@ class TestWorkflowExecution:
         assert our_failed == expected_failed, f"Expected {expected_failed} failed executions, got {our_failed}"
 
     def test_cancel_running_execution(
-        self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ):
         """API 17: Cancel a running workflow execution.
 
@@ -460,6 +475,7 @@ class TestWorkflowExecution:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing execution cancellation",
+            project_id=first_project_id,
             workflow_definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {

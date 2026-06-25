@@ -278,7 +278,7 @@ class WorkflowService(BaseService):
         description: str | None,
         labels: dict[str, Any],
         workflow_definition: dict[str, Any],
-        project_id: UUID | None = None,
+        project_id: UUID,
     ) -> tuple[Workflow, WorkflowVersion]:
         """Create a new V2 workflow with initial version.
 
@@ -287,7 +287,7 @@ class WorkflowService(BaseService):
             description: Optional workflow description
             labels: Optional key-value labels
             workflow_definition: V2 workflow definition as dict (triggers + nodes + edges)
-            project_id: Optional project to assign workflow to
+            project_id: Project to assign workflow to
 
         Returns:
             Tuple of (created workflow, initial version)
@@ -306,19 +306,18 @@ class WorkflowService(BaseService):
         ):
             workflow_validator.validate_workflow_definition(workflow_definition)
 
-        if project_id is not None:
-            from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
+        from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
 
-            await assert_project_alive(self.session, project_id)
+        await assert_project_alive(self.session, project_id)
 
-            project = await self.session.get(Project, project_id)
-            if project and project.is_builtin:
-                from nexus.authz.exceptions import BuiltinProtectionError  # noqa: PLC0415
+        project = await self.session.get(Project, project_id)
+        if project and project.is_builtin:
+            from nexus.authz.exceptions import BuiltinProtectionError  # noqa: PLC0415
 
-                msg = f"Cannot create workflows in built-in project '{project.name}'"
-                raise BuiltinProtectionError(msg)
+            msg = f"Cannot create workflows in built-in project '{project.name}'"
+            raise BuiltinProtectionError(msg)
 
-            await self._validate_credential_project_scope(workflow_definition, project_id)
+        await self._validate_credential_project_scope(workflow_definition, project_id)
 
         schema_version = workflow_definition.get("schema_version")
         workflow_dict = workflow_definition

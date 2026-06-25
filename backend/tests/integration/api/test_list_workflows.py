@@ -1,18 +1,16 @@
 """Integration tests for project-scoped workflow LIST filtering (LW-1 through LW-5).
 
 Validates that GET /workflows returns only workflows belonging to projects
-the user has workflow:read access to. Workflows with project_id=NULL are only
-visible to users with global workflow:read permission.
+the user has workflow:read access to.
 """
 
 from collections.abc import Awaitable, Callable
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import insert
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
@@ -20,7 +18,6 @@ from nexus.auth.dependencies import get_current_user
 from nexus.authz.models import RoleAssignment, RolePrincipalType
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
-from nexus.workflows.models.workflow import Workflow
 
 
 def _auth_as(user: User) -> None:
@@ -50,11 +47,10 @@ WORKFLOW_DEFINITION: dict[str, Any] = {
 
 async def _create_workflow_in_project(
     client: AsyncClient,
-    db: AsyncSession,
     name: str,
     project_id: str,
 ) -> str:
-    """Create a workflow via API and assign it to a project in the DB.
+    """Create a workflow via API assigned to a project.
 
     The caller must be authenticated as a user with global workflow:create
     permission (e.g., a user with the 'user' role).
@@ -63,17 +59,10 @@ async def _create_workflow_in_project(
     """
     resp = await client.post(
         "/api/v1/workflows",
-        json={"name": name, "workflow_definition": WORKFLOW_DEFINITION},
+        json={"name": name, "project_id": project_id, "workflow_definition": WORKFLOW_DEFINITION},
     )
     assert resp.status_code == 201
     wf_id: str = resp.json()["id"]
-
-    # Assign project_id directly in DB (API doesn't support setting project_id yet)
-    result = await db.exec(select(Workflow).where(Workflow.id == UUID(wf_id)))
-    workflow = result.one()
-    workflow.project_id = UUID(project_id)
-    db.add(workflow)
-    await db.commit()
 
     return wf_id
 
@@ -81,7 +70,6 @@ async def _create_workflow_in_project(
 @pytest.mark.asyncio
 async def test_lw1_user_sees_only_workflows_in_their_project(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
@@ -96,8 +84,8 @@ async def test_lw1_user_sees_only_workflows_in_their_project(
     proj_b_id = resp2.json()["id"]
 
     # Create workflows in each project (as test_user who has global workflow:create)
-    await _create_workflow_in_project(auth_client, test_db_session, "lw1-wf-a", proj_a_id)
-    await _create_workflow_in_project(auth_client, test_db_session, "lw1-wf-b", proj_b_id)
+    await _create_workflow_in_project(auth_client, "lw1-wf-a", proj_a_id)
+    await _create_workflow_in_project(auth_client, "lw1-wf-b", proj_b_id)
 
     # Create scoped_user with access only to proj_a
     scoped_user = await user_factory(username="lw1-scoped", email="lw1@example.com")
@@ -121,7 +109,6 @@ async def test_lw1_user_sees_only_workflows_in_their_project(
 @pytest.mark.asyncio
 async def test_lw2_user_with_multiple_projects_sees_workflows_from_all(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
@@ -136,8 +123,8 @@ async def test_lw2_user_with_multiple_projects_sees_workflows_from_all(
     proj2_id = resp2.json()["id"]
 
     # Create workflows in each
-    await _create_workflow_in_project(auth_client, test_db_session, "lw2-wf-alpha", proj1_id)
-    await _create_workflow_in_project(auth_client, test_db_session, "lw2-wf-beta", proj2_id)
+    await _create_workflow_in_project(auth_client, "lw2-wf-alpha", proj1_id)
+    await _create_workflow_in_project(auth_client, "lw2-wf-beta", proj2_id)
 
     # Create a user with access to both projects
     multi_user = await user_factory(username="lw2-multi", email="lw2@example.com")
@@ -159,25 +146,23 @@ async def test_lw2_user_with_multiple_projects_sees_workflows_from_all(
 
 
 @pytest.mark.asyncio
-async def test_lw3_global_admin_sees_all_including_unscoped(
+async def ***REMOVED***(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """LW-3: Global admin sees all workflows, including those with project_id=NULL."""
-    # Create a project and a workflow in it
-    resp = await auth_client.post("/api/v1/projects", json={"name": "lw3-proj"})
+    """LW-3: Global admin sees all workflows across all projects."""
+    # Create two projects with workflows
+    resp = await auth_client.post("/api/v1/projects", json={"name": "lw3-proj-a"})
     assert resp.status_code == 201
-    proj_id = resp.json()["id"]
-    await _create_workflow_in_project(auth_client, test_db_session, "lw3-scoped-wf", proj_id)
+    proj_a_id = resp.json()["id"]
+    await _create_workflow_in_project(auth_client, "lw3-wf-a", proj_a_id)
 
-    # Create an unscoped workflow (project_id=NULL)
-    resp = await auth_client.post(
-        "/api/v1/workflows",
-        json={"name": "lw3-unscoped-wf", "workflow_definition": WORKFLOW_DEFINITION},
-    )
+    resp = await auth_client.post("/api/v1/projects", json={"name": "lw3-proj-b"})
     assert resp.status_code == 201
+    proj_b_id = resp.json()["id"]
+    await _create_workflow_in_project(auth_client, "lw3-wf-b", proj_b_id)
 
     # Create an admin user
     admin = await user_factory(username="lw3-admin", email="lw3-adm@example.com")
@@ -197,8 +182,8 @@ async def test_lw3_global_admin_sees_all_including_unscoped(
     response = await auth_client.get("/api/v1/workflows")
     assert response.status_code == 200
     wf_names = [w["name"] for w in response.json()["resources"]]
-    assert "lw3-scoped-wf" in wf_names
-    assert "lw3-unscoped-wf" in wf_names
+    assert "lw3-wf-a" in wf_names
+    assert "lw3-wf-b" in wf_names
 
     _auth_as(test_user)
 
@@ -232,40 +217,37 @@ async def test_lw4_user_with_no_workflow_projects_sees_empty(
 
 
 @pytest.mark.asyncio
-async def test_lw5_unscoped_workflows_hidden_from_project_scoped_users(
+async def test_lw5_workflows_in_other_projects_hidden_from_project_scoped_users(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """LW-5: Unscoped workflows (project_id=NULL) are not visible to project-scoped users."""
-    # Create an unscoped workflow (as test_user who has global workflow:create)
-    resp = await auth_client.post(
-        "/api/v1/workflows",
-        json={"name": "lw5-unscoped", "workflow_definition": WORKFLOW_DEFINITION},
-    )
+    """LW-5: Workflows in other projects are not visible to project-scoped users."""
+    # Create two projects with workflows
+    resp = await auth_client.post("/api/v1/projects", json={"name": "lw5-proj-a"})
     assert resp.status_code == 201
+    proj_a_id = resp.json()["id"]
+    await _create_workflow_in_project(auth_client, "lw5-visible", proj_a_id)
 
-    # Create a project with a scoped workflow
-    resp = await auth_client.post("/api/v1/projects", json={"name": "lw5-proj"})
+    resp = await auth_client.post("/api/v1/projects", json={"name": "lw5-proj-b"})
     assert resp.status_code == 201
-    proj_id = resp.json()["id"]
-    await _create_workflow_in_project(auth_client, test_db_session, "lw5-scoped", proj_id)
+    proj_b_id = resp.json()["id"]
+    await _create_workflow_in_project(auth_client, "lw5-hidden", proj_b_id)
 
-    # Create a project-only user
+    # Create a project-only user with access to proj_a only
     proj_user = await user_factory(username="lw5-proj-user", email="lw5@example.com")
     resp = await auth_client.post(
-        f"/api/v1/projects/{proj_id}/role_assignments",
+        f"/api/v1/projects/{proj_a_id}/role_assignments",
         json={"principal_type": "user", "principal_id": str(proj_user.id), "role_name": "project-user"},
     )
     assert resp.status_code == 201
 
-    # proj_user should see lw5-scoped but NOT lw5-unscoped
+    # proj_user should see lw5-visible but NOT lw5-hidden
     _auth_as(proj_user)
     response = await auth_client.get("/api/v1/workflows")
     assert response.status_code == 200
     wf_names = [w["name"] for w in response.json()["resources"]]
-    assert "lw5-scoped" in wf_names
-    assert "lw5-unscoped" not in wf_names
+    assert "lw5-visible" in wf_names
+    assert "lw5-hidden" not in wf_names
 
     _auth_as(test_user)

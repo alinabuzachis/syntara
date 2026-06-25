@@ -847,7 +847,9 @@ def llm_model() -> str:
 
 
 @pytest.fixture(scope="session")
-def llm_credential_id(nexus_api: NexusApiRegistry, worker_id: str) -> Generator[str, None, None]:
+def llm_credential_id(
+    nexus_api: NexusApiRegistry, worker_id: str, first_project_id: UUID
+) -> Generator[str, None, None]:
     """Create an LLM Provider credential for e2e tests and yield its UUID.
 
     Reads APP_OPENROUTER_API_KEY from the environment; skips if not set.
@@ -865,16 +867,12 @@ def llm_credential_id(nexus_api: NexusApiRegistry, worker_id: str) -> Generator[
             break
     assert llm_type_id is not None, "LLM Provider credential type not found — is the database seeded?"
 
-    projects_list = nexus_api.projects.list().assert_and_get()
-    assert len(projects_list.resources) > 0, "No projects available"
-    project_id = UUID(str(projects_list.resources[0].id))
-
     cred_name = f"e2e-llm-credential-{worker_id}"
     cred = nexus_api.credentials.create(
         body=CredentialCreate(
             name=cred_name,
             credential_type_id=llm_type_id,
-            project_id=project_id,
+            project_id=first_project_id,
             inputs=CredentialCreateInputs.from_dict(
                 {
                     "provider": "openrouter",
@@ -896,13 +894,16 @@ def llm_credential_id(nexus_api: NexusApiRegistry, worker_id: str) -> Generator[
 
 @pytest.fixture(scope="session")
 def first_project_id(nexus_api: NexusApiRegistry) -> UUID:
-    """Return the first available project ID.
+    """Return the first available non-builtin project ID.
 
     Tests that need a valid project ID can use this fixture.
+    Skips built-in projects since workflow creation is blocked in them.
     """
     projects_list = nexus_api.projects.list().assert_and_get()
-    assert len(projects_list.resources) > 0, "No projects available"
-    return UUID(str(projects_list.resources[0].id))
+    for project in projects_list.resources:
+        if not getattr(project, "is_builtin", False):
+            return UUID(str(project.id))
+    pytest.fail("No non-builtin projects available")
 
 
 @pytest.fixture

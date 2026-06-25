@@ -1,6 +1,6 @@
 """Shared pytest fixtures for model unit tests."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -14,12 +14,14 @@ from nexus.workflows.models.execution import Execution
 async def test_workflow_minimal(
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> Workflow:
     """Create a minimal test workflow.
 
     Args:
         test_db_session: Test database session
         test_user: Test user
+        test_project_id: Project ID
 
     Returns:
         Workflow: Minimal test workflow instance
@@ -29,6 +31,7 @@ async def test_workflow_minimal(
         id=uuid4(),
         name="test-workflow",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
@@ -71,6 +74,7 @@ async def test_execution_minimal(
     test_user: User,
     test_workflow_minimal: Workflow,
     test_workflow_version_minimal: WorkflowVersion,
+    test_project_id: UUID,
 ) -> Execution:
     """Create a minimal test execution.
 
@@ -79,6 +83,7 @@ async def test_execution_minimal(
         test_user: Test user
         test_workflow_minimal: Test workflow
         test_workflow_version_minimal: Test workflow version
+        test_project_id: Project ID
 
     Returns:
         Execution: Minimal test execution instance
@@ -90,6 +95,7 @@ async def test_execution_minimal(
         workflow_version_id=test_workflow_version_minimal.id,
         temporal_workflow_id="test-workflow-123",
         created_by=test_user.id,
+        project_id=test_project_id,
     )
     test_db_session.add(execution)
     await test_db_session.commit()

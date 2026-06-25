@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from httpx import AsyncClient
 from sqlmodel import select
@@ -110,10 +110,11 @@ def _wf_def(name: str) -> dict[str, object]:
 class WorkflowFactory:
     """Factory for creating workflows with versions."""
 
-    def __init__(self, session: AsyncSession, user: User) -> None:
-        """Initialize with database session and user."""
+    def __init__(self, session: AsyncSession, user: User, project_id: UUID) -> None:
+        """Initialize with database session, user, and project."""
         self.session = session
         self.user = user
+        self.project_id = project_id
 
     async def create(
         self,
@@ -129,6 +130,7 @@ class WorkflowFactory:
             is_enabled=is_enabled,
             published_version=1 if is_enabled else None,
             current_version=1,
+            project_id=self.project_id,
         )
         self.session.add(wf)
         version = WorkflowVersion(
@@ -208,6 +210,7 @@ class ExecutionsFactory:
                 created_by=self.user.id,
                 input_data={},
                 labels=labels or {},
+                project_id=self.workflow.project_id,
             )
             for _ in range(count)
         ]

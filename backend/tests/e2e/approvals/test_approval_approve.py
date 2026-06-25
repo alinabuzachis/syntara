@@ -78,6 +78,7 @@ class TestApproveSignal:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ) -> None:
         """Approving an approval node resumes the paused Temporal execution.
 
@@ -97,6 +98,7 @@ class TestApproveSignal:
                 name=name,
                 description="E2E: approve signal resumes execution",
                 workflow_definition=_approval_workflow(name),
+                project_id=first_project_id,
             )
         )
 
@@ -122,6 +124,7 @@ class TestApproveSignal:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ) -> None:
         """The node connected on the 'approved' port executes after approval.
 
@@ -139,6 +142,7 @@ class TestApproveSignal:
                 name=name,
                 description="E2E: approved-path downstream executes",
                 workflow_definition=_approval_workflow(name, with_approved_downstream=True),
+                project_id=first_project_id,
             )
         )
 
@@ -168,6 +172,7 @@ class TestApproveSignal:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
     ) -> None:
         """Approval node output includes decision, decided_by, decided_at, and decision_notes.
 
@@ -189,6 +194,7 @@ class TestApproveSignal:
                 name=name,
                 description="E2E: approval output field verification",
                 workflow_definition=_approval_workflow(name, with_approved_downstream=True),
+                project_id=first_project_id,
             )
         )
 

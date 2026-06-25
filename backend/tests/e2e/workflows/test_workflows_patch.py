@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from nexus_api_client.models.project_create import ProjectCreate
@@ -37,6 +37,7 @@ class TestWorkflowUpdate:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test updating workflow labels.
 
@@ -57,6 +58,7 @@ class TestWorkflowUpdate:
                     )
                 ),
                 labels=WorkflowCreateLabels.from_dict({"env": "dev"}),
+                project_id=first_project_id,
             )
         )
 
@@ -84,7 +86,7 @@ class TestWorkflowUpdate:
         assert response.status_code == HTTPStatus.NOT_FOUND
 
     def test_update_workflow_validation_errors(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test validation errors on invalid update data.
 
@@ -102,6 +104,7 @@ class TestWorkflowUpdate:
             WorkflowCreate(
                 name=workflow_name,
                 workflow_definition=workflow_def,
+                project_id=first_project_id,
             )
         )
         workflow_id = workflow.id
@@ -118,6 +121,7 @@ class TestWorkflowUpdate:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test that PATCH with only metadata does NOT create a new version.
 
@@ -135,6 +139,7 @@ class TestWorkflowUpdate:
                         description="Initial description",
                     )
                 ),
+                project_id=first_project_id,
             )
         )
         test_suffix = uuid4().hex[:8]
@@ -157,6 +162,7 @@ class TestWorkflowUpdate:
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
     ) -> None:
         """Test that PATCH response includes version object with current version data.
 
@@ -174,6 +180,7 @@ class TestWorkflowUpdate:
                         description="Initial version",
                     )
                 ),
+                project_id=first_project_id,
             )
         )
 
@@ -188,7 +195,7 @@ class TestWorkflowUpdate:
         assert updated.version.workflow_id == workflow.id
 
     def test_update_with_unchanged_yaml_skips_version(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test that PATCH with identical definition does NOT create new version.
 
@@ -216,6 +223,7 @@ class TestWorkflowUpdate:
             WorkflowCreate(
                 name=workflow_name,
                 workflow_definition=workflow_definition,
+                project_id=first_project_id,
             )
         )
         workflow_id = workflow.id
@@ -270,7 +278,7 @@ class TestWorkflowUpdate:
         assert updated2.current_version == 2  # Version incremented due to content change
 
     def test_update_workflow_duplicate_name_error(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test that renaming to an existing workflow name returns conflict error.
 
@@ -289,6 +297,7 @@ class TestWorkflowUpdate:
             WorkflowCreate(
                 name=workflow1_name,
                 workflow_definition=workflow_def_1,
+                project_id=first_project_id,
             )
         )
         workflow1_id = workflow1.id
@@ -305,6 +314,7 @@ class TestWorkflowUpdate:
             WorkflowCreate(
                 name=workflow2_name,
                 workflow_definition=workflow_def_2,
+                project_id=first_project_id,
             )
         )
         workflow2_id = workflow2.id

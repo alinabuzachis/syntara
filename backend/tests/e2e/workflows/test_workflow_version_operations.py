@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from nexus_api_client.models.publish_version_request import PublishVersionRequest
@@ -20,7 +20,6 @@ from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.models.workflow_read import WorkflowRead
@@ -54,14 +53,18 @@ class TestWorkflowVersionRestore:
     """E2E tests for workflow version restore."""
 
     def test_restore_creates_new_draft_with_original_definition(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID]
+        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Restoring v1 after updating to v2 creates v3 as a draft with v1's definition."""
         defn_v1 = _simple_definition(activity_id="task1", description="v1")
         defn_v2 = _simple_definition(activity_id="task2", description="v2")
 
         create_resp = nexus_api.workflows.create(
-            body=WorkflowCreate(name=f"e2e-restore-{uuid4().hex[:8]}", workflow_definition=defn_v1),
+            body=WorkflowCreate(
+                name=f"e2e-restore-{uuid4().hex[:8]}",
+                workflow_definition=defn_v1,
+                project_id=first_project_id,
+            ),
         )
         assert create_resp.status_code == HTTPStatus.CREATED
         assert create_resp.parsed is not None
@@ -94,7 +97,7 @@ class TestWorkflowVersionRestore:
         assert by_ver[3].status == "draft"
 
     def test_restore_published_version_keeps_publish_status(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID]
+        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Restoring a published version creates a draft; published copy keeps its status.
 
@@ -108,7 +111,11 @@ class TestWorkflowVersionRestore:
         defn_v2 = _simple_definition(activity_id="pub_task2", description="draft-v2")
 
         create_resp = nexus_api.workflows.create(
-            body=WorkflowCreate(name=f"e2e-restore-pub-{uuid4().hex[:8]}", workflow_definition=defn_v1),
+            body=WorkflowCreate(
+                name=f"e2e-restore-pub-{uuid4().hex[:8]}",
+                workflow_definition=defn_v1,
+                project_id=first_project_id,
+            ),
         )
         assert create_resp.status_code == HTTPStatus.CREATED
         assert create_resp.parsed is not None
@@ -138,7 +145,7 @@ class TestWorkflowVersionRestore:
         assert by_ver[4].status == "draft"
 
     def ***REMOVED***(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID]
+        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """After publishing the updated draft, the previous published copy becomes previously_published.
 
@@ -152,7 +159,11 @@ class TestWorkflowVersionRestore:
         defn_v2 = _simple_definition(activity_id="repub_task2", description="v2")
 
         create_resp = nexus_api.workflows.create(
-            body=WorkflowCreate(name=f"e2e-republish-{uuid4().hex[:8]}", workflow_definition=defn_v1),
+            body=WorkflowCreate(
+                name=f"e2e-republish-{uuid4().hex[:8]}",
+                workflow_definition=defn_v1,
+                project_id=first_project_id,
+            ),
         )
         assert create_resp.status_code == HTTPStatus.CREATED
         assert create_resp.parsed is not None
@@ -182,7 +193,7 @@ class TestPublishWithUnsavedChanges:
     """E2E tests for publishing with unsaved canvas changes (dirty-publish)."""
 
     def test_publish_with_workflow_definition_uses_provided_definition(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID]
+        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Publishing with workflow_definition in request uses that definition, not the saved draft's.
 
@@ -195,7 +206,11 @@ class TestPublishWithUnsavedChanges:
         defn_unsaved = _simple_definition(activity_id="unsaved_canvas_task", description="unsaved canvas state")
 
         create_resp = nexus_api.workflows.create(
-            body=WorkflowCreate(name=f"e2e-dirty-pub-{uuid4().hex[:8]}", workflow_definition=defn_saved),
+            body=WorkflowCreate(
+                name=f"e2e-dirty-pub-{uuid4().hex[:8]}",
+                workflow_definition=defn_saved,
+                project_id=first_project_id,
+            ),
         )
         assert create_resp.status_code == HTTPStatus.CREATED
         assert create_resp.parsed is not None
@@ -224,7 +239,7 @@ class TestPublishWithUnsavedChanges:
         assert v1_resp.parsed.status == "draft"
 
     def test_publish_without_workflow_definition_uses_saved_definition(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID]
+        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Normal publish (no workflow_definition) uses the saved draft's definition.
 
@@ -235,7 +250,11 @@ class TestPublishWithUnsavedChanges:
         defn = _simple_definition(activity_id="original_task", description="saved definition")
 
         create_resp = nexus_api.workflows.create(
-            body=WorkflowCreate(name=f"e2e-clean-pub-{uuid4().hex[:8]}", workflow_definition=defn),
+            body=WorkflowCreate(
+                name=f"e2e-clean-pub-{uuid4().hex[:8]}",
+                workflow_definition=defn,
+                project_id=first_project_id,
+            ),
         )
         assert create_resp.status_code == HTTPStatus.CREATED
         assert create_resp.parsed is not None
@@ -256,7 +275,7 @@ class TestPublishWithUnsavedChanges:
         assert published_defn["nodes"][0]["id"] == "original_task"
 
     def test_publish_with_invalid_workflow_definition_returns_error(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID]
+        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Publishing with an invalid workflow_definition rejects the request.
 
@@ -267,7 +286,11 @@ class TestPublishWithUnsavedChanges:
         defn = _simple_definition(activity_id="valid_task", description="valid")
 
         create_resp = nexus_api.workflows.create(
-            body=WorkflowCreate(name=f"e2e-invalid-pub-{uuid4().hex[:8]}", workflow_definition=defn),
+            body=WorkflowCreate(
+                name=f"e2e-invalid-pub-{uuid4().hex[:8]}",
+                workflow_definition=defn,
+                project_id=first_project_id,
+            ),
         )
         assert create_resp.status_code == HTTPStatus.CREATED
         assert create_resp.parsed is not None
@@ -288,7 +311,7 @@ class TestPublishWithUnsavedChanges:
         assert wf_resp.parsed.published_version is None
 
     def test_incremental_build_publish_includes_unsaved_step(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID]
+        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Simulates the real user flow: build incrementally, publish with unsaved changes.
 
@@ -329,7 +352,11 @@ class TestPublishWithUnsavedChanges:
 
         # Step 1: create with trigger + step1
         create_resp = nexus_api.workflows.create(
-            body=WorkflowCreate(name=f"e2e-incremental-{uuid4().hex[:8]}", workflow_definition=defn_v1),
+            body=WorkflowCreate(
+                name=f"e2e-incremental-{uuid4().hex[:8]}",
+                workflow_definition=defn_v1,
+                project_id=first_project_id,
+            ),
         )
         assert create_resp.status_code == HTTPStatus.CREATED
         assert create_resp.parsed is not None

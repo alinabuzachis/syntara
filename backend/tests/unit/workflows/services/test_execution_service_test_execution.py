@@ -37,7 +37,7 @@ def _make_mock_workflow(
     wf.id = workflow_id or uuid4()
     wf.name = "test-workflow"
     wf.is_enabled = is_enabled
-    wf.project_id = None
+    wf.project_id = uuid4()
 
     wv = Mock(spec=WorkflowVersion)
     wv.id = version_id or uuid4()

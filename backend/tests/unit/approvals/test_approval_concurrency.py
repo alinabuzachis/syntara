@@ -7,7 +7,7 @@ when multiple users or batch operations attempt to decide the same approval simu
 import asyncio
 from collections.abc import Awaitable, Callable
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -104,6 +104,7 @@ async def test_concurrent_decisions_only_one_succeeds(
     admin_user: User,
     user_factory: Callable[..., Awaitable[User]],
     mock_workflow_client: AsyncMock,
+    test_project_id: UUID,
 ) -> None:
     """Test that when two users decide the same approval simultaneously, only one succeeds.
 
@@ -114,7 +115,7 @@ async def test_concurrent_decisions_only_one_succeeds(
     approval = ApprovalRequest(
         execution_id=uuid4(),
         approval_node_id="test_node",
-        project_id=None,
+        project_id=test_project_id,
         name="Test Approval",
         timeout_at=None,
         status=ApprovalRequestStatus.PENDING,
@@ -160,6 +161,7 @@ async def test_concurrent_decision_and_list_no_deadlock(
     test_db_session: AsyncSession,
     admin_user: User,
     mock_workflow_client: AsyncMock,
+    test_project_id: UUID,
 ) -> None:
     """Test that concurrent decision and list operations don't deadlock.
 
@@ -171,7 +173,7 @@ async def test_concurrent_decision_and_list_no_deadlock(
         ApprovalRequest(
             execution_id=uuid4(),
             approval_node_id=f"node_{i}",
-            project_id=None,
+            project_id=test_project_id,
             name=f"Test Approval {i}",
             timeout_at=None,
             status=ApprovalRequestStatus.PENDING,
@@ -215,6 +217,7 @@ async def test_batch_decision_locks_prevent_concurrent_single_decision(
     admin_user: User,
     user_factory: Callable[..., Awaitable[User]],
     mock_workflow_client: AsyncMock,
+    test_project_id: UUID,
 ) -> None:
     """Test that batch decision row locks prevent concurrent single decisions.
 
@@ -225,7 +228,7 @@ async def test_batch_decision_locks_prevent_concurrent_single_decision(
     approval = ApprovalRequest(
         execution_id=uuid4(),
         approval_node_id="test_node",
-        project_id=None,
+        project_id=test_project_id,
         name="Test Approval",
         timeout_at=None,
         status=ApprovalRequestStatus.PENDING,
@@ -266,6 +269,7 @@ async def test_batch_decision_with_duplicate_ids_processes_once(
     test_db_session: AsyncSession,
     admin_user: User,
     mock_workflow_client: AsyncMock,
+    test_project_id: UUID,
 ) -> None:
     """Test that batch decision with duplicate approval IDs only processes each approval once.
 
@@ -275,7 +279,7 @@ async def test_batch_decision_with_duplicate_ids_processes_once(
     approval1 = ApprovalRequest(
         execution_id=uuid4(),
         approval_node_id="node_1",
-        project_id=None,
+        project_id=test_project_id,
         name="Test Approval 1",
         timeout_at=None,
         status=ApprovalRequestStatus.PENDING,
@@ -286,7 +290,7 @@ async def test_batch_decision_with_duplicate_ids_processes_once(
     approval2 = ApprovalRequest(
         execution_id=uuid4(),
         approval_node_id="node_2",
-        project_id=None,
+        project_id=test_project_id,
         name="Test Approval 2",
         timeout_at=None,
         status=ApprovalRequestStatus.PENDING,
@@ -333,6 +337,7 @@ async def test_concurrent_batch_decisions_no_overlap(
     admin_user: User,
     user_factory: Callable[..., Awaitable[User]],
     mock_workflow_client: AsyncMock,
+    test_project_id: UUID,
 ) -> None:
     """Test that concurrent batch decisions on non-overlapping approvals succeed.
 
@@ -343,7 +348,7 @@ async def test_concurrent_batch_decisions_no_overlap(
         ApprovalRequest(
             execution_id=uuid4(),
             approval_node_id=f"node_{i}",
-            project_id=None,
+            project_id=test_project_id,
             name=f"Test Approval {i}",
             timeout_at=None,
             status=ApprovalRequestStatus.PENDING,
@@ -402,6 +407,7 @@ async def test_concurrent_batch_decisions_with_overlap(
     admin_user: User,
     user_factory: Callable[..., Awaitable[User]],
     mock_workflow_client: AsyncMock,
+    test_project_id: UUID,
 ) -> None:
     """Test that concurrent batch decisions on overlapping approvals handle conflicts gracefully.
 
@@ -413,7 +419,7 @@ async def test_concurrent_batch_decisions_with_overlap(
         ApprovalRequest(
             execution_id=uuid4(),
             approval_node_id=f"node_{i}",
-            project_id=None,
+            project_id=test_project_id,
             name=f"Test Approval {i}",
             timeout_at=None,
             status=ApprovalRequestStatus.PENDING,
