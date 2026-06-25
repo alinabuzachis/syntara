@@ -206,7 +206,6 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/$(E2E_TARGET) -v -m "not global_revocation" $(E2E_ARGS))
 else
 	@echo "🧪 Running E2E tests $(if $(PHASE),for phase $(PHASE),$(if $(EXCLUDE),excluding phase $(EXCLUDE),))..."
-	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
 	uv run pytest tests/e2e/$(E2E_TARGET) -v -m "not global_revocation" $(E2E_ARGS)
 endif
 
