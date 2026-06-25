@@ -152,6 +152,8 @@ services:
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
     command: [sh, -c, uv run python -m nexus.workflows.worker]
+    extra_hosts: # Dev mode: resolves 'nexus' to host when API runs outside containers
+      - "nexus:host-gateway"
     environment:
       - APP_DB_HOST=database
       - APP_DB_PORT=5432
