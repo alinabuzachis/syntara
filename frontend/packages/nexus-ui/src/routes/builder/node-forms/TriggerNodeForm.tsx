@@ -11,10 +11,11 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { DateRangeCadencePicker } from '../../../components/forms/DateRangeCadencePicker'
+import { generateWebhookPath } from '../../../utils/webhookPath'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { EdaFields } from './EdaTriggerFields'
@@ -187,16 +188,24 @@ function TriggerFormFields({
 }
 
 export function TriggerNodeForm(props: TriggerNodeFormProps) {
-  const defaultValues: TriggerFormData = {
-    name: '',
-    triggerType: props.initialData?.triggerType ?? TriggerTypeEnum.MANUAL_TRIGGER,
-    scheduleType: 'interval',
-    interval: '',
-    cron: '',
-    inputSchema: '',
-    webhookPath: '',
-    ...props.initialData,
-  }
+  const [defaultValues] = useState<TriggerFormData>(() => {
+    const values: TriggerFormData = {
+      name: '',
+      triggerType: props.initialData?.triggerType ?? TriggerTypeEnum.MANUAL_TRIGGER,
+      scheduleType: 'interval',
+      interval: '',
+      cron: '',
+      inputSchema: '',
+      webhookPath: '',
+      ...props.initialData,
+    }
+
+    if (WEBHOOK_TRIGGER_TYPES.has(values.triggerType) && !values.webhookPath) {
+      values.webhookPath = generateWebhookPath()
+    }
+
+    return values
+  })
 
   const methods = useForm<TriggerFormData>({
     resolver: zodResolver(triggerFormSchema, undefined, { mode: 'sync' }),

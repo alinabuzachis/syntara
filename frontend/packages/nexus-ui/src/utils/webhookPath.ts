@@ -7,6 +7,8 @@
  * validation and on submit.
  */
 
+import { generateUUID } from './generateUUID'
+
 const WEBHOOK_PATH_PATTERN = /^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$/
 
 /**
@@ -20,4 +22,9 @@ export function normalizeWebhookPath(path: string): string {
 /** Check whether a normalized webhook path matches the backend pattern. */
 export function isValidWebhookPath(path: string): boolean {
   return WEBHOOK_PATH_PATTERN.test(path)
+}
+
+/** Generate a unique, unguessable webhook path. */
+export function generateWebhookPath(): string {
+  return generateUUID()
 }

@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { submitForm } from '../../../test/submit-form'
+import { isValidWebhookPath } from '../../../utils/webhookPath'
 
 import { renderWithHeader } from './test-utils/renderWithHeader'
 import { TriggerNodeForm } from './TriggerNodeForm'
@@ -297,6 +298,28 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.getByLabelText('Webhook path')).toBeInTheDocument()
     })
 
+    it('auto-generates a valid webhook path for new triggers', () => {
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
+      )
+
+      const pathInput = screen.getByLabelText('Webhook path')
+      const value = (pathInput as HTMLInputElement).value
+      expect(value).toBeTruthy()
+      expect(isValidWebhookPath(value)).toBe(true)
+    })
+
+    it('does not auto-generate a path when one is already provided', () => {
+      renderWithHeader(
+        <TriggerNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER, webhookPath: 'my-custom-path' }}
+        />
+      )
+
+      expect(screen.getByLabelText('Webhook path')).toHaveValue('my-custom-path')
+    })
+
     it('shows URL display with base URL', () => {
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
@@ -319,7 +342,9 @@ describe('TriggerNodeForm Component', () => {
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
       )
 
-      await user.type(screen.getByLabelText('Webhook path'), '/Jira-Updates')
+      const pathInput = screen.getByLabelText('Webhook path')
+      await user.clear(pathInput)
+      await user.type(pathInput, '/Jira-Updates')
       await submitTriggerForm()
 
       await waitFor(() => {
@@ -333,10 +358,12 @@ describe('TriggerNodeForm Component', () => {
     })
 
     it('shows validation error for empty webhook path', async () => {
+      const user = userEvent.setup()
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
       )
 
+      await user.clear(screen.getByLabelText('Webhook path'))
       await submitTriggerForm()
 
       await waitFor(() => {
@@ -351,7 +378,9 @@ describe('TriggerNodeForm Component', () => {
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
       )
 
-      await user.type(screen.getByLabelText('Webhook path'), 'invalid path!@#')
+      const pathInput = screen.getByLabelText('Webhook path')
+      await user.clear(pathInput)
+      await user.type(pathInput, 'invalid path!@#')
       await submitTriggerForm()
 
       await waitFor(() => {
@@ -419,13 +448,26 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.getByText('Event-Driven Ansible Connection Instructions')).toBeInTheDocument()
     })
 
+    it('auto-generates a valid webhook path for new EDA triggers', () => {
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
+      )
+
+      const pathInput = screen.getByLabelText('Webhook path')
+      const value = (pathInput as HTMLInputElement).value
+      expect(value).toBeTruthy()
+      expect(isValidWebhookPath(value)).toBe(true)
+    })
+
     it('submits EDA trigger with normalized path', async () => {
       const user = userEvent.setup()
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
       )
 
-      await user.type(screen.getByLabelText('Webhook path'), '/EDA-Events')
+      const pathInput = screen.getByLabelText('Webhook path')
+      await user.clear(pathInput)
+      await user.type(pathInput, '/EDA-Events')
       await submitTriggerForm()
 
       await waitFor(() => {
@@ -439,10 +481,12 @@ describe('TriggerNodeForm Component', () => {
     })
 
     it('shows validation error for empty webhook path', async () => {
+      const user = userEvent.setup()
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
       )
 
+      await user.clear(screen.getByLabelText('Webhook path'))
       await submitTriggerForm()
 
       await waitFor(() => {
