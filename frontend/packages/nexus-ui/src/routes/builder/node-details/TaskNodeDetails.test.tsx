@@ -402,7 +402,7 @@ describe('TaskNodeDetails Component', () => {
         limit: 'webservers',
         tags: 'deploy',
         skip_tags: 'testing',
-        verbosity: 2,
+        verbosity: 2 as const,
       },
     }
 

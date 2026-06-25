@@ -1,4 +1,4 @@
-import { TriggerTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { FlexItem, Content, ContentVariants, Title, TitleSizes } from '@patternfly/react-core'
 import { type Node, type NodeProps, useStore } from '@xyflow/react'
 import type { CSSProperties } from 'react'
@@ -24,7 +24,7 @@ export type TriggerNode = { type: 'trigger' } & Node<{
   name: string
   details: string | null
   triggerType?: string
-  config?: WorkflowAPI.components['schemas']['configSchema']
+  config?: Record<string, unknown>
 }>
 
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
@@ -119,7 +119,7 @@ function TriggerNodeDetails(
     node: {
       name: string
       details: string | null
-      config?: WorkflowAPI.components['schemas']['configSchema']
+      config?: Record<string, unknown>
     }
     icon?: React.ReactNode
     menuActions?: ReturnType<typeof useNodeMenuActions>

@@ -8,7 +8,7 @@ import type { EdgeConnection } from '../types/edge'
 import { v2PortToHandle, v2TargetPortToHandle } from './edgeHelpers'
 import { DEFAULT_WORKFLOW_NAME } from './workflowNaming'
 
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
 type V2Edge = { from: string; to: string; from_port?: string; to_port?: string }
 
@@ -106,7 +106,7 @@ export function convertV2Definition(
  * representation (flat activities, React Flow edges, init payload).
  */
 export function processExistingWorkflow(workflow: WorkflowWithVersion) {
-  const workflowDef = workflow.version!.workflow_definition!
+  const workflowDef = workflow.version.workflow_definition
 
   const rawNodes = (workflowDef.nodes ?? []) as Array<Record<string, unknown>>
   const rawTriggers = (workflowDef.triggers ?? []) as Array<Record<string, unknown>>

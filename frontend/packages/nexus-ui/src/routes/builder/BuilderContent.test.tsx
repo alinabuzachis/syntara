@@ -11,7 +11,7 @@ import { AlertProvider } from '../../providers/alerts'
 import { ColorSchemeProvider } from '../../providers/theme/ColorSchemeProvider'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
 type MutationCallbacks = {
   onSuccess?: (data: unknown, variables: unknown, context: unknown) => void
@@ -179,7 +179,7 @@ describe('BuilderContent', () => {
       ...mockWorkflow,
       version: {
         workflow_definition: {
-          ...mockWorkflow.version!.workflow_definition,
+          ...mockWorkflow.version.workflow_definition,
           triggers: [
             {
               id: 'manual_trigger',
@@ -1366,7 +1366,7 @@ describe('BuilderContent', () => {
       }
 
       await renderBuilder({
-        workflow: workflowWithoutVersion as WorkflowWithVersion,
+        workflow: workflowWithoutVersion as unknown as WorkflowWithVersion,
         isNew: false,
         workflowId: 'workflow-1',
       })

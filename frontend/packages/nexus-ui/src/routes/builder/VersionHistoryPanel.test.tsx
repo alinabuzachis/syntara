@@ -6,7 +6,7 @@ import { axe } from 'vitest-axe'
 import { VersionHistoryPanel } from './VersionHistoryPanel'
 import type { VersionStatus } from './VersionStatusBadge'
 
-type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionResponse']
+type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionRead']
 
 function createMockVersion(overrides: Record<string, unknown> = {}): WorkflowVersion {
   return {

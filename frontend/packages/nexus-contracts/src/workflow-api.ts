@@ -12,18 +12,63 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List workflows
-     * @description Retrieve a list of workflows with filtering, sorting, and cursor-based pagination.
+     * List Workflows
+     * @description List workflows the current user has read access to.
+     *
+     *     Supports filtering using query parameters with standard operators:
+     *     - created_by: Filter by creator user ID (created_by=uuid)
+     *     - is_enabled: Filter by enabled status (is_enabled=true|false)
+     *     - labels: Filter by labels using bracket notation (labels[environment]=production)
+     *
+     *     Uses cursor-based pagination for scalability and consistency.
      */
     get: operations['list_workflows']
     put?: never
     /**
-     * Create workflow
-     * @description Create a new workflow entity with its initial version.
-     *     The workflow definition must conform to the v2 graph-based schema (schema_version: "2.0.0")
-     *     with triggers, nodes, and edges. The definition is validated and stored as version 1.
+     * Create Workflow
+     * @description Create a new workflow with initial version.
      */
     post: operations['create_workflow']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/workflows/validate': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Validate Workflow Definition
+     * @description Validate a workflow definition without saving it.
+     */
+    post: operations['validate_workflow_definition']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/workflows/validate/detailed': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Validate Workflow Definition Detailed
+     * @description Validate a workflow definition and return detailed per-finding results.
+     */
+    post: operations['validate_workflow_definition_detailed']
     delete?: never
     options?: never
     head?: never
@@ -38,26 +83,49 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get workflow
-     * @description Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field.
+     * Get Workflow
+     * @description Get a workflow by ID including its current active version.
      */
     get: operations['get_workflow']
     put?: never
     post?: never
     /**
-     * Delete workflow (soft delete)
-     * @description Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
+     * Delete Workflow
+     * @description Soft delete a workflow.
      */
     delete: operations['delete_workflow']
     options?: never
     head?: never
     /**
-     * Update workflow
-     * @description Update workflow fields. Supports both metadata updates and workflow definition updates:
-     *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-     *     - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
+     * Update Workflow
+     * @description Update workflow.
+     *
+     *     Supports both metadata-only updates and workflow definition updates:
+     *     - Metadata only (name, description, labels): Updates without creating new version
+     *     - With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion
+     *       only if definition differs (change detection optimization)
      */
     patch: operations['update_workflow']
+    trace?: never
+  }
+  '/workflows/{workflow_id}/test': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Test a single node in a workflow
+     * @description Test a single node in a workflow with mocked predecessor outputs.
+     */
+    post: operations['test_workflow_node']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
     trace?: never
   }
   '/workflows/{workflow_id}/versions': {
@@ -68,10 +136,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List workflow versions
-     * @description Retrieve all versions for a workflow with cursor-based pagination.
-     *     WorkflowVersion entities are read-only and managed automatically by the system.
-     *     Versions are ordered by version number descending (newest first) by default.
+     * List Workflow Versions
+     * @description List all versions for a workflow.
      */
     get: operations['list_workflow_versions']
     put?: never
@@ -90,8 +156,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get workflow version
-     * @description Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
+     * Get Workflow Version
+     * @description Get a specific workflow version.
      */
     get: operations['get_workflow_version']
     put?: never
@@ -109,13 +175,13 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /**
-     * Publish workflow version
-     * @description Publish a specific version of a workflow, making it the active published version.
-     */
-    post: operations['publish_workflow_version']
     get?: never
     put?: never
+    /**
+     * Publish Workflow Version
+     * @description Publish a specific workflow version.
+     */
+    post: operations['publish_workflow_version']
     delete?: never
     options?: never
     head?: never
@@ -129,13 +195,13 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /**
-     * Unpublish workflow
-     * @description Remove the published version from a workflow, reverting it to draft state.
-     */
-    post: operations['unpublish_workflow']
     get?: never
     put?: never
+    /**
+     * Unpublish Workflow
+     * @description Unpublish the currently published workflow version.
+     */
+    post: operations['unpublish_workflow']
     delete?: never
     options?: never
     head?: never
@@ -151,6 +217,10 @@ export interface paths {
     }
     get?: never
     put?: never
+    /**
+     * Restore Workflow Version
+     * @description Restore a previous workflow version as a new draft.
+     */
     post: operations['restore_workflow_version']
     delete?: never
     options?: never
@@ -158,23 +228,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/workflows/{workflow_id}/versions/{version}/export': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: operations['export_workflow_version']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/workflows/validate': {
+  '/webhooks/{webhook_path}': {
     parameters: {
       query?: never
       header?: never
@@ -184,11 +238,30 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Validate workflow definition
-     * @description Validate a workflow definition without creating or updating a workflow.
-     *     Returns validation results indicating whether the definition is valid.
+     * Receive webhook event
+     * @description Receive a webhook event from an external system and trigger the matching workflow. Only POST method is supported; other methods receive 405 Method Not Allowed.
      */
-    post: operations['validate_workflow']
+    post: operations['receive_webhook']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/webhooks/eda/{webhook_path}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Receive EDA webhook event
+     * @description Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Each EDA trigger node has its own unique webhook path. The payload can be any JSON structure.
+     */
+    post: operations['receive_eda_webhook']
     delete?: never
     options?: never
     head?: never
@@ -199,130 +272,305 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    Workflow: components['schemas']['NamedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['UserOwnedResource'] & {
-        /** @description Current active version number */
-        current_version?: number
-        /** @description Whether this is a built-in system workflow */
-        is_builtin?: boolean
-        /** @description Whether workflow is enabled and available for execution */
-        is_enabled?: boolean
-        /** @description Version number of the currently published version, or null if unpublished */
-        published_version?: number | null
-        /**
-         * Format: uuid
-         * @description Project this workflow belongs to
-         */
-        project_id?: string | null
-      }
-    WorkflowWithVersion: components['schemas']['Workflow'] & {
-      /** @description Specific version details */
-      version?: {
-        version?: number
-        /**
-         * @description Always "2.0.0" for v2 workflows
-         * @example 2.0.0
-         */
-        schema_version?: string
-        workflow_definition?: components['schemas']['workflow_definition.schema']
-        /** Format: uuid */
-        created_by?: string
-        /** Format: date-time */
-        created_at?: string
-        change_description?: string | null
-      }
-    }
     /**
-     * Workflow Version Response
-     * @description Complete details of a specific workflow version including workflow definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
+     * WorkflowRead
+     * @description Schema for workflow response (GET /workflows/{id}).
+     *
+     *     Includes all fields from the database table model.
+     *
+     *     Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
      */
-    /** @description Version status indicating publish state */
-    WorkflowVersionStatus: 'draft' | 'published' | 'previously_published'
-    WorkflowVersionResponse: {
+    WorkflowRead: {
       /**
-       * Format: uuid
-       * @description Version unique identifier
+       * Name
+       * @description Workflow name
        */
-      id: string
-      /**
-       * Format: uuid
-       * @description Parent workflow ID
-       */
-      workflow_id: string
-      /** @description Version number */
-      version: number
-      /**
-       * @description Schema version (always "2.0.0" for v2 workflows)
-       * @example 2.0.0
-       */
-      schema_version: string
-      /** @description V2 graph-based workflow definition with triggers, nodes, and edges */
-      workflow_definition: components['schemas']['workflow_definition.schema']
-      /** @description Version publish status */
-      status?: components['schemas']['WorkflowVersionStatus']
-      /** @description Human-readable name assigned when this version was published */
-      publish_name?: string | null
-      /**
-       * Format: uuid
-       * @description User who created this version
-       */
-      created_by: string
-      /**
-       * Format: date-time
-       * @description Version creation timestamp
-       */
-      created_at: string
-      /**
-       * Format: date-time
-       * @description Last update timestamp
-       */
-      updated_at: string
-      /** @description Description of changes in this version */
-      change_description?: string | null
-      /**
-       * Format: date-time
-       * @description Soft delete timestamp (always null in responses)
-       */
-      deleted_at?: string | null
-      /**
-       * Format: uuid
-       * @description User who soft deleted the version (always null in responses)
-       */
-      deleted_by?: string | null
-    }
-    /**
-     * WorkflowVersionListResponse
-     * @description List of workflow versions ordered by version number descending
-     */
-    WorkflowVersionListResponse: {
-      /** @description Array of workflow versions */
-      resources: components['schemas']['WorkflowVersionResponse'][]
-    }
-    /**
-     * WorkflowCreate
-     * @description Request payload for creating a new workflow from a v2 graph-based workflow definition
-     */
-    WorkflowCreate: {
-      /** @description Workflow name */
       name: string
-      /** @description Workflow description */
-      description?: string
       /**
+       * Description
+       * @description Workflow description
+       */
+      description?: string | null
+      /**
+       * Labels
        * @description Workflow labels
-       * @default {}
        */
       labels?: {
         [key: string]: unknown
       }
-      workflow_definition: components['schemas']['workflow_definition.schema']
       /**
-       * @description Enable workflow for execution
-       * @default true
-       */
-      is_enabled?: boolean
-      /**
+       * Id
        * Format: uuid
+       */
+      id: string
+      /** Current Version */
+      current_version: number
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
+      /** Is Enabled */
+      is_enabled: boolean
+      /**
+       * Created By
+       * Format: uuid
+       */
+      created_by: string
+      /** Project Id */
+      project_id?: string | null
+      /** Published Version */
+      published_version?: number | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /** Deleted At */
+      deleted_at?: string | null
+      /** Deleted By */
+      deleted_by?: string | null
+    }
+    /**
+     * WorkflowReadWithVersion
+     * @description Schema for workflow response with current version details.
+     *
+     *     Used when retrieving a single workflow to include the active workflow definition.
+     */
+    WorkflowReadWithVersion: {
+      /**
+       * Name
+       * @description Workflow name
+       */
+      name: string
+      /**
+       * Description
+       * @description Workflow description
+       */
+      description?: string | null
+      /**
+       * Labels
+       * @description Workflow labels
+       */
+      labels?: {
+        [key: string]: unknown
+      }
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Current Version */
+      current_version: number
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
+      /** Is Enabled */
+      is_enabled: boolean
+      /**
+       * Created By
+       * Format: uuid
+       */
+      created_by: string
+      /** Project Id */
+      project_id?: string | null
+      /** Published Version */
+      published_version?: number | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /** Deleted At */
+      deleted_at?: string | null
+      /** Deleted By */
+      deleted_by?: string | null
+      /** @description Current active version details */
+      version: components['schemas']['WorkflowVersionRead']
+    }
+    /**
+     * WorkflowVersionRead
+     * @description Schema for workflow version response (GET /workflows/{id}/versions/{version}).
+     *
+     *     WorkflowVersion entities are read-only and managed automatically by the system.
+     *
+     *     Note: deleted_at and deleted_by are None since soft-deleted versions are excluded from queries.
+     */
+    WorkflowVersionRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Workflow Id
+       * Format: uuid
+       */
+      workflow_id: string
+      /** Version */
+      version: number
+      /** Schema Version */
+      schema_version: string
+      /** Workflow Definition */
+      workflow_definition: {
+        [key: string]: unknown
+      }
+      /** Change Description */
+      change_description?: string | null
+      /** @default draft */
+      status?: components['schemas']['WorkflowVersionStatus']
+      /** Publish Name */
+      publish_name?: string | null
+      /**
+       * Created By
+       * Format: uuid
+       */
+      created_by: string
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /** Deleted At */
+      deleted_at?: string | null
+      /** Deleted By */
+      deleted_by?: string | null
+    }
+    /**
+     * WorkflowVersionStatus
+     * @description Publish status of a workflow version.
+     * @enum {string}
+     */
+    WorkflowVersionStatus: 'draft' | 'published' | 'previously_published'
+    /**
+     * PublishVersionRequest
+     * @description Request body for publishing a workflow version.
+     */
+    PublishVersionRequest: {
+      /**
+       * Publish Name
+       * @description Optional name for this published version
+       */
+      publish_name?: string | null
+      /**
+       * Change Description
+       * @description Description of changes in this version
+       */
+      change_description?: string | null
+    }
+    /**
+     * WorkflowVersionListResponse
+     * @description Schema for workflow version list response.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    WorkflowVersionListResponse: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['WorkflowVersionRead'][]
+    }
+    /**
+     * WorkflowListResponse
+     * @description Paginated list response for workflows.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    WorkflowListResponse: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['WorkflowRead'][]
+    }
+    /**
+     * WorkflowCreate
+     * @description Schema for creating a new workflow (POST /workflows).
+     *
+     *     Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+     */
+    WorkflowCreate: {
+      /**
+       * Name
+       * @description Workflow name
+       */
+      name: string
+      /**
+       * Description
+       * @description Workflow description
+       */
+      description?: string | null
+      /**
+       * Labels
+       * @description Workflow labels
+       */
+      labels?: {
+        [key: string]: unknown
+      }
+      /** @description Workflow definition object */
+      workflow_definition: components['schemas']['WorkflowDefinition']
+      /**
+       * Project Id
        * @description Project to assign workflow to
        */
       project_id?: string | null
@@ -346,22 +594,14 @@ export interface components {
        */
       description?: string | null
       /**
-       * Is Enabled
-       * @description Enable/disable workflow
-       */
-      is_enabled?: boolean | null
-      /**
        * Labels
        * @description Update workflow labels
        */
       labels?: {
         [key: string]: unknown
       } | null
-      /**
-       * Workflow Definition
-       * @description New workflow definition (auto-creates version)
-       */
-      workflow_definition?: components['schemas']['workflow_definition.schema'] | null
+      /** @description New workflow definition (auto-creates version) */
+      workflow_definition?: components['schemas']['WorkflowDefinition'] | null
       /**
        * Change Description
        * @description Description of changes for version history
@@ -369,671 +609,1389 @@ export interface components {
       change_description?: string | null
     }
     /**
-     * Paginated Response Base
-     * @description Pagination metadata structure for list responses
-     * @example {
-     *       "next": "eyJpZCI6InV1aWQifQ",
-     *       "total": 150
-     *     }
-     * @example {
-     *       "next": "eyJpZCI6Im5leHQifQ",
-     *       "prev": "eyJpZCI6InByZXYifQ"
-     *     }
+     * TestExecutionCreate
+     * @description Request body for POST /workflows/{workflow_id}/test.
      */
-    ResourcesResponseBase: {
+    TestExecutionCreate: {
       /**
-       * Next
-       * @description Cursor for next page of results
+       * Target Node Id
+       * @description The node to execute for real
        */
-      next?: string | null
+      target_node_id: string
       /**
-       * Prev
-       * @description Cursor for previous page of results
+       * Pre Resolved Nodes
+       * @description Mock outputs for predecessor nodes. Keys are node IDs.
        */
-      prev?: string | null
+      pre_resolved_nodes?: {
+        [key: string]: components['schemas']['PreResolvedNodeOutput']
+      }
       /**
-       * Total
-       * @description Total count of resources (only when include_total=true)
+       * Trigger Inputs
+       * @description Input data for the trigger node
        */
-      total?: number | null
+      trigger_inputs?: {
+        [key: string]: unknown
+      }
       /**
-       * Resources
-       * @description Array of resources in current page
+       * Execute Target
+       * @description When False, run predecessors up to (but not including) the target node. Useful for populating upstream data without executing the target. When True (default), target_node_id must not appear in pre_resolved_nodes.
+       * @default true
        */
-      resources?: unknown[]
+      execute_target?: boolean
     }
     /**
-     * Base Resource
-     * @description Foundational schema for all API resources with system-managed metadata
+     * PreResolvedNodeOutput
+     * @description Typed structure for a single pre-resolved node's mock output.
      */
-    BaseResource: {
+    PreResolvedNodeOutput: {
       /**
-       * Resource ID
-       * Format: uuid
-       * @description Unique identifier for the resource
-       * @example 550e8400-e29b-41d4-a716-446655440000
+       * Output
+       * @description Mock output data for the node
        */
-      readonly id?: string
-      /**
-       * Created At
-       * Format: date-time
-       * @description Timestamp when resource was created
-       * @example 2025-10-09T12:00:00Z
-       */
-      readonly created_at?: string
-      /**
-       * Updated At
-       * Format: date-time
-       * @description Timestamp when resource was last updated
-       * @example 2025-10-09T12:30:00Z
-       */
-      readonly updated_at?: string
-      /**
-       * Labels
-       * @description Key-value pairs for resource labeling and filtering
-       * @default {}
-       * @example {
-       *       "environment": "production",
-       *       "region": "us-east-1",
-       *       "team": "platform"
-       *     }
-       */
-      labels?: {
-        [key: string]: string
+      output?: {
+        [key: string]: unknown
       }
+      /**
+       * Control
+       * @description Control data for condition/loop routing (e.g., next_port)
+       */
+      control?: {
+        [key: string]: unknown
+      } | null
     }
-    NamedResource: components['schemas']['BaseResource'] & {
+    /**
+     * ExecutionMode
+     * @description Execution mode for workflow runs.
+     * @enum {string}
+     */
+    ExecutionMode: 'standard' | 'test' | 'debug'
+    /**
+     * ExecutionRead
+     * @description Schema for execution response (GET /executions/{id}).
+     *
+     *     Includes all fields from the database table model.
+     */
+    ExecutionRead: {
       /**
-       * Name
-       * @description Human-readable name for the resource
-       * @example Authentication Service
+       * Id
+       * Format: uuid
        */
-      name: string
+      id: string
       /**
-       * Description
-       * @description Detailed description of the resource
-       * @example Handles user authentication and authorization workflows
+       * Workflow Id
+       * Format: uuid
        */
-      description?: string | null
-    }
-    SoftDeletableResource: components['schemas']['BaseResource'] & {
+      workflow_id: string
       /**
-       * Deleted At
-       * @description Timestamp when resource was soft deleted
-       * @example 2025-10-09T14:00:00Z
+       * Workflow Version Id
+       * Format: uuid
        */
-      readonly deleted_at?: string | null
-      /**
-       * Deleted By
-       * @description User who performed the soft delete
-       * @example 660e8400-e29b-41d4-a716-446655440000
-       */
-      readonly deleted_by?: string | null
-    }
-    UserOwnedResource: components['schemas']['BaseResource'] & {
+      workflow_version_id: string
+      /** Project Id */
+      project_id?: string | null
+      /** Temporal Workflow Id */
+      temporal_workflow_id: string
+      status: components['schemas']['ExecutionStatus']
       /**
        * Created By
        * Format: uuid
-       * @description User who created the resource
-       * @example 770e8400-e29b-41d4-a716-446655440000
        */
-      readonly created_by: string
+      created_by: string
       /**
-       * Updated By
-       * @description User who last updated the resource
-       * @example 880e8400-e29b-41d4-a716-446655440000
+       * Created At
+       * Format: date-time
        */
-      readonly updated_by?: string | null
-    }
-    /** @description Retry configuration for failed node execution */
-    retry_policy: {
+      created_at: string
+      /** Completed At */
+      completed_at: string | null
       /**
-       * @description Maximum number of retry attempts
-       * @default 3
+       * Updated At
+       * Format: date-time
        */
-      max_attempts?: number
-      /**
-       * @description Backoff strategy between retries
-       * @default exponential
-       * @enum {string}
-       */
-      backoff?: 'fixed' | 'exponential' | 'linear'
-      /**
-       * @description Initial retry interval in seconds
-       * @default 1
-       */
-      initial_interval?: number
-      /** @description Maximum retry interval in seconds */
-      max_interval?: number
-      /**
-       * @description Backoff multiplier for exponential strategy
-       * @default 2
-       */
-      multiplier?: number
-      /**
-       * @description HTTP status codes or exit codes that should trigger retry (whitelist approach)
-       * @default [
-       *       408,
-       *       429,
-       *       500,
-       *       502,
-       *       503,
-       *       504
-       *     ]
-       */
-      retryable_errors?: number[]
-    }
-    /** @description Base node properties shared by all node types */
-    node_base: {
-      /** @description Unique identifier for the node within the workflow */
-      id: string
-      /** @description Human-readable name for the node (display only) */
-      name?: string
-      /** @description Human-readable description of the node purpose */
-      description?: string
-      /** @description Node type identifier */
-      type: string
-      /** @description Type-specific configuration - see individual node type schemas for details */
-      config: Record<string, never>
-      /**
-       * @description Output extraction mapping (optional - defaults to full result). Reserved field names 'status' and 'error' cannot be used.
-       * @example {
-       *       "job_id": "${result.job_id}",
-       *       "job_status": "${result.job_status}"
-       *     }
-       * @example {
-       *       "first_server": "${result.artifacts.servers[0]}",
-       *       "second_server": "${result.artifacts.servers[1]}"
-       *     }
-       * @example {
-       *       "summary": "${result.output.summary}",
-       *       "priority": "${result.output.priority}"
-       *     }
-       */
-      outputs?: {
-        [key: string]: string
-      }
-      /** @description Node-specific retry policy. If not specified, defaults to unlimited retries with exponential backoff until timeout is reached. */
-      retry_policy?: components['schemas']['retry_policy']
-      /** @description Node execution timeout in seconds. If not specified, the platform default for the node's executor type is used. */
-      timeout?: number
-      /** @description Optional UI position hint for this node. Ignored by the workflow engine. */
-      position?: {
-        x: number
-        y: number
-      }
-    }
-    configSchema: {
-      /** @description JSON Schema defining the structure and validation rules for manual trigger inputs */
-      input_schema?: {
+      updated_at: string
+      /** Updated By */
+      updated_by: string | null
+      /** Input Data */
+      input_data: {
         [key: string]: unknown
       }
-    }
-    trigger_node: components['schemas']['node_base'] & {
-      /** @constant */
-      type?: 'manual_trigger'
-      config?: components['schemas']['configSchema']
+      /** Trigger Node Id */
+      trigger_node_id?: string | null
+      /** Error Details */
+      error_details: string | null
+      /** @default standard */
+      mode?: components['schemas']['ExecutionMode']
+      /** Execution Metadata */
+      execution_metadata?: {
+        [key: string]: unknown
+      } | null
+      /** Labels */
+      labels?: {
+        [key: string]: unknown
+      }
+      /**
+       * Current Activities
+       * @description Currently executing activities
+       */
+      current_activities?: components['schemas']['CurrentActivity'][]
+      /** Deleted At */
+      deleted_at?: string | null
+      /** Deleted By */
+      deleted_by?: string | null
+      /** @description Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter. */
+      workflow_definition?: components['schemas']['WorkflowDefinition'] | null
+      /**
+       * Activities
+       * @description List of activities with their current status. Only included when requested via ?include=activities query parameter.
+       */
+      activities?: components['schemas']['ActivityData'][] | null
     }
     /**
-     * Format: uuid
-     * @description Nexus credential UUID for authentication. When provided, the credential is resolved at execution time and injected into the node config.
+     * WorkflowDefinition
+     * @description JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2.
+     *
+     *     Attributes:
+     *         schema_version: Schema version that this workflow definition conforms to
+     *         name: Workflow name
+     *         description: Human-readable description of the workflow's purpose
+     *         triggers: Trigger nodes that define how the workflow is initiated
+     *         nodes: Execution and control nodes in the workflow graph
+     *         edges: Directed edges connecting triggers and nodes in the workflow graph
      */
-    credential_id: string
-    /** @description Job template must be specified by ID or name. When both are provided, ID takes precedence. */
-    'aap_job_template.schema_configSchema':
-      | ({
-          credential_id?: components['schemas']['credential_id']
-          /** @description AAP job template ID to launch (takes precedence over name) */
-          job_template_id?: number
-          /** @description AAP job template name (requires organization_name) */
-          job_template_name?: string
-          /** @description AAP organization name (required with name-based lookup) */
-          organization_name?: string
-          /** @description AAP organization ID (takes precedence over organization_name) */
-          organization_id?: number
-          /** @description Override default inventory by ID */
-          inventory_id?: number
-          /** @description Override default inventory by name (requires organization_name) */
-          inventory_name?: string
-          /** @description List of AAP credential IDs to pass to the job template (overrides template defaults) */
-          job_credentials?: number[]
-          /** @description List of AAP credential names to use (requires organization_name, resolved at launch time) */
-          credential_names?: string[]
-          /** @description Extra variables to pass to the job (supports templating) */
-          extra_vars?: {
-            [key: string]: unknown
-          }
-          /** @description Limit job execution to specific hosts */
-          limit?: string
-          /** @description Ansible tags to run (comma-separated) */
-          tags?: string
-          /** @description Ansible tags to skip (comma-separated) */
-          skip_tags?: string
-          /**
-           * @description Job verbosity level (0-5)
-           * @default 0
-           */
-          verbosity?: number
-          /** @description Timeout for job execution in seconds */
-          timeout?: number
-          /**
-           * @description Job type override: 'run' or 'check' (dry run)
-           * @enum {string}
-           */
-          job_type?: 'run' | 'check'
-          /** @description Number of parallel forks for job execution */
-          forks?: number
-          /** @description Number of job slices */
-          job_slicing?: number
-          /** @description Enable diff mode for playbook runs */
-          diff_mode?: boolean
-          /** @description Execution environment override (deferred — requires ID resolution) */
-          execution_environment?: string
-          /** @description Override instance group by ID (takes precedence over instance_group_name) */
-          instance_group_id?: number
-          /** @description Override instance group by name (requires organization_name for lookup) */
-          instance_group_name?: string
-          /** @description AAP label names to append to job template's default labels (resolved to IDs at launch time) */
-          labels?: string[]
-        } & (unknown & unknown))
-      | unknown
-      | unknown
-    /** @description Workflow job template must be specified by ID or name. When both are provided, ID takes precedence. */
-    'aap_workflow_job_template.schema_configSchema':
-      | ({
-          credential_id?: components['schemas']['credential_id']
-          /** @description AAP workflow job template ID to launch (takes precedence over name) */
-          workflow_job_template_id?: number
-          /** @description AAP workflow job template name (requires organization_name) */
-          workflow_job_template_name?: string
-          /** @description AAP organization name (required with name-based lookup) */
-          organization_name?: string
-          /** @description AAP organization ID (takes precedence over organization_name) */
-          organization_id?: number
-          /** @description Override default inventory by ID */
-          inventory_id?: number
-          /** @description Override default inventory by name (requires organization_name) */
-          inventory_name?: string
-          /** @description Extra variables to pass to the workflow (supports templating) */
-          extra_vars?: {
-            [key: string]: unknown
-          }
-          /** @description Limit workflow execution to specific hosts */
-          limit?: string
-          /** @description Source control branch override */
-          scm_branch?: string
-          /** @description Ansible tags to run (comma-separated) */
-          tags?: string
-          /** @description Ansible tags to skip (comma-separated) */
-          skip_tags?: string
-          /** @description AAP label names to append to workflow template's default labels (resolved to IDs at launch time) */
-          labels?: string[]
-        } & unknown)
-      | unknown
-      | unknown
-    'http_request.schema_configSchema': {
+    WorkflowDefinition: {
       /**
-       * @description HTTP method
-       * @enum {string}
-       */
-      method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-      /**
-       * @description API endpoint URL (value supports templating)
-       * @example https://api.example.com/v1/resource
-       * @example ${trigger.api_base_url}/endpoint
-       */
-      url: string
-      /** @description HTTP headers (values support templating) */
-      headers?: {
-        [key: string]: string
-      }
-      /** @description URL query parameters (values support templating) */
-      query_params?: {
-        [key: string]: string | number | boolean | null
-      }
-      /** @description Request body (supports templating). Can be object (serialized as JSON), string (sent as-is), array, or null. */
-      body?: Record<string, never> | string | unknown[] | null
-      credential_id?: components['schemas']['credential_id']
-      /** @description Authentication configuration */
-      authentication?: {
-        /**
-         * @description Authentication type
-         * @enum {string}
-         */
-        type: 'basic' | 'bearer' | 'api_key' | 'oauth2'
-        /** @description Reference to stored credentials */
-        credentials?: string
-      } & {
-        [key: string]: unknown
-      }
-    }
-    'agentic.schema_configSchema': ({
-      /** @description Optional agent identifier for routing */
-      agent?: string
-      /** @description Natural language prompt for the agent */
-      prompt: string
-      /**
-       * @description LLM model to use
-       * @example gpt-4
-       * @example claude-3-opus
-       * @example gemini-pro
-       */
-      model?: string
-      credential_id?: components['schemas']['credential_id']
-      /**
-       * @description Strategy for tool selection: ALL (all enabled tools), NONE (no tools), or SELECTED (specific tools from tool_selections)
-       * @default NONE
-       * @enum {string}
-       */
-      tool_selection_strategy?: 'ALL' | 'NONE' | 'SELECTED'
-      /** @description List of tool UUIDs when tool_selection_strategy is SELECTED. Required when strategy is SELECTED. */
-      tool_selections?: string[]
-      /**
-       * @description JSON Schema Draft 2020-12 for structured response output. When defined, agent output will conform to this schema structure.
-       * @example {
-       *       "type": "object",
-       *       "properties": {
-       *         "summary": {
-       *           "type": "string",
-       *           "description": "Brief summary of the task"
-       *         },
-       *         "priority": {
-       *           "type": "string",
-       *           "enum": [
-       *             "low",
-       *             "medium",
-       *             "high"
-       *           ]
-       *         }
-       *       },
-       *       "required": [
-       *         "summary",
-       *         "priority"
-       *       ]
-       *     }
-       */
-      response_schema?: {
-        [key: string]: unknown
-      }
-      /** @description File references for the agent */
-      file_ids?: string[]
-    } & {
-      [key: string]: unknown
-    }) &
-      unknown
-    'script.schema_configSchema': {
-      /**
-       * @description Script language/runtime
-       * @enum {string}
-       */
-      language: 'python' | 'bash'
-      /** @description Script code to execute */
-      code: string
-      credential_id?: components['schemas']['credential_id']
-      /** @description Environment variables to set during script execution */
-      environment?: {
-        [key: string]: string
-      }
-    }
-    'approval.schema_configSchema': {
-      credential_id?: components['schemas']['credential_id']
-      /**
-       * @description List of usernames who can approve this request. Leave empty to allow any user with approval:decide permission.
-       */
-      approver_users?: string[]
-      /**
-       * @description List of group names whose members can approve this request. Leave empty to allow any user with approval:decide permission.
-       */
-      approver_groups?: string[]
-      /**
-       * @description Message to display to approvers when requesting approval.
-       */
-      prompt?: string
-      /**
-       * @description Decision to apply when the approval cannot complete for any reason and continue_on_failure is true. Defaults to 'reject'.
-       * @enum {string}
-       */
-      fallback_decision?: 'approve' | 'reject'
-      /**
-       * @description How long (in seconds) the approver has to respond before the approval expires. Falls back to the system-configured default if not specified.
-       */
-      decision_window?: number
-    }
-    'condition.schema_configSchema': {
-      /**
-       * @description Expression that evaluates to boolean
-       * @example ${trigger.environment} == "prod"
-       * @example ${previous_node.status} == "success"
-       * @example ${check_status.count} > 5
-       */
-      condition: string
-    }
-    'loop.schema_configSchema':
-      | {
-          /** @constant */
-          type: 'for_each'
-          /**
-           * @description Array to iterate over. The current item is available as ${loop.item} and the current index as ${loop.index} in loop body nodes.
-           * @example ${trigger.server_list}
-           * @example ${previous_node.items}
-           * @example ["server1", "server2", "server3"]
-           */
-          items: string
-          /**
-           * @description Maximum number of items to process. The node fails with an error if this limit is reached. Falls back to the system-configured default if not specified.
-           */
-          max_iterations?: number
-        }
-      | {
-          /** @constant */
-          type: 'do_while'
-          /**
-           * @description Expression that evaluates to boolean AFTER each iteration. Must reference nodes inside the loop body. Loop continues while condition is true.
-           * @example ${process_item.remaining_count} > 0
-           * @example ${check_status.should_continue} == true
-           */
-          condition: string
-          /**
-           * @description Maximum number of iterations. The node fails with an error if this limit is reached while the condition is still true. Falls back to the system-configured default if not specified.
-           */
-          max_iterations?: number
-        }
-    /** @description Converge configuration controls how parallel branches are synchronized */
-    'converge.schema_configSchema': {
-      /**
-       * @description Convergence strategy: 'all' waits for all incoming branches to complete
-       * @default all
-       * @enum {string}
-       */
-      strategy?: 'all'
-      /**
-       * @description Action to take if timeout is reached before convergence condition is met
-       * @default fail
-       * @enum {string}
-       */
-      on_timeout?: 'continue' | 'fail'
-    }
-    node:
-      | (components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'aap_job_template'
-          config?: components['schemas']['aap_job_template.schema_configSchema']
-        })
-      | (components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'aap_workflow_job_template'
-          config?: components['schemas']['aap_workflow_job_template.schema_configSchema']
-        })
-      | (components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'http_request'
-          config?: components['schemas']['http_request.schema_configSchema']
-        })
-      | (components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'agentic'
-          config?: components['schemas']['agentic.schema_configSchema']
-        })
-      | (components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'script'
-          config?: components['schemas']['script.schema_configSchema']
-        })
-      | (components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'approval'
-          config?: components['schemas']['approval.schema_configSchema']
-        })
-      | (components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'condition'
-          config?: components['schemas']['condition.schema_configSchema']
-        })
-      | (components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'loop'
-          config?: components['schemas']['loop.schema_configSchema']
-        })
-      | (components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'converge'
-          config?: components['schemas']['converge.schema_configSchema']
-        })
-    /** @description Edge connecting two nodes or a trigger and a node */
-    edge: {
-      /** @description Source node or trigger ID */
-      from: string
-      /** @description Target node ID (triggers cannot be edge targets) */
-      to: string
-      /** @description Output port on the source. Required for multi-output nodes (condition, loop) to specify which execution path this edge represents. Condition nodes use 'true'/'false', loop nodes use 'iterate'/'complete'. Port-to-node-type consistency is enforced at the application level. */
-      from_port?: string & ('true' | 'false' | 'iterate' | 'complete')
-      /** @description Input port on the target node. Used to distinguish how an edge arrives at a node. */
-      to_port?: string & 'iterate'
-    }
-    /**
-     * Workflow Definition Schema v2
-     * @description JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2
-     */
-    'workflow_definition.schema': {
-      /**
+       * Schema Version
        * @description Schema version that this workflow definition conforms to
        * @constant
        */
       schema_version: '2.0.0'
-      /** @description Workflow name */
+      /**
+       * Name
+       * @description Workflow name
+       */
       name: string
-      /** @description Human-readable description of the workflow's purpose */
-      description?: string
-      /** @description Trigger nodes that define how the workflow is initiated. Must contain at least one trigger. Trigger nodes must be graph entry points (no incoming edges) — enforced by application-level validation. */
-      triggers: components['schemas']['trigger_node'][]
-      /** @description Execution and control nodes in the workflow graph */
-      nodes: components['schemas']['node'][]
-      /** @description List of directed edges connecting triggers and nodes in the workflow graph */
-      edges: components['schemas']['edge'][]
-      $defs: {
-        /** @description Base node properties shared by all node types */
-        node_base: {
-          /** @description Unique identifier for the node within the workflow */
-          id: string
-          /** @description Human-readable name for the node (display only) */
-          name?: string
-          /** @description Human-readable description of the node purpose */
-          description?: string
-          /** @description Node type identifier */
-          type: string
-          /** @description Type-specific configuration - see individual node type schemas for details */
-          config: Record<string, never>
-          /**
-           * @description Output extraction mapping (optional - defaults to full result). Reserved field names 'status' and 'error' cannot be used.
-           * @example {
-           *       "job_id": "${result.job_id}",
-           *       "job_status": "${result.job_status}"
-           *     }
-           * @example {
-           *       "first_server": "${result.artifacts.servers[0]}",
-           *       "second_server": "${result.artifacts.servers[1]}"
-           *     }
-           * @example {
-           *       "summary": "${result.output.summary}",
-           *       "priority": "${result.output.priority}"
-           *     }
-           */
-          outputs?: {
-            [key: string]: string
-          }
-          /** @description Node-specific retry policy. If not specified, defaults to unlimited retries with exponential backoff until timeout is reached. */
-          retry_policy?: components['schemas']['retry_policy']
-          /** @description Node execution timeout in seconds. If not specified, the platform default for the node's executor type is used. */
-          timeout?: number
-          /** @description Optional UI position hint for this node. Ignored by the workflow engine. */
-          position?: {
-            x: number
-            y: number
-          }
-        }
-        trigger_node: components['schemas']['node_base'] & {
-          /** @constant */
-          type?: 'manual_trigger'
-          config?: components['schemas']['configSchema']
-        }
-        node:
-          | (components['schemas']['node_base'] & {
-              /** @constant */
-              type?: 'aap_job_template'
-              config?: components['schemas']['aap_job_template.schema_configSchema']
-            })
-          | (components['schemas']['node_base'] & {
-              /** @constant */
-              type?: 'aap_workflow_job_template'
-              config?: components['schemas']['aap_workflow_job_template.schema_configSchema']
-            })
-          | (components['schemas']['node_base'] & {
-              /** @constant */
-              type?: 'http_request'
-              config?: components['schemas']['http_request.schema_configSchema']
-            })
-          | (components['schemas']['node_base'] & {
-              /** @constant */
-              type?: 'agentic'
-              config?: components['schemas']['agentic.schema_configSchema']
-            })
-          | (components['schemas']['node_base'] & {
-              /** @constant */
-              type?: 'script'
-              config?: components['schemas']['script.schema_configSchema']
-            })
-          | (components['schemas']['node_base'] & {
-              /** @constant */
-              type?: 'approval'
-              config?: components['schemas']['approval.schema_configSchema']
-            })
-          | (components['schemas']['node_base'] & {
-              /** @constant */
-              type?: 'condition'
-              config?: components['schemas']['condition.schema_configSchema']
-            })
-          | (components['schemas']['node_base'] & {
-              /** @constant */
-              type?: 'loop'
-              config?: components['schemas']['loop.schema_configSchema']
-            })
-          | (components['schemas']['node_base'] & {
-              /** @constant */
-              type?: 'converge'
-              config?: components['schemas']['converge.schema_configSchema']
-            })
-        /** @description Edge connecting two nodes or a trigger and a node */
-        edge: {
-          /** @description Source node or trigger ID */
-          from: string
-          /** @description Target node ID (triggers cannot be edge targets) */
-          to: string
-          /** @description Output port on the source. Required for multi-output nodes (condition, loop) to specify which execution path this edge represents. Condition nodes use 'true'/'false', loop nodes use 'iterate'/'complete'. Port-to-node-type consistency is enforced at the application level. */
-          from_port?: string & ('true' | 'false' | 'iterate' | 'complete')
-          /** @description Input port on the target node. Used to distinguish how an edge arrives at a node. */
-          to_port?: string & 'iterate'
-        }
+      /**
+       * Description
+       * @description Human-readable description of the workflow's purpose
+       */
+      description?: string | null
+      /**
+       * Triggers
+       * @description Trigger nodes that define how the workflow is initiated. Must contain at least one trigger. Trigger nodes must be graph entry points (no incoming edges) — enforced by application-level validation.
+       */
+      triggers: {
+        [key: string]: unknown
+      }[]
+      /**
+       * Nodes
+       * @description Execution and control nodes in the workflow graph
+       */
+      nodes: (
+        | components['schemas']['AAPJobTemplateNode']
+        | components['schemas']['AAPWorkflowJobTemplateNode']
+        | components['schemas']['HTTPRequestNode']
+        | components['schemas']['AgenticNode']
+        | components['schemas']['ScriptNode']
+        | components['schemas']['ApprovalNode']
+        | components['schemas']['ConditionNode']
+        | components['schemas']['SwitchNode']
+        | components['schemas']['LoopNode']
+        | components['schemas']['ConvergeNode']
+        | components['schemas']['WaitNode']
+      )[]
+      /**
+       * Edges
+       * @description List of directed edges connecting triggers and nodes in the workflow graph
+       */
+      edges: {
+        [key: string]: unknown
+      }[]
+    }
+    /**
+     * AAPJobTemplateNode
+     * @description AAP job template executor node.
+     */
+    AAPJobTemplateNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'aap_job_template'
+      parameters: components['schemas']['AAPJobTemplateExecutorParameters']
+      settings?: components['schemas']['NodeSettingsFull'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * AAPWorkflowJobTemplateNode
+     * @description AAP workflow job template executor node.
+     */
+    AAPWorkflowJobTemplateNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'aap_workflow_job_template'
+      parameters: components['schemas']['AAPWorkflowJobTemplateExecutorParameters']
+      settings?: components['schemas']['NodeSettingsFull'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * HTTPRequestNode
+     * @description HTTP request executor node.
+     */
+    HTTPRequestNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'http_request'
+      parameters: components['schemas']['APIExecutorParameters']
+      settings?: components['schemas']['NodeSettingsFull'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * AgenticNode
+     * @description Agentic executor node.
+     */
+    AgenticNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'agentic'
+      parameters: components['schemas']['AgenticExecutorParameters']
+      settings?: components['schemas']['NodeSettingsNoRetry'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * ScriptNode
+     * @description Script executor node.
+     */
+    ScriptNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'script'
+      parameters: components['schemas']['ScriptExecutorParameters']
+      settings?: components['schemas']['NodeSettingsNoRetry'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * ApprovalNode
+     * @description Approval gate node.
+     */
+    ApprovalNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'approval'
+      parameters: components['schemas']['ApprovalNodeParameters']
+      settings?: components['schemas']['NodeSettingsNoRetry'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * ConditionNode
+     * @description Binary conditional branching node.
+     */
+    ConditionNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'condition'
+      parameters: components['schemas']['ConditionNodeParameters']
+      settings?: components['schemas']['NodeSettingsBase'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * SwitchNode
+     * @description Multi-case branching control node.
+     */
+    SwitchNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'switch'
+      parameters: components['schemas']['SwitchNodeParameters']
+      settings?: components['schemas']['NodeSettingsBase'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * LoopNode
+     * @description Loop (for_each/do_while) control node.
+     */
+    LoopNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'loop'
+      /** Parameters */
+      parameters: components['schemas']['ForEachLoopParameters'] | components['schemas']['DoWhileLoopParameters']
+      settings?: components['schemas']['NodeSettingsCof'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * ConvergeNode
+     * @description Convergence/synchronization control node.
+     */
+    ConvergeNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'converge'
+      parameters: components['schemas']['ConvergeNodeParameters']
+      settings?: components['schemas']['NodeSettingsCof'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * WaitNode
+     * @description Wait (delay) control node.
+     */
+    WaitNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'wait'
+      parameters: components['schemas']['WaitNodeParameters']
+      settings?: components['schemas']['NodeSettingsCofDisabled'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * AAPJobTemplateExecutorParameters
+     * @description Parameters for AAP Job Template executor.
+     *
+     *     Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+     *     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
+     */
+    AAPJobTemplateExecutorParameters: {
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+       */
+      credential_id?: string | null
+      /**
+       * Organizationid
+       * @description AAP organization ID (takes precedence over organization_name)
+       */
+      organizationId?: number | null
+      /**
+       * Organization Name
+       * @description AAP organization name (used with template_name or inventory_name)
+       */
+      organization_name?: string | null
+      /**
+       * Inventory Id
+       * @description Override default inventory by ID (mutually exclusive with inventory_name)
+       */
+      inventory_id?: number | null
+      /**
+       * Inventory Name
+       * @description Override default inventory by name (requires organization_name)
+       */
+      inventory_name?: string | null
+      /**
+       * Extra Vars
+       * @description Extra variables to pass to job/workflow job
+       */
+      extra_vars?: {
+        [key: string]: unknown
       }
+      /**
+       * Limit
+       * @description Limit job execution to specific hosts
+       */
+      limit?: string | null
+      /**
+       * Tags
+       * @description Ansible tags to run (comma-separated)
+       */
+      tags?: string | null
+      /**
+       * Skip Tags
+       * @description Ansible tags to skip (comma-separated)
+       */
+      skip_tags?: string | null
+      /**
+       * Labels
+       * @description AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
+       */
+      labels?: string[] | null
+      /**
+       * Job Template Id
+       * @description AAP job template ID to launch
+       */
+      job_template_id?: number | null
+      /**
+       * Job Template Name
+       * @description AAP job template name (used with organization_name)
+       */
+      job_template_name?: string | null
+      /**
+       * Job Credentials
+       * @description List of AAP credential IDs to use (takes precedence over credential_names)
+       */
+      job_credentials?: number[] | null
+      /**
+       * Credentialnames
+       * @description List of AAP credential names to use (requires organization_name, resolved at launch time)
+       */
+      credentialNames?: string[] | null
+      /**
+       * @description Job verbosity level (0-5)
+       * @default 0
+       */
+      verbosity?: components['schemas']['AAPVerbosity']
+      /** @description Job type override: 'run' or 'check' (dry run) */
+      job_type?: components['schemas']['AAPJobType'] | null
+      /**
+       * Forks
+       * @description Number of parallel forks for job execution
+       */
+      forks?: number | null
+      /**
+       * Job Slicing
+       * @description Number of job slices
+       */
+      job_slicing?: number | null
+      /**
+       * Diff Mode
+       * @description Enable diff mode for playbook runs
+       */
+      diff_mode?: boolean | null
+      /**
+       * Execution Environment
+       * @description Execution environment override (deferred — requires ID resolution)
+       */
+      execution_environment?: string | null
+      /**
+       * Instance Group Id
+       * @description Override instance group by ID (takes precedence over instance_group_name)
+       */
+      instance_group_id?: number | null
+      /**
+       * Instance Group Name
+       * @description Override instance group by name (requires organization_name for lookup)
+       */
+      instance_group_name?: string | null
+    }
+    /**
+     * AAPWorkflowJobTemplateExecutorParameters
+     * @description Parameters for AAP Workflow Job Template executor.
+     *
+     *     Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+     *     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
+     */
+    AAPWorkflowJobTemplateExecutorParameters: {
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+       */
+      credential_id?: string | null
+      /**
+       * Organizationid
+       * @description AAP organization ID (takes precedence over organization_name)
+       */
+      organizationId?: number | null
+      /**
+       * Organization Name
+       * @description AAP organization name (used with template_name or inventory_name)
+       */
+      organization_name?: string | null
+      /**
+       * Inventory Id
+       * @description Override default inventory by ID (mutually exclusive with inventory_name)
+       */
+      inventory_id?: number | null
+      /**
+       * Inventory Name
+       * @description Override default inventory by name (requires organization_name)
+       */
+      inventory_name?: string | null
+      /**
+       * Extra Vars
+       * @description Extra variables to pass to job/workflow job
+       */
+      extra_vars?: {
+        [key: string]: unknown
+      }
+      /**
+       * Limit
+       * @description Limit job execution to specific hosts
+       */
+      limit?: string | null
+      /**
+       * Tags
+       * @description Ansible tags to run (comma-separated)
+       */
+      tags?: string | null
+      /**
+       * Skip Tags
+       * @description Ansible tags to skip (comma-separated)
+       */
+      skip_tags?: string | null
+      /**
+       * Labels
+       * @description AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
+       */
+      labels?: string[] | null
+      /**
+       * Workflow Job Template Id
+       * @description AAP workflow job template ID to launch
+       */
+      workflow_job_template_id?: number | null
+      /**
+       * Workflow Job Template Name
+       * @description AAP workflow job template name (used with organization_name)
+       */
+      workflow_job_template_name?: string | null
+      /**
+       * Scm Branch
+       * @description SCM branch override for projects in workflow
+       */
+      scm_branch?: string | null
+    }
+    /**
+     * APIExecutorParameters
+     * @description Parameters for API executor (http_request activity).
+     */
+    APIExecutorParameters: {
+      /** @description HTTP method */
+      method: components['schemas']['HTTPMethod']
+      /**
+       * Url
+       * @description Request URL
+       */
+      url: string
+      /** Headers */
+      headers?: {
+        [key: string]: unknown
+      }
+      /** Body */
+      body?:
+        | {
+            [key: string]: unknown
+          }
+        | string
+        | null
+      /** Query Params */
+      query_params?: {
+        [key: string]: unknown
+      }
+      authentication?: components['schemas']['Authentication'] | null
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for authentication. Takes priority over authentication field.
+       */
+      credential_id?: string | null
+    }
+    /**
+     * AgenticExecutorParameters
+     * @description Parameters for agentic executor.
+     */
+    AgenticExecutorParameters: {
+      /**
+       * Prompt
+       * @description Prompt template for the agent
+       */
+      prompt: string
+      /** Agent */
+      agent?: string | null
+      /** Model */
+      model?: string | null
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for LLM provider authentication
+       */
+      credential_id?: string | null
+      /**
+       * File Ids
+       * @description File IDs for agent context
+       */
+      file_ids?: string[]
+      /**
+       * Responseschema
+       * @description JSON Schema for structured output. When defined, agent output conforms to this schema.
+       */
+      responseSchema?:
+        | {
+            [key: string]: unknown
+          }
+        | string
+        | null
+    }
+    /**
+     * ScriptExecutorParameters
+     * @description Parameters for script executor.
+     */
+    ScriptExecutorParameters: {
+      language: components['schemas']['ScriptLanguage']
+      /**
+       * Code
+       * @description Script code to execute
+       */
+      code: string
+      /**
+       * Environment
+       * @description Environment variables
+       */
+      environment?: {
+        [key: string]: string
+      }
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for credential scrubbing
+       */
+      credential_id?: string | null
+    }
+    /**
+     * ApprovalNodeParameters
+     * @description Parameters for approval gate nodes.
+     */
+    ApprovalNodeParameters: {
+      /**
+       * Credential Id
+       * @description Nexus credential UUID
+       */
+      credential_id?: string | null
+      /**
+       * Approver Users
+       * @description Usernames who can approve
+       */
+      approver_users?: string[] | null
+      /**
+       * Approver Groups
+       * @description Group names whose members can approve
+       */
+      approver_groups?: string[] | null
+      /**
+       * Prompt
+       * @description Message to display to approvers
+       */
+      prompt?: string | null
+      /**
+       * Fallback Decision
+       * @description Decision when approval times out with continue_on_failure
+       */
+      fallback_decision?: ('approve' | 'reject') | null
+      /**
+       * Decision Window
+       * @description Response timeout in seconds
+       */
+      decision_window?: number | null
+    }
+    /**
+     * ConditionNodeParameters
+     * @description Parameters for condition (if/then/else) control nodes.
+     */
+    ConditionNodeParameters: {
+      /**
+       * Condition
+       * @description Expression that evaluates to boolean
+       */
+      condition: string
+    }
+    /**
+     * SwitchNodeParameters
+     * @description Parameters for switch (multi-branch) control nodes.
+     */
+    SwitchNodeParameters: {
+      /**
+       * Cases
+       * @description Ordered list of cases
+       */
+      cases: components['schemas']['SwitchCase'][]
+      /**
+       * Default Port
+       * @description Port to route to when no case matches
+       */
+      default_port?: string | null
+    }
+    /**
+     * SwitchCase
+     * @description A single case in a switch node.
+     */
+    SwitchCase: {
+      /**
+       * Port
+       * @description Port identifier for this case
+       */
+      port: string
+      /**
+       * Label
+       * @description Display label for this case
+       */
+      label: string
+      /**
+       * Condition
+       * @description Boolean expression to evaluate
+       */
+      condition: string
+    }
+    /**
+     * ConvergeNodeParameters
+     * @description Parameters for converge (synchronization) control nodes.
+     */
+    ConvergeNodeParameters: {
+      /** @description Convergence strategy */
+      strategy?: components['schemas']['ConvergeStrategy'] | null
+      /**
+       * N Required
+       * @description Branches required when strategy is 'any'
+       */
+      n_required?: number | null
+      /**
+       * Wait Duration
+       * @description Wait timeout in seconds
+       */
+      wait_duration?: number | null
+    }
+    /**
+     * ForEachLoopParameters
+     * @description Parameters for for_each loop nodes.
+     */
+    ForEachLoopParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'for_each'
+      /**
+       * Items
+       * @description Array expression to iterate over
+       */
+      items: string
+      /**
+       * Max Iterations
+       * @description Maximum items to process
+       */
+      max_iterations?: number | null
+    }
+    /**
+     * DoWhileLoopParameters
+     * @description Parameters for do_while loop nodes.
+     */
+    DoWhileLoopParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'do_while'
+      /**
+       * Condition
+       * @description Boolean expression evaluated after each iteration
+       */
+      condition: string
+      /**
+       * Max Iterations
+       * @description Maximum iterations
+       */
+      max_iterations?: number | null
+    }
+    /**
+     * WaitNodeParameters
+     * @description Parameters for wait (delay) control nodes.
+     */
+    WaitNodeParameters: {
+      /**
+       * Duration
+       * @description Wait duration in seconds
+       */
+      duration: number
+    }
+    /**
+     * NodePosition
+     * @description UI position hint for a workflow node.
+     */
+    NodePosition: {
+      /** X */
+      x: number
+      /** Y */
+      y: number
+    }
+    /**
+     * NodeSettingsBase
+     * @description Base node settings — no user-configurable fields.
+     */
+    NodeSettingsBase: Record<string, never>
+    /**
+     * NodeSettingsCof
+     * @description Settings with continue_on_failure only (converge, loop).
+     */
+    NodeSettingsCof: {
+      /** Continue On Failure */
+      continue_on_failure?: boolean | null
+    }
+    /**
+     * NodeSettingsCofDisabled
+     * @description Settings with disabled and continue_on_failure (wait).
+     */
+    NodeSettingsCofDisabled: {
+      /** Continue On Failure */
+      continue_on_failure?: boolean | null
+      /** Disabled */
+      disabled?: boolean | null
+    }
+    /**
+     * NodeSettingsNoRetry
+     * @description Settings with disabled, continue_on_failure, and timeout (script, agentic, approval).
+     */
+    NodeSettingsNoRetry: {
+      /** Continue On Failure */
+      continue_on_failure?: boolean | null
+      /** Disabled */
+      disabled?: boolean | null
+      /** Timeout */
+      timeout?: number | null
+    }
+    /**
+     * NodeSettingsFull
+     * @description Full settings with retry_policy (http_request, aap_job_template, aap_workflow_job_template).
+     */
+    NodeSettingsFull: {
+      /** Continue On Failure */
+      continue_on_failure?: boolean | null
+      /** Disabled */
+      disabled?: boolean | null
+      /** Timeout */
+      timeout?: number | null
+      retry_policy?: components['schemas']['RetryPolicyParameters'] | null
+    }
+    /**
+     * RetryPolicyParameters
+     * @description Retry policy parameters for a node.
+     *
+     *     Only applies to nodes whose settings class is NodeSettingsFull
+     *     (http_request, aap_job_template, aap_workflow_job_template).
+     *
+     *     All fields default to None — the engine merges with global catalog values
+     *     (workflow_engine.retry_*) for any unset field. Set max_retries=0 to
+     *     explicitly disable retry, overriding global defaults.
+     */
+    RetryPolicyParameters: {
+      /**
+       * Max Retries
+       * @description Retries after initial attempt. 0 = no retry.
+       */
+      max_retries?: number | null
+      /**
+       * Initial Interval
+       * @description Initial retry interval in seconds.
+       */
+      initial_interval?: number | null
+      /**
+       * Max Interval
+       * @description Maximum retry interval in seconds.
+       */
+      max_interval?: number | null
+      /**
+       * Backoff Coefficient
+       * @description Multiplier per retry. 1.0 = fixed, >1.0 = exponential.
+       */
+      backoff_coefficient?: number | null
+    }
+    /**
+     * Authentication
+     * @description Authentication configuration for API requests.
+     */
+    Authentication: {
+      /** @description Authentication type */
+      type: components['schemas']['AuthenticationType']
+      /**
+       * Credentials
+       * @description Reference to stored credentials
+       */
+      credentials: string
+    }
+    /**
+     * AuthenticationType
+     * @description Supported authentication types for API requests.
+     * @enum {string}
+     */
+    AuthenticationType: 'basic' | 'bearer' | 'api_key' | 'oauth2'
+    /**
+     * HTTPMethod
+     * @description Supported HTTP methods for API requests.
+     * @enum {string}
+     */
+    HTTPMethod: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'CONNECT' | 'TRACE'
+    /**
+     * ScriptLanguage
+     * @description Supported script languages for script executor.
+     * @enum {string}
+     */
+    ScriptLanguage: 'bash' | 'python'
+    /**
+     * ConvergeStrategy
+     * @description Convergence strategies for converge nodes.
+     * @enum {string}
+     */
+    ConvergeStrategy: 'all' | 'any'
+    /**
+     * AAPVerbosity
+     * @description AAP job verbosity levels (0-5).
+     * @enum {integer}
+     */
+    AAPVerbosity: 0 | 1 | 2 | 3 | 4 | 5
+    /**
+     * AAPJobType
+     * @description AAP job type values.
+     * @enum {string}
+     */
+    AAPJobType: 'run' | 'check'
+    /**
+     * WebhookResponse
+     * @description Response from webhook reception endpoint.
+     */
+    WebhookResponse: {
+      /**
+       * Execution Id
+       * Format: uuid
+       * @description ID of the triggered workflow execution
+       */
+      execution_id: string
+      /**
+       * Message
+       * @description Human-readable status message
+       */
+      message: string
+    }
+    /**
+     * ValidationIssue
+     * @description A single validation issue found in a workflow definition.
+     *
+     *     Attributes:
+     *         message: Human-readable description of the issue
+     *         node_id: ID of the node/trigger related to this issue, if applicable
+     */
+    ValidationIssue: {
+      /** Message */
+      message: string
+      /** Node Id */
+      node_id?: string | null
+    }
+    /**
+     * WorkflowValidateRequest
+     * @description Request body for the workflow validation endpoint.
+     *
+     *     Attributes:
+     *         workflow_definition: The workflow definition to validate
+     */
+    WorkflowValidateRequest: {
+      workflow_definition: components['schemas']['WorkflowDefinition']
+    }
+    /**
+     * WorkflowValidationResult
+     * @description Result of validating a workflow definition.
+     *
+     *     Attributes:
+     *         valid: True when no errors were found (warnings don't block)
+     *         errors: Issues that prevent the workflow from being enabled
+     *         warnings: Informational issues that don't block enabling
+     */
+    WorkflowValidationResult: {
+      /** Valid */
+      valid: boolean
+      /** Errors */
+      errors?: components['schemas']['ValidationIssue'][]
+      /** Warnings */
+      warnings?: components['schemas']['ValidationIssue'][]
+    }
+    /**
+     * ValidationSeverity
+     * @description Severity level for a validation finding.
+     * @enum {string}
+     */
+    ValidationSeverity: 'error' | 'warning'
+    /**
+     * ValidationCategory
+     * @description Machine-readable classification for a validation finding.
+     * @enum {string}
+     */
+    ValidationCategory:
+      | 'schema_version'
+      | 'missing_field'
+      | 'schema_violation'
+      | 'invalid_reference'
+      | 'cycle_detected'
+      | 'orphaned_node'
+      | 'converge_configuration'
+    /**
+     * ValidationFinding
+     * @description A single structured validation finding.
+     *
+     *     Attributes:
+     *         severity: error or warning
+     *         category: Machine-readable classification
+     *         message: Human-readable description
+     *         node_id: Related node ID, null for workflow-level issues
+     *         field_path: Path within node config (e.g., ``config.url``)
+     */
+    ValidationFinding: {
+      severity: components['schemas']['ValidationSeverity']
+      category: components['schemas']['ValidationCategory']
+      /** Message */
+      message: string
+      /** Node Id */
+      node_id?: string | null
+      /** Field Path */
+      field_path?: string | null
+    }
+    /**
+     * ValidationResult
+     * @description Structured validation result with flat findings list and computed counts.
+     *
+     *     Attributes:
+     *         is_valid: True when error_count == 0
+     *         error_count: Count of error-severity findings
+     *         warning_count: Count of warning-severity findings
+     *         findings: All findings, errors first
+     */
+    ValidationResult: {
+      /** Is Valid */
+      is_valid: boolean
+      /** Error Count */
+      error_count: number
+      /** Warning Count */
+      warning_count: number
+      /** Findings */
+      findings?: components['schemas']['ValidationFinding'][]
+    }
+    /**
+     * DetailedValidationProblemDetail
+     * @description RFC 9457 Problem Details with a ``ValidationResult`` extension.
+     *
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code
+     *         retryable: Whether this error can be retried
+     *         instance: Optional URI reference identifying the specific occurrence
+     *         validation_result: Structured validation findings
+     */
+    DetailedValidationProblemDetail: {
+      /** Type */
+      type: string
+      /** Title */
+      title: string
+      /** Detail */
+      detail: string
+      /** Code */
+      code: string
+      /** Retryable */
+      retryable: boolean
+      /** Instance */
+      instance?: string | null
+      validation_result: components['schemas']['ValidationResult']
+    }
+    /**
+     * WorkflowValidationProblemDetail
+     * @description RFC 9457 Problem Details with a validation_result extension.
+     *
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code
+     *         retryable: Whether this error can be retried
+     *         instance: Optional URI reference identifying the specific occurrence
+     *         validation_result: Structured validation errors and warnings
+     */
+    WorkflowValidationProblemDetail: {
+      /** Type */
+      type: string
+      /** Title */
+      title: string
+      /** Detail */
+      detail: string
+      /** Code */
+      code: string
+      /** Retryable */
+      retryable: boolean
+      /** Instance */
+      instance?: string | null
+      validation_result: components['schemas']['WorkflowValidationResult']
     }
     /**
      * ErrorData
@@ -1063,25 +2021,6 @@ export interface components {
      *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
      *     }
      */
-    /**
-     * WorkflowValidationResult
-     * @description Result of validating a workflow definition
-     */
-    /** @description A single validation error with optional node reference */
-    WorkflowValidationError: {
-      /** @description Human-readable error message */
-      message: string
-      /** @description ID of the node this error relates to, or null for workflow-level errors */
-      node_id: string | null
-    }
-    WorkflowValidationResult: {
-      /** @description Whether the workflow definition is valid */
-      valid: boolean
-      /** @description Validation errors that prevent the workflow from being used */
-      errors: components['schemas']['WorkflowValidationError'][]
-      /** @description Non-blocking validation warnings */
-      warnings: string[]
-    }
     ErrorData: {
       /**
        * Type
@@ -1120,137 +2059,193 @@ export interface components {
        */
       instance?: string | null
     }
+    /**
+     * ExecutionStatus
+     * @description Current state of a workflow execution lifecycle.
+     * @enum {string}
+     */
+    ExecutionStatus: 'pending' | 'running' | 'paused' | 'completed' | 'completed_with_errors' | 'failed' | 'cancelled'
+    /**
+     * CurrentActivity
+     * @description Currently executing activity information.
+     */
+    CurrentActivity: {
+      /**
+       * Activity Name
+       * @description Name of the activity
+       */
+      activity_name: string
+      /**
+       * Temporal Activity Id
+       * @description Temporal activity ID
+       */
+      temporal_activity_id: string
+      /**
+       * Iteration
+       * @description Iteration number for loops
+       */
+      iteration?: number | null
+    }
+    /**
+     * ActivityData
+     * @description Activity data for execution response.
+     */
+    ActivityData: {
+      /** Activity Id */
+      activity_id: string
+      /** Status */
+      status: string
+      /** Error Details */
+      error_details?: string | null
+      /** Output Data */
+      output_data?: {
+        [key: string]: unknown
+      } | null
+      /** Started At */
+      started_at?: string | null
+      /** Completed At */
+      completed_at?: string | null
+    }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: {
     /** @description Maximum number of results per page */
     limitParam: number
     /** @description Pagination cursor from previous response */
     cursorParam: string | null
-    /** @description Include total count in response (expensive) */
-    includeTotalParam: boolean
     /** @description Sort parameter (e.g., 'name', '-created_at') */
     sortParam: string | null
-    /**
-     * @description Filter resources by name.
-     *     - Exact match: `name=value`
-     *     - Contains: `name[contains]=value`
-     * @example auth
-     */
-    nameFilterParam: string & {
-      /**
-       * Contains
-       * @description Substring to match within the name (case-insensitive). ?name[contains]=<substring>
-       */
-      contains?: string
-      /**
-       * Starts With
-       * @description Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
-       */
-      starts_with?: string
-      /**
-       * Equals
-       * @description Exact match of the name (case-insensitive). ?name[eq]=<name>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * @description Greater than comparison (lexicographical). ?name[gt]=<name>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * @description Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * @description Less than comparison (lexicographical). ?name[lt]=<name>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * @description Less than or equal comparison (lexicographical). ?name[lte]=<name>
-       */
-      lte?: string
-    }
-    createdAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?created_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?created_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?created_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?created_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    updatedAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?updated_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?updated_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?updated_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    /**
-     * @description Filter resources by label key-value pairs.
-     *     - Single label: `labels[environment]=production`
-     *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-     *     All specified labels must match (AND logic).
-     * @example {
-     *       "environment": "production",
-     *       "region": "us-east-1"
-     *     }
-     */
-    labelsFilterParam: {
-      [key: string]: string
-    }
+    /** @description Include total count in response (expensive) */
+    includeTotalParam: boolean
   }
   requestBodies: never
   headers: never
@@ -1261,38 +2256,14 @@ export interface operations {
   list_workflows: {
     parameters: {
       query?: {
-        /** @description Filter by creator user ID */
-        created_by?: string
-        /** @description Filter by enabled status */
-        is_enabled?: boolean
         /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
         /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /** @description Include total count in response (expensive) */
-        include_total?: components['parameters']['includeTotalParam']
         /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
-        /**
-         * @description Filter resources by name.
-         *     - Exact match: `name=value`
-         *     - Contains: `name[contains]=value`
-         * @example auth
-         */
-        name?: components['parameters']['nameFilterParam']
-        created_at?: components['parameters']['createdAtFilterParam']
-        updated_at?: components['parameters']['updatedAtFilterParam']
-        /**
-         * @description Filter resources by label key-value pairs.
-         *     - Single label: `labels[environment]=production`
-         *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-         *     All specified labels must match (AND logic).
-         * @example {
-         *       "environment": "production",
-         *       "region": "us-east-1"
-         *     }
-         */
-        labels?: components['parameters']['labelsFilterParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
       }
       header?: never
       path?: never
@@ -1306,11 +2277,16 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['Workflow'][]
-          }
+          'application/json': components['schemas']['WorkflowListResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   create_workflow: {
@@ -1326,72 +2302,100 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Workflow created successfully */
+      /** @description Workflow created */
       201: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Workflow']
+          'application/json': components['schemas']['WorkflowRead']
         }
       }
-      /** @description Invalid workflow definition */
-      400: {
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  validate_workflow_definition: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['WorkflowValidateRequest']
+      }
+    }
+    responses: {
+      /** @description Validation result */
+      200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/validation-error",
-           *       "title": "Validation Error",
-           *       "detail": "Invalid workflow definition",
-           *       "code": "VALIDATION_ERROR",
-           *       "retryable": false,
-           *       "instance": "/api/v1/workflows"
-           *     }
-           */
-          'application/problem+json': components['schemas']['ErrorData']
+          'application/json': components['schemas']['WorkflowValidationResult']
         }
       }
-      /** @description Name conflict - workflow with this name already exists */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/name-conflict",
-           *       "title": "Workflow Name Conflict",
-           *       "detail": "A workflow with this name already exists",
-           *       "code": "WORKFLOW_NAME_CONFLICT",
-           *       "retryable": false,
-           *       "instance": "/api/v1/workflows"
-           *     }
-           */
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Validation error (e.g., invalid label types) */
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      /** @description Unprocessable Content */
       422: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/validation-error",
-           *       "title": "Validation Error",
-           *       "detail": "Field validation failed",
-           *       "code": "VALIDATION_ERROR",
-           *       "retryable": false,
-           *       "instance": "/api/v1/workflows"
-           *     }
-           */
-          'application/problem+json': components['schemas']['ErrorData']
+          'application/problem+json': components['schemas']['WorkflowValidationProblemDetail']
         }
       }
+      500: components['responses']['InternalServerError']
+    }
+  }
+  validate_workflow_definition_detailed: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['WorkflowValidateRequest']
+      }
+    }
+    responses: {
+      /** @description Detailed validation result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ValidationResult']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      /** @description Unprocessable Content */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['DetailedValidationProblemDetail']
+        }
+      }
+      500: components['responses']['InternalServerError']
     }
   }
   get_workflow: {
@@ -1405,24 +2409,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Workflow details including current version information */
+      /** @description Workflow details */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['WorkflowWithVersion']
+          'application/json': components['schemas']['WorkflowReadWithVersion']
         }
       }
-      /** @description Workflow not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   delete_workflow: {
@@ -1436,31 +2438,20 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Workflow soft deleted successfully */
+      /** @description Workflow deleted */
       204: {
         headers: {
           [name: string]: unknown
         }
         content?: never
       }
-      /** @description Workflow not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Workflow cannot be deleted (has running executions) */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   update_workflow: {
@@ -1478,66 +2469,60 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Workflow updated successfully (may include new version if workflow_definition changed) */
+      /** @description Updated workflow */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['WorkflowWithVersion']
+          'application/json': components['schemas']['WorkflowReadWithVersion']
         }
       }
-      /** @description Invalid workflow definition or validation error */
-      400: {
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  test_workflow_node: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TestExecutionCreate']
+      }
+    }
+    responses: {
+      /** @description Test execution created */
+      201: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/problem+json': components['schemas']['ErrorData']
+          'application/json': components['schemas']['ExecutionRead']
         }
       }
-      /** @description Workflow not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Name conflict - workflow with this name already exists */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Validation error (e.g., invalid label types) */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_workflow_versions: {
     parameters: {
-      query?: {
-        /** @description Maximum number of results per page */
-        limit?: components['parameters']['limitParam']
-        /** @description Pagination cursor from previous response */
-        cursor?: components['parameters']['cursorParam']
-        /** @description Include total count in response (expensive) */
-        include_total?: components['parameters']['includeTotalParam']
-        /** @description Sort parameter (e.g., 'name', '-created_at') */
-        sort?: components['parameters']['sortParam']
-        created_at?: components['parameters']['createdAtFilterParam']
-      }
+      query?: never
       header?: never
       path: {
         workflow_id: string
@@ -1546,26 +2531,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description List of workflow versions */
+      /** @description Workflow version history */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['WorkflowVersionResponse'][]
-          }
+          'application/json': components['schemas']['WorkflowVersionListResponse']
         }
       }
-      /** @description Workflow not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_workflow_version: {
@@ -1587,18 +2568,16 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['WorkflowVersionResponse']
+          'application/json': components['schemas']['WorkflowVersionRead']
         }
       }
-      /** @description Workflow or version not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   publish_workflow_version: {
@@ -1612,35 +2591,28 @@ export interface operations {
       }
       cookie?: never
     }
-    requestBody?: {
+    requestBody: {
       content: {
-        'application/json': {
-          /** @description Human-readable name for the published version */
-          publish_name?: string | null
-          /** @description Description of changes in this published version */
-          change_description?: string | null
-        }
+        'application/json': components['schemas']['PublishVersionRequest']
       }
     }
     responses: {
-      /** @description Version published successfully */
+      /** @description Published workflow version */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['WorkflowWithVersion']
+          'application/json': components['schemas']['WorkflowReadWithVersion']
         }
       }
-      /** @description Workflow or version not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   unpublish_workflow: {
@@ -1654,24 +2626,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Workflow unpublished successfully */
+      /** @description Unpublished workflow */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['WorkflowWithVersion']
+          'application/json': components['schemas']['WorkflowRead']
         }
       }
-      /** @description Workflow not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   restore_workflow_version: {
@@ -1680,98 +2650,60 @@ export interface operations {
       header?: never
       path: {
         workflow_id: string
+        /** @description Version number to restore */
         version: number
       }
       cookie?: never
     }
     requestBody?: never
     responses: {
+      /** @description Restored workflow version */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['WorkflowWithVersion']
+          'application/json': components['schemas']['WorkflowReadWithVersion']
         }
       }
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  export_workflow_version: {
+  receive_webhook: {
     parameters: {
       query?: never
       header?: never
       path: {
-        workflow_id: string
-        version: number
+        webhook_path: string
       }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': Record<string, unknown>
-        }
-      }
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-    }
-  }
-  validate_workflow: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
       cookie?: never
     }
     requestBody: {
       content: {
-        'application/json': {
-          workflow_definition: components['schemas']['workflow_definition.schema']
-        }
+        'application/json': unknown
       }
     }
     responses: {
-      /** @description Workflow definition is valid */
-      200: {
+      /** @description Webhook accepted and workflow execution started */
+      202: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['WorkflowValidationResult']
+          'application/json': components['schemas']['WebhookResponse']
         }
       }
-      /** @description Invalid workflow definition */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData'] & {
-            /** @description Structured validation result with per-node errors */
-            validation_result?: components['schemas']['WorkflowValidationResult']
-          }
-        }
-      }
-      /** @description Validation error */
-      422: {
+      400: components['responses']['BadRequestError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      /** @description Payload exceeds the 1 MB size limit */
+      413: {
         headers: {
           [name: string]: unknown
         }
@@ -1779,6 +2711,48 @@ export interface operations {
           'application/problem+json': components['schemas']['ErrorData']
         }
       }
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  receive_eda_webhook: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        webhook_path: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': unknown
+      }
+    }
+    responses: {
+      /** @description Webhook accepted and workflow execution started */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WebhookResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      /** @description Payload exceeds the 1 MB size limit */
+      413: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

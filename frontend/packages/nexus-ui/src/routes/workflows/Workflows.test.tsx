@@ -1665,6 +1665,17 @@ describe('Workflows Component', () => {
       vi.mocked(workflowFetchClient.POST).mockReset()
     })
 
+    // workflowFetchClient is overloaded across paths so partial mock data
+    // can't satisfy the union. Centralize the cast here instead of scattering
+    // `as never` across every mock call.
+    function mockGetResponse(data: Record<string, unknown> | undefined, error?: Record<string, unknown>) {
+      return { data, error, response: new Response() } as never
+    }
+
+    function mockPostResponse(data: Record<string, unknown> | undefined, error?: Record<string, unknown>) {
+      return { data, error, response: new Response() } as never
+    }
+
     const openKebabMenuForFirstRow = async (user: ReturnType<typeof userEvent.setup>) => {
       render(<Workflows />, { wrapper })
 
@@ -1692,21 +1703,17 @@ describe('Workflows Component', () => {
         refetch: vi.fn().mockResolvedValue(undefined),
       })
 
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse({
           id: '1',
           version: {
             workflow_definition: { schema_version: '2.0.0', triggers: [], nodes: [], edges: [] },
           },
-        },
-        error: undefined,
-        response: new Response(),
-      })
-      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
-        data: { id: 'new-id', name: 'test', created_by: 'user-1' },
-        error: undefined,
-        response: new Response(),
-      })
+        })
+      )
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue(
+        mockPostResponse({ id: 'new-id', name: 'test', created_by: 'user-1' })
+      )
 
       await openKebabMenuForFirstRow(user)
       const duplicateItem = await screen.findByText('Duplicate workflow')
@@ -1744,8 +1751,8 @@ describe('Workflows Component', () => {
         refetch: mockRefetch,
       })
 
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse({
           id: '1',
           name: 'Important Project Workflow',
           version: {
@@ -1756,16 +1763,12 @@ describe('Workflows Component', () => {
               edges: [],
             },
           },
-        },
-        error: undefined,
-        response: new Response(),
-      })
+        })
+      )
 
-      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
-        data: { id: 'new-id', name: 'Important Project Workflow - duplicate-abc', created_by: 'user-1' },
-        error: undefined,
-        response: new Response(),
-      })
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue(
+        mockPostResponse({ id: 'new-id', name: 'Important Project Workflow - duplicate-abc', created_by: 'user-1' })
+      )
 
       await openKebabMenuForFirstRow(user)
 
@@ -1786,7 +1789,6 @@ describe('Workflows Component', () => {
               workflow_definition: expect.objectContaining({
                 schema_version: '2.0.0',
               }) as unknown,
-              is_enabled: false,
             }) as unknown,
           }) as unknown
         )
@@ -1801,17 +1803,15 @@ describe('Workflows Component', () => {
 
     it('shows error alert when fetching workflow fails', async () => {
       const user = userEvent.setup()
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: undefined,
-        error: {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse(undefined, {
           type: 'https://api.nexus.com/errors/workflow-not-found',
           title: 'Workflow Not Found',
           detail: 'Workflow not found',
           code: 'WORKFLOW_NOT_FOUND',
           retryable: false,
-        },
-        response: new Response(null, { status: 404 }),
-      })
+        })
+      )
 
       await openKebabMenuForFirstRow(user)
 
@@ -1825,8 +1825,8 @@ describe('Workflows Component', () => {
 
     it('shows error alert when creating duplicate fails', async () => {
       const user = userEvent.setup()
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse({
           id: '1',
           name: 'Important Project Workflow',
           version: {
@@ -1837,22 +1837,18 @@ describe('Workflows Component', () => {
               edges: [],
             },
           },
-        },
-        error: undefined,
-        response: new Response(),
-      })
+        })
+      )
 
-      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
-        data: undefined,
-        error: {
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue(
+        mockPostResponse(undefined, {
           type: 'https://api.nexus.com/errors/name-conflict',
           title: 'Workflow Name Conflict',
           detail: 'Name conflict',
           code: 'WORKFLOW_NAME_CONFLICT',
           retryable: false,
-        },
-        response: new Response(null, { status: 409 }),
-      })
+        })
+      )
 
       await openKebabMenuForFirstRow(user)
 
@@ -1866,8 +1862,8 @@ describe('Workflows Component', () => {
 
     it('generates a name with duplicate suffix', async () => {
       const user = userEvent.setup()
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse({
           id: '1',
           name: 'Important Project Workflow',
           version: {
@@ -1878,16 +1874,12 @@ describe('Workflows Component', () => {
               edges: [],
             },
           },
-        },
-        error: undefined,
-        response: new Response(),
-      })
+        })
+      )
 
-      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
-        data: { id: 'new-id', name: 'test', created_by: 'user-1' },
-        error: undefined,
-        response: new Response(),
-      })
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue(
+        mockPostResponse({ id: 'new-id', name: 'test', created_by: 'user-1' })
+      )
 
       await openKebabMenuForFirstRow(user)
 
@@ -1901,13 +1893,12 @@ describe('Workflows Component', () => {
       })
     })
 
-    it('creates duplicate with is_enabled set to false', async () => {
+    it('creates duplicate with workflow definition', async () => {
       const user = userEvent.setup()
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse({
           id: '1',
           name: 'Important Project Workflow',
-          is_enabled: true,
           version: {
             workflow_definition: {
               schema_version: '2.0.0',
@@ -1916,16 +1907,12 @@ describe('Workflows Component', () => {
               edges: [],
             },
           },
-        },
-        error: undefined,
-        response: new Response(),
-      })
+        })
+      )
 
-      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
-        data: { id: 'new-id', name: 'test', created_by: 'user-1' },
-        error: undefined,
-        response: new Response(),
-      })
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue(
+        mockPostResponse({ id: 'new-id', name: 'test', created_by: 'user-1' })
+      )
 
       await openKebabMenuForFirstRow(user)
 
@@ -1934,15 +1921,15 @@ describe('Workflows Component', () => {
 
       await waitFor(() => {
         const postCall = vi.mocked(workflowFetchClient.POST).mock.calls[0]
-        const body = (postCall[1] as { body: { is_enabled: boolean } }).body
-        expect(body.is_enabled).toBe(false)
+        const body = (postCall[1] as { body: { workflow_definition: object } }).body
+        expect(body.workflow_definition).toBeDefined()
       })
     })
 
     it('shows no action link when response has no id', async () => {
       const user = userEvent.setup()
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse({
           id: '1',
           name: 'Important Project Workflow',
           version: {
@@ -1953,16 +1940,10 @@ describe('Workflows Component', () => {
               edges: [],
             },
           },
-        },
-        error: undefined,
-        response: new Response(),
-      })
+        })
+      )
 
-      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
-        data: { name: 'test', created_by: 'user-1' },
-        error: undefined,
-        response: new Response(),
-      })
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue(mockPostResponse({ name: 'test', created_by: 'user-1' }))
 
       await openKebabMenuForFirstRow(user)
 
@@ -1978,11 +1959,7 @@ describe('Workflows Component', () => {
 
     it('shows error when GET returns no data', async () => {
       const user = userEvent.setup()
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: undefined,
-        error: undefined,
-        response: new Response(),
-      })
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(mockGetResponse(undefined))
 
       await openKebabMenuForFirstRow(user)
 
@@ -2010,15 +1987,13 @@ describe('Workflows Component', () => {
 
     it('shows error when workflow has no definition', async () => {
       const user = userEvent.setup()
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse({
           id: '1',
           name: 'Important Project Workflow',
           version: {},
-        },
-        error: undefined,
-        response: new Response(),
-      })
+        })
+      )
 
       await openKebabMenuForFirstRow(user)
 
@@ -2048,8 +2023,8 @@ describe('Workflows Component', () => {
       })
 
       // Mock GET to return workflow with approval node containing user/group objects
-      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-        data: {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse({
           id: '1',
           name: 'Workflow with Approval',
           version: {
@@ -2076,16 +2051,12 @@ describe('Workflows Component', () => {
               edges: [],
             },
           },
-        },
-        error: undefined,
-        response: new Response(),
-      })
+        })
+      )
 
-      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
-        data: { id: 'new-id', name: 'Workflow with Approval - duplicate-abc', created_by: 'user-1' },
-        error: undefined,
-        response: new Response(),
-      })
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue(
+        mockPostResponse({ id: 'new-id', name: 'Workflow with Approval - duplicate-abc', created_by: 'user-1' })
+      )
 
       await openKebabMenuForFirstRow(user)
 

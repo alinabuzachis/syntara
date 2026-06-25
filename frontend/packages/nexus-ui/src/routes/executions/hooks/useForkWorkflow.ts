@@ -26,7 +26,6 @@ export function useForkWorkflow({ workflowDefinition, workflowName, projectId }:
           name: forkName,
           description: '',
           workflow_definition: workflowDefinition as unknown as V2WorkflowDefinition,
-          is_enabled: false,
           ...(projectId ? { project_id: projectId } : {}),
         },
       })

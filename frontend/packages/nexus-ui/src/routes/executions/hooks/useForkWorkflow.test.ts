@@ -54,7 +54,7 @@ describe('useForkWorkflow', () => {
     const body = callArgs[0].body
     expect(body.name).toContain('My Workflow - copy-')
     expect(body.description).toBe('')
-    expect(body.is_enabled).toBe(false)
+    expect(body.workflow_definition).toBeDefined()
   })
 
   it('returns undefined and shows error on API failure', async () => {

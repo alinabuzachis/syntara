@@ -9,7 +9,7 @@ import { WorkflowHistoryCard } from '../WorkflowHistoryCard'
 import { WorkflowSidepanel } from '../WorkflowSidepanel'
 
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
 type BuilderSidePanelsProps = {
   isAddNodePanelOpen: boolean

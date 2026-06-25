@@ -24,5 +24,5 @@ export function getWorkflowTagsForDisplay(workflow: Workflow): string[] {
 export function getWorkflowLabelItems(workflow: Workflow): string[] {
   const labels = workflow.labels
   if (!labels || typeof labels !== 'object') return []
-  return Object.entries(labels).map(([key, value]) => `${key}=${value}`)
+  return Object.entries(labels).map(([key, value]) => `${key}=${String(value)}`)
 }

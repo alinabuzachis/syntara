@@ -5,9 +5,9 @@ import { basename, isAbsolute, relative, resolve } from 'path'
 
 import { mockDate } from '../resources/mockDates'
 
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 type WorkflowDefinition = WorkflowAPI.components['schemas']['WorkflowDefinition']
-type V2Edge = WorkflowAPI.components['schemas']['edge']
+type V2Edge = { from: string; to: string; from_port?: string; to_port?: string }
 
 type YamlEdge = {
   from?: string

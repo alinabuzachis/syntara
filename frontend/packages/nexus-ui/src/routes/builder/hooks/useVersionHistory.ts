@@ -14,7 +14,7 @@ export function isVersionStatus(s: string): s is VersionStatus {
   return (VERSION_STATUSES as string[]).includes(s)
 }
 
-type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionResponse']
+type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionRead']
 
 type UseVersionHistoryParams = {
   workflowId: string | null

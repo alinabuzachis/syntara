@@ -11,7 +11,7 @@ import { processExistingWorkflow } from '../utils/processExistingWorkflow'
 import { WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME } from '../utils/workflowListQuery'
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from '../utils/workflowNaming'
 
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
 export function useBuilderWorkflowLifecycle(options: {
   workflowId: string | null

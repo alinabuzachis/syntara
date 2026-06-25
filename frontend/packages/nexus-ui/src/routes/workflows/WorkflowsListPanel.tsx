@@ -13,7 +13,7 @@ import type { ProjectRead } from '../access/types'
 
 import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody, type RowAction } from './WorkflowsTableBody'
 
-type Workflow = WorkflowAPI.components['schemas']['Workflow']
+type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
 type GroupedWorkflows = Map<string, { project: ProjectRead | null; workflows: Workflow[] }>
 

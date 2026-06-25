@@ -15,7 +15,7 @@ import { IconLabel } from '../../components/IconLabel'
 import type { useWorkflowPermissions } from './useWorkflowPermissions'
 import type { RowAction } from './WorkflowsTableBody'
 
-type Workflow = WorkflowAPI.components['schemas']['Workflow']
+type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
 export type WorkflowRowActionCallbacks = {
   setLocation: (path: string) => void

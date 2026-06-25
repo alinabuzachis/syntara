@@ -29,8 +29,8 @@ import { useWorkflowPermissions } from './useWorkflowPermissions'
 import { buildWorkflowRowActions } from './workflowRowActions'
 import { WorkflowsListPanel } from './WorkflowsListPanel'
 
-type Workflow = WorkflowAPI.components['schemas']['Workflow']
-type WorkflowDefinitionSchema = WorkflowAPI.components['schemas']['workflow_definition.schema']
+type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
+type WorkflowDefinitionSchema = WorkflowAPI.components['schemas']['WorkflowDefinition']
 type WorkflowWithProject = Workflow & { project_id?: string }
 
 // Transform is_enabled string values to boolean for the API
@@ -280,7 +280,7 @@ export default function Workflows() {
           return
         }
 
-        const definition = fullWorkflow.version?.workflow_definition
+        const definition = fullWorkflow.version?.workflow_definition as Record<string, unknown> | undefined
         if (!definition) {
           showError({ title: 'Duplicate failed', description: 'Workflow has no definition to duplicate' })
           return
@@ -288,9 +288,10 @@ export default function Workflows() {
 
         // Transform approval nodes: convert approver_users/approver_groups from objects to string arrays
         // The API returns {id, username}/{id, name} objects but the workflow schema expects string arrays
+        const nodes = definition.nodes as Array<Record<string, unknown>> | undefined
         const transformedDefinition = {
           ...definition,
-          nodes: definition.nodes?.map((node) => {
+          nodes: nodes?.map((node) => {
             if (node.type === 'approval' && node.config) {
               const config = node.config as Record<string, unknown>
               const transformedConfig: Record<string, unknown> = { ...config }
@@ -329,7 +330,6 @@ export default function Workflows() {
             description: workflow.description ?? '',
             workflow_definition: transformedDefinition as unknown as WorkflowDefinitionSchema,
             labels: (workflow.labels as Record<string, string> | undefined) ?? {},
-            is_enabled: false,
             ...(workflow.project_id ? { project_id: workflow.project_id } : {}),
           },
         })

@@ -14,7 +14,7 @@ import { getDateField } from '../../utils/getDateField'
 import { getWorkflowTagsForDisplay } from '../../utils/workflowTags'
 import type { ProjectRead } from '../access/types'
 
-type Workflow = WorkflowAPI.components['schemas']['Workflow']
+type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
 export type RowAction = KebabAction
 

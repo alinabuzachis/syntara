@@ -3,7 +3,7 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import type { ExecutionCopyData } from '../hooks/useExecutionCopyToEditor'
 
 export type BuilderContentProps = Readonly<{
-  workflow?: WorkflowAPI.components['schemas']['WorkflowWithVersion']
+  workflow?: WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
   isNew: boolean
   workflowId: string | null
   executionCopy?: ExecutionCopyData

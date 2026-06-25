@@ -9,7 +9,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 import type { BuilderAction, ValidationError } from './builderReducer'
 import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 
-type ValidationResultError = { message: string; node_id: string | null }
+type ValidationResultError = { message: string; node_id?: string | null }
 
 // Backend error messages may embed Python-dict-like metadata: {'id': 'node-1', 'name': 'MyNode'} The actual error.
 // These regexes extract structured data from that format. They become dead code once the backend always sends
@@ -90,8 +90,7 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
       workflowFetchClient
         .POST('/workflows/validate', {
           body: {
-            workflow_definition:
-              definition as unknown as WorkflowAPI.components['schemas']['workflow_definition.schema'],
+            workflow_definition: definition as unknown as WorkflowAPI.components['schemas']['WorkflowDefinition'],
           },
         })
         .then(({ data, error, response }) => {
@@ -104,7 +103,7 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
               showSuccess({ title: 'Workflow definition is valid' })
             }
           } else if (response.ok && data && !data.valid) {
-            const errors: ValidationError[] = data.errors.map((e) => {
+            const errors: ValidationError[] = (data.errors ?? []).map((e) => {
               const parsed = parseValidationMessage(e.message)
               return { ...parsed, nodeId: resolveNodeId(e) }
             })

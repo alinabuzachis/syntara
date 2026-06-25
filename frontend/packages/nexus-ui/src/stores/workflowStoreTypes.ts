@@ -7,7 +7,7 @@ import type { EdgeConnection } from '../routes/builder/types/edge'
 export type { Activity, TaskActivity } from '@ansible/nexus-contracts'
 
 // Type aliases from API contracts (v2)
-export type WorkflowDefinitionBase = WorkflowAPI.components['schemas']['workflow_definition.schema']
+export type WorkflowDefinitionBase = WorkflowAPI.components['schemas']['WorkflowDefinition']
 
 // V2 trigger — uses the practical Activity interface (not the generated type
 // which has config: Record<string, never>)

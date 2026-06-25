@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
 // Mock NxCodeBlock component
 vi.mock('../../components/details/NxCodeBlock', () => ({

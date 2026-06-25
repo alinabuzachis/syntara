@@ -20,7 +20,7 @@ import { RhUiCodeIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPanel } from '../../components/layout/NxPanel'
 
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
 type WorkflowSidepanelProps = {
   workflow: WorkflowWithVersion

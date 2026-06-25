@@ -14,7 +14,7 @@ export type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExe
 export type Approval = WithId<ApprovalsAPI.components['schemas']['ApprovalRequestRead']>
 export type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 export type ApprovalStatus = ApprovalsAPI.components['schemas']['ApprovalRequestStatus']
-export type Workflow = WithId<WorkflowAPI.components['schemas']['Workflow']>
+export type Workflow = WithId<WorkflowAPI.components['schemas']['WorkflowRead']>
 
 /**
  * Constants for node type discriminators (v2)
@@ -128,7 +128,7 @@ export const WorkflowVersionStatusEnum = {
 export type WorkflowVersionStatus = WorkflowAPI.components['schemas']['WorkflowVersionStatus']
 export type WorkflowsResponse =
   WorkflowAPI.paths['/workflows']['get']['responses']['200']['content']['application/json']
-export type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+export type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 export type WorkflowWithVersionResponse =
   WorkflowAPI.paths['/workflows/{workflow_id}']['get']['responses']['200']['content']['application/json']
 
@@ -139,13 +139,8 @@ export type ToolProviderCreate = ToolManagerAPI.components['schemas']['ToolProvi
 export type ToolProvidersResponse =
   ToolManagerAPI.paths['/tool_manager/tool_providers']['get']['responses']['200']['content']['application/json']
 
-// V2 node types — generated from v2 OpenAPI spec
-export type V2Node = WorkflowAPI.components['schemas']['node']
-export type V2NodeBase = WorkflowAPI.components['schemas']['node_base']
-export type V2TriggerNode = WorkflowAPI.components['schemas']['trigger_node']
-export type V2Edge = WorkflowAPI.components['schemas']['edge']
-export type V2WorkflowDefinition = WorkflowAPI.components['schemas']['workflow_definition.schema']
-export type V2RetryPolicy = WorkflowAPI.components['schemas']['retry_policy']
+// V2 types — from Pydantic models via OpenAPI spec
+export type V2WorkflowDefinition = WorkflowAPI.components['schemas']['WorkflowDefinition']
 
 // ============================================================================
 // Node-Level Settings Types (hand-written — settings live in .schema.json files,
@@ -179,56 +174,22 @@ export interface NodeSettings {
 }
 
 // ============================================================================
-// Parameters Type Aliases (extracted from generated schemas)
+// Parameters Type Aliases (from Pydantic models via OpenAPI spec)
 // ============================================================================
 
-/** Script node parameters */
-export type ScriptConfig = WorkflowAPI.components['schemas']['script.schema_configSchema']
-
-/** HTTP request node parameters */
-export type HttpRequestConfig = WorkflowAPI.components['schemas']['http_request.schema_configSchema']
-
-/** Agentic (AI agent) node parameters */
-export type AgenticConfig = WorkflowAPI.components['schemas']['agentic.schema_configSchema']
-
-/** AAP job template node parameters */
-export type AAPJobTemplateConfig = WorkflowAPI.components['schemas']['aap_job_template.schema_configSchema']
-
-/** AAP workflow job template node parameters */
-export type AAPWorkflowJobTemplateConfig =
-  WorkflowAPI.components['schemas']['aap_workflow_job_template.schema_configSchema']
-
-/** Approval node parameters */
-export type ApprovalConfig = WorkflowAPI.components['schemas']['approval.schema_configSchema']
-
-/** Condition node parameters */
-export type ConditionConfig = WorkflowAPI.components['schemas']['condition.schema_configSchema']
-
-/** Loop node parameters (discriminated union: for_each | do_while) */
-export type LoopConfig = WorkflowAPI.components['schemas']['loop.schema_configSchema']
-
-/** Converge node parameters */
-export type ConvergeConfig = WorkflowAPI.components['schemas']['converge.schema_configSchema']
-
-// Inline type until AAP-77227 — replace with generated OpenAPI type via npm run gen
-/** Switch node configuration (per-case boolean conditions with port routing) */
-export interface SwitchConfig {
-  cases: Array<{
-    port: string
-    label: string
-    condition: string
-  }>
-  default_port?: string
-}
-
-/**
- * Wait node configuration — total duration in seconds.
- * Inline type until AAP-66091 adds WaitConfig to the OpenAPI schema.
- * Tracks: src/nexus/schemas/workflows/v2/control-nodes/wait.schema.json
- */
-export type WaitConfig = {
-  duration: number
-}
+export type ScriptConfig = WorkflowAPI.components['schemas']['ScriptExecutorParameters']
+export type HttpRequestConfig = WorkflowAPI.components['schemas']['APIExecutorParameters']
+export type AgenticConfig = WorkflowAPI.components['schemas']['AgenticExecutorParameters']
+export type AAPJobTemplateConfig = WorkflowAPI.components['schemas']['AAPJobTemplateExecutorParameters']
+export type AAPWorkflowJobTemplateConfig = WorkflowAPI.components['schemas']['AAPWorkflowJobTemplateExecutorParameters']
+export type ApprovalConfig = WorkflowAPI.components['schemas']['ApprovalNodeParameters']
+export type ConditionConfig = WorkflowAPI.components['schemas']['ConditionNodeParameters']
+export type LoopConfig =
+  | WorkflowAPI.components['schemas']['ForEachLoopParameters']
+  | WorkflowAPI.components['schemas']['DoWhileLoopParameters']
+export type ConvergeConfig = WorkflowAPI.components['schemas']['ConvergeNodeParameters']
+export type SwitchConfig = WorkflowAPI.components['schemas']['SwitchNodeParameters']
+export type WaitConfig = WorkflowAPI.components['schemas']['WaitNodeParameters']
 
 // ============================================================================
 // Activity Base Interface

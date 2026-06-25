@@ -9,7 +9,7 @@ import type { BuilderAction } from '../builderReducer'
 
 import { useBuilderVersionHistory } from './useBuilderVersionHistory'
 
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
 type UseBuilderVersionPanelParams = {
   workflowId: string | null

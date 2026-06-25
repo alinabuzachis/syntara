@@ -9,7 +9,7 @@ import { DEFAULT_WORKFLOW_NAME } from '../utils/workflowNaming'
 
 import { useBuilderWorkflowLifecycle } from './useBuilderWorkflowLifecycle'
 
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
 const processExistingWorkflowMock = vi.hoisted(() =>
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub ignores input; tests override via mockImplementationOnce
