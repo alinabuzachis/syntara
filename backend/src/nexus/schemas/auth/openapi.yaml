@@ -68,6 +68,50 @@ paths:
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
+  /auth/token:
+    post:
+      summary: OAuth 2.0 token endpoint
+      description: |
+        Exchange client credentials for an access token (OAuth 2.0 client
+        credentials grant, RFC 6749 Section 4.4).
+
+        Credentials can be provided via HTTP Basic auth header or in the
+        form-encoded request body.  Only `grant_type=client_credentials`
+        is accepted.  No refresh token is issued.
+      operationId: token
+      tags:
+        - Authentication
+      x-app-permission:
+        resource: null
+        action: null
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_token'
+      responses:
+        '200':
+          description: Access token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+        '400':
+          description: Unsupported grant type
+        '401':
+          description: Invalid client credentials
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
   /auth/csrf_token:
     post:
       summary: Get CSRF form token
@@ -537,3 +581,22 @@ components:
           items:
             $ref: '#/components/schemas/AuthProviderInfo'
           description: Enabled identity providers
+
+    Body_token:
+      type: object
+      title: Body_token
+      required:
+        - grant_type
+      properties:
+        grant_type:
+          type: string
+          title: Grant Type
+        client_id:
+          type: string
+          title: Client Id
+          default: ''
+        client_secret:
+          type: string
+          format: password
+          title: Client Secret
+          default: ''

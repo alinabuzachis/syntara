@@ -114,9 +114,10 @@ export interface components {
     ApprovalRequestRead: components['schemas']['BaseResource'] & {
       /**
        * Project Id
+       * Format: uuid
        * @description Project this approval belongs to (denormalized from execution)
        */
-      project_id?: string | null
+      project_id: string
       /**
        * Execution Id
        * Format: uuid
@@ -220,9 +221,10 @@ export interface components {
       execution_id: string
       /**
        * Project Id
+       * Format: uuid
        * @description Project ID (denormalized from execution)
        */
-      project_id?: string | null
+      project_id: string
       /**
        * Approval Node Id
        * @description Activity ID from workflow definition

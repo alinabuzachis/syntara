@@ -11,7 +11,7 @@ Usage:
 
     # Create tokens for authenticated user
     access_token = token_service.create_access_token(
-        user_id=user.id,
+        subject_id=user.id,
         username=user.username,
         email=user.email,
     )
@@ -36,6 +36,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 from nexus.auth.exceptions import InvalidTokenError, TokenExpiredError
 from nexus.core.config.base import get_settings
+from nexus.core.models.principal import PrincipalType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -428,7 +429,7 @@ class TokenService:
 
     def create_access_token(
         self,
-        user_id: UUID | str,
+        subject_id: UUID | str,
         username: str,
         email: str | None = None,
         first_name: str | None = None,
@@ -437,12 +438,14 @@ class TokenService:
         idp: str = "local",
         groups: list[str] | None = None,
         token_version: int = 0,
+        *,
+        principal_type: PrincipalType = PrincipalType.USER,
     ) -> str:
         """Create a JWT access token.
 
         Args:
-            user_id: User UUID (stored in 'sub' claim)
-            username: Username
+            subject_id: Principal UUID (user or service account, stored in 'sub' claim)
+            username: Username or service account name
             email: User email
             first_name: User's first name (OIDC 'given_name' claim)
             last_name: User's last name (OIDC 'family_name' claim)
@@ -450,38 +453,60 @@ class TokenService:
             idp: Identity provider identifier (e.g., "local", "azure-ad-prod")
             groups: Group memberships
             token_version: Token version counter for stale token detection
+            principal_type: Principal type — PrincipalType.USER or PrincipalType.SERVICE_ACCOUNT
 
         Returns:
             Encoded JWT string
 
         """
         now = datetime.now(UTC)
-        exp = now + timedelta(minutes=self._settings.jwt_access_token_lifetime_minutes)
+        is_service_account = principal_type == PrincipalType.SERVICE_ACCOUNT
+
+        lifetime_minutes = (
+            self._settings.jwt_sa_access_token_lifetime_minutes
+            if is_service_account
+            else self._settings.jwt_access_token_lifetime_minutes
+        )
+        exp = now + timedelta(minutes=lifetime_minutes)
 
         if groups is None:
             groups = []
-        if amr is None:
-            amr = ["pwd"]
 
-        payload: dict[str, Any] = {
-            "sub": str(user_id),
-            "iss": self._settings.jwt_issuer,
-            "aud": self._AUDIENCE,
-            "iat": now,
-            "exp": exp,
-            "preferred_username": username,
-            "email": email,
-            "groups": groups,
-            "token_ver": token_version,
-            "amr": amr,
-            "idp": idp,
-        }
-        if first_name:
-            display_name = f"{first_name} {last_name}".strip() if last_name else first_name
-            payload["name"] = display_name
-            payload["given_name"] = first_name
-            if last_name:
-                payload["family_name"] = last_name
+        if is_service_account:
+            # SAs get permissions via direct role assignments, not group membership
+            payload: dict[str, Any] = {
+                "sub": str(subject_id),
+                "iss": self._settings.jwt_issuer,
+                "aud": self._AUDIENCE,
+                "iat": now,
+                "exp": exp,
+                "token_type": "service_account",
+                "preferred_username": username,
+                "groups": [],
+            }
+        else:
+            if amr is None:
+                amr = ["pwd"]
+
+            payload = {
+                "sub": str(subject_id),
+                "iss": self._settings.jwt_issuer,
+                "aud": self._AUDIENCE,
+                "iat": now,
+                "exp": exp,
+                "preferred_username": username,
+                "email": email,
+                "groups": groups,
+                "token_ver": token_version,
+                "amr": amr,
+                "idp": idp,
+            }
+            if first_name:
+                display_name = f"{first_name} {last_name}".strip() if last_name else first_name
+                payload["name"] = display_name
+                payload["given_name"] = first_name
+                if last_name:
+                    payload["family_name"] = last_name
 
         headers = {
             "kid": self._key_manager.key_id,
@@ -497,7 +522,8 @@ class TokenService:
 
         logger.debug(
             "Created access token",
-            user_id=str(user_id),
+            subject_id=str(subject_id),
+            principal_type=principal_type,
             expires_at=exp.isoformat(),
         )
 

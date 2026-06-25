@@ -121,7 +121,7 @@ class TestTokenCreation:
         """Test that create_access_token returns a JWT string."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="test-instance/testuser",
             email="test@example.com",
         )
@@ -135,7 +135,7 @@ class TestTokenCreation:
         """Test that access token contains all required claims."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="testuser",
             email="test@example.com",
         )
@@ -160,7 +160,7 @@ class TestTokenCreation:
         """Test that access token correctly includes federated auth claims."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="oidc-user",
             email="oidc@example.com",
             amr=["fed", "mfa"],
@@ -175,7 +175,7 @@ class TestTokenCreation:
         """Test that access token includes groups when provided."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="test-user",
             email="test@example.com",
             groups=["engineering", "admins"],
@@ -188,7 +188,7 @@ class TestTokenCreation:
         """Test that access token includes given_name, family_name, and computed name."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="alice",
             email="alice@example.com",
             first_name="Alice",
@@ -204,7 +204,7 @@ class TestTokenCreation:
         """Test that access token omits family_name when last_name is not provided."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="alice",
             email="alice@example.com",
             first_name="Alice",
@@ -221,7 +221,7 @@ class TestTokenCreation:
         before = datetime.now(UTC)
 
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="test/user",
             email="test@example.com",
         )
@@ -244,7 +244,7 @@ class TestTokenCreation:
     def test_create_access_token_includes_kid_header(self, token_service: TokenService) -> None:
         """Test that access token includes key ID in header."""
         token = token_service.create_access_token(
-            user_id=uuid4(),
+            subject_id=uuid4(),
             username="test/user",
             email="test@example.com",
         )
@@ -324,7 +324,7 @@ class TestTokenValidation:
         """Test that a valid access token can be decoded."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="testuser",
             email="test@example.com",
         )
@@ -360,7 +360,7 @@ class TestTokenValidation:
         """Test that decoding with wrong token type raises InvalidTokenError."""
         user_id = uuid4()
         access_token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="test/user",
             email="test@example.com",
         )
@@ -372,7 +372,7 @@ class TestTokenValidation:
         """Test that a token with invalid signature raises InvalidTokenError."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="test/user",
             email="test@example.com",
         )
@@ -528,7 +528,7 @@ class TestAlgorithmEnforcement:
     def test_token_uses_es256_algorithm(self, token_service: TokenService) -> None:
         """Test that created tokens use ES256 algorithm."""
         token = token_service.create_access_token(
-            user_id=uuid4(),
+            subject_id=uuid4(),
             username="test/user",
             email="test@example.com",
         )
@@ -837,7 +837,7 @@ class TestTokenVersionClaim:
         """Test that token_ver claim is included in access token with default value 0."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="testuser",
             email="test@example.com",
         )
@@ -849,7 +849,7 @@ class TestTokenVersionClaim:
         """Test that token_ver claim has custom value when passed."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="testuser",
             email="test@example.com",
             token_version=42,
@@ -862,7 +862,7 @@ class TestTokenVersionClaim:
         """Test that token_version is decoded from token payload."""
         user_id = uuid4()
         token = token_service.create_access_token(
-            user_id=user_id,
+            subject_id=user_id,
             username="testuser",
             email="test@example.com",
             token_version=7,

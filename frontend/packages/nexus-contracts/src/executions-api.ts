@@ -134,8 +134,11 @@ export interface components {
        * Format: uuid
        */
       workflow_version_id: string
-      /** Project Id */
-      project_id?: string | null
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
       /** Temporal Workflow Id */
       temporal_workflow_id: string
       status: components['schemas']['ExecutionStatus']

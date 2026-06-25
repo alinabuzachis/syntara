@@ -1090,8 +1090,11 @@ export interface components {
        * Format: uuid
        */
       created_by: string
-      /** Project Id */
-      project_id?: string | null
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
       /** Published Version */
       published_version?: number | null
       /**
@@ -1261,9 +1264,10 @@ export interface components {
     ApprovalRequestRead: components['schemas']['BaseResource'] & {
       /**
        * Project Id
+       * Format: uuid
        * @description Project this approval belongs to (denormalized from execution)
        */
-      project_id?: string | null
+      project_id: string
       /**
        * Execution Id
        * Format: uuid

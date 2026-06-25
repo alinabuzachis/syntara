@@ -2652,6 +2652,101 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+  /auth/token:
+    post:
+      summary: OAuth 2.0 token endpoint
+      description: |
+        Exchange client credentials for an access token (OAuth 2.0 client
+        credentials grant, RFC 6749 Section 4.4).
+
+        Credentials can be provided via HTTP Basic auth header or in the
+        form-encoded request body.  Only `grant_type=client_credentials`
+        is accepted.  No refresh token is issued.
+      operationId: token
+      tags:
+        - Authentication
+      x-app-permission:
+        resource: null
+        action: null
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_token'
+      responses:
+        '200':
+          description: Access token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+        '400':
+          description: Unsupported grant type
+        '401':
+          description: Invalid client credentials
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
   /auth/csrf_token:
     post:
       summary: Get CSRF form token
@@ -25416,6 +25511,24 @@ components:
           items:
             $ref: '#/components/schemas/AuthProviderInfo'
           description: Enabled identity providers
+    Body_token:
+      type: object
+      title: Body_token
+      required:
+        - grant_type
+      properties:
+        grant_type:
+          type: string
+          title: Grant Type
+        client_id:
+          type: string
+          title: Client Id
+          default: ''
+        client_secret:
+          type: string
+          format: password
+          title: Client Secret
+          default: ''
     CanIRequest:
       type: object
       title: Can I Request

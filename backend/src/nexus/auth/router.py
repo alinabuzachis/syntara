@@ -13,12 +13,12 @@ import base64
 import json
 import secrets
 from datetime import UTC, datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, NoReturn
 from urllib.parse import quote, urlencode, urlparse
 from uuid import UUID
 
 import structlog
-from fastapi import Depends, Query, Request, Response
+from fastapi import Depends, Form, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import insert as sa_insert
 from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
@@ -84,6 +84,7 @@ from nexus.core.lib.encryption import SecretEncryptor, key_from_string
 from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models import Group, User, UserIdentity
 from nexus.core.models.group import user_groups
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import AuthType
 from nexus.core.models.user_identity import SUBJECT_MAX_LENGTH
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
@@ -92,6 +93,11 @@ from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import (
     IdentityProviderConfigurationTypes,
     OIDCConfiguration,
+)
+from nexus.service_accounts.models.service_account import ServiceAccount, ServiceAccountStatus
+from nexus.service_accounts.models.service_account_credential import (
+    ServiceAccountCredential,
+    ServiceAccountCredentialStatus,
 )
 from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.users.services.user_identity_service import UserIdentityService
@@ -221,7 +227,7 @@ async def login(
     # Create access token
     token_service = _get_token_service()
     access_token = token_service.create_access_token(
-        user_id=user.id,
+        subject_id=user.id,
         username=user.username,
         email=user.email,
         first_name=user.first_name,
@@ -284,6 +290,172 @@ async def login(
     return AccessTokenResponse(
         access_token=access_token,
         expires_in=settings.jwt_access_token_lifetime_minutes * 60,
+    )
+
+
+def _extract_basic_credentials(request: Request) -> tuple[str, str] | None:
+    """Extract client credentials from HTTP Basic Authorization header.
+
+    Returns (client_id, client_secret) or None if header is absent/invalid.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Basic "):
+        return None
+    try:
+        decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if ":" not in decoded:
+        return None
+    client_id, client_secret = decoded.split(":", 1)
+    return client_id, client_secret
+
+
+_DUMMY_ARGON2_HASH = "$argon2id$v=19$m=65536,t=3,p=4$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+
+def _dispatch_sa_login_failure(
+    client_id: str | None,
+    error_reason: LoginErrorReason,
+    sa_id: UUID | None = None,
+) -> NoReturn:
+    """Dispatch an audit event for a failed service account login attempt and raise 401."""
+    AuditEventDispatcher.dispatch(
+        LoginAttemptEvent(
+            username=client_id,
+            method=LoginMethod.CLIENT_CREDENTIALS,
+            error_type=error_reason,
+            user_id=sa_id,
+        )
+    )
+    raise AuthenticationRequiredError
+
+
+def _validate_sa_credential(
+    credential: ServiceAccountCredential,
+    sa: ServiceAccount,
+    client_id: str,
+    client_secret: str,
+) -> None:
+    """Validate a service account and credential are usable, or raise 401.
+
+    All checks are evaluated before any branching to prevent timing
+    side-channels that could leak account status or existence.
+    """
+    secret_valid = verify_password(client_secret, credential.hashed_secret)
+    if (
+        not secret_valid
+        and credential.old_hashed_secret
+        and credential.old_secret_valid_until
+        and datetime.now(UTC) < credential.old_secret_valid_until
+    ):
+        secret_valid = verify_password(client_secret, credential.old_hashed_secret)
+
+    is_deleted = sa.deleted_at is not None
+    is_sa_disabled = sa.status != ServiceAccountStatus.ACTIVE
+    is_cred_disabled = credential.status != ServiceAccountCredentialStatus.ACTIVE
+    is_expired = credential.expires_at is not None and datetime.now(UTC) >= credential.expires_at
+
+    if is_deleted:
+        _dispatch_sa_login_failure(client_id, LoginErrorReason.DELETED_SERVICE_ACCOUNT, sa.id)
+    elif is_sa_disabled or is_cred_disabled or is_expired:
+        _dispatch_sa_login_failure(client_id, LoginErrorReason.DISABLED_SERVICE_ACCOUNT, sa.id)
+    elif not secret_valid:
+        _dispatch_sa_login_failure(client_id, LoginErrorReason.BAD_PASSWORD, sa.id)
+
+
+@router.post(
+    "/token",
+    operation_id="token",
+    dependencies=[NO_PERMISSION],
+    summary="OAuth 2.0 token endpoint",
+    description="""
+    Exchange client credentials for an access token (OAuth 2.0 client
+    credentials grant, RFC 6749 Section 4.4).
+
+    Credentials can be provided via HTTP Basic auth header or in the
+    form-encoded request body.  Only `grant_type=client_credentials`
+    is accepted.  No refresh token is issued.
+    """,
+    response_description="Access token issued",
+    responses={
+        400: {"description": "Unsupported grant type"},
+        401: {"description": "Invalid client credentials"},
+    },
+)
+@audit(EventCategory.SECURITY_EVENT)
+async def token(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    grant_type: Annotated[str, Form()],
+    client_id: Annotated[str, Form()] = "",
+    client_secret: Annotated[str, Form(json_schema_extra={"format": "password"})] = "",
+) -> AccessTokenResponse:
+    """Issue an access token via the OAuth 2.0 client credentials grant.
+
+    Accepts credentials from either the HTTP Basic Authorization header
+    or the form-encoded request body (per RFC 6749 Section 2.3).
+
+    """
+    if grant_type != "client_credentials":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="unsupported_grant_type",
+        )
+
+    basic_creds = _extract_basic_credentials(request)
+    if basic_creds is not None:
+        cred_client_id, cred_client_secret = basic_creds
+    elif client_id and client_secret:
+        cred_client_id, cred_client_secret = client_id, client_secret
+    else:
+        _dispatch_sa_login_failure(None, LoginErrorReason.UNKNOWN_USER)
+
+    result = await db.exec(
+        select(ServiceAccountCredential, ServiceAccount)
+        .join(ServiceAccount, ServiceAccountCredential.service_account_id == ServiceAccount.id)  # type: ignore[arg-type]
+        .where(ServiceAccountCredential.identifier == cred_client_id)
+    )
+    row = result.one_or_none()
+
+    if row is None:
+        verify_password(cred_client_secret, _DUMMY_ARGON2_HASH)
+        _dispatch_sa_login_failure(cred_client_id, LoginErrorReason.UNKNOWN_USER)
+
+    credential, sa = row
+
+    _validate_sa_credential(credential, sa, cred_client_id, cred_client_secret)
+
+    settings = get_settings()
+    token_service = _get_token_service()
+    access_token = token_service.create_access_token(
+        subject_id=sa.id,
+        username=sa.name,
+        principal_type=PrincipalType.SERVICE_ACCOUNT,
+    )
+
+    sa.last_authenticated_at = datetime.now(UTC)
+    credential.last_used_at = datetime.now(UTC)
+    db.add(sa)
+    db.add(credential)
+    await db.commit()
+
+    AuditEventDispatcher.dispatch(
+        LoginAttemptEvent(
+            username=cred_client_id,
+            method=LoginMethod.CLIENT_CREDENTIALS,
+            user_id=sa.id,
+        )
+    )
+    logger.info(
+        "Service account authenticated",
+        service_account_id=str(sa.id),
+        client_id=cred_client_id,
+    )
+
+    return AccessTokenResponse(
+        access_token=access_token,
+        expires_in=settings.jwt_sa_access_token_lifetime_minutes * 60,
     )
 
 
@@ -415,7 +587,7 @@ async def refresh_token(
         user_group_names = await _get_user_group_names(db, user.id)
 
         access_token = token_service.create_access_token(
-            user_id=user.id,
+            subject_id=user.id,
             username=username,
             email=user.email,
             first_name=user.first_name,

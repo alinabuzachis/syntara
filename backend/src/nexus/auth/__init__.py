@@ -30,7 +30,7 @@ def create_service_token() -> str:
     settings = get_settings()
     token_service = TokenService()
     return token_service.create_access_token(
-        user_id=settings.system_user_id,
+        subject_id=settings.system_user_id,
         username="system",
         email="system@nexus.local",
         amr=["service"],

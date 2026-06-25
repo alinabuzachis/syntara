@@ -21,6 +21,7 @@ class LoginMethod(StrEnum):
 
     PASSWORD = "password"  # noqa: S105
     OIDC = "oidc"
+    CLIENT_CREDENTIALS = "client_credentials"
 
 
 class LoginErrorReason(StrEnum):
@@ -31,6 +32,8 @@ class LoginErrorReason(StrEnum):
     INACTIVE_ACCOUNT = "inactive_account"
     LOCAL_LOGIN_DISABLED = "local_login_disabled"
     SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
+    DISABLED_SERVICE_ACCOUNT = "disabled_service_account"
+    DELETED_SERVICE_ACCOUNT = "deleted_service_account"
     UNKNOWN = "unknown"
 
 

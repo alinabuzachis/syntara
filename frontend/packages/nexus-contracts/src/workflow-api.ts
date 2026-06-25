@@ -317,8 +317,11 @@ export interface components {
        * Format: uuid
        */
       created_by: string
-      /** Project Id */
-      project_id?: string | null
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
       /** Published Version */
       published_version?: number | null
       /**
@@ -379,8 +382,11 @@ export interface components {
        * Format: uuid
        */
       created_by: string
-      /** Project Id */
-      project_id?: string | null
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
       /** Published Version */
       published_version?: number | null
       /**
@@ -579,9 +585,10 @@ export interface components {
       workflow_definition: components['schemas']['WorkflowDefinition']
       /**
        * Project Id
+       * Format: uuid
        * @description Project to assign workflow to
        */
-      project_id?: string | null
+      project_id: string
     }
     /**
      * WorkflowUpdate
@@ -695,8 +702,11 @@ export interface components {
        * Format: uuid
        */
       workflow_version_id: string
-      /** Project Id */
-      project_id?: string | null
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
       /** Temporal Workflow Id */
       temporal_workflow_id: string
       status: components['schemas']['ExecutionStatus']

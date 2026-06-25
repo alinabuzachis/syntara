@@ -48,7 +48,7 @@ async def _ao_test_client(
 
     token_service = TokenService()
     access_token = token_service.create_access_token(
-        user_id=test_user.id,
+        subject_id=test_user.id,
         username=test_user.username,
         email=test_user.email or "",
     )

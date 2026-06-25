@@ -1411,6 +1411,13 @@ class JWTSettings(BaseSettings):
         le=60,
     )
 
+    jwt_sa_access_token_lifetime_minutes: int = Field(
+        default=15,
+        description="Service account access token lifetime in minutes",
+        ge=1,
+        le=60,
+    )
+
     jwt_refresh_token_lifetime_hours: int = Field(
         default=8,
         description="Refresh token lifetime in hours",

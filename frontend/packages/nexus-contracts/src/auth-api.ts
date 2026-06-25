@@ -27,6 +27,31 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/auth/token': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * OAuth 2.0 token endpoint
+     * @description Exchange client credentials for an access token (OAuth 2.0 client
+     *     credentials grant, RFC 6749 Section 4.4).
+     *
+     *     Credentials can be provided via HTTP Basic auth header or in the
+     *     form-encoded request body.  Only `grant_type=client_credentials`
+     *     is accepted.  No refresh token is issued.
+     */
+    post: operations['token']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/auth/csrf_token': {
     parameters: {
       query?: never
@@ -315,6 +340,22 @@ export interface components {
        */
       resources?: components['schemas']['AuthProviderInfo'][]
     }
+    /** Body_token */
+    Body_token: {
+      /** Grant Type */
+      grant_type: string
+      /**
+       * Client Id
+       * @default
+       */
+      client_id?: string
+      /**
+       * Client Secret
+       * Format: password
+       * @default
+       */
+      client_secret?: string
+    }
     /**
      * ErrorData
      * @description RFC 9457 Problem Details format for error event data.
@@ -543,6 +584,49 @@ export interface operations {
       }
       400: components['responses']['BadRequestError']
       /** @description Invalid username or password */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  token: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/x-www-form-urlencoded': components['schemas']['Body_token']
+      }
+    }
+    responses: {
+      /** @description Access token issued */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AccessTokenResponse']
+        }
+      }
+      /** @description Unsupported grant type */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Invalid client credentials */
       401: {
         headers: {
           [name: string]: unknown

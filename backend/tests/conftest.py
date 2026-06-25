@@ -1735,7 +1735,7 @@ async def jwt_access_token(test_user: User, token_service: TokenService) -> str:
 
     """
     return token_service.create_access_token(
-        user_id=test_user.id,
+        subject_id=test_user.id,
         username=test_user.username,
         email=test_user.email or "",
     )
@@ -1783,7 +1783,7 @@ async def jwt_client(
     """
     # Generate real JWT token for the test user
     access_token = token_service.create_access_token(
-        user_id=test_user.id,
+        subject_id=test_user.id,
         username=test_user.username,
         email=test_user.email or "",
     )
@@ -1834,7 +1834,7 @@ def create_jwt_for_user(token_service: TokenService) -> Callable[[User], str]:
 
     def _create_token(user: User) -> str:
         return token_service.create_access_token(
-            user_id=user.id,
+            subject_id=user.id,
             username=user.username,
             email=user.email or "",
         )

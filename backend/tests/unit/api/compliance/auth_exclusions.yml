@@ -149,6 +149,10 @@ public:
     justification: Must work with expired tokens
 
   - method: POST
+    path: /api/v1/auth/token
+    justification: OAuth 2.0 client credentials grant; no user context
+
+  - method: POST
     path: /api/v1/auth/csrf_token
     justification: CSRF token from session cookie; pre-auth
 
