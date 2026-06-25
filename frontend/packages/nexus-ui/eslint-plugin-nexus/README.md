@@ -118,8 +118,7 @@ Disallows browser-locale date formatting methods (`toLocaleDateString`, `toLocal
 Run the test suite:
 
 ```bash
-cd packages/nexus-ui
-npx vitest run eslint-plugin-nexus/__tests__/
+npx vitest run packages/nexus-ui/eslint-plugin-nexus/__tests__/
 ```
 
 Run tests for a specific rule:

@@ -388,8 +388,7 @@ packages/
 npm test
 
 # Run specific test file
-cd packages/nexus-ui
-npx vitest run src/utils/apiErrors.test.ts
+npx vitest run packages/nexus-ui/src/utils/apiErrors.test.ts
 ```
 
 ---

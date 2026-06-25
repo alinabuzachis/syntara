@@ -136,19 +136,15 @@ npm run e2e:visual-regression
 npm run e2e:visual-regression:update
 ```
 
-From **`packages/nexus-ui`**:
-
 ```bash
-cd packages/nexus-ui
-
 # Run page screenshot tests
-npx playwright test e2e/visual-regression/page-screenshots
+npm run e2e:visual-regression
 
 # Update baselines locally (macOS -- for local dev only)
-npx playwright test e2e/visual-regression/page-screenshots --update-snapshots
+npm run e2e:visual-regression:update
 
 # Run the baseline enforcement check
-npm exec tsx -- scripts/check-visual-baselines.ts
+npm run check:visual-baselines
 ```
 
 ## Running in a Container (CI-Matching Screenshots)

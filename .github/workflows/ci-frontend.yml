@@ -82,27 +82,9 @@ jobs:
       - run: npm ci
         working-directory: frontend
 
-      - name: Lint Mermaid diagrams
-        run: npm run lint:mermaid
+      - name: Static analysis
+        run: npm run check
         working-directory: frontend
-
-      - name: TypeScript type check
-        run: npm run tsc
-        working-directory: frontend/packages/nexus-ui
-
-      - name: ESLint
-        run: npm run lint
-        working-directory: frontend/packages/nexus-ui
-        env:
-          NODE_OPTIONS: '--max-old-space-size=8192'
-
-      - name: Prettier format check
-        run: npm run format:check
-        working-directory: frontend
-
-      - name: Check for dead code with knip
-        run: npm run knip -- --reporter compact
-        working-directory: frontend/packages/nexus-ui
 
   unit-tests:
     name: Unit Tests

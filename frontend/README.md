@@ -77,17 +77,14 @@ Get familiar with the hot reload workflow:
 ### Common Commands
 
 ```bash
+# Run all static analysis checks (tsc, lint, format, knip) concurrently
+npm run check
+
 # Run tests
 npm test
 
 # Build for production
 npm run build
-
-# Check formatting
-npm run format:check
-
-# Run ESLint
-cd packages/nexus-ui && npm run lint
 
 # Generate API contracts
 npm run gen
@@ -148,6 +145,9 @@ npm run start:mock-api             # Start mock API server only
 
 # Building
 npm run build                      # Build UI package
+
+# Static Analysis (mirrors CI "Checks" job — tsc, lint, format, knip, mermaid)
+npm run check                      # Run all checks concurrently
 
 # Testing & Linting
 npm test                           # Run all tests (format check + ESLint + TypeScript)

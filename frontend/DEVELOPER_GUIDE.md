@@ -132,7 +132,6 @@ npm run format
 If you have SSH access to the backend repo, you can use the built-in script:
 
 ```bash
-cd packages/nexus-contracts
 npm run gen
 ```
 
@@ -146,7 +145,7 @@ This will:
 ### After Updating
 
 1. Run tests to ensure nothing is broken: `npm test`
-2. Check for TypeScript errors in the UI: `npm run tsc --prefix packages/nexus-ui`
+2. Check for TypeScript errors in the UI: `npm run tsc`
 3. Update any UI code that uses changed types
 4. Commit the updated contract files
 
@@ -198,14 +197,12 @@ This will:
 
 ```bash
 # UI Package
-cd packages/nexus-ui
-npm run test          # Run tests
+npm run test:ui       # Run tests
 npm run build         # Build package
-npm run start         # Start dev server
+npm run start:ui      # Start dev server
 
 # Mock API Package
-cd packages/nexus-mock-api
-npm run start         # Start mock API server
+npm run start:mock-api  # Start mock API server
 ```
 
 ## Testing
@@ -225,8 +222,7 @@ npm test
 # Run UI package tests
 npm run test:ui
 
-# Run with coverage (from packages/nexus-ui)
-cd packages/nexus-ui
+# Run with coverage
 npm run test:coverage
 
 # Coverage threshold is enforced by CI (per-file 80% minimum)
@@ -237,8 +233,7 @@ npm run e2e            # Run headless
 npm run e2e:ui         # Run with Playwright UI
 
 # Run a specific test file
-cd packages/nexus-ui
-npm run vitest -- path/to/specific/test.test.ts
+npx vitest run packages/nexus-ui/path/to/specific/test.test.ts
 ```
 
 ### Writing Tests
@@ -287,7 +282,7 @@ See [docs/architecture.md](docs/architecture.md) — "Where to look when debuggi
 - **Zustand state inspection**: Call `useWorkflowStore.getState()` in the browser console
 - **React DevTools**: Inspect component props and state
 - **API responses**: Check the Network tab in browser DevTools; the Vite proxy forwards `/api/*` to the mock API or real backend
-- **TypeScript errors**: Run `cd packages/nexus-ui && npm run tsc` for type-only checks
+- **TypeScript errors**: Run `npm run tsc` for type-only checks
 
 ## Common Pitfalls
 

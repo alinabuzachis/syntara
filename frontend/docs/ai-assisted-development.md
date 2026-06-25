@@ -175,7 +175,8 @@ Include vitest-axe accessibility tests and 80%+ coverage.
 If the result differs from the mockup, use the side-by-side technique from [§2](#2-bring-your-screenshots). Then run:
 
 ```bash
-cd packages/nexus-ui && npm run lint && npm run tsc && npm run test:coverage
+npm run check   # static analysis (lint, tsc, format, knip, mermaid)
+npm run test:ui # unit tests with coverage
 ```
 
 ### Validate before opening a PR
@@ -279,12 +280,9 @@ The full set of UX rules (table variants, form thresholds, modal sizes, alert ca
 ## 8. Quality Gates Before Opening a PR
 
 ```bash
-# From repo root
-npm test && npm run format:check && npm run lint && npm run tsc
-
-# From packages/nexus-ui
-cd packages/nexus-ui
-npm run lint && npm run tsc && npm run test:coverage && npm run e2e
+npm run check   # all static analysis (tsc, lint, format, knip, mermaid) — mirrors CI Checks job
+npm run test:ui # unit tests
+npm run e2e     # Playwright integration tests
 ```
 
 - Walk through all states in the browser ([§4](#4-review-your-changes-locally))
@@ -328,7 +326,7 @@ Shortest path from "I need to build this page" to an open PR:
 7. **Let the agent implement** — it writes code + tests
 8. **Review locally** — `npm start`, open http://localhost:5173, walk through every state ([§4](#4-review-your-changes-locally))
 9. **Side-by-side screenshot** — paste your page + mockup back to fix visual gaps
-10. **Run quality checks** -- `npm run lint && npm run tsc && npm run test:coverage`
+10. **Run quality checks** -- `npm run check && npm run test:ui`
 11. **`/review-pr`** — fix every Blocking issue ([§9](#9-fixing-guideline-violations) if unclear)
 12. **UX skill + screenshot** — fix visual divergences
 13. **Open the PR** with screenshots of every state (loaded, empty, error, success toast) following the PR template provided

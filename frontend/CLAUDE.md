@@ -137,18 +137,19 @@ npm run e2e:visual-regression        # Page screenshot visual regression (mock A
 npm run e2e:visual-regression:update # Same, with --update-snapshots (see packages/nexus-ui/VISUAL_REGRESSION.md)
 
 # Run a specific test or coverage
-(cd packages/nexus-ui && npm run vitest -- path/to/specific/test.test.ts)
-npm --prefix packages/nexus-ui run test:coverage
+npx vitest run packages/nexus-ui/path/to/specific/test.test.ts
+npm run test:coverage
 
 # Build
 npm run build              # Build UI package
 npm run gen                # Regenerate API contracts
 
 # Code Quality
+npm run check              # Run all static analysis checks concurrently (mirrors CI "Checks" job)
 npm run format             # Format code
 npm run format:check       # Check formatting
-npm run lint                           # Run ESLint
-npm run tsc                              # Type check only
+npm run lint               # Run ESLint
+npm run tsc                # Type check only
 ```
 
 ## Connecting to Real Backend

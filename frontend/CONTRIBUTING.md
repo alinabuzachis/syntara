@@ -164,8 +164,6 @@ npm test
 # Run UI package tests
 npm run test:ui
 
-# Run with coverage (from packages/nexus-ui)
-cd packages/nexus-ui
 npm run test:coverage
 ```
 
