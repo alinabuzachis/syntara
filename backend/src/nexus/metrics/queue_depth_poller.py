@@ -84,40 +84,52 @@ async def _query_queue_depth(client: Client, task_queue: str, namespace: str) ->
 def _make_poll_callback(
     temporal_address: str,
     namespace: str,
-    task_queue: str,
+    task_queues: list[str],
 ) -> Any:  # noqa: ANN401
-    """Build the async callback consumed by ``PeriodicWorker``."""
+    """Build the async callback consumed by ``PeriodicWorker``.
+
+    Polls every queue in *task_queues* on each tick and emits one
+    ``TEMPORAL_QUEUE_DEPTH`` record per queue, labelled with the queue name
+    so Prometheus can distinguish background-queue depth from workflow-queue
+    depth when configuring HPA rules.
+    """
 
     async def _poll(_sf: object) -> None:
         client = await _ensure_client(temporal_address, namespace)
         if client is None:
             return
-        try:
-            depth = await _query_queue_depth(client, task_queue, namespace)
-        except RPCError:
-            logger.debug("queue_depth_poller_rpc_error", exc_info=True)
-            return
-
         recorder = get_metrics_recorder()
-        recorder.record(
-            MetricType.TEMPORAL_QUEUE_DEPTH,
-            float(depth),
-            component=ComponentLabel.TEMPORAL_WORKER,
-        )
+        for task_queue in task_queues:
+            try:
+                depth = await _query_queue_depth(client, task_queue, namespace)
+            except RPCError:
+                logger.debug("queue_depth_poller_rpc_error", task_queue=task_queue, exc_info=True)
+                continue
+            recorder.record(
+                MetricType.TEMPORAL_QUEUE_DEPTH,
+                float(depth),
+                component=ComponentLabel.TEMPORAL_WORKER,
+                labels={"task_queue": task_queue},
+            )
 
     return _poll
 
 
 def get_queue_depth_poller() -> PeriodicWorker:
-    """Return a ``PeriodicWorker`` that polls Temporal queue depth."""
+    """Return a ``PeriodicWorker`` that polls Temporal queue depth for all task queues.
+
+    Polls both the user workflow queue and the background queue so each can be
+    targeted independently by Prometheus queries and HPA rules.
+    """
     settings = get_settings()
+    task_queues = list(dict.fromkeys([settings.task_queue, settings.background_task_queue]))
     return PeriodicWorker(
         name="temporal-queue-depth-poller",
         interval_seconds=_POLL_INTERVAL_SECONDS,
         callback=_make_poll_callback(
             temporal_address=settings.temporal_address,
             namespace=settings.temporal_namespace,
-            task_queue=settings.task_queue,
+            task_queues=task_queues,
         ),
         coordinate=False,
     )

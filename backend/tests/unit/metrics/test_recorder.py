@@ -420,16 +420,43 @@ class TestRecorderPrometheus:
         assert sample_value == pytest.approx(0.15, rel=0.01)
 
     def test_temporal_queue_depth_updates_gauge(self, recorder: MetricsRecorder) -> None:
-        """Recording TEMPORAL_QUEUE_DEPTH sets the component gauge."""
+        """Recording TEMPORAL_QUEUE_DEPTH sets the gauge with component and task_queue labels."""
         recorder.record(
             MetricType.TEMPORAL_QUEUE_DEPTH,
             42.0,
             component=ComponentLabel.TEMPORAL_WORKER,
+            labels={"task_queue": "nexus-workflow-queue"},
         )
         sample_value = recorder.prometheus.temporal_queue_depth.labels(
             component="temporal_worker",
+            task_queue="nexus-workflow-queue",
         )._value.get()
         assert sample_value == pytest.approx(42.0)
+
+    def test_temporal_queue_depth_distinguishes_queues(self, recorder: MetricsRecorder) -> None:
+        """Each task_queue label value produces an independent Prometheus time series."""
+        recorder.record(
+            MetricType.TEMPORAL_QUEUE_DEPTH,
+            10.0,
+            component=ComponentLabel.TEMPORAL_WORKER,
+            labels={"task_queue": "nexus-workflow-queue"},
+        )
+        recorder.record(
+            MetricType.TEMPORAL_QUEUE_DEPTH,
+            5.0,
+            component=ComponentLabel.TEMPORAL_WORKER,
+            labels={"task_queue": "nexus-background-queue"},
+        )
+        wf_value = recorder.prometheus.temporal_queue_depth.labels(
+            component="temporal_worker",
+            task_queue="nexus-workflow-queue",
+        )._value.get()
+        bg_value = recorder.prometheus.temporal_queue_depth.labels(
+            component="temporal_worker",
+            task_queue="nexus-background-queue",
+        )._value.get()
+        assert wf_value == pytest.approx(10.0)
+        assert bg_value == pytest.approx(5.0)
 
     def test_tool_execution_duration_dispatches_to_histogram_and_counter(self, recorder: MetricsRecorder) -> None:
         """TOOL_EXECUTION_DURATION updates histogram (observe) and counter (inc)."""

@@ -52,7 +52,7 @@ _COMPONENT_METRIC_MAP: dict[MetricType, tuple[str, str, tuple[str, ...]]] = {
     MetricType.WORKFLOW_SERIALIZATION_DURATION: ("workflow_serialization_duration_seconds", "histogram", ()),
     MetricType.WORKFLOW_VALIDATION_DURATION: ("workflow_validation_duration_seconds", "histogram", ()),
     # Temporal Worker
-    MetricType.TEMPORAL_QUEUE_DEPTH: ("temporal_queue_depth", "gauge", ()),
+    MetricType.TEMPORAL_QUEUE_DEPTH: ("temporal_queue_depth", "gauge", ("task_queue",)),
     MetricType.ACTIVITY_EXECUTION_SUCCESS_RATE: ("activity_execution_success_rate", "gauge", ()),
     # Execution Service
     MetricType.WORKFLOW_START_LATENCY: ("workflow_start_latency_seconds", "histogram", ()),

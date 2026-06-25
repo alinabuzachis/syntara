@@ -311,7 +311,7 @@ class NexusPrometheusMetrics:
         self.temporal_queue_depth = Gauge(
             "nexus_temporal_queue_depth",
             "Temporal task queue depth",
-            ["component"],
+            ["component", "task_queue"],
             registry=self.registry,
         )
 

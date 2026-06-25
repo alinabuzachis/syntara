@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from contextlib import AbstractContextManager
+
 from nexus.metrics.queue_depth_poller import (
     _ensure_client,
+    _make_poll_callback,
     _query_queue_depth,
     get_queue_depth_poller,
 )
@@ -131,10 +137,8 @@ class TestPollCallback:
         mod._temporal_client = None
 
     @pytest.mark.asyncio
-    async def test_records_metric_on_success(self) -> None:
-        """Callback should record TEMPORAL_QUEUE_DEPTH on successful poll."""
-        from nexus.metrics.queue_depth_poller import _make_poll_callback
-
+    async def test_records_metric_per_queue_with_task_queue_label(self) -> None:
+        """Callback should emit one labeled TEMPORAL_QUEUE_DEPTH record per queue."""
         mock_client = MagicMock()
         mock_resp = MagicMock()
         mock_resp.stats.approximate_backlog_count = 5
@@ -154,7 +158,7 @@ class TestPollCallback:
                 return_value=mock_recorder,
             ),
         ):
-            callback = _make_poll_callback("localhost:7233", "default", "nexus-task-queue")
+            callback = _make_poll_callback("localhost:7233", "default", ["nexus-workflow-queue"])
             await callback(None)
 
         from nexus.metrics.types import ComponentLabel, MetricType
@@ -163,13 +167,49 @@ class TestPollCallback:
             MetricType.TEMPORAL_QUEUE_DEPTH,
             5.0,
             component=ComponentLabel.TEMPORAL_WORKER,
+            labels={"task_queue": "nexus-workflow-queue"},
         )
+
+    @pytest.mark.asyncio
+    async def test_records_one_metric_per_queue(self) -> None:
+        """Callback should emit separate labeled records for each queue polled."""
+        mock_client = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.stats.approximate_backlog_count = 3
+        mock_resp.task_queue_status = None
+        mock_client.workflow_service.describe_task_queue = AsyncMock(return_value=mock_resp)
+
+        mock_recorder = MagicMock()
+
+        queues = ["nexus-workflow-queue", "nexus-background-queue"]
+
+        with (
+            patch(
+                "nexus.metrics.queue_depth_poller.Client.connect",
+                new_callable=AsyncMock,
+                return_value=mock_client,
+            ),
+            patch(
+                "nexus.metrics.queue_depth_poller.get_metrics_recorder",
+                return_value=mock_recorder,
+            ),
+        ):
+            callback = _make_poll_callback("localhost:7233", "default", queues)
+            await callback(None)
+
+        from nexus.metrics.types import ComponentLabel, MetricType
+
+        assert mock_recorder.record.call_count == 2
+        calls = mock_recorder.record.call_args_list
+        recorded_queues = {c.kwargs["labels"]["task_queue"] for c in calls}
+        assert recorded_queues == set(queues)
+        for call in calls:
+            assert call.args == (MetricType.TEMPORAL_QUEUE_DEPTH, 3.0)
+            assert call.kwargs["component"] == ComponentLabel.TEMPORAL_WORKER
 
     @pytest.mark.asyncio
     async def test_skips_recording_when_client_unavailable(self) -> None:
         """Callback should not record when Temporal connection fails."""
-        from nexus.metrics.queue_depth_poller import _make_poll_callback
-
         mock_recorder = MagicMock()
 
         with (
@@ -183,21 +223,27 @@ class TestPollCallback:
                 return_value=mock_recorder,
             ),
         ):
-            callback = _make_poll_callback("bad:7233", "default", "q")
+            callback = _make_poll_callback("bad:7233", "default", ["q"])
             await callback(None)
 
         mock_recorder.record.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_skips_recording_on_rpc_error(self) -> None:
-        """Callback should swallow RPCError and not record."""
+    async def test_continues_remaining_queues_on_rpc_error(self) -> None:
+        """An RPCError on one queue should not abort polling of the remaining queues."""
         from temporalio.service import RPCError, RPCStatusCode
 
-        from nexus.metrics.queue_depth_poller import _make_poll_callback
-
         mock_client = MagicMock()
+
+        ok_resp = MagicMock()
+        ok_resp.stats.approximate_backlog_count = 7
+        ok_resp.task_queue_status = None
+
         mock_client.workflow_service.describe_task_queue = AsyncMock(
-            side_effect=RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b""),
+            side_effect=[
+                RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b""),
+                ok_resp,
+            ]
         )
         mock_recorder = MagicMock()
 
@@ -212,10 +258,19 @@ class TestPollCallback:
                 return_value=mock_recorder,
             ),
         ):
-            callback = _make_poll_callback("localhost:7233", "default", "q")
+            callback = _make_poll_callback(
+                "localhost:7233", "default", ["nexus-workflow-queue", "nexus-background-queue"]
+            )
             await callback(None)
 
-        mock_recorder.record.assert_not_called()
+        from nexus.metrics.types import ComponentLabel, MetricType
+
+        mock_recorder.record.assert_called_once_with(
+            MetricType.TEMPORAL_QUEUE_DEPTH,
+            7.0,
+            component=ComponentLabel.TEMPORAL_WORKER,
+            labels={"task_queue": "nexus-background-queue"},
+        )
 
 
 class TestGetQueueDepthPoller:
@@ -231,6 +286,45 @@ class TestGetQueueDepthPoller:
         assert poller._coordinate is False
         assert poller._session_factory is None
         assert poller._name == "temporal-queue-depth-poller"
+
+    def test_polls_both_queues_when_queues_differ(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Factory should build a callback that covers both task queues."""
+        mock_factory = MagicMock(return_value=AsyncMock())
+
+        with (
+            override_settings(
+                task_queue="nexus-workflow-queue",
+                background_task_queue="nexus-background-queue",
+            ),
+            patch("nexus.metrics.queue_depth_poller._make_poll_callback", mock_factory),
+        ):
+            get_queue_depth_poller()
+
+        assert mock_factory.call_args.kwargs["task_queues"] == [
+            "nexus-workflow-queue",
+            "nexus-background-queue",
+        ]
+
+    def test_deduplicates_queues_when_both_settings_are_identical(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """When task_queue == background_task_queue, the queue is polled once."""
+        mock_factory = MagicMock(return_value=AsyncMock())
+
+        with (
+            override_settings(
+                task_queue="same-queue",
+                background_task_queue="same-queue",
+            ),
+            patch("nexus.metrics.queue_depth_poller._make_poll_callback", mock_factory),
+        ):
+            get_queue_depth_poller()
+
+        assert mock_factory.call_args.kwargs["task_queues"] == ["same-queue"]
 
 
 class TestPeriodicWorkerOptionalSessionFactory:
