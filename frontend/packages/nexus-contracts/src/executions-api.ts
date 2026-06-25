@@ -821,6 +821,29 @@ export interface components {
       [key: string]: unknown
     }
     /**
+     * IntegrationConnectionConfig
+     * @description Execution credential override for one integration.
+     *
+     *
+     *     When included in AgenticExecutorParameters.integration_connections, this credential
+     *
+     *     is used for calls against that integration instead of the integration's
+     *
+     *     management credential.
+     */
+    IntegrationConnectionConfig: {
+      /**
+       * Integration Id
+       * @description UUID of the integration
+       */
+      integration_id: string
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for execution calls (distinct from management credential)
+       */
+      credential_id: string
+    }
+    /**
      * AgenticExecutorParameters
      * @description Parameters for agentic executor.
      */
@@ -854,6 +877,21 @@ export interface components {
           }
         | string
         | null
+      /**
+       * Integration Connections
+       * @description Per-integration execution credentials. Each entry overrides the management credential for that integration. Integrations not listed fall back to their management credential.
+       */
+      integration_connections?: components['schemas']['IntegrationConnectionConfig'][] | null
+      /**
+       * Tool Selection Strategy
+       * @description ALL (all enabled tools), NONE (no tools), or SELECTED (specific tools from tool_selections)
+       */
+      tool_selection_strategy?: ('ALL' | 'NONE' | 'SELECTED') | null
+      /**
+       * Tool Selections
+       * @description Tool UUIDs to make available when tool_selection_strategy is SELECTED
+       */
+      tool_selections?: string[]
     }
     /**
      * NodeSettingsNoRetry

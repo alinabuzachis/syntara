@@ -67,6 +67,11 @@ export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
       type: 'object',
       description: 'Metadata about structured output generation when response_schema is defined',
     },
+    {
+      name: 'integration_ids',
+      type: 'unknown',
+      description: 'UUIDs of integrations used during execution (captured at runtime from integration_connections)',
+    },
   ],
   approval: [
     { name: 'status', type: 'string', description: 'Approval decision was made' },

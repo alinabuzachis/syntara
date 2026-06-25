@@ -158,11 +158,10 @@ export interface components {
        */
       tool_id: string
       /**
-       * Provider Id
-       * Format: uuid
-       * @description Foreign key to Tool Provider
+       * Integration Id
+       * @description Foreign key to Integration (denormalized from tool)
        */
-      provider_id: string
+      integration_id?: string | null
       /**
        * User Id
        * Format: uuid

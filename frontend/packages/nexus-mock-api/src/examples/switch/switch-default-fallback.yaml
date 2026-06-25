@@ -1,0 +1,60 @@
+---
+schema_version: "2.0.0"
+name: switch-default-fallback-test
+description: Test switch node default path when no case matches
+
+inputs:
+  status:
+    type: string
+    description: Request status
+    default: pending
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: route_status
+    name: Route by Status
+    type: switch
+    parameters:
+      cases:
+        - port: case_0
+          label: Approved
+          condition: "${input.status} == 'approved'"
+        - port: case_1
+          label: Rejected
+          condition: "${input.status} == 'rejected'"
+      default_port: default
+
+  - id: handle_approved
+    name: Handle Approved
+    type: script
+    parameters:
+      language: bash
+      code: echo "Approved"
+
+  - id: handle_rejected
+    name: Handle Rejected
+    type: script
+    parameters:
+      language: bash
+      code: echo "Rejected"
+
+  - id: handle_default
+    name: Handle Default
+    type: script
+    parameters:
+      language: bash
+      code: echo "Default path taken"
+
+edges:
+  - from: route_status
+    to: handle_approved
+    from_port: case_0
+  - from: route_status
+    to: handle_rejected
+    from_port: case_1
+  - from: route_status
+    to: handle_default
+    from_port: default

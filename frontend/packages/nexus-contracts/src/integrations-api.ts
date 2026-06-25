@@ -142,7 +142,7 @@ export interface paths {
      *     Tool records in the database. Updates refresh_status and last_refreshed_at
      *     on the integration. Only supported for mcp_server integration types.
      */
-    post: operations['refresh_integration_resources']
+    post: operations['refresh_resources']
     delete?: never
     options?: never
     head?: never
@@ -387,10 +387,18 @@ export interface components {
       last_refreshed_at?: string | null
       /** Refresh Error */
       refresh_error?: string | null
-      /** Total Tool Count */
-      total_tool_count?: number | null
-      /** Enabled Tool Count */
-      enabled_tool_count?: number | null
+      /**
+       * Total Tool Count
+       * @description Total number of tools linked to this integration
+       * @default 0
+       */
+      total_tool_count?: number
+      /**
+       * Enabled Tool Count
+       * @description Number of enabled tools linked to this integration
+       * @default 0
+       */
+      enabled_tool_count?: number
     }
     /**
      * MCPServerConfigurationInput
@@ -537,7 +545,7 @@ export interface components {
      * @description Result of a resource-discovery operation (discover endpoint).
      *
      *     Returned by the unsaved-connection test (POST /integrations/discover)
-     *     and used internally by refresh_integration_resources() to drive tool sync.
+     *     and used internally by refresh_resources() to drive tool sync.
      */
     DiscoverResult: {
       /** Success */
@@ -583,10 +591,9 @@ export interface components {
       tools_disabled_count: number
       /**
        * Refreshed At
-       * Format: date-time
        * @description Timestamp when the refresh completed
        */
-      refreshed_at: string
+      refreshed_at?: string | null
     }
     /**
      * Paginated Response Base
@@ -1182,7 +1189,7 @@ export interface operations {
       500: components['responses']['InternalServerError']
     }
   }
-  refresh_integration_resources: {
+  refresh_resources: {
     parameters: {
       query?: never
       header?: never

@@ -1,0 +1,41 @@
+---
+schema_version: "2.0.0"
+name: switch-single-case-test
+description: Test switch node with one case plus default
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: route
+    name: Single Case Route
+    type: switch
+    parameters:
+      cases:
+        - port: case_0
+          label: Match
+          condition: "True"
+      default_port: default
+
+  - id: matched
+    name: Matched Action
+    type: script
+    parameters:
+      language: bash
+      code: echo "Case matched"
+
+  - id: fallback
+    name: Fallback Action
+    type: script
+    parameters:
+      language: bash
+      code: echo "Default path"
+
+edges:
+  - from: route
+    to: matched
+    from_port: case_0
+  - from: route
+    to: fallback
+    from_port: default
