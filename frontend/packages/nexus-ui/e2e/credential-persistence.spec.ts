@@ -13,10 +13,10 @@
  * - AAP node: credential persists after save/reload
  */
 
-import type { Page, Response } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 import { test, expect } from './fixtures'
-import { createCredentialOfTypeViaUI, deleteCredentialByName } from './helpers/credentials'
+import { createCredentialOfTypeViaUI, deleteCredentialByName, isCredentialsResponse } from './helpers/credentials'
 import {
   buildUniqueName,
   clickAddConnectedStep,
@@ -26,9 +26,6 @@ import {
   saveWorkflow,
   startWorkflowWithTrigger,
 } from './helpers/workflows'
-
-const isCredentialsResponse = (resp: Response) =>
-  resp.url().includes('/credentials') && !resp.url().includes('/credential_types') && resp.status() === 200
 
 async function selectCredential(app: Page, credLabel: string, credName: string) {
   const credToggle = app.getByRole('button', { name: credLabel, exact: true })

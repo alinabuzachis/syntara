@@ -104,10 +104,12 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
       // parseWorkflowFile runtime-validates triggers/nodes/edges arrays
       const definition = parseWorkflowFile(content, file.name)
 
+      const importedDescription =
+        typeof definition.description === 'string' && definition.description.length > 0 ? definition.description : ''
       const fullDefinition = {
         schema_version: '2.0.0' as const,
         name: data.name,
-        description: '',
+        description: importedDescription,
         triggers: definition.triggers,
         nodes: definition.nodes,
         edges: definition.edges,

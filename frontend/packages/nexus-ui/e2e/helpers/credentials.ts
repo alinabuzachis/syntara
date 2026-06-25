@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test'
+import { type Locator, type Page, type Response } from '@playwright/test'
 
 import { expect, toAppUrl } from '../fixtures'
 import { createCredentialViaApi, deleteCredentialViaApi, ensureProject, listCredentialsByName } from '../utils/api'
@@ -156,6 +156,10 @@ export async function createCredentialOfTypeViaUI(
   await modal.getByRole('button', { name: 'Create credential' }).click()
   await expect(app.getByText('Credential created')).toBeVisible()
 }
+
+/** Check if a response is a successful credentials API request (excludes credential_types). */
+export const isCredentialsResponse = (resp: Response) =>
+  resp.url().includes('/credentials') && !resp.url().includes('/credential_types') && resp.status() === 200
 
 /** Filter the credentials list by keyword. */
 export async function filterCredentialByName(app: Page, name: string) {
