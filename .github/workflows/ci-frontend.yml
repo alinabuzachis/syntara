@@ -3,10 +3,6 @@ name: CI Frontend
 
 on:
   pull_request:
-    paths:
-      - 'frontend/**'
-      - 'backend/**'
-      - '.github/**'
   merge_group:
     branches: [devel]
 
