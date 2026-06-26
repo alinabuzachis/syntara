@@ -3,6 +3,7 @@
 Provides WebSocket event streaming from Redis streams for workflow executions.
 """
 
+import time
 from collections.abc import Callable
 from functools import lru_cache
 from typing import Any, cast
@@ -10,15 +11,18 @@ from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocket
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.models.error import ErrorData
 from nexus.core.websocket.base_handler import BaseWebSocketStreamingHandler
 from nexus.core.websocket.close_codes import POLICY_VIOLATION
 from nexus.core.websocket.exceptions import EventsExpiredError, StreamingValidationError
+from nexus.workflows.audit.websocket_connection import WebSocketConnectionAction, WebSocketConnectionEvent
 from nexus.workflows.models.execution import TERMINAL_EXECUTION_STATUSES, Execution, ExecutionStatus
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -112,7 +116,9 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
             )
             raise StreamingValidationError(error_data, POLICY_VIOLATION)
 
-        execution_status = await self._check_execution_exists(execution_id)
+        execution_status = params.get("execution_status")
+        if execution_status is None:
+            execution_status = await self._check_execution_exists(execution_id)
         return {
             "execution_id": execution_id,
             "execution_status": execution_status,
@@ -222,8 +228,28 @@ class ExecutionStreamingService:
             session_factory: Async session factory for database access (required).
 
         """
+        self._session_factory = session_factory
         self.websocket_handler = WebSocketStreamingHandler(session_factory=session_factory)
         logger.info("ExecutionStreamingService initialized")
+
+    async def _resolve_workflow_context(self, execution_id: UUID) -> tuple[UUID | None, str, ExecutionStatus | None]:
+        """Fetch workflow_id, workflow_name, and status for an execution.
+
+        Returns:
+            (workflow_id, workflow_name, status) — or (None, "", None) when
+            the execution is not found.  The caller still emits the audit
+            event so that the connection attempt is recorded.
+
+        """
+        async with self._session_factory() as session:
+            result = await session.exec(
+                select(Execution).where(Execution.id == execution_id).options(selectinload(Execution.workflow))  # type: ignore[arg-type]
+            )
+            execution = result.one_or_none()
+            if execution is None:
+                return None, "", None
+            workflow_name = execution.workflow.name if execution.workflow else ""
+            return execution.workflow_id, workflow_name, execution.status
 
     async def stream_events_to_websocket(
         self,
@@ -257,13 +283,75 @@ class ExecutionStreamingService:
             replay_count = "0"  # Not used when last_event_id is provided
             last_event_id = replay
 
-        await self.websocket_handler.stream_events_to_websocket(
-            websocket=websocket,
-            stream_id=stream_id,
-            replay_count=replay_count,
-            last_event_id=last_event_id,
-            connection_id=connection_id,
-            execution_id=execution_id,
+        client_ip = websocket.client.host if websocket.client else "unknown"
+        conn_id = connection_id or str(execution_id)[:8]
+
+        try:
+            workflow_id, workflow_name, execution_status = await self._resolve_workflow_context(execution_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Failed to resolve workflow context for audit",
+                execution_id=execution_id,
+                error_type=type(exc).__name__,
+                exc_info=True,
+            )
+            workflow_id, workflow_name, execution_status = None, "", None
+
+        def _ws_event(
+            action: WebSocketConnectionAction,
+            duration_ms: int | None = None,
+            close_reason: str | None = None,
+            error_type: str | None = None,
+        ) -> WebSocketConnectionEvent:
+            return WebSocketConnectionEvent(
+                execution_id=execution_id,
+                workflow_id=workflow_id,
+                workflow_name=workflow_name,
+                action=action,
+                client_ip=client_ip,
+                connection_id=conn_id,
+                duration_ms=duration_ms,
+                close_reason=close_reason,
+                error_type=error_type,
+                replay=replay,
+            )
+
+        start_ns = time.monotonic_ns()
+
+        # TODO(AAP-79017): WebSocket endpoints are unauthenticated — audit  # noqa: TD003
+        # dispatch fires without actor identity.  Revisit after AAP-79017
+        # adds WebSocket authentication (tracked by AAP-79607).
+        AuditEventDispatcher.dispatch(_ws_event(action=WebSocketConnectionAction.CONNECTED))
+
+        try:
+            await self.websocket_handler.stream_events_to_websocket(
+                websocket=websocket,
+                stream_id=stream_id,
+                replay_count=replay_count,
+                last_event_id=last_event_id,
+                connection_id=conn_id,
+                execution_id=execution_id,
+                execution_status=execution_status,
+            )
+        except Exception as exc:
+            duration_ms = (time.monotonic_ns() - start_ns) // 1_000_000
+            AuditEventDispatcher.dispatch(
+                _ws_event(
+                    action=WebSocketConnectionAction.ERROR,
+                    duration_ms=duration_ms,
+                    close_reason=str(exc) or type(exc).__name__,
+                    error_type=type(exc).__name__,
+                )
+            )
+            raise
+
+        duration_ms = (time.monotonic_ns() - start_ns) // 1_000_000
+        AuditEventDispatcher.dispatch(
+            _ws_event(
+                action=WebSocketConnectionAction.DISCONNECTED,
+                duration_ms=duration_ms,
+                close_reason="normal_close",
+            )
         )
 
 
