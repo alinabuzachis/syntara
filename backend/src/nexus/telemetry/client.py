@@ -419,12 +419,9 @@ def _reinitialize_from_runtime() -> None:
 
     cache = get_runtime_settings()
 
-    rt_key = cache._cache.get("telemetry.segment_write_key")  # noqa: SLF001
-    rt_endpoint = cache._cache.get("telemetry.segment_endpoint")  # noqa: SLF001
-
     write_key, host = _resolve_telemetry_config(
-        override_write_key=rt_key.value if rt_key else None,
-        override_endpoint=rt_endpoint.value if rt_endpoint else None,
+        override_write_key=cache.get_cached("telemetry.segment_write_key"),
+        override_endpoint=cache.get_cached("telemetry.segment_endpoint"),
     )
 
     if write_key:

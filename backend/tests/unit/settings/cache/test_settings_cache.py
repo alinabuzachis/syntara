@@ -15,6 +15,7 @@ from uuid import uuid4
 import pytest
 
 from nexus.settings.cache.settings_cache import (
+    CachedValue,
     SettingsCache,
     get_runtime_settings,
     set_runtime_settings,
@@ -115,6 +116,22 @@ async def test_unknown_key_not_cached(cache: SettingsCache) -> None:
         await cache.get("attacker.injected.key")
 
     assert "attacker.injected.key" not in cache._cache
+
+
+# ---------------------------------------------------------------------------
+# get_cached() — synchronous L1 read
+# ---------------------------------------------------------------------------
+
+
+def test_get_cached_returns_value_when_populated(cache: SettingsCache) -> None:
+    """get_cached() returns the cached value from L1."""
+    cache._cache["logging.log_level"] = CachedValue(value="DEBUG", fetched_at=0, ttl_seconds=60)
+    assert cache.get_cached("logging.log_level") == "DEBUG"
+
+
+def test_get_cached_returns_none_on_miss(cache: SettingsCache) -> None:
+    """get_cached() returns None when the key is not in L1."""
+    assert cache.get_cached("logging.log_level") is None
 
 
 # ---------------------------------------------------------------------------

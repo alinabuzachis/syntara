@@ -417,6 +417,19 @@ class SettingsCache:
     # Cache management
     # ------------------------------------------------------------------
 
+    def get_cached(self, key: str) -> Any | None:  # noqa: ANN401
+        """Return the L1-cached value for *key*, or ``None`` on miss.
+
+        Synchronous, read-only access to the in-process cache.  Does not
+        touch L2 (Redis) or the database.  Intended for use in synchronous
+        callbacks (e.g. ``on_change``) where the L1 entry is guaranteed to
+        be populated before the callback fires.
+        """
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached.value
+        return None
+
     async def invalidate(self, key: str) -> None:
         """Evict *key* from L1 and L2 caches.
 

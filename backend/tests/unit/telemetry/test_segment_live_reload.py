@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nexus.settings.cache.settings_cache import CachedValue
 from nexus.telemetry.client import (
     _on_segment_endpoint_changed,
     _on_segment_write_key_changed,
@@ -113,14 +112,11 @@ class TestReinitializeFromRuntime:
         mock_get_settings: MagicMock,
         mock_get_registry: MagicMock,
     ) -> None:
-        mock_cache = MagicMock()
-        mock_cache._cache = {
-            "telemetry.segment_write_key": CachedValue(
-                value="new-runtime-key",
-                fetched_at=0,
-                ttl_seconds=300,
-            ),
+        cached_values = {
+            "telemetry.segment_write_key": "new-runtime-key",
         }
+        mock_cache = MagicMock()
+        mock_cache.get_cached.side_effect = cached_values.get
         mock_get_runtime.return_value = mock_cache
 
         mock_settings = MagicMock()
@@ -143,19 +139,12 @@ class TestReinitializeFromRuntime:
         mock_get_settings: MagicMock,
         mock_get_registry: MagicMock,
     ) -> None:
-        mock_cache = MagicMock()
-        mock_cache._cache = {
-            "telemetry.segment_write_key": CachedValue(
-                value="my-key",
-                fetched_at=0,
-                ttl_seconds=300,
-            ),
-            "telemetry.segment_endpoint": CachedValue(
-                value="http://mock:9999",
-                fetched_at=0,
-                ttl_seconds=300,
-            ),
+        cached_values = {
+            "telemetry.segment_write_key": "my-key",
+            "telemetry.segment_endpoint": "http://mock:9999",
         }
+        mock_cache = MagicMock()
+        mock_cache.get_cached.side_effect = cached_values.get
         mock_get_runtime.return_value = mock_cache
 
         mock_settings = MagicMock()
@@ -181,14 +170,11 @@ class TestReinitializeFromRuntime:
         mock_get_settings: MagicMock,
         mock_get_registry: MagicMock,
     ) -> None:
-        mock_cache = MagicMock()
-        mock_cache._cache = {
-            "telemetry.segment_write_key": CachedValue(
-                value="",
-                fetched_at=0,
-                ttl_seconds=300,
-            ),
+        cached_values = {
+            "telemetry.segment_write_key": "",
         }
+        mock_cache = MagicMock()
+        mock_cache.get_cached.side_effect = cached_values.get
         mock_get_runtime.return_value = mock_cache
 
         mock_settings = MagicMock()
@@ -212,7 +198,7 @@ class TestReinitializeFromRuntime:
         mock_get_registry: MagicMock,
     ) -> None:
         mock_cache = MagicMock()
-        mock_cache._cache = {}
+        mock_cache.get_cached.return_value = None
         mock_get_runtime.return_value = mock_cache
 
         mock_settings = MagicMock()
@@ -235,19 +221,12 @@ class TestReinitializeFromRuntime:
         mock_get_settings: MagicMock,
         mock_get_registry: MagicMock,
     ) -> None:
-        mock_cache = MagicMock()
-        mock_cache._cache = {
-            "telemetry.segment_write_key": CachedValue(
-                value="runtime-key",
-                fetched_at=0,
-                ttl_seconds=300,
-            ),
-            "telemetry.segment_endpoint": CachedValue(
-                value="http://custom:8080",
-                fetched_at=0,
-                ttl_seconds=300,
-            ),
+        cached_values = {
+            "telemetry.segment_write_key": "runtime-key",
+            "telemetry.segment_endpoint": "http://custom:8080",
         }
+        mock_cache = MagicMock()
+        mock_cache.get_cached.side_effect = cached_values.get
         mock_get_runtime.return_value = mock_cache
 
         mock_settings = MagicMock()
