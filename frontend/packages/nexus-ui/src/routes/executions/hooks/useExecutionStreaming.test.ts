@@ -40,6 +40,7 @@ const baseExecution = {
   id: 'exec-1',
   workflow_id: 'wf-1',
   workflow_version_id: 'wfv-1',
+  project_id: 'project-1',
   temporal_workflow_id: 'temporal-1',
   status: 'completed',
   created_by: 'user-1',

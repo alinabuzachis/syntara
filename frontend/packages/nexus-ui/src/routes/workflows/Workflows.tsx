@@ -321,6 +321,11 @@ export default function Workflows() {
           }),
         }
 
+        if (!workflow.project_id) {
+          showError({ title: 'Duplicate failed', description: 'Workflow must have a project ID' })
+          return
+        }
+
         const timestamp = Date.now().toString(36)
         const duplicateName = `${workflow.name ?? 'workflow'} - duplicate-${timestamp}`
 
@@ -330,7 +335,7 @@ export default function Workflows() {
             description: workflow.description ?? '',
             workflow_definition: transformedDefinition as unknown as WorkflowDefinitionSchema,
             labels: (workflow.labels as Record<string, string> | undefined) ?? {},
-            ...(workflow.project_id ? { project_id: workflow.project_id } : {}),
+            project_id: workflow.project_id,
           },
         })
 

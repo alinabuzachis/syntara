@@ -17,6 +17,10 @@ export function useForkWorkflow({ workflowDefinition, workflowName, projectId }:
 
   const forkAsNewWorkflow = useCallback(async (): Promise<string | undefined> => {
     if (!workflowDefinition) return undefined
+    if (!projectId) {
+      showError({ title: 'Fork failed', description: 'Project ID is required to create a workflow' })
+      return undefined
+    }
     try {
       const timestamp = Date.now().toString(36)
       const forkName = `${workflowName} - copy-${timestamp}`
@@ -26,7 +30,7 @@ export function useForkWorkflow({ workflowDefinition, workflowName, projectId }:
           name: forkName,
           description: '',
           workflow_definition: workflowDefinition as unknown as V2WorkflowDefinition,
-          ...(projectId ? { project_id: projectId } : {}),
+          project_id: projectId,
         },
       })
 

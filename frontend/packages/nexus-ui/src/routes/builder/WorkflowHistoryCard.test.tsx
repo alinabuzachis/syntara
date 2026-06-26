@@ -33,6 +33,7 @@ const baseExecution: Execution = {
   id: '12345678-abcd-ef01-2345-678901234567',
   workflow_id: 'wf-1',
   workflow_version_id: 'wfv-1',
+  project_id: 'project-1',
   temporal_workflow_id: 'temporal-wf-1',
   status: 'running',
   created_at: '2024-01-15T10:00:00Z',

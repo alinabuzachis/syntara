@@ -8,6 +8,7 @@ import { useApprovalSelection } from './useApprovalSelection'
 describe('useApprovalSelection', () => {
   const mockPendingApproval: ApprovalWithDetails = {
     id: 'approval-1',
+    project_id: 'project-1',
     execution_id: 'exec-1',
     approval_node_id: 'node-1',
     name: 'Test Approval 1',
@@ -26,6 +27,7 @@ describe('useApprovalSelection', () => {
 
   const mockApprovedApproval: ApprovalWithDetails = {
     id: 'approval-2',
+    project_id: 'project-2',
     execution_id: 'exec-2',
     approval_node_id: 'node-2',
     name: 'Test Approval 2',
@@ -45,6 +47,7 @@ describe('useApprovalSelection', () => {
 
   const mockRejectedApproval: ApprovalWithDetails = {
     id: 'approval-3',
+    project_id: 'project-3',
     execution_id: 'exec-3',
     approval_node_id: 'node-3',
     name: 'Test Approval 3',

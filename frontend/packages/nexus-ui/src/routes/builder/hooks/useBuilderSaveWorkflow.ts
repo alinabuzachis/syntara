@@ -11,14 +11,6 @@ import { buildWorkflowDefinition } from '../utils/workflowDefinitionBuilder'
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from '../utils/workflowNaming'
 
 type CreateWorkflowBody = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
-/**
- * Create payload extensions the backend accepts; OpenAPI `CreateWorkflowRequest` may omit fields.
- * Keep create as one round-trip (labels + project) — avoid POST-then-PATCH partial failure.
- */
-type CreateWorkflowBodyExtended = CreateWorkflowBody & {
-  project_id?: string
-  labels?: Record<string, string>
-}
 type PatchWorkflowBody =
   WorkflowAPI.paths['/workflows/{workflow_id}']['patch']['requestBody']['content']['application/json']
 
@@ -46,7 +38,7 @@ export type UseBuilderSaveWorkflowParams = {
   onMissingProjectForCreate?: () => void
   markClean: () => void
   createWorkflow: (
-    args: { body: CreateWorkflowBodyExtended },
+    args: { body: CreateWorkflowBody },
     opts?: {
       onSuccess?: (data: { id?: string }) => void | Promise<void>
       onError?: (error: unknown) => void
@@ -65,7 +57,7 @@ export type UseBuilderSaveWorkflowParams = {
 }
 
 function runCreateWorkflowSave(options: {
-  createPayload: CreateWorkflowBodyExtended
+  createPayload: CreateWorkflowBody
   createWorkflow: UseBuilderSaveWorkflowParams['createWorkflow']
   onSaveSuccess: (workflowIdToNavigate?: string) => Promise<void>
   onSaveError: (error: unknown, action: string) => void
@@ -150,12 +142,13 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
 
       workflowDef.name = nameToSave
       const labels = Object.fromEntries(workflowTags.map((t) => [t, '']))
-      const createPayload: CreateWorkflowBodyExtended = {
+      // Project ID is required - guard above (lines 124-131) ensures selectedProject exists
+      const createPayload: CreateWorkflowBody = {
         name: nameToSave,
         description: workflowDescription,
         workflow_definition: workflowDef as unknown as CreateWorkflowBody['workflow_definition'],
-        ...(Object.keys(labels).length > 0 ? { labels } : {}),
-        ...(isNew && selectedProject ? { project_id: selectedProject.id } : {}),
+        project_id: selectedProject!.id,
+        ...(Object.keys(labels).length > 0 && { labels }),
       }
       const patchPayload: PatchWorkflowBody = {
         name: nameToSave,

@@ -40,7 +40,7 @@ describe('useForkWorkflow', () => {
     mockMutateAsync.mockResolvedValue({ id: 'new-wf-123' })
 
     const { result } = renderHook(() =>
-      useForkWorkflow({ workflowDefinition: MOCK_DEFINITION, workflowName: 'My Workflow' })
+      useForkWorkflow({ workflowDefinition: MOCK_DEFINITION, workflowName: 'My Workflow', projectId: 'project-1' })
     )
 
     let newId: string | undefined
@@ -55,13 +55,14 @@ describe('useForkWorkflow', () => {
     expect(body.name).toContain('My Workflow - copy-')
     expect(body.description).toBe('')
     expect(body.workflow_definition).toBeDefined()
+    expect(body.project_id).toBe('project-1')
   })
 
   it('returns undefined and shows error on API failure', async () => {
     mockMutateAsync.mockRejectedValue(new Error('Server error'))
 
     const { result } = renderHook(() =>
-      useForkWorkflow({ workflowDefinition: MOCK_DEFINITION, workflowName: 'My Workflow' })
+      useForkWorkflow({ workflowDefinition: MOCK_DEFINITION, workflowName: 'My Workflow', projectId: 'project-1' })
     )
 
     let newId: string | undefined
@@ -75,7 +76,9 @@ describe('useForkWorkflow', () => {
   })
 
   it('returns undefined when workflowDefinition is undefined', async () => {
-    const { result } = renderHook(() => useForkWorkflow({ workflowDefinition: undefined, workflowName: 'My Workflow' }))
+    const { result } = renderHook(() =>
+      useForkWorkflow({ workflowDefinition: undefined, workflowName: 'My Workflow', projectId: 'project-1' })
+    )
 
     let newId: string | undefined
     await act(async () => {
@@ -86,10 +89,33 @@ describe('useForkWorkflow', () => {
     expect(mockMutateAsync).not.toHaveBeenCalled()
   })
 
+  it('returns undefined and shows error when projectId is missing', async () => {
+    const { result } = renderHook(() =>
+      useForkWorkflow({ workflowDefinition: MOCK_DEFINITION, workflowName: 'My Workflow' })
+    )
+
+    let newId: string | undefined
+    await act(async () => {
+      newId = await result.current.forkAsNewWorkflow()
+    })
+
+    expect(newId).toBeUndefined()
+    expect(mockShowError).toHaveBeenCalledOnce()
+    expect(mockShowError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Fork failed',
+        description: 'Project ID is required to create a workflow',
+      })
+    )
+    expect(mockMutateAsync).not.toHaveBeenCalled()
+  })
+
   it('exposes isForkLoading from mutation isPending', () => {
     mockIsPending = true
 
-    const { result } = renderHook(() => useForkWorkflow({ workflowDefinition: MOCK_DEFINITION, workflowName: 'Wf' }))
+    const { result } = renderHook(() =>
+      useForkWorkflow({ workflowDefinition: MOCK_DEFINITION, workflowName: 'Wf', projectId: 'project-1' })
+    )
 
     expect(result.current.isForkLoading).toBe(true)
   })
@@ -97,7 +123,9 @@ describe('useForkWorkflow', () => {
   it('shows error and returns undefined on exception', async () => {
     mockMutateAsync.mockRejectedValue(new Error('Network failure'))
 
-    const { result } = renderHook(() => useForkWorkflow({ workflowDefinition: MOCK_DEFINITION, workflowName: 'Wf' }))
+    const { result } = renderHook(() =>
+      useForkWorkflow({ workflowDefinition: MOCK_DEFINITION, workflowName: 'Wf', projectId: 'project-1' })
+    )
 
     let newId: string | undefined
     await act(async () => {

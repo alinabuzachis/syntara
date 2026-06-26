@@ -116,6 +116,7 @@ describe('Workflows Component', () => {
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-02T00:00:00Z',
       is_enabled: true,
+      project_id: 'project-1',
       labels: {
         type: 'critical',
         status: 'active',
@@ -128,6 +129,7 @@ describe('Workflows Component', () => {
       created_at: '2023-02-01T00:00:00Z',
       updated_at: '2023-02-02T00:00:00Z',
       is_enabled: false,
+      project_id: 'project-2',
       labels: {
         type: 'routine',
         status: 'maintenance',
@@ -2003,6 +2005,37 @@ describe('Workflows Component', () => {
       await waitFor(() => {
         expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
         expect(screen.getByText('Workflow has no definition to duplicate')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when workflow has no project_id', async () => {
+      const user = userEvent.setup()
+      const workflowWithoutProject = [{ ...mockWorkflows[0], project_id: undefined }]
+      mockWorkflowQuery({
+        data: { resources: workflowWithoutProject, next: null, prev: null, total: 1 },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      })
+
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue(
+        mockGetResponse({
+          id: '1',
+          version: {
+            workflow_definition: { schema_version: '2.0.0', triggers: [], nodes: [], edges: [] },
+          },
+        })
+      )
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
+        expect(screen.getByText('Workflow must have a project ID')).toBeInTheDocument()
       })
     })
 

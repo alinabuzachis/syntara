@@ -57,6 +57,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 const mockApproval: Approval = {
   id: 'approval-1',
+  project_id: 'project-1',
   name: 'Test Approval',
   status: 'pending',
   execution_id: 'exec-1',
