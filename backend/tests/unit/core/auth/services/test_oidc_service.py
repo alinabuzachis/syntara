@@ -57,6 +57,13 @@ class TestCreateInsecureSslContext:
         ctx = _create_insecure_ssl_context()
         assert ctx.verify_mode == ssl.CERT_NONE
 
+    def test_minimum_tls_version_is_1_3(self) -> None:
+        """Test that minimum TLS version is set to 1.3."""
+        import ssl
+
+        ctx = _create_insecure_ssl_context()
+        assert ctx.minimum_version == ssl.TLSVersion.TLSv1_3
+
 
 class TestIsSslVerificationError:
     """Tests for _is_ssl_verification_error helper."""
@@ -98,6 +105,7 @@ class TestGetJwksClient:
             call_kwargs = mock_cls.call_args
             ctx = call_kwargs.kwargs["ssl_context"]
             assert isinstance(ctx, ssl.SSLContext)
+            assert ctx.minimum_version == ssl.TLSVersion.TLSv1_3
             assert ctx.verify_mode == ssl.CERT_NONE
 
 

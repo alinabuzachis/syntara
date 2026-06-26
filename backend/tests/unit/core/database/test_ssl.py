@@ -40,6 +40,7 @@ class TestBuildSslConnectArgs:
         assert isinstance(ctx, ssl.SSLContext)
         assert ctx.check_hostname is True
         assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.minimum_version == ssl.TLSVersion.TLSv1_3
 
     def test_verify_ca_returns_ssl_context(self) -> None:
         result = build_ssl_connect_args(ssl_mode="verify-ca")
@@ -48,6 +49,7 @@ class TestBuildSslConnectArgs:
         assert isinstance(ctx, ssl.SSLContext)
         assert ctx.check_hostname is False
         assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.minimum_version == ssl.TLSVersion.TLSv1_3
 
     def test_verify_full_with_ca_cert(self, tmp_path: Path) -> None:
         generate_ca(tmp_path)
@@ -55,6 +57,7 @@ class TestBuildSslConnectArgs:
         ctx = result["ssl"]
         assert isinstance(ctx, ssl.SSLContext)
         assert ctx.check_hostname is True
+        assert ctx.minimum_version == ssl.TLSVersion.TLSv1_3
 
     def test_verify_ca_with_ca_cert(self, tmp_path: Path) -> None:
         generate_ca(tmp_path)
@@ -62,6 +65,7 @@ class TestBuildSslConnectArgs:
         ctx = result["ssl"]
         assert ctx.check_hostname is False
         assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.minimum_version == ssl.TLSVersion.TLSv1_3
 
     def test_require_with_client_certs_returns_context(self, tmp_path: Path) -> None:
         cert_path, key_path = generate_self_signed_cert(tmp_path, "Test Client", "client")
@@ -71,6 +75,7 @@ class TestBuildSslConnectArgs:
         assert isinstance(ctx, ssl.SSLContext)
         assert ctx.check_hostname is False
         assert ctx.verify_mode == ssl.CERT_NONE
+        assert ctx.minimum_version == ssl.TLSVersion.TLSv1_3
 
     def test_invalid_ca_cert_path_raises(self) -> None:
         with pytest.raises(FileNotFoundError):
@@ -88,6 +93,7 @@ class TestBuildSslConnectArgs:
         ctx = result["ssl"]
         assert ctx.check_hostname is True
         assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.minimum_version == ssl.TLSVersion.TLSv1_3
 
     def test_unknown_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown SSL mode"):

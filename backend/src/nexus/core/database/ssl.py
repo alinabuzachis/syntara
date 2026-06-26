@@ -91,6 +91,7 @@ def _build_context(
     ssl_key: str | None,
 ) -> ssl.SSLContext:
     ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_3
 
     if ssl_mode == "require":
         ctx.check_hostname = False

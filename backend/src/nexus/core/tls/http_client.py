@@ -29,6 +29,7 @@ def build_internal_ssl_context() -> ssl.SSLContext | None:
         ssl.Purpose.SERVER_AUTH,
         cafile=cast("str", settings.s2s_tls_ca_cert_path),
     )
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_3
     ctx.load_cert_chain(
         certfile=cast("str", settings.s2s_tls_cert_path),
         keyfile=cast("str", settings.s2s_tls_key_path),

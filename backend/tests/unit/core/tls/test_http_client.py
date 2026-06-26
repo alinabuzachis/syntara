@@ -43,6 +43,7 @@ class TestBuildInternalSslContext:
         assert isinstance(ctx, ssl.SSLContext)
         assert ctx.verify_mode == ssl.CERT_REQUIRED
         assert ctx.check_hostname is True
+        assert ctx.minimum_version == ssl.TLSVersion.TLSv1_3
 
 
 class TestBuildInternalHttpClient:

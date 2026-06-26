@@ -436,6 +436,20 @@ app.get(f"{_INTERNAL_METRICS_PREFIX}/kpis/{{component}}", include_in_schema=Fals
 app.post(f"{_INTERNAL_METRICS_PREFIX}/reset", include_in_schema=False)(metrics_store_reset)
 
 
+def _ssl_context_factory(
+    config: uvicorn.Config,  # noqa: ARG001
+    default_ssl_context_factory: Any,  # noqa: ANN401 - Callable[[], ssl.SSLContext]
+) -> ssl.SSLContext:
+    """Build SSL context with TLS 1.3 minimum for Uvicorn server.
+
+    Called by Uvicorn when S2S TLS is enabled. Wraps the default context
+    factory to inject minimum_version.
+    """
+    ctx: ssl.SSLContext = default_ssl_context_factory()
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+    return ctx
+
+
 def main() -> None:
     """Entry point for running the application with uvicorn.
 
@@ -465,6 +479,7 @@ def main() -> None:
         # CERT_OPTIONAL: kubelet health probes don't present client certs.
         # Client cert enforcement on non-health routes is handled by auth middleware.
         uvicorn_kwargs["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
+        uvicorn_kwargs["ssl_context_factory"] = _ssl_context_factory
 
     uvicorn.run(**uvicorn_kwargs)
 

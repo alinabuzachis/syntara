@@ -51,6 +51,7 @@ def _create_insecure_ssl_context() -> ssl.SSLContext:
     Used when the admin has explicitly opted in via ``disable_tls_verify``.
     """
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_3
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     return ctx
