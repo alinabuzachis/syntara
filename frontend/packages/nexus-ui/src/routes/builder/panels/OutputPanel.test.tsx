@@ -516,4 +516,107 @@ describe('OutputPanel', () => {
     // type safety. This is an intentional exhaustiveness check that should never execute at runtime.
     // The 100% branch coverage confirms all actual code paths are tested.
   })
+
+  describe('edge cases and state interactions', () => {
+    it('View toggle hidden when editing', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<OutputPanel outputData={sampleOutput} nodeId={testNodeId} />)
+
+      // Initially, view toggle should be visible
+      expect(screen.getByRole('group', { name: 'Output view selection' })).toBeInTheDocument()
+
+      // Open mock editor
+      await user.click(screen.getByRole('button', { name: /set mock data/i }))
+
+      // View toggle should be hidden during editing
+      expect(screen.queryByRole('group', { name: 'Output view selection' })).not.toBeInTheDocument()
+    })
+
+    it('Mock controls hidden when editor open', async () => {
+      const user = userEvent.setup()
+      mockGetOutputMock.mockReturnValue({ existing: 'mock' })
+
+      renderWithProviders(<OutputPanel nodeId={testNodeId} />)
+
+      // Initially, mock controls should be visible
+      expect(screen.getByText('Mock data pinned')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /set mock data/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /unpin data/i })).toBeInTheDocument()
+
+      // Open editor
+      await user.click(screen.getByRole('button', { name: /set mock data/i }))
+
+      // Mock controls should be hidden
+      expect(screen.queryByText('Mock data pinned')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /set mock data/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /unpin data/i })).not.toBeInTheDocument()
+    })
+
+    it('Pin replace scenario: new data replaces old', async () => {
+      const user = userEvent.setup()
+      const firstMock = { version: 1, data: 'first' }
+      const secondMock = { version: 2, data: 'second' }
+
+      mockGetOutputMock.mockReturnValue(firstMock)
+
+      renderWithProviders(<OutputPanel nodeId={testNodeId} />)
+
+      // Should show first mock
+      expect(screen.getByText(/"version": 1/)).toBeInTheDocument()
+
+      // Open editor
+      await user.click(screen.getByRole('button', { name: /set mock data/i }))
+
+      // Replace with new data
+      const editor = screen.getByRole('textbox', { name: /mock data editor/i })
+      await user.clear(editor)
+      await user.click(editor)
+      await user.paste(JSON.stringify(secondMock))
+
+      // Pin the new data
+      await user.click(screen.getByRole('button', { name: /pin data/i }))
+
+      // Should have called pinOutputMock with the new data
+      expect(mockPinOutputMock).toHaveBeenCalledWith(testNodeId, secondMock)
+    })
+
+    it('Editor close clears text: reopen shows empty or skeleton', async () => {
+      const user = userEvent.setup()
+
+      renderWithProviders(<OutputPanel nodeId={testNodeId} />)
+
+      // Open editor
+      await user.click(screen.getByRole('button', { name: /set mock data/i }))
+
+      // Type some text
+      const editor = screen.getByRole('textbox', { name: /mock data editor/i })
+      await user.clear(editor)
+      await user.type(editor, 'temporary text')
+
+      // Close without pinning
+      await user.click(screen.getByRole('button', { name: /cancel/i }))
+
+      // Reopen editor
+      await user.click(screen.getByRole('button', { name: /set mock data/i }))
+
+      // Should show skeleton (not "temporary text")
+      const editorAfterReopen = screen.getByRole('textbox', { name: /mock data editor/i })
+      expect(editorAfterReopen).not.toHaveValue('temporary text')
+      expect(editorAfterReopen).toHaveDisplayValue(/^\{/)
+    })
+
+    it('Mock data displays instead of empty state when no real output', () => {
+      const mockOutput = { mock: 'data', count: 42 }
+      mockGetOutputMock.mockReturnValue(mockOutput)
+
+      renderWithProviders(<OutputPanel nodeId={testNodeId} />)
+
+      // Should NOT show empty state
+      expect(screen.queryByText('No output data')).not.toBeInTheDocument()
+
+      // Should show mock data in JSON view
+      expect(screen.getByText(/"mock": "data"/)).toBeInTheDocument()
+      expect(screen.getByText(/"count": 42/)).toBeInTheDocument()
+    })
+  })
 })

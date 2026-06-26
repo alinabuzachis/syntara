@@ -1047,4 +1047,177 @@ describe('InputPanel', () => {
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
+
+  describe('edge cases and mock data flows', () => {
+    it('Unpin dropdown only shows predecessors that have input mocks', async () => {
+      const user = userEvent.setup()
+      const multipleUpstream = [
+        { id: 'upstream-1', name: 'Step 1', type: 'script' },
+        { id: 'upstream-2', name: 'Step 2', type: 'script' },
+        { id: 'upstream-3', name: 'Step 3', type: 'script' },
+      ]
+      mockUseUpstreamNodes.mockReturnValue(multipleUpstream)
+      mockGetInputMockCount.mockReturnValue(2)
+      // Only upstream-1 and upstream-3 have mocks
+      mockHasInputMock.mockImplementation(
+        (_nodeId: string, predId: string) => predId === 'upstream-1' || predId === 'upstream-3'
+      )
+
+      render(<InputPanel nodeId="node-1" />)
+
+      // Open Unpin dropdown
+      const unpinButtons = screen.getAllByRole('button', { name: /Unpin data/i })
+      await user.click(unpinButtons[0])
+
+      // Should show only Step 1 and Step 3 (not Step 2)
+      expect(screen.getByRole('menuitem', { name: 'Step 1' })).toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: 'Step 2' })).not.toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Step 3' })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Unpin all' })).toBeInTheDocument()
+    })
+
+    it('ExpandableSection collapses when already expanded', async () => {
+      const user = userEvent.setup()
+      mockUseUpstreamNodes.mockReturnValue(upstreamNodes)
+
+      render(<InputPanel nodeId="node-1" executionData={executionData} />)
+
+      // First upstream section is expanded by default
+      const sectionToggle = screen.getByRole('button', { name: 'Previous Step' })
+      expect(sectionToggle).toHaveAttribute('aria-expanded', 'true')
+
+      // Click to collapse
+      await user.click(sectionToggle)
+
+      // Should now be collapsed
+      expect(sectionToggle).toHaveAttribute('aria-expanded', 'false')
+    })
+
+    it('handleUnpinSingle closes dropdown after unpinning', async () => {
+      const user = userEvent.setup()
+      mockGetInputMockCount.mockReturnValue(1)
+      mockHasInputMock.mockReturnValue(true)
+      mockUseUpstreamNodes.mockReturnValue(upstreamNodes)
+
+      render(<InputPanel nodeId="node-1" />)
+
+      // Open Unpin dropdown
+      const unpinButtons = screen.getAllByRole('button', { name: /Unpin data/i })
+      await user.click(unpinButtons[0])
+
+      // Dropdown should be open with menuitem
+      expect(screen.getByRole('menuitem', { name: 'Previous Step' })).toBeInTheDocument()
+
+      // Click on the predecessor to unpin
+      await user.click(screen.getByRole('menuitem', { name: 'Previous Step' }))
+
+      // Verify unpinInputMock was called
+      expect(mockUnpinInputMock).toHaveBeenCalledWith('node-1', 'upstream-1')
+
+      // Dropdown should close (menuitem no longer visible)
+      await waitFor(() => {
+        expect(screen.queryByRole('menuitem', { name: 'Previous Step' })).not.toBeInTheDocument()
+      })
+    })
+
+    it('Badge disappears after unpinAllInputMocks', async () => {
+      const user = userEvent.setup()
+      mockGetInputMockCount.mockReturnValue(2)
+      mockHasInputMock.mockReturnValue(true)
+      mockUseUpstreamNodes.mockReturnValue(upstreamNodes)
+
+      const { rerender } = render(<InputPanel nodeId="node-1" />)
+
+      // Badge should be visible
+      expect(screen.getByText('Mock data pinned (2)')).toBeInTheDocument()
+
+      // Click "Unpin all"
+      const unpinButtons = screen.getAllByRole('button', { name: /Unpin data/i })
+      await user.click(unpinButtons[0])
+      await user.click(screen.getByRole('menuitem', { name: 'Unpin all' }))
+
+      // Simulate store update after unpinAll
+      mockGetInputMockCount.mockReturnValue(0)
+      mockHasInputMock.mockReturnValue(false)
+
+      // Re-render with updated mock state
+      rerender(<InputPanel nodeId="node-1" />)
+
+      // Badge should no longer be visible
+      expect(screen.queryByText(/Mock data pinned/i)).not.toBeInTheDocument()
+    })
+
+    it('Multiple predecessor mock editing updates editingPredecessorId correctly', async () => {
+      const user = userEvent.setup()
+      const multipleUpstream = [
+        { id: 'upstream-1', name: 'Step 1', type: 'script' },
+        { id: 'upstream-2', name: 'Step 2', type: 'script' },
+      ]
+      mockUseUpstreamNodes.mockReturnValue(multipleUpstream)
+
+      renderWithProvider(<InputPanel nodeId="node-1" />)
+
+      // Open "Set mock data" dropdown
+      await user.click(screen.getByRole('button', { name: /Set mock data/i }))
+
+      // Click Step 1
+      await user.click(screen.getByRole('menuitem', { name: 'Step 1' }))
+
+      // Editor should open for Step 1
+      expect(screen.getByText(/Editing mock data for: Step 1/i)).toBeInTheDocument()
+
+      // Cancel
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      // Open "Set mock data" dropdown again
+      await user.click(screen.getByRole('button', { name: /Set mock data/i }))
+
+      // Click Step 2
+      await user.click(screen.getByRole('menuitem', { name: 'Step 2' }))
+
+      // Editor should now show Step 2
+      expect(screen.getByText(/Editing mock data for: Step 2/i)).toBeInTheDocument()
+    })
+
+    it('effectiveUpstream includes source trigger when upstreamNodes is empty', () => {
+      mockUseUpstreamNodes.mockReturnValue([])
+      mockTriggers.mockReturnValue([{ id: 'source-trigger', name: 'Source Trigger', type: 'manual_trigger' }])
+
+      render(<InputPanel nodeId="" sourceNodeId="source-trigger" />)
+
+      // The source trigger should appear in the upstream list
+      expect(screen.getByRole('button', { name: 'Source Trigger' })).toBeInTheDocument()
+    })
+
+    it('Search term persists across view switches', async () => {
+      const user = userEvent.setup()
+      mockUseUpstreamNodes.mockReturnValue(upstreamNodes)
+
+      render(<InputPanel nodeId="node-1" executionData={executionData} />)
+
+      const searchInput = screen.getByPlaceholderText('Search fields')
+
+      // Enter search term
+      await user.type(searchInput, 'timestamp')
+      expect(searchInput).toHaveValue('timestamp')
+
+      // Switch to Table view
+      await user.click(screen.getByRole('button', { name: 'Table' }))
+
+      // Search term should still be there
+      expect(searchInput).toHaveValue('timestamp')
+
+      // Switch to JSON view
+      await user.click(screen.getByRole('button', { name: 'JSON' }))
+
+      // Search term should still be there
+      expect(searchInput).toHaveValue('timestamp')
+
+      // Switch back to Schema
+      await user.click(screen.getByRole('button', { name: 'Schema' }))
+
+      // Search term should still be there
+      expect(searchInput).toHaveValue('timestamp')
+    })
+  })
 })
