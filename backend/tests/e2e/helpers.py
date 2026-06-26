@@ -92,6 +92,35 @@ def poll_for_pending_approval(
     )
 
 
+def wait_for_agentic_activity(
+    api: NexusApiRegistry,
+    execution_id: UUID,
+    activity_id: str,
+    *,
+    max_polls: int = 30,
+    poll_interval: int = 1,
+) -> None:
+    """Poll until the agentic activity appears in a non-complete state."""
+    for _ in range(max_polls):
+        exec_state = _retry_api_call(lambda: api.executions.get(execution_id=execution_id, include="activities"))
+        execution: ExecutionRead = exec_state.assert_and_get()
+
+        if execution.status in TERMINAL_STATUSES:
+            pytest.fail(
+                f"Execution reached terminal state '{execution.status}' before signal could be sent. "
+                "The agent orchestrator may have completed the activity, or the activity failed."
+            )
+
+        activities_by_id = {a.activity_id: a for a in (execution.activities or [])}
+        activity = activities_by_id.get(activity_id)
+        if activity and activity.status in {"pending", "running", "waiting"}:
+            return
+
+        time.sleep(poll_interval)
+
+    pytest.fail(f"Agentic activity '{activity_id}' did not enter waiting state within {max_polls * poll_interval}s")
+
+
 def create_and_run_workflow(
     api: NexusApiRegistry,
     name: str,
