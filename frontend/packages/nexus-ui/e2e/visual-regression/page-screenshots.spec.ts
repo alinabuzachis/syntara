@@ -34,7 +34,7 @@ test.describe.configure({ mode: 'default' })
 test.describe('Page screenshots', { tag: '@local-only' }, () => {
   // Baselines require the mock API with known seed data; skip when running
   // against a real backend (the E2E workflow sets NEXUS_E2E_SKIP_WEB_SERVER=1).
-  // The Visual Regression job in the PR workflow uses the mock API, so CI=true
+  // The Visual Regression manual workflow uses the mock API, so CI=true
   // alone is not a valid skip condition.
   test.skip(
     isSkipWebServerForPlaywrightTests(),

@@ -94,8 +94,8 @@ const totalImageBytes = files.reduce((sum, f) => {
   return sum
 }, 0)
 
-// `inlineImages` is read by pull-request.yml (“Write visual diff to Job Summary”)
-// via `jq '.inlineImages'` so the Job Summary table omits huge image markdown when
+// `inlineImages` is read by visual-regression-manual.yml (“Write visual diff to Job Summary”)
+// via `jq ‘.inlineImages’` so the Job Summary table omits huge image markdown when
 // the on-disk PNG set would exceed GitHub’s Step Summary size guidance.
 const inlineImages = totalImageBytes < STEP_SUMMARY_LIMIT_BYTES
 

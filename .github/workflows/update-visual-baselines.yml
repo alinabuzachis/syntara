@@ -280,8 +280,6 @@ jobs:
                 '### :white_check_mark: Visual baselines already up to date',
                 '',
                 'No screenshot PNG changes were committed — generated images match the baselines already on this branch.',
-                '',
-                'If the **Visual Regression** check on this PR still fails, the failing test may have errored during `setup`/`waitFor` (no screenshot taken). Download the PR `frontend-visual-regression-diffs` artifact or inspect the [workflow run](${runUrl}) logs.',
               ].join('\n');
             }
 
