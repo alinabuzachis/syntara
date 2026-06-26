@@ -155,7 +155,7 @@ repos:
         entry: npm --prefix frontend run lint
         language: system
         pass_filenames: false
-        files: ^frontend/packages/nexus-ui/(src|\.storybook)/.*\.(ts|tsx|js|jsx)$
+        files: ^frontend/packages/.*\.(ts|tsx|js|jsx)$
 
       - id: frontend-tsc
         name: 'frontend: typescript type check'

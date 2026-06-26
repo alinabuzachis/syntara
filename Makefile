@@ -10,6 +10,7 @@ help: ## Show available targets
 install: ## Install backend and frontend dependencies
 	$(MAKE) -C backend install
 	cd frontend && npm ci
+	$(MAKE) pre-commit-install
 
 pre-commit-install: ## Install pre-commit hooks
 	uv run pre-commit install
