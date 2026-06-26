@@ -9,7 +9,9 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+import jsonschema
 import structlog
+from referencing.exceptions import Unresolvable
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -28,9 +30,11 @@ from nexus.workflows.exceptions import (
     ExecutionInTerminalStateError,
     ExecutionNotFoundError,
     TemporalUnavailableError,
+    TriggerValidationError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
 )
+from nexus.workflows.json_schema_validation import apply_schema_defaults
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityExecutionListResponse
 from nexus.workflows.models.execution import (
     TERMINAL_EXECUTION_STATUSES,
@@ -46,6 +50,7 @@ from nexus.workflows.models.execution import (
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_definition import WorkflowDefinition
 from nexus.workflows.models.workflow_version import WorkflowVersion
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType, resolve_trigger_node
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -169,6 +174,66 @@ class ExecutionService(BaseService):
             logger.debug("Could not resolve user display name", user_id=str(user_id))
         return str(user_id)
 
+    @staticmethod
+    def _apply_trigger_schema_defaults(
+        trigger_node: dict[str, Any],
+        input_data: dict[str, Any],
+    ) -> None:
+        """Apply input_schema defaults and validate trigger input data.
+
+        Extracts the trigger's ``input_schema``, fills in missing default
+        values, then validates the result.  For webhook/EDA triggers the
+        schema targets ``input_data["payload"]``; for all others it targets
+        *input_data* directly.
+
+        Args:
+            trigger_node: Trigger node dict from the workflow definition.
+            input_data: Mutable input dict — modified in place.
+
+        Raises:
+            TriggerValidationError: If input_data fails schema validation.
+
+        """
+        input_schema = trigger_node.get("parameters", {}).get("input_schema")
+        if not input_schema:
+            return
+
+        trigger_type = trigger_node.get("type", "")
+        trigger_node_id = trigger_node.get("id")
+        if trigger_type in (NodeType.WEBHOOK_TRIGGER, NodeType.EDA_TRIGGER):
+            target = input_data.setdefault("payload", {})
+        else:
+            target = input_data
+
+        try:
+            apply_schema_defaults(target, input_schema)
+        except jsonschema.ValidationError as e:
+            logger.warning(
+                "Trigger input validation failed",
+                trigger_node_id=trigger_node_id,
+                trigger_type=trigger_type,
+                field_path=e.json_path,
+                constraint=e.validator,
+            )
+            msg = f"Trigger input validation failed at {e.json_path}: {e.validator} constraint violated"
+            raise TriggerValidationError(msg) from e
+        except (jsonschema.SchemaError, jsonschema.exceptions.UnknownType) as e:
+            logger.exception(
+                "Invalid JSON Schema configured for trigger",
+                trigger_node_id=trigger_node_id,
+                trigger_type=trigger_type,
+            )
+            msg = "Trigger has an invalid JSON Schema configuration"
+            raise TriggerValidationError(msg) from e
+        except Unresolvable as e:
+            logger.exception(
+                "JSON Schema contains blocked $ref reference",
+                trigger_node_id=trigger_node_id,
+                trigger_type=trigger_type,
+            )
+            msg = "Trigger schema contains blocked $ref reference"
+            raise TriggerValidationError(msg) from e
+
     async def create_execution(
         self,
         workflow_id: UUID,
@@ -239,7 +304,12 @@ class ExecutionService(BaseService):
             schema_version=workflow_version.schema_version,
         )
 
-        # Step 2: Build workflow context for expression resolution.
+        # Step 2: Resolve trigger node and apply input_schema defaults
+        workflow_def = workflow_version.workflow_definition
+        trigger_node_id, trigger_node = resolve_trigger_node(workflow_def, trigger_node_id)
+        self._apply_trigger_schema_defaults(trigger_node, input_data)
+
+        # Step 3: Build workflow context for expression resolution.
         # Uses the reserved "workflow_context" namespace per the handbook proposal (P3).
         # "now" and "today" are NOT included here — they are resolved dynamically by the
         # workflow engine at each node execution so they reflect the current wall-clock time.
@@ -267,7 +337,7 @@ class ExecutionService(BaseService):
             },
         }
 
-        # Step 3: Start Temporal workflow FIRST (if temporal_service is available)
+        # Step 4: Start Temporal workflow FIRST (if temporal_service is available)
         from nexus.audit.emitter import request_id_context_var  # noqa: PLC0415
 
         if self.temporal_service is not None:
@@ -302,7 +372,7 @@ class ExecutionService(BaseService):
                 "No Temporal service available, using stub workflow ID", temporal_workflow_id=temporal_workflow_id
             )
 
-        # Step 3: Create execution record in database ONLY after Temporal accepts workflow
+        # Step 5: Create execution record in database ONLY after Temporal accepts workflow
         execution = Execution(
             id=execution_id,
             workflow_id=workflow.id,

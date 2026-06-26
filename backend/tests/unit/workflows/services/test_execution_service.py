@@ -4,7 +4,7 @@ These tests verify the business logic layer for execution management.
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID, uuid4
 
@@ -16,6 +16,7 @@ from nexus.core.models import User
 from nexus.core.models.pagination import ResourcesResponseBase
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
+    TriggerValidationError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
 )
@@ -23,6 +24,7 @@ from nexus.workflows.models.execution import Execution, ExecutionRead, Execution
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.execution_service import ExecutionService
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 
 
 class TestExecutionServiceBase:
@@ -168,7 +170,12 @@ class TestCreateExecution:
         workflow_version.id = version_id
         workflow_version.version = 1
         workflow_version.schema_version = "2.0.0"
-        workflow_version.workflow_definition = {"schema_version": "2.0.0", "triggers": [], "nodes": [], "edges": []}
+        workflow_version.workflow_definition = {
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
+            "nodes": [],
+            "edges": [],
+        }
 
         # Mock database query
         mock_result = Mock()
@@ -238,7 +245,9 @@ class TestCreateExecution:
         workflow_version.id = version_id
         workflow_version.version = 1
         workflow_version.schema_version = "1.0.0"
-        workflow_version.workflow_definition = {}
+        workflow_version.workflow_definition = {
+            "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
+        }
 
         # Mock database query
         mock_result = Mock()
@@ -304,7 +313,9 @@ class TestCreateExecution:
         workflow_version.id = version_id
         workflow_version.version = 1
         workflow_version.schema_version = "1.0.0"
-        workflow_version.workflow_definition = {}
+        workflow_version.workflow_definition = {
+            "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
+        }
 
         mock_result = Mock()
         mock_result.first = Mock(return_value=(workflow, workflow_version))
@@ -1160,3 +1171,127 @@ class TestHandleActivityCallback(TestExecutionServiceBase):
         service.get_execution = AsyncMock(return_value=Mock())  # type: ignore[method-assign]
         with pytest.raises(TemporalUnavailableError):
             await service.handle_activity_callback(uuid4(), "node-1", {"status": "completed"})
+
+
+class TestApplyTriggerSchemaDefaults:
+    """Tests for _apply_trigger_schema_defaults static method."""
+
+    MANUAL_TRIGGER: ClassVar[dict[str, Any]] = {
+        "id": "trigger_1",
+        "type": NodeType.MANUAL_TRIGGER,
+        "parameters": {
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "version": {"type": "string", "default": "latest"},
+                    "timeout": {"type": "integer", "default": 30},
+                },
+            },
+        },
+    }
+
+    def test_fills_defaults_for_empty_input(self) -> None:
+        """Empty input_data gets all schema defaults applied."""
+        data: dict[str, Any] = {}
+        ExecutionService._apply_trigger_schema_defaults(self.MANUAL_TRIGGER, data)
+        assert data == {"version": "latest", "timeout": 30}
+
+    def test_preserves_user_values(self) -> None:
+        """User-provided values are not overridden by defaults."""
+        data: dict[str, Any] = {"version": "1.0"}
+        ExecutionService._apply_trigger_schema_defaults(self.MANUAL_TRIGGER, data)
+        assert data == {"version": "1.0", "timeout": 30}
+
+    def test_validates_after_defaults(self) -> None:
+        """Invalid input raises TriggerValidationError after defaults are applied."""
+        trigger = {
+            "id": "t",
+            "type": NodeType.MANUAL_TRIGGER,
+            "parameters": {
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"count": {"type": "integer", "default": 1}},
+                    "required": ["count"],
+                },
+            },
+        }
+        data: dict[str, Any] = {"count": "not_an_integer"}
+        with pytest.raises(TriggerValidationError, match="Trigger input validation failed"):
+            ExecutionService._apply_trigger_schema_defaults(trigger, data)
+
+    def test_webhook_targets_payload(self) -> None:
+        """For webhook triggers, defaults are applied to input_data['payload']."""
+        trigger = {
+            "id": "t",
+            "type": NodeType.WEBHOOK_TRIGGER,
+            "parameters": {
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"event": {"type": "string", "default": "push"}},
+                },
+            },
+        }
+        data: dict[str, Any] = {"payload": {}}
+        ExecutionService._apply_trigger_schema_defaults(trigger, data)
+        assert data["payload"] == {"event": "push"}
+
+    def test_eda_targets_payload(self) -> None:
+        """For EDA triggers, defaults are applied to input_data['payload']."""
+        trigger = {
+            "id": "t",
+            "type": NodeType.EDA_TRIGGER,
+            "parameters": {
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"source": {"type": "string", "default": "alertmanager"}},
+                },
+            },
+        }
+        data: dict[str, Any] = {"payload": {}}
+        ExecutionService._apply_trigger_schema_defaults(trigger, data)
+        assert data["payload"] == {"source": "alertmanager"}
+
+    def test_no_input_schema_is_noop(self) -> None:
+        """Trigger without input_schema leaves input_data unchanged."""
+        trigger = {"id": "t", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}
+        data = {"key": "value"}
+        ExecutionService._apply_trigger_schema_defaults(trigger, data)
+        assert data == {"key": "value"}
+
+    def test_trigger_without_parameters_is_noop(self) -> None:
+        """Trigger with no parameters key leaves input_data unchanged."""
+        trigger: dict[str, Any] = {"id": "t", "type": NodeType.MANUAL_TRIGGER}
+        data = {"key": "value"}
+        ExecutionService._apply_trigger_schema_defaults(trigger, data)
+        assert data == {"key": "value"}
+
+    def test_ref_in_schema_raises_validation_error(self) -> None:
+        """Schema with $ref raises TriggerValidationError (SSRF prevention)."""
+        trigger = {
+            "id": "t",
+            "type": NodeType.MANUAL_TRIGGER,
+            "parameters": {
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"data": {"$ref": "http://internal-service/secret"}},
+                },
+            },
+        }
+        with pytest.raises(TriggerValidationError):
+            ExecutionService._apply_trigger_schema_defaults(trigger, {"data": "test"})
+
+    def test_webhook_missing_payload_gets_defaults(self) -> None:
+        """Webhook trigger without payload key creates it and applies defaults."""
+        trigger = {
+            "id": "t",
+            "type": NodeType.WEBHOOK_TRIGGER,
+            "parameters": {
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"event": {"type": "string", "default": "push"}},
+                },
+            },
+        }
+        data: dict[str, Any] = {}
+        ExecutionService._apply_trigger_schema_defaults(trigger, data)
+        assert data == {"payload": {"event": "push"}}

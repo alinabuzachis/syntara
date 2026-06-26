@@ -7,10 +7,8 @@ Slack, EDA, etc.) and triggers the matching workflow.
 from typing import Annotated, Any
 from uuid import UUID
 
-import jsonschema
 import structlog
 from fastapi import Body, Depends, Path, Request, status
-from referencing.exceptions import Unresolvable
 from sqlmodel import Field, SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError
@@ -25,8 +23,6 @@ from nexus.workflows.exceptions import (
     TemporalUnavailableError,
     TriggerValidationError,
 )
-from nexus.workflows.json_schema_validation import validate_payload_against_schema
-from nexus.workflows.models.webhook_trigger import WebhookTrigger
 from nexus.workflows.services.execution_service import ExecutionService
 from nexus.workflows.services.webhook_trigger_service import WebhookTriggerService
 from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
@@ -125,46 +121,6 @@ async def get_webhook_trigger_service(
     return WebhookTriggerService(db, system_user)
 
 
-def _validate_payload(trigger: WebhookTrigger, payload: Any) -> None:  # noqa: ANN401
-    """Validate webhook payload against the trigger's JSON Schema.
-
-    Uses a ``referencing.Registry`` that blocks all ``$ref`` resolution,
-    preventing SSRF even if a schema with references exists in the database.
-
-    Args:
-        trigger: The webhook trigger with optional input_schema.
-        payload: The incoming request body.
-
-    Raises:
-        TriggerValidationError: If payload fails schema validation.
-
-    """
-    if trigger.input_schema is None:
-        return
-
-    try:
-        validate_payload_against_schema(payload, trigger.input_schema)
-    except jsonschema.ValidationError as e:
-        msg = f"Webhook payload validation failed: {e.message}"
-        raise TriggerValidationError(msg) from e
-    except (jsonschema.SchemaError, jsonschema.exceptions.UnknownType) as e:
-        logger.exception(
-            "Invalid JSON Schema configured for webhook trigger",
-            trigger_id=trigger.id,
-            webhook_path=trigger.webhook_path,
-        )
-        msg = "Webhook trigger has an invalid JSON Schema configuration"
-        raise TriggerValidationError(msg) from e
-    except Unresolvable:
-        logger.exception(
-            "JSON Schema contains blocked $ref reference",
-            trigger_id=trigger.id,
-            webhook_path=trigger.webhook_path,
-        )
-        msg = "Webhook trigger schema contains blocked $ref reference"
-        raise TriggerValidationError(msg) from None
-
-
 # ============================================================================
 # Shared Logic
 # ============================================================================
@@ -188,7 +144,6 @@ async def _handle_webhook_request(
     )
 
     trigger = await webhook_service.get_by_webhook_path(webhook_path, trigger_type=trigger_type)
-    _validate_payload(trigger, payload)
 
     if temporal_service is None:
         raise TemporalUnavailableError(f"{label} triggering")  # noqa: EM102, TRY003

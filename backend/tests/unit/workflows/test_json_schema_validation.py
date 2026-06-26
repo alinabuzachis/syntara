@@ -5,13 +5,16 @@ Tests cover:
 - Runtime payload validation with $ref resolution blocked
 """
 
+from typing import Any, ClassVar
+
+import jsonschema
 import pytest
 from referencing.exceptions import Unresolvable
 
 from nexus.workflows.json_schema_validation import (
     _has_dangerous_pattern,
+    apply_schema_defaults,
     validate_json_schema_definition,
-    validate_payload_against_schema,
 )
 
 # ============================================================================
@@ -248,62 +251,130 @@ class TestHasDangerousPattern:
 
 
 # ============================================================================
-# validate_payload_against_schema — runtime
+# apply_schema_defaults
 # ============================================================================
 
 
-class TestValidatePayloadAgainstSchema:
-    """Test suite for runtime payload validation."""
+class TestApplySchemaDefaults:
+    """Test suite for default-filling schema validation."""
 
-    def test_valid_payload_passes(self) -> None:
-        """A conforming payload should pass."""
+    SCHEMA: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "version": {"type": "string", "default": "latest"},
+            "timeout": {"type": "integer", "default": 30},
+            "name": {"type": "string"},
+        },
+    }
+
+    def test_empty_input_gets_all_defaults(self) -> None:
+        data: dict[str, Any] = {}
+        apply_schema_defaults(data, self.SCHEMA)
+        assert data == {"version": "latest", "timeout": 30}
+
+    def ***REMOVED***(self) -> None:
+        data = {"version": "1.0"}
+        apply_schema_defaults(data, self.SCHEMA)
+        assert data == {"version": "1.0", "timeout": 30}
+
+    def test_complete_input_unchanged(self) -> None:
+        data = {"version": "1.0", "timeout": 60, "name": "test"}
+        apply_schema_defaults(data, self.SCHEMA)
+        assert data == {"version": "1.0", "timeout": 60, "name": "test"}
+
+    def test_user_value_not_overridden(self) -> None:
+        data = {"version": "1.0"}
+        apply_schema_defaults(data, self.SCHEMA)
+        assert data["version"] == "1.0"
+
+    def test_schema_without_properties_is_noop(self) -> None:
+        data = {"key": "value"}
+        apply_schema_defaults(data, {"type": "object"})
+        assert data == {"key": "value"}
+
+    def test_no_defaults_in_schema_is_noop(self) -> None:
+        schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+        data = {"name": "test"}
+        apply_schema_defaults(data, schema)
+        assert data == {"name": "test"}
+
+    def test_non_object_schema_validates(self) -> None:
+        with pytest.raises(jsonschema.ValidationError):
+            apply_schema_defaults({"key": "value"}, {"type": "array", "items": {"type": "string"}})
+
+    def test_mixed_default_types(self) -> None:
         schema = {
             "type": "object",
-            "properties": {"event": {"type": "string"}},
-            "required": ["event"],
+            "properties": {
+                "s": {"type": "string", "default": "hello"},
+                "i": {"type": "integer", "default": 42},
+                "b": {"type": "boolean", "default": True},
+                "a": {"type": "array", "default": [1, 2]},
+                "o": {"type": "object", "default": {"nested": True}},
+            },
         }
-        # Should not raise
-        validate_payload_against_schema({"event": "push"}, schema)
+        data: dict[str, Any] = {}
+        apply_schema_defaults(data, schema)
+        assert data == {"s": "hello", "i": 42, "b": True, "a": [1, 2], "o": {"nested": True}}
 
-    def test_invalid_payload_raises(self) -> None:
-        """A non-conforming payload should raise ValidationError."""
-        import jsonschema
-
+    def test_null_default_applied(self) -> None:
         schema = {
             "type": "object",
-            "properties": {"event": {"type": "string"}},
-            "required": ["event"],
+            "properties": {"value": {"type": ["string", "null"], "default": None}},
+        }
+        data: dict[str, Any] = {}
+        apply_schema_defaults(data, schema)
+        assert data == {"value": None}
+
+    def test_mutates_in_place(self) -> None:
+        data: dict[str, Any] = {}
+        apply_schema_defaults(data, self.SCHEMA)
+        assert data == {"version": "latest", "timeout": 30}
+
+    def test_invalid_input_raises_validation_error(self) -> None:
+        schema = {
+            "type": "object",
+            "properties": {"count": {"type": "integer"}},
+            "required": ["count"],
         }
         with pytest.raises(jsonschema.ValidationError):
-            validate_payload_against_schema({"wrong": 123}, schema)
+            apply_schema_defaults({"count": "not_an_int"}, schema)
 
     def test_ref_resolution_blocked(self) -> None:
-        """$ref resolution should raise Unresolvable at runtime."""
         schema = {
             "type": "object",
-            "properties": {
-                "data": {"$ref": "http://internal-service/secret"},
-            },
+            "properties": {"data": {"$ref": "http://internal-service/secret"}},
         }
         with pytest.raises(Unresolvable):
-            validate_payload_against_schema({"data": "test"}, schema)
+            apply_schema_defaults({"data": "test"}, schema)
 
-    def test_local_ref_resolves_within_schema(self) -> None:
-        """Local JSON Pointer $ref resolves within the schema itself.
-
-        Local ``#/definitions/...`` references are resolved against the
-        schema document, not via the registry, so they don't trigger
-        the ``$ref`` blocker. This is acceptable because definition-time
-        validation rejects all ``$ref`` keys unconditionally.
-        """
+    def test_required_field_with_default_passes(self) -> None:
         schema = {
             "type": "object",
-            "properties": {
-                "child": {"$ref": "#/definitions/Child"},
-            },
-            "definitions": {
-                "Child": {"type": "string"},
-            },
+            "properties": {"name": {"type": "string", "default": "anon"}},
+            "required": ["name"],
         }
-        # Local ref resolves without hitting the registry
-        validate_payload_against_schema({"child": "test"}, schema)
+        data: dict[str, Any] = {}
+        apply_schema_defaults(data, schema)
+        assert data == {"name": "anon"}
+
+    def test_mutable_defaults_not_aliased(self) -> None:
+        """Mutable defaults are deep-copied so mutations don't corrupt the schema."""
+        tags_prop: dict[str, Any] = {"type": "array", "default": ["a", "b"]}
+        schema: dict[str, Any] = {
+            "type": "object",
+            "properties": {"tags": tags_prop},
+        }
+        data1: dict[str, Any] = {}
+        data2: dict[str, Any] = {}
+        apply_schema_defaults(data1, schema)
+        apply_schema_defaults(data2, schema)
+        data1["tags"].append("c")
+        assert data2["tags"] == ["a", "b"]
+        assert tags_prop["default"] == ["a", "b"]
+
+    def test_non_dict_instance_does_not_crash(self) -> None:
+        """Non-dict instance raises ValidationError, not AttributeError."""
+        schema = {"type": "object", "properties": {"x": {"type": "string", "default": "hi"}}}
+        with pytest.raises(jsonschema.ValidationError):
+            apply_schema_defaults([1, 2, 3], schema)  # type: ignore[arg-type]

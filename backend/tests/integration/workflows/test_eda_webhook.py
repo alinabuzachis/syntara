@@ -209,11 +209,11 @@ class TestEDAWebhookValidation:
     @pytest.mark.asyncio
     async def test_webhook_rejects_payload_failing_input_schema(
         self,
-        base_client: AsyncClient,
+        temporal_client: AsyncClient,
         eda_workflow_with_schema: Workflow,
     ) -> None:
         """Returns 422 when payload does not conform to the trigger's input_schema."""
-        response = await base_client.post(
+        response = await temporal_client.post(
             "/api/v1/webhooks/eda/validated-events",
             json={"other_field": "value"},  # missing required "event_type"
         )

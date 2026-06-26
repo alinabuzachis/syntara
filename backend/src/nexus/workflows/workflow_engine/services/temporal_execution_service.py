@@ -26,7 +26,7 @@ from nexus.workflows.workflow_engine.models.responses import (
     WorkflowStartResponse,
     WorkflowStatusResponse,
 )
-from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
+from nexus.workflows.workflow_engine.models.workflow_definition import resolve_trigger_node
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -148,27 +148,11 @@ class TemporalExecutionService:
                 )
                 raise SafeValueError(msg)  # noqa: TRY301
 
-            triggers = workflow_def.get("triggers", [])
-            if not triggers:
+            if not workflow_def.get("triggers"):
                 msg = "V2 workflow must have at least one trigger"
                 raise SafeValueError(msg)  # noqa: TRY301
 
-            # Use provided trigger_node_id or default to first manual trigger
-            if trigger_node_id is None:
-                manual_triggers = [t for t in triggers if t.get("type") == NodeType.MANUAL_TRIGGER]
-                if not manual_triggers:
-                    msg = "No manual trigger found in workflow definition"
-                    raise SafeValueError(msg)  # noqa: TRY301
-                trigger_node_id = manual_triggers[0].get("id")
-                if not trigger_node_id:
-                    msg = "Manual trigger node must have an id field"
-                    raise SafeValueError(msg)  # noqa: TRY301
-            else:
-                # Validate that the specified trigger exists
-                trigger_ids = [t["id"] for t in triggers if "id" in t]
-                if trigger_node_id not in trigger_ids:
-                    msg = f"Specified trigger_node_id '{trigger_node_id}' not found in workflow triggers: {trigger_ids}"
-                    raise SafeValueError(msg)  # noqa: TRY301
+            trigger_node_id, _ = resolve_trigger_node(workflow_def, trigger_node_id)
 
             # Generate internal workflow ID if not provided
             if workflow_id is None:

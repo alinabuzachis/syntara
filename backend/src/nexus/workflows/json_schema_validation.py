@@ -12,10 +12,12 @@ provide natively:
 
 from __future__ import annotations
 
+import copy
 import re
 from typing import Any, NoReturn
 
 import jsonschema
+from jsonschema import validators
 from referencing import Registry
 from referencing.exceptions import NoSuchResource
 
@@ -176,25 +178,60 @@ def _deny_all_refs(uri: str) -> NoReturn:
 _NO_REF_REGISTRY: Registry[Any] = Registry(retrieve=_deny_all_refs)  # type: ignore[call-arg]
 
 
-def validate_payload_against_schema(
-    payload: Any,  # noqa: ANN401
+# ---------------------------------------------------------------------------
+# Default-filling validator
+# ---------------------------------------------------------------------------
+
+
+def _extend_with_defaults(
+    validator_class: type[jsonschema.protocols.Validator],
+) -> type[jsonschema.protocols.Validator]:
+    """Extend a validator class to fill in ``default`` values during validation."""
+    validate_properties = validator_class.VALIDATORS["properties"]
+
+    def set_defaults(
+        validator: jsonschema.protocols.Validator,
+        properties: dict[str, Any],
+        instance: Any,  # noqa: ANN401
+        schema: dict[str, Any],
+    ) -> Any:  # noqa: ANN401
+        if isinstance(instance, dict):
+            for prop, subschema in properties.items():
+                if "default" in subschema:
+                    instance.setdefault(prop, copy.deepcopy(subschema["default"]))
+
+        yield from validate_properties(validator, properties, instance, schema)
+
+    return validators.extend(validator_class, {"properties": set_defaults})  # type: ignore[no-untyped-call,no-any-return]
+
+
+_DefaultFillingDraft7Validator: type[jsonschema.protocols.Validator] = _extend_with_defaults(
+    jsonschema.Draft7Validator,
+)
+
+
+def apply_schema_defaults(
+    input_data: dict[str, Any],
     schema: dict[str, Any],
 ) -> None:
-    """Validate a payload against a JSON Schema at runtime.
+    """Fill in ``default`` values from a JSON Schema and validate the result.
 
-    Uses a custom ``referencing.Registry`` that blocks all ``$ref``
-    resolution, preventing SSRF even if a schema with references somehow
-    makes it into the database.
+    Uses a ``Draft7Validator`` extended with default-filling behaviour so
+    that nested object defaults are handled recursively.  Defaults are
+    applied first, then the merged result is validated — so a ``required``
+    field with a ``default`` will pass validation.
+
+    ``$ref`` resolution is blocked to prevent SSRF.
 
     Args:
-        payload: The incoming request body.
-        schema: The JSON Schema to validate against.
+        input_data: User-provided input data (mutated in place).
+        schema: JSON Schema dict (Draft-07).
 
     Raises:
-        jsonschema.ValidationError: If the payload does not conform.
+        jsonschema.ValidationError: If input_data does not conform after
+            defaults are applied.
         jsonschema.SchemaError: If the schema itself is malformed.
 
     """
-    validator_cls = jsonschema.Draft7Validator
-    validator = validator_cls(schema, registry=_NO_REF_REGISTRY)
-    validator.validate(payload)
+    validator = _DefaultFillingDraft7Validator(schema, registry=_NO_REF_REGISTRY)
+    validator.validate(input_data)

@@ -127,6 +127,42 @@ class NodeType(str, Enum):
     SCRIPT = "script"
 
 
+def resolve_trigger_node(
+    workflow_def: dict[str, Any],
+    trigger_node_id: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Resolve a trigger node from a workflow definition.
+
+    When *trigger_node_id* is provided, finds the trigger with that ID.
+    When ``None``, defaults to the first manual trigger.
+
+    Args:
+        workflow_def: Complete workflow definition dict.
+        trigger_node_id: Trigger node ID, or None for the default.
+
+    Returns:
+        Tuple of (resolved trigger_node_id, trigger node dict).
+
+    Raises:
+        SafeValueError: If no matching trigger is found.
+
+    """
+    for trigger in workflow_def.get("triggers", []):
+        if trigger_node_id is not None and trigger.get("id") == trigger_node_id:
+            return trigger_node_id, trigger
+        if trigger_node_id is None and trigger.get("type") == NodeType.MANUAL_TRIGGER:
+            resolved_id = trigger.get("id")
+            if not resolved_id:
+                msg = "Manual trigger node must have an id field"
+                raise SafeValueError(msg)
+            return resolved_id, trigger
+    if trigger_node_id is None:
+        msg = "No manual trigger found in workflow definition"
+    else:
+        msg = f"Specified trigger_node_id '{trigger_node_id}' not found in workflow triggers"
+    raise SafeValueError(msg)
+
+
 class ConvergeStrategy(StrEnum):
     """Convergence strategies for converge nodes."""
 
