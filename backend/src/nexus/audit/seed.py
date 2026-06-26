@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import structlog
 from sqlalchemy import text
 
+from nexus.core.config.base import get_settings
 from nexus.core.database.migrations.models import ALL_MODELS
 from nexus.core.models.base.base_resource import AuditLevel, BaseResource
 
@@ -85,6 +86,12 @@ async def seed_audit_metadata(session: AsyncSession) -> None:
     for trigger_name, table_name in drop_triggers_result.all():
         await session.exec(text(f"DROP TRIGGER IF EXISTS {trigger_name} ON {table_name}"))  # type: ignore[call-overload]
         logger.debug("audit.setup.cleanup", action="dropped_trigger", trigger=trigger_name, table=table_name)
+
+    # Skip trigger configuration if Auditing is disabled
+    settings = get_settings()
+    if not settings.audit_enabled:
+        logger.warning("Auditing is disabled. Skipping trigger configuration.")
+        return
 
     # Now recreate from current models
     auditable_count = 0

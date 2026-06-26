@@ -693,6 +693,8 @@ async def session_app(
         patch("nexus.api.main.engine", test_db_engine),
         patch("nexus.api.main.AsyncSessionLocal", test_session_factory),
         patch("nexus.audit.outbox.worker.AsyncSessionLocal", test_session_factory),
+        patch("nexus.audit.outbox.worker.AuditWorkerAsyncSessionLocal", test_session_factory),
+        patch("nexus.audit.outbox.session.AuditWorkerAsyncSessionLocal", test_session_factory),
         patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
     ):
         # Seed all required data before app startup (normally done post-migration
@@ -1240,6 +1242,8 @@ def sync_test_client(
             patch("nexus.api.main.engine", test_db_engine),
             patch("nexus.api.main.AsyncSessionLocal", session_factory),
             patch("nexus.audit.outbox.worker.AsyncSessionLocal", session_factory),
+            patch("nexus.audit.outbox.worker.AuditWorkerAsyncSessionLocal", session_factory),
+            patch("nexus.audit.outbox.session.AuditWorkerAsyncSessionLocal", session_factory),
             patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
         ):
             client = TestClient(app)

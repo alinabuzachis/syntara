@@ -469,6 +469,13 @@ class AuditSettings(BaseSettings):
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
+    # Global Audit flag
+    audit_enabled: bool = Field(
+        default=True,
+        description="Enable auditing",
+    )
+
+    # Audit outbox worker configuration
     audit_outbox_poll_interval_seconds: float = Field(
         default=5.0,
         description="Seconds between audit outbox worker cycles (publishes events to OTEL collector)",
@@ -480,6 +487,20 @@ class AuditSettings(BaseSettings):
         description="Maximum number of audit events to process per outbox worker cycle",
         gt=0,
         le=1000,
+    )
+
+    # Audit worker connection pool settings (separate from main pool)
+    # See: backend/docs/audit-performance-optimization.md (Option 1)
+    audit_worker_pool_size: int = Field(
+        default=5,
+        description="Connection pool size for audit worker (independent of main application pool)",
+        ge=1,
+    )
+
+    audit_worker_max_overflow: int = Field(
+        default=2,
+        description="Max overflow connections for audit worker pool",
+        ge=0,
     )
 
 

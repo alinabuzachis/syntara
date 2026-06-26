@@ -48,7 +48,7 @@ class TestAuditEventWriterEnqueue:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=test_session_factory,
             coordinate=True,
         )
         event = _make_event()
@@ -68,7 +68,7 @@ class TestAuditEventWriterEnqueue:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=test_session_factory,
             coordinate=True,
         )
         event = _make_event()
@@ -86,7 +86,7 @@ class TestAuditEventWriterEnqueue:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=MagicMock(),
-            audit_callback=publish_outbox_events,
+            write_session_factory=MagicMock(),
             coordinate=True,
         )
         event = _make_event()
@@ -111,7 +111,7 @@ class TestAuditEventWriterEnqueue:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=test_session_factory,
             coordinate=True,
         )
 
@@ -140,7 +140,7 @@ class TestAuditEventWriterWrite:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=test_session_factory,
             coordinate=True,
         )
         event = _make_event()
@@ -166,7 +166,7 @@ class TestAuditEventWriterWrite:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=test_session_factory,
             coordinate=True,
         )
         event = _make_event()
@@ -201,7 +201,7 @@ class TestAuditEventWriterWrite:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=mock_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=mock_session_factory,
             coordinate=True,
         )
         event = _make_event()
@@ -228,7 +228,7 @@ class TestAuditEventWriterWrite:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=test_session_factory,
             coordinate=True,
         )
         event_id = uuid4()
@@ -266,7 +266,7 @@ class TestAuditEventWriterDrain:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=test_session_factory,
             coordinate=True,
         )
 
@@ -290,7 +290,7 @@ class TestAuditEventWriterDrain:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=test_session_factory,
             coordinate=True,
         )
         # Should not raise or hang
@@ -303,7 +303,7 @@ class TestAuditEventWriterDrain:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=test_session_factory,
             coordinate=True,
         )
 
@@ -351,7 +351,7 @@ class TestAuditEventWriterRetry:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=mock_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=mock_session_factory,
             coordinate=True,
         )
         event = _make_event()
@@ -392,7 +392,7 @@ class TestAuditEventWriterRetry:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=mock_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=mock_session_factory,
             coordinate=True,
         )
         event = _make_event()
@@ -429,7 +429,7 @@ class TestAuditEventWriterRetry:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=mock_session_factory,
-            audit_callback=publish_outbox_events,
+            write_session_factory=mock_session_factory,
             coordinate=True,
         )
         event = _make_event()
@@ -473,7 +473,7 @@ class TestAuditEventWriterSemaphore:
                 name="audit-outbox-worker",
                 interval_seconds=1,
                 session_factory=test_session_factory,
-                audit_callback=publish_outbox_events,
+                write_session_factory=test_session_factory,
                 coordinate=True,
             )
 
@@ -516,7 +516,7 @@ class TestAuditEventWriterSemaphore:
                 name="audit-outbox-worker",
                 interval_seconds=1,
                 session_factory=MagicMock(),
-                audit_callback=publish_outbox_events,
+                write_session_factory=MagicMock(),
                 coordinate=True,
             )
             assert worker._semaphore._value == 50

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import structlog
 from pydantic import ValidationError
@@ -25,7 +25,9 @@ from sqlmodel import select
 
 from nexus.audit.logging import OTEL_AUDIT_LOGGER_NAME
 from nexus.audit.models.audit_event import AuditEvent
+from nexus.audit.outbox.adaptive import AdaptiveOutboxStateMachine
 from nexus.audit.outbox.models import AuditEventSource, AuditOutboxRecord
+from nexus.audit.outbox.session import AuditWorkerAsyncSessionLocal
 from nexus.audit.sanitization import sanitizer
 from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
 from nexus.core.config.base import get_settings
@@ -88,6 +90,7 @@ def _emit_otel_log_entry(audit_event: AuditEvent, event_source: AuditEventSource
 
 async def publish_outbox_events(
     session_factory: async_sessionmaker[AsyncSession] | None,
+    batch_size: int | None = None,
 ) -> None:
     """Query outbox for unpublished events and emit them to the OTEL collector.
 
@@ -96,15 +99,22 @@ async def publish_outbox_events(
     Uses row-level locking (FOR UPDATE SKIP LOCKED) to prevent race conditions
     across multiple workers - each worker locks the rows it processes, and other
     workers skip already-locked rows.
+
+    Args:
+        session_factory: Session factory for database access
+        batch_size: Optional adaptive batch size. If None, uses settings default.
+
     """
     if session_factory is None:
         logger.warning("SessionFactory not set. Unable to publish AuditOutboxRecord events.")
         return
 
-    settings = get_settings()
-    batch_size = settings.audit_outbox_batch_size
+    # Use provided batch_size or fall back to settings
+    if batch_size is None:
+        settings = get_settings()
+        batch_size = settings.audit_outbox_batch_size
 
-    logger.debug("Running AuditOutboxRecord export loop.....")
+    logger.debug("Running AuditOutboxRecord export loop", batch_size=batch_size)
 
     async with session_factory() as main_session:
         result = await main_session.exec(
@@ -160,25 +170,87 @@ class AuditOutboxWorker(PeriodicWorker):
         name: str,
         interval_seconds: float,
         session_factory: async_sessionmaker[AsyncSession] | None = None,
-        audit_callback: Callable[[Any], Awaitable[None]],
+        write_session_factory: async_sessionmaker[AsyncSession] | None = None,
         cleanup_callback: Callable[[], Awaitable[None]] | None = None,
         coordinate: bool = True,
     ) -> None:
-        """Initialize the periodic worker with the given configuration."""
+        """Initialize the periodic worker with the given configuration.
+
+        Args:
+            name: Worker name
+            interval_seconds: Base poll interval
+            session_factory: Session factory for worker SELECT/DELETE (isolated pool)
+            write_session_factory: Session factory for async INSERT writes (main pool).
+                If None, falls back to session_factory for backward compatibility.
+            cleanup_callback: Optional cleanup callback
+            coordinate: Whether to use advisory locks for coordination
+
+        """
+        settings = get_settings()
+
+        self._enabled = settings.audit_enabled
+
+        # Adaptive state machine for both poll interval and batch size
+        self._adaptive_sm = AdaptiveOutboxStateMachine(
+            base_interval=settings.audit_outbox_poll_interval_seconds,
+            base_batch_size=settings.audit_outbox_batch_size,
+        )
+
         super().__init__(
             name=name,
             interval_seconds=interval_seconds,
-            callback=audit_callback,
+            callback=self._adaptive_callback,
             session_factory=session_factory,
             cleanup_callback=cleanup_callback,
             coordinate=coordinate,
         )
 
-        settings = get_settings()
+        # Separate session factory for async writes (uses main pool for capacity)
+        # Worker SELECT/DELETE uses session_factory (isolated 5+2 pool)
+        # Async INSERT writes use write_session_factory (main 10+20 pool)
+        self._write_session_factory = write_session_factory
+
         self._pending: set[asyncio.Task[None]] = set()
         self._semaphore = asyncio.Semaphore(settings.audit_writer_max_concurrent_writes)
         self._max_retries = settings.audit_writer_max_retries
         self._base_delay = settings.audit_writer_base_delay_seconds
+
+    async def _adaptive_callback(self, session_factory: async_sessionmaker[AsyncSession] | None) -> None:
+        """Process outbox events and update adaptive parameters.
+
+        Invoked by PeriodicWorker each cycle. Queries current backlog, calculates
+        adaptive parameters (interval, batch size), processes events with the
+        adaptive batch size, then updates the interval for the next cycle.
+
+        If the backlog query fails (returns None), skips adaptive adjustment to avoid
+        cooldown-then-speedup thrashing from transient DB errors.
+        """
+        if not self._enabled:
+            logger.warning("Auditing is disabled. Skipping publishing.")
+            return
+
+        # Query current backlog to calculate adaptive parameters
+        pending_count = await self._get_pending_outbox_count()
+
+        # Skip adaptive adjustment on transient DB error (None signals unavailable)
+        # Prevents cooldown→speedup thrashing: error returns None → skip update →
+        # preserve previous state → next successful query resumes from current params
+        if pending_count is None:
+            logger.debug(
+                "Adaptive: skipping adjustment (DB unavailable)",
+                current_interval=self._interval_seconds,
+                current_batch_size=self._adaptive_sm.current_batch_size,
+            )
+            return
+
+        # Calculate next interval and batch size based on current backlog
+        next_interval, batch_size = self._adaptive_sm.calculate_next_parameters(pending_count)
+
+        # Process outbox events with adaptive batch size
+        await publish_outbox_events(session_factory, batch_size)
+
+        # Update interval for next cycle (batch size already tracked in state machine)
+        self._interval_seconds = next_interval
 
     def write_to_outbox(self, event: AuditEvent, session: Session | None = None) -> None:
         """Write AuditEvent to outbox.
@@ -290,15 +362,19 @@ class AuditOutboxWorker(PeriodicWorker):
         )
 
     async def _write(self, event: AuditEvent) -> None:
-        """Persist a single audit event to the database with retry on transient errors."""
-        if self._session_factory is None:
+        """Persist a single audit event to the database with retry on transient errors.
+
+        Uses write_session_factory (main pool) instead of session_factory (worker pool)
+        to avoid capacity mismatch with the semaphore limit.
+        """
+        if self._write_session_factory is None:
             logger.warning("SessionFactory not set. Unable to write AuditOutboxRecord to AuditOutbox database.")
             return
 
         logger.info("Writing AuditOutboxRecord to AuditOutbox database.")
         for attempt in range(self._max_retries + 1):
             try:
-                async with self._session_factory() as session:
+                async with self._write_session_factory() as session:
                     outbox_record = AuditOutboxRecord(
                         event_source=AuditEventSource.BUSINESS_EVENT,
                         event_payload=event.model_dump(mode="json"),
@@ -327,24 +403,26 @@ class AuditOutboxWorker(PeriodicWorker):
                 self._log_non_retryable_error(event, exc)
                 return  # Don't retry programming errors
 
-    async def _get_pending_outbox_count(self) -> int:
+    async def _get_pending_outbox_count(self) -> int | None:
         """Get count of pending outbox records.
 
         Returns:
-            Number of pending outbox records, or 0 if database is unavailable.
+            Number of pending outbox records, or None if database is unavailable.
+            None signals a transient error - caller should skip state updates to avoid
+            cooldown-then-speedup thrashing.
 
         """
         if self._session_factory is None:
-            return 0
+            return None
 
         try:
             async with self._session_factory() as session:
                 result = await session.exec(select(func.count()).select_from(AuditOutboxRecord))
                 return result.one()
         except (DatabaseError, OSError):  # OSError covers socket/network errors like gaierror
-            # Database may be unavailable during shutdown - return 0 to allow graceful termination
+            # Database may be unavailable during shutdown or transient error
             logger.warning("Unable to query pending outbox count (database unavailable, likely during shutdown)")
-            return 0
+            return None
 
     async def drain(self) -> None:
         """Wait for all in-flight writes to complete.
@@ -362,24 +440,34 @@ class AuditOutboxWorker(PeriodicWorker):
 
         await asyncio.sleep(0.5)
 
-        try:
+        # Drain outbox records to OTEL (None = DB unavailable, exit gracefully)
+        pending_count = await self._get_pending_outbox_count()
+        while pending_count is not None and pending_count > 0:
+            logger.info("Draining AuditOutboxRecord(s) to OTEL.", records=pending_count)
+            await publish_outbox_events(self._session_factory)
             pending_count = await self._get_pending_outbox_count()
-            while pending_count:
-                logger.info("Draining AuditOutboxRecord(s) to OTEL.", records=pending_count)
-                await publish_outbox_events(self._session_factory)
-                pending_count = await self._get_pending_outbox_count()
-        except (DatabaseError, OSError) as e:  # OSError covers socket/network errors like gaierror
-            logger.warning("Unable to drain outbox records", error=str(e), exc_info=True)
+
+        if pending_count is None:
+            logger.warning("Unable to drain outbox records (database unavailable during shutdown)")
 
 
 @lru_cache(maxsize=1)
 def get_outbox_worker() -> AuditOutboxWorker:
-    """Return the application-wide audit-outbox PeriodicWorker."""
+    """Return the application-wide audit-outbox PeriodicWorker.
+
+    Uses separate session factories for isolation:
+    - session_factory (audit_worker_session_factory): Worker SELECT/DELETE operations
+      use dedicated 5+2 pool to isolate from main application traffic
+    - write_session_factory (AsyncSessionLocal): Async INSERT writes from background
+      tasks use main 10+20 pool to match semaphore capacity (100 concurrent writes)
+
+    Implements adaptive polling and batch size that adjust dynamically based on backlog trends.
+    """
     settings = get_settings()
     return AuditOutboxWorker(
         name="audit-outbox-worker",
         interval_seconds=settings.audit_outbox_poll_interval_seconds,
-        session_factory=AsyncSessionLocal,
-        audit_callback=publish_outbox_events,
+        session_factory=AuditWorkerAsyncSessionLocal,  # Worker SELECT/DELETE (5+2 pool)
+        write_session_factory=AsyncSessionLocal,  # Async INSERT writes (10+20 pool)
         coordinate=True,
     )

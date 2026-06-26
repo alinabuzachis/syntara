@@ -8,7 +8,7 @@ and activity_id from URL paths and includes them in emitted audit events.
 
 from collections.abc import Callable
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -52,7 +52,7 @@ async def test_middleware_extracts_path_params(
     signal_url = f"/api/v1/executions/{execution_id}/activities/{activity_id}/signal"
 
     # Patch _emit_otel_log_entry to capture emitted audit events
-    mock_emit = AsyncMock()
+    mock_emit = Mock()
     with patch("nexus.audit.outbox.worker._emit_otel_log_entry", new=mock_emit):
         # POST to signal endpoint with Authorization header (will fail with 404, but that's expected)
         response = await base_client.post(
@@ -122,7 +122,7 @@ async def test_middleware_captures_request_id_in_structured_data(
     }
 
     # Patch _emit_otel_log_entry to capture emitted audit events
-    mock_emit = AsyncMock()
+    mock_emit = Mock()
     with patch("nexus.audit.outbox.worker._emit_otel_log_entry", new=mock_emit):
         # Make a simple GET request to any endpoint (using /api/v1/users as a valid endpoint)
         response = await base_client.get("/api/v1/users", headers=headers)

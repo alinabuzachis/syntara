@@ -10,6 +10,7 @@ import structlog
 from nexus.audit.outbox.worker import get_outbox_worker
 from nexus.audit.sanitization import sanitizer
 from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
+from nexus.core.config.base import get_settings
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -109,6 +110,11 @@ def _do_emit_audit_event(event: AuditEvent, session: Session | None = None) -> N
 
     """
     # Write to outbox table for guaranteed delivery
+    settings = get_settings()
+    if not settings.audit_enabled:
+        logger.warning("Auditing is disabled. Skipping emitting AuditEvent to audit_outbox.")
+        return
+
     logger.info("Writing AuditEvent to Audit outbox")
     outbox_worker = get_outbox_worker()
     outbox_worker.write_to_outbox(event, session)
