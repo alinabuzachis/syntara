@@ -139,14 +139,14 @@ describe('workflowToGraph', () => {
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Interval: 1h' })
     })
 
-    it('handles continuous scheduled trigger', () => {
+    it('shows generic label for unknown schedule type', () => {
       const trigger: Trigger = {
         type: TriggerTypeEnum.SCHEDULED,
         parameters: {
-          schedule_type: 'continuous',
+          schedule_type: 'unknown',
         },
       }
-      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Continuous' })
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Scheduled' })
     })
 
     it('handles event trigger', () => {

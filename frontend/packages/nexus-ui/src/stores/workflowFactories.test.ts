@@ -93,14 +93,6 @@ describe('workflowFactories', () => {
         expect(trigger.parameters.interval).toBe('PT1H')
       })
 
-      it('creates a continuous scheduled trigger', () => {
-        const trigger = createScheduledTrigger('trigger-8', 'continuous', {})
-
-        expect(trigger.id).toBe('trigger-8')
-        expect(trigger.type).toBe(TriggerTypeEnum.SCHEDULED)
-        expect(trigger.parameters.schedule_type).toBe('continuous')
-      })
-
       it('creates a scheduled trigger with name', () => {
         const trigger = createScheduledTrigger('trigger-9', 'cron', { cron: '0 9 * * *' }, 'Daily Job')
 
@@ -108,14 +100,14 @@ describe('workflowFactories', () => {
         expect(trigger.name).toBe('Daily Job')
       })
 
-      it('falls back to continuous when cron config is missing', () => {
+      it('omits cron param when cron config is missing', () => {
         const trigger = createScheduledTrigger('trigger-10', 'cron', {})
 
         expect(trigger.id).toBe('trigger-10')
         expect(trigger.parameters.schedule_type).toBe('cron')
       })
 
-      it('falls back to continuous when interval config is missing', () => {
+      it('omits interval param when interval config is missing', () => {
         const trigger = createScheduledTrigger('trigger-11', 'interval', {})
 
         expect(trigger.id).toBe('trigger-11')

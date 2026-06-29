@@ -78,7 +78,7 @@ function getScheduledDetails(parameters: Record<string, unknown> | undefined): s
     const interval = (parameters.interval as string) ?? ''
     return formatScheduleSummary(interval) ?? `Interval: ${interval}`
   }
-  return 'Continuous'
+  return 'Scheduled'
 }
 
 function getWebhookStyleDetails(parameters: Record<string, unknown> | undefined, label: string): string {

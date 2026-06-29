@@ -81,7 +81,7 @@ export default function registerTriggerNode() {
             if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType) {
               return createScheduledTrigger(
                 triggerId,
-                data.scheduleType as 'cron' | 'interval' | 'continuous',
+                data.scheduleType as 'cron' | 'interval',
                 {
                   cron: data.cron,
                   timezone: data.timezone,

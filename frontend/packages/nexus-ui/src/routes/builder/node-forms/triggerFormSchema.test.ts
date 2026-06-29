@@ -333,8 +333,8 @@ describe('triggerFormSchema — scheduled trigger validation', () => {
     expect(parseScheduled('interval', '2024-01-01T00:00:00Z').success).toBe(true)
   })
 
-  it('does not require interval for continuous schedule', () => {
-    expect(parseScheduled('continuous').success).toBe(true)
+  it('does not require interval for cron schedule', () => {
+    expect(parseScheduled('cron', undefined, '0 9 * * *').success).toBe(true)
   })
 
   it('requires cron when scheduleType is cron', () => {

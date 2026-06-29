@@ -55,7 +55,7 @@ export function createManualTrigger(
  */
 export function createScheduledTrigger(
   id: string,
-  scheduleType: 'cron' | 'interval' | 'continuous',
+  scheduleType: 'cron' | 'interval',
   config: {
     cron?: string
     timezone?: string

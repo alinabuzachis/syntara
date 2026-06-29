@@ -112,7 +112,6 @@ function TriggerFormFields({
                   >
                     <FormSelectOption value="interval" label="Interval" />
                     <FormSelectOption value="cron" label="Cron" />
-                    <FormSelectOption value="continuous" label="Continuous" />
                   </FormSelect>
                 )}
               />

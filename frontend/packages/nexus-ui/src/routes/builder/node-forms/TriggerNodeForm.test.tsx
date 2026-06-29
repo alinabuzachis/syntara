@@ -178,35 +178,6 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
     })
 
-    it('hides interval picker for continuous schedule type', () => {
-      renderWithHeader(
-        <TriggerNodeForm
-          onSubmit={mockOnSubmit}
-          initialData={{ triggerType: TriggerTypeEnum.SCHEDULED, scheduleType: 'continuous' }}
-        />
-      )
-
-      expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
-    })
-
-    it('toggles interval picker when schedule type changes', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(
-        <TriggerNodeForm
-          onSubmit={mockOnSubmit}
-          initialData={{ triggerType: TriggerTypeEnum.SCHEDULED, scheduleType: 'interval' }}
-        />
-      )
-
-      expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
-
-      await user.selectOptions(screen.getByLabelText('Schedule type'), 'continuous')
-      expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
-
-      await user.selectOptions(screen.getByLabelText('Schedule type'), 'interval')
-      expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
-    })
-
     it('toggles cron input when schedule type changes', async () => {
       const user = userEvent.setup()
       renderWithHeader(
@@ -222,7 +193,7 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
       expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
 
-      await user.selectOptions(screen.getByLabelText('Schedule type'), 'continuous')
+      await user.selectOptions(screen.getByLabelText('Schedule type'), 'interval')
       expect(screen.queryByLabelText('Cron expression')).not.toBeInTheDocument()
 
       await user.selectOptions(screen.getByLabelText('Schedule type'), 'cron')

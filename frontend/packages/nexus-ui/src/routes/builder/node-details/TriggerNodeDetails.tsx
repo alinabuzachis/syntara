@@ -112,7 +112,7 @@ function serializeInputSchema(rawSchema: unknown): string | undefined {
 }
 
 function buildScheduledTrigger(data: TriggerFormData, triggerId: string, name: string): Trigger {
-  const scheduleType = (data.scheduleType ?? 'interval') as 'cron' | 'interval' | 'continuous'
+  const scheduleType = (data.scheduleType ?? 'interval') as 'cron' | 'interval'
   const scheduleValueMap: Record<string, string | undefined> = { interval: data.interval, cron: data.cron }
   const scheduleValue = scheduleValueMap[scheduleType]
 
@@ -231,14 +231,6 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
           triggerType: TriggerTypeEnum.SCHEDULED,
           scheduleType: 'cron',
           cron: trigger.parameters?.cron as string | undefined,
-        }
-      }
-
-      if (scheduleType === 'continuous') {
-        return {
-          name: trigger.name,
-          triggerType: TriggerTypeEnum.SCHEDULED,
-          scheduleType: 'continuous',
         }
       }
     }

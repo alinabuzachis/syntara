@@ -101,14 +101,14 @@ describe('TriggerNodeComponent', () => {
       <TriggerNodeComponent
         {...createNodeProps({
           name: 'MyTrigger',
-          details: 'Continuous',
+          details: 'Every 2 hours',
           triggerType: TriggerTypeEnum.SCHEDULED,
         })}
       />
     )
 
     expect(screen.getByText('Scheduled trigger')).toBeInTheDocument()
-    expect(screen.getByText('Continuous')).toBeInTheDocument()
+    expect(screen.getByText('Every 2 hours')).toBeInTheDocument()
   })
 
   it('renders names containing parentheses correctly', () => {

@@ -28,7 +28,7 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
     parameters: {},
   })),
   createScheduledTrigger: vi.fn(
-    (scheduleType: 'interval' | 'continuous', options?: { interval?: string }, name?: string) => ({
+    (scheduleType: 'interval' | 'cron', options?: { interval?: string }, name?: string) => ({
       id: 'scheduled_trigger',
       type: TriggerTypeEnum.SCHEDULED,
       name: name ?? 'Scheduled Trigger',
@@ -349,70 +349,6 @@ describe('TriggerNodeDetails Component', () => {
         parameters: {
           schedule_type: 'cron',
           cron: '*/5 * * * *',
-        },
-      })
-      expect(mockOnClose).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  describe('Scheduled Trigger - Continuous', () => {
-    it('renders TriggerNodeForm with continuous scheduled trigger data', () => {
-      const trigger = {
-        id: 'scheduled_trigger',
-        type: TriggerTypeEnum.SCHEDULED,
-        name: 'Trigger',
-        parameters: {
-          schedule_type: 'continuous',
-        },
-      }
-
-      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
-
-      expect(screen.getByTestId('initial-data')).toHaveTextContent(
-        JSON.stringify({
-          name: 'Trigger',
-          triggerType: TriggerTypeEnum.SCHEDULED,
-          scheduleType: 'continuous',
-        })
-      )
-    })
-
-    it('calls updateTrigger with continuous scheduled trigger on form submission', async () => {
-      const user = userEvent.setup()
-      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
-      formSpy.mockImplementation(({ onSubmit }) => (
-        <button
-          data-testid="submit-continuous"
-          onClick={() => {
-            onSubmit({
-              name: 'Continuous Trigger',
-              triggerType: TriggerTypeEnum.SCHEDULED,
-              scheduleType: 'continuous',
-            })
-          }}
-          type="button"
-        >
-          Submit
-        </button>
-      ))
-
-      const trigger = {
-        id: 'scheduled_trigger',
-        type: TriggerTypeEnum.SCHEDULED,
-        name: 'Trigger',
-        parameters: { schedule_type: 'interval', interval: 'PT1H' },
-      }
-
-      render(<TriggerNodeDetails trigger={trigger} triggerIndex={2} onClose={mockOnClose} />)
-
-      await user.click(screen.getByTestId('submit-continuous'))
-
-      expect(mockUpdateTrigger).toHaveBeenCalledWith(2, {
-        id: 'scheduled_trigger',
-        type: TriggerTypeEnum.SCHEDULED,
-        name: 'Continuous Trigger',
-        parameters: {
-          schedule_type: 'continuous',
         },
       })
       expect(mockOnClose).toHaveBeenCalledTimes(1)

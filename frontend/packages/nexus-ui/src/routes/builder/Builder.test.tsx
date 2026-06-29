@@ -51,15 +51,6 @@ describe('Builder Workflow Store Helpers', () => {
       expect(trigger.parameters.schedule_type).toBe('interval')
       expect(trigger.parameters.interval).toBe('PT1H')
     })
-
-    it('creates continuous scheduled trigger', async () => {
-      const { createScheduledTrigger } = await import('../../stores/useWorkflowStore')
-      const trigger = createScheduledTrigger('test-trigger-5', 'continuous', {})
-
-      expect(trigger.id).toBe('test-trigger-5')
-      expect(trigger.type).toBe(TriggerTypeEnum.SCHEDULED)
-      expect(trigger.parameters.schedule_type).toBe('continuous')
-    })
   })
 
   describe('createEventTrigger', () => {
