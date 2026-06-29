@@ -12,9 +12,20 @@ export function useRunStepDialog(handleSaveWorkflow: () => Promise<boolean>, isT
   const runStepDialog = useDialogState<RunStepDialogData>()
   const openRunStepDialog = runStepDialog.open
   const lastRunStepNodeIdRef = useRef<string | null>(null)
-  const pinnedMockDataForDialog = useMockDataStore((s) =>
-    runStepDialog.item?.nodeId ? s.getInputMocks(runStepDialog.item.nodeId) : undefined
-  )
+  const pinnedMockDataForDialog = useMockDataStore((s) => {
+    const itemNodeId = runStepDialog.item?.nodeId
+    if (!itemNodeId) return undefined
+    const inputMocks = s.getInputMocks(itemNodeId) ?? {}
+    const predecessors = runStepDialog.item?.predecessors ?? []
+    const merged = { ...inputMocks }
+    for (const pred of predecessors) {
+      if (!merged[pred.id]) {
+        const outputMock = s.getOutputMock(pred.id)
+        if (outputMock) merged[pred.id] = outputMock
+      }
+    }
+    return Object.keys(merged).length > 0 ? merged : undefined
+  })
 
   const handleRunStep = useCallback(
     async (nodeId: string) => {

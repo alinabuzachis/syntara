@@ -23,7 +23,7 @@ const mockDialogOpen = vi.fn()
 const mockDialogClose = vi.fn()
 const mockDialogState = {
   isOpen: false,
-  item: null as { nodeId: string } | null,
+  item: null as { nodeId: string; predecessors?: { id: string; name: string }[] } | null,
   open: mockDialogOpen,
   close: mockDialogClose,
 }
@@ -34,11 +34,13 @@ vi.mock('../../../hooks/useDialogState', () => ({
 
 const mockUnpinAllInputMocks = vi.fn()
 const mockGetInputMocks = vi.fn().mockReturnValue({})
+const mockGetOutputMock = vi.fn().mockReturnValue(null)
 
 vi.mock('../../../stores/useMockDataStore', () => ({
   useMockDataStore: Object.assign(
-    (selector: (state: { getInputMocks: typeof mockGetInputMocks }) => unknown) =>
-      selector({ getInputMocks: mockGetInputMocks }),
+    (
+      selector: (state: { getInputMocks: typeof mockGetInputMocks; getOutputMock: typeof mockGetOutputMock }) => unknown
+    ) => selector({ getInputMocks: mockGetInputMocks, getOutputMock: mockGetOutputMock }),
     {
       getState: () => ({
         unpinAllInputMocks: mockUnpinAllInputMocks,
@@ -88,6 +90,7 @@ describe('useRunStepDialog', () => {
     mockGetEdges.mockReturnValue([])
     mockGetNodes.mockReturnValue([])
     mockGetInputMocks.mockReturnValue({})
+    mockGetOutputMock.mockReturnValue(null)
   })
 
   // -------------------------------------------------------------------------
@@ -294,6 +297,75 @@ describe('useRunStepDialog', () => {
 
     it('returns undefined when dialog item is null', () => {
       mockDialogState.item = null
+
+      const { result } = renderRunStepDialog()
+
+      expect(result.current.pinnedMockDataForDialog).toBeUndefined()
+    })
+
+    it('includes upstream output mocks from predecessor nodes', () => {
+      mockGetInputMocks.mockReturnValue({})
+      mockGetOutputMock.mockImplementation((nodeId: string) =>
+        nodeId === 'pred-1' ? { stdout: 'output-from-pred', return_code: 0 } : null
+      )
+      mockDialogState.item = {
+        nodeId: 'node-1',
+        predecessors: [{ id: 'pred-1', name: 'Previous Step' }],
+      }
+
+      const { result } = renderRunStepDialog()
+
+      expect(result.current.pinnedMockDataForDialog).toEqual({
+        'pred-1': { stdout: 'output-from-pred', return_code: 0 },
+      })
+    })
+
+    it('prefers input mocks over upstream output mocks for same predecessor', () => {
+      const inputMockData = { 'pred-1': { custom: 'user-edited' } }
+      mockGetInputMocks.mockReturnValue(inputMockData)
+      mockGetOutputMock.mockImplementation((nodeId: string) =>
+        nodeId === 'pred-1' ? { stdout: 'should-not-appear' } : null
+      )
+      mockDialogState.item = {
+        nodeId: 'node-1',
+        predecessors: [{ id: 'pred-1', name: 'Previous Step' }],
+      }
+
+      const { result } = renderRunStepDialog()
+
+      expect(result.current.pinnedMockDataForDialog).toEqual({
+        'pred-1': { custom: 'user-edited' },
+      })
+    })
+
+    it('merges input mocks and upstream output mocks for different predecessors', () => {
+      mockGetInputMocks.mockReturnValue({ 'pred-1': { edited: 'value' } })
+      mockGetOutputMock.mockImplementation((nodeId: string) =>
+        nodeId === 'pred-2' ? { stdout: 'from-output-pin' } : null
+      )
+      mockDialogState.item = {
+        nodeId: 'node-1',
+        predecessors: [
+          { id: 'pred-1', name: 'Step A' },
+          { id: 'pred-2', name: 'Step B' },
+        ],
+      }
+
+      const { result } = renderRunStepDialog()
+
+      expect(result.current.pinnedMockDataForDialog).toEqual({
+        'pred-1': { edited: 'value' },
+        'pred-2': { stdout: 'from-output-pin' },
+      })
+    })
+
+    it('returns undefined when no input mocks or output mocks exist', () => {
+      mockGetInputMocks.mockReturnValue({})
+      mockGetOutputMock.mockReturnValue(null)
+      mockDialogState.item = {
+        nodeId: 'node-1',
+        predecessors: [{ id: 'pred-1', name: 'Step A' }],
+      }
 
       const { result } = renderRunStepDialog()
 

@@ -982,6 +982,80 @@ describe('InputPanel', () => {
       expect(screen.getByRole('button', { name: 'Pin data' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
+
+    it('pre-fills mock editor with execution data when no pinned input mock exists', async () => {
+      const user = userEvent.setup()
+      mockUseUpstreamNodes.mockReturnValue(upstreamNodes)
+      mockGetInputMocks.mockReturnValue({})
+
+      renderWithProvider(<InputPanel nodeId="node-1" executionData={executionData} />)
+
+      await user.click(screen.getByRole('button', { name: /Set mock data/i }))
+      await user.click(screen.getByRole('menuitem', { name: 'Previous Step' }))
+
+      // Pin data to verify the editor was pre-filled with execution data (not a skeleton)
+      await user.click(screen.getByRole('button', { name: 'Pin data' }))
+      expect(mockPinInputMock).toHaveBeenCalledWith('node-1', 'upstream-1', executionData['upstream-1'])
+    })
+
+    it('pre-fills mock editor with upstream output mock when no execution data or input mock exists', async () => {
+      const user = userEvent.setup()
+      mockUseUpstreamNodes.mockReturnValue(upstreamNodes)
+      mockGetInputMocks.mockReturnValue({})
+      mockPinnedData = {
+        'upstream-1': {
+          outputMock: { mocked_stdout: 'from-output-pin', return_code: 0 },
+        },
+      }
+
+      renderWithProvider(<InputPanel nodeId="node-1" />)
+
+      await user.click(screen.getByRole('button', { name: /Set mock data/i }))
+      await user.click(screen.getByRole('menuitem', { name: 'Previous Step' }))
+
+      await user.click(screen.getByRole('button', { name: 'Pin data' }))
+      expect(mockPinInputMock).toHaveBeenCalledWith('node-1', 'upstream-1', {
+        mocked_stdout: 'from-output-pin',
+        return_code: 0,
+      })
+    })
+
+    it('prefers execution data over upstream output mock for same predecessor', async () => {
+      const user = userEvent.setup()
+      mockUseUpstreamNodes.mockReturnValue(upstreamNodes)
+      mockGetInputMocks.mockReturnValue({})
+      mockPinnedData = {
+        'upstream-1': {
+          outputMock: { mocked_stdout: 'should-not-appear' },
+        },
+      }
+
+      renderWithProvider(<InputPanel nodeId="node-1" executionData={executionData} />)
+
+      await user.click(screen.getByRole('button', { name: /Set mock data/i }))
+      await user.click(screen.getByRole('menuitem', { name: 'Previous Step' }))
+
+      await user.click(screen.getByRole('button', { name: 'Pin data' }))
+      expect(mockPinInputMock).toHaveBeenCalledWith('node-1', 'upstream-1', executionData['upstream-1'])
+    })
+
+    it('prefers existing pinned input mock over execution data in mock editor', async () => {
+      const user = userEvent.setup()
+      mockUseUpstreamNodes.mockReturnValue(upstreamNodes)
+      mockPinnedData = {
+        'node-1': {
+          inputMocks: { 'upstream-1': { custom_field: 'user-edited-value' } },
+        },
+      }
+
+      renderWithProvider(<InputPanel nodeId="node-1" executionData={executionData} />)
+
+      await user.click(screen.getByRole('button', { name: /Set mock data/i }))
+      await user.click(screen.getByRole('menuitem', { name: 'Previous Step' }))
+
+      await user.click(screen.getByRole('button', { name: 'Pin data' }))
+      expect(mockPinInputMock).toHaveBeenCalledWith('node-1', 'upstream-1', { custom_field: 'user-edited-value' })
+    })
   })
 
   describe('Pinned output mock from upstream nodes', () => {

@@ -314,8 +314,10 @@ export function InputPanel({
   if (editingPredecessorId) {
     const editingNode = effectiveUpstream.find((n) => n.id === editingPredecessorId)
     const existingMock = nodeInputMocks?.[editingPredecessorId]
-    const initialJson = existingMock
-      ? JSON.stringify(existingMock, null, 2)
+    const executionOrUpstreamData = mergedExecutionData?.[editingPredecessorId]
+    const dataToStringify = existingMock ?? executionOrUpstreamData
+    const initialJson = dataToStringify
+      ? JSON.stringify(dataToStringify, null, 2)
       : getInputMockSkeleton(editingPredecessorId, effectiveUpstream, triggers)
 
     return (
