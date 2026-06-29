@@ -54,6 +54,7 @@ class Workflow(Resource, table=True):
         *Resource.__filterable_fields__,
         "is_builtin",
         "is_enabled",
+        "has_validation_issues",
         "published_version",
         "project_id",
     ]
@@ -86,6 +87,12 @@ class Workflow(Resource, table=True):
         default=False,
         description="Whether this is a built-in workflow",
         index=True,
+        sa_column_kwargs={"server_default": text("false")},
+    )
+
+    has_validation_issues: bool = Field(
+        default=False,
+        description="True when the current draft was saved with validation warnings via force_save",
         sa_column_kwargs={"server_default": text("false")},
     )
 
@@ -172,9 +179,12 @@ class WorkflowCreate(WorkflowBase):
     """Schema for creating a new workflow (POST /workflows).
 
     Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+    Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+    on failure, the raw dict falls through to the service-level validator
+    where force_save can bypass all validation.
     """
 
-    workflow_definition: WorkflowDefinition = Field(..., description="Workflow definition object")
+    workflow_definition: WorkflowDefinition | dict[str, Any] = Field(..., description="Workflow definition object")
     project_id: UUID = Field(..., description="Project to assign workflow to")
 
 
@@ -183,6 +193,9 @@ class WorkflowUpdate(SQLModel):
 
     All fields are optional for partial updates.
     Supports metadata updates and workflow definition updates (creates new version).
+    Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+    on failure, the raw dict falls through to the service-level validator
+    where force_save can bypass all validation.
     """
 
     name: str | None = Field(None, min_length=1, max_length=255, description="Update workflow name")
@@ -190,7 +203,7 @@ class WorkflowUpdate(SQLModel):
         None, max_length=FieldLimits.DESCRIPTION_MAX_LENGTH, description="Update workflow description"
     )
     labels: dict[str, Any] | None = Field(None, description="Update workflow labels")
-    workflow_definition: WorkflowDefinition | None = Field(
+    workflow_definition: WorkflowDefinition | dict[str, Any] | None = Field(
         None, description="New workflow definition (auto-creates version)"
     )
     change_description: str | None = Field(None, description="Description of changes for version history")
@@ -209,6 +222,7 @@ class WorkflowRead(WorkflowBase):
     current_version: int
     is_builtin: bool = False
     is_enabled: bool
+    has_validation_issues: bool = False
     published_version: int | None = None
     created_by: UUID
     project_id: UUID

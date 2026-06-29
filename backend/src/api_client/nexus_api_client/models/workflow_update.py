@@ -11,6 +11,7 @@ from ..types import UNSET, Unset
 if TYPE_CHECKING:
     from ..models.workflow_definition import WorkflowDefinition
     from ..models.workflow_update_labels_type_0 import WorkflowUpdateLabelsType0
+    from ..models.workflow_update_workflow_definition_type_1 import WorkflowUpdateWorkflowDefinitionType1
 
 
 T = TypeVar("T", bound="WorkflowUpdate")
@@ -22,25 +23,30 @@ class WorkflowUpdate:
 
     All fields are optional for partial updates.
     Supports metadata updates and workflow definition updates (creates new version).
+    Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+    on failure, the raw dict falls through to the service-level validator
+    where force_save can bypass all validation.
 
         Attributes:
             name (None | str | Unset): Update workflow name
             description (None | str | Unset): Update workflow description
             labels (None | Unset | WorkflowUpdateLabelsType0): Update workflow labels
-            workflow_definition (None | Unset | WorkflowDefinition): New workflow definition (auto-creates version)
+            workflow_definition (None | Unset | WorkflowDefinition | WorkflowUpdateWorkflowDefinitionType1): New workflow
+                definition (auto-creates version)
             change_description (None | str | Unset): Description of changes for version history
     """
 
     name: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
     labels: None | Unset | WorkflowUpdateLabelsType0 = UNSET
-    workflow_definition: None | Unset | WorkflowDefinition = UNSET
+    workflow_definition: None | Unset | WorkflowDefinition | WorkflowUpdateWorkflowDefinitionType1 = UNSET
     change_description: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.workflow_definition import WorkflowDefinition
         from ..models.workflow_update_labels_type_0 import WorkflowUpdateLabelsType0
+        from ..models.workflow_update_workflow_definition_type_1 import WorkflowUpdateWorkflowDefinitionType1
 
         name: None | str | Unset
         if isinstance(self.name, Unset):
@@ -66,6 +72,8 @@ class WorkflowUpdate:
         if isinstance(self.workflow_definition, Unset):
             workflow_definition = UNSET
         elif isinstance(self.workflow_definition, WorkflowDefinition):
+            workflow_definition = self.workflow_definition.to_dict()
+        elif isinstance(self.workflow_definition, WorkflowUpdateWorkflowDefinitionType1):
             workflow_definition = self.workflow_definition.to_dict()
         else:
             workflow_definition = self.workflow_definition
@@ -96,6 +104,7 @@ class WorkflowUpdate:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.workflow_definition import WorkflowDefinition
         from ..models.workflow_update_labels_type_0 import WorkflowUpdateLabelsType0
+        from ..models.workflow_update_workflow_definition_type_1 import WorkflowUpdateWorkflowDefinitionType1
 
         d = dict(src_dict)
 
@@ -134,7 +143,9 @@ class WorkflowUpdate:
 
         labels = _parse_labels(d.pop("labels", UNSET))
 
-        def _parse_workflow_definition(data: object) -> None | Unset | WorkflowDefinition:
+        def _parse_workflow_definition(
+            data: object,
+        ) -> None | Unset | WorkflowDefinition | WorkflowUpdateWorkflowDefinitionType1:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -147,7 +158,15 @@ class WorkflowUpdate:
                 return workflow_definition_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(None | Unset | WorkflowDefinition, data)
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                workflow_definition_type_1 = WorkflowUpdateWorkflowDefinitionType1.from_dict(data)
+
+                return workflow_definition_type_1
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | WorkflowDefinition | WorkflowUpdateWorkflowDefinitionType1, data)
 
         workflow_definition = _parse_workflow_definition(d.pop("workflow_definition", UNSET))
 

@@ -105,8 +105,9 @@ def sync_detailed(
     Args:
         body (WorkflowValidateRequest): Request body for the workflow validation endpoint.
 
-            Attributes:
-                workflow_definition: The workflow definition to validate
+            The definition is accepted as a raw dict so that structurally invalid
+            definitions reach the application-level validator for richer error
+            reporting with node-level attribution.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -139,8 +140,9 @@ def sync(
     Args:
         body (WorkflowValidateRequest): Request body for the workflow validation endpoint.
 
-            Attributes:
-                workflow_definition: The workflow definition to validate
+            The definition is accepted as a raw dict so that structurally invalid
+            definitions reach the application-level validator for richer error
+            reporting with node-level attribution.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -168,8 +170,9 @@ async def asyncio_detailed(
     Args:
         body (WorkflowValidateRequest): Request body for the workflow validation endpoint.
 
-            Attributes:
-                workflow_definition: The workflow definition to validate
+            The definition is accepted as a raw dict so that structurally invalid
+            definitions reach the application-level validator for richer error
+            reporting with node-level attribution.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -200,8 +203,9 @@ async def asyncio(
     Args:
         body (WorkflowValidateRequest): Request body for the workflow validation endpoint.
 
-            Attributes:
-                workflow_definition: The workflow definition to validate
+            The definition is accepted as a raw dict so that structurally invalid
+            definitions reach the application-level validator for richer error
+            reporting with node-level attribution.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

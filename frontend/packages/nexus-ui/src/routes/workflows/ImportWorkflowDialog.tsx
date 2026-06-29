@@ -23,9 +23,10 @@ import { workflowFetchClient } from '../../client'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
-import { getErrorMessage } from '../../utils/apiErrors'
+import { getErrorMessage, isRetryableValidationError } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { parseWorkflowFile, validateFileSize } from '../../utils/downloadWorkflowExport'
+import { forceCreateWorkflow } from '../../utils/workflowForceSave'
 
 import { importWorkflowSchema } from './importWorkflowSchema'
 import type { ImportWorkflowFormData } from './importWorkflowSchema'
@@ -86,6 +87,35 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
     setFileError(null)
   }
 
+  const onImportSuccess = (wfName: string, createdId?: string, hasWarnings?: boolean) => {
+    const title = hasWarnings ? 'Workflow imported with warnings' : 'Workflow imported'
+    const description = hasWarnings ? `Created "${wfName}" (has validation warnings)` : `Created "${wfName}"`
+    const actionLinks = createdId ? (
+      <AlertActionLink onClick={() => setLocation(`/workflow-builder/${createdId}`)}>Open workflow</AlertActionLink>
+    ) : undefined
+    showAlert({ variant: 'success', autoDismiss: true, title, description, actionLinks })
+    handleClose()
+    onSuccess()
+  }
+
+  const handleForceSave = async (wfName: string, definition: V2WorkflowDefinition, projectId: string) => {
+    setIsSaving(true)
+    try {
+      const { data: result, error } = await forceCreateWorkflow({
+        name: wfName,
+        workflow_definition: definition,
+        project_id: projectId,
+      })
+      if (error) {
+        showError({ title: 'Import failed', description: getErrorMessage(error) })
+        return
+      }
+      onImportSuccess(wfName, result?.id, true)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const onSubmit = async (data: ImportWorkflowFormData) => {
     if (!file) return
 
@@ -101,7 +131,6 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
     try {
       validateFileSize(file)
       const content = await file.text()
-      // parseWorkflowFile runtime-validates triggers/nodes/edges arrays
       const definition = parseWorkflowFile(content, file.name)
 
       const importedDescription =
@@ -124,22 +153,28 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
       })
 
       if (error) {
+        if (isRetryableValidationError(error)) {
+          showAlert({
+            variant: 'warning',
+            title: 'Workflow has validation warnings',
+            description: getErrorMessage(error),
+            actionLinks: (
+              <AlertActionLink
+                onClick={() =>
+                  detachPromise(handleForceSave(data.name, fullDefinition as V2WorkflowDefinition, selectedProjectId))
+                }
+              >
+                Save anyway
+              </AlertActionLink>
+            ),
+          })
+          return
+        }
         showError({ title: 'Import failed', description: getErrorMessage(error) })
         return
       }
 
-      const createdId = result?.id
-      showAlert({
-        variant: 'success',
-        autoDismiss: true,
-        title: 'Workflow imported',
-        description: `Created "${data.name}"`,
-        actionLinks: createdId ? (
-          <AlertActionLink onClick={() => setLocation(`/workflow-builder/${createdId}`)}>Open workflow</AlertActionLink>
-        ) : undefined,
-      })
-      handleClose()
-      onSuccess()
+      onImportSuccess(data.name, result?.id)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to parse file'
       setFileError(message)

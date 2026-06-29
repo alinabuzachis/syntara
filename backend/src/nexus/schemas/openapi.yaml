@@ -22012,6 +22012,15 @@ paths:
       x-app-permission:
         resource: workflow
         action: create
+      parameters:
+        - name: force_save
+          in: query
+          required: false
+          schema:
+            default: false
+            title: Force Save
+            type: boolean
+          description: Bypass validation errors and warnings to save the workflow definition as-is
       requestBody:
         required: true
         content:
@@ -22457,6 +22466,14 @@ paths:
             type: string
             format: uuid
             title: Workflow Id
+        - name: force_save
+          in: query
+          required: false
+          schema:
+            default: false
+            title: Force Save
+            type: boolean
+          description: Bypass validation errors and warnings to save the workflow definition as-is
       requestBody:
         required: true
         content:
@@ -31201,6 +31218,10 @@ components:
         is_enabled:
           type: boolean
           title: Is Enabled
+        has_validation_issues:
+          type: boolean
+          default: false
+          title: Has Validation Issues
         created_by:
           type: string
           format: uuid
@@ -31284,6 +31305,10 @@ components:
         is_enabled:
           type: boolean
           title: Is Enabled
+        has_validation_issues:
+          type: boolean
+          default: false
+          title: Has Validation Issues
         created_by:
           type: string
           format: uuid
@@ -31427,6 +31452,7 @@ components:
           description: Description of changes in this version
         workflow_definition:
           anyOf:
+            - $ref: '#/components/schemas/WorkflowDefinition'
             - additionalProperties: true
               type: object
             - type: 'null'
@@ -31477,6 +31503,9 @@ components:
         Schema for creating a new workflow (POST /workflows).
 
         Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+        Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+        on failure, the raw dict falls through to the service-level validator
+        where force_save can bypass all validation.
       required:
         - name
         - workflow_definition
@@ -31501,7 +31530,11 @@ components:
           title: Labels
           description: Workflow labels
         workflow_definition:
-          $ref: '#/components/schemas/WorkflowDefinition'
+          anyOf:
+            - $ref: '#/components/schemas/WorkflowDefinition'
+            - additionalProperties: true
+              type: object
+          title: Workflow Definition
           description: Workflow definition object
         project_id:
           type: string
@@ -31516,6 +31549,9 @@ components:
 
         All fields are optional for partial updates.
         Supports metadata updates and workflow definition updates (creates new version).
+        Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+        on failure, the raw dict falls through to the service-level validator
+        where force_save can bypass all validation.
       properties:
         name:
           anyOf:
@@ -31542,7 +31578,10 @@ components:
         workflow_definition:
           anyOf:
             - $ref: '#/components/schemas/WorkflowDefinition'
+            - additionalProperties: true
+              type: object
             - type: 'null'
+          title: Workflow Definition
           description: New workflow definition (auto-creates version)
         change_description:
           anyOf:
@@ -33065,14 +33104,18 @@ components:
       description: |-
         Request body for the workflow validation endpoint.
 
-        Attributes:
-            workflow_definition: The workflow definition to validate
+        The definition is accepted as a raw dict so that structurally invalid
+        definitions reach the application-level validator for richer error
+        reporting with node-level attribution.
       required:
         - workflow_definition
       additionalProperties: false
       properties:
         workflow_definition:
-          $ref: '#/components/schemas/WorkflowDefinition'
+          additionalProperties: true
+          type: object
+          title: Workflow Definition
+          description: Workflow definition to validate
     WorkflowValidationResult:
       type: object
       title: WorkflowValidationResult

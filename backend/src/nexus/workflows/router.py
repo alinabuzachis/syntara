@@ -43,6 +43,7 @@ from nexus.workflows.models import (
     WorkflowVersionRead,
 )
 from nexus.workflows.models.execution import ExecutionRead, TestExecutionCreate
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
 from nexus.workflows.services import ExecutionService, WorkflowService
 from nexus.workflows.utils.serialization import deserialize_workflow_version
 from nexus.workflows.validators import workflow_validator
@@ -123,6 +124,18 @@ def _build_workflow_with_version_response(workflow: Workflow, version: WorkflowV
     return WorkflowReadWithVersion.model_validate(base)
 
 
+def _definition_to_dict(wf_def: WorkflowDefinition | dict[str, Any]) -> dict[str, Any]:
+    """Convert a WorkflowDefinition or raw dict to a plain dict for the service layer.
+
+    Uses exclude_defaults=True to match the normalization in
+    _create_version_record (change detection) and to strip None values
+    that break the downstream JSON Schema validator (unevaluatedProperties).
+    """
+    if isinstance(wf_def, dict):
+        return wf_def
+    return wf_def.model_dump(exclude_defaults=True)
+
+
 # ============================================================================
 # Dependency Injection Providers
 # ============================================================================
@@ -175,10 +188,10 @@ async def validate_workflow_definition(
     request: WorkflowValidateRequest,
 ) -> WorkflowValidationResult:
     """Validate a workflow definition without saving it."""
-    result = workflow_validator.collect_validation_issues(request.workflow_definition.model_dump(exclude_defaults=True))
-    if not result.valid:
-        raise WorkflowDefinitionInvalidError(result)
-    return result
+    result = workflow_validator.collect_findings(request.workflow_definition)
+    if not result.is_valid:
+        raise WorkflowDefinitionInvalidError(result.to_legacy(), validation_result=result)
+    return result.to_legacy()
 
 
 @_validate_router.post(
@@ -193,7 +206,7 @@ async def validate_workflow_definition_detailed(
     request: WorkflowValidateRequest,
 ) -> ValidationResult:
     """Validate a workflow definition and return detailed per-finding results."""
-    result = workflow_validator.collect_findings(request.workflow_definition.model_dump(exclude_defaults=True))
+    result = workflow_validator.collect_findings(request.workflow_definition)
     if not result.is_valid:
         raise WorkflowDefinitionInvalidError(result.to_legacy(), validation_result=result)
     return result
@@ -213,14 +226,18 @@ router.include_router(_validate_router)
 async def create_workflow(
     request: WorkflowCreate,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
+    force_save: Annotated[  # noqa: FBT002
+        bool, Query(description="Bypass validation errors and warnings to save the workflow definition as-is")
+    ] = False,
 ) -> Workflow:
     """Create a new workflow with initial version."""
     workflow, _ = await service.create_workflow(
         name=request.name,
         description=request.description,
         labels=request.labels,
-        workflow_definition=request.workflow_definition.model_dump(exclude_defaults=True),
+        workflow_definition=_definition_to_dict(request.workflow_definition),
         project_id=request.project_id,
+        force_save=force_save,
     )
     return workflow
 
@@ -277,6 +294,9 @@ async def update_workflow(
     workflow_id: UUID,
     request: WorkflowUpdate,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
+    force_save: Annotated[  # noqa: FBT002
+        bool, Query(description="Bypass validation errors and warnings to save the workflow definition as-is")
+    ] = False,
 ) -> WorkflowReadWithVersion:
     """Update workflow.
 
@@ -290,10 +310,11 @@ async def update_workflow(
         name=request.name,
         description=request.description,
         labels=request.labels,
-        workflow_definition=request.workflow_definition.model_dump(exclude_defaults=True)
-        if request.workflow_definition
+        workflow_definition=_definition_to_dict(request.workflow_definition)
+        if request.workflow_definition is not None
         else None,
         change_description=request.change_description,
+        force_save=force_save,
     )
 
     return _build_workflow_with_version_response(workflow, current_version)
@@ -454,7 +475,9 @@ async def publish_workflow_version(
         version=version,
         publish_name=request.publish_name,
         change_description=request.change_description,
-        workflow_definition=request.workflow_definition,
+        workflow_definition=_definition_to_dict(request.workflow_definition)
+        if request.workflow_definition is not None
+        else None,
     )
     return _build_workflow_with_version_response(workflow, published_version)
 

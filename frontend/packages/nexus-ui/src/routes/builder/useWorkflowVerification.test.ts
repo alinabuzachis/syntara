@@ -139,8 +139,8 @@ describe('useWorkflowVerification', () => {
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_VALIDATION_ERRORS',
         payload: [
-          { message: 'Node A is disconnected', nodeId: 'node-1' },
-          { message: 'Missing condition branch', nodeId: null },
+          { message: 'Node A is disconnected', nodeId: 'node-1', severity: 'error' },
+          { message: 'Missing condition branch', nodeId: null, severity: 'error' },
         ],
       })
       expect(mockShowError).not.toHaveBeenCalled()
@@ -178,8 +178,8 @@ describe('useWorkflowVerification', () => {
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_VALIDATION_ERRORS',
         payload: [
-          { message: 'Workflow must have at least one trigger', nodeId: null },
-          { message: 'Node config invalid', nodeId: 'node-2' },
+          { message: 'Workflow must have at least one trigger', nodeId: null, severity: 'error' },
+          { message: 'Node config invalid', nodeId: 'node-2', severity: 'error' },
         ],
       })
     })
@@ -321,8 +321,8 @@ describe('useWorkflowVerification', () => {
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_VALIDATION_ERRORS',
         payload: [
-          { message: 'Run Job: Node is disconnected', nodeId: 'node-1', nodeName: 'Run Job' },
-          { message: 'Missing trigger', nodeId: null },
+          { message: 'Run Job: Node is disconnected', nodeId: 'node-1', nodeName: 'Run Job', severity: 'error' },
+          { message: 'Missing trigger', nodeId: null, severity: 'error' },
         ],
       })
     })
@@ -542,8 +542,8 @@ describe('extractValidationErrors', () => {
     }
     const result = extractValidationErrors(err)
     expect(result).toEqual([
-      { message: 'Error 1', nodeId: 'node-1' },
-      { message: 'Error 2', nodeId: null },
+      { message: 'Error 1', nodeId: 'node-1', severity: 'error' },
+      { message: 'Error 2', nodeId: null, severity: 'error' },
     ])
   })
 
@@ -555,8 +555,8 @@ describe('extractValidationErrors', () => {
     expect(extractValidationErrors(undefined)).toBeNull()
   })
 
-  it('returns empty array when validation_result has empty errors array', () => {
-    expect(extractValidationErrors({ validation_result: { errors: [] } })).toEqual([])
+  it('returns null when validation_result has empty errors array', () => {
+    expect(extractValidationErrors({ validation_result: { errors: [] } })).toBeNull()
   })
 
   it('returns null when validation_result has no errors field', () => {
@@ -570,6 +570,8 @@ describe('extractValidationErrors', () => {
       },
     }
     const result = extractValidationErrors(err)
-    expect(result).toEqual([{ message: 'Run Job: Node is disconnected', nodeId: 'node-5', nodeName: 'Run Job' }])
+    expect(result).toEqual([
+      { message: 'Run Job: Node is disconnected', nodeId: 'node-5', nodeName: 'Run Job', severity: 'error' },
+    ])
   })
 })

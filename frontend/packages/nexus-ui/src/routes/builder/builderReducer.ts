@@ -4,10 +4,13 @@ import type { NodeType } from '../workflows/canvas/nodes/NodeType'
 
 import type { FlowPosition } from './types'
 
+export type ValidationSeverity = 'error' | 'warning'
+
 export type ValidationError = {
   message: string
   nodeId: string | null
   nodeName?: string
+  severity?: ValidationSeverity
 }
 
 // Builder state interface
@@ -38,6 +41,7 @@ export type BuilderState = {
   workflowDescription: string
   workflowTags: string[]
   validationErrors: ValidationError[]
+  validationBannerDismissed: boolean
 }
 
 // Builder action types
@@ -96,6 +100,7 @@ export type BuilderAction =
     }
   | { type: 'SET_VALIDATION_ERRORS'; payload: ValidationError[] }
   | { type: 'CLEAR_VALIDATION_ERRORS' }
+  | { type: 'DISMISS_VALIDATION_BANNER' }
 
 // Lookup table for simple state updates - maps action type to the state key it updates
 type SimpleActionType = (typeof SIMPLE_ACTIONS)[number]
@@ -146,7 +151,6 @@ const SIMPLE_STATE_KEY_MAP: Record<
   SET_WORKFLOW_DESCRIPTION: 'workflowDescription',
   SET_WORKFLOW_TAGS: 'workflowTags',
   SET_SELECTED_TRIGGER: 'selectedTriggerIndex',
-  SET_VALIDATION_ERRORS: 'validationErrors',
 }
 
 /**
@@ -335,7 +339,6 @@ const SIMPLE_ACTIONS = [
   'SET_WORKFLOW_DESCRIPTION',
   'SET_WORKFLOW_TAGS',
   'SET_SELECTED_TRIGGER',
-  'SET_VALIDATION_ERRORS',
 ] as const
 
 // Panel action types
@@ -350,6 +353,19 @@ const PANEL_ACTIONS = [
   'CLOSE_OTHER_PANELS',
 ] as const
 
+function handleValidationAction(state: BuilderState, action: BuilderAction): BuilderState | null {
+  if (action.type === 'SET_VALIDATION_ERRORS') {
+    return { ...state, validationErrors: action.payload, validationBannerDismissed: false }
+  }
+  if (action.type === 'CLEAR_VALIDATION_ERRORS') {
+    return { ...state, validationErrors: [], validationBannerDismissed: false }
+  }
+  if (action.type === 'DISMISS_VALIDATION_BANNER') {
+    return { ...state, validationBannerDismissed: true }
+  }
+  return null
+}
+
 // Reducer function
 export function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
   // Route to appropriate handler based on action type category
@@ -360,6 +376,9 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
   if (PANEL_ACTIONS.includes(action.type as (typeof PANEL_ACTIONS)[number])) {
     return handlePanelActions(state, action)
   }
+
+  const validationResult = handleValidationAction(state, action)
+  if (validationResult) return validationResult
 
   // Remaining complex actions
   // Exhaustiveness checked in helper functions; switch only handles unrouted actions
@@ -433,8 +452,6 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         ...state,
         mostRecentRunPanelOpen: false,
       }
-    case 'CLEAR_VALIDATION_ERRORS':
-      return { ...state, validationErrors: [] }
     case 'INIT_WORKFLOW':
       // SECURITY: Reset all UI state when initializing a new workflow
       // Prevents stale UI state (selected nodes, open panels) from persisting across workflow changes
@@ -458,6 +475,7 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         mostRecentExecutionId: null,
         mostRecentRunPanelOpen: false,
         validationErrors: [],
+        validationBannerDismissed: false,
         // Reset edge connection context
         sourceNodeId: null,
         targetNodeId: null,
@@ -501,5 +519,6 @@ export function getInitialBuilderState(): BuilderState {
     workflowDescription: '',
     workflowTags: [],
     validationErrors: [],
+    validationBannerDismissed: false,
   }
 }

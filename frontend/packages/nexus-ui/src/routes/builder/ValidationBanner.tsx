@@ -50,24 +50,32 @@ function groupErrors(errors: ValidationError[]): ErrorGroup[] {
 
 type ValidationBannerProps = Readonly<{
   errors: ValidationError[]
+  dismissed: boolean
   dispatch: (action: BuilderAction) => void
   onNavigateToNode?: (nodeId: string) => void
 }>
 
-export function ValidationBanner({ errors, dispatch, onNavigateToNode }: ValidationBannerProps) {
+export function ValidationBanner({ errors, dismissed, dispatch, onNavigateToNode }: ValidationBannerProps) {
   const groups = useMemo(() => groupErrors(errors), [errors])
+  const hasErrors = errors.some((e) => e.severity !== 'warning')
+  const variant = hasErrors ? 'danger' : 'warning'
+  const count = errors.length
+  const plural = count === 1 ? '' : 's'
+  const title = hasErrors
+    ? `Verification failed — ${count} issue${plural} found`
+    : `Saved with ${count} warning${plural}`
 
-  if (errors.length === 0) return null
+  if (errors.length === 0 || dismissed) return null
 
   /* v8 ignore start -- phantom branches from compiled JSX props and map callback */
   return (
     <StackItem>
       <Alert
-        variant="danger"
+        variant={variant}
         isInline
         isExpandable
-        title={`Verification failed — ${errors.length} issue${errors.length === 1 ? '' : 's'} found`}
-        actionClose={<AlertActionCloseButton onClose={() => dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })} />}
+        title={title}
+        actionClose={<AlertActionCloseButton onClose={() => dispatch({ type: 'DISMISS_VALIDATION_BANNER' })} />}
       >
         <DescriptionList isCompact isFluid isHorizontal>
           {groups.map((group) => (

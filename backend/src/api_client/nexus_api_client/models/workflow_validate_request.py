@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.workflow_definition import WorkflowDefinition
+    from ..models.workflow_validate_request_workflow_definition import WorkflowValidateRequestWorkflowDefinition
 
 
 T = TypeVar("T", bound="WorkflowValidateRequest")
@@ -16,23 +16,15 @@ T = TypeVar("T", bound="WorkflowValidateRequest")
 class WorkflowValidateRequest:
     """Request body for the workflow validation endpoint.
 
-    Attributes:
-        workflow_definition: The workflow definition to validate
+    The definition is accepted as a raw dict so that structurally invalid
+    definitions reach the application-level validator for richer error
+    reporting with node-level attribution.
 
         Attributes:
-            workflow_definition (WorkflowDefinition): JSON Schema for graph-based workflow definitions in the Nexus Workflow
-                Engine v2.
-
-                Attributes:
-                    schema_version: Schema version that this workflow definition conforms to
-                    name: Workflow name
-                    description: Human-readable description of the workflow's purpose
-                    triggers: Trigger nodes that define how the workflow is initiated
-                    nodes: Execution and control nodes in the workflow graph
-                    edges: Directed edges connecting triggers and nodes in the workflow graph
+            workflow_definition (WorkflowValidateRequestWorkflowDefinition): Workflow definition to validate
     """
 
-    workflow_definition: WorkflowDefinition
+    workflow_definition: WorkflowValidateRequestWorkflowDefinition
 
     def to_dict(self) -> dict[str, Any]:
         workflow_definition = self.workflow_definition.to_dict()
@@ -49,10 +41,10 @@ class WorkflowValidateRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.workflow_definition import WorkflowDefinition
+        from ..models.workflow_validate_request_workflow_definition import WorkflowValidateRequestWorkflowDefinition
 
         d = dict(src_dict)
-        workflow_definition = WorkflowDefinition.from_dict(d.pop("workflow_definition"))
+        workflow_definition = WorkflowValidateRequestWorkflowDefinition.from_dict(d.pop("workflow_definition"))
 
         workflow_validate_request = cls(
             workflow_definition=workflow_definition,

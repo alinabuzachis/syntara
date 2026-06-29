@@ -1086,6 +1086,11 @@ export interface components {
       /** Is Enabled */
       is_enabled: boolean
       /**
+       * Has Validation Issues
+       * @default false
+       */
+      has_validation_issues?: boolean
+      /**
        * Created By
        * Format: uuid
        */

@@ -129,7 +129,7 @@ describe('ValidationBanner', () => {
   const mockDispatch = vi.fn()
 
   it('renders nothing when errors is empty', () => {
-    const { container } = render(<ValidationBanner errors={[]} dispatch={mockDispatch} />)
+    const { container } = render(<ValidationBanner errors={[]} dismissed={false} dispatch={mockDispatch} />)
 
     expect(container).toBeEmptyDOMElement()
   })
@@ -140,7 +140,7 @@ describe('ValidationBanner', () => {
       { message: 'Missing trigger', nodeId: null },
     ]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} />)
+    render(<ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} />)
     await expandAlert()
 
     expect(screen.getByText('Verification failed — 2 issues found')).toBeInTheDocument()
@@ -149,28 +149,30 @@ describe('ValidationBanner', () => {
   it('uses singular "issue" for a single error', async () => {
     const errors: ValidationError[] = [{ message: 'Node A is disconnected', nodeId: 'node-1' }]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} />)
+    render(<ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} />)
     await expandAlert()
 
     expect(screen.getByText('Verification failed — 1 issue found')).toBeInTheDocument()
   })
 
-  it('dispatches CLEAR_VALIDATION_ERRORS when close button is clicked', async () => {
+  it('dispatches DISMISS_VALIDATION_BANNER when close button is clicked', async () => {
     const errors: ValidationError[] = [{ message: 'Some error', nodeId: null }]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} />)
+    render(<ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} />)
     const user = await expandAlert()
 
     await user.click(screen.getByRole('button', { name: /close/i }))
 
-    expect(mockDispatch).toHaveBeenCalledWith({ type: 'CLEAR_VALIDATION_ERRORS' })
+    expect(mockDispatch).toHaveBeenCalledWith({ type: 'DISMISS_VALIDATION_BANNER' })
   })
 
   it('renders node name as clickable term in description list', async () => {
     const onNavigateToNode = vi.fn()
     const errors: ValidationError[] = [{ message: 'MyNode: is disconnected', nodeId: 'node-1', nodeName: 'MyNode' }]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />)
+    render(
+      <ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />
+    )
     await expandAlert()
 
     expect(screen.getByRole('button', { name: 'MyNode' })).toBeInTheDocument()
@@ -181,7 +183,9 @@ describe('ValidationBanner', () => {
     const onNavigateToNode = vi.fn()
     const errors: ValidationError[] = [{ message: 'MyNode: is disconnected', nodeId: 'node-1', nodeName: 'MyNode' }]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />)
+    render(
+      <ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />
+    )
     const user = await expandAlert()
 
     await user.click(screen.getByRole('button', { name: 'MyNode' }))
@@ -196,7 +200,9 @@ describe('ValidationBanner', () => {
       { message: 'Some raw error', nodeId: null },
     ]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />)
+    render(
+      <ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />
+    )
     await expandAlert()
 
     expect(screen.getByText('Workflow')).toBeInTheDocument()
@@ -211,7 +217,7 @@ describe('ValidationBanner', () => {
       { message: 'Missing trigger', nodeId: null },
     ]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} />)
+    render(<ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} />)
     await expandAlert()
 
     expect(screen.getByText('MyNode')).toBeInTheDocument()
@@ -232,7 +238,9 @@ describe('ValidationBanner', () => {
       },
     ]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />)
+    render(
+      <ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />
+    )
     await expandAlert()
 
     expect(screen.getByRole('button', { name: 'Script5' })).toBeInTheDocument()
@@ -245,7 +253,9 @@ describe('ValidationBanner', () => {
       { message: "Script4: 'language' is a required property", nodeId: 'node-1', nodeName: 'Script4' },
     ]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />)
+    render(
+      <ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />
+    )
     await expandAlert()
 
     expect(screen.getByRole('button', { name: 'Script4' })).toBeInTheDocument()
@@ -263,7 +273,9 @@ describe('ValidationBanner', () => {
       },
     ]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />)
+    render(
+      <ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />
+    )
     await expandAlert()
 
     expect(screen.getByRole('button', { name: 'Bad ID' })).toBeInTheDocument()
@@ -278,7 +290,7 @@ describe('ValidationBanner', () => {
       { message: "'123_bad_id' does not match '^[a-zA-Z_][a-zA-Z0-9_]*$'", nodeId: null },
     ]
 
-    render(<ValidationBanner errors={errors} dispatch={mockDispatch} />)
+    render(<ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} />)
     await expandAlert()
 
     expect(screen.getByText('Workflow')).toBeInTheDocument()
@@ -295,7 +307,7 @@ describe('ValidationBanner', () => {
     ]
 
     const { container } = render(
-      <ValidationBanner errors={errors} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />
+      <ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />
     )
     await expandAlert()
 

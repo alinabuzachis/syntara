@@ -36,12 +36,15 @@ from nexus.workflows.audit.workflow_version import (
 from nexus.workflows.exceptions import (
     BuiltinWorkflowDeleteError,
     BuiltinWorkflowModifyError,
+    WorkflowDefinitionInvalidError,
+    WorkflowDefinitionWarningsError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
+from nexus.workflows.models.validation_finding import ValidationResult
 from nexus.workflows.models.workflow_definition import WorkflowDefinition
 from nexus.workflows.models.workflow_version import WorkflowVersionStatus
 from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
@@ -61,6 +64,27 @@ def reset_workflow_creation_counters() -> None:
     """Clear the workflow creation counters (testing helper)."""
     with _workflow_creation_lock:
         _workflow_creation_counts[:] = [0, 0]
+
+
+def _gate_on_validation(result: ValidationResult, *, force_save: bool) -> bool:
+    """Raise on validation failures unless *force_save* is set.
+
+    Returns:
+        ``True`` when the saved definition carries unresolved issues
+        (the caller must persist this on the workflow).
+
+    Raises:
+        WorkflowDefinitionInvalidError: errors present and *force_save* is False
+        WorkflowDefinitionWarningsError: only warnings and *force_save* is False
+
+    """
+    has_issues = result.error_count > 0 or result.warning_count > 0
+    if not force_save:
+        if result.error_count > 0:
+            raise WorkflowDefinitionInvalidError(result.to_legacy(), validation_result=result)
+        if result.warning_count > 0:
+            raise WorkflowDefinitionWarningsError(result)
+    return has_issues
 
 
 class WorkflowConvertResourceMixin(ConvertResourceMixin):
@@ -279,6 +303,8 @@ class WorkflowService(BaseService):
         labels: dict[str, Any],
         workflow_definition: dict[str, Any],
         project_id: UUID,
+        *,
+        force_save: bool = False,
     ) -> tuple[Workflow, WorkflowVersion]:
         """Create a new V2 workflow with initial version.
 
@@ -288,12 +314,14 @@ class WorkflowService(BaseService):
             labels: Optional key-value labels
             workflow_definition: V2 workflow definition as dict (triggers + nodes + edges)
             project_id: Project to assign workflow to
+            force_save: When True, bypass validation errors and warnings
 
         Returns:
             Tuple of (created workflow, initial version)
 
         Raises:
-            SafeValueError: If workflow definition is invalid (missing required fields)
+            WorkflowDefinitionInvalidError: If definition has errors and force_save is False
+            WorkflowDefinitionWarningsError: If definition has only warnings and force_save is False
             WorkflowNameConflictError: If workflow name already exists
 
         """
@@ -304,7 +332,17 @@ class WorkflowService(BaseService):
             MetricType.WORKFLOW_VALIDATION_DURATION,
             labels={"component": component.value, "operation": "create"},
         ):
-            workflow_validator.validate_workflow_definition(workflow_definition)
+            result = workflow_validator.collect_findings(workflow_definition)
+
+        has_validation_issues = _gate_on_validation(result, force_save=force_save)
+        if has_validation_issues:
+            logger.warning(
+                "Workflow created with validation bypass",
+                user_id=str(self.user.id),
+                error_count=result.error_count,
+                warning_count=result.warning_count,
+                findings=[f.message for f in result.findings[:10]],
+            )
 
         from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
 
@@ -331,6 +369,7 @@ class WorkflowService(BaseService):
             current_version=1,
             created_by=self.user.id,
             is_enabled=False,
+            has_validation_issues=has_validation_issues,
             project_id=project_id,
         )
 
@@ -604,6 +643,8 @@ class WorkflowService(BaseService):
         workflow: Workflow,
         workflow_definition: dict[str, Any],
         change_description: str | None,
+        *,
+        force_save: bool = False,
     ) -> WorkflowVersion | None:
         """Create new V2 workflow version from workflow_definition.
 
@@ -614,12 +655,14 @@ class WorkflowService(BaseService):
             workflow: Workflow to create version for
             workflow_definition: New V2 workflow definition as dict
             change_description: Description of changes
+            force_save: When True, bypass validation errors and warnings
 
         Returns:
             New WorkflowVersion if definition changed, None if unchanged
 
         Raises:
-            SafeValueError: If workflow definition is invalid (missing required fields)
+            WorkflowDefinitionInvalidError: If definition has errors and force_save is False
+            WorkflowDefinitionWarningsError: If definition has only warnings and force_save is False
 
         Note:
             This method compares the new definition with the current version.
@@ -632,7 +675,18 @@ class WorkflowService(BaseService):
             MetricType.WORKFLOW_VALIDATION_DURATION,
             labels={"component": ComponentLabel.WORKFLOW_ENGINE.value, "operation": "version_update"},
         ):
-            workflow_validator.validate_workflow_definition(workflow_definition)
+            result = workflow_validator.collect_findings(workflow_definition)
+
+        workflow.has_validation_issues = _gate_on_validation(result, force_save=force_save)
+        if workflow.has_validation_issues:
+            logger.warning(
+                "Workflow version saved with validation bypass",
+                workflow_id=str(workflow.id),
+                user_id=str(self.user.id),
+                error_count=result.error_count,
+                warning_count=result.warning_count,
+                findings=[f.message for f in result.findings[:10]],
+            )
 
         if workflow.project_id is not None:
             await self._validate_credential_project_scope(workflow_definition, workflow.project_id)
@@ -648,6 +702,7 @@ class WorkflowService(BaseService):
         *,
         workflow_definition: dict[str, Any] | None = None,
         change_description: str | None = None,
+        force_save: bool = False,
     ) -> tuple[Workflow, WorkflowVersion]:
         """Update workflow metadata and/or create new version.
 
@@ -658,15 +713,16 @@ class WorkflowService(BaseService):
             labels: New labels (optional)
             workflow_definition: New V2 workflow definition as dict (optional, creates version)
             change_description: Description of changes (for version history)
+            force_save: When True, bypass validation errors and warnings
 
         Returns:
             Tuple of (updated workflow, current version)
 
         Raises:
             WorkflowNotFoundError: If workflow not found
-            SafeValueError: If workflow definition is invalid
+            WorkflowDefinitionInvalidError: If definition has errors and force_save is False
+            WorkflowDefinitionWarningsError: If definition has only warnings and force_save is False
             WorkflowNameConflictError: If new name conflicts
-            ValidationError: If workflow definition invalid
             ValueError: If name is empty
 
         """
@@ -691,6 +747,7 @@ class WorkflowService(BaseService):
                 workflow,
                 workflow_definition=workflow_definition,
                 change_description=change_description,
+                force_save=force_save,
             )
 
         # Flush with name uniqueness check (stays within the same transaction)

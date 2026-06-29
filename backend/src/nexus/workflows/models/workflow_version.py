@@ -18,6 +18,7 @@ from nexus.core.constants import FieldLimits
 from nexus.core.models.base import SoftDeletableResource, UserOwnedResource
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
 
 
 class WorkflowVersionStatus(StrEnum):
@@ -191,7 +192,7 @@ class PublishVersionRequest(SQLModel):
 
     publish_name: str | None = Field(None, max_length=255, description="Optional name for this published version")
     change_description: str | None = Field(None, max_length=1024, description="Description of changes in this version")
-    workflow_definition: dict[str, Any] | None = Field(
+    workflow_definition: WorkflowDefinition | dict[str, Any] | None = Field(
         None, description="Optional workflow definition to publish directly (skips separate save step)"
     )
 

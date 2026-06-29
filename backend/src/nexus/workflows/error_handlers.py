@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         WebhookTriggerNotFoundError,
         WebhookTriggerPathConflictError,
         WorkflowDefinitionInvalidError,
+        WorkflowDefinitionWarningsError,
         WorkflowNameConflictError,
         WorkflowNotFoundError,
         WorkflowNotPublishedError,
@@ -53,6 +54,25 @@ def build_validation_problem_response(
     }
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=content,
+        media_type="application/problem+json",
+    )
+
+
+def definition_warnings_handler(request: Request, exc: "WorkflowDefinitionWarningsError") -> JSONResponse:
+    """Return RFC 9457 problem details for warnings-only validation results."""
+    logger.warning("Workflow definition has validation warnings", exc_info=exc)
+    content = {
+        "type": PROBLEM_TYPES["definition_warnings"],
+        "title": "Workflow Definition Has Warnings",
+        "detail": "The workflow definition has validation warnings that can be bypassed with force_save",
+        "code": "WORKFLOW_DEFINITION_WARNINGS",
+        "retryable": True,
+        "instance": str(request.url),
+        "validation_result": exc.validation_result.model_dump(mode="json"),
+    }
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
         content=content,
         media_type="application/problem+json",
     )

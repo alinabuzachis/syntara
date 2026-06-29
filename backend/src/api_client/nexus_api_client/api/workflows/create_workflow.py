@@ -8,18 +8,26 @@ from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
 from ...models.workflow_create import WorkflowCreate
 from ...models.workflow_read import WorkflowRead
-from ...types import Response
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    *,
-    body: WorkflowCreate,
+    *, body: WorkflowCreate, force_save: bool | Unset = False, additional_params: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
+
+    params: dict[str, Any] = {}
+    if isinstance(additional_params, dict):
+        params = additional_params
+
+    params["force_save"] = force_save
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "post",
         "url": "/workflows",
+        "params": params,
     }
 
     _kwargs["json"] = body.to_dict()
@@ -96,15 +104,21 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: WorkflowCreate,
+    force_save: bool | Unset = False,
+    additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | WorkflowRead]:
     """Create Workflow
 
      Create a new workflow with initial version.
 
     Args:
+        force_save (bool | Unset):  Default: False.
         body (WorkflowCreate): Schema for creating a new workflow (POST /workflows).
 
             Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+            Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+            on failure, the raw dict falls through to the service-level validator
+            where force_save can bypass all validation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -114,9 +128,7 @@ def sync_detailed(
         Response[ErrorData | WorkflowRead]
     """
 
-    kwargs = _get_kwargs(
-        body=body,
-    )
+    kwargs = _get_kwargs(body=body, force_save=force_save, additional_params=additional_params)
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -129,15 +141,20 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: WorkflowCreate,
+    force_save: bool | Unset = False,
 ) -> ErrorData | WorkflowRead | None:
     """Create Workflow
 
      Create a new workflow with initial version.
 
     Args:
+        force_save (bool | Unset):  Default: False.
         body (WorkflowCreate): Schema for creating a new workflow (POST /workflows).
 
             Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+            Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+            on failure, the raw dict falls through to the service-level validator
+            where force_save can bypass all validation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -150,6 +167,7 @@ def sync(
     return sync_detailed(
         client=client,
         body=body,
+        force_save=force_save,
     ).parsed
 
 
@@ -157,15 +175,20 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: WorkflowCreate,
+    force_save: bool | Unset = False,
 ) -> Response[ErrorData | WorkflowRead]:
     """Create Workflow
 
      Create a new workflow with initial version.
 
     Args:
+        force_save (bool | Unset):  Default: False.
         body (WorkflowCreate): Schema for creating a new workflow (POST /workflows).
 
             Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+            Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+            on failure, the raw dict falls through to the service-level validator
+            where force_save can bypass all validation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -177,6 +200,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         body=body,
+        force_save=force_save,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -188,15 +212,20 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: WorkflowCreate,
+    force_save: bool | Unset = False,
 ) -> ErrorData | WorkflowRead | None:
     """Create Workflow
 
      Create a new workflow with initial version.
 
     Args:
+        force_save (bool | Unset):  Default: False.
         body (WorkflowCreate): Schema for creating a new workflow (POST /workflows).
 
             Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+            Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+            on failure, the raw dict falls through to the service-level validator
+            where force_save can bypass all validation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -210,5 +239,6 @@ async def asyncio(
         await asyncio_detailed(
             client=client,
             body=body,
+            force_save=force_save,
         )
     ).parsed

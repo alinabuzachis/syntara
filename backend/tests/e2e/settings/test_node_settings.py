@@ -82,17 +82,20 @@ def _run_workflow(
     workflows_list = api.workflows.list(additional_params={"name": name}).assert_and_get()
     existing = [w for w in workflows_list.resources if w.name == name]
 
+    wf_def = WorkflowDefinition.from_dict(definition)
+
     if existing:
         wf_id = existing[0].id
         api.workflows.update(
-            workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=WorkflowDefinition.from_dict(definition))
+            workflow_id=wf_id,
+            body=WorkflowUpdate(workflow_definition=wf_def),
         )
     else:
         workflow = api.workflows.create(
             body=WorkflowCreate(
                 name=name,
                 description=f"E2E: {name}",
-                workflow_definition=WorkflowDefinition.from_dict(definition),
+                workflow_definition=wf_def,
                 project_id=project_id,
             )
         ).assert_and_get()

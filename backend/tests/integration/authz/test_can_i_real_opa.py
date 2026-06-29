@@ -106,22 +106,22 @@ async def test_admin_policy_create_allowed(
 
 
 @pytest.mark.asyncio
-async def test_user_workflow_read_allowed(
+async def test_user_directory_read_allowed(
     test_db_session: AsyncSession,
     real_opa_client: OPAClient,
 ) -> None:
-    """Regular user + user:read must be allowed via real OPA HTTP."""
+    """Regular user + user-directory:read must be allowed via real OPA HTTP."""
     user = await _make_user(test_db_session, "test-user")
     await _assign_role(test_db_session, user, "user")
 
     result = await authorize(
         test_db_session,
         real_opa_client,
-        AuthzRequest(user_id=user.id, action="read", resource_type="user", resource_id=""),
+        AuthzRequest(user_id=user.id, action="read", resource_type="user-directory", resource_id=""),
     )
 
     assert result.allowed is True, (
-        f"real OPA returned allowed={result.allowed} for user+user:read "
+        f"real OPA returned allowed={result.allowed} for user+user-directory:read "
         f"(matched_policy='{result.matched_policy}', denied={result.denied})"
     )
 

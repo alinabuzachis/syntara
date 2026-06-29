@@ -1,11 +1,9 @@
 """Workflow validation result models."""
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pydantic import ConfigDict, Field
 from sqlmodel import SQLModel
-
-from nexus.workflows.models.workflow_definition import WorkflowDefinition
 
 
 class ValidationIssue(SQLModel):
@@ -68,11 +66,11 @@ class WorkflowValidationProblemDetail(SQLModel):
 class WorkflowValidateRequest(SQLModel):
     """Request body for the workflow validation endpoint.
 
-    Attributes:
-        workflow_definition: The workflow definition to validate
-
+    The definition is accepted as a raw dict so that structurally invalid
+    definitions reach the application-level validator for richer error
+    reporting with node-level attribution.
     """
 
-    workflow_definition: WorkflowDefinition
+    workflow_definition: dict[str, Any] = Field(..., description="Workflow definition to validate")
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]

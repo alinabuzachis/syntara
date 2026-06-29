@@ -9,6 +9,7 @@ import {
   isAdminConfigurationError,
   isConflictError,
   isRetryableError,
+  isRetryableValidationError,
   isServiceUnavailableError,
   isValidationError,
   sanitizeUserFacingErrorText,
@@ -409,6 +410,27 @@ describe('apiErrors', () => {
       expect(isValidationError({ status: 404 })).toBe(false)
       expect(isValidationError({ code: 'WORKFLOW_NOT_FOUND' })).toBe(false)
       expect(isValidationError(null)).toBe(false)
+    })
+  })
+
+  describe('isRetryableValidationError', () => {
+    it('returns true for WORKFLOW_DEFINITION_INVALID code', () => {
+      expect(isRetryableValidationError({ code: 'WORKFLOW_DEFINITION_INVALID' })).toBe(true)
+    })
+
+    it('returns true for WORKFLOW_DEFINITION_WARNINGS code', () => {
+      expect(isRetryableValidationError({ code: 'WORKFLOW_DEFINITION_WARNINGS' })).toBe(true)
+    })
+
+    it('returns false for other error codes', () => {
+      expect(isRetryableValidationError({ code: 'WORKFLOW_NAME_CONFLICT' })).toBe(false)
+      expect(isRetryableValidationError({ code: 'VALIDATION_ERROR' })).toBe(false)
+    })
+
+    it('returns false for null or missing code', () => {
+      expect(isRetryableValidationError(null)).toBe(false)
+      expect(isRetryableValidationError({})).toBe(false)
+      expect(isRetryableValidationError({ status: 409 })).toBe(false)
     })
   })
 })

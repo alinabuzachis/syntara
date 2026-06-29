@@ -142,7 +142,7 @@ def create_and_run_workflow(
 
     list_response = _retry_api_call(
         lambda: api.workflows.list(
-            additional_params={"name": name, "project_id[eq]": str(project_id)},
+            additional_params={"name": name},
         )
     )
     workflows_list = list_response.assert_and_get()
@@ -150,13 +150,18 @@ def create_and_run_workflow(
 
     wf_def = WorkflowDefinition.from_dict(definition)
 
-    if existing:
+    if existing and UUID(str(existing[0].project_id)) == project_id:
         wf_id = existing[0].id
         update_response = _retry_api_call(
-            lambda: api.workflows.update(workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=wf_def))
+            lambda: api.workflows.update(
+                workflow_id=wf_id,
+                body=WorkflowUpdate(workflow_definition=wf_def),
+            )
         )
         update_response.assert_and_get()
     else:
+        if existing:
+            _retry_api_call(lambda: api.workflows.delete(workflow_id=existing[0].id))
         create_response = _retry_api_call(
             lambda: api.workflows.create(
                 body=WorkflowCreate(

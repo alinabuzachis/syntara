@@ -26,6 +26,8 @@ export type ApiErrorCode =
   | 'WORKFLOW_DISABLED'
   | 'WORKFLOW_NOT_FOUND'
   | 'WORKFLOW_VERSION_NOT_FOUND'
+  | 'WORKFLOW_DEFINITION_INVALID'
+  | 'WORKFLOW_DEFINITION_WARNINGS'
   // Provider/Tool errors
   | 'PROVIDER_NAME_CONFLICT'
   | 'PROVIDER_NOT_FOUND'
@@ -517,6 +519,8 @@ const ERROR_TITLES: Record<string, string> = {
   WORKFLOW_DISABLED: 'Workflow Disabled',
   WORKFLOW_NOT_FOUND: 'Workflow Not Found',
   WORKFLOW_VERSION_NOT_FOUND: 'Workflow Version Not Found',
+  WORKFLOW_DEFINITION_INVALID: 'Workflow Definition Invalid',
+  WORKFLOW_DEFINITION_WARNINGS: 'Workflow Definition Has Warnings',
   // Provider/Tool errors
   PROVIDER_NAME_CONFLICT: 'Provider Name Conflict',
   PROVIDER_NOT_FOUND: 'Provider Not Found',
@@ -683,16 +687,26 @@ export function isRetryableError(error: unknown): boolean {
  * }
  */
 export function isConflictError(error: unknown): boolean {
-  // Check status code
-  if (getErrorStatus(error) === 409) {
-    return true
-  }
-
-  // Check RFC 9457 conflict error codes
+  // Check RFC 9457 conflict error codes first (more specific)
   const code = getErrorCode(error)
   if (code === 'WORKFLOW_NAME_CONFLICT' || code === 'PROVIDER_NAME_CONFLICT') {
     return true
   }
 
+  // Check status code, but exclude definition warnings which also use 409
+  if (getErrorStatus(error) === 409 && code !== 'WORKFLOW_DEFINITION_WARNINGS') {
+    return true
+  }
+
   return false
+}
+
+/**
+ * Check if an error is a retryable workflow definition validation failure
+ * (either 422 WORKFLOW_DEFINITION_INVALID or 409 WORKFLOW_DEFINITION_WARNINGS).
+ * Both can be bypassed by re-submitting with force_save=true.
+ */
+export function isRetryableValidationError(error: unknown): boolean {
+  const code = getErrorCode(error)
+  return code === 'WORKFLOW_DEFINITION_INVALID' || code === 'WORKFLOW_DEFINITION_WARNINGS'
 }

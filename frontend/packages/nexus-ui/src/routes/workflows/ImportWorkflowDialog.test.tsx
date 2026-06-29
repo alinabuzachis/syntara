@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -214,6 +214,103 @@ describe('ImportWorkflowDialog', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Unexpected token/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('force_save on validation warnings', () => {
+    const validContent = JSON.stringify({
+      triggers: [{ id: 't1', type: 'webhook' }],
+      nodes: [{ id: 'n1', type: 'action' }],
+      edges: [{ from: 't1', to: 'n1' }],
+    })
+
+    async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>) {
+      await user.upload(getFileInput(), new File([validContent], 'wf.json', { type: 'application/json' }))
+      await user.type(screen.getByLabelText(/Workflow name/i), 'Test WF')
+      await user.click(screen.getByRole('button', { name: /^Import$/i }))
+    }
+
+    it('shows validation warning alert when API returns retryable error', async () => {
+      const user = userEvent.setup()
+      mockPost.mockResolvedValue({ error: { code: 'WORKFLOW_DEFINITION_WARNINGS', detail: 'has warnings' } })
+
+      render(<ImportWorkflowDialog {...defaultProps} />)
+
+      await fillAndSubmit(user)
+
+      await waitFor(() => {
+        expect(mockShowAlert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variant: 'warning',
+            title: 'Workflow has validation warnings',
+          })
+        )
+      })
+      expect(defaultProps.onSuccess).not.toHaveBeenCalled()
+    })
+
+    it('"Save anyway" triggers force save and succeeds', async () => {
+      const user = userEvent.setup()
+      const onSuccess = vi.fn()
+      const onClose = vi.fn()
+      mockPost
+        .mockResolvedValueOnce({ error: { code: 'WORKFLOW_DEFINITION_WARNINGS', detail: 'has warnings' } })
+        .mockResolvedValueOnce({ data: { id: 'forced-id' } })
+
+      render(<ImportWorkflowDialog {...defaultProps} onSuccess={onSuccess} onClose={onClose} />)
+
+      await fillAndSubmit(user)
+
+      await waitFor(() => {
+        expect(mockShowAlert).toHaveBeenCalled()
+      })
+
+      const alertCall = mockShowAlert.mock.calls[0][0] as { actionLinks: { props: { onClick: () => void } } }
+
+      act(() => {
+        alertCall.actionLinks.props.onClick()
+      })
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledTimes(2)
+      })
+
+      const secondCall = mockPost.mock.calls[1] as [string, { params: { query: { force_save: boolean } } }]
+      expect(secondCall[1].params.query.force_save).toBe(true)
+
+      await waitFor(() => {
+        expect(mockShowAlert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variant: 'success',
+            title: 'Workflow imported with warnings',
+          })
+        )
+      })
+    })
+
+    it('shows error when force save fails', async () => {
+      const user = userEvent.setup()
+      mockPost
+        .mockResolvedValueOnce({ error: { code: 'WORKFLOW_DEFINITION_WARNINGS', detail: 'has warnings' } })
+        .mockResolvedValueOnce({ error: { detail: 'still broken' } })
+
+      render(<ImportWorkflowDialog {...defaultProps} />)
+
+      await fillAndSubmit(user)
+
+      await waitFor(() => {
+        expect(mockShowAlert).toHaveBeenCalled()
+      })
+
+      const alertCall = mockShowAlert.mock.calls[0][0] as { actionLinks: { props: { onClick: () => void } } }
+
+      act(() => {
+        alertCall.actionLinks.props.onClick()
+      })
+
+      await waitFor(() => {
+        expect(mockShowError).toHaveBeenCalledWith(expect.objectContaining({ title: 'Import failed' }))
+      })
     })
   })
 

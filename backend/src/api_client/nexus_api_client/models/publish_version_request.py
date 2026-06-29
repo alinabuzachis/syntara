@@ -9,7 +9,8 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.publish_version_request_workflow_definition_type_0 import PublishVersionRequestWorkflowDefinitionType0
+    from ..models.publish_version_request_workflow_definition_type_1 import PublishVersionRequestWorkflowDefinitionType1
+    from ..models.workflow_definition import WorkflowDefinition
 
 
 T = TypeVar("T", bound="PublishVersionRequest")
@@ -22,19 +23,20 @@ class PublishVersionRequest:
     Attributes:
         publish_name (None | str | Unset): Optional name for this published version
         change_description (None | str | Unset): Description of changes in this version
-        workflow_definition (None | PublishVersionRequestWorkflowDefinitionType0 | Unset): Optional workflow definition
-            to publish directly (skips separate save step)
+        workflow_definition (None | PublishVersionRequestWorkflowDefinitionType1 | Unset | WorkflowDefinition): Optional
+            workflow definition to publish directly (skips separate save step)
     """
 
     publish_name: None | str | Unset = UNSET
     change_description: None | str | Unset = UNSET
-    workflow_definition: None | PublishVersionRequestWorkflowDefinitionType0 | Unset = UNSET
+    workflow_definition: None | PublishVersionRequestWorkflowDefinitionType1 | Unset | WorkflowDefinition = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.publish_version_request_workflow_definition_type_0 import (
-            PublishVersionRequestWorkflowDefinitionType0,
+        from ..models.publish_version_request_workflow_definition_type_1 import (
+            PublishVersionRequestWorkflowDefinitionType1,
         )
+        from ..models.workflow_definition import WorkflowDefinition
 
         publish_name: None | str | Unset
         if isinstance(self.publish_name, Unset):
@@ -51,7 +53,9 @@ class PublishVersionRequest:
         workflow_definition: dict[str, Any] | None | Unset
         if isinstance(self.workflow_definition, Unset):
             workflow_definition = UNSET
-        elif isinstance(self.workflow_definition, PublishVersionRequestWorkflowDefinitionType0):
+        elif isinstance(self.workflow_definition, WorkflowDefinition):
+            workflow_definition = self.workflow_definition.to_dict()
+        elif isinstance(self.workflow_definition, PublishVersionRequestWorkflowDefinitionType1):
             workflow_definition = self.workflow_definition.to_dict()
         else:
             workflow_definition = self.workflow_definition
@@ -70,9 +74,10 @@ class PublishVersionRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.publish_version_request_workflow_definition_type_0 import (
-            PublishVersionRequestWorkflowDefinitionType0,
+        from ..models.publish_version_request_workflow_definition_type_1 import (
+            PublishVersionRequestWorkflowDefinitionType1,
         )
+        from ..models.workflow_definition import WorkflowDefinition
 
         d = dict(src_dict)
 
@@ -94,7 +99,9 @@ class PublishVersionRequest:
 
         change_description = _parse_change_description(d.pop("change_description", UNSET))
 
-        def _parse_workflow_definition(data: object) -> None | PublishVersionRequestWorkflowDefinitionType0 | Unset:
+        def _parse_workflow_definition(
+            data: object,
+        ) -> None | PublishVersionRequestWorkflowDefinitionType1 | Unset | WorkflowDefinition:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -102,12 +109,20 @@ class PublishVersionRequest:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                workflow_definition_type_0 = PublishVersionRequestWorkflowDefinitionType0.from_dict(data)
+                workflow_definition_type_0 = WorkflowDefinition.from_dict(data)
 
                 return workflow_definition_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(None | PublishVersionRequestWorkflowDefinitionType0 | Unset, data)
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                workflow_definition_type_1 = PublishVersionRequestWorkflowDefinitionType1.from_dict(data)
+
+                return workflow_definition_type_1
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | PublishVersionRequestWorkflowDefinitionType1 | Unset | WorkflowDefinition, data)
 
         workflow_definition = _parse_workflow_definition(d.pop("workflow_definition", UNSET))
 

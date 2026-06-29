@@ -313,6 +313,11 @@ export interface components {
       /** Is Enabled */
       is_enabled: boolean
       /**
+       * Has Validation Issues
+       * @default false
+       */
+      has_validation_issues?: boolean
+      /**
        * Created By
        * Format: uuid
        */
@@ -377,6 +382,11 @@ export interface components {
       is_builtin?: boolean
       /** Is Enabled */
       is_enabled: boolean
+      /**
+       * Has Validation Issues
+       * @default false
+       */
+      has_validation_issues?: boolean
       /**
        * Created By
        * Format: uuid
@@ -485,9 +495,12 @@ export interface components {
        * Workflow Definition
        * @description Optional workflow definition to publish directly (skips separate save step)
        */
-      workflow_definition?: {
-        [key: string]: unknown
-      } | null
+      workflow_definition?:
+        | components['schemas']['WorkflowDefinition']
+        | {
+            [key: string]: unknown
+          }
+        | null
     }
     /**
      * WorkflowVersionListResponse
@@ -562,6 +575,9 @@ export interface components {
      * @description Schema for creating a new workflow (POST /workflows).
      *
      *     Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+     *     Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+     *     on failure, the raw dict falls through to the service-level validator
+     *     where force_save can bypass all validation.
      */
     WorkflowCreate: {
       /**
@@ -581,8 +597,15 @@ export interface components {
       labels?: {
         [key: string]: unknown
       }
-      /** @description Workflow definition object */
-      workflow_definition: components['schemas']['WorkflowDefinition']
+      /**
+       * Workflow Definition
+       * @description Workflow definition object
+       */
+      workflow_definition:
+        | components['schemas']['WorkflowDefinition']
+        | {
+            [key: string]: unknown
+          }
       /**
        * Project Id
        * Format: uuid
@@ -596,6 +619,9 @@ export interface components {
      *
      *     All fields are optional for partial updates.
      *     Supports metadata updates and workflow definition updates (creates new version).
+     *     Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+     *     on failure, the raw dict falls through to the service-level validator
+     *     where force_save can bypass all validation.
      */
     WorkflowUpdate: {
       /**
@@ -615,8 +641,16 @@ export interface components {
       labels?: {
         [key: string]: unknown
       } | null
-      /** @description New workflow definition (auto-creates version) */
-      workflow_definition?: components['schemas']['WorkflowDefinition'] | null
+      /**
+       * Workflow Definition
+       * @description New workflow definition (auto-creates version)
+       */
+      workflow_definition?:
+        | components['schemas']['WorkflowDefinition']
+        | {
+            [key: string]: unknown
+          }
+        | null
       /**
        * Change Description
        * @description Description of changes for version history
@@ -1910,11 +1944,18 @@ export interface components {
      * WorkflowValidateRequest
      * @description Request body for the workflow validation endpoint.
      *
-     *     Attributes:
-     *         workflow_definition: The workflow definition to validate
+     *     The definition is accepted as a raw dict so that structurally invalid
+     *     definitions reach the application-level validator for richer error
+     *     reporting with node-level attribution.
      */
     WorkflowValidateRequest: {
-      workflow_definition: components['schemas']['WorkflowDefinition']
+      /**
+       * Workflow Definition
+       * @description Workflow definition to validate
+       */
+      workflow_definition: {
+        [key: string]: unknown
+      }
     }
     /**
      * WorkflowValidationResult
@@ -2347,7 +2388,10 @@ export interface operations {
   }
   create_workflow: {
     parameters: {
-      query?: never
+      query?: {
+        /** @description Bypass validation errors and warnings to save the workflow definition as-is */
+        force_save?: boolean
+      }
       header?: never
       path?: never
       cookie?: never
@@ -2512,7 +2556,10 @@ export interface operations {
   }
   update_workflow: {
     parameters: {
-      query?: never
+      query?: {
+        /** @description Bypass validation errors and warnings to save the workflow definition as-is */
+        force_save?: boolean
+      }
       header?: never
       path: {
         workflow_id: string

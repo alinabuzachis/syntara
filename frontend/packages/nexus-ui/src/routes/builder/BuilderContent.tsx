@@ -46,6 +46,7 @@ import { useWorkflowMetadata } from './hooks/useWorkflowMetadata'
 import { NodeActionsContext } from './NodeActionsContext'
 import type { BuilderContentProps } from './types/builderContent'
 import { useBuilderPermissions } from './useBuilderPermissions'
+import { extractValidationErrors, useWorkflowVerification } from './useWorkflowVerification'
 import { createAddStepHandler } from './utils/panelActions'
 import { ValidationBanner } from './ValidationBanner'
 import { VersionInfoCard } from './VersionInfoCard'
@@ -145,8 +146,12 @@ export function BuilderContent(props: BuilderContentProps) {
     setStoredEdges,
     loadWorkflowWithEdges,
   })
-
   useExecutionCopyToEditor({ executionCopy, dispatch, markDirty, showSuccess })
+  const { handleVerifySilent } = useWorkflowVerification({ dispatch })
+  const hasValidationIssues = workflow?.has_validation_issues
+  useEffect(() => {
+    if (hasValidationIssues && !isNew && currentWorkflow) handleVerifySilent()
+  }, [hasValidationIssues, isNew, currentWorkflow, handleVerifySilent])
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
     'patch',
@@ -172,11 +177,19 @@ export function BuilderContent(props: BuilderContentProps) {
     showSuccess,
     showError,
     onMissingProjectForCreate: () => setSaveAttemptedWithoutProject(true),
+    onForceSaveSuccess: (originalError: unknown) => {
+      const issues = extractValidationErrors(originalError as Record<string, unknown>)
+      if (issues) {
+        dispatch({ type: 'SET_VALIDATION_ERRORS', payload: issues })
+        useWorkflowStore.getState().setValidationErrorCount(issues.length)
+      } else {
+        handleVerifySilent()
+      }
+    },
     markClean,
     createWorkflow: typedCreateWorkflow,
     updateWorkflow,
   })
-
   const { publish: onPublish, isPublishing } = usePublishWorkflow(
     workflowId,
     currentVersion,
@@ -208,14 +221,12 @@ export function BuilderContent(props: BuilderContentProps) {
     handleSaveWorkflow,
     isTerminalStatus
   )
-
   useEffect(() => {
     registerSaveHandler(handleSaveWorkflow)
     return () => unregisterSaveHandler()
   }, [handleSaveWorkflow, registerSaveHandler, unregisterSaveHandler])
 
   const [pendingImport, setPendingImport] = useState<import('./useWorkflowImportExport').PendingImportData | null>(null)
-
   const {
     handleRunWorkflow,
     handleDeleteWorkflow,
@@ -251,7 +262,6 @@ export function BuilderContent(props: BuilderContentProps) {
     expandAllEvent,
     baseHandleToggleVersionHistory,
   })
-
   const {
     handleNodeClick,
     handleClearDesiredPosition,
@@ -314,7 +324,6 @@ export function BuilderContent(props: BuilderContentProps) {
     setLocation,
     pinnedMockDataForDialog,
   })
-
   return (
     <NodeActionsContext.Provider value={nodeActionsValue}>
       <NodeExpandedAllContext.Provider value={nodeExpandedAllContextValue}>
@@ -373,6 +382,7 @@ export function BuilderContent(props: BuilderContentProps) {
               />
               <ValidationBanner
                 errors={state.validationErrors}
+                dismissed={state.validationBannerDismissed}
                 dispatch={dispatch}
                 onNavigateToNode={handleNavigateToNode}
               />

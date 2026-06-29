@@ -357,7 +357,7 @@ class TestWorkflowExecution:
         )
 
         nexus_api.workflows.update(
-            workflow_id=workflow.id, body=WorkflowUpdate(workflow_definition=failed_workflow_def)
+            workflow_id=workflow.id, body=WorkflowUpdate(workflow_definition=failed_workflow_def.to_dict())
         ).assert_and_get()
 
         # Create 2 failed executions

@@ -41,6 +41,7 @@ class WorkflowReadWithVersion:
             description (None | str | Unset): Workflow description
             labels (WorkflowReadWithVersionLabels | Unset): Workflow labels
             is_builtin (bool | Unset):  Default: False.
+            has_validation_issues (bool | Unset):  Default: False.
             published_version (int | None | Unset):
             deleted_at (datetime.datetime | None | Unset):
             deleted_by (None | Unset | UUID):
@@ -58,6 +59,7 @@ class WorkflowReadWithVersion:
     description: None | str | Unset = UNSET
     labels: WorkflowReadWithVersionLabels | Unset = UNSET
     is_builtin: bool | Unset = False
+    has_validation_issues: bool | Unset = False
     published_version: int | None | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
     deleted_by: None | Unset | UUID = UNSET
@@ -93,6 +95,8 @@ class WorkflowReadWithVersion:
             labels = self.labels.to_dict()
 
         is_builtin = self.is_builtin
+
+        has_validation_issues = self.has_validation_issues
 
         published_version: int | None | Unset
         if isinstance(self.published_version, Unset):
@@ -137,6 +141,8 @@ class WorkflowReadWithVersion:
             field_dict["labels"] = labels
         if is_builtin is not UNSET:
             field_dict["is_builtin"] = is_builtin
+        if has_validation_issues is not UNSET:
+            field_dict["has_validation_issues"] = has_validation_issues
         if published_version is not UNSET:
             field_dict["published_version"] = published_version
         if deleted_at is not UNSET:
@@ -187,6 +193,8 @@ class WorkflowReadWithVersion:
             labels = WorkflowReadWithVersionLabels.from_dict(_labels)
 
         is_builtin = d.pop("is_builtin", UNSET)
+
+        has_validation_issues = d.pop("has_validation_issues", UNSET)
 
         def _parse_published_version(data: object) -> int | None | Unset:
             if data is None:
@@ -244,6 +252,7 @@ class WorkflowReadWithVersion:
             description=description,
             labels=labels,
             is_builtin=is_builtin,
+            has_validation_issues=has_validation_issues,
             published_version=published_version,
             deleted_at=deleted_at,
             deleted_by=deleted_by,

@@ -52,7 +52,7 @@ async def test_validate_empty_triggers_rejected(jwt_client: AsyncClient) -> None
     data = response.json()
     assert data["type"] == "https://api.nexus.com/errors/validation-error"
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
-    assert data["validation_result"]["valid"] is False
+    assert data["validation_result"]["is_valid"] is False
 
 
 @pytest.mark.asyncio
@@ -84,8 +84,8 @@ async def test_validate_invalid_edge_reference(jwt_client: AsyncClient) -> None:
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
     assert data["retryable"] is False
     vr = data["validation_result"]
-    assert vr["valid"] is False
-    edge_errors = [e for e in vr["errors"] if "nonexistent_node" in e["message"]]
+    assert vr["is_valid"] is False
+    edge_errors = [e for e in vr["findings"] if "nonexistent_node" in e["message"]]
     assert len(edge_errors) == 1
     assert edge_errors[0]["node_id"] == "nonexistent_node"
 
@@ -128,8 +128,8 @@ async def test_validate_cycle_detection(jwt_client: AsyncClient) -> None:
     assert data["type"] == "https://api.nexus.com/errors/validation-error"
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
     vr = data["validation_result"]
-    assert vr["valid"] is False
-    cycle_errors = [e for e in vr["errors"] if "cycle" in e["message"].lower()]
+    assert vr["is_valid"] is False
+    cycle_errors = [e for e in vr["findings"] if "cycle" in e["message"].lower()]
     assert len(cycle_errors) == 1
 
 
@@ -152,7 +152,7 @@ async def test_validate_invalid_schema_version(jwt_client: AsyncClient) -> None:
     data = response.json()
     assert data["type"] == "https://api.nexus.com/errors/validation-error"
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
-    assert data["validation_result"]["valid"] is False
+    assert data["validation_result"]["is_valid"] is False
 
 
 @pytest.mark.asyncio
@@ -231,8 +231,8 @@ async def test_validate_orphaned_node_error(jwt_client: AsyncClient) -> None:
     data = response.json()
     assert data["type"] == "https://api.nexus.com/errors/validation-error"
     vr = data["validation_result"]
-    assert vr["valid"] is False
-    orphan_errors = [e for e in vr["errors"] if e.get("node_id") == "orphaned_node"]
+    assert vr["is_valid"] is False
+    orphan_errors = [e for e in vr["findings"] if e.get("node_id") == "orphaned_node"]
     assert len(orphan_errors) == 1
 
 
@@ -264,8 +264,8 @@ async def test_validate_converge_no_predecessors(jwt_client: AsyncClient) -> Non
     data = response.json()
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
     vr = data["validation_result"]
-    assert vr["valid"] is False
-    converge_errors = [e for e in vr["errors"] if "conv" in e["message"] and "no incoming" in e["message"]]
+    assert vr["is_valid"] is False
+    converge_errors = [e for e in vr["findings"] if "conv" in e["message"] and "no incoming" in e["message"]]
     assert len(converge_errors) == 1
 
 
@@ -300,8 +300,8 @@ async def test_validate_converge_single_predecessor_error(jwt_client: AsyncClien
     data = response.json()
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
     vr = data["validation_result"]
-    assert vr["valid"] is False
-    converge_errors = [e for e in vr["errors"] if "only 1 incoming" in e["message"]]
+    assert vr["is_valid"] is False
+    converge_errors = [e for e in vr["findings"] if "only 1 incoming" in e["message"]]
     assert len(converge_errors) == 1
     assert converge_errors[0]["node_id"] == "conv"
 
@@ -350,8 +350,8 @@ async def test_validate_converge_n_required_exceeds_branches(jwt_client: AsyncCl
     data = response.json()
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
     vr = data["validation_result"]
-    assert vr["valid"] is False
-    n_req_errors = [e for e in vr["errors"] if "n_required" in e["message"]]
+    assert vr["is_valid"] is False
+    n_req_errors = [e for e in vr["findings"] if "n_required" in e["message"]]
     assert len(n_req_errors) == 1
 
 

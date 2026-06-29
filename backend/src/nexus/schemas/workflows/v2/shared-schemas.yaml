@@ -56,6 +56,10 @@ components:
         is_enabled:
           type: boolean
           title: Is Enabled
+        has_validation_issues:
+          type: boolean
+          default: false
+          title: Has Validation Issues
         created_by:
           type: string
           format: uuid
@@ -140,6 +144,10 @@ components:
         is_enabled:
           type: boolean
           title: Is Enabled
+        has_validation_issues:
+          type: boolean
+          default: false
+          title: Has Validation Issues
         created_by:
           type: string
           format: uuid
@@ -561,10 +569,7 @@ components:
     WorkflowCreate:
       type: object
       title: WorkflowCreate
-      description: |-
-        Schema for creating a new workflow (POST /workflows).
-
-        Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+      description: "Schema for creating a new workflow (POST /workflows).\n\nExcludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).\nPydantic tries to parse workflow_definition as WorkflowDefinition first;\non failure, the raw dict falls through to the service-level validator\nwhere force_save can bypass all validation."
       required:
         - name
         - workflow_definition
@@ -589,7 +594,11 @@ components:
           title: Labels
           description: Workflow labels
         workflow_definition:
-          $ref: "#/components/schemas/WorkflowDefinition"
+          anyOf:
+            - $ref: '#/components/schemas/WorkflowDefinition'
+            - additionalProperties: true
+              type: object
+          title: Workflow Definition
           description: Workflow definition object
         project_id:
           type: string
@@ -600,11 +609,7 @@ components:
     WorkflowUpdate:
       type: object
       title: WorkflowUpdate
-      description: |-
-        Schema for updating workflow (PATCH /workflows/{id}).
-
-        All fields are optional for partial updates.
-        Supports metadata updates and workflow definition updates (creates new version).
+      description: "Schema for updating workflow (PATCH /workflows/{id}).\n\nAll fields are optional for partial updates.\nSupports metadata updates and workflow definition updates (creates new version).\nPydantic tries to parse workflow_definition as WorkflowDefinition first;\non failure, the raw dict falls through to the service-level validator\nwhere force_save can bypass all validation."
       properties:
         name:
           anyOf:
@@ -630,8 +635,11 @@ components:
           description: Update workflow labels
         workflow_definition:
           anyOf:
-            - $ref: "#/components/schemas/WorkflowDefinition"
+            - $ref: '#/components/schemas/WorkflowDefinition'
+            - additionalProperties: true
+              type: object
             - type: "null"
+          title: Workflow Definition
           description: New workflow definition (auto-creates version)
         change_description:
           anyOf:

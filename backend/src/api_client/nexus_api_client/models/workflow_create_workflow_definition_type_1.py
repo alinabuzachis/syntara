@@ -6,11 +6,11 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="PublishVersionRequestWorkflowDefinitionType0")
+T = TypeVar("T", bound="WorkflowCreateWorkflowDefinitionType1")
 
 
 @_attrs_define
-class PublishVersionRequestWorkflowDefinitionType0:
+class WorkflowCreateWorkflowDefinitionType1:
     """ """
 
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -24,10 +24,10 @@ class PublishVersionRequestWorkflowDefinitionType0:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        publish_version_request_workflow_definition_type_0 = cls()
+        workflow_create_workflow_definition_type_1 = cls()
 
-        publish_version_request_workflow_definition_type_0.additional_properties = d
-        return publish_version_request_workflow_definition_type_0
+        workflow_create_workflow_definition_type_1.additional_properties = d
+        return workflow_create_workflow_definition_type_1
 
     @property
     def additional_keys(self) -> list[str]:

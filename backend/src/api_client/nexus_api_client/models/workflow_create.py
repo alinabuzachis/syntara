@@ -11,6 +11,7 @@ from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.workflow_create_labels import WorkflowCreateLabels
+    from ..models.workflow_create_workflow_definition_type_1 import WorkflowCreateWorkflowDefinitionType1
     from ..models.workflow_definition import WorkflowDefinition
 
 
@@ -22,35 +23,35 @@ class WorkflowCreate:
     """Schema for creating a new workflow (POST /workflows).
 
     Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+    Pydantic tries to parse workflow_definition as WorkflowDefinition first;
+    on failure, the raw dict falls through to the service-level validator
+    where force_save can bypass all validation.
 
         Attributes:
             name (str): Workflow name
-            workflow_definition (WorkflowDefinition): JSON Schema for graph-based workflow definitions in the Nexus Workflow
-                Engine v2.
-
-                Attributes:
-                    schema_version: Schema version that this workflow definition conforms to
-                    name: Workflow name
-                    description: Human-readable description of the workflow's purpose
-                    triggers: Trigger nodes that define how the workflow is initiated
-                    nodes: Execution and control nodes in the workflow graph
-                    edges: Directed edges connecting triggers and nodes in the workflow graph
+            workflow_definition (WorkflowCreateWorkflowDefinitionType1 | WorkflowDefinition): Workflow definition object
             project_id (UUID): Project to assign workflow to
             description (None | str | Unset): Workflow description
             labels (WorkflowCreateLabels | Unset): Workflow labels
     """
 
     name: str
-    workflow_definition: WorkflowDefinition
+    workflow_definition: WorkflowCreateWorkflowDefinitionType1 | WorkflowDefinition
     project_id: UUID
     description: None | str | Unset = UNSET
     labels: WorkflowCreateLabels | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.workflow_definition import WorkflowDefinition
+
         name = self.name
 
-        workflow_definition = self.workflow_definition.to_dict()
+        workflow_definition: dict[str, Any]
+        if isinstance(self.workflow_definition, WorkflowDefinition):
+            workflow_definition = self.workflow_definition.to_dict()
+        else:
+            workflow_definition = self.workflow_definition.to_dict()
 
         project_id = str(self.project_id)
 
@@ -83,12 +84,28 @@ class WorkflowCreate:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.workflow_create_labels import WorkflowCreateLabels
+        from ..models.workflow_create_workflow_definition_type_1 import WorkflowCreateWorkflowDefinitionType1
         from ..models.workflow_definition import WorkflowDefinition
 
         d = dict(src_dict)
         name = d.pop("name")
 
-        workflow_definition = WorkflowDefinition.from_dict(d.pop("workflow_definition"))
+        def _parse_workflow_definition(data: object) -> WorkflowCreateWorkflowDefinitionType1 | WorkflowDefinition:
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                workflow_definition_type_0 = WorkflowDefinition.from_dict(data)
+
+                return workflow_definition_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            if not isinstance(data, dict):
+                raise TypeError()
+            workflow_definition_type_1 = WorkflowCreateWorkflowDefinitionType1.from_dict(data)
+
+            return workflow_definition_type_1
+
+        workflow_definition = _parse_workflow_definition(d.pop("workflow_definition"))
 
         project_id = UUID(d.pop("project_id"))
 

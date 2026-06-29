@@ -173,7 +173,7 @@ class TestConvergeCRUD:
             "test-converge-delete",
             {"strategy": "all"},
             project_id=str(test_project_id),
-            branch_count=1,
+            branch_count=2,
         )
 
         create_response = await jwt_client.post(WORKFLOWS_URL, json=payload)
