@@ -330,7 +330,7 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
   // Add manual trigger
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await page.getByRole('button', { name: 'Save and close' }).click()
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
 
   // Add a connected action node
   const panel = await clickAddConnectedStep(page)
@@ -338,7 +338,7 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
   await panel.getByRole('button', { name: 'Script', exact: true }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(actionName)
   await fillCodeEditor(page, { value: 'print("hello")' })
-  await page.getByRole('button', { name: 'Save and close' }).click()
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
   await closeNodeEditorPanel(page)
 
   // Select project (required on real backend), then name and save
@@ -362,7 +362,7 @@ export async function startWorkflowWithTrigger(page: Page) {
 
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await page.getByRole('button', { name: 'Create' }).click()
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
 }
 
 /** Save the workflow with the given name. Waits for URL to confirm persistence. */
@@ -387,7 +387,7 @@ export async function createWorkflowWithTrigger(page: Page, workflowName: string
 
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await page.getByRole('button', { name: 'Save and close' }).click()
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
 
   await selectProjectIfRequired(page)
   const nameInput = page.getByPlaceholder('Workflow name')
@@ -445,14 +445,14 @@ export async function addScriptNode(page: Page, name: string, code: string) {
 
   await fillCodeEditor(page, { value: code })
 
-  const saveButton = page.getByRole('button', { name: 'Save and close' })
+  const saveButton = page.getByRole('button', { name: 'Create', exact: true })
   await expect(saveButton).toBeEnabled({ timeout: 20000 })
   await saveButton.click()
 
   // Wait for the Script form to close — AddNodePanel unmounts immediately when Script
   // is selected so panel.toHaveCount(0) passes instantly and is not a useful gate.
-  // Waiting for the Save button to leave the DOM is the real signal that the form unmounted.
-  await expect(page.getByRole('button', { name: 'Save and close' })).not.toBeAttached({ timeout: 15000 })
+  // Waiting for the Create button to leave the DOM is the real signal that the form unmounted.
+  await expect(page.getByRole('button', { name: 'Create', exact: true })).not.toBeAttached({ timeout: 15000 })
 
   // Wait for UI to stabilize
   await waitForUIReady(page)
@@ -504,7 +504,7 @@ export async function addScriptNodeUnconnected(page: Page, name: string, code: s
 
   await fillCodeEditor(page, { value: code })
 
-  const saveButton = page.getByRole('button', { name: 'Save and close' })
+  const saveButton = page.getByRole('button', { name: 'Create', exact: true })
   await expect(saveButton).toBeEnabled({ timeout: 20000 })
   await saveButton.click()
 
@@ -543,7 +543,7 @@ export async function navigateToApiActionForm(page: Page) {
 
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await page.getByRole('button', { name: 'Save and close' }).click()
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
 
   const credentialsLoaded = page.waitForResponse((resp) => resp.url().includes('/credentials') && resp.status() === 200)
   const panel = await clickAddConnectedStep(page)

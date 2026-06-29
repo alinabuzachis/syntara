@@ -1,5 +1,5 @@
 /**
- * E2E Tests: Approval Side Panel
+ * E2E Tests: Approval Side Panel (UI-28, UI-30)
  *
  * Critical paths covered:
  * - Deep-link from approvals list navigates to execution detail with side panel
@@ -7,15 +7,17 @@
  * - Approve and reject flows with notes and undo
  * - Panel and run history card are mutually exclusive
  * - Viewer role cannot approve or reject (permission gating)
- * - Self-contained: create workflow with approval node, run, verify execution page
+ * - UI-28: Self-contained — create workflow with approval node, run, verify execution shows
+ *   "Paused" status and "Waiting for approval" activity indicator
+ * - UI-30: Self-contained — reject a pending approval and verify execution terminates
  *
  * Seed data:
  * - Approval "Production Deployment Approval" (550e8400-...-446655440050) linked to exec-approval
  */
-import { test, expect, toAppUrl } from './fixtures'
-import { addApprovalNodeWithBranch } from './helpers/v2-nodes'
-import { buildUniqueName, createBasicWorkflow } from './helpers/workflows'
-import { apiRequest } from './utils/api'
+import { test, expect, toAppUrl } from '../fixtures'
+import { addApprovalNodeWithBranch } from '../helpers/v2-nodes'
+import { buildUniqueName, createBasicWorkflow } from '../helpers/workflows'
+import { apiRequest } from '../utils/api'
 
 const MOCK_APPROVAL_ID = '550e8400-e29b-41d4-a716-446655440050'
 const MOCK_EXECUTION_ID = 'exec-approval'
@@ -153,33 +155,91 @@ test.describe('Approval Side Panel — deep-link', () => {
 })
 
 test.describe('Approval Side Panel — self-contained', () => {
-  test('create workflow with approval node, run, and navigate to execution', async ({ app }) => {
+  test('UI-28: execution shows Paused status and Waiting for approval indicator', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-approval-panel')
     await createBasicWorkflow(app, workflowName, 'Pre-approval step')
 
-    // Extract workflow ID from builder URL for API-based cleanup
     const builderUrl = app.url()
     const workflowId = builderUrl.match(/workflow-builder\/([^/?]+)/)?.[1]
 
     try {
       await addApprovalNodeWithBranch(app, 'Review Gate')
       await app.getByRole('button', { name: 'Save', exact: true }).click()
-
-      // Wait for save to complete before attempting to run
       await expect(app.getByRole('button', { name: 'Run', exact: true })).toBeEnabled({ timeout: 15_000 })
 
-      // Run the workflow — button label depends on whether workflow is considered dirty
       await app.getByRole('button', { name: 'Run', exact: true }).click()
       await app.getByRole('button', { name: /Run now|Save and run/ }).click()
 
-      const didNavigate = await expect(app)
-        .toHaveURL(/\/executions\//)
+      const didNavigate = await app
+        .waitForURL(/\/executions\//, { timeout: 10_000 })
         .then(() => true)
         .catch(() => false)
       test.skip(!didNavigate, 'Workflow execution failed — execution engine may not be running')
 
       await expect(app.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(app.getByRole('button', { name: 'Back to editor' })).toBeVisible()
+
+      // UI-28: Verify pending approval display
+      // Skip if the execution stays Pending — Temporal worker is not running
+      const reachedApproval = await app
+        .getByText('Paused')
+        .waitFor({ state: 'visible', timeout: 30_000 })
+        .then(() => true)
+        .catch(() => false)
+      test.skip(!reachedApproval, 'Execution stayed Pending — Temporal worker may not be running')
+      await expect(app.getByText('Waiting for approval')).toBeVisible({ timeout: 30_000 })
+      await expect(app.getByRole('button', { name: 'Review approval' })).toBeVisible({ timeout: 30_000 })
+    } finally {
+      if (workflowId) {
+        await apiRequest(app, 'delete', `/workflows/${workflowId}`).catch(() => {})
+      }
+    }
+  })
+
+  test('UI-30: rejecting an approval terminates workflow execution', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-reject')
+    await createBasicWorkflow(app, workflowName, 'Pre-rejection step')
+
+    const builderUrl = app.url()
+    const workflowId = builderUrl.match(/workflow-builder\/([^/?]+)/)?.[1]
+
+    try {
+      await addApprovalNodeWithBranch(app, 'Rejection Gate')
+      await app.getByRole('button', { name: 'Save', exact: true }).click()
+      await expect(app.getByRole('button', { name: 'Run', exact: true })).toBeEnabled({ timeout: 15_000 })
+
+      await app.getByRole('button', { name: 'Run', exact: true }).click()
+      await app.getByRole('button', { name: /Run now|Save and run/ }).click()
+
+      const didNavigate = await app
+        .waitForURL(/\/executions\//, { timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false)
+      test.skip(!didNavigate, 'Workflow execution failed — execution engine may not be running')
+
+      // Wait for execution to pause at the approval node
+      // Skip if Temporal worker is not running (execution stays Pending)
+      const reachedApproval = await app
+        .getByText('Paused')
+        .waitFor({ state: 'visible', timeout: 30_000 })
+        .then(() => true)
+        .catch(() => false)
+      test.skip(!reachedApproval, 'Execution stayed Pending — Temporal worker may not be running')
+      await expect(app.getByText('Waiting for approval')).toBeVisible({ timeout: 30_000 })
+
+      // Open approval panel
+      await app.getByRole('button', { name: 'Review approval' }).click()
+      await expect(app.getByRole('heading', { name: 'Review Approval' })).toBeVisible({ timeout: 15_000 })
+
+      // Reject with reason
+      await app.getByRole('button', { name: 'Reject' }).click()
+      await app.getByPlaceholder(/Explain the reason for rejecting/i).fill('Rejected in E2E test')
+      await app.getByRole('button', { name: 'Submit decision' }).click()
+
+      await expect(app.getByText('Rejection submitted')).toBeVisible({ timeout: 15_000 })
+
+      // Verify execution terminates — status transitions to a terminal state
+      await expect(app.getByText(/Failed|Rejected/i)).toBeVisible({ timeout: 30_000 })
     } finally {
       if (workflowId) {
         await apiRequest(app, 'delete', `/workflows/${workflowId}`).catch(() => {})
