@@ -306,6 +306,9 @@ jobs:
         run: |
           # Re-run create_system_user after services are healthy so the
           # admins group (seeded during API startup) already exists.
+          # Copy script from host since tools/ is excluded from the production container
+          podman exec nexus-ci_nexus_1 mkdir -p tools
+          podman cp backend/tools/create_system_user.py nexus-ci_nexus_1:/opt/app-root/src/tools/
           podman exec nexus-ci_nexus_1 uv run python tools/create_system_user.py
 
       - name: Run E2E tests (excluding global revocation)
