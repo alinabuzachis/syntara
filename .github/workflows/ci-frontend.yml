@@ -202,32 +202,6 @@ jobs:
             -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
             -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
 
-  sonarcloud-baseline:
-    name: SonarCloud Baseline
-    needs: [changes, coverage-report]
-    if: >-
-      needs.changes.outputs.code == 'true'
-      && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          fetch-depth: 0
-
-      - name: Download coverage report
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: frontend-unit-test-coverage-report
-          path: frontend/packages/nexus-ui/coverage
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_FRONTEND_TOKEN }}
-        with:
-          projectBaseDir: frontend
-
   storybook-build:
     name: Storybook Build
     needs: changes
@@ -282,13 +256,14 @@ jobs:
   e2e-gate:
     name: E2E Gate
     needs: changes
-    if: >-
-      (needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true')
-      && github.event_name != 'push'
+    # workflow_run triggers only fire for workflows on the default branch, so
+    # e2e-ui.yml cannot post 'E2E Tests (UI)' until this PR merges. Remove
+    # this line in the follow-up PR once e2e-ui.yml exists on devel.
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Wait for E2E commit status
+      - name: Wait for E2E commit statuses
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
@@ -305,6 +280,7 @@ jobs:
             const timeout = 60 * 60 * 1000; // 60 minutes
             const interval = 30 * 1000; // poll every 30s
             const start = Date.now();
+            const required = ['E2E Tests (UI)'];
 
             while (Date.now() - start < timeout) {
               const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
@@ -314,22 +290,29 @@ jobs:
                 per_page: 100,
               });
 
-              const e2e = statuses.find(s => s.context === 'E2E Tests (AO Operator)');
+              const results = required.map(name => ({
+                name,
+                status: statuses.find(s => s.context === name),
+              }));
 
-              if (e2e?.state === 'success') {
-                console.log('E2E Tests (AO Operator) passed');
+              const failed = results.find(r => r.status?.state === 'failure' || r.status?.state === 'error');
+              if (failed) {
+                core.setFailed(`${failed.name} ${failed.status.state}: ${failed.status.target_url}`);
                 return;
               }
-              if (e2e?.state === 'failure' || e2e?.state === 'error') {
-                core.setFailed(`E2E Tests (AO Operator) ${e2e.state}: ${e2e.target_url}`);
+
+              const allPassed = results.every(r => r.status?.state === 'success');
+              if (allPassed) {
+                console.log(`All E2E suites passed: ${required.join(', ')}`);
                 return;
               }
 
               const elapsed = Math.round((Date.now() - start) / 1000);
-              console.log(`E2E status: ${e2e?.state ?? 'not reported yet'} (${elapsed}s elapsed)`);
+              const summary = results.map(r => `${r.name}: ${r.status?.state ?? 'not reported yet'}`).join(', ');
+              console.log(`${summary} (${elapsed}s elapsed)`);
               await new Promise(r => setTimeout(r, interval));
             }
-            core.setFailed('Timed out waiting for E2E Tests (AO Operator) status');
+            core.setFailed(`Timed out waiting for E2E statuses: ${required.join(', ')}`);
 
   # Single required status check for branch protection. All merge-blocking jobs
   # are listed in `needs` so we manage requirements in code instead of maintaining

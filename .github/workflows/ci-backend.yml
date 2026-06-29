@@ -490,6 +490,61 @@ jobs:
         with:
           projectBaseDir: backend
 
+  e2e-gate:
+    name: E2E Gate
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Wait for E2E commit status
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            let sha;
+            if (context.eventName === 'merge_group') {
+              const match = context.ref.match(/pr-\d+-([0-9a-f]+)$/);
+              sha = match ? match[1] : context.sha;
+            } else {
+              sha = context.payload.pull_request.head.sha;
+            }
+            const timeout = 70 * 60 * 1000; // 70 minutes
+            const interval = 30 * 1000; // poll every 30s
+            const start = Date.now();
+            const required = ['E2E Tests (AO Operator)'];
+
+            while (Date.now() - start < timeout) {
+              const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha,
+                per_page: 100,
+              });
+
+              const results = required.map(name => ({
+                name,
+                status: statuses.find(s => s.context === name),
+              }));
+
+              const failed = results.find(r => r.status?.state === 'failure' || r.status?.state === 'error');
+              if (failed) {
+                core.setFailed(`${failed.name} ${failed.status.state}: ${failed.status.target_url}`);
+                return;
+              }
+
+              const allPassed = results.every(r => r.status?.state === 'success');
+              if (allPassed) {
+                console.log(`All E2E suites passed: ${required.join(', ')}`);
+                return;
+              }
+
+              const elapsed = Math.round((Date.now() - start) / 1000);
+              const summary = results.map(r => `${r.name}: ${r.status?.state ?? 'not reported yet'}`).join(', ');
+              console.log(`${summary} (${elapsed}s elapsed)`);
+              await new Promise(r => setTimeout(r, interval));
+            }
+            core.setFailed(`Timed out waiting for E2E statuses: ${required.join(', ')}`);
+
   required-checks:
     runs-on: ubuntu-latest
     needs:
@@ -500,6 +555,7 @@ jobs:
       - test-cli
       - test-integration
       - test-compose
+      - e2e-gate
     if: always()
     steps:
       - name: Check all required jobs succeeded
@@ -518,7 +574,7 @@ jobs:
 
           # Check all other required jobs
           ok="success|skipped"
-          for job in pre-commit mypy test-unit test-cli test-integration test-compose; do
+          for job in pre-commit mypy test-unit test-cli test-integration test-compose e2e-gate; do
             case "$job" in
               pre-commit)       result="${{ needs.pre-commit.result }}" ;;
               mypy)             result="${{ needs.mypy.result }}" ;;
@@ -526,6 +582,7 @@ jobs:
               test-cli)         result="${{ needs.test-cli.result }}" ;;
               test-integration) result="${{ needs.test-integration.result }}" ;;
               test-compose)     result="${{ needs.test-compose.result }}" ;;
+              e2e-gate)         result="${{ needs.e2e-gate.result }}" ;;
             esac
             echo "$job: $result"
             if [[ ! "$result" =~ ^($ok)$ ]]; then
