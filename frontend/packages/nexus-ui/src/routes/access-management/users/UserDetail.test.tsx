@@ -1271,7 +1271,7 @@ describe('UserDetail', () => {
 
   describe('currentUserId from meQuery', () => {
     it('passes currentUserId to identities panel when authClient returns the current user', () => {
-      mockAuthQuery.mockReturnValueOnce({
+      mockAuthQuery.mockReturnValue({
         data: { id: 'me-user-id' },
         isPending: false,
         isError: false,
@@ -1282,6 +1282,95 @@ describe('UserDetail', () => {
       render(<UserDetail />, { wrapper })
 
       expect(screen.getByTestId('identities-panel')).toHaveAttribute('data-current-user', 'me-user-id')
+    })
+  })
+
+  describe('My Profile mode', () => {
+    it('shows "My Profile" as page title instead of the user display name', () => {
+      render(<UserDetail isMyProfile />, { wrapper })
+
+      expect(screen.getByRole('heading', { name: 'My Profile' })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'John Doe' })).not.toBeInTheDocument()
+    })
+
+    it('does not render breadcrumbs', () => {
+      render(<UserDetail isMyProfile />, { wrapper })
+
+      expect(screen.queryByText('Access management')).not.toBeInTheDocument()
+      expect(screen.queryByText('Users')).not.toBeInTheDocument()
+    })
+
+    it('uses the current user ID from /auth/me for data fetching', () => {
+      mockAuthQuery.mockReturnValue({
+        data: { id: VALID_USER_ID },
+        isPending: false,
+        isError: false,
+        error: null,
+      })
+
+      render(<UserDetail isMyProfile />, { wrapper })
+
+      expect(screen.getByRole('heading', { name: 'My Profile' })).toBeInTheDocument()
+      expect(screen.getByText('jdoe')).toBeInTheDocument()
+    })
+
+    it('shows loading state while /auth/me is pending', () => {
+      mockAuthQuery.mockReturnValue({
+        data: undefined,
+        isPending: true,
+        isError: false,
+        error: null,
+      })
+
+      vi.mocked(accessClient.useQuery).mockReturnValue({
+        data: undefined,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+
+      render(<UserDetail isMyProfile />, { wrapper })
+
+      expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument()
+    })
+
+    it('navigates to workflows when Back button is clicked in error state', async () => {
+      const user = userEvent.setup()
+      mockAuthQuery.mockReturnValue({
+        data: { id: VALID_USER_ID },
+        isPending: false,
+        isError: false,
+        error: null,
+      })
+
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: undefined,
+            isPending: false,
+            isError: true,
+            error: new Error('Not found'),
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail isMyProfile />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Back to workflows' }))
+
+      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+    })
+
+    it('renders tab content correctly', () => {
+      render(<UserDetail isMyProfile />, { wrapper })
+
+      expect(screen.getByRole('tab', { name: /Details/i })).toBeInTheDocument()
+      expect(screen.getByText('Username')).toBeInTheDocument()
+      expect(screen.getByText('jdoe')).toBeInTheDocument()
     })
   })
 

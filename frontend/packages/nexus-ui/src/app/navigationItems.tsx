@@ -39,6 +39,7 @@ import {
   IntegrationDetail,
   IntegrationForm,
   Integrations,
+  MyProfile,
   Settings,
   TransferIdentityWizard,
   UserDetail,
@@ -356,6 +357,18 @@ export const NAV_ITEMS: TNavigationItem[] = [
     label: 'Credential Detail Tab',
     path: AppRoute.Configuration.Credentials.DetailTab,
     element: <CredentialDetail />,
+    hidden: true,
+  },
+  {
+    label: 'My Profile',
+    path: AppRoute.MyProfile.Root,
+    element: <MyProfile />,
+    hidden: true,
+  },
+  {
+    label: 'My Profile Tab',
+    path: AppRoute.MyProfile.Tab,
+    element: <MyProfile />,
     hidden: true,
   },
 ] as const

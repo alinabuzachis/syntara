@@ -52,6 +52,11 @@ export const UserDetail = lazy(() =>
     default: m.UserDetail,
   }))
 )
+export const MyProfile = lazy(() =>
+  import('../routes/access-management/users/MyProfile').then((m) => ({
+    default: m.MyProfile,
+  }))
+)
 export const EditUser = lazy(() =>
   import('../routes/access-management/users/EditUser').then((m) => ({
     default: m.EditUser,

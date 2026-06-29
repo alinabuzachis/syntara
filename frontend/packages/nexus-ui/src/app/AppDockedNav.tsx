@@ -34,7 +34,6 @@ import {
 } from '@patternfly/react-icons'
 import { useContext, useMemo, useRef, useState } from 'react'
 
-import { authClient } from '../client'
 import { useLocation } from '../hooks/routing/useLocation'
 import { useNavigate } from '../hooks/routing/useNavigate'
 import { useAlerts } from '../providers/alerts'
@@ -138,7 +137,6 @@ function UserMenuDropdown() {
   const setLocation = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const { showAlert } = useAlerts()
-  const { data: currentUser } = authClient.useQuery('get', '/auth/me')
 
   const handleLogoutClick = () => {
     setIsOpen(false)
@@ -178,12 +176,9 @@ function UserMenuDropdown() {
       <DropdownList>
         <DropdownItem
           key="profile"
-          isDisabled={!currentUser?.id}
           onClick={() => {
-            if (currentUser?.id) {
-              setLocation(AppRoute.AccessManagement.UserDetail.replace(':userId', currentUser.id))
-              setIsOpen(false)
-            }
+            setLocation(AppRoute.MyProfile.Root)
+            setIsOpen(false)
           }}
         >
           My Profile

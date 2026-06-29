@@ -967,7 +967,8 @@ export const excludedDynamic: string[] = [
   AppRoute.AccessManagement.Root,
   AppRoute.Auth.TestSignInCallback,
   AppRoute.AccessManagement.TransferIdentity, // covered by transferIdentityWizardPages (interactive entries)
-  AppRoute.Profile, // redirects to user detail — no longer a standalone page
+  AppRoute.MyProfile.Root, // covered via user detail component — My Profile is a wrapper
+  AppRoute.MyProfile.Tab, // tab variant of the above
 ]
 
 /** All excluded route patterns (union of both lists) */

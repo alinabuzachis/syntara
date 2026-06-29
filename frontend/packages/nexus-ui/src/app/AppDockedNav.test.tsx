@@ -51,17 +51,8 @@ vi.mock('../stores/useAuthStore', () => ({
   ),
 }))
 
-// Mock authClient used by UserMenuDropdown to fetch current user
-const MOCK_CURRENT_USER_ID = 'abc123de-f456-7890-abcd-ef1234567890'
-const { mockAuthClientUseQuery } = vi.hoisted(() => ({
-  mockAuthClientUseQuery: vi.fn().mockReturnValue({
-    data: { id: 'abc123de-f456-7890-abcd-ef1234567890', username: 'testuser' },
-  }),
-}))
 vi.mock('../client', () => ({
-  authClient: {
-    useQuery: mockAuthClientUseQuery,
-  },
+  authClient: { useQuery: vi.fn().mockReturnValue({ data: undefined }) },
   authMiddleware: { onRequest: vi.fn() },
 }))
 
@@ -76,9 +67,6 @@ function renderDockedNav() {
 describe('AppDockedNav', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockAuthClientUseQuery.mockImplementation(() => ({
-      data: { id: MOCK_CURRENT_USER_ID, username: 'testuser' },
-    }))
     localStorage.clear()
     document.documentElement.classList.add('pf-v6-theme-dark', 'pf-v6-theme-glass')
   })
@@ -146,27 +134,14 @@ describe('AppDockedNav', () => {
     expect(screen.getByText('Logout')).toBeInTheDocument()
   })
 
-  it('navigates to user detail page when My Profile is clicked', async () => {
+  it('navigates to /my-profile when My Profile is clicked', async () => {
     const user = userEvent.setup()
     renderDockedNav()
 
     await user.hover(screen.getByRole('button', { name: 'User menu' }))
     await user.click(screen.getByText('My Profile'))
 
-    expect(mockNavigate).toHaveBeenCalledWith(`/system-administration/access-management/users/${MOCK_CURRENT_USER_ID}`)
-  })
-
-  it('does not navigate when My Profile is clicked and user has not loaded', async () => {
-    mockAuthClientUseQuery.mockImplementation(() => ({ data: undefined }))
-    const user = userEvent.setup()
-    renderDockedNav()
-
-    await user.hover(screen.getByRole('button', { name: 'User menu' }))
-    await user.click(screen.getByText('My Profile'))
-
-    expect(mockNavigate).not.toHaveBeenCalledWith(
-      expect.stringContaining('/system-administration/access-management/users/')
-    )
+    expect(mockNavigate).toHaveBeenCalledWith('/my-profile')
   })
 
   it('opens external documentation when documentation button is clicked', async () => {

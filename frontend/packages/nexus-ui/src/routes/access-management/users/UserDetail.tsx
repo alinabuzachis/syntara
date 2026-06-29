@@ -22,6 +22,7 @@ import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxListPanel, NxListPanelTabs } from '../../../components/panels/list/NxListPanel'
+import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { navigate } from '../../../hooks/routing/navigate'
 import { useParams } from '../../../hooks/routing/useParams'
@@ -326,16 +327,37 @@ function UserDetailTabContent({
   )
 }
 
-export function UserDetail() {
+export type UserDetailProps = {
+  /**
+   * When true, the page renders as "My Profile" — userId is fetched from
+   * `/auth/me`, breadcrumbs are omitted, and the back button navigates to
+   * the dashboard instead of the Users list.
+   */
+  isMyProfile?: boolean
+}
+
+function useUserDetailRouting(isMyProfile: boolean | undefined) {
+  const { userId: urlUserId } = useParams<{ userId: string }>()
+  const meQuery = authClient.useQuery('get', '/auth/me')
+  const meUserId = meQuery.data?.id
+
+  const userId = isMyProfile ? meUserId : urlUserId
+  const basePath = isMyProfile
+    ? AppRoute.MyProfile.Root
+    : AppRoute.AccessManagement.UserDetail.replace(':userId', userId ?? '')
+
+  return { userId, basePath, meQuery }
+}
+
+export function UserDetail({ isMyProfile }: Readonly<UserDetailProps> = {}) {
   const usersDocLink = useDocLink('users')
-  const { userId } = useParams<{ userId: string }>()
-  const basePath = AppRoute.AccessManagement.UserDetail.replace(':userId', userId ?? '')
+  const docLink = isMyProfile ? undefined : usersDocLink
+  const { userId, basePath, meQuery } = useUserDetailRouting(isMyProfile)
   const [activeTab] = useUrlTab<UserTab>(basePath)
 
   const userPermissions = useUserPermissions()
   const { userQuery, groupCount, identitiesData, roleAssignmentCount, currentUserId } = useUserDetailData(userId)
   const {
-    canReadUsers,
     canReadGroups,
     canReadIdentities,
     canReadAssignments,
@@ -349,10 +371,9 @@ export function UserDetail() {
     [canReadGroups, canReadIdentities, canReadAssignments, isOwnProfile, permissionsLoading]
   )
 
-  const navigateBack = () => navigate(AppRoute.AccessManagement.Users)
+  const navigateBack = () => navigate(isMyProfile ? AppRoute.Workflows.Root : AppRoute.AccessManagement.Users)
   const navigateEdit = () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', userId ?? ''))
 
-  const userData = userQuery.data
   const refetchUser = userQuery.refetch
   const queryState = useQueryState(userQuery, {
     title: 'Error loading user',
@@ -361,14 +382,23 @@ export function UserDetail() {
     },
   })
 
-  const breadcrumbOptions = { showParentCrumbs: canReadUsers }
-  const shellBreadcrumbs = breadcrumbsUserDetailEarlyShell(breadcrumbOptions)
+  const shellTitle = isMyProfile ? 'My Profile' : 'User'
+  const shellBreadcrumbs = isMyProfile ? [] : breadcrumbsUserDetailEarlyShell()
+
+  if (isMyProfile && meQuery.isPending) {
+    return (
+      <DetailPageShell title="My Profile" breadcrumbs={[]}>
+        <NxLoadingState />
+      </DetailPageShell>
+    )
+  }
 
   if (userQuery.error) {
     return (
-      <DetailPageShell title="User" breadcrumbs={shellBreadcrumbs}>
+      <DetailPageShell title={shellTitle} breadcrumbs={shellBreadcrumbs}>
         <UserNotFoundState
           onBack={navigateBack}
+          backLabel={isMyProfile ? 'Back to workflows' : undefined}
           onRetry={() => {
             detachPromise(refetchUser())
           }}
@@ -379,22 +409,24 @@ export function UserDetail() {
 
   if (queryState) {
     return (
-      <DetailPageShell title="User" breadcrumbs={shellBreadcrumbs}>
+      <DetailPageShell title={shellTitle} breadcrumbs={shellBreadcrumbs}>
         {queryState}
       </DetailPageShell>
     )
   }
 
+  const userData = userQuery.data
   if (!userData) return null
 
   const displayName = userDisplayName(userData) || userData.username
-  const userBreadcrumbs = breadcrumbsUserDetail(displayName, basePath, activeTab, breadcrumbOptions)
+  const pageTitle = isMyProfile ? 'My Profile' : displayName
+  const userBreadcrumbs = isMyProfile ? [] : breadcrumbsUserDetail(displayName, basePath, activeTab)
 
   return (
     <NxPage>
       <NxPageHeader
-        title={displayName}
-        docLink={usersDocLink}
+        title={pageTitle}
+        docLink={docLink}
         breadcrumbs={userBreadcrumbs}
         titleAddons={
           !userData.is_enabled ? (
