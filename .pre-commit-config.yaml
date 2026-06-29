@@ -145,16 +145,21 @@ repos:
     hooks:
       - id: frontend-prettier
         name: 'frontend: prettier format'
-        entry: npm --prefix frontend run format
+        entry: npx --prefix frontend prettier --write --
         language: system
-        pass_filenames: false
+        pass_filenames: true
         files: ^frontend/.*\.(ts|tsx|js|jsx|json|yml|yaml|md|css)$
 
       - id: frontend-eslint
         name: 'frontend: eslint'
-        entry: npm --prefix frontend run lint
+        # --flag v10_config_lookup_from_file makes ESLint resolve eslint.config.js
+        # from each file's own directory rather than the cwd. Without it, running
+        # ESLint from the repo root (as pre-commit does) would fail to find any
+        # config because there is no root-level eslint.config.js — each package
+        # owns its own config.
+        entry: npx --prefix frontend eslint --flag v10_config_lookup_from_file --
         language: system
-        pass_filenames: false
+        pass_filenames: true
         files: ^frontend/packages/.*\.(ts|tsx|js|jsx)$
 
       - id: frontend-tsc
