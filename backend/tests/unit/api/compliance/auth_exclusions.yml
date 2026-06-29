@@ -185,24 +185,3 @@ public:
   - method: POST
     path: /api/v1/webhooks/eda/{webhook_path}
     justification: Auth via webhook secret, not user token
-
-  # -- example: demo scaffold, not deployed --
-  - method: GET
-    path: /api/v1/example
-    justification: Demo scaffold; not deployed to production
-
-  - method: POST
-    path: /api/v1/example
-    justification: Demo scaffold; not deployed to production
-
-  - method: GET
-    path: /api/v1/example/{item_id}
-    justification: Demo scaffold; not deployed to production
-
-  - method: PUT
-    path: /api/v1/example/{item_id}
-    justification: Demo scaffold; not deployed to production
-
-  - method: DELETE
-    path: /api/v1/example/{item_id}
-    justification: Demo scaffold; not deployed to production

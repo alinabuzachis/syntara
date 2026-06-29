@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from .authentication import AuthenticationApi
     from .authorization import AuthorizationApi
     from .credentials import CredentialsApi
-    from .example import ExampleApi
     from .executions import ExecutionsApi
     from .files import FilesApi
     from .groups import GroupsApi
@@ -97,12 +96,6 @@ class NexusApiRegistry:
         from .credentials import CredentialsApi
 
         return CredentialsApi(client=self._client)
-
-    @cached_property
-    def example(self) -> ExampleApi:
-        from .example import ExampleApi
-
-        return ExampleApi(client=self._client)
 
     @cached_property
     def files(self) -> FilesApi:
