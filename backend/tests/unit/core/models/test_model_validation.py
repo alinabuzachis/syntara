@@ -13,6 +13,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
+from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.pagination import (
     ResourcesResponse,
     ResourcesResponseBase,
@@ -65,3 +66,47 @@ class TestPaginationValidation:
                 next=None,
                 prev=None,
             )
+
+
+class TestBaseListParamsValidation:
+    """Test validation rules for BaseListParams query parameters."""
+
+    @pytest.mark.parametrize(
+        ("value", "valid"),
+        [
+            ("name", True),
+            ("-name", True),
+            ("-created_at", True),
+            ("a", True),
+            ("z9_field", True),
+            ("", False),
+            ("-", False),
+            ("Name", False),
+            ("_name", False),
+            ("123", False),
+            ("-Capital", False),
+            ("field name", False),
+            ("field.name", False),
+            ("name,-created_at", False),
+            ("name; DROP TABLE", False),
+            ("name--", False),
+        ],
+    )
+    def test_sort_pattern(self, value: str, *, valid: bool) -> None:
+        """Test sort parameter regex accepts valid field names and rejects invalid ones."""
+        if valid:
+            params = BaseListParams(sort=value)
+            assert params.sort == value
+        else:
+            with pytest.raises(ValidationError):
+                BaseListParams(sort=value)
+
+    def test_sort_none_is_valid(self) -> None:
+        """Test sort parameter accepts None (optional)."""
+        params = BaseListParams(sort=None)
+        assert params.sort is None
+
+    def test_sort_default_is_none(self) -> None:
+        """Test sort parameter defaults to None."""
+        params = BaseListParams()
+        assert params.sort is None

@@ -291,6 +291,7 @@ components:
       schema:
         anyOf:
           - type: string
+            pattern: "^-?[a-z][a-z0-9_]*$"
           - type: "null"
         description: Sort parameter (e.g., 'name', '-created_at')
         title: Sort

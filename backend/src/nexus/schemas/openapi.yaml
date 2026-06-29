@@ -1937,6 +1937,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -4232,6 +4233,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -4989,6 +4991,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -5756,6 +5759,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -6169,6 +6173,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -7358,6 +7363,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -8177,6 +8183,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -9991,6 +9998,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -10660,6 +10668,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -11306,6 +11315,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -11464,6 +11474,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -11761,6 +11772,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -12190,6 +12202,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -12997,6 +13010,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -13799,6 +13813,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -14561,7 +14576,8 @@ paths:
           required: false
           schema:
             anyOf:
-              - type: string
+              - pattern: ^-?[a-z][a-z0-9_]*$
+                type: string
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -15417,7 +15433,8 @@ paths:
           required: false
           schema:
             anyOf:
-              - type: string
+              - pattern: ^-?[a-z][a-z0-9_]*$
+                type: string
               - type: 'null'
             description: Sort parameter (e.g., '-created_at')
             title: Sort
@@ -16186,6 +16203,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -16939,6 +16957,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -17146,6 +17165,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -17642,6 +17662,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -18393,6 +18414,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -19008,6 +19030,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -19164,6 +19187,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -19324,6 +19348,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -19930,6 +19955,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -20437,6 +20463,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -20841,6 +20868,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -21122,6 +21150,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -21616,6 +21645,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
@@ -21895,6 +21925,7 @@ paths:
           schema:
             anyOf:
               - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
