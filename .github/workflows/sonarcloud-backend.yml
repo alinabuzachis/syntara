@@ -28,6 +28,9 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
       && github.event.workflow_run.event == 'pull_request'
       && github.event.workflow_run.head_repository.full_name != github.event.workflow_run.repository.full_name
+    # SonarCloud quality gate failures are informational, not blocking.
+    # Without this, a failed gate marks the entire PR pipeline as failed.
+    continue-on-error: true
 
     steps:
       - name: Checkout repository

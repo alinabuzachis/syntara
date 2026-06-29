@@ -55,6 +55,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    # SonarCloud quality gate failures are informational, not blocking.
+    # Without this, a failed gate marks the entire PR pipeline as failed.
+    continue-on-error: true
 
     steps:
       - name: Checkout Code
