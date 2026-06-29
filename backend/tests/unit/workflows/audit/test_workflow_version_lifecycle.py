@@ -45,6 +45,35 @@ class TestWorkflowVersionCreatedHandler:
         assert audit_event.structured_data.data_type == "workflow-version-created"
         assert audit_event.structured_data.version == 5
 
+    def test_change_summary_included_in_structured_data(self) -> None:
+        """AC1-4: Auto-generated change summary appears in audit log structured data."""
+        summary = {
+            "nodes_added": [{"id": "http_node", "type": "http_request"}],
+            "nodes_removed": [],
+            "nodes_modified": [],
+            "edges_added": [],
+            "edges_removed": ["n1 -> n2"],
+        }
+        event = WorkflowVersionCreatedEvent(
+            workflow_id=WORKFLOW_ID,
+            workflow_name="test-wf",
+            version=3,
+            change_summary=summary,
+        )
+        audit_event = WorkflowVersionCreatedHandler().handle(event)
+
+        assert audit_event.structured_data.change_summary == summary
+
+    def test_no_change_summary_omitted_from_structured_data(self) -> None:
+        event = WorkflowVersionCreatedEvent(
+            workflow_id=WORKFLOW_ID,
+            workflow_name="test-wf",
+            version=1,
+        )
+        audit_event = WorkflowVersionCreatedHandler().handle(event)
+
+        assert getattr(audit_event.structured_data, "change_summary", None) is None
+
 
 class TestWorkflowVersionPublishedHandler:
     """Tests for WorkflowVersionPublishedHandler."""

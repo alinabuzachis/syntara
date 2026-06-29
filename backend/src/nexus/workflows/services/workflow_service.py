@@ -49,6 +49,7 @@ from nexus.workflows.models.workflow_definition import WorkflowDefinition
 from nexus.workflows.models.workflow_version import WorkflowVersionStatus
 from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
 from nexus.workflows.services.webhook_trigger_service import WEBHOOK_TRIGGER_TYPES, WebhookTriggerService
+from nexus.workflows.services.workflow_diff import generate_change_summary
 from nexus.workflows.validators import workflow_validator
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -116,6 +117,7 @@ class WorkflowService(BaseService):
         project_id: UUID | None = None,
         error_type: str | None = None,
         new_version_created: bool = False,
+        change_summary: dict[str, Any] | None = None,
     ) -> None:
         AuditEventDispatcher.dispatch(
             WorkflowLifecycleEvent(
@@ -133,6 +135,7 @@ class WorkflowService(BaseService):
                     workflow_id=workflow_id,
                     workflow_name=workflow_name,
                     version=version,
+                    change_summary=change_summary,
                 )
             )
 
@@ -740,6 +743,13 @@ class WorkflowService(BaseService):
                 labels=labels,
             )
 
+        # Capture old definition for audit change summary
+        old_definition: dict[str, Any] | None = None
+        if workflow_definition is not None:
+            prev_version = await self._get_version_or_none(workflow.id, workflow.current_version)
+            if prev_version:
+                old_definition = prev_version.workflow_definition
+
         # Handle workflow_definition - creates new version
         new_version: WorkflowVersion | None = None
         if workflow_definition is not None:
@@ -785,6 +795,9 @@ class WorkflowService(BaseService):
             )
             raise
 
+        # Generate change summary for audit log only
+        change_summary = generate_change_summary(old_definition, workflow_definition)
+
         self._emit_lifecycle_event(
             workflow_id=workflow.id,
             workflow_name=workflow.name,
@@ -792,6 +805,7 @@ class WorkflowService(BaseService):
             version=new_version.version if new_version else current_version.version,
             project_id=workflow.project_id,
             new_version_created=new_version is not None,
+            change_summary=change_summary,
         )
 
         return workflow, current_version
@@ -1009,6 +1023,10 @@ class WorkflowService(BaseService):
         if not target_version:
             raise WorkflowVersionNotFoundError(workflow_id, version)
 
+        # Capture current definition for audit change summary
+        current_version_record = await self._get_version_or_none(workflow.id, workflow.current_version)
+        old_definition = current_version_record.workflow_definition if current_version_record else None
+
         date_iso = target_version.created_at.isoformat() if target_version.created_at else None
         source_label = target_version.publish_name or date_iso or f"version {version}"
         new_version = await self._create_version_record(
@@ -1042,6 +1060,9 @@ class WorkflowService(BaseService):
         await self.session.refresh(workflow)
         await self.session.refresh(new_version)
 
+        # Generate change summary for audit log only
+        restore_change_summary = generate_change_summary(old_definition, target_version.workflow_definition)
+
         # Intentional dual emission: "created" tracks total versions, "restored" tracks rollbacks
         self._emit_lifecycle_event(
             workflow_id=workflow.id,
@@ -1050,6 +1071,7 @@ class WorkflowService(BaseService):
             version=new_version.version,
             project_id=workflow.project_id,
             new_version_created=True,
+            change_summary=restore_change_summary,
         )
         AuditEventDispatcher.dispatch(
             WorkflowVersionRestoredEvent(

@@ -6,7 +6,7 @@ Covers version creation, publish, unpublish, and restore operations.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
@@ -33,6 +33,7 @@ class WorkflowVersionCreatedEvent:
     workflow_id: UUID
     version: int
     workflow_name: str
+    change_summary: dict[str, Any] | None = field(default=None)
 
 
 @dataclass
@@ -79,6 +80,13 @@ class WorkflowVersionCreatedHandler(AuditEventHandler[WorkflowVersionCreatedEven
 
     def handle(self, event: WorkflowVersionCreatedEvent) -> AuditEvent:
         """Map a WorkflowVersionCreatedEvent to an AuditEvent."""
+        data = AuditContextData(
+            data_type="workflow-version-created",
+            version=event.version,
+        )
+        if event.change_summary:
+            data.change_summary = event.change_summary
+
         return AuditEvent(
             event_category=EventCategory.WORKFLOW_EVENT,
             event_severity=EventSeverity.INFO,
@@ -86,10 +94,7 @@ class WorkflowVersionCreatedHandler(AuditEventHandler[WorkflowVersionCreatedEven
             event_action="workflow_version_created",
             event_message=f"Workflow version {event.version} created",
             source_component="nexus.workflows",
-            structured_data=AuditContextData(
-                data_type="workflow-version-created",
-                version=event.version,
-            ),
+            structured_data=data,
             workflow_id=event.workflow_id,
             resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,
