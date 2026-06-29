@@ -2,7 +2,7 @@
  * Helper functions for adding each v2 workflow node type via the builder UI.
  *
  * V2 node types:
- *   Trigger:      manual, webhook, scheduled
+ *   Trigger:      manual, webhook, eda, scheduled
  *   Executors:    script, http_request, agentic, aap_job_template, approval
  *   Control flow: condition, loop, converge
  *
@@ -87,6 +87,21 @@ export async function addWebhookTrigger(page: Page, name: string, webhookPath: s
   // Wait for trigger selection panel with correct heading text
   await expect(page.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10000 })
   await page.getByRole('button', { name: 'Webhook trigger', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+  await page.getByRole('textbox', { name: 'Webhook path' }).fill(webhookPath)
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+
+  // Panel auto-closes after adding trigger - no manual close needed
+}
+
+/** Add an EDA (Event-Driven Ansible) trigger. Must be called on a fresh /workflow-builder/new page. */
+export async function addEdaTrigger(page: Page, name: string, webhookPath: string) {
+  // Wait for page to finish loading
+  await expect(page.getByRole('progressbar', { name: 'Loading' })).not.toBeVisible({ timeout: 15000 })
+
+  // Wait for trigger selection panel with correct heading text
+  await expect(page.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10000 })
+  await page.getByRole('button', { name: 'Event-Driven Ansible trigger', exact: true }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByRole('textbox', { name: 'Webhook path' }).fill(webhookPath)
   await page.getByRole('button', { name: 'Create', exact: true }).click()
