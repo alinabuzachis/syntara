@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from tests.unit.authz.conftest import allow_policy, build_opa_input
+from tests.unit.authz.conftest import allow_policy, build_opa_input, policies_for_role
 
 SA_ACTIONS = ["create", "read", "update", "delete", "rotate_secret", "disable", "enable"]
 SA_WRITE_ACTIONS = ["create", "update", "delete", "rotate_secret", "disable", "enable"]
@@ -13,7 +13,7 @@ PROJECT_ID = "proj-sa-test"
 OTHER_PROJECT_ID = "proj-other"
 
 
-def _admin_policies(project: str = PROJECT_ID) -> list[dict[str, Any]]:
+def _project_admin_policies(project: str = PROJECT_ID) -> list[dict[str, Any]]:
     return [
         allow_policy(
             f"service_account:{action}:{project}",
@@ -23,6 +23,11 @@ def _admin_policies(project: str = PROJECT_ID) -> list[dict[str, Any]]:
         )
         for action in SA_ACTIONS
     ]
+
+
+def _system_admin_policies() -> list[dict[str, Any]]:
+    """Build admin role policies (all scope='any', no project injection needed)."""
+    return policies_for_role("admin")
 
 
 def _auditor_policies(project: str = PROJECT_ID) -> list[dict[str, Any]]:
@@ -46,7 +51,7 @@ class TestProjectAdminServiceAccountAccess:
                 action=action,
                 resource_type="service_account",
                 resource_project=PROJECT_ID,
-                effective_policies=_admin_policies(),
+                effective_policies=_project_admin_policies(),
             )
         )
         assert result["allow"] is True
@@ -58,10 +63,38 @@ class TestProjectAdminServiceAccountAccess:
                 action=action,
                 resource_type="service_account",
                 resource_project=OTHER_PROJECT_ID,
-                effective_policies=_admin_policies(),
+                effective_policies=_project_admin_policies(),
             )
         )
         assert result["allow"] is False
+
+
+class TestSystemAdminServiceAccountAccess:
+    """System admin role has full service_account access in any project."""
+
+    @pytest.mark.parametrize("action", SA_ACTIONS, ids=SA_ACTIONS)
+    def test_allowed_in_project(self, opa_evaluate, action: str):
+        result = opa_evaluate(
+            build_opa_input(
+                action=action,
+                resource_type="service_account",
+                resource_project=PROJECT_ID,
+                effective_policies=_system_admin_policies(),
+            )
+        )
+        assert result["allow"] is True
+
+    @pytest.mark.parametrize("action", SA_ACTIONS, ids=SA_ACTIONS)
+    def test_allowed_in_any_project(self, opa_evaluate, action: str):
+        result = opa_evaluate(
+            build_opa_input(
+                action=action,
+                resource_type="service_account",
+                resource_project=OTHER_PROJECT_ID,
+                effective_policies=_system_admin_policies(),
+            )
+        )
+        assert result["allow"] is True
 
 
 class TestProjectAuditorServiceAccountAccess:

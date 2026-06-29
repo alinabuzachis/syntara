@@ -473,7 +473,15 @@ E2E_COVERAGE_EXEMPT: set[str] = {
     # Files
     "files:upload:any",
     "files:download:any",
-    # Service accounts
+    # Service accounts (system-scoped — unit-tested via test_rego_service_account.py)
+    "service_account:create:any",
+    "service_account:read:any",
+    "service_account:update:any",
+    "service_account:delete:any",
+    "service_account:rotate_secret:any",
+    "service_account:disable:any",
+    "service_account:enable:any",
+    # Service accounts (project-scoped)
     "service_account:create:project",
     "service_account:read:project",
     "service_account:update:project",
