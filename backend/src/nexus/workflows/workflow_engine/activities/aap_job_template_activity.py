@@ -25,12 +25,13 @@ from .aap_common import (
     AAP_JOB_TERMINAL_STATUSES,
     AAPActivityExecutionError,
     AAPJobTerminalStatus,
+    build_aap_job_url,
     lookup_resource_by_name,
     poll_until_complete,
     resolve_aap_auth,
     resolve_label_ids,
 )
-from .common import is_retryable_http_status
+from .common import HEARTBEAT_PARTIAL_OUTPUT_KEY, HEARTBEAT_STOP_MONITOR, is_retryable_http_status
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -413,6 +414,7 @@ async def execute_aap_job_template_activity(
 
     start_time = time.time()
     job_id = None
+    job_url = None
 
     try:
         # Increase timeout for AAP connections (default 5s can be too short for remote AAP servers)
@@ -422,6 +424,15 @@ async def execute_aap_job_template_activity(
             timeout=timeout,
         ) as client:
             job_id = await _launch_aap_job(client, config, auth_headers, basic_auth, base_url)
+            job_url = build_aap_job_url(base_url, job_id, "playbook")
+            partial_output: dict[str, Any] = {"job_id": job_id, "job_url": job_url}
+
+            activity.heartbeat(
+                {
+                    HEARTBEAT_STOP_MONITOR: True,
+                    HEARTBEAT_PARTIAL_OUTPUT_KEY: partial_output,
+                }
+            )
 
             aap_timeout = int(input_config.get(constants.ENGINE_TIMEOUT_SECONDS_KEY, 3600))
             job_data = await poll_until_complete(
@@ -436,11 +447,13 @@ async def execute_aap_job_template_activity(
                 job_type="jobs",  # Plural: AAP API expects /api/controller/v2/jobs/{id}/cancel/
                 terminal_statuses=AAP_JOB_TERMINAL_STATUSES,
                 error_class=AAPJobExecutionError,
+                partial_output=partial_output,
             )
 
             final_status = job_data["status"]
             output = AAPJobTemplateOutput(
                 job_id=job_id,
+                job_url=job_url,
                 job_status=final_status,
                 artifacts=job_data.get("artifacts", {}),
                 created=job_data.get("created", ""),
@@ -461,13 +474,13 @@ async def execute_aap_job_template_activity(
     except (ApplicationError, CancelledError):
         raise
     except AAPActivityExecutionError as e:
-        output = AAPJobTemplateOutput(job_id=e.job_id, job_status=e.status)
+        output = AAPJobTemplateOutput(job_id=e.job_id, job_url=job_url, job_status=e.status)
         raise ApplicationError(
             str(e), {"output": output.dump(output_config)}, type="AAPJobExecutionError", non_retryable=not e.retryable
         ) from e
     except Exception as e:
         logger.exception("Unexpected error in AAP activity", job_id=job_id)
-        output = AAPJobTemplateOutput(job_id=job_id)
+        output = AAPJobTemplateOutput(job_id=job_id, job_url=job_url)
         msg = f"Unexpected error executing AAP job template (job_id={job_id})"
         raise ApplicationError(
             msg, {"output": output.dump(output_config)}, type=type(e).__name__, non_retryable=True

@@ -35,6 +35,7 @@ export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
     { name: 'created', type: 'string', description: 'Job creation timestamp (ISO 8601)' },
     { name: 'started', type: 'string', description: 'Job start timestamp (ISO 8601)' },
     { name: 'finished', type: 'string', description: 'Job finish timestamp (ISO 8601)' },
+    { name: 'job_url', type: 'string', description: 'URL to view job in AAP UI' },
     { name: 'artifacts', type: 'object', description: 'Job artifacts/facts' },
   ],
   aap_workflow_job_template: [
@@ -43,6 +44,7 @@ export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
     { name: 'created', type: 'string', description: 'Workflow job creation timestamp (ISO 8601)' },
     { name: 'started', type: 'string', description: 'Workflow job start timestamp (ISO 8601)' },
     { name: 'finished', type: 'string', description: 'Workflow job finish timestamp (ISO 8601)' },
+    { name: 'workflow_job_url', type: 'string', description: 'URL to view workflow job in AAP UI' },
     { name: 'workflow_job_status', type: 'string', description: 'Workflow job status (successful, failed, etc.)' },
     { name: 'artifacts', type: 'object', description: 'Workflow job artifacts' },
   ],

@@ -1,5 +1,8 @@
 """Tests for agentic activity runtime settings injection."""
 
+from collections.abc import Generator
+from unittest.mock import patch
+
 import pytest
 from temporalio.exceptions import ApplicationError
 
@@ -7,6 +10,13 @@ from nexus.workflows.workflow_engine.activities.agentic_activity import (
     _inject_runtime_settings,
     execute_agentic_activity,
 )
+
+
+@pytest.fixture(autouse=True)
+def _mock_heartbeat() -> Generator[None, None, None]:
+    """Auto-mock activity.heartbeat() so tests can run outside a Temporal worker."""
+    with patch("temporalio.activity.heartbeat"):
+        yield
 
 
 class TestInjectRuntimeSettings:

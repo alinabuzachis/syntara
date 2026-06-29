@@ -860,6 +860,7 @@ class AAPJobTemplateOutput(NodeOutput):
     """Output model for AAP job template executor nodes."""
 
     job_id: int | None = None
+    job_url: str | None = None
     job_status: str | None = None
     artifacts: dict[str, Any] | None = None
     created: str | None = None
@@ -871,6 +872,7 @@ class AAPWorkflowJobTemplateOutput(NodeOutput):
     """Output model for AAP workflow job template executor nodes."""
 
     workflow_job_id: int | None = None
+    workflow_job_url: str | None = None
     workflow_job_status: str | None = None
     artifacts: dict[str, Any] | None = None
     created: str | None = None

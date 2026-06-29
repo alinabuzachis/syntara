@@ -243,6 +243,7 @@ function ThreePanelLayout({
               nodeName={displayNodeName}
               executionId={executionId}
               nodeState={selectedNodeState}
+              nodeType={activityOrder.find((a) => a.id === selectedNodeId)?.type}
             />
           ) : (
             <NoSelectionState />

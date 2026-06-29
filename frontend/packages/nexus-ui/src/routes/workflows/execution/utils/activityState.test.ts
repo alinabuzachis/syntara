@@ -422,6 +422,28 @@ describe('applyJsonPatch', () => {
 
     expect(activities.get('task')?.status).toBe('running')
   })
+
+  it('applies output_data replace operation', () => {
+    const activities = new Map<string, ActivityState>([['task', { activityId: 'task', status: 'running' }]])
+    const operations: JsonPatchOperation[] = [
+      { op: 'replace', path: '/activities/task/output_data', value: { job_id: 123, job_url: 'https://aap/jobs/123' } },
+    ]
+
+    applyJsonPatch(activities, operations)
+
+    expect(activities.get('task')?.outputData).toEqual({ job_id: 123, job_url: 'https://aap/jobs/123' })
+  })
+
+  it('applies output_data add operation', () => {
+    const activities = new Map<string, ActivityState>([['task', { activityId: 'task', status: 'running' }]])
+    const operations: JsonPatchOperation[] = [
+      { op: 'add', path: '/activities/task/output_data', value: { job_id: 456 } },
+    ]
+
+    applyJsonPatch(activities, operations)
+
+    expect(activities.get('task')?.outputData).toEqual({ job_id: 456 })
+  })
 })
 
 // ============================================================================
@@ -481,6 +503,26 @@ describe('buildActivityStateMap', () => {
 
     expect(map.get('task')?.status).toBe('failed')
     expect(map.get('task')?.errorDetails).toBe('Connection timeout')
+  })
+
+  it('includes output_data in activity state', () => {
+    const apiActivities = [
+      {
+        activity_id: 'aap_step',
+        status: 'running' as const,
+        error_details: null,
+        output_data: { job_id: 789, job_url: 'https://aap.example.com/jobs/789' },
+        started_at: '2025-12-10T15:00:05Z',
+        completed_at: null,
+      },
+    ]
+
+    const map = buildActivityStateMap(apiActivities)
+
+    expect(map.get('aap_step')?.outputData).toEqual({
+      job_id: 789,
+      job_url: 'https://aap.example.com/jobs/789',
+    })
   })
 
   it('handles empty array', () => {

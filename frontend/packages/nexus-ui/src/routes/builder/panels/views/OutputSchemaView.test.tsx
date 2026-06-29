@@ -82,4 +82,30 @@ describe('OutputSchemaView', () => {
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
+
+  it('renders URL values with an external link action button', () => {
+    const data = { website: 'https://example.com' }
+    render(<OutputSchemaView data={data} />)
+
+    const link = screen.getByRole('link', { name: 'Open website in new tab' })
+    expect(link).toHaveAttribute('href', 'https://example.com')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('does not render non-URL strings as links', () => {
+    const data = { hostname: 'server1' }
+    render(<OutputSchemaView data={data} />)
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.getByText('server1')).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations with URL values', async () => {
+    const data = { website: 'https://example.com', name: 'test' }
+    const { container } = render(<OutputSchemaView data={data} />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
 })

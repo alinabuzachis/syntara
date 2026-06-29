@@ -1,6 +1,7 @@
 """Unit tests for ActivitySyncService."""
 
 import asyncio
+import json
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
@@ -22,6 +23,7 @@ from nexus.workflows.workflow_engine.services.activity_sync_service import (
     ActivitySyncService,
     ExecutionMonitorMetadata,
     SyntheticActivityStarted,
+    SyntheticPartialOutput,
 )
 
 
@@ -2079,35 +2081,55 @@ class TestScheduleDescribeProbe:
         """Set up test fixtures."""
         self.service = ActivitySyncService(Mock(), Mock())
 
-    @pytest.mark.asyncio
-    async def test_pushes_synthetic_event_when_activity_started(self) -> None:
-        """Test that probe pushes SyntheticActivityStarted when describe reports STARTED."""
-        mock_handle = AsyncMock()
+    @staticmethod
+    def _make_started_pa_with_heartbeat(
+        activity_id: str = "my-activity",
+        partial_output: dict[str, Any] | None = None,
+    ) -> Mock:
+        """Create a STARTED pending activity mock with STOP_MONITOR heartbeat."""
         pa = Mock()
-        pa.activity_id = "my-activity"
+        pa.activity_id = activity_id
         pa.state = STARTED_STATE
+        payload = Mock()
+        payload.data = json.dumps({"stop_monitor": True, "partial_output": partial_output})
+        pa.heartbeat_details.payloads = [payload]
+        return pa
+
+    @pytest.mark.asyncio
+    async def test_pushes_started_then_partial_output(self) -> None:
+        """Test that probe pushes SyntheticActivityStarted then SyntheticPartialOutput as separate events."""
+        pa = self._make_started_pa_with_heartbeat(partial_output={"job_id": 42})
         mock_desc = Mock()
         mock_desc.raw_description.pending_activities = [pa]
+        mock_handle = AsyncMock()
         mock_handle.describe.return_value = mock_desc
 
         queue: asyncio.Queue[Any] = asyncio.Queue()
 
-        await self.service._schedule_describe_probe(
-            handle=mock_handle,
-            queue=queue,
-            activity_id="my-activity",
-            scheduled_event_id=5,
-        )
+        with patch(
+            "nexus.workflows.workflow_engine.services.activity_sync_service.asyncio.sleep", new_callable=AsyncMock
+        ):
+            await self.service._schedule_describe_probe(
+                handle=mock_handle,
+                queue=queue,
+                activity_id="my-activity",
+                scheduled_event_id=5,
+            )
 
-        assert not queue.empty()
-        item = await queue.get()
-        assert isinstance(item, SyntheticActivityStarted)
-        assert item.activity_id == "my-activity"
-        assert item.scheduled_event_id == 5
+        # First event: status → RUNNING
+        item1 = await queue.get()
+        assert isinstance(item1, SyntheticActivityStarted)
+        assert item1.activity_id == "my-activity"
+        assert item1.scheduled_event_id == 5
+
+        # Second event: partial output
+        item2 = await queue.get()
+        assert isinstance(item2, SyntheticPartialOutput)
+        assert item2.partial_output == {"job_id": 42}
 
     @pytest.mark.asyncio
     async def test_stops_when_activity_no_longer_pending(self) -> None:
-        """Test that probe stops when activity disappears from pending list."""
+        """Test that probe pushes event and stops when activity disappears before STARTED."""
         mock_handle = AsyncMock()
         mock_desc = Mock()
         mock_desc.raw_description.pending_activities = []
@@ -2115,14 +2137,21 @@ class TestScheduleDescribeProbe:
 
         queue: asyncio.Queue[Any] = asyncio.Queue()
 
-        await self.service._schedule_describe_probe(
-            handle=mock_handle,
-            queue=queue,
-            activity_id="my-activity",
-            scheduled_event_id=5,
-        )
+        with patch(
+            "nexus.workflows.workflow_engine.services.activity_sync_service.asyncio.sleep", new_callable=AsyncMock
+        ):
+            await self.service._schedule_describe_probe(
+                handle=mock_handle,
+                queue=queue,
+                activity_id="my-activity",
+                scheduled_event_id=5,
+            )
 
-        assert queue.empty()
+        # Activity disappeared before STARTED — probe pushes a synthetic event
+        # so the DB still gets the status transition.
+        assert not queue.empty()
+        item = await queue.get()
+        assert isinstance(item, SyntheticActivityStarted)
         mock_handle.describe.assert_called_once()
 
     @pytest.mark.asyncio
@@ -2132,9 +2161,7 @@ class TestScheduleDescribeProbe:
         pa_scheduled.activity_id = "my-activity"
         pa_scheduled.state = 1  # SCHEDULED
 
-        pa_started = Mock()
-        pa_started.activity_id = "my-activity"
-        pa_started.state = STARTED_STATE
+        pa_started = self._make_started_pa_with_heartbeat(partial_output={"job_id": 99})
 
         desc_scheduled = Mock()
         desc_scheduled.raw_description.pending_activities = [pa_scheduled]
@@ -2158,15 +2185,15 @@ class TestScheduleDescribeProbe:
             )
 
         assert mock_handle.describe.call_count == 3
-        item = await queue.get()
-        assert isinstance(item, SyntheticActivityStarted)
+        item1 = await queue.get()
+        assert isinstance(item1, SyntheticActivityStarted)
+        item2 = await queue.get()
+        assert isinstance(item2, SyntheticPartialOutput)
 
     @pytest.mark.asyncio
     async def test_retries_on_exception(self) -> None:
         """Test that probe retries when describe() raises an exception."""
-        pa_started = Mock()
-        pa_started.activity_id = "my-activity"
-        pa_started.state = STARTED_STATE
+        pa_started = self._make_started_pa_with_heartbeat(partial_output={"job_id": 77})
         desc_started = Mock()
         desc_started.raw_description.pending_activities = [pa_started]
 
@@ -2186,8 +2213,10 @@ class TestScheduleDescribeProbe:
             )
 
         assert mock_handle.describe.call_count == 2
-        item = await queue.get()
-        assert isinstance(item, SyntheticActivityStarted)
+        item1 = await queue.get()
+        assert isinstance(item1, SyntheticActivityStarted)
+        item2 = await queue.get()
+        assert isinstance(item2, SyntheticPartialOutput)
 
     @pytest.mark.asyncio
     async def test_stops_on_shutdown(self) -> None:
@@ -2206,6 +2235,90 @@ class TestScheduleDescribeProbe:
 
         assert queue.empty()
         mock_handle.describe.assert_not_called()
+
+
+class TestExtractHeartbeatData:
+    """Test _extract_heartbeat_data static method."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(Mock(), Mock())
+
+    def test_returns_decoded_dict_from_valid_payload(self) -> None:
+        """Test decoding a valid JSON heartbeat payload."""
+        import json
+
+        pa = Mock()
+        payload = Mock()
+        payload.data = json.dumps({"stop_monitor": True, "partial_output": {"job_id": 42}}).encode()
+        pa.heartbeat_details = Mock()
+        pa.heartbeat_details.payloads = [payload]
+
+        result = ActivitySyncService._extract_heartbeat_data(pa)
+
+        assert result is not None
+        assert result["stop_monitor"] is True
+        assert result["partial_output"]["job_id"] == 42
+
+    def test_returns_none_when_no_heartbeat_details(self) -> None:
+        """Test returns None when heartbeat_details is None."""
+        pa = Mock()
+        pa.heartbeat_details = None
+
+        result = ActivitySyncService._extract_heartbeat_data(pa)
+
+        assert result is None
+
+    def test_returns_none_when_no_payloads(self) -> None:
+        """Test returns None when heartbeat_details has empty payloads."""
+        pa = Mock()
+        pa.heartbeat_details = Mock()
+        pa.heartbeat_details.payloads = []
+
+        result = ActivitySyncService._extract_heartbeat_data(pa)
+
+        assert result is None
+
+    def test_returns_none_on_malformed_json(self) -> None:
+        """Test returns None when payload contains invalid JSON."""
+        pa = Mock()
+        payload = Mock()
+        payload.data = b"not valid json"
+        pa.heartbeat_details = Mock()
+        pa.heartbeat_details.payloads = [payload]
+
+        result = ActivitySyncService._extract_heartbeat_data(pa)
+
+        assert result is None
+
+    def test_returns_none_when_heartbeat_details_falsy(self) -> None:
+        """Test returns None when heartbeat_details is falsy (empty object)."""
+        pa = Mock()
+        pa.heartbeat_details = Mock()
+        pa.heartbeat_details.__bool__ = Mock(return_value=False)
+        pa.heartbeat_details.payloads = []
+
+        result = ActivitySyncService._extract_heartbeat_data(pa)
+
+        assert result is None
+
+    def test_returns_none_on_attribute_error(self) -> None:
+        """Test returns None when payload data attribute raises AttributeError."""
+        pa = Mock()
+        payload = Mock()
+        payload.data = None  # json.loads(None) will raise TypeError, but we mock it
+        pa.heartbeat_details = Mock()
+        pa.heartbeat_details.payloads = [payload]
+
+        # When data is None, json.loads will raise TypeError which is not caught,
+        # but AttributeError on accessing .data is caught
+        pa2 = Mock()
+        pa2.heartbeat_details = Mock()
+        pa2.heartbeat_details.payloads = [Mock(spec=[])]  # spec=[] means no 'data' attribute
+
+        result = ActivitySyncService._extract_heartbeat_data(pa2)
+
+        assert result is None
 
 
 class TestHistoryEventProducer:

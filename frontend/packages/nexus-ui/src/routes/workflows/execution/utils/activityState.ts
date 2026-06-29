@@ -82,6 +82,9 @@ function applyFieldUpdate(activity: ActivityState, field: string, value: unknown
     case 'completed_at':
       updated.completedAt = value as string | null
       break
+    case 'output_data':
+      updated.outputData = value as Record<string, unknown> | null
+      break
     default:
       throw new Error(`Unsupported field for activity update: ${field}`)
   }
@@ -275,6 +278,7 @@ export function buildActivityStateMap(
     activity_id: string
     status: ActivityStatus
     error_details?: string | null
+    output_data?: Record<string, unknown> | null
     started_at?: string | null
     completed_at?: string | null
   }>
@@ -286,6 +290,7 @@ export function buildActivityStateMap(
       activityId: activity.activity_id,
       status: activity.status,
       errorDetails: activity.error_details,
+      outputData: activity.output_data,
       startedAt: activity.started_at,
       completedAt: activity.completed_at,
     })

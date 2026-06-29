@@ -12,13 +12,19 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { RhUiDislikeFillIcon, RhUiLikeFillIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
+import {
+  RhUiDislikeFillIcon,
+  RhUiExternalLinkIcon,
+  RhUiLikeFillIcon,
+  RhUiWarningFillIcon,
+} from '@patternfly/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxLabel } from '../../components/labels/NxLabel'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
+import { extractAAPJobUrl, isAAPNodeType } from '../../utils/aapJobUrl'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 import { highlightTextLines } from '../../utils/highlightText'
@@ -38,6 +44,8 @@ type NodeExecutionDetailsPanelProps = {
   executionId: string
   /** Activity state from the execution store, used for status and elapsed time. */
   nodeState?: ActivityState
+  /** Node type from workflow definition (e.g. 'aap_job_template'). */
+  nodeType?: string
 }
 
 function NoDataState({ label }: Readonly<{ label: string }>) {
@@ -187,6 +195,27 @@ function ApprovalAuditSection({ audit }: Readonly<{ audit: ApprovalAudit }>) {
   )
 }
 
+function AAPJobLink({
+  outputData,
+  nodeType,
+}: Readonly<{ outputData: Record<string, unknown> | null; nodeType?: string }>) {
+  const jobUrl = isAAPNodeType(nodeType) ? extractAAPJobUrl(outputData) : null
+  if (!jobUrl) return null
+
+  return (
+    <StackItem style={{ flexShrink: 0, textAlign: 'right', paddingBottom: 'var(--pf-t--global--spacer--xs)' }}>
+      <a
+        href={jobUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ textDecoration: 'underline dotted', textUnderlineOffset: '3px' }}
+      >
+        View job in AAP <RhUiExternalLinkIcon />
+      </a>
+    </StackItem>
+  )
+}
+
 /**
  * Renders a node details section with its own header (name, status, elapsed, close)
  * and side-by-side Input / Output data panes beneath it.
@@ -196,6 +225,7 @@ export function NodeExecutionDetailsPanel({
   nodeName,
   executionId,
   nodeState,
+  nodeType,
 }: Readonly<NodeExecutionDetailsPanelProps>) {
   const [inputView, setPanelView] = useState<PanelView>('json')
   const [outputView, setOutputView] = useState<PanelView>('json')
@@ -259,6 +289,8 @@ export function NodeExecutionDetailsPanel({
           <ApprovalAuditSection audit={approvalAudit} />
         </StackItem>
       )}
+
+      <AAPJobLink outputData={outputData} nodeType={nodeType} />
 
       {/* Side-by-side Input / Output panes */}
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>

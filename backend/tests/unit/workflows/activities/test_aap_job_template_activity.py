@@ -172,6 +172,23 @@ class TestAAPJobTemplateExecution:
             assert result["output"]["finished"] == "2026-04-23T20:11:10Z"
 
     @pytest.mark.asyncio
+    async def test_successful_job_includes_job_url(self, mock_activity_context: object) -> None:
+        """Test successful job output contains job_url pointing to AAP UI."""
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+        status_response = create_job_status_response(job_id=123)
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=status_response),
+        ):
+            activity_config = build_activity_config(job_template_id=42)
+
+            result = await execute_aap_job_template_activity(activity_config, None)
+
+            assert result["output"]["job_url"] is not None
+            assert "execution/jobs/playbook/123/output" in result["output"]["job_url"]
+
+    @pytest.mark.asyncio
     async def test_failed_job_execution(self, mock_activity_context: object) -> None:
         """Test job template execution failure raises ApplicationError."""
         launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/jobs/456/"})
@@ -187,6 +204,64 @@ class TestAAPJobTemplateExecution:
 
         assert exc_info.value.type == "AAPJobExecutionError"
         assert "456" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_failed_job_includes_job_url_in_error_details(self, mock_activity_context: object) -> None:
+        """Test failed job error details include job_url."""
+        launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/jobs/456/"})
+        failed_status_response = create_job_status_response(job_id=456, status="failed")
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=failed_status_response),
+            pytest.raises(ApplicationError) as exc_info,
+        ):
+            activity_config = build_activity_config(job_template_id=99)
+            await execute_aap_job_template_activity(activity_config, None)
+
+        # ApplicationError details contain the output dict with job_url
+        details = exc_info.value.details[0]
+        assert details["output"]["job_url"] is not None
+        assert "execution/jobs/playbook/456/output" in details["output"]["job_url"]
+
+    @pytest.mark.asyncio
+    async def test_error_status_includes_job_url_in_error_details(self, mock_activity_context: object) -> None:
+        """Test error status job error details include job_url."""
+        launch_response = create_http_response(200, {"id": 789, "url": "/api/v2/jobs/789/"})
+        error_status_response = create_job_status_response(job_id=789, status="error")
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=error_status_response),
+            pytest.raises(ApplicationError) as exc_info,
+        ):
+            activity_config = build_activity_config(job_template_id=99)
+            await execute_aap_job_template_activity(activity_config, None)
+
+        details = exc_info.value.details[0]
+        assert details["output"]["job_url"] is not None
+        assert "execution/jobs/playbook/789/output" in details["output"]["job_url"]
+
+    @pytest.mark.asyncio
+    async def test_unexpected_error_includes_job_url(self, mock_activity_context: object) -> None:
+        """Test unexpected errors after launch include job_url in output."""
+        launch_response = create_http_response(200, {"id": 321, "url": "/api/v2/jobs/321/"})
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Unexpected"),
+            ),
+            pytest.raises(ApplicationError) as exc_info,
+        ):
+            activity_config = build_activity_config(job_template_id=42)
+            await execute_aap_job_template_activity(activity_config, None)
+
+        details = exc_info.value.details[0]
+        assert details["output"]["job_url"] is not None
+        assert "execution/jobs/playbook/321/output" in details["output"]["job_url"]
 
     @pytest.mark.asyncio
     async def test_extra_vars_forwarded_to_aap(self, mock_activity_context: object) -> None:
@@ -273,7 +348,7 @@ class TestAAPJobTemplateHeartbeat:
         override_settings: Callable[..., AbstractContextManager[object]],
         aap_settings_overrides: dict[str, object],
     ) -> None:
-        """Test activity sends heartbeats during polling loop."""
+        """Test activity sends heartbeats during polling loop with STOP_MONITOR payload."""
         # Mock responses - multiple polling iterations (running → running → successful)
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
         running_response_1 = create_http_response(200, {"id": 123, "status": "running"})
@@ -294,14 +369,48 @@ class TestAAPJobTemplateHeartbeat:
 
             await execute_aap_job_template_activity(activity_config, None)
 
-            # Verify heartbeats were sent (at least 2 times during polling)
-            assert mock_heartbeat.call_count >= 2
+            # Verify heartbeats were sent (initial + at least 2 during polling)
+            assert mock_heartbeat.call_count >= 3
 
-            # Verify heartbeat payload contains job_id and status
+            # All heartbeat payloads should contain stop_monitor and partial_output
             for call_obj in mock_heartbeat.call_args_list:
                 payload = call_obj[0][0]
-                assert payload["job_id"] == 123
-                assert payload["status"] == "running"
+                assert payload["stop_monitor"] is True
+                assert "partial_output" in payload
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    async def test_heartbeat_after_launch_contains_job_id_and_url(
+        self,
+        mock_is_cancelled: object,
+        override_settings: Callable[..., AbstractContextManager[object]],
+        aap_settings_overrides: dict[str, object],
+    ) -> None:
+        """Test the initial heartbeat after launch contains job_id and job_url in partial_output."""
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+
+        mock_heartbeat = MagicMock()
+
+        with (
+            override_settings(**aap_settings_overrides),
+            patch("temporalio.activity.heartbeat", mock_heartbeat),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                return_value=create_job_status_response(),
+            ),
+        ):
+            activity_config = build_activity_config(job_template_id=42)
+
+            await execute_aap_job_template_activity(activity_config, None)
+
+            # The first heartbeat is sent immediately after launch (before polling)
+            first_payload = mock_heartbeat.call_args_list[0][0][0]
+            assert first_payload["stop_monitor"] is True
+            partial = first_payload["partial_output"]
+            assert partial["job_id"] == 123
+            assert "execution/jobs/playbook/123/output" in partial["job_url"]
 
 
 class TestAAPJobTemplateCancellation:
@@ -573,8 +682,10 @@ class TestAAPJobTemplateAuthentication:
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
     async def test_token_authentication(
         self,
+        mock_heartbeat: object,
         mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
@@ -600,8 +711,10 @@ class TestAAPJobTemplateAuthentication:
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
     async def test_basic_authentication(
         self,
+        mock_heartbeat: object,
         mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:

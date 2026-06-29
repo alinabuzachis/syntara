@@ -22,7 +22,12 @@ from nexus.core.exceptions import SafeValueError
 from nexus.core.lib.url_validation import validate_host_url
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
-from .common import ActivityExecutionError, is_retryable_http_status
+from .common import (
+    HEARTBEAT_PARTIAL_OUTPUT_KEY,
+    HEARTBEAT_STOP_MONITOR,
+    ActivityExecutionError,
+    is_retryable_http_status,
+)
 
 if TYPE_CHECKING:
     from httpx._client import UseClientDefault
@@ -73,6 +78,18 @@ LABEL_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9 ._-]+$")
 
 # HTTP status codes
 HTTP_CONFLICT = 409  # Resource conflict (concurrent creation)
+
+
+def build_aap_job_url(base_url: str, job_id: int, job_type: str = "playbook") -> str:
+    """Build the AAP UI URL for a job.
+
+    Args:
+        base_url: AAP controller base URL (e.g. https://aap.example.com)
+        job_id: AAP job ID
+        job_type: "playbook" for job templates, "workflow" for workflow job templates
+
+    """
+    return f"{base_url.rstrip('/')}/execution/jobs/{job_type}/{job_id}/output"
 
 
 class AAPJobTerminalStatus(StrEnum):
@@ -734,6 +751,7 @@ async def poll_until_complete(
     job_type: str,
     terminal_statuses: set[str],
     error_class: type[AAPActivityExecutionError],
+    partial_output: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Poll job status until completion.
 
@@ -756,6 +774,7 @@ async def poll_until_complete(
         job_type: Type of job ("jobs" or "workflow_jobs")
         terminal_statuses: Set of terminal status strings (lowercase)
         error_class: Error class to raise on timeout/failure
+        partial_output: Optional early output data to include in heartbeats
 
     Returns:
         Final job data
@@ -803,7 +822,7 @@ async def poll_until_complete(
                 job_id=job_id,
                 error=str(e),
             )
-            activity.heartbeat({"job_id": job_id, "status": "poll_error"})
+            activity.heartbeat({HEARTBEAT_STOP_MONITOR: True, HEARTBEAT_PARTIAL_OUTPUT_KEY: partial_output})
             await asyncio.sleep(poll_interval)
             continue
 
@@ -820,7 +839,7 @@ async def poll_until_complete(
             return job_data
 
         # Send heartbeat to keep activity alive (Temporal best practice)
-        activity.heartbeat({"job_id": job_id, "status": status})
+        activity.heartbeat({HEARTBEAT_STOP_MONITOR: True, HEARTBEAT_PARTIAL_OUTPUT_KEY: partial_output})
 
         # Sleep before next poll (global setting)
         await asyncio.sleep(poll_interval)

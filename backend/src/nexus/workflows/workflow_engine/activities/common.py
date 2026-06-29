@@ -8,6 +8,14 @@ This module provides shared functionality for all activity types including:
 
 import re
 
+# Heartbeat keys for describe-probe coordination.
+# HEARTBEAT_STOP_MONITOR: signals the sync-service describe probe to stop
+# polling and push a SyntheticActivityStarted event.
+# HEARTBEAT_PARTIAL_OUTPUT_KEY: optional dict of early output data to persist
+# to the DB before the activity completes (e.g. job_id, job_url).
+HEARTBEAT_STOP_MONITOR = "stop_monitor"
+HEARTBEAT_PARTIAL_OUTPUT_KEY = "partial_output"
+
 # Default retryable HTTP status codes (whitelist approach).
 # Only transient errors that typically self-resolve belong here.
 # 429: Too Many Requests - Rate limiting, retry with backoff

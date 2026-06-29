@@ -1,8 +1,9 @@
-import { Label, TreeView, type TreeViewDataItem } from '@patternfly/react-core'
+import { Button, Label, TreeView, type TreeViewDataItem } from '@patternfly/react-core'
+import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import { useMemo } from 'react'
 
 import styles from '../panels.module.css'
-import { formatLeafValue, isExpandable } from '../utils/treeHelpers'
+import { formatLeafValue, isExpandable, isUrlValue } from '../utils/treeHelpers'
 import { getTypeLabelFromValue } from '../utils/typeLabels'
 
 export type OutputSchemaViewProps = {
@@ -27,17 +28,34 @@ function buildReadOnlyTreeData(data: Record<string, unknown>, parentPath: string
       }
     }
 
+    const formatted = formatLeafValue(value)
+
     return {
       id: JSON.stringify(currentPath),
       name: (
         // eslint-disable-next-line nexus/prefer-pf-text-components, no-restricted-syntax -- span provides aria-label for tree node accessibility; PF6 has no inline text component; aria-label needed here for screen readers to announce the full tree node content
-        <span aria-label={`${key}: ${formatLeafValue(value)}, type ${typeLabel}`}>
+        <span aria-label={`${key}: ${formatted}, type ${typeLabel}`}>
           <Label isCompact color="grey">
             {typeLabel}
           </Label>{' '}
-          {key}: <span className={styles.leafValue}>{formatLeafValue(value)}</span>
+          {key}: <span className={styles.leafValue}>{formatted}</span>
         </span>
       ),
+      ...(isUrlValue(value) && {
+        action: (
+          <Button
+            variant="plain"
+            component="a"
+            href={value}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${key} in new tab`}
+            size="sm"
+          >
+            <RhUiExternalLinkIcon />
+          </Button>
+        ),
+      }),
     }
   })
 }

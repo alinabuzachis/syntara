@@ -145,8 +145,34 @@ describe('InputSchemaView', () => {
     expect(results).toHaveNoViolations()
   })
 
+  it('renders URL values with an external link action button', () => {
+    const data = { job_url: 'https://aap.example.com/jobs/789' }
+    render(<InputSchemaView data={data} nodeId="aap_step_1" />)
+
+    const link = screen.getByRole('link', { name: 'Open job_url in new tab' })
+    expect(link).toHaveAttribute('href', 'https://aap.example.com/jobs/789')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('does not render external link button for non-URL strings', () => {
+    const data = { status: 'running' }
+    render(<InputSchemaView data={data} nodeId="aap_step_1" />)
+
+    expect(screen.queryByRole('link', { name: /Open .* in new tab/ })).not.toBeInTheDocument()
+  })
+
   it('has no accessibility violations with empty object data', async () => {
     const { container } = render(<InputSchemaView data={{}} nodeId="http_request_1" />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations with URL values', async () => {
+    const { container } = render(
+      <InputSchemaView data={{ job_url: 'https://aap.example.com/jobs/789' }} nodeId="aap_step_1" />
+    )
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()

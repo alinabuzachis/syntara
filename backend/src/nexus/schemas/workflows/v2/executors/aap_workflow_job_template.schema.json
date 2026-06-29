@@ -129,6 +129,10 @@
             "type": "integer",
             "description": "AAP workflow job ID"
           },
+          "workflow_job_url": {
+            "type": "string",
+            "description": "URL to view workflow job in AAP UI"
+          },
           "workflow_job_status": {
             "type": "string",
             "description": "Workflow job status (successful, failed, etc.)"
@@ -175,6 +179,13 @@
               "integer",
               "null"
             ]
+          },
+          "workflow_job_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL to view workflow job in AAP UI"
           },
           "workflow_job_status": {
             "type": [

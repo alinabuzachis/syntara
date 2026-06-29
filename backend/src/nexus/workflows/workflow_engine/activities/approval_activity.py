@@ -21,7 +21,7 @@ with workflow.unsafe.imports_passed_through():
     from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
-from .common import ActivityExecutionError
+from .common import HEARTBEAT_STOP_MONITOR, ActivityExecutionError
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -65,6 +65,8 @@ async def create_approval_request_activity(
         ApprovalActivityError: If approval request creation fails.
 
     """
+    activity.heartbeat({HEARTBEAT_STOP_MONITOR: True})
+
     logger.info(
         "Creating approval request via Approvals API",
         base_url=constants.APPROVALS_API_BASE_URL,

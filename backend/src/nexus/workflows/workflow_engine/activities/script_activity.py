@@ -23,7 +23,7 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
     ScriptOutput,
 )
 
-from .common import ActivityExecutionError
+from .common import HEARTBEAT_STOP_MONITOR, ActivityExecutionError
 
 SAFE_ENV_ALLOWLIST: frozenset[str] = frozenset(
     {
@@ -343,6 +343,8 @@ async def execute_script_activity(
         }
 
     """
+    activity.heartbeat({HEARTBEAT_STOP_MONITOR: True})
+
     try:
         # Validate config via Pydantic model
         try:

@@ -9,6 +9,7 @@ These tests verify:
 - metadata fields are correctly combined with other metadata (credentials, response_schema)
 """
 
+from collections.abc import Generator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -19,6 +20,13 @@ from nexus.workflows.workflow_engine.activities.agentic_activity import (
     execute_agentic_activity,
 )
 from tests.helpers.temporal import CompleteAsyncError
+
+
+@pytest.fixture(autouse=True)
+def _mock_heartbeat() -> Generator[None, None, None]:
+    """Auto-mock activity.heartbeat() so tests can run outside a Temporal worker."""
+    with patch("temporalio.activity.heartbeat"):
+        yield
 
 
 @pytest.fixture

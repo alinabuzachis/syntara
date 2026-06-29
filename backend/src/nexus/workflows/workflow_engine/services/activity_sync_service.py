@@ -41,6 +41,10 @@ from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.utils.datetime import ensure_timezone_aware
+from nexus.workflows.workflow_engine.activities.common import (
+    HEARTBEAT_PARTIAL_OUTPUT_KEY,
+    HEARTBEAT_STOP_MONITOR,
+)
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeType
 from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
 
@@ -74,11 +78,29 @@ class SyntheticActivityStarted:
     Temporal defers ACTIVITY_TASK_STARTED until the activity completes,
     so in-flight activities stay PENDING in the DB. When describe() detects
     an activity is actually running, this event is pushed into the shared
-    queue so the single consumer can update the status.
+    queue so the single consumer can update the status to RUNNING.
     """
 
     activity_id: str
     scheduled_event_id: int
+
+
+@dataclass
+class SyntheticPartialOutput:
+    """Partial output extracted from heartbeat details during describe() probing.
+
+    Pushed into the queue after a SyntheticActivityStarted event, when the
+    activity's heartbeat contains HEARTBEAT_STOP_MONITOR with partial output
+    data (e.g. job_id, job_url). Written to the DB as early output_data
+    before the activity completes.
+    """
+
+    activity_id: str
+    scheduled_event_id: int
+    partial_output: dict[str, Any]
+
+
+_QueueItem = HistoryEvent | SyntheticActivityStarted | SyntheticPartialOutput | None
 
 
 @dataclass
@@ -475,7 +497,7 @@ class ActivitySyncService:
     async def _history_event_producer(
         self,
         handle: WorkflowHandle[Any, Any],
-        queue: asyncio.Queue[HistoryEvent | SyntheticActivityStarted | None],
+        queue: asyncio.Queue[_QueueItem],
         execution_id: UUID,
     ) -> None:
         """Stream Temporal history events into the shared queue.
@@ -494,22 +516,101 @@ class ActivitySyncService:
         finally:
             await queue.put(None)
 
+    @staticmethod
+    def _extract_heartbeat_data(
+        pa: Any,  # noqa: ANN401 — PendingActivityInfo from protobuf
+    ) -> dict[str, Any] | None:
+        """Decode the latest heartbeat payload from a pending activity.
+
+        Returns the decoded dict if heartbeat_details contains a JSON payload,
+        or None if no heartbeat has been sent yet.
+        """
+        hb = pa.heartbeat_details
+        if not hb or not hb.payloads:
+            return None
+        try:
+            result: dict[str, Any] = json.loads(hb.payloads[0].data)
+            return result
+        except (json.JSONDecodeError, IndexError, AttributeError, TypeError):
+            logger.debug("Failed to decode heartbeat payload", activity_id=pa.activity_id)
+            return None
+
+    async def _probe_handle_disappeared(
+        self,
+        queue: asyncio.Queue[_QueueItem],
+        activity_id: str,
+        scheduled_event_id: int,
+        *,
+        started: bool,
+    ) -> bool:
+        """Handle the case where a pending activity disappears from describe().
+
+        Pushes SyntheticActivityStarted if the activity hasn't been marked as
+        started yet (it completed before we observed STARTED state).
+
+        Returns True if the probe should exit, False otherwise.
+        """
+        if not started:
+            await queue.put(
+                SyntheticActivityStarted(
+                    activity_id=activity_id,
+                    scheduled_event_id=scheduled_event_id,
+                )
+            )
+        return True
+
+    async def _probe_check_heartbeat(
+        self,
+        queue: asyncio.Queue[_QueueItem],
+        activity_id: str,
+        scheduled_event_id: int,
+        pa: Any,  # noqa: ANN401 — PendingActivityInfo from protobuf
+    ) -> bool:
+        """Check heartbeat data for STOP_MONITOR signal and push partial output.
+
+        Examines the heartbeat payload of a running activity. If the heartbeat
+        contains HEARTBEAT_STOP_MONITOR, pushes SyntheticPartialOutput (when
+        partial_output data exists) and signals the probe to exit.
+
+        Returns True if the probe should exit, False otherwise.
+        """
+        hb_data = self._extract_heartbeat_data(pa)
+        if hb_data and hb_data.get(HEARTBEAT_STOP_MONITOR):
+            partial_output = hb_data.get(HEARTBEAT_PARTIAL_OUTPUT_KEY)
+            if partial_output:
+                await queue.put(
+                    SyntheticPartialOutput(
+                        activity_id=activity_id,
+                        scheduled_event_id=scheduled_event_id,
+                        partial_output=partial_output,
+                    )
+                )
+            return True
+        return False
+
     async def _schedule_describe_probe(
         self,
         handle: WorkflowHandle[Any, Any],
-        queue: asyncio.Queue[HistoryEvent | SyntheticActivityStarted | None],
+        queue: asyncio.Queue[_QueueItem],
         activity_id: str,
         scheduled_event_id: int,
     ) -> None:
-        """Probe describe() with backoff until the activity is STARTED.
+        """Probe describe() to detect STARTED state and heartbeat partial output.
 
-        Temporal defers ACTIVITY_TASK_STARTED events until the activity completes,
-        so SCHEDULED activities stay PENDING in the DB. This method calls describe()
-        to detect the real state and pushes a SyntheticActivityStarted into the queue
-        when the activity is running.
+        Two phases in one loop, each triggers a separate DB sync:
+        Phase 1 — wait for state == STARTED → push SyntheticActivityStarted
+                  so the DB transitions the activity to RUNNING immediately.
+        Phase 2 — wait for heartbeat containing HEARTBEAT_STOP_MONITOR →
+                  push SyntheticPartialOutput so the DB gets early output_data
+                  (e.g. job_id, job_url) before the activity completes.
+
+        The phases are independent: if the activity completes before the
+        heartbeat arrives, only phase 1 fires. If the heartbeat is already
+        present when STARTED is detected, both fire in the same iteration.
         """
         delay = _DESCRIBE_PROBE_INITIAL_DELAY_S
         elapsed = 0.0
+        started = False
 
         # NOSONAR: polling is intentional; history events arrive too late
         while elapsed < _DESCRIBE_PROBE_MAX_TOTAL_S and not self._shutdown:
@@ -521,16 +622,28 @@ class ActivitySyncService:
                 pending_map = {pa.activity_id: pa for pa in desc.raw_description.pending_activities}
                 pa = pending_map.get(activity_id)
 
-                if pa is None:
+                if pa is None and await self._probe_handle_disappeared(
+                    queue, activity_id, scheduled_event_id, started=started
+                ):
                     return
 
-                if pa.state == _PENDING_ACTIVITY_STATE_STARTED:
+                # Phase 1: detect STARTED → immediate status update
+                if not started and pa is not None and pa.state == _PENDING_ACTIVITY_STATE_STARTED:
+                    started = True
                     await queue.put(
                         SyntheticActivityStarted(
                             activity_id=activity_id,
                             scheduled_event_id=scheduled_event_id,
                         )
                     )
+                    delay = _DESCRIBE_PROBE_INITIAL_DELAY_S
+
+                # Phase 2: wait for STOP_MONITOR in heartbeat → partial output
+                if (
+                    started
+                    and pa is not None
+                    and await self._probe_check_heartbeat(queue, activity_id, scheduled_event_id, pa)
+                ):
                     return
 
                 delay = min(delay * _DESCRIBE_PROBE_BACKOFF_FACTOR, _DESCRIBE_PROBE_MAX_DELAY_S)
@@ -577,12 +690,39 @@ class ActivitySyncService:
         metadata.pending_sync_event_ids.add(event.scheduled_event_id)
         await self._sync_activities_to_db(metadata, handle)
 
+    async def _process_synthetic_partial_output(
+        self,
+        event: SyntheticPartialOutput,
+        metadata: ExecutionMonitorMetadata,
+        handle: WorkflowHandle[Any, Any],
+    ) -> None:
+        """Process partial output from heartbeat details.
+
+        Writes early output_data (e.g. job_id, job_url) to the activity
+        before the activity completes. Only updates if the activity is
+        still in a non-terminal state.
+        """
+        update = metadata.pending_activity_updates.get(event.scheduled_event_id)
+        if not update:
+            return
+
+        update["output_data"] = event.partial_output
+
+        logger.info(
+            "Describe probe: partial output received",
+            activity_id=event.activity_id,
+            execution_id=metadata.execution_id,
+            partial_output_keys=list(event.partial_output.keys()),
+        )
+        metadata.pending_sync_event_ids.add(event.scheduled_event_id)
+        await self._sync_activities_to_db(metadata, handle)
+
     async def _process_history_event(
         self,
         event: HistoryEvent,
         metadata: ExecutionMonitorMetadata,
         handle: WorkflowHandle[Any, Any],
-        queue: asyncio.Queue[HistoryEvent | SyntheticActivityStarted | None],
+        queue: asyncio.Queue[_QueueItem],
         probe_tasks: list[asyncio.Task[None]],
     ) -> bool:
         """Process a single Temporal history event.
@@ -648,7 +788,78 @@ class ActivitySyncService:
 
         return True
 
-    async def _monitor_execution(  # noqa: C901, PLR0912
+    async def _dispatch_queue_item(
+        self,
+        item: _QueueItem,
+        metadata: ExecutionMonitorMetadata,
+        handle: WorkflowHandle[Any, Any],
+        queue: asyncio.Queue[_QueueItem],
+        probe_tasks: list[asyncio.Task[None]],
+        execution_id: UUID,
+    ) -> bool:
+        """Dispatch a single queue item to the appropriate handler.
+
+        Handles the isinstance chain for SyntheticActivityStarted,
+        SyntheticPartialOutput, shutdown check, and history event processing.
+
+        Args:
+            item: Queue item to dispatch
+            metadata: Monitoring metadata
+            handle: Workflow handle
+            queue: Shared event queue
+            probe_tasks: List of active probe tasks
+            execution_id: Database execution ID
+
+        Returns:
+            True to continue the loop, False to break out of it.
+
+        """
+        if isinstance(item, SyntheticActivityStarted):
+            await self._process_synthetic_activity_started(item, metadata, handle)
+            return True
+
+        if isinstance(item, SyntheticPartialOutput):
+            await self._process_synthetic_partial_output(item, metadata, handle)
+            return True
+
+        if self._shutdown:
+            logger.info(
+                "Shutdown requested, stopping monitoring for execution",
+                execution_id=execution_id,
+            )
+            return False
+
+        if not isinstance(item, HistoryEvent):
+            return True
+        return await self._process_history_event(
+            item,
+            metadata,
+            handle,
+            queue,
+            probe_tasks,
+        )
+
+    @staticmethod
+    async def _cancel_background_tasks(
+        producer_task: asyncio.Task[None] | None,
+        probe_tasks: list[asyncio.Task[None]],
+    ) -> None:
+        """Cancel producer and probe tasks, then gather them.
+
+        Args:
+            producer_task: History event producer task (may be None)
+            probe_tasks: List of active describe-probe tasks
+
+        """
+        if producer_task is not None:
+            producer_task.cancel()
+        for t in probe_tasks:
+            t.cancel()
+        all_tasks = ([producer_task] if producer_task is not None else []) + probe_tasks
+        if all_tasks:
+            await asyncio.gather(*all_tasks, return_exceptions=True)
+
+    async def _monitor_execution(
         self,
         execution_id: UUID,
         temporal_workflow_id: str,
@@ -678,7 +889,7 @@ class ActivitySyncService:
 
             metadata = await self._initialize_monitoring(execution_id, request_id=request_id)
 
-            queue: asyncio.Queue[HistoryEvent | SyntheticActivityStarted | None] = asyncio.Queue()
+            queue: asyncio.Queue[_QueueItem] = asyncio.Queue()
             probe_tasks: list[asyncio.Task[None]] = []
             producer_task: asyncio.Task[None] | None = None
 
@@ -696,23 +907,8 @@ class ActivitySyncService:
                         if item is None:
                             break
 
-                        if isinstance(item, SyntheticActivityStarted):
-                            await self._process_synthetic_activity_started(item, metadata, handle)
-                            continue
-
-                        if self._shutdown:
-                            logger.info(
-                                "Shutdown requested, stopping monitoring for execution",
-                                execution_id=execution_id,
-                            )
-                            break
-
-                        if not await self._process_history_event(
-                            item,
-                            metadata,
-                            handle,
-                            queue,
-                            probe_tasks,
+                        if not await self._dispatch_queue_item(
+                            item, metadata, handle, queue, probe_tasks, execution_id
                         ):
                             break
 
@@ -722,13 +918,7 @@ class ActivitySyncService:
                 logger.info("Activity monitoring completed for execution", execution_id=execution_id)
 
             finally:
-                if producer_task is not None:
-                    producer_task.cancel()
-                for t in probe_tasks:
-                    t.cancel()
-                all_tasks = ([producer_task] if producer_task is not None else []) + probe_tasks
-                if all_tasks:
-                    await asyncio.gather(*all_tasks, return_exceptions=True)
+                await self._cancel_background_tasks(producer_task, probe_tasks)
 
         except asyncio.CancelledError:
             logger.info("Activity monitoring cancelled for execution", execution_id=execution_id)
@@ -1250,7 +1440,292 @@ class ActivitySyncService:
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED:
             self._process_activity_canceled(event, metadata)
 
-    async def _sync_activities_to_db(  # noqa: C901, PLR0912, PLR0915
+    async def _query_activity_io(
+        self,
+        handle: WorkflowHandle[Any, Any],
+        activity_id: str,
+        activity_data: dict[str, Any],
+        initial_output_data: dict[str, Any] | None,
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        """Query workflow for activity input and output data.
+
+        Queries ``get_activity_input`` and ``get_activity_output`` from the workflow.
+        Handles the retry loop for the race condition where Temporal marks an
+        activity as completed before the workflow loop stores the result.
+
+        Args:
+            handle: Temporal workflow handle for queries
+            activity_id: Activity ID to query
+            activity_data: Activity update data (used to check completion status)
+            initial_output_data: Pre-existing output data (e.g. from heartbeat partial output)
+
+        Returns:
+            Tuple of (input_data, output_data)
+
+        """
+        input_data: dict[str, Any] = {}
+        output_data = initial_output_data
+
+        try:
+            input_data = await handle.query("get_activity_input", activity_id) or {}
+            queried_output = await handle.query("get_activity_output", activity_id)
+            if queried_output is not None:
+                output_data = queried_output
+
+            # Race condition mitigation: If activity is completed but output is None,
+            # retry the query. This handles the case where Temporal emits the
+            # ACTIVITY_TASK_COMPLETED event before the workflow's async loop
+            # stores the result in the resolver namespace.
+            
+            # (e.g., workflow signal after output is stored).
+            if activity_data["status"] == ActivityStatus.COMPLETED and queried_output is None:
+                max_retries = _OUTPUT_QUERY_MAX_RETRIES
+                for retry in range(max_retries):
+                    delay_ms = _OUTPUT_QUERY_BASE_DELAY_MS * (2**retry)
+                    logger.debug(
+                        "Activity completed but output is None, retrying query",
+                        activity_id=activity_id,
+                        retry=retry + 1,
+                        max_retries=max_retries,
+                        delay_ms=delay_ms,
+                    )
+                    await asyncio.sleep(delay_ms / 1000.0)
+                    queried_output = await handle.query("get_activity_output", activity_id)
+                    if queried_output is not None:
+                        output_data = queried_output
+                        logger.debug(
+                            "Successfully retrieved output on retry",
+                            activity_id=activity_id,
+                            retry=retry + 1,
+                        )
+                        break
+                else:
+                    # All retries exhausted, log warning
+                    logger.warning(
+                        "Activity completed but output still None after retries",
+                        activity_id=activity_id,
+                        max_retries=max_retries,
+                    )
+
+        except (TemporalError, ValueError) as e:
+            logger.debug("Could not query activity data", activity_id=activity_id, error=str(e))
+
+        return input_data, output_data
+
+    @staticmethod
+    def _scrub_data(data: Any) -> dict[str, Any] | None:  # noqa: ANN401
+        """Scrub credentials from data, wrapping non-dict values.
+
+        Args:
+            data: Raw data to scrub (dict, other non-None value, or None)
+
+        Returns:
+            Scrubbed dict, wrapped non-dict value, or None
+
+        """
+        if isinstance(data, dict):
+            result: dict[str, Any] = scrub_credentials(data)
+            return result
+        if data is not None:
+            return {"raw": data}
+        return None
+
+    @staticmethod
+    def _update_activity_record(
+        existing: ActivityExecution,
+        activity_data: dict[str, Any],
+        input_data: dict[str, Any] | None,
+        output_data: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Update an ActivityExecution record with new data from Temporal events.
+
+        Sets all fields on the activity and returns the old values for patch generation.
+
+        Args:
+            existing: Existing ActivityExecution record to update
+            activity_data: Activity update data from Temporal events
+            input_data: Scrubbed input data
+            output_data: Scrubbed output data
+
+        Returns:
+            Dictionary of old field values before the update
+
+        """
+        old_values = {
+            "status": existing.status,
+            "started_at": existing.started_at,
+            "completed_at": existing.completed_at,
+            "error_details": existing.error_details,
+            "retry_count": existing.retry_count,
+            "output_data": existing.output_data,
+        }
+
+        existing.status = activity_data["status"]
+        existing.started_at = activity_data["started_at"]
+        existing.completed_at = activity_data["completed_at"]
+        existing.input_data = input_data or {}
+        existing.output_data = output_data
+        existing.error_details = activity_data["error_details"]
+        existing.retry_count = activity_data["retry_count"]
+        existing.updated_at = datetime.now(UTC)
+
+        return old_values
+
+    @staticmethod
+    def _collect_terminal_activities(
+        metadata: ExecutionMonitorMetadata,
+    ) -> tuple[list[int], list[tuple[str, dict[str, Any]]]]:
+        """Collect terminal activity info and remove them from pending updates.
+
+        Identifies activities that have reached a terminal status, collects
+        timeout information for telemetry, and removes them from
+        pending_activity_updates to avoid re-processing.
+
+        Args:
+            metadata: Monitoring metadata containing pending activity updates
+
+        Returns:
+            Tuple of (terminal_scheduled_ids, timed_out_activities) where
+            timed_out_activities is a list of (activity_id, timeout_info) tuples.
+
+        """
+        timed_out_activities: list[tuple[str, dict[str, Any]]] = []
+        terminal_scheduled_ids = [
+            scheduled_id
+            for scheduled_id, data in metadata.pending_activity_updates.items()
+            if data.get("status") in TERMINAL_ACTIVITY_STATUSES
+        ]
+        for scheduled_id in terminal_scheduled_ids:
+            data = metadata.pending_activity_updates[scheduled_id]
+            timeout_info = data.get("_timeout_info")
+            if timeout_info:
+                timed_out_activities.append((data["activity_id"], timeout_info))
+            del metadata.pending_activity_updates[scheduled_id]
+
+        return terminal_scheduled_ids, timed_out_activities
+
+    def _emit_post_commit_telemetry(
+        self,
+        metadata: ExecutionMonitorMetadata,
+        updated_activities: list[tuple[ActivityExecution, dict[str, Any]]],
+        timed_out_activities: list[tuple[str, dict[str, Any]]],
+    ) -> None:
+        """Emit all post-commit telemetry for activity updates.
+
+        Emits telemetry for terminal activities, timeout events, and retry events.
+
+        Args:
+            metadata: Monitoring metadata
+            updated_activities: List of (activity, old_values) tuples
+            timed_out_activities: List of (activity_id, timeout_info) tuples
+
+        """
+        # Emit telemetry for activities that reached terminal states
+        emit_activities(
+            execution_id=metadata.execution_id,
+            activity_definitions_map=metadata.activity_definitions_map,
+            updated_activities=updated_activities,
+            request_id=metadata.request_id,
+        )
+
+        # Emit workflow error telemetry for engine-level activity timeouts (post-commit)
+        for activity_id, timeout_info in timed_out_activities:
+            AuditEventDispatcher.dispatch(
+                WorkflowExecutionErrorEvent(
+                    execution_id=metadata.execution_id,
+                    workflow_id=metadata.workflow_id,
+                    timed_out_component=TimedOutComponent.ACTIVITY,
+                    configured_timeout_seconds=timeout_info["configured_timeout_seconds"],
+                    elapsed_time_ms=timeout_info["elapsed_time_ms"],
+                    activity_id=activity_id,
+                    retry_count=timeout_info["retry_count"],
+                    error_type="ActivityTimedOut",
+                    request_id=metadata.request_id,
+                    workflow_name=metadata.workflow_name,
+                )
+            )
+
+        # Emit workflow error telemetry for engine-level activity retries (post-commit)
+        for data in metadata.pending_activity_updates.values():
+            retry_info = data.pop("_retry_info", None)
+            if retry_info:
+                AuditEventDispatcher.dispatch(
+                    WorkflowExecutionErrorEvent(
+                        execution_id=metadata.execution_id,
+                        workflow_id=metadata.workflow_id,
+                        timed_out_component=TimedOutComponent.ACTIVITY,
+                        configured_timeout_seconds=data.get("configured_timeout_seconds", 0.0) or 0.0,
+                        elapsed_time_ms=0,
+                        activity_id=data["activity_id"],
+                        retry_count=retry_info["retry_count"],
+                        error_type=retry_info["error_type"],
+                        retry_reason=retry_info["retry_reason"],
+                        request_id=metadata.request_id,
+                        workflow_name=metadata.workflow_name,
+                    )
+                )
+
+    async def _process_single_activity_sync(
+        self,
+        metadata: ExecutionMonitorMetadata,
+        handle: WorkflowHandle[Any, Any],
+        activity_data: dict[str, Any],
+        existing_activities: dict[str, ActivityExecution],
+    ) -> tuple[ActivityExecution, dict[str, Any]] | None:
+        """Process a single activity update for database sync.
+
+        Validates the activity, queries input/output data, and updates the record.
+
+        Args:
+            metadata: Monitoring metadata
+            handle: Temporal workflow handle for queries
+            activity_data: Activity update data from Temporal events
+            existing_activities: Map of activity_name to existing ActivityExecution records
+
+        Returns:
+            Tuple of (activity, old_values) if updated, None if skipped
+
+        """
+        activity_id = activity_data["activity_id"]
+
+        # Skip internal activities (defense in depth)
+        if activity_id.startswith("__internal__"):
+            return None
+
+        # Find existing activity by activity_name
+        existing = existing_activities.get(activity_id)
+
+        if not existing:
+            # This shouldn't happen since we created all activities upfront
+            # Log a warning but don't fail
+            logger.warning(
+                "Activity not found in database for execution (should have been created upfront)",
+                activity_id=activity_id,
+                execution_id=metadata.execution_id,
+            )
+            return None
+
+        # Don't regress terminal statuses — once skipped/completed/failed/cancelled,
+        # later event processing (e.g. ACTIVITY_TASK_CANCELED after _sync_skipped_nodes)
+        # must not overwrite. Check before querying to avoid wasted RPCs.
+        if existing.status in TERMINAL_ACTIVITY_STATUSES:
+            return None
+
+        # Query workflow for input/output data.
+        # For running activities, partial output from heartbeat may
+        # already be in the update dict — preserve it if the workflow
+        # query returns None (output not stored until completion).
+        input_data, output_data = await self._query_activity_io(
+            handle, activity_id, activity_data, activity_data.get("output_data")
+        )
+
+        # Update existing activity and track old values for patch generation
+        old_values = self._update_activity_record(
+            existing, activity_data, self._scrub_data(input_data), self._scrub_data(output_data)
+        )
+        return existing, old_values
+
+    async def _sync_activities_to_db(
         self,
         metadata: ExecutionMonitorMetadata,
         handle: WorkflowHandle[Any, Any],
@@ -1288,124 +1763,15 @@ class ActivitySyncService:
                     if not activity_data:
                         continue
 
-                    activity_id = activity_data["activity_id"]
-
-                    # Skip internal activities (defense in depth)
-                    if activity_id.startswith("__internal__"):
-                        continue
-
-                    # Find existing activity by activity_name
-                    existing = existing_activities.get(activity_id)
-
-                    if not existing:
-                        # This shouldn't happen since we created all activities upfront
-                        # Log a warning but don't fail
-                        logger.warning(
-                            "Activity not found in database for execution (should have been created upfront)",
-                            activity_id=activity_id,
-                            execution_id=metadata.execution_id,
-                        )
-                        continue
-
-                    # Don't regress terminal statuses — once skipped/completed/failed/cancelled,
-                    # later event processing (e.g. ACTIVITY_TASK_CANCELED after _sync_skipped_nodes)
-                    # must not overwrite. Check before querying to avoid wasted RPCs.
-                    if existing.status in TERMINAL_ACTIVITY_STATUSES:
-                        continue
-
-                    # Query workflow for input/output data
-                    input_data: dict[str, Any] = {}
-                    output_data: dict[str, Any] | None = None
-
-                    try:
-                        input_data = await handle.query("get_activity_input", activity_id) or {}
-                        output_data = await handle.query("get_activity_output", activity_id)
-
-                        # Race condition mitigation: If activity is completed but output is None,
-                        # retry the query. This handles the case where Temporal emits the
-                        # ACTIVITY_TASK_COMPLETED event before the workflow's async loop
-                        # stores the result in the resolver namespace.
-                        
-                        # (e.g., workflow signal after output is stored).
-                        if activity_data["status"] == ActivityStatus.COMPLETED and output_data is None:
-                            max_retries = _OUTPUT_QUERY_MAX_RETRIES
-                            for retry in range(max_retries):
-                                delay_ms = _OUTPUT_QUERY_BASE_DELAY_MS * (2**retry)
-                                logger.debug(
-                                    "Activity completed but output is None, retrying query",
-                                    activity_id=activity_id,
-                                    retry=retry + 1,
-                                    max_retries=max_retries,
-                                    delay_ms=delay_ms,
-                                )
-                                await asyncio.sleep(delay_ms / 1000.0)
-                                output_data = await handle.query("get_activity_output", activity_id)
-                                if output_data is not None:
-                                    logger.debug(
-                                        "Successfully retrieved output on retry",
-                                        activity_id=activity_id,
-                                        retry=retry + 1,
-                                    )
-                                    break
-                            else:
-                                # All retries exhausted, log warning
-                                logger.warning(
-                                    "Activity completed but output still None after retries",
-                                    activity_id=activity_id,
-                                    max_retries=max_retries,
-                                )
-
-                    except (TemporalError, ValueError) as e:
-                        logger.debug("Could not query activity data", activity_id=activity_id, error=str(e))
-
-                    # Store old values before updating
-                    old_values = {
-                        "status": existing.status,
-                        "started_at": existing.started_at,
-                        "completed_at": existing.completed_at,
-                        "error_details": existing.error_details,
-                        "retry_count": existing.retry_count,
-                    }
-
-                    # Update existing activity
-                    existing.status = activity_data["status"]
-                    existing.started_at = activity_data["started_at"]
-                    existing.completed_at = activity_data["completed_at"]
-                    existing.input_data = (
-                        scrub_credentials(input_data)
-                        if isinstance(input_data, dict)
-                        else {"raw": input_data}
-                        if input_data is not None
-                        else None
+                    update_result = await self._process_single_activity_sync(
+                        metadata, handle, activity_data, existing_activities
                     )
-                    existing.output_data = (
-                        scrub_credentials(output_data)
-                        if isinstance(output_data, dict)
-                        else {"raw": output_data}
-                        if output_data is not None
-                        else None
-                    )
-                    existing.error_details = activity_data["error_details"]
-                    existing.retry_count = activity_data["retry_count"]
-                    existing.updated_at = datetime.now(UTC)
-
-                    # Track updated activity with old values for patch generation
-                    updated_activities.append((existing, old_values))
+                    if update_result is not None:
+                        updated_activities.append(update_result)
 
                 # Clear terminal activities from pending to avoid re-processing.
                 # Collect timeout info before clearing, for post-commit emission.
-                timed_out_activities: list[tuple[str, dict[str, Any]]] = []
-                terminal_scheduled_ids = [
-                    scheduled_id
-                    for scheduled_id, data in metadata.pending_activity_updates.items()
-                    if data.get("status") in TERMINAL_ACTIVITY_STATUSES
-                ]
-                for scheduled_id in terminal_scheduled_ids:
-                    data = metadata.pending_activity_updates[scheduled_id]
-                    timeout_info = data.get("_timeout_info")
-                    if timeout_info:
-                        timed_out_activities.append((data["activity_id"], timeout_info))
-                    del metadata.pending_activity_updates[scheduled_id]
+                _terminal_scheduled_ids, timed_out_activities = self._collect_terminal_activities(metadata)
 
                 # Update execution's last processed event ID
                 result = await session.exec(select(Execution).where(Execution.id == metadata.execution_id))
@@ -1431,50 +1797,7 @@ class ActivitySyncService:
                 if new_execution_status is not None:
                     await self._publish_execution_patch(metadata.execution_id, new_execution_status)
 
-                # Emit telemetry for activities that reached terminal states
-                emit_activities(
-                    execution_id=metadata.execution_id,
-                    activity_definitions_map=metadata.activity_definitions_map,
-                    updated_activities=updated_activities,
-                    request_id=metadata.request_id,
-                )
-
-                # Emit workflow error telemetry for engine-level activity timeouts (post-commit)
-                for activity_id, timeout_info in timed_out_activities:
-                    AuditEventDispatcher.dispatch(
-                        WorkflowExecutionErrorEvent(
-                            execution_id=metadata.execution_id,
-                            workflow_id=metadata.workflow_id,
-                            timed_out_component=TimedOutComponent.ACTIVITY,
-                            configured_timeout_seconds=timeout_info["configured_timeout_seconds"],
-                            elapsed_time_ms=timeout_info["elapsed_time_ms"],
-                            activity_id=activity_id,
-                            retry_count=timeout_info["retry_count"],
-                            error_type="ActivityTimedOut",
-                            request_id=metadata.request_id,
-                            workflow_name=metadata.workflow_name,
-                        )
-                    )
-
-                # Emit workflow error telemetry for engine-level activity retries (post-commit)
-                for data in metadata.pending_activity_updates.values():
-                    retry_info = data.pop("_retry_info", None)
-                    if retry_info:
-                        AuditEventDispatcher.dispatch(
-                            WorkflowExecutionErrorEvent(
-                                execution_id=metadata.execution_id,
-                                workflow_id=metadata.workflow_id,
-                                timed_out_component=TimedOutComponent.ACTIVITY,
-                                configured_timeout_seconds=data.get("configured_timeout_seconds", 0.0) or 0.0,
-                                elapsed_time_ms=0,
-                                activity_id=data["activity_id"],
-                                retry_count=retry_info["retry_count"],
-                                error_type=retry_info["error_type"],
-                                retry_reason=retry_info["retry_reason"],
-                                request_id=metadata.request_id,
-                                workflow_name=metadata.workflow_name,
-                            )
-                        )
+                self._emit_post_commit_telemetry(metadata, updated_activities, timed_out_activities)
 
             except Exception:
                 await session.rollback()
@@ -1839,6 +2162,7 @@ class ActivitySyncService:
                     ("started_at", activity.started_at.isoformat() if activity.started_at else None),
                     ("completed_at", activity.completed_at.isoformat() if activity.completed_at else None),
                     ("error_details", activity.error_details),
+                    ("output_data", activity.output_data),
                 ]
 
                 for field_name, new_value in fields_to_check:

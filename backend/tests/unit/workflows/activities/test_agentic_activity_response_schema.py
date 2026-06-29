@@ -9,6 +9,7 @@ These tests verify:
 - response_schema validation works correctly
 """
 
+from collections.abc import Generator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -18,6 +19,13 @@ from nexus.workflows.workflow_engine.activities.agentic_activity import (
     execute_agentic_activity,
 )
 from tests.helpers.temporal import CompleteAsyncError
+
+
+@pytest.fixture(autouse=True)
+def _mock_heartbeat() -> Generator[None, None, None]:
+    """Auto-mock activity.heartbeat() so tests can run outside a Temporal worker."""
+    with patch("temporalio.activity.heartbeat"):
+        yield
 
 
 @pytest.fixture

@@ -1,11 +1,12 @@
-import { Label, TreeView, type TreeViewDataItem } from '@patternfly/react-core'
+import { Button, Label, TreeView, type TreeViewDataItem } from '@patternfly/react-core'
+import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import { useCallback, useMemo } from 'react'
 
 import { buildExpression } from '../../../../utils/expressions/templateBuilder'
 import { highlightText } from '../../../../utils/highlightText'
 import { CopyExpressionAction, DraggableTreeLeaf } from '../components/DraggableTreeLeaf'
 import { DRAG_TYPE_FIELD, type FieldDragData } from '../utils/dragTypes'
-import { formatLeafValue, isExpandable } from '../utils/treeHelpers'
+import { formatLeafValue, isExpandable, isUrlValue } from '../utils/treeHelpers'
 import { getTypeLabelFromValue } from '../utils/typeLabels'
 
 export type InputSchemaViewProps = {
@@ -57,7 +58,24 @@ function buildTreeData(
           searchTerm={searchTerm}
         />
       ),
-      action: <CopyExpressionAction expressionText={expression} />,
+      action: (
+        <>
+          {isUrlValue(value) && (
+            <Button
+              variant="plain"
+              component="a"
+              href={value}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open ${key} in new tab`}
+              size="sm"
+            >
+              <RhUiExternalLinkIcon />
+            </Button>
+          )}
+          <CopyExpressionAction expressionText={expression} />
+        </>
+      ),
       hasBadge: false,
     }
   })

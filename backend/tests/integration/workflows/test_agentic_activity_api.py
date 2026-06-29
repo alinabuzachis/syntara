@@ -48,6 +48,7 @@ async def _fake_inject_runtime_settings(input_config: dict[str, Any]) -> None:
 def mock_agent_client() -> Generator[AsyncMock, None, None]:
     """Auto-mock Agent Orchestrator client for all tests."""
     with (
+        patch("temporalio.activity.heartbeat"),
         patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
         patch(
             "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",

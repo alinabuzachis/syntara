@@ -1,8 +1,10 @@
 import { Content, ContentVariants } from '@patternfly/react-core'
+import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import { Table, Thead, Th, Tbody, Td, Tr } from '@patternfly/react-table'
 import type React from 'react'
-import { Fragment } from 'react'
+import { Fragment, useMemo } from 'react'
 
+import { extractAAPJobUrl, isAAPNodeType } from '../../utils/aapJobUrl'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
 import type { ActivityState } from '../workflows/execution/types'
 
@@ -64,6 +66,20 @@ function formatOptionalDate(date: string | null | undefined) {
   return date ? formatExecutionDateTime(date) : undefined
 }
 
+const AAP_LINK_STYLE: React.CSSProperties = {
+  textDecoration: 'underline dotted',
+  textUnderlineOffset: '3px',
+  whiteSpace: 'nowrap',
+}
+
+function AAPJobLink({ url }: Readonly<{ url: string }>) {
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" style={AAP_LINK_STYLE}>
+      View job in AAP <RhUiExternalLinkIcon />
+    </a>
+  )
+}
+
 function ActivityRow({
   id,
   name,
@@ -73,6 +89,7 @@ function ActivityRow({
   executionError,
   onRowClick,
   isSelected,
+  hasAAPColumn,
 }: Readonly<{
   id: string
   name?: string
@@ -82,9 +99,12 @@ function ActivityRow({
   executionError?: string | null
   onRowClick?: (nodeId: string, nodeName: string) => void
   isSelected?: boolean
+  hasAAPColumn: boolean
 }>) {
   const elapsedMs = state ? computeRowElapsedMs(state, now) : undefined
   const displayName = name ?? id
+  const jobUrl = isAAPNodeType(type) ? extractAAPJobUrl(state?.outputData) : null
+  const columnCount = hasAAPColumn ? 6 : 5
 
   return (
     <Fragment>
@@ -100,10 +120,11 @@ function ActivityRow({
         <Td dataLabel="Status" modifier="nowrap">
           <ActivityStatusLabel status={state?.status ?? 'pending'} nodeType={type} />
         </Td>
+        {hasAAPColumn && <Td dataLabel="AAP Job">{jobUrl ? <AAPJobLink url={jobUrl} /> : null}</Td>}
       </Tr>
       {state?.errorDetails && state.errorDetails !== executionError && (
         <Tr>
-          <Td colSpan={5} style={{ paddingTop: 0 }}>
+          <Td colSpan={columnCount} style={{ paddingTop: 0 }}>
             <Content component={ContentVariants.small} style={ERROR_STYLE}>
               {state.errorDetails}
             </Content>
@@ -122,6 +143,8 @@ export function ExecutionActivityTable({
   onRowClick,
   selectedNodeId,
 }: ExecutionActivityTableProps) {
+  const hasAAPColumn = useMemo(() => activityOrder.some((a) => isAAPNodeType(a.type)), [activityOrder])
+
   return (
     <Table aria-label="Activity states" isPlain isStickyHeader variant="compact">
       <Thead>
@@ -131,6 +154,7 @@ export function ExecutionActivityTable({
           <Th>Ended</Th>
           <Th>Elapsed time</Th>
           <Th>Status</Th>
+          {hasAAPColumn && <Th aria-label="AAP job link" />}
         </Tr>
       </Thead>
       <Tbody>
@@ -145,6 +169,7 @@ export function ExecutionActivityTable({
             executionError={executionError}
             onRowClick={onRowClick}
             isSelected={id === selectedNodeId}
+            hasAAPColumn={hasAAPColumn}
           />
         ))}
       </Tbody>

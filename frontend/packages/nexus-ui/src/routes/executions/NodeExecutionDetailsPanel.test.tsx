@@ -401,4 +401,65 @@ describe('NodeExecutionDetailsPanel', () => {
       expect(results!).toHaveNoViolations()
     })
   })
+
+  describe('AAP job link', () => {
+    it('shows "View job in AAP" link for AAP step with job_url', () => {
+      mockUseQuery.mockReturnValue({
+        data: {
+          resources: [
+            {
+              activity_name: 'run_aap_vm',
+              input_data: {},
+              output_data: { job_id: 123, job_url: 'https://aap.example.com/jobs/123' },
+              status: 'running',
+            },
+          ],
+        },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<NodeExecutionDetailsPanel {...defaultProps} nodeType="aap_job_template" />, { wrapper })
+
+      const link = screen.getByRole('link', { name: /View job in AAP/i })
+      expect(link).toHaveAttribute('href', 'https://aap.example.com/jobs/123')
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    })
+
+    it('does not show AAP link for non-AAP step types', () => {
+      render(<NodeExecutionDetailsPanel {...defaultProps} nodeType="script" />, { wrapper })
+
+      expect(screen.queryByRole('link', { name: /View job in AAP/i })).not.toBeInTheDocument()
+    })
+
+    it('does not show AAP link when nodeType is undefined', () => {
+      render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
+
+      expect(screen.queryByRole('link', { name: /View job in AAP/i })).not.toBeInTheDocument()
+    })
+
+    it('does not show AAP link when output has no job_url', () => {
+      mockUseQuery.mockReturnValue({
+        data: {
+          resources: [
+            {
+              activity_name: 'run_aap_vm',
+              input_data: {},
+              output_data: { status: 'running' },
+              status: 'running',
+            },
+          ],
+        },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<NodeExecutionDetailsPanel {...defaultProps} nodeType="aap_job_template" />, { wrapper })
+
+      expect(screen.queryByRole('link', { name: /View job in AAP/i })).not.toBeInTheDocument()
+    })
+  })
 })

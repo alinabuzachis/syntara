@@ -197,6 +197,10 @@
             "type": "integer",
             "description": "AAP job ID"
           },
+          "job_url": {
+            "type": "string",
+            "description": "URL to view job in AAP UI"
+          },
           "job_status": {
             "type": "string",
             "description": "Job status (successful, failed, etc.)"
@@ -243,6 +247,13 @@
               "integer",
               "null"
             ]
+          },
+          "job_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL to view job in AAP UI"
           },
           "job_status": {
             "type": [

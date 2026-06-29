@@ -305,11 +305,10 @@ class TestAAPWorkflowJobTemplateHeartbeat:
             # Verify heartbeats were sent (at least 2 times during polling)
             assert mock_heartbeat.call_count >= 2
 
-            # Verify heartbeat payload contains job_id and status
+            # Verify heartbeat payload contains workflow_job_id
             for call_obj in mock_heartbeat.call_args_list:
                 payload = call_obj[0][0]
-                assert payload["job_id"] == 123
-                assert payload["status"] == "running"
+                assert payload["partial_output"]["workflow_job_id"] == 123
 
 
 class TestAAPWorkflowJobTemplateCancellation:
@@ -528,10 +527,12 @@ class TestAAPWorkflowJobTemplateAuthentication:
     """Test authentication handling."""
 
     @pytest.mark.asyncio
+    @patch("temporalio.activity.heartbeat")
     @patch("temporalio.activity.is_cancelled", return_value=False)
     async def test_token_authentication(
         self,
         mock_is_cancelled: object,
+        mock_heartbeat: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test AAP token authentication is used."""
@@ -555,10 +556,12 @@ class TestAAPWorkflowJobTemplateAuthentication:
             assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer test_token_123"
 
     @pytest.mark.asyncio
+    @patch("temporalio.activity.heartbeat")
     @patch("temporalio.activity.is_cancelled", return_value=False)
     async def test_basic_authentication(
         self,
         mock_is_cancelled: object,
+        mock_heartbeat: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test AAP basic authentication is used."""

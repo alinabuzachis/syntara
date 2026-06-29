@@ -22,14 +22,14 @@ ACTIVITY_INFO_PATH = "nexus.workflows.workflow_engine.activities.script_activity
 
 @pytest.fixture(autouse=True)
 def _mock_activity_context() -> Generator[MagicMock, None, None]:
-    """Auto-mock activity.info() so tests can run outside a Temporal worker.
+    """Auto-mock activity.info() and activity.heartbeat() so tests can run outside a Temporal worker.
 
     Sets attempt=1 by default; individual tests can override via
     ``mock_activity_info`` fixture.
     """
     mock_info = MagicMock()
     mock_info.attempt = 1
-    with patch(ACTIVITY_INFO_PATH, return_value=mock_info) as m:
+    with patch(ACTIVITY_INFO_PATH, return_value=mock_info) as m, patch("temporalio.activity.heartbeat"):
         yield m
 
 

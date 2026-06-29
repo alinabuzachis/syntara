@@ -101,6 +101,60 @@ describe('ExecutionActivityTable', () => {
     })
   })
 
+  describe('AAP job link column', () => {
+    it('shows AAP link column when workflow has AAP steps', () => {
+      renderTable({
+        states: new Map([
+          state('aap-1', {
+            status: 'running',
+            outputData: { job_url: 'https://aap.example.com/execution/jobs/playbook/123/output' },
+          }),
+        ]),
+        order: [{ id: 'aap-1', name: 'Launch job', type: 'aap_job_template' }],
+      })
+
+      const link = screen.getByRole('link', { name: /View job in AAP/i })
+      expect(link).toHaveAttribute('href', 'https://aap.example.com/execution/jobs/playbook/123/output')
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    })
+
+    it('hides AAP column when no AAP steps exist', () => {
+      renderTable({
+        states: new Map([state('task-1', { status: 'completed' })]),
+        order: [{ id: 'task-1', name: 'Script step', type: 'script' }],
+      })
+
+      expect(screen.queryByRole('link', { name: /View job in AAP/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('columnheader', { name: 'AAP job link' })).not.toBeInTheDocument()
+    })
+
+    it('shows empty cell for non-AAP rows when column is visible', () => {
+      renderTable({
+        states: new Map([
+          state('task-1'),
+          state('aap-1', { status: 'running', outputData: { job_url: 'https://aap.example.com/j/1' } }),
+        ]),
+        order: [
+          { id: 'task-1', name: 'Script', type: 'script' },
+          { id: 'aap-1', name: 'AAP Job', type: 'aap_job_template' },
+        ],
+      })
+
+      const links = screen.getAllByRole('link', { name: /View job in AAP/i })
+      expect(links).toHaveLength(1)
+    })
+
+    it('shows no link when AAP activity has no output yet', () => {
+      renderTable({
+        states: new Map([state('aap-1', { status: 'running' })]),
+        order: [{ id: 'aap-1', name: 'Launch job', type: 'aap_job_template' }],
+      })
+
+      expect(screen.queryByRole('link', { name: /View job in AAP/i })).not.toBeInTheDocument()
+    })
+  })
+
   describe('accessibility', () => {
     it('renders column headers', () => {
       renderTable()

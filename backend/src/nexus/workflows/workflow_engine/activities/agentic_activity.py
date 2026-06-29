@@ -20,7 +20,7 @@ from nexus.workflows.workflow_engine.models import AgenticExecutorParameters
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
-from .common import ActivityExecutionError
+from .common import HEARTBEAT_STOP_MONITOR, ActivityExecutionError
 
 # See - https://github.com/temporalio/sdk-python?tab=readme-ov-file#avoiding-the-sandbox for more detail
 with workflow.unsafe.imports_passed_through():
@@ -91,6 +91,7 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
 
     """
     logger.info("Starting agentic activity (v2)")
+    activity.heartbeat({HEARTBEAT_STOP_MONITOR: True})
 
     try:
         try:

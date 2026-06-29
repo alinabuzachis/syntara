@@ -62,8 +62,32 @@ describe('InputTableView', () => {
     expect(results).toHaveNoViolations()
   })
 
+  it('renders URL values as clickable links', () => {
+    const data = { job_url: 'https://aap.example.com/jobs/456' }
+    render(<InputTableView data={data} />)
+
+    const link = screen.getByRole('link', { name: 'https://aap.example.com/jobs/456' })
+    expect(link).toHaveAttribute('href', 'https://aap.example.com/jobs/456')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('does not render non-URL strings as links', () => {
+    const data = { status: 'running' }
+    render(<InputTableView data={data} />)
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
   it('has no accessibility violations with null data', async () => {
     const { container } = render(<InputTableView data={null} />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations with URL values', async () => {
+    const { container } = render(<InputTableView data={{ job_url: 'https://aap.example.com/jobs/456' }} />)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()

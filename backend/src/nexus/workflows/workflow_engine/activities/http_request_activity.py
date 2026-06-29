@@ -22,7 +22,7 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
 )
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
-from .common import ActivityExecutionError, is_retryable_http_status
+from .common import HEARTBEAT_STOP_MONITOR, ActivityExecutionError, is_retryable_http_status
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -118,6 +118,8 @@ async def execute_http_request_activity(
         }
 
     """
+    activity.heartbeat({HEARTBEAT_STOP_MONITOR: True})
+
     # Validate config via Pydantic model
     try:
         config = APIExecutorParameters.model_validate(input_config)

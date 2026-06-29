@@ -1,5 +1,6 @@
 """Tests for execute_http_request_activity and its auth helpers."""
 
+from collections.abc import Generator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,6 +14,14 @@ from nexus.workflows.workflow_engine.activities.http_request_activity import (
     execute_http_request_activity,
 )
 from nexus.workflows.workflow_engine.models.workflow_definition import APIExecutorParameters
+
+
+@pytest.fixture(autouse=True)
+def _mock_heartbeat() -> Generator[None, None, None]:
+    """Auto-mock activity.heartbeat() so tests can run outside a Temporal worker."""
+    with patch("temporalio.activity.heartbeat"):
+        yield
+
 
 # ---------------------------------------------------------------------------
 # Helpers
