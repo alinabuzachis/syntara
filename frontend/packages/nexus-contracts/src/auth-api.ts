@@ -76,6 +76,29 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/auth/ws-ticket': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Exchange JWT for a WebSocket connection ticket
+     * @description Exchange a valid Bearer JWT for a short-lived, single-use opaque ticket.
+     *     The client then connects to the WebSocket endpoint with ``?ticket=<ticket>``
+     *     instead of passing the raw JWT in the query string, preventing token leakage
+     *     in server/proxy logs and browser history.
+     */
+    post: operations['create_ws_ticket']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/auth/refresh': {
     parameters: {
       query?: never
@@ -270,6 +293,22 @@ export interface components {
        * @description CSRF form token for use in X-CSRF-Token header
        */
       csrf_token: string
+    }
+    /**
+     * WebSocketTicketResponse
+     * @description Response for the WebSocket ticket exchange endpoint.
+     */
+    WebSocketTicketResponse: {
+      /**
+       * Ticket
+       * @description Single-use opaque ticket for WebSocket connection
+       */
+      ticket: string
+      /**
+       * Expires In
+       * @description Ticket lifetime in seconds
+       */
+      expires_in: number
     }
     /**
      * UserInfo
@@ -667,6 +706,39 @@ export interface operations {
         }
         content?: never
       }
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  create_ws_ticket: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Single-use WebSocket ticket */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WebSocketTicketResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      /** @description Invalid or missing authentication */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      403: components['responses']['ForbiddenError']
       404: components['responses']['NotFoundError']
       409: components['responses']['ConflictError']
       422: components['responses']['ValidationError']

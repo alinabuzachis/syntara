@@ -47,6 +47,10 @@ class WebSocketConfig:
 
     # Connection limits
     MAX_CONNECTIONS = 100
+    MAX_CONNECTIONS_PER_IP = 10
+
+    # Ticket exchange
+    TICKET_TTL_SECONDS = 30
 
     # Health check settings
     CLEANUP_INTERVAL = 30  # seconds - how often to check for stale connections

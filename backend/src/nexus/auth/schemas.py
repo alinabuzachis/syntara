@@ -61,3 +61,10 @@ class AuthProvidersResponse(BaseModel):
     """Response for the public providers listing endpoint."""
 
     resources: list[AuthProviderInfo] = Field(default_factory=list, description="Enabled identity providers")
+
+
+class WebSocketTicketResponse(BaseModel):
+    """Response for the WebSocket ticket exchange endpoint."""
+
+    ticket: str = Field(description="Single-use opaque ticket for WebSocket connection")
+    expires_in: int = Field(description="Ticket lifetime in seconds")

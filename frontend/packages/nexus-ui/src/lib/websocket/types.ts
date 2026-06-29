@@ -15,6 +15,8 @@ export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'rec
 export type ChannelState = {
   socket: WebSocket | null
   url: string
+  /** Original path before ticket was appended (used for reconnection with fresh tickets) */
+  basePath?: string
   state: ConnectionState
   reconnectAttempts: number
   reconnectTimeout?: ReturnType<typeof setTimeout>

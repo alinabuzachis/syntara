@@ -14,18 +14,28 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from importlib.resources import files
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 import yaml
 from fastapi import WebSocket, WebSocketDisconnect
 
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.authz.engine import AuthzRequest, authorize
+from nexus.core.constants import WebSocketConfig
+from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.exceptions import SafeValueError
+from nexus.core.models import User
+from nexus.core.websocket.audit.connection import WebSocketAuthFailureEvent, WebSocketConnectionEvent
+from nexus.core.websocket.close_codes import POLICY_VIOLATION, TRY_AGAIN_LATER
 from nexus.core.websocket.connection import get_connection_manager
 from nexus.core.websocket.hooks import WebSocketHooks, discover_hooks
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.schema_validator import ValidationError
 from nexus.core.websocket.utils import is_receive_only_channel, normalize_channel_name
+
+if TYPE_CHECKING:
+    from nexus.core.websocket.connection import WebSocketConnectionManager
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -763,6 +773,103 @@ def _validate_channel_and_get_request_type(
     return request_msg_type
 
 
+_COMPONENT_RESOURCE_TYPE_MAP: dict[str, str] = {
+    "workflows": "execution",
+    "agent_orchestrator": "invocation",
+}
+
+_COMPONENT_RESOURCE_PARAM_MAP: dict[str, str] = {
+    "workflows": "execution_id",
+    "agent_orchestrator": "invocation_id",
+}
+
+
+async def _check_websocket_authorization(
+    websocket: WebSocket,
+    user: User,
+    channel_name: str,
+    component_name: str,
+) -> bool:
+    """Check if the user is authorized to access a WebSocket resource.
+
+    Extracts the resource ID from path params, maps the component to a
+    resource type, and evaluates the authorization request via OPA.
+
+    Returns False (fail-closed) on any error.
+    """
+    try:
+        resource_type = _COMPONENT_RESOURCE_TYPE_MAP.get(component_name, component_name)
+        param_name = _COMPONENT_RESOURCE_PARAM_MAP.get(component_name)
+        if not param_name:
+            logger.error(
+                "WebSocket component missing from _COMPONENT_RESOURCE_PARAM_MAP — "
+                "add an entry to allow authorization. Denying access.",
+                component=component_name,
+                channel=channel_name,
+            )
+            return False
+        path_params = websocket.path_params
+        resource_id = str(path_params.get(param_name, ""))
+        if not resource_id:
+            logger.warning("No resource ID in path params", channel=channel_name)
+            return False
+
+        opa_client = websocket.app.state.opa_client
+
+        authz_request = AuthzRequest(
+            user_id=user.id,
+            action="read",
+            resource_type=resource_type,
+            resource_id=resource_id,
+        )
+
+        async with AsyncSessionLocal() as db:
+            result = await authorize(db, opa_client, authz_request)
+
+        return result.allowed and not result.denied
+    except Exception:
+        logger.exception("WebSocket authorization check failed", channel=channel_name)
+        return False
+
+
+def _check_connection_limits(
+    connection_manager: "WebSocketConnectionManager",
+    client_ip: str,
+) -> bool:
+    """Check if global or per-IP connection limits have been reached.
+
+    Returns True if the connection is allowed, False if it should be rejected.
+    """
+    if connection_manager.get_active_count() >= WebSocketConfig.MAX_CONNECTIONS:
+        return False
+    return connection_manager.get_active_count_by_client(client_ip) < WebSocketConfig.MAX_CONNECTIONS_PER_IP
+
+
+async def _authenticate_websocket(websocket: WebSocket, channel_name: str) -> User | None:
+    """Authenticate a WebSocket connection via single-use ticket.
+
+    Clients must exchange their JWT for a short-lived ticket via
+    ``POST /auth/ws-ticket``, then connect with ``?ticket=<ticket>``.
+    This avoids leaking JWTs in server/proxy logs and browser history.
+
+    Returns the authenticated User, or None if authentication fails.
+    """
+    ticket = websocket.query_params.get("ticket")
+    if not ticket:
+        return None
+
+    from nexus.core.websocket.ticket import get_ticket_client  # noqa: PLC0415
+
+    try:
+        user = await get_ticket_client().redeem_ticket(ticket)
+        if user is not None:
+            return user
+    except Exception:  # noqa: BLE001
+        client_host = websocket.client.host if websocket.client else "unknown"
+        logger.warning("WebSocket ticket auth failed", channel=channel_name, client_ip=client_host)
+    return None
+
+
 def _get_client_address(websocket: WebSocket) -> str:
     """Get client address string from WebSocket connection.
 
@@ -970,7 +1077,7 @@ async def _run_bidirectional_message_loop(
             break
 
 
-def create_websocket_endpoint(
+def create_websocket_endpoint(  # noqa: PLR0915
     channel_name: str, spec: dict[str, Any], component_name: str
 ) -> Callable[[WebSocket], Any]:
     """Create a WebSocket endpoint handler for a channel.
@@ -1028,9 +1135,63 @@ def create_websocket_endpoint(
 
     async def websocket_endpoint(websocket: WebSocket) -> None:
         """WebSocket endpoint handler."""
+        client_address = _get_client_address(websocket)
+        client_ip = client_address.rsplit(":", maxsplit=1)[0]
+
+        # Guard 1: Connection limits (cheapest check — no I/O)
+        if not _check_connection_limits(connection_manager, client_ip):
+            await websocket.close(code=TRY_AGAIN_LATER)
+            return
+
+        # Guard 2: Authentication (JWT validation)
+        user = await _authenticate_websocket(websocket, channel_name)
+        if user is None:
+            AuditEventDispatcher.dispatch(
+                WebSocketAuthFailureEvent(
+                    channel=channel_name,
+                    component=component_name,
+                    client_ip=client_ip,
+                    failure_reason="authentication_failed",
+                )
+            )
+            await websocket.close(code=POLICY_VIOLATION)
+            return
+
+        # Guard 3: Authorization (OPA policy check)
+        authz_result = await _check_websocket_authorization(websocket, user, channel_name, component_name)
+        if not authz_result:
+            AuditEventDispatcher.dispatch(
+                WebSocketAuthFailureEvent(
+                    channel=channel_name,
+                    component=component_name,
+                    client_ip=client_ip,
+                    failure_reason="unauthorized",
+                    user_id=user.id,
+                    username=user.username,
+                )
+            )
+            await websocket.close(code=POLICY_VIOLATION)
+            return
+
         await websocket.accept()
         connection_id_str = str(uuid.uuid4())
-        client_address = _get_client_address(websocket)
+
+        # Extract resource_id for audit trail (same mapping as authz check)
+        path_params = websocket.path_params
+        param_name = _COMPONENT_RESOURCE_PARAM_MAP.get(component_name)
+        resource_id = str(path_params.get(param_name, "")) if param_name else ""
+
+        AuditEventDispatcher.dispatch(
+            WebSocketConnectionEvent(
+                user_id=user.id,
+                username=user.username,
+                channel=channel_name,
+                component=component_name,
+                resource_id=resource_id,
+                client_ip=client_ip,
+                connection_id=connection_id_str,
+            )
+        )
 
         # Track connection in both managers
         # connection_manager: simple tracking for metrics
@@ -1050,7 +1211,11 @@ def create_websocket_endpoint(
         if on_connect_func is not None and callable(on_connect_func):
             background_task = asyncio.create_task(on_connect_func(websocket, connection_id_str))
             logger.debug(
-                "Started background task for channel, connection", channel=channel_name, connection_id=connection_id_str
+                "Started background task for channel, connection",
+                channel=channel_name,
+                connection_id=connection_id_str,
+                user_id=str(user.id),
+                username=user.username,
             )
 
         try:

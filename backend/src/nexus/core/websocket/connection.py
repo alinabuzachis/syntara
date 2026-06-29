@@ -183,8 +183,10 @@ class WebSocketConnectionManager:
 
         """
         # Extract IP address from client_address (remove port)
-        client_ip = client_address.split(":", maxsplit=1)[0] if ":" in client_address else client_address
-        return sum(1 for conn in self._connections.values() if conn.client_address.split(":")[0] == client_ip)
+        client_ip = client_address.rsplit(":", maxsplit=1)[0] if ":" in client_address else client_address
+        return sum(
+            1 for conn in self._connections.values() if conn.client_address.rsplit(":", maxsplit=1)[0] == client_ip
+        )
 
     def get_connection_info(self, connection_id: str) -> ConnectionInfo | None:
         """Get information about a specific connection.

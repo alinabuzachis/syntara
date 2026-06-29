@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 
+import { useAuthStore } from '../../../stores/useAuthStore'
 import { WebSocketChannel, type WebSocketChannelConfig } from '../channels'
 import { useWebSocket, useWebSocketState, useIsWebSocketConnected } from '../hooks'
 import { useWebSocketStore } from '../store'
@@ -523,5 +524,126 @@ describe('useIsWebSocketConnected hook', () => {
 
     rerender()
     expect(result.current).toBe(true)
+  })
+})
+
+// ============================================================================
+// Ticket Auth Tests
+// ============================================================================
+
+vi.mock('../../../client', () => ({
+  authFetchClient: {
+    POST: vi.fn(),
+  },
+}))
+
+describe('WebSocket ticket auth', () => {
+  const setAuthState = (authenticated: boolean) => {
+    useAuthStore.setState({
+      isAuthenticated: authenticated,
+      accessToken: authenticated ? 'fake-jwt' : null,
+      ensureValidToken: vi.fn().mockResolvedValue(undefined),
+    })
+  }
+
+  beforeEach(() => {
+    mockWebSocketInstances = []
+    vi.stubGlobal('WebSocket', MockWebSocket)
+    vi.useFakeTimers()
+    useWebSocketStore.getState().reset()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+    setAuthState(false)
+  })
+
+  it('fetches a ticket before connecting when authenticated', async () => {
+    const { authFetchClient } = await import('../../../client')
+    const mockPost = vi.mocked(authFetchClient.POST)
+    mockPost.mockResolvedValue({ data: { ticket: 'test-ticket-123', expires_in: 30 }, error: undefined } as never)
+
+    setAuthState(true)
+
+    useWebSocketStore.getState().connect('test', '/ws/test/v1/channel')
+
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(mockPost).toHaveBeenCalledWith('/auth/ws-ticket')
+    expect(mockWebSocketInstances).toHaveLength(1)
+    expect(mockWebSocketInstances[0].url).toContain('ticket=test-ticket-123')
+  })
+
+  it('appends ticket with & when URL already has query params', async () => {
+    const { authFetchClient } = await import('../../../client')
+    const mockPost = vi.mocked(authFetchClient.POST)
+    mockPost.mockResolvedValue({ data: { ticket: 'abc', expires_in: 30 }, error: undefined } as never)
+
+    setAuthState(true)
+
+    useWebSocketStore.getState().connect('test', '/ws/test/v1/channel?replay=0')
+
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(mockWebSocketInstances[0].url).toContain('?replay=0&ticket=abc')
+  })
+
+  it('connects without ticket when not authenticated', () => {
+    setAuthState(false)
+
+    useWebSocketStore.getState().connect('test', '/ws/test/v1/channel')
+
+    expect(mockWebSocketInstances).toHaveLength(1)
+    expect(mockWebSocketInstances[0].url).not.toContain('ticket')
+  })
+
+  it('connects without ticket when ticket fetch fails', async () => {
+    const { authFetchClient } = await import('../../../client')
+    const mockPost = vi.mocked(authFetchClient.POST)
+    mockPost.mockResolvedValue({ data: undefined, error: { status: 401 } } as never)
+
+    setAuthState(true)
+
+    useWebSocketStore.getState().connect('test', '/ws/test/v1/channel')
+
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(mockWebSocketInstances).toHaveLength(1)
+    expect(mockWebSocketInstances[0].url).not.toContain('ticket')
+  })
+
+  it('skips ticket fetch for non-WebSocket paths', () => {
+    setAuthState(true)
+
+    useWebSocketStore.getState().connect('test', '/api/v1/something')
+
+    expect(mockWebSocketInstances).toHaveLength(1)
+    expect(mockWebSocketInstances[0].url).not.toContain('ticket')
+  })
+
+  it('fetches a fresh ticket on reconnection', async () => {
+    const { authFetchClient } = await import('../../../client')
+    const mockPost = vi.mocked(authFetchClient.POST)
+    mockPost
+      .mockResolvedValueOnce({ data: { ticket: 'ticket-1', expires_in: 30 }, error: undefined } as never)
+      .mockResolvedValueOnce({ data: { ticket: 'ticket-2', expires_in: 30 }, error: undefined } as never)
+
+    setAuthState(true)
+
+    useWebSocketStore.getState().connect('test', '/ws/test/v1/channel')
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(mockWebSocketInstances[0].url).toContain('ticket=ticket-1')
+
+    mockWebSocketInstances[0].simulateOpen()
+    mockWebSocketInstances[0].simulateClose(1006)
+
+    // Advance past reconnect delay
+    await vi.advanceTimersByTimeAsync(200)
+
+    expect(mockPost).toHaveBeenCalledTimes(2)
+    expect(mockWebSocketInstances).toHaveLength(2)
+    expect(mockWebSocketInstances[1].url).toContain('ticket=ticket-2')
   })
 })

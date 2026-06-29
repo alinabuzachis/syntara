@@ -14,3 +14,6 @@ POLICY_VIOLATION = 1008
 
 # Internal error - endpoint encountered unexpected condition
 INTERNAL_ERROR = 1011
+
+# Try again later - server is overloaded, client should reconnect
+TRY_AGAIN_LATER = 1013

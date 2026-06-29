@@ -2844,6 +2844,105 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+  /auth/ws-ticket:
+    post:
+      summary: Exchange JWT for a WebSocket connection ticket
+      description: |
+        Exchange a valid Bearer JWT for a short-lived, single-use opaque ticket.
+        The client then connects to the WebSocket endpoint with ``?ticket=<ticket>``
+        instead of passing the raw JWT in the query string, preventing token leakage
+        in server/proxy logs and browser history.
+      operationId: create_ws_ticket
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: null
+        action: null
+      responses:
+        '200':
+          description: Single-use WebSocket ticket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebSocketTicketResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Invalid or missing authentication
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
   /auth/refresh:
     post:
       summary: Refresh access token
@@ -24928,6 +25027,22 @@ components:
           type: string
           title: Csrf Token
           description: CSRF form token for use in X-CSRF-Token header
+    WebSocketTicketResponse:
+      type: object
+      title: WebSocketTicketResponse
+      description: Response for the WebSocket ticket exchange endpoint.
+      required:
+        - ticket
+        - expires_in
+      properties:
+        ticket:
+          type: string
+          title: Ticket
+          description: Single-use opaque ticket for WebSocket connection
+        expires_in:
+          type: integer
+          title: Expires In
+          description: Ticket lifetime in seconds
     UserInfo:
       type: object
       title: UserInfo

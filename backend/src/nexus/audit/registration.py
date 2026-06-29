@@ -28,6 +28,7 @@ def _handler_packages() -> list[ModuleType]:
     import nexus.audit.events  # noqa: PLC0415
     import nexus.auth.audit  # noqa: PLC0415
     import nexus.authz.audit  # noqa: PLC0415
+    import nexus.core.websocket.audit  # noqa: PLC0415
     import nexus.credentials.audit  # noqa: PLC0415
     import nexus.files.audit  # noqa: PLC0415
     import nexus.identity_providers.audit  # noqa: PLC0415
@@ -43,6 +44,7 @@ def _handler_packages() -> list[ModuleType]:
         nexus.audit.events,
         nexus.auth.audit,
         nexus.authz.audit,
+        nexus.core.websocket.audit,
         nexus.credentials.audit,
         nexus.files.audit,
         nexus.identity_providers.audit,

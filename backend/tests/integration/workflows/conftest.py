@@ -4,11 +4,39 @@ Provides mock HTTP server using respx for API activity testing.
 """
 
 from collections.abc import Generator
+from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import httpx
 import pytest
 import respx
 from httpx import Response
+
+from nexus.core.models import User
+
+_FAKE_USER = User(
+    id=uuid4(),
+    username="ws-test-bypass",
+    email="ws-test-bypass@example.com",
+    first_name="Test",
+    is_enabled=True,
+)
+
+
+@pytest.fixture(autouse=True)
+def _bypass_websocket_auth() -> Generator[None, None, None]:
+    """Bypass WebSocket auth and authz guards for workflow integration tests."""
+    with (
+        patch(
+            "nexus.core.websocket.endpoint_factory._authenticate_websocket",
+            AsyncMock(return_value=_FAKE_USER),
+        ),
+        patch(
+            "nexus.core.websocket.endpoint_factory._check_websocket_authorization",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        yield
 
 
 @pytest.fixture

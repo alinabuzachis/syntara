@@ -7,6 +7,10 @@
 
 import { create } from 'zustand'
 
+import { authFetchClient } from '../../client'
+import { useAuthStore } from '../../stores/useAuthStore'
+import { detachPromise } from '../../utils/detachPromise'
+
 import type { ChannelState, ConnectionState, WebSocketConfig, WebSocketMessage, SubscriberOptions } from './types'
 import { DEFAULT_CONFIG } from './types'
 
@@ -87,6 +91,24 @@ function buildUrl(baseUrl: string, path: string): string {
   return `${baseUrl}${normalizedPath}`
 }
 
+function appendTicketToUrl(url: string, ticket: string): string {
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}ticket=${encodeURIComponent(ticket)}`
+}
+
+async function fetchWebSocketTicket(): Promise<string | null> {
+  const store = useAuthStore.getState()
+  try {
+    await store.ensureValidToken()
+  } catch {
+    return null
+  }
+
+  const { data, error } = await authFetchClient.POST('/auth/ws-ticket')
+  if (error || !data) return null
+  return data.ticket
+}
+
 // ============================================================================
 // Store Implementation
 // ============================================================================
@@ -126,8 +148,11 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
 
     const timeout = setTimeout(() => {
       const ch = get().channels.get(channelId)
-      // Use stored URL directly (already built), pass flag to skip buildUrl
-      if (ch) get().connect(channelId, ch.url, true)
+      // Use basePath for reconnection so connect() fetches a fresh single-use ticket
+      if (ch) {
+        const reconnectPath = ch.basePath ?? ch.url
+        get().connect(channelId, reconnectPath, !ch.basePath)
+      }
     }, delay)
 
     updateChannel(channelId, { reconnectTimeout: timeout })
@@ -149,10 +174,11 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
       // Skip buildUrl if already a full URL (used during reconnection)
       const url = isFullUrl ? path : buildUrl(config.baseUrl, path)
 
-      // Initialize channel
+      // Initialize channel immediately (synchronous)
       const channel: ChannelState = {
         socket: null,
         url,
+        basePath: isFullUrl ? existing?.basePath : path,
         state: 'connecting',
         reconnectAttempts: existing?.reconnectAttempts ?? 0,
       }
@@ -163,54 +189,75 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
         return { channels }
       })
 
-      // Create WebSocket
-      try {
-        const socket = new WebSocket(url)
+      const createSocket = (socketUrl: string) => {
+        try {
+          const socket = new WebSocket(socketUrl)
 
-        socket.onopen = () => {
-          updateChannel(channelId, { state: 'connected', reconnectAttempts: 0, error: undefined })
-          notifyStateChange(channelId, 'connected')
-        }
+          socket.onopen = () => {
+            updateChannel(channelId, { state: 'connected', reconnectAttempts: 0, error: undefined })
+            notifyStateChange(channelId, 'connected')
+          }
 
-        socket.onclose = (event) => {
-          updateChannel(channelId, { socket: null })
+          socket.onclose = (event) => {
+            updateChannel(channelId, { socket: null })
 
-          if (event.code === 1000) {
-            // Clean disconnect - clear any pending reconnect timeout
-            const channel = get().channels.get(channelId)
-            if (channel?.reconnectTimeout) {
-              clearTimeout(channel.reconnectTimeout)
+            if (event.code === 1000) {
+              // Clean disconnect - clear any pending reconnect timeout
+              const channel = get().channels.get(channelId)
+              if (channel?.reconnectTimeout) {
+                clearTimeout(channel.reconnectTimeout)
+              }
+              updateChannel(channelId, { state: 'disconnected', reconnectTimeout: undefined })
+              notifyStateChange(channelId, 'disconnected')
+              return
             }
-            updateChannel(channelId, { state: 'disconnected', reconnectTimeout: undefined })
-            notifyStateChange(channelId, 'disconnected')
-            return
+
+            scheduleReconnect(channelId)
           }
 
-          scheduleReconnect(channelId)
-        }
-
-        socket.onerror = () => {
-          // onclose will follow
-        }
-
-        socket.onmessage = (event) => {
-          try {
-            if (typeof event.data !== 'string') return
-            const raw: unknown = JSON.parse(event.data)
-            if (typeof raw !== 'object' || raw === null) return
-            const message = raw as WebSocketMessage
-            message.timestamp = message.timestamp ?? Date.now()
-            message.channel = channelId
-            notifyMessage(channelId, message)
-          } catch {
-            // Ignore parse errors
+          socket.onerror = () => {
+            // onclose will follow
           }
-        }
 
-        updateChannel(channelId, { socket })
-      } catch (error) {
-        updateChannel(channelId, { state: 'failed', error: String(error) })
-        notifyStateChange(channelId, 'failed')
+          socket.onmessage = (event) => {
+            try {
+              if (typeof event.data !== 'string') return
+              const raw: unknown = JSON.parse(event.data)
+              if (typeof raw !== 'object' || raw === null) return
+              const message = raw as WebSocketMessage
+              message.timestamp = message.timestamp ?? Date.now()
+              message.channel = channelId
+              notifyMessage(channelId, message)
+            } catch {
+              // Ignore parse errors
+            }
+          }
+
+          updateChannel(channelId, { socket, url: socketUrl })
+        } catch (error) {
+          updateChannel(channelId, { state: 'failed', error: String(error) })
+          notifyStateChange(channelId, 'failed')
+        }
+      }
+
+      // Fetch a ticket, then open the WebSocket with the ticket appended
+      const isAuthenticated = useAuthStore.getState().isAuthenticated
+      if (isAuthenticated && url.includes('/ws/')) {
+        detachPromise(
+          fetchWebSocketTicket().then((ticket) => {
+            // Bail out if the channel was disconnected while we were fetching
+            const current = get().channels.get(channelId)
+            if (current?.state !== 'connecting') return
+
+            if (ticket) {
+              createSocket(appendTicketToUrl(url, ticket))
+            } else {
+              createSocket(url)
+            }
+          })
+        )
+      } else {
+        createSocket(url)
       }
     },
 

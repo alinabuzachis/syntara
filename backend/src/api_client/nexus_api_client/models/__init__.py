@@ -354,6 +354,7 @@ __all__ = (
     "WaitNodeOutputsType0",
     "WaitNodeParameters",
     "WebhookResponse",
+    "WebSocketTicketResponse",
     "WhatCanIResponse",
     "WhoCanRequest",
     "WhoCanRequestResourceLabels",

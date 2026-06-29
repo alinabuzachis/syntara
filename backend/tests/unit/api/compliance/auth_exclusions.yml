@@ -23,6 +23,10 @@ authenticated:
     path: /api/v1/auth/me
     justification: Returns own user info; scoped to caller
 
+  - method: POST
+    path: /api/v1/auth/ws-ticket
+    justification: Exchanges Bearer JWT for single-use WS ticket; scoped to caller
+
   # -- authz: introspection / reference data --
   - method: POST
     path: /api/v1/authz/can_i

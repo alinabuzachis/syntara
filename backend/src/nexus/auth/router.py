@@ -69,6 +69,7 @@ from nexus.auth.schemas import (
     CsrfTokenResponse,
     LoginRequest,
     UserInfo,
+    WebSocketTicketResponse,
 )
 from nexus.auth.services.idp_group_sync import sync_idp_groups
 from nexus.auth.services.oidc_service import OIDCError, OIDCService, _is_ssl_verification_error
@@ -457,6 +458,39 @@ async def token(
         access_token=access_token,
         expires_in=settings.jwt_sa_access_token_lifetime_minutes * 60,
     )
+
+
+@router.post(
+    "/ws-ticket",
+    operation_id="create_ws_ticket",
+    dependencies=[NO_PERMISSION],
+    summary="Exchange JWT for a WebSocket connection ticket",
+    description="""
+    Exchange a valid Bearer JWT for a short-lived, single-use opaque ticket.
+    The client then connects to the WebSocket endpoint with ``?ticket=<ticket>``
+    instead of passing the raw JWT in the query string, preventing token leakage
+    in server/proxy logs and browser history.
+    """,
+    response_description="Single-use WebSocket ticket",
+    responses={
+        401: {"description": "Invalid or missing authentication"},
+    },
+)
+async def create_ws_ticket(
+    payload: Annotated[TokenPayload, Depends(get_token_payload)],
+) -> WebSocketTicketResponse:
+    """Issue a single-use WebSocket connection ticket."""
+    from nexus.core.websocket.ticket import get_ticket_client  # noqa: PLC0415
+
+    client = get_ticket_client()
+    ticket, ttl = await client.issue_ticket(
+        user_id=UUID(payload.sub),
+        username=payload.preferred_username or payload.sub,
+        email=payload.email,
+        first_name=payload.given_name or payload.name,
+        last_name=payload.family_name,
+    )
+    return WebSocketTicketResponse(ticket=ticket, expires_in=ttl)
 
 
 @router.post(
