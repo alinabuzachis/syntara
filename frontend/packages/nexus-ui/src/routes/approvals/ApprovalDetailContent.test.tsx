@@ -332,4 +332,204 @@ describe('ApprovalDetailContent', () => {
 
     expect(await axe(container)).toHaveNoViolations()
   })
+
+  it('disables undo button while submitting', async () => {
+    const mutate = vi.fn()
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({
+      mutate,
+      isPending: false,
+      isSuccess: false,
+    } as never)
+
+    const user = userEvent.setup()
+    const { rerender } = render(<ApprovalDetailContent approval={mockApproval} />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(screen.getByRole('button', { name: 'Undo decision' })).toBeInTheDocument()
+
+    // Now simulate mutation pending state
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({
+      mutate,
+      isPending: true,
+      isSuccess: false,
+    } as never)
+
+    rerender(<ApprovalDetailContent approval={mockApproval} />)
+
+    const undoButton = screen.getByRole('button', { name: 'Undo decision' })
+    expect(undoButton).toBeDisabled()
+  })
+
+  it('submit button is disabled when no decision is selected', () => {
+    const mutate = vi.fn()
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({
+      mutate,
+      isPending: false,
+      isSuccess: false,
+    } as never)
+
+    render(<ApprovalDetailContent approval={mockApproval} />, { wrapper })
+
+    // For pending approvals without a decision selected, only Approve/Reject buttons should show
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit decision' })).not.toBeInTheDocument()
+  })
+
+  it('does not call mutate when approval.id is missing', async () => {
+    const mutate = vi.fn()
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({
+      mutate,
+      isPending: false,
+      isSuccess: false,
+    } as never)
+
+    const approvalNoId = { ...mockApproval, id: undefined as unknown as string }
+    const user = userEvent.setup()
+    render(<ApprovalDetailContent approval={approvalNoId} />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Approve' }))
+    await user.click(screen.getByRole('button', { name: 'Submit decision' }))
+
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('shows notes label for expired status', () => {
+    const expiredApproval = {
+      ...mockApproval,
+      status: 'expired' as unknown as Approval['status'],
+      decision_notes: 'Timed out',
+    }
+    render(<ApprovalDetailContent approval={expiredApproval} />, { wrapper })
+
+    expect(screen.getByText('Notes')).toBeInTheDocument()
+    expect(screen.getByText('Timed out')).toBeInTheDocument()
+  })
+
+  it('renders fallback workflow name when workflow_context.workflow_name is empty', () => {
+    const noName = {
+      ...mockApproval,
+      workflow_context: { ...mockApproval.workflow_context, workflow_name: '' },
+    }
+    render(<ApprovalDetailContent approval={noName} />, { wrapper })
+
+    // Should use 'Workflow' as fallback - appears in both the label and the value
+    const workflowElements = screen.getAllByText('Workflow')
+    expect(workflowElements.length).toBeGreaterThan(0)
+  })
+
+  it('shows workflow link when workflow_version_id is present', () => {
+    render(<ApprovalDetailContent approval={mockApproval} onWorkflowClick={vi.fn()} />, { wrapper })
+
+    expect(screen.getByRole('button', { name: 'Test Workflow' })).toBeInTheDocument()
+  })
+
+  it('does not show workflow link when workflow_version_id is missing', () => {
+    const noVersion = {
+      ...mockApproval,
+      workflow_context: { ...mockApproval.workflow_context, workflow_version_id: undefined },
+    } as unknown as Approval
+    render(<ApprovalDetailContent approval={noVersion} onWorkflowClick={vi.fn()} />, { wrapper })
+
+    // Should render as plain text, not a button
+    expect(screen.queryByRole('button', { name: 'Test Workflow' })).not.toBeInTheDocument()
+    expect(screen.getByText('Test Workflow')).toBeInTheDocument()
+  })
+
+  it('renders message from prompt field when description is missing', () => {
+    const withPrompt = { ...mockApproval, prompt: 'Deploy to production?' } as Approval
+    render(<ApprovalDetailContent approval={withPrompt} />, { wrapper })
+
+    expect(screen.getByText('Deploy to production?')).toBeInTheDocument()
+  })
+
+  it('prefers description over prompt when both exist', () => {
+    const both = {
+      ...mockApproval,
+      description: 'Preferred message',
+      prompt: 'Fallback message',
+    } as Approval
+    render(<ApprovalDetailContent approval={both} />, { wrapper })
+
+    expect(screen.getByText('Preferred message')).toBeInTheDocument()
+    expect(screen.queryByText('Fallback message')).not.toBeInTheDocument()
+  })
+
+  it('resolves approval name from activityNameMap', () => {
+    const activityNameMap = new Map([['node-1', 'Production Deployment Approval']])
+    render(<ApprovalDetailContent approval={mockApproval} activityNameMap={activityNameMap} />, { wrapper })
+
+    expect(screen.getByText('Production Deployment Approval')).toBeInTheDocument()
+  })
+
+  it('uses approval.name when activityNameMap has no match', () => {
+    const activityNameMap = new Map([['other-node', 'Something Else']])
+    render(<ApprovalDetailContent approval={mockApproval} activityNameMap={activityNameMap} />, { wrapper })
+
+    expect(screen.getByText('Test Approval')).toBeInTheDocument()
+  })
+
+  it('disables buttons when checking permission (isCheckingPermission)', async () => {
+    const { useApprovalDecideProjects } = await import('./useApprovalDecideProjects')
+    vi.mocked(useApprovalDecideProjects).mockReturnValue({
+      canDecideAllProjects: true,
+      canDecideProjectNames: new Set<string>(),
+      isLoading: true, // checking permission
+      error: null,
+    })
+
+    render(<ApprovalDetailContent approval={mockApproval} />, { wrapper })
+
+    expect(screen.getByRole('button', { name: 'Approve' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'Reject' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows approver list tooltip when user not in approver list', () => {
+    mockCanDecide.mockReturnValue(false)
+    const withApprovers = {
+      ...mockApproval,
+      approver_users: [{ id: 'user1', username: 'john' }],
+      approver_groups: [{ id: 'grp1', name: 'admins' }],
+    }
+    render(<ApprovalDetailContent approval={withApprovers} />, { wrapper })
+
+    // Buttons should be disabled with tooltip
+    expect(screen.getByRole('button', { name: 'Approve' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows empty approver list tooltip when no approvers configured', () => {
+    mockCanDecide.mockReturnValue(false)
+    const noApprovers = {
+      ...mockApproval,
+      approver_users: [],
+      approver_groups: [],
+    }
+    render(<ApprovalDetailContent approval={noApprovers} />, { wrapper })
+
+    expect(screen.getByRole('button', { name: 'Approve' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows tooltip with users only when no groups', () => {
+    mockCanDecide.mockReturnValue(false)
+    const usersOnly = {
+      ...mockApproval,
+      approver_users: [{ id: 'u1', username: 'alice' }],
+      approver_groups: [],
+    }
+    render(<ApprovalDetailContent approval={usersOnly} />, { wrapper })
+
+    expect(screen.getByRole('button', { name: 'Approve' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows tooltip with groups only when no users', () => {
+    mockCanDecide.mockReturnValue(false)
+    const groupsOnly = {
+      ...mockApproval,
+      approver_users: [],
+      approver_groups: [{ id: 'g1', name: 'approvers' }],
+    }
+    render(<ApprovalDetailContent approval={groupsOnly} />, { wrapper })
+
+    expect(screen.getByRole('button', { name: 'Approve' })).toHaveAttribute('aria-disabled', 'true')
+  })
 })

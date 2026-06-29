@@ -1,0 +1,79 @@
+import type { Approval } from '@ansible/nexus-contracts'
+import { useCallback, useState } from 'react'
+
+import { approvalsClient } from '../../../client'
+
+/** Type guard to ensure approval has required fields from API response */
+function isValidApproval(item: unknown): item is Approval {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'id' in item &&
+    typeof item.id === 'string' &&
+    'status' in item &&
+    typeof item.status === 'string'
+  )
+}
+
+type UseFetchPendingApprovalsResult = {
+  /** All pending approvals for the execution. */
+  approvals: Approval[]
+  /** Whether a fetch is currently in progress. */
+  isLoading: boolean
+  /** Fetch all pending approvals for the execution. */
+  fetchApprovals: () => Promise<Approval[]>
+  /** Find the index of an approval by its node ID. Returns -1 if not found. */
+  findIndexByNodeId: (approvalNodeId: string) => number
+  /** Reset loading state (e.g., when closing the review view). */
+  clear: () => void
+}
+
+/**
+ * Hook that lazily fetches all pending approvals for a specific execution (Layer 1: Data).
+ *
+ * This avoids polling — the fetch is triggered on demand when the user clicks
+ * a waiting approval node on the canvas or when navigation is needed.
+ *
+ * Part of the approval hooks architecture. See `useExecutionNodeClick.ts` for the full layering explanation.
+ */
+export function useFetchPendingApprovals(executionId: string): UseFetchPendingApprovalsResult {
+  const [isLoading, setIsLoading] = useState(false)
+  const [approvals, setApprovals] = useState<Approval[]>([])
+
+  const { refetch } = approvalsClient.useQuery('get', '/approvals', {
+    params: {
+      query: {
+        execution_id: executionId,
+        status: 'pending',
+      },
+    },
+    enabled: false, // Only fetch on demand
+  })
+
+  const fetchApprovals = useCallback(async (): Promise<Approval[]> => {
+    setIsLoading(true)
+    try {
+      const result = await refetch()
+      const resources = result.data?.resources ?? []
+      const fetchedApprovals = resources.filter(isValidApproval)
+      setApprovals(fetchedApprovals)
+      return fetchedApprovals
+    } finally {
+      setIsLoading(false)
+    }
+  }, [refetch])
+
+  const findIndexByNodeId = useCallback(
+    (approvalNodeId: string): number => {
+      return approvals.findIndex((a) => a.approval_node_id === approvalNodeId)
+    },
+    [approvals]
+  )
+
+  const clear = useCallback(() => {
+    setIsLoading(false)
+    setApprovals([])
+  }, [])
+
+  return { approvals, isLoading, fetchApprovals, findIndexByNodeId, clear }
+}

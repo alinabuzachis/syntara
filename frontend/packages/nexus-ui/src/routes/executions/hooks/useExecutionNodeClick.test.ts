@@ -6,20 +6,29 @@ import { FlowNodeType } from '../../../constants'
 
 import { useExecutionNodeClick } from './useExecutionNodeClick'
 
-// Mock useExecutionApproval
+// Mock useExecutionApprovals
 const mockHandleApprovalClick = vi.fn()
-const mockClearPendingApproval = vi.fn()
+const mockClearApprovals = vi.fn()
+const mockNavigateToIndex = vi.fn()
+const mockSetApprovalsAndIndex = vi.fn()
+const mockFetchApprovals = vi.fn()
 
-vi.mock('./useExecutionApproval', () => ({
+vi.mock('./useExecutionApprovals', () => ({
   isWaitingApprovalNode: (node: { type?: string; data: Record<string, unknown> }) => {
     if (node.type !== FlowNodeType.APPROVAL) return false
     const executionState = node.data.__executionState as { status?: string } | undefined
     return executionState?.status === 'waiting'
   },
-  useExecutionApproval: () => ({
-    pendingApproval: null,
+  useExecutionApprovals: () => ({
+    approvals: [],
+    currentIndex: 0,
+    currentApproval: null,
+    isLoading: false,
     handleNodeClick: mockHandleApprovalClick,
-    clearPendingApproval: mockClearPendingApproval,
+    navigateToIndex: mockNavigateToIndex,
+    clearApprovals: mockClearApprovals,
+    setApprovalsAndIndex: mockSetApprovalsAndIndex,
+    fetchApprovals: mockFetchApprovals,
   }),
 }))
 
@@ -51,7 +60,7 @@ describe('useExecutionNodeClick', () => {
     expect(result.current.selectedNodeName).toBeNull()
   })
 
-  it('delegates approval node clicks to useExecutionApproval', () => {
+  it('delegates approval node clicks to useExecutionApprovals', () => {
     const { result } = renderHook(() => useExecutionNodeClick('exec-1'))
     const approvalNode = makeNode('approval-1', 'waiting', { type: FlowNodeType.APPROVAL })
 
@@ -166,13 +175,13 @@ describe('useExecutionNodeClick', () => {
     expect(result.current.selectedNodeName).toBeNull()
   })
 
-  it('exposes clearPendingApproval from useExecutionApproval', () => {
+  it('exposes clearApprovals from useExecutionApprovals', () => {
     const { result } = renderHook(() => useExecutionNodeClick('exec-1'))
 
     act(() => {
-      result.current.clearPendingApproval()
+      result.current.clearApprovals()
     })
 
-    expect(mockClearPendingApproval).toHaveBeenCalledOnce()
+    expect(mockClearApprovals).toHaveBeenCalledOnce()
   })
 })

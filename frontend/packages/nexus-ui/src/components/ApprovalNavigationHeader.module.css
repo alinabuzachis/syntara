@@ -1,0 +1,4 @@
+.counter {
+  margin-left: var(--pf-t--global--spacer--xs);
+  color: var(--pf-t--global--text--color--subtle);
+}

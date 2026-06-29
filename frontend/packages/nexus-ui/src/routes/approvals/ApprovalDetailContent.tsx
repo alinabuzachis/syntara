@@ -26,7 +26,6 @@ import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { formatDateTime } from '../../utils/dateUtils'
-import { detachPromise } from '../../utils/detachPromise'
 
 import styles from './ApprovalDetailContent.module.css'
 import { ApprovalStatusBadges } from './approvalUtils'
@@ -58,10 +57,22 @@ const getNotesLabel = (status: string) => {
   return 'Notes'
 }
 
+/** Resolve human-readable approval node name from activity name map. */
+function resolveApprovalName(approval: Approval, activityNameMap?: Map<string, string>): string {
+  const approvalNodeId = approval.approval_node_id
+  if (approvalNodeId && activityNameMap) {
+    const resolvedNodeName = activityNameMap.get(approvalNodeId)
+    if (resolvedNodeName) return resolvedNodeName
+  }
+  return approval.name
+}
+
 type ApprovalDetailContentProps = Readonly<{
   approval: Approval
   /** Optional message to display (e.g. the prompt from the approval node config). Overrides auto-detection from the approval object. */
   message?: string
+  /** Optional map of activity ID to human-readable name for resolving approval node names. */
+  activityNameMap?: Map<string, string>
   onDecisionSubmitted?: () => void
   onWorkflowClick?: (link: string) => void
 }>
@@ -177,14 +188,14 @@ function PendingDecisionForm({
 }
 
 function ApprovalSummary({
-  approval,
+  approvalDisplayName,
   approvalInitiated,
   approvalMessage,
   workflowName,
   workflowLink,
   onWorkflowClick,
 }: Readonly<{
-  approval: Approval
+  approvalDisplayName: string
   approvalInitiated: string
   approvalMessage: string | undefined
   workflowName: string
@@ -195,7 +206,7 @@ function ApprovalSummary({
     <DescriptionList>
       <DescriptionListGroup>
         <DescriptionListTerm>Approval step</DescriptionListTerm>
-        <DescriptionListDescription>{approval.name}</DescriptionListDescription>
+        <DescriptionListDescription>{approvalDisplayName}</DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
         <DescriptionListTerm>Workflow</DescriptionListTerm>
@@ -237,6 +248,7 @@ function ApprovalSummary({
 export function ApprovalDetailContent({
   approval,
   message,
+  activityNameMap,
   onDecisionSubmitted,
   onWorkflowClick,
 }: ApprovalDetailContentProps) {
@@ -273,6 +285,7 @@ export function ApprovalDetailContent({
   const workflowLink = workflowId ? `/workflow-builder/${workflowId}` : undefined
   const approvalInitiated = formatDateTime(approval.created_at ?? null)
   const approvalMessage = message || getApprovalMessage(approval)
+  const approvalDisplayName = resolveApprovalName(approval, activityNameMap)
   const decisionNotes = approval.decision_notes ?? undefined
   const notesLabel = getNotesLabel(approvalStatus)
   const isSubmitting = decisionMutation.isPending
@@ -287,20 +300,24 @@ export function ApprovalDetailContent({
         body: { status: pendingDecision, notes: pendingReason.trim() || null },
       },
       {
-        onSuccess: () => {
-          detachPromise(
-            Promise.all([
-              queryClient.invalidateQueries({ queryKey: ['get', '/executions/{execution_id}'] }),
-              queryClient.invalidateQueries({ queryKey: ['get', '/approvals'] }),
-              queryClient.invalidateQueries({ queryKey: ['get', '/approvals/{approval_id}'] }),
-            ])
-          )
+        onSuccess: async () => {
           showSuccess({
             title: pendingDecision === 'approved' ? 'Approval submitted' : 'Rejection submitted',
             description: 'The approval decision has been recorded.',
           })
           setPendingDecision(undefined)
           setPendingReason('')
+
+          // Wait for queries to refetch before calling onDecisionSubmitted
+          // This ensures the execution state and canvas update before we fetch the next approval
+          await Promise.all([
+            queryClient.refetchQueries({ queryKey: ['get', '/executions/{execution_id}'] }),
+            queryClient.refetchQueries({ queryKey: ['get', '/approvals'] }),
+            queryClient.refetchQueries({ queryKey: ['get', '/approvals/{approval_id}'] }),
+          ])
+
+          // Call onDecisionSubmitted without fresh approvals - let dismiss() fetch to avoid cache key issues
+          // The race condition risk is minimal since we just did refetchQueries
           onDecisionSubmitted?.()
         },
         onError: handleError({ title: 'Failed to submit decision' }),
@@ -375,7 +392,7 @@ export function ApprovalDetailContent({
         <Stack hasGutter>
           <StackItem>
             <ApprovalSummary
-              approval={approval}
+              approvalDisplayName={approvalDisplayName}
               approvalInitiated={approvalInitiated}
               approvalMessage={approvalMessage}
               workflowName={workflowName}

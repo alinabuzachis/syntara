@@ -138,16 +138,26 @@ vi.mock('../../stores/useAuthStore', () => ({
 
 // Mock workflow store with required selectors
 vi.mock('../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: {
-    getState: vi.fn(() => ({
+  useWorkflowStore: vi.fn((selector?: (state: unknown) => unknown) => {
+    const state = {
       updateActivity: vi.fn(),
-    })),
-  },
+      activities: [],
+      triggers: [],
+      edges: [],
+    }
+    return selector ? selector(state) : state
+  }),
   selectCurrentWorkflow: vi.fn(),
   selectWorkflowVersion: vi.fn(),
   selectEdges: vi.fn(() => []),
   selectTriggersCount: vi.fn(() => 0),
   selectActivities: vi.fn(() => []),
+}))
+
+// Mock workflow store selectors
+vi.mock('../../stores/workflowStoreSelectors', () => ({
+  useActivities: vi.fn(() => []),
+  useTriggers: vi.fn(() => []),
 }))
 
 // Mock ExecutionViewContent component
@@ -248,11 +258,14 @@ const mockFetchForNode = vi.fn()
 
 vi.mock('./hooks/useExecutionNodeClick', () => ({
   useExecutionNodeClick: vi.fn(() => ({
-    pendingApproval: null,
+    approvals: [],
+    currentIndex: 0,
+    currentApproval: null,
     isApprovalLoading: false,
-    clearPendingApproval: mockClearPendingApproval,
-    setPendingApproval: mockSetPendingApproval,
-    fetchForNode: mockFetchForNode,
+    navigateToIndex: vi.fn(),
+    clearApprovals: mockClearPendingApproval,
+    setApprovalsAndIndex: mockSetPendingApproval,
+    fetchApprovals: mockFetchForNode,
     selectedNodeId: null,
     selectedNodeName: null,
     selectNode: mockSelectNode,
@@ -606,11 +619,14 @@ describe('ExecutionDetail', () => {
   describe('Approval Review Side Panel', () => {
     it('opens approval side panel when Review approval is clicked', async () => {
       vi.mocked(useExecutionNodeClick).mockReturnValue({
-        pendingApproval: mockPendingApproval as never,
+        approvals: [mockPendingApproval] as never,
+        currentIndex: 0,
+        currentApproval: mockPendingApproval as never,
         isApprovalLoading: false,
-        clearPendingApproval: mockClearPendingApproval,
-        setPendingApproval: mockSetPendingApproval,
-        fetchForNode: mockFetchForNode,
+        navigateToIndex: vi.fn(),
+        clearApprovals: mockClearPendingApproval,
+        setApprovalsAndIndex: mockSetPendingApproval,
+        fetchApprovals: mockFetchForNode,
         selectedNodeId: null,
         selectedNodeName: null,
         selectNode: mockSelectNode,
@@ -634,11 +650,14 @@ describe('ExecutionDetail', () => {
 
     it('closes approval side panel when Close is clicked', async () => {
       vi.mocked(useExecutionNodeClick).mockReturnValue({
-        pendingApproval: mockPendingApproval as never,
+        approvals: [mockPendingApproval] as never,
+        currentIndex: 0,
+        currentApproval: mockPendingApproval as never,
         isApprovalLoading: false,
-        clearPendingApproval: mockClearPendingApproval,
-        setPendingApproval: mockSetPendingApproval,
-        fetchForNode: mockFetchForNode,
+        navigateToIndex: vi.fn(),
+        clearApprovals: mockClearPendingApproval,
+        setApprovalsAndIndex: mockSetPendingApproval,
+        fetchApprovals: mockFetchForNode,
         selectedNodeId: null,
         selectedNodeName: null,
         selectNode: mockSelectNode,

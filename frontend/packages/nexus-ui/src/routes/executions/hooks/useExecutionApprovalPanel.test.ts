@@ -1,6 +1,6 @@
 import type { Approval } from '@ansible/nexus-contracts'
 import { renderHook, act } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { useExecutionApprovalPanel } from './useExecutionApprovalPanel'
 
@@ -20,9 +20,9 @@ const mockApproval: Approval = {
   },
 }
 
-const mockFetchForNode = vi.fn()
-const mockSetPendingApproval = vi.fn()
-const mockClearPendingApproval = vi.fn()
+const mockFetchApprovals = vi.fn()
+const mockSetApprovalsAndIndex = vi.fn()
+const mockClearApprovals = vi.fn()
 
 vi.mock('./useFetchApprovalForUrlParam', () => ({
   useFetchApprovalForUrlParam: vi.fn(() => undefined),
@@ -32,12 +32,23 @@ vi.mock('./useAutoApprovalDetection', () => ({
   useAutoApprovalDetection: vi.fn(),
 }))
 
-function makeNodeClick(pendingApproval: Approval | null = null) {
+vi.mock('../../../providers/alerts', () => ({
+  useAlerts: vi.fn(() => ({
+    showError: vi.fn(),
+    showSuccess: vi.fn(),
+    showInfo: vi.fn(),
+    showWarning: vi.fn(),
+  })),
+}))
+
+function makeNodeClick(currentApproval: Approval | null = null, approvals: Approval[] = []) {
   return {
-    fetchForNode: mockFetchForNode,
-    setPendingApproval: mockSetPendingApproval,
-    clearPendingApproval: mockClearPendingApproval,
-    pendingApproval,
+    fetchApprovals: mockFetchApprovals,
+    setApprovalsAndIndex: mockSetApprovalsAndIndex,
+    clearApprovals: mockClearApprovals,
+    approvals,
+    currentIndex: 0,
+    currentApproval,
     selectedNodeId: null,
     setSelectedNodeId: vi.fn(),
     isFetching: false,
@@ -48,6 +59,11 @@ function makeNodeClick(pendingApproval: Approval | null = null) {
 describe('useExecutionApprovalPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('starts with panel closed', () => {
@@ -72,26 +88,58 @@ describe('useExecutionApprovalPanel', () => {
     expect(result.current.panelOpen).toBe(false)
   })
 
-  it('dismiss() closes panel and clears pending approval', () => {
+  it('dismiss() closes panel when no more approvals remain', async () => {
+    mockFetchApprovals.mockResolvedValue([]) // No more pending approvals
     const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', makeNodeClick(), undefined))
 
     act(() => result.current.open())
-    act(() => result.current.dismiss())
+
+    // dismiss() is fire-and-forget, so call it and advance timers to flush async updates
+    result.current.dismiss()
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
 
     expect(result.current.panelOpen).toBe(false)
-    expect(mockClearPendingApproval).toHaveBeenCalledOnce()
+    expect(mockClearApprovals).toHaveBeenCalledOnce()
+  })
+
+  it('dismiss() keeps panel open and navigates when approvals remain', async () => {
+    const remainingApprovals = [
+      { ...mockApproval, id: 'approval-2', name: 'Second Approval' },
+      { ...mockApproval, id: 'approval-3', name: 'Third Approval' },
+    ]
+    mockFetchApprovals.mockResolvedValue(remainingApprovals)
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', makeNodeClick(), undefined))
+
+    act(() => result.current.open())
+
+    // dismiss() is fire-and-forget, so call it and advance timers to flush async updates
+    result.current.dismiss()
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(result.current.panelOpen).toBe(true)
+    expect(mockSetApprovalsAndIndex).toHaveBeenCalledWith(remainingApprovals, 0)
   })
 
   it('opens panel when URL approval is fetched', async () => {
     const { useFetchApprovalForUrlParam } = await import('./useFetchApprovalForUrlParam')
     vi.mocked(useFetchApprovalForUrlParam).mockReturnValue(mockApproval)
+    mockFetchApprovals.mockResolvedValue([mockApproval])
 
     const { result } = renderHook(() =>
       useExecutionApprovalPanel('exec-1', '?approval=approval-1', makeNodeClick(), undefined)
     )
 
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
     expect(result.current.panelOpen).toBe(true)
-    expect(mockSetPendingApproval).toHaveBeenCalledWith(mockApproval)
+    expect(mockFetchApprovals).toHaveBeenCalled()
+    expect(mockSetApprovalsAndIndex).toHaveBeenCalledWith([mockApproval], 0)
   })
 
   it('auto-detection callback opens panel', async () => {
@@ -102,17 +150,26 @@ describe('useExecutionApprovalPanel', () => {
       capturedCallback = opts.onApprovalDetected
     })
 
+    mockFetchApprovals.mockResolvedValue([mockApproval])
+
     const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', makeNodeClick(), undefined))
 
     expect(capturedCallback).toBeDefined()
-    act(() => capturedCallback!(mockApproval))
 
+    // Call the callback and wait for all async state updates to complete
+    await act(async () => {
+      capturedCallback!(mockApproval)
+      await vi.runAllTimersAsync()
+    })
+
+    // Panel should now be open
     expect(result.current.panelOpen).toBe(true)
-    expect(mockSetPendingApproval).toHaveBeenCalledWith(mockApproval)
+    expect(mockFetchApprovals).toHaveBeenCalled()
+    expect(mockSetApprovalsAndIndex).toHaveBeenCalledWith([mockApproval], 0)
   })
 
   it('returns approvalMessage from workflow definition', () => {
-    const nodeClick = makeNodeClick(mockApproval)
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
     const wfDef = {
       nodes: [{ id: 'node-1', config: { prompt: 'Deploy to production?' } }],
     }
@@ -123,7 +180,7 @@ describe('useExecutionApprovalPanel', () => {
   })
 
   it('returns undefined approvalMessage when no matching node', () => {
-    const nodeClick = makeNodeClick(mockApproval)
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
     const wfDef = {
       nodes: [{ id: 'other-node', config: { prompt: 'Something else' } }],
     }
@@ -134,8 +191,275 @@ describe('useExecutionApprovalPanel', () => {
   })
 
   it('returns undefined approvalMessage when no workflow definition', () => {
-    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', makeNodeClick(mockApproval), undefined))
+    const { result } = renderHook(() =>
+      useExecutionApprovalPanel('exec-1', '', makeNodeClick(mockApproval, [mockApproval]), undefined)
+    )
 
     expect(result.current.approvalMessage).toBeUndefined()
+  })
+
+  it('returns undefined approvalMessage when workflow definition has no nodes', () => {
+    const { result } = renderHook(() =>
+      useExecutionApprovalPanel('exec-1', '', makeNodeClick(mockApproval, [mockApproval]), { nodes: [] })
+    )
+
+    expect(result.current.approvalMessage).toBeUndefined()
+  })
+
+  it('returns undefined approvalMessage when node has no config', () => {
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+    const wfDef = {
+      nodes: [{ id: 'node-1' }], // No config
+    }
+
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', nodeClick, wfDef))
+
+    expect(result.current.approvalMessage).toBeUndefined()
+  })
+
+  it('returns undefined approvalMessage when config has no prompt', () => {
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+    const wfDef = {
+      nodes: [{ id: 'node-1', config: {} }], // Empty config
+    }
+
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', nodeClick, wfDef))
+
+    expect(result.current.approvalMessage).toBeUndefined()
+  })
+
+  it('dismiss() closes panel when fetch fails', async () => {
+    mockFetchApprovals.mockRejectedValue(new Error('Fetch failed'))
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', makeNodeClick(), undefined))
+
+    act(() => result.current.open())
+    expect(result.current.panelOpen).toBe(true)
+
+    // Call dismiss() and advance timers
+    result.current.dismiss()
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(result.current.panelOpen).toBe(false)
+    expect(mockClearApprovals).toHaveBeenCalledOnce()
+  })
+
+  it('handles URL approval not in fetched list (defaults to first approval)', async () => {
+    const { useFetchApprovalForUrlParam } = await import('./useFetchApprovalForUrlParam')
+    const urlApproval = { ...mockApproval, id: 'url-approval-not-in-list' }
+    vi.mocked(useFetchApprovalForUrlParam).mockReturnValue(urlApproval as Approval)
+    mockFetchApprovals.mockResolvedValue([mockApproval]) // URL approval not in the fetched list
+
+    const { result } = renderHook(() =>
+      useExecutionApprovalPanel('exec-1', '?approval=url-approval-not-in-list', makeNodeClick(), undefined)
+    )
+
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(result.current.panelOpen).toBe(true)
+    expect(mockSetApprovalsAndIndex).toHaveBeenCalledWith([mockApproval], 0)
+  })
+
+  it('shows error alert when URL approval fetch fails', async () => {
+    const { useFetchApprovalForUrlParam } = await import('./useFetchApprovalForUrlParam')
+    const { useAlerts } = await import('../../../providers/alerts')
+    const showError = vi.fn()
+    vi.mocked(useAlerts).mockReturnValueOnce({
+      showError,
+      showSuccess: vi.fn(),
+      showInfo: vi.fn(),
+      showWarning: vi.fn(),
+    } as never)
+
+    vi.mocked(useFetchApprovalForUrlParam).mockReturnValue(mockApproval)
+    mockFetchApprovals.mockRejectedValue(new Error('Failed to fetch'))
+
+    renderHook(() => useExecutionApprovalPanel('exec-1', '?approval=approval-1', makeNodeClick(), undefined))
+
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Failed to load approval',
+      description: 'Could not fetch approval details. Please try again.',
+    })
+  })
+
+  it('auto-detection shows error when fetch fails', async () => {
+    const { useAutoApprovalDetection } = await import('./useAutoApprovalDetection')
+    const { useAlerts } = await import('../../../providers/alerts')
+    const showError = vi.fn()
+    vi.mocked(useAlerts).mockReturnValueOnce({
+      showError,
+      showSuccess: vi.fn(),
+      showInfo: vi.fn(),
+      showWarning: vi.fn(),
+    } as never)
+
+    let capturedCallback: ((a: Approval) => void) | undefined
+    vi.mocked(useAutoApprovalDetection).mockImplementation((opts: { onApprovalDetected: (a: Approval) => void }) => {
+      capturedCallback = opts.onApprovalDetected
+    })
+
+    mockFetchApprovals.mockRejectedValue(new Error('Fetch failed'))
+
+    renderHook(() => useExecutionApprovalPanel('exec-1', '', makeNodeClick(), undefined))
+
+    await act(async () => {
+      capturedCallback!(mockApproval)
+      await vi.runAllTimersAsync()
+    })
+
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Failed to load approval',
+      description: 'Could not fetch approval details. Please try again.',
+    })
+  })
+
+  it('auto-detection sets index when detected approval not in list (defaults to first)', async () => {
+    const { useAutoApprovalDetection } = await import('./useAutoApprovalDetection')
+
+    let capturedCallback: ((a: Approval) => void) | undefined
+    vi.mocked(useAutoApprovalDetection).mockImplementation((opts: { onApprovalDetected: (a: Approval) => void }) => {
+      capturedCallback = opts.onApprovalDetected
+    })
+
+    const detectedApproval = { ...mockApproval, id: 'detected-not-in-list' }
+    mockFetchApprovals.mockResolvedValue([mockApproval]) // detected approval not in list
+
+    renderHook(() => useExecutionApprovalPanel('exec-1', '', makeNodeClick(), undefined))
+
+    await act(async () => {
+      capturedCallback!(detectedApproval as Approval)
+      await vi.runAllTimersAsync()
+    })
+
+    expect(mockSetApprovalsAndIndex).toHaveBeenCalledWith([mockApproval], 0)
+  })
+
+  it('auto-closes panel when approvals transition from some to none', async () => {
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+    const { result, rerender } = renderHook(
+      ({ nc }: { nc: ReturnType<typeof makeNodeClick> }) => useExecutionApprovalPanel('exec-1', '', nc, undefined),
+      {
+        initialProps: { nc: nodeClick },
+      }
+    )
+
+    act(() => result.current.open())
+    expect(result.current.panelOpen).toBe(true)
+
+    // Simulate approvals going from 1 to 0
+    const emptyNodeClick = makeNodeClick(null, [])
+    rerender({ nc: emptyNodeClick })
+
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(result.current.panelOpen).toBe(false)
+    expect(mockClearApprovals).toHaveBeenCalled()
+  })
+
+  it('does not auto-close when panel was already closed', async () => {
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+    const { rerender } = renderHook(
+      ({ nc }: { nc: ReturnType<typeof makeNodeClick> }) => useExecutionApprovalPanel('exec-1', '', nc, undefined),
+      {
+        initialProps: { nc: nodeClick },
+      }
+    )
+
+    // Panel starts closed
+    const emptyNodeClick = makeNodeClick(null, [])
+    rerender({ nc: emptyNodeClick })
+
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    // clearApprovals should not be called because panel was never open
+    expect(mockClearApprovals).not.toHaveBeenCalled()
+  })
+
+  it('resolves approval message from workflow.activities when nodes is missing', () => {
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+    const wfDef = {
+      workflow: {
+        activities: [{ id: 'node-1', config: { prompt: 'Approve deployment?' } }],
+      },
+    }
+
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', nodeClick, wfDef))
+
+    expect(result.current.approvalMessage).toBe('Approve deployment?')
+  })
+
+  it('returns undefined approvalMessage when config.prompt is not a string', () => {
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+    const wfDef = {
+      nodes: [{ id: 'node-1', config: { prompt: 123 } }], // prompt is a number
+    }
+
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', nodeClick, wfDef))
+
+    expect(result.current.approvalMessage).toBeUndefined()
+  })
+
+  it('returns undefined approvalMessage when config is not an object', () => {
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+    const wfDef = {
+      nodes: [{ id: 'node-1', config: 'invalid' }], // config is a string
+    }
+
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', nodeClick, wfDef))
+
+    expect(result.current.approvalMessage).toBeUndefined()
+  })
+
+  it('returns undefined approvalMessage when config is null', () => {
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+    const wfDef = {
+      nodes: [{ id: 'node-1', config: null }],
+    }
+
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', nodeClick, wfDef))
+
+    expect(result.current.approvalMessage).toBeUndefined()
+  })
+
+  it('clears handledApprovalId when URL param is removed', async () => {
+    const { useFetchApprovalForUrlParam } = await import('./useFetchApprovalForUrlParam')
+    vi.mocked(useFetchApprovalForUrlParam).mockReturnValue(mockApproval)
+    mockFetchApprovals.mockResolvedValue([mockApproval])
+
+    const { result, rerender } = renderHook(
+      ({ search }: { search: string }) => useExecutionApprovalPanel('exec-1', search, makeNodeClick(), undefined),
+      {
+        initialProps: { search: '?approval=approval-1' },
+      }
+    )
+
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    // Panel should be open after URL approval loads
+    expect(result.current.panelOpen).toBe(true)
+
+    // Now remove the URL param
+    vi.mocked(useFetchApprovalForUrlParam).mockReturnValue(undefined)
+
+    rerender({ search: '' })
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    // handledApprovalId should be cleared - verify no error thrown
+    expect(result.current).toBeDefined()
   })
 })

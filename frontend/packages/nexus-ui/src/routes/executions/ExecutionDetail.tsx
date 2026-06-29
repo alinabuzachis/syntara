@@ -15,30 +15,30 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { executionsClient } from '../../client'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
-import { NxPanel } from '../../components/layout/NxPanel'
 import { ResizableDivider } from '../../components/ResizableDivider'
-import { NxErrorState } from '../../components/states/NxErrorState'
-import { NxLoadingState } from '../../components/states/NxLoadingState'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useParams } from '../../hooks/routing/useParams'
 import { useSearch } from '../../hooks/routing/useSearch'
 import { useDialogState } from '../../hooks/useDialogState'
 import type { FilterConfig } from '../../types/filters'
-import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { buildFilterParams } from '../../utils/filterUtils'
 import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
+import { useActivityNameMap } from '../builder/useActivityNameMap'
 import { WorkflowHistoryCard } from '../builder/WorkflowHistoryCard'
+import type { ActivityState } from '../workflows/execution/types'
 import { useExecutionStore, useExecutionWithLiveStatus } from '../workflows/stores/useExecutionStore'
 
 import { ApprovalSidePanel } from './ApprovalSidePanel'
+import { ExecutionDetailErrorStates } from './components/ExecutionDetailErrorStates'
 import { ConnectionBanner } from './ConnectionBanner'
 import { CopyToEditorDialog } from './CopyToEditorDialog'
 import { isExecutionCancellable } from './executionCancellable'
 import styles from './ExecutionDetail.module.css'
 import { ExecutionDetailHeaderToolbar, ExecutionDetailTitleRowAddons } from './ExecutionDetailPageHeaderParts'
 import { executionDetailHasTitleRowExtras, executionDetailPageHeading } from './executionDetailPageHeaderTitle'
+import { useApprovalNavigation } from './hooks/useApprovalNavigation'
 import { useExecutionApprovalPanel } from './hooks/useExecutionApprovalPanel'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 import { useExecutionStreaming, useSyncActivityStore } from './hooks/useExecutionStreaming'
@@ -47,6 +47,26 @@ import { useForkWorkflow } from './hooks/useForkWorkflow'
 
 /** Width constraint for the inline failure alert floating over the execution canvas. */
 const INLINE_ALERT_WIDTH = 'clamp(15rem, 20vw, 22rem)'
+
+/** Build activity name map from workflow definition for resolving approval node names. */
+function useActivityNamesForExecution(
+  workflowDefinition: WorkflowDefShape | undefined | null,
+  activities: (ActivityData | ActivityExecution)[]
+): Map<string, string> {
+  const activityStates = useMemo(() => {
+    const map = new Map<string, ActivityState>()
+    for (const activity of activities) {
+      const activityId = 'activity_id' in activity ? activity.activity_id : null
+      if (activityId) {
+        map.set(activityId, { activityId, status: activity.status } as ActivityState)
+      }
+    }
+    return map
+  }, [activities])
+
+  const { nameMap } = useActivityNameMap(workflowDefinition, activityStates)
+  return nameMap
+}
 
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
@@ -76,7 +96,8 @@ function ExecutionDetailContent({
   selectedNodeId,
   selectedNodeName,
   onNodeSelect,
-}: {
+  currentApprovalNodeId,
+}: Readonly<{
   historyCardOpen: boolean
   approvalPanel?: React.ReactNode
   workflow?: ExecutionWorkflow
@@ -97,7 +118,8 @@ function ExecutionDetailContent({
   selectedNodeId: string | null
   selectedNodeName: string | null
   onNodeSelect: (nodeId: string, nodeName: string) => void
-}) {
+  currentApprovalNodeId?: string | null
+}>) {
   const isStale = useExecutionStore((state) => state.isStale)
   const isComplete = useExecutionStore((state) => state.isComplete)
   const showFailureAlert = execution?.status === 'failed'
@@ -193,7 +215,7 @@ function ExecutionDetailContent({
               executionActivities={activities}
               executionId={executionId}
               onNodeClick={onNodeClick}
-              selectedActivityId={selectedNodeId}
+              selectedActivityId={currentApprovalNodeId ?? selectedNodeId}
             />
           </div>
 
@@ -296,8 +318,13 @@ export default function ExecutionDetail() {
 
   useSyncActivityStore(execution, activities)
 
+  const activityNameMap = useActivityNamesForExecution(
+    execution?.workflow_definition as WorkflowDefShape | undefined,
+    activities
+  )
+
   const nodeClick = useExecutionNodeClick(executionId)
-  const { pendingApproval, isApprovalLoading, handleNodeClick } = nodeClick
+  const { approvals, currentIndex, currentApproval, isApprovalLoading, handleNodeClick, navigateToIndex } = nodeClick
   const { selectedNodeId, selectedNodeName, selectNode } = nodeClick
   const approval = useExecutionApprovalPanel(
     executionId,
@@ -305,6 +332,7 @@ export default function ExecutionDetail() {
     nodeClick,
     execution?.workflow_definition ?? undefined
   )
+  const approvalNavigation = useApprovalNavigation(currentIndex, navigateToIndex, approvals)
   const copyToEditorDialog = useDialogState<void>()
   const isCancellable = isExecutionCancellable(execution?.status)
 
@@ -314,48 +342,15 @@ export default function ExecutionDetail() {
     projectId: execution?.project_id,
   })
 
-  if (!executionId) {
-    return (
-      <NxPage>
-        <NxPageHeader title="Error" />
-        <NxPageBody>
-          <NxPanel isFullHeight>
-            <NxErrorState title="Invalid execution" message="No execution ID provided" />
-          </NxPanel>
-        </NxPageBody>
-      </NxPage>
-    )
-  }
+  const errorState = ExecutionDetailErrorStates({
+    executionId,
+    isLoading: executionQuery.isLoading,
+    error: executionQuery.error,
+    onRetry: executionQuery.refetch,
+  })
 
-  // Show loading/error states
-  if (executionQuery.error) {
-    return (
-      <NxPage>
-        <NxPageHeader title="Error loading execution" />
-        <NxPageBody>
-          <NxPanel isFullHeight>
-            <NxErrorState
-              title="Error loading execution"
-              message={executionQuery.error}
-              onRetry={() => detachPromise(executionQuery.refetch())}
-            />
-          </NxPanel>
-        </NxPageBody>
-      </NxPage>
-    )
-  }
-
-  if (executionQuery.isLoading) {
-    return (
-      <NxPage>
-        <NxPageHeader title="Loading execution" />
-        <NxPageBody>
-          <NxPanel isFullHeight>
-            <NxLoadingState />
-          </NxPanel>
-        </NxPageBody>
-      </NxPage>
-    )
+  if (errorState) {
+    return errorState
   }
 
   const toggleHistoryCard = () => {
@@ -381,7 +376,7 @@ export default function ExecutionDetail() {
         }
         toolbar={
           <ExecutionDetailHeaderToolbar
-            showApprovalActionStrip={Boolean(pendingApproval ?? isApprovalLoading)}
+            showApprovalActionStrip={Boolean(currentApproval ?? isApprovalLoading)}
             isApprovalLoading={isApprovalLoading}
             isApprovalPanelOpen={approval.panelOpen}
             onReviewClick={() => {
@@ -405,12 +400,19 @@ export default function ExecutionDetail() {
           key={executionId}
           historyCardOpen={historyCardOpen && !approval.panelOpen}
           approvalPanel={
-            approval.panelOpen && pendingApproval ? (
+            approval.panelOpen && currentApproval ? (
               <ApprovalSidePanel
-                approval={pendingApproval}
+                approval={currentApproval}
                 message={approval.approvalMessage}
+                activityNameMap={activityNameMap}
                 onClose={approval.close}
                 onDecisionSubmitted={approval.dismiss}
+                currentIndex={currentIndex}
+                totalCount={approvals.length}
+                hasPrev={approvalNavigation.hasPrev}
+                hasNext={approvalNavigation.hasNext}
+                onNavigatePrev={approvalNavigation.navigatePrev}
+                onNavigateNext={approvalNavigation.navigateNext}
               />
             ) : undefined
           }
@@ -427,6 +429,7 @@ export default function ExecutionDetail() {
           selectedNodeId={selectedNodeId}
           selectedNodeName={selectedNodeName}
           onNodeSelect={selectNode}
+          currentApprovalNodeId={currentApproval?.approval_node_id}
         />
       </NxPageBody>
 

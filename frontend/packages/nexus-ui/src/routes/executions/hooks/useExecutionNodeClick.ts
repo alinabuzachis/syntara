@@ -1,6 +1,48 @@
 import { useCallback, useRef, useState } from 'react'
 
-import { isWaitingApprovalNode, useExecutionApproval } from './useExecutionApproval'
+import { isWaitingApprovalNode, useExecutionApprovals } from './useExecutionApprovals'
+
+/**
+ * Execution Approval Hooks Architecture
+ *
+ * The approval system uses a layered hook composition pattern for separation of concerns:
+ *
+ * **Layer 1: Data (useFetchPendingApprovals)**
+ * - Fetches approval list from API on demand
+ * - Returns: `approvals[]`, `fetchApprovals()`, `isLoading`
+ * - Single responsibility: API interaction
+ *
+ * **Layer 2: State (useExecutionApprovals)**
+ * - Manages approval navigation state (current index, current approval)
+ * - Handles approval list updates and index clamping
+ * - Provides handlers for node clicks on waiting approval nodes
+ * - Delegates to: `useFetchPendingApprovals`
+ *
+ * **Layer 3: Interaction (useExecutionNodeClick)** ← You are here
+ * - Composes approval clicks + node selection clicks
+ * - Routes waiting approval nodes → approval flow
+ * - Routes completed/failed nodes → details panel
+ * - Delegates to: `useExecutionApprovals`
+ *
+ * **Layer 4: UI (useExecutionApprovalPanel)**
+ * - Manages panel open/close state
+ * - Handles URL-based deep linking (`?approval=abc-123`)
+ * - Integrates auto-detection via WebSocket
+ * - Delegates to: result from `useExecutionNodeClick`
+ *
+ * **Usage in ExecutionDetail:**
+ * ```tsx
+ * const nodeClick = useExecutionNodeClick(executionId)
+ * const approval = useExecutionApprovalPanel(executionId, searchParams, nodeClick, workflowDef)
+ * ```
+ *
+ * **Why layered instead of one big hook?**
+ * - Each layer has a single, testable responsibility
+ * - `useExecutionNodeClick` can be used independently for non-approval node clicks
+ * - `useFetchPendingApprovals` is reusable in other contexts (e.g., approval list page)
+ * - Easier to test in isolation (4 focused test files vs 1 massive test file)
+ * - Follows React hook composition patterns (like `useState` + `useEffect` instead of one giant state hook)
+ */
 
 type ExecutionNode = { id: string; type?: string; data: Record<string, unknown> }
 
@@ -26,19 +68,26 @@ function getNodeActivityId(node: ExecutionNode): string {
 }
 
 /**
- * Composes node click handling for the execution view:
- * 1. Approval nodes in "waiting" status → delegates to useExecutionApproval
+ * Composes node click handling for the execution view (Layer 3: Interaction).
+ *
+ * Routes canvas node clicks to either:
+ * 1. Approval nodes in "waiting" status → delegates to useExecutionApprovals
  * 2. Completed/failed nodes → toggles node details panel via selectedNodeId
+ *
+ * See file-level JSDoc for the full approval hooks architecture.
  */
 export function useExecutionNodeClick(executionId: string | undefined) {
   const {
-    pendingApproval,
+    approvals,
+    currentIndex,
+    currentApproval,
     isLoading: isApprovalLoading,
     handleNodeClick: handleApprovalNodeClick,
-    clearPendingApproval,
-    setPendingApproval,
-    fetchForNode,
-  } = useExecutionApproval(executionId)
+    navigateToIndex,
+    clearApprovals,
+    setApprovalsAndIndex,
+    fetchApprovals,
+  } = useExecutionApprovals(executionId)
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedNodeName, setSelectedNodeName] = useState<string | null>(null)
@@ -76,11 +125,16 @@ export function useExecutionNodeClick(executionId: string | undefined) {
   }, [])
 
   return {
-    pendingApproval,
+    // Approval state (multi-approval support)
+    approvals,
+    currentIndex,
+    currentApproval,
     isApprovalLoading,
-    clearPendingApproval,
-    setPendingApproval,
-    fetchForNode,
+    navigateToIndex,
+    clearApprovals,
+    setApprovalsAndIndex,
+    fetchApprovals,
+    // Node selection state
     selectedNodeId,
     selectedNodeName,
     selectNode,

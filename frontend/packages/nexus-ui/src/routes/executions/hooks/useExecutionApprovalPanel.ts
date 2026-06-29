@@ -1,5 +1,7 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import { useAlerts } from '../../../providers/alerts'
 
 import { useAutoApprovalDetection } from './useAutoApprovalDetection'
 import type { useExecutionNodeClick } from './useExecutionNodeClick'
@@ -12,14 +14,27 @@ export type WorkflowDefinitionLike = {
   workflow?: { activities?: Array<Record<string, unknown>> }
 }
 
+/**
+ * Manages approval side panel UI state and integrations (Layer 4: UI).
+ *
+ * Responsibilities:
+ * - Panel open/close state
+ * - URL-based deep linking (`?approval=abc-123`)
+ * - WebSocket-based auto-detection of new approvals
+ * - Extracting approval message/prompt from workflow definition
+ *
+ * Part of the approval hooks architecture. See `useExecutionNodeClick.ts` for the full layering explanation.
+ */
 export function useExecutionApprovalPanel(
   executionId: string | undefined,
   searchParams: string,
   nodeClick: NodeClickResult,
   workflowDefinition: WorkflowDefinitionLike | undefined
 ) {
-  const { clearPendingApproval, setPendingApproval, fetchForNode, pendingApproval } = nodeClick
+  const { clearApprovals, setApprovalsAndIndex, fetchApprovals, currentApproval, approvals } = nodeClick
   const [panelOpen, setPanelOpen] = useState(false)
+  const prevApprovalsLengthRef = useRef(0)
+  const { showError } = useAlerts()
 
   const approvalIdFromUrl = useMemo(() => {
     return new URLSearchParams(searchParams).get('approval')
@@ -31,8 +46,24 @@ export function useExecutionApprovalPanel(
     setHandledApprovalId(null)
   } else if (urlApproval?.id && urlApproval.id !== handledApprovalId) {
     setHandledApprovalId(urlApproval.id)
-    setPendingApproval(urlApproval)
-    setPanelOpen(true)
+    // Fetch all approvals and find the index of the URL approval
+    fetchApprovals()
+      .then((fetchedApprovals) => {
+        const index = fetchedApprovals.findIndex((a) => a.id === urlApproval.id)
+        if (index >= 0) {
+          setApprovalsAndIndex(fetchedApprovals, index)
+        } else {
+          // URL approval not found, default to first
+          setApprovalsAndIndex(fetchedApprovals, 0)
+        }
+        setPanelOpen(true)
+      })
+      .catch(() => {
+        showError({
+          title: 'Failed to load approval',
+          description: 'Could not fetch approval details. Please try again.',
+        })
+      })
   }
 
   const open = useCallback(() => {
@@ -44,35 +75,90 @@ export function useExecutionApprovalPanel(
   }, [])
 
   const dismiss = useCallback(() => {
-    setPanelOpen(false)
-    clearPendingApproval()
-  }, [clearPendingApproval])
+    // After a decision is submitted, check if there are still pending approvals
+    // The refetchQueries in onSuccess ensures the cache is fresh before this fires
+    fetchApprovals()
+      .then((fetchedApprovals) => {
+        if (fetchedApprovals.length > 0) {
+          // Still have pending approvals - navigate to the first one and keep panel open
+          setApprovalsAndIndex(fetchedApprovals, 0)
+        } else {
+          // No more pending approvals - close the panel
+          setPanelOpen(false)
+          clearApprovals()
+        }
+      })
+      .catch(() => {
+        // Fetch failed - close panel to avoid showing stale state
+        setPanelOpen(false)
+        clearApprovals()
+      })
+  }, [fetchApprovals, setApprovalsAndIndex, clearApprovals])
 
   const handleDetected = useCallback(
     (detected: Approval) => {
-      setPendingApproval(detected)
-      setPanelOpen(true)
+      // When auto-detection finds an approval, fetch all and set to that one
+      fetchApprovals()
+        .then((fetchedApprovals) => {
+          const index = fetchedApprovals.findIndex((a) => a.id === detected.id)
+          if (index >= 0) {
+            setApprovalsAndIndex(fetchedApprovals, index)
+          } else {
+            setApprovalsAndIndex(fetchedApprovals, 0)
+          }
+          setPanelOpen(true)
+        })
+        .catch(() => {
+          showError({
+            title: 'Failed to load approval',
+            description: 'Could not fetch approval details. Please try again.',
+          })
+        })
     },
-    [setPendingApproval]
+    [fetchApprovals, setApprovalsAndIndex, showError]
   )
 
   useAutoApprovalDetection({
     executionId,
-    fetchForNode,
+    fetchForNode: async (nodeId: string) => {
+      const fetchedApprovals = await fetchApprovals()
+      return fetchedApprovals.find((a) => a.approval_node_id === nodeId) ?? null
+    },
     onApprovalDetected: handleDetected,
   })
 
+  // Auto-close panel when all approvals are resolved externally (e.g., via WebSocket)
+  // Use useEffect to avoid React Compiler errors about accessing refs during render
+  useEffect(() => {
+    const prevLength = prevApprovalsLengthRef.current
+    const currentLength = approvals.length
+
+    // Only close if we transitioned from having approvals to having none
+    if (panelOpen && prevLength > 0 && currentLength === 0) {
+      // Schedule state update to avoid cascading renders
+      const timer = setTimeout(() => {
+        setPanelOpen(false)
+        clearApprovals()
+      }, 0)
+      prevApprovalsLengthRef.current = currentLength
+      return () => clearTimeout(timer)
+    }
+
+    // Track length changes
+    prevApprovalsLengthRef.current = currentLength
+  }, [panelOpen, approvals.length, clearApprovals])
+
   const approvalMessage = useMemo(() => {
-    if (!pendingApproval || !workflowDefinition) return undefined
+    if (!currentApproval || !workflowDefinition) return undefined
     const nodes = workflowDefinition.nodes ?? workflowDefinition.workflow?.activities ?? []
-    const node = nodes.find((n) => n.id === pendingApproval.approval_node_id)
+    const node = nodes.find((n) => n.id === currentApproval.approval_node_id)
     if (!node) return undefined
     const config = node.config
     if (typeof config === 'object' && config !== null && 'prompt' in config && typeof config.prompt === 'string') {
       return config.prompt
     }
     return undefined
-  }, [pendingApproval, workflowDefinition])
+  }, [currentApproval, workflowDefinition])
 
   return { panelOpen, approvalMessage, open, close, dismiss }
 }
