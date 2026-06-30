@@ -175,7 +175,8 @@ test('user can add a Logic (Conditional) node to the canvas', async ({ app }) =>
     await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Conditional Node')
 
-    await app.getByLabel('Expression editor mode').selectOption('raw')
+    await app.getByRole('button', { name: /Expression editor mode/i }).click()
+    await app.getByRole('option', { name: 'Custom expression' }).click()
 
     await app.getByLabel('Raw expression').fill('${status == "active"}')
 
@@ -342,7 +343,8 @@ test('multiple nodes can be added sequentially', async ({ app }) => {
     const logicNameInput = app.getByRole('textbox', { name: 'Name', exact: true })
     await logicNameInput.fill('Logic Node 1')
 
-    await app.getByLabel('Expression editor mode').selectOption('raw')
+    await app.getByRole('button', { name: /Expression editor mode/i }).click()
+    await app.getByRole('option', { name: 'Custom expression' }).click()
     await app.getByLabel('Raw expression').fill('${x == 1}')
 
     const logicSaveBtn = app.getByRole('button', { name: 'Create' })

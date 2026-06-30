@@ -534,7 +534,10 @@ jobs:
   e2e-gate:
     name: E2E Gate
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    # Skip on push — push-to-devel E2E runs share one concurrency group and
+    # cascade-cancel each other, so E2E Tests (AO Operator) is skipped for push
+    # events (see e2e-ao-operator.yml). No commit status is posted.
+    if: needs.changes.outputs.backend == 'true' && github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:

@@ -37,9 +37,12 @@ const AUTH_URL = '/system-administration/authentication'
 
 async function createTestWorkflow(adminApp: Page): Promise<{ id: string; name: string }> {
   const name = buildUniqueName('e2e-perm-wf')
+  const project = await ensureProject(adminApp)
+  if (!project) throw new Error('createTestWorkflow: could not ensure project')
   const resp = await apiRequest(adminApp, 'post', '/workflows', {
     data: {
       name,
+      project_id: project.id,
       workflow_definition: {
         schema_version: '2.0.0',
         name,

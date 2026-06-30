@@ -247,7 +247,7 @@ export async function createIdentityProviderViaApi(
     const token = await getAuthToken(app)
     if (!token) return null
 
-    const resp = await apiRequest(app, 'post', '/identity_providers/', {
+    const resp = await apiRequest(app, 'post', '/identity_providers', {
       token,
       data: {
         name: body.name,
@@ -440,10 +440,13 @@ export async function createWorkflowViaApi(
 ): Promise<string> {
   const token = await getAuthToken(app)
   if (!token) throw new Error('createWorkflowViaApi: could not obtain auth token')
+  const project = await ensureProject(app)
+  if (!project) throw new Error('createWorkflowViaApi: could not ensure project')
   const resp = await apiRequest(app, 'post', '/workflows', {
     token,
     data: {
       name,
+      project_id: project.id,
       workflow_definition: {
         schema_version: '2.0.0',
         name,

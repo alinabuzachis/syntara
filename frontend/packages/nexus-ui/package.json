@@ -13,7 +13,7 @@
     "test:coverage:shard": "vitest run --coverage",
     "test:coverage:merge": "node scripts/merge-coverage.js",
     "test:coverage:report": "nyc report --temp-dir .nyc_output --report-dir coverage --reporter html --reporter lcov --reporter json --reporter json-summary --reporter text",
-    "e2e": "playwright test --reporter=line",
+    "e2e": "playwright test",
     "e2e:pr-check": "playwright test --grep @pr-check",
     "e2e:exclude-pr-check": "playwright test --grep-invert @pr-check",
     "e2e:ui": "playwright test --ui",

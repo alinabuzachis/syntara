@@ -310,9 +310,10 @@ export async function addConditionNode(page: Page, name: string, expression = 't
 
   // Expression builder has two modes: visual builder or raw expression
   // Switch to raw mode to fill the expression directly
-  const editorModeSelect = page.getByLabel(/Expression editor mode/i)
-  await expect(editorModeSelect).toBeVisible()
-  await editorModeSelect.selectOption('raw')
+  const editorModeToggle = page.getByRole('button', { name: /Expression editor mode/i })
+  await expect(editorModeToggle).toBeVisible()
+  await editorModeToggle.click()
+  await page.getByRole('option', { name: 'Custom expression' }).click()
 
   // Wait for raw expression input to appear
   const rawExpressionInput = page.getByLabel(/Raw expression/i)
