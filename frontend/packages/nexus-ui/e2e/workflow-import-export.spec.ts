@@ -2,12 +2,17 @@
  * E2E Tests: Workflow Import/Export (AAP-76711)
  *
  * Comprehensive test coverage for workflow import/export flows, validating:
- * - Round-trip preservation (export -> import -> verify equivalence)
- * - Import from workflows list page
- * - Export from workflows list page
- * - Builder toolbar kebab menu import/export
- * - Node position round-trip (AAP-74997)
- * - Credential reference round-trip
+ * - AC #1: Round-trip preservation (export -> import -> verify equivalence)
+ * - AC #2: Import from workflows list page
+ * - AC #3: Export from workflows list page
+ * - AC #4a/4b: Builder toolbar kebab menu import/export
+ * - AC #5: Node position round-trip (AAP-74997)
+ * - AC #6: Credential reference round-trip
+ * - AC #7: Malformed JSON import rejected with inline error (UI-35)
+ * - AC #8: Missing required fields rejected (UI-35)
+ * - AC #9: Invalid node structure rejected (UI-35)
+ * - AC #10: Unsupported schema version rejected (UI-35)
+ * - AC #11: Clear error and retry with valid file (UI-35)
  *
  * Related issues: AAP-73588, AAP-74997, AAP-64527
  */
@@ -140,9 +145,9 @@ test.describe('Workflow Import/Export', () => {
   test('AC #2: imports a workflow from the workflows list page', async ({ app }) => {
     const workflowName = buildUniqueName('import-list')
     const workflowDef = {
-      triggers: [{ type: 'manual_trigger', name: 'Manual trigger' }],
-      nodes: [{ id: 'n1', type: 'script', name: 'Script', config: { code: 'print("test")' } }],
-      edges: [{ from: 'triggers/0', to: 'n1' }],
+      triggers: [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
+      nodes: [{ id: 'n1', type: 'script', name: 'Script', parameters: { language: 'python', code: 'print("test")' } }],
+      edges: [{ from: 'trigger_manual', to: 'n1' }],
     } as unknown as V2WorkflowDefinition
 
     try {
@@ -176,7 +181,14 @@ test.describe('Workflow Import/Export', () => {
     const workflowName = buildUniqueName('import-builder')
     const workflowDef = {
       triggers: [{ type: 'manual_trigger', name: 'Imported Trigger' }],
-      nodes: [{ id: 'n1', type: 'script', name: 'Imported Script', config: { code: 'print("imported")' } }],
+      nodes: [
+        {
+          id: 'n1',
+          type: 'script',
+          name: 'Imported Script',
+          parameters: { language: 'python', code: 'print("imported")' },
+        },
+      ],
       edges: [{ from: 'triggers/0', to: 'n1' }],
     } as unknown as V2WorkflowDefinition
 
@@ -227,7 +239,7 @@ test.describe('Workflow Import/Export', () => {
           id: 'n1',
           type: 'script',
           name: 'Positioned Script',
-          config: { code: 'print("positioned")' },
+          parameters: { language: 'python', code: 'print("positioned")' },
           position: { x: 400, y: 300 },
         },
       ],
@@ -292,14 +304,15 @@ test.describe('Workflow Import/Export', () => {
       await credOption.click()
       await expect(credToggle).toContainText(credName)
 
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
       await saveWorkflow(app, workflowName)
 
       const exportedDef = await exportFromWorkflowsList(app, workflowName)
       const apiNode = exportedDef.nodes.find((n) => n.type === 'http_request')
       expect(apiNode).toBeDefined()
-      expect(apiNode?.config).toHaveProperty('credential_id')
+      const nodeParams = apiNode?.parameters ?? apiNode?.config
+      expect(nodeParams).toHaveProperty('credential_id')
 
       await importFromWorkflowsList(app, exportedDef, reimportedName)
 
@@ -314,6 +327,196 @@ test.describe('Workflow Import/Export', () => {
       await deleteWorkflow(app, workflowName)
       await deleteWorkflow(app, reimportedName)
       await deleteCredentialByName(app, credName)
+    }
+  })
+
+  test('AC #7: rejects malformed JSON import with inline error (UI-35)', async ({ app }) => {
+    const seedName = buildUniqueName('seed-malformed')
+    await createBasicWorkflow(app, seedName, 'Seed action')
+
+    try {
+      await app.goto(toAppUrl('/workflows'))
+      await app.getByPlaceholder('Filter by name').fill(seedName)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+
+      await app.getByRole('button', { name: 'Import workflow' }).click()
+      const dialog = app.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+
+      const fileInput = app.locator('input[type="file"]')
+      await fileInput.setInputFiles({
+        name: 'invalid.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from('{not valid json!!!}'),
+      })
+      await dialog.getByLabel(/Workflow name/i).fill(buildUniqueName('invalid-import'))
+      await dialog.getByRole('button', { name: /^Import$/i }).click()
+
+      await expect(dialog.getByText(/Expected property name|Unexpected token/i)).toBeVisible()
+      await expect(dialog).toBeVisible()
+    } finally {
+      await deleteWorkflow(app, seedName)
+    }
+  })
+
+  test('AC #8: rejects import with missing required fields (UI-35)', async ({ app }) => {
+    const seedName = buildUniqueName('seed-missing')
+    await createBasicWorkflow(app, seedName, 'Seed action')
+
+    try {
+      await app.goto(toAppUrl('/workflows'))
+      await app.getByPlaceholder('Filter by name').fill(seedName)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+
+      await app.getByRole('button', { name: 'Import workflow' }).click()
+      const dialog = app.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+
+      const fileInput = app.locator('input[type="file"]')
+      await fileInput.setInputFiles({
+        name: 'invalid.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify({ foo: 'bar' })),
+      })
+      await dialog.getByLabel(/Workflow name/i).fill(buildUniqueName('invalid-import'))
+      await dialog.getByRole('button', { name: /^Import$/i }).click()
+
+      await expect(
+        dialog.getByText('File is missing required workflow definition fields (triggers, nodes, edges must be arrays)')
+      ).toBeVisible()
+      await expect(dialog).toBeVisible()
+    } finally {
+      await deleteWorkflow(app, seedName)
+    }
+  })
+
+  test('AC #9: rejects import with invalid node structure (UI-35)', async ({ app }) => {
+    const seedName = buildUniqueName('seed-invalid-node')
+    await createBasicWorkflow(app, seedName, 'Seed action')
+
+    try {
+      await app.goto(toAppUrl('/workflows'))
+      await app.getByPlaceholder('Filter by name').fill(seedName)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+
+      await app.getByRole('button', { name: 'Import workflow' }).click()
+      const dialog = app.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+
+      const definition = {
+        triggers: [{ type: 'manual_trigger' }],
+        nodes: [{ name: 'Missing id and type' }],
+        edges: [],
+      }
+      const fileInput = app.locator('input[type="file"]')
+      await fileInput.setInputFiles({
+        name: 'invalid.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(definition)),
+      })
+      await dialog.getByLabel(/Workflow name/i).fill(buildUniqueName('invalid-import'))
+      await dialog.getByRole('button', { name: /^Import$/i }).click()
+
+      await expect(dialog.getByText(/Each node must have "id" and "type" field/)).toBeVisible()
+      await expect(dialog).toBeVisible()
+    } finally {
+      await deleteWorkflow(app, seedName)
+    }
+  })
+
+  test('AC #10: rejects import with unsupported schema version (UI-35)', async ({ app }) => {
+    const seedName = buildUniqueName('seed-version')
+    await createBasicWorkflow(app, seedName, 'Seed action')
+
+    try {
+      await app.goto(toAppUrl('/workflows'))
+      await app.getByPlaceholder('Filter by name').fill(seedName)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+
+      await app.getByRole('button', { name: 'Import workflow' }).click()
+      const dialog = app.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+
+      const definition = {
+        schema_version: '1.0.0',
+        triggers: [{ type: 'manual_trigger' }],
+        nodes: [{ id: 'n1', type: 'script' }],
+        edges: [],
+      }
+      const fileInput = app.locator('input[type="file"]')
+      await fileInput.setInputFiles({
+        name: 'invalid.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(definition)),
+      })
+      await dialog.getByLabel(/Workflow name/i).fill(buildUniqueName('invalid-import'))
+      await dialog.getByRole('button', { name: /^Import$/i }).click()
+
+      await expect(dialog.getByText(/Unsupported schema version.*Expected 2\.0\.0/)).toBeVisible()
+      await expect(dialog).toBeVisible()
+    } finally {
+      await deleteWorkflow(app, seedName)
+    }
+  })
+
+  test('AC #11: clears import error and retries successfully with valid file (UI-35)', async ({ app }) => {
+    const seedName = buildUniqueName('seed-retry')
+    const workflowName = buildUniqueName('retry-import')
+    await createBasicWorkflow(app, seedName, 'Seed action')
+
+    try {
+      await app.goto(toAppUrl('/workflows'))
+      await app.getByPlaceholder('Filter by name').fill(seedName)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+
+      await app.getByRole('button', { name: 'Import workflow' }).click()
+      const dialog = app.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+
+      const fileInput = app.locator('input[type="file"]')
+      await fileInput.setInputFiles({
+        name: 'invalid.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from('{bad json}'),
+      })
+      await dialog.getByLabel(/Workflow name/i).fill(buildUniqueName('invalid-import'))
+      await dialog.getByRole('button', { name: /^Import$/i }).click()
+      await expect(dialog.getByText(/Expected property name|Unexpected token/i)).toBeVisible()
+
+      await dialog.getByRole('button', { name: 'Clear' }).click()
+      await expect(dialog.getByText(/Expected property name|Unexpected token/i)).not.toBeVisible()
+
+      // Export the seed workflow to get a guaranteed-valid definition
+      await dialog.getByRole('button', { name: 'Cancel' }).click()
+      await expect(dialog).not.toBeVisible()
+      const validDef = await exportFromWorkflowsList(app, seedName)
+
+      await app.getByRole('button', { name: 'Import workflow' }).click()
+      const retryDialog = app.getByRole('dialog')
+      await expect(retryDialog).toBeVisible()
+
+      await uploadWorkflowFile(app.locator('input[type="file"]'), validDef)
+      await retryDialog.getByLabel(/Workflow name/i).fill(workflowName)
+
+      const dialogProjectInput = retryDialog.getByPlaceholder('Select a project')
+      if ((await dialogProjectInput.count()) > 0 && (await dialogProjectInput.isVisible())) {
+        await selectFirstProject(app)
+      }
+
+      await retryDialog.getByRole('button', { name: /^Import$/i }).click()
+      await expect(retryDialog).not.toBeVisible({ timeout: 15_000 })
+
+      await app.getByPlaceholder('Filter by name').fill(workflowName)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
+    } finally {
+      await deleteWorkflow(app, seedName)
+      await deleteWorkflow(app, workflowName)
     }
   })
 })

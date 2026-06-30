@@ -132,7 +132,7 @@ test.describe('Converge Node - E2E Tests', () => {
         await expect(app.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
 
         await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Updated Converge')
-        await app.getByRole('button', { name: 'Save and close' }).click()
+        await app.getByRole('button', { name: 'Create' }).click()
 
         const saveRequestPromise = app.waitForRequest(
           (req) => req.url().includes('/workflows') && req.method() === 'PATCH'
@@ -169,7 +169,7 @@ test.describe('Converge Node - E2E Tests', () => {
           app.getByRole('spinbutton', { name: /Required number of branches before continuing/i })
         ).not.toBeVisible()
 
-        await app.getByRole('button', { name: 'Save and close' }).click()
+        await app.getByRole('button', { name: 'Create' }).click()
 
         const saveRequestPromise = app.waitForRequest(
           (req) => req.url().includes('/workflows') && req.method() === 'PATCH'
@@ -227,7 +227,7 @@ test.describe('Converge Node - E2E Tests', () => {
         await expect(requiredPathCountInput).toHaveValue('2')
 
         await requiredPathCountInput.fill('1')
-        await app.getByRole('button', { name: 'Save and close' }).click()
+        await app.getByRole('button', { name: 'Create' }).click()
 
         const saveRequestPromise = app.waitForRequest(
           (req) => req.url().includes('/workflows') && req.method() === 'PATCH'
@@ -265,7 +265,7 @@ test.describe('Converge Node - E2E Tests', () => {
         await expect(requiredPathCountInput).toHaveValue('1')
 
         await requiredPathCountInput.fill('2')
-        await app.getByRole('button', { name: 'Save and close' }).click()
+        await app.getByRole('button', { name: 'Create' }).click()
 
         const saveRequestPromise = app.waitForRequest(
           (req) => req.url().includes('/workflows') && req.method() === 'PATCH'

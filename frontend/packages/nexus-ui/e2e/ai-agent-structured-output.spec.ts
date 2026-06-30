@@ -71,8 +71,8 @@ test.describe('AI Agent Structured Output', () => {
 
     await fillCodeEditor(app, { value: validSchema, label: 'Response schema editor' })
 
-    // Save and close should succeed without validation errors
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    // Create should succeed without validation errors
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Verify panel closes (step was added successfully)
     await expect(panel).not.toBeVisible()
@@ -104,7 +104,7 @@ test.describe('AI Agent Structured Output', () => {
     })
 
     await fillCodeEditor(app, { value: validSchema, label: 'Response schema editor' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Verify panel closes (step was added successfully with schema)
     await expect(panel).not.toBeVisible()
@@ -132,8 +132,8 @@ test.describe('AI Agent Structured Output', () => {
 
     // Don't fill the response schema field
 
-    // Save and close should succeed
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    // Create should succeed
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Verify panel closes (step was added successfully)
     await expect(panel).not.toBeVisible()

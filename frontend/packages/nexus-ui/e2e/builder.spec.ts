@@ -17,7 +17,7 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
     // Act - Add manual trigger
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Act - Add connected action node
     const firstPanel = await clickAddConnectedStep(app)
@@ -25,7 +25,7 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
     await firstPanel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Send email')
     await fillCodeEditor(app, { value: 'print("hello from Playwright")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
     await closeNodeEditorPanel(app)
 
     // Act - Add another connected action node
@@ -34,7 +34,7 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
     await secondPanel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Follow-up action')
     await fillCodeEditor(app, { value: 'print("follow-up")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Act - Save workflow (select project first to avoid name reset)
     await selectProjectIfRequired(app)

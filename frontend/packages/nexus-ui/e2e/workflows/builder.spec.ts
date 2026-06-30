@@ -138,9 +138,9 @@ test('user can add an Approval node to the canvas', async ({ app }) => {
     await app.getByRole('menuitem').filter({ hasText: expectedUsername }).click()
 
     // Wait for form validation to complete
-    await expect(app.getByRole('button', { name: 'Save and close' })).toBeEnabled({ timeout: 15000 })
+    await expect(app.getByRole('button', { name: 'Create' })).toBeEnabled({ timeout: 15000 })
 
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     await closeNodeEditorPanel(app)
 
@@ -179,7 +179,7 @@ test('user can add a Logic (Conditional) node to the canvas', async ({ app }) =>
 
     await app.getByLabel('Raw expression').fill('${status == "active"}')
 
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     await closeNodeEditorPanel(app)
 
@@ -293,7 +293,7 @@ test('multiple nodes can be added sequentially', async ({ app }) => {
     await app.getByRole('menuitem').filter({ hasText: expectedUsername }).click()
 
     // Wait for form validation to complete
-    const saveBtn = app.getByRole('button', { name: 'Save and close' })
+    const saveBtn = app.getByRole('button', { name: 'Create' })
     await expect(saveBtn).toBeEnabled({ timeout: 20000 })
     await saveBtn.click()
 
@@ -345,7 +345,7 @@ test('multiple nodes can be added sequentially', async ({ app }) => {
     await app.getByLabel('Expression editor mode').selectOption('raw')
     await app.getByLabel('Raw expression').fill('${x == 1}')
 
-    const logicSaveBtn = app.getByRole('button', { name: 'Save and close' })
+    const logicSaveBtn = app.getByRole('button', { name: 'Create' })
     await expect(logicSaveBtn).toBeEnabled({ timeout: 20000 })
     await logicSaveBtn.click()
 

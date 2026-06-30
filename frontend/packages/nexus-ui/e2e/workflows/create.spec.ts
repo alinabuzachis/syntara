@@ -33,7 +33,7 @@ test.describe('Workflows - Create New Workflow', () => {
 
       await app.getByRole('button', { name: 'Manual trigger' }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
 
       // Select project if required
       await selectProjectIfRequired(app)
@@ -89,7 +89,7 @@ test.describe('Workflows - Create New Workflow', () => {
 
       await app.getByRole('button', { name: 'Manual trigger' }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
 
       await selectProjectIfRequired(app)
 
@@ -121,7 +121,7 @@ test.describe('Workflows - Create New Workflow', () => {
       await expect(app).toHaveURL(/workflow-builder\/new/)
       await app.getByRole('button', { name: 'Manual trigger' }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
 
       await selectProjectIfRequired(app)
 
@@ -153,7 +153,7 @@ test.describe('Workflows - Create New Workflow', () => {
 
       await app.getByRole('button', { name: 'Manual trigger' }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger 1')
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
 
       await selectProjectIfRequired(app)
       const name1Input = app.getByPlaceholder('Workflow name')
@@ -169,7 +169,7 @@ test.describe('Workflows - Create New Workflow', () => {
 
       await app.getByRole('button', { name: 'Manual trigger' }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger 2')
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
 
       await selectProjectIfRequired(app)
       const name2Input = app.getByPlaceholder('Workflow name')

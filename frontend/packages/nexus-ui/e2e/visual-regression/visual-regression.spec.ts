@@ -38,7 +38,7 @@ test.describe('Visual regression — PF6 token migration', { tag: '@local-only' 
     // Add a manual trigger so a TriggerNode renders on the canvas
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Visual test trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Screenshot the canvas area with the trigger node
     const canvas = app.locator('.react-flow')
@@ -53,7 +53,7 @@ test.describe('Visual regression — PF6 token migration', { tag: '@local-only' 
     // Add manual trigger first
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Add a condition node to show ExpressionGroup
     const addStepBtn = app.getByRole('button', { name: 'Add connected step' })

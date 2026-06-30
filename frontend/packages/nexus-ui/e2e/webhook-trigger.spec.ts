@@ -44,7 +44,7 @@ test.describe('Webhook Trigger', () => {
       await panel.getByRole('button', { name: 'Script', exact: true }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Process payload')
       await fillCodeEditor(app, { value: 'print("processing webhook")' })
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
 
       // Save workflow (select project right before save)
@@ -97,7 +97,7 @@ test.describe('Webhook Trigger', () => {
     await app.getByRole('button', { name: 'Webhook trigger', exact: true }).click()
 
     // Leave webhook path empty, attempt to submit
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Verify validation error
     await expect(app.getByText('Webhook path is required')).toBeVisible()
@@ -111,7 +111,7 @@ test.describe('Webhook Trigger', () => {
 
     // Enter invalid characters
     await app.getByRole('textbox', { name: 'Webhook path' }).fill('invalid path!@#')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Verify validation error
     await expect(
@@ -137,7 +137,7 @@ test.describe('Webhook Trigger', () => {
       await panel.getByRole('button', { name: 'Script', exact: true }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Action')
       await fillCodeEditor(app, { value: 'print("ok")' })
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
 
       // Save and verify canvas shows normalized path (lowercase, no leading slash)
@@ -170,7 +170,7 @@ test.describe('Webhook Trigger', () => {
       await panel.getByRole('button', { name: 'Script', exact: true }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Handle event')
       await fillCodeEditor(app, { value: 'print("event")' })
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
 
       // Save workflow

@@ -44,7 +44,7 @@ test.describe('Builder save validation — project required', () => {
     // Add a trigger step
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Skip when the Zustand store has already restored a selected project —
     // validation will not fire in that case and this test would be a false failure.
@@ -120,7 +120,7 @@ test.describe('Builder save validation — project required', () => {
       // Add a trigger step
       await app.getByRole('button', { name: 'Manual trigger' }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
 
       // Select a project if one isn't already selected from the Zustand store
       await selectProjectIfRequired(app)
@@ -157,7 +157,7 @@ test.describe('Builder save validation — project required', () => {
 
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     if (!(await projectIsUnselected(app))) {
       test.skip()

@@ -920,21 +920,21 @@ test.describe('Node editor panels', () => {
 
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     let panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
     await fillCodeEditor(app, { value: 'print("alpha")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
     await fillCodeEditor(app, { value: 'print("beta")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
     await closeNodeEditorPanel(app)
 
     await selectProjectIfRequired(app)
@@ -979,21 +979,21 @@ test.describe('Node editor panels', () => {
 
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     let panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
     await fillCodeEditor(app, { value: 'print("alpha")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
     await fillCodeEditor(app, { value: 'print("beta")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
     await closeNodeEditorPanel(app)
 
     await selectProjectIfRequired(app)
@@ -1034,21 +1034,21 @@ test.describe('Node editor panels', () => {
 
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     let panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
     await fillCodeEditor(app, { value: 'print("alpha")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
     await fillCodeEditor(app, { value: 'print("beta")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
     await closeNodeEditorPanel(app)
 
     await selectProjectIfRequired(app)
@@ -1082,21 +1082,21 @@ test.describe('Node editor panels', () => {
 
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     let panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
     await fillCodeEditor(app, { value: 'print("test")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
     await fillCodeEditor(app, { value: 'print("test2")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
     await closeNodeEditorPanel(app)
 
     await selectProjectIfRequired(app)
@@ -1139,21 +1139,21 @@ test.describe('Node editor panels', () => {
 
     await app.getByRole('button', { name: 'Manual trigger' }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     let panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
     await fillCodeEditor(app, { value: 'print("alpha")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     panel = await clickAddConnectedStep(app)
     await panel.getByRole('button', { name: 'Action', exact: true }).click()
     await panel.getByRole('button', { name: 'Script', exact: true }).click()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
     await fillCodeEditor(app, { value: 'print("beta")' })
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
     await closeNodeEditorPanel(app)
 
     await selectProjectIfRequired(app)

@@ -36,7 +36,7 @@ test.describe('Scheduled Trigger', () => {
       await panel.getByRole('button', { name: 'Script', exact: true }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Run build')
       await fillCodeEditor(app, { value: 'print("building")' })
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
 
       // Save workflow
@@ -78,7 +78,7 @@ test.describe('Scheduled Trigger', () => {
     await app.getByRole('button', { name: 'Schedule trigger', exact: true }).click()
 
     // Leave start date empty, attempt to submit
-    await app.getByRole('button', { name: 'Save and close' }).click()
+    await app.getByRole('button', { name: 'Create' }).click()
 
     // Verify validation error
     await expect(app.getByText('Start date is required')).toBeVisible()
@@ -99,7 +99,7 @@ test.describe('Scheduled Trigger', () => {
       await panel.getByRole('button', { name: 'Script', exact: true }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Sync data')
       await fillCodeEditor(app, { value: 'print("syncing")' })
-      await app.getByRole('button', { name: 'Save and close' }).click()
+      await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
 
       // Save workflow

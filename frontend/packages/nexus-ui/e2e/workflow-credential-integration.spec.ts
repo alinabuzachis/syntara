@@ -20,7 +20,7 @@ async function navigateToApiActionForm(app: Page) {
 
   await app.getByRole('button', { name: 'Manual trigger' }).click()
   await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await app.getByRole('button', { name: 'Save and close' }).click()
+  await app.getByRole('button', { name: 'Create' }).click()
 
   const credentialsLoaded = app.waitForResponse((resp) => resp.url().includes('/credentials') && resp.status() === 200)
   const panel = await clickAddConnectedStep(app)

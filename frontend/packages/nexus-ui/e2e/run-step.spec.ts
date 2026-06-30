@@ -46,7 +46,7 @@ async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workf
   // Add manual trigger
   await app.getByRole('button', { name: 'Manual trigger' }).click()
   await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await app.getByRole('button', { name: 'Save and close' }).click()
+  await app.getByRole('button', { name: 'Create' }).click()
 
   // Add first action node
   const firstPanel = await clickAddConnectedStep(app)
@@ -54,7 +54,7 @@ async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workf
   await firstPanel.getByRole('button', { name: 'Script', exact: true }).click()
   await app.getByRole('textbox', { name: 'Name', exact: true }).fill('First action')
   await fillCodeEditor(app, { value: 'print("first")' })
-  await app.getByRole('button', { name: 'Save and close' }).click()
+  await app.getByRole('button', { name: 'Create' }).click()
   await closeNodeEditorPanel(app)
 
   // Add second action node
@@ -63,7 +63,7 @@ async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workf
   await secondPanel.getByRole('button', { name: 'Script', exact: true }).click()
   await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Second action')
   await fillCodeEditor(app, { value: 'print("second")' })
-  await app.getByRole('button', { name: 'Save and close' }).click()
+  await app.getByRole('button', { name: 'Create' }).click()
   await closeNodeEditorPanel(app)
 
   // Save
