@@ -12,9 +12,11 @@ import type React from 'react'
 import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { AppRoute } from '../../app/AppRoute'
 import { executionsClient } from '../../client'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxReactFlowViewportGuard } from '../../components/layout/NxReactFlowViewportGuard'
 import { ResizableDivider } from '../../components/ResizableDivider'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useParams } from '../../hooks/routing/useParams'
@@ -365,73 +367,75 @@ export default function ExecutionDetail() {
 
   return (
     <NxPage>
-      <NxPageHeader
-        title={executionDetailPageHeading(execution, executionId)}
-        docLink={executionsDocLink}
-        titleProps={{ size: TitleSizes['2xl'] }}
-        titleAddons={
-          executionDetailHasTitleRowExtras(execution) ? (
-            <ExecutionDetailTitleRowAddons execution={execution} />
-          ) : undefined
-        }
-        toolbar={
-          <ExecutionDetailHeaderToolbar
-            showApprovalActionStrip={Boolean(currentApproval ?? isApprovalLoading)}
-            isApprovalLoading={isApprovalLoading}
-            isApprovalPanelOpen={approval.panelOpen}
-            onReviewClick={() => {
-              approval.open()
-            }}
-            historyCardOpen={historyCardOpen}
-            onToggleHistory={toggleHistoryCard}
-            onBackToEditor={() => {
-              if (execution?.workflow_id) {
-                setLocation(`/workflow-builder/${execution.workflow_id}`)
-              }
-            }}
-            onCopyToEditor={() => copyToEditorDialog.open(undefined)}
-            isCancellable={isCancellable}
-            executionId={executionId}
-          />
-        }
-      />
-      <NxPageBody>
-        <ExecutionDetailContent
-          key={executionId}
-          historyCardOpen={historyCardOpen && !approval.panelOpen}
-          approvalPanel={
-            approval.panelOpen && currentApproval ? (
-              <ApprovalSidePanel
-                approval={currentApproval}
-                message={approval.approvalMessage}
-                activityNameMap={activityNameMap}
-                onClose={approval.close}
-                onDecisionSubmitted={approval.dismiss}
-                currentIndex={currentIndex}
-                totalCount={approvals.length}
-                hasPrev={approvalNavigation.hasPrev}
-                hasNext={approvalNavigation.hasNext}
-                onNavigatePrev={approvalNavigation.navigatePrev}
-                onNavigateNext={approvalNavigation.navigateNext}
-              />
+      <NxReactFlowViewportGuard onReturn={() => setLocation(AppRoute.Executions.Root)}>
+        <NxPageHeader
+          title={executionDetailPageHeading(execution, executionId)}
+          docLink={executionsDocLink}
+          titleProps={{ size: TitleSizes['2xl'] }}
+          titleAddons={
+            executionDetailHasTitleRowExtras(execution) ? (
+              <ExecutionDetailTitleRowAddons execution={execution} />
             ) : undefined
           }
-          workflow={workflow}
-          execution={execution}
-          activities={activities}
-          executionId={executionId}
-          executionsQuery={executionsQuery}
-          searchParams={searchParams}
-          setLocation={setLocation}
-          filters={executionFilters}
-          onFilterChange={setExecutionFilters}
-          onNodeClick={handleNodeClick}
-          selectedNodeId={selectedNodeId}
-          selectedNodeName={selectedNodeName}
-          onNodeSelect={selectNode}
-          currentApprovalNodeId={currentApproval?.approval_node_id}
+          toolbar={
+            <ExecutionDetailHeaderToolbar
+              showApprovalActionStrip={Boolean(currentApproval ?? isApprovalLoading)}
+              isApprovalLoading={isApprovalLoading}
+              isApprovalPanelOpen={approval.panelOpen}
+              onReviewClick={() => {
+                approval.open()
+              }}
+              historyCardOpen={historyCardOpen}
+              onToggleHistory={toggleHistoryCard}
+              onBackToEditor={() => {
+                if (execution?.workflow_id) {
+                  setLocation(`/workflow-builder/${execution.workflow_id}`)
+                }
+              }}
+              onCopyToEditor={() => copyToEditorDialog.open(undefined)}
+              isCancellable={isCancellable}
+              executionId={executionId}
+            />
+          }
         />
-      </NxPageBody>
+        <NxPageBody>
+          <ExecutionDetailContent
+            key={executionId}
+            historyCardOpen={historyCardOpen && !approval.panelOpen}
+            approvalPanel={
+              approval.panelOpen && currentApproval ? (
+                <ApprovalSidePanel
+                  approval={currentApproval}
+                  message={approval.approvalMessage}
+                  activityNameMap={activityNameMap}
+                  onClose={approval.close}
+                  onDecisionSubmitted={approval.dismiss}
+                  currentIndex={currentIndex}
+                  totalCount={approvals.length}
+                  hasPrev={approvalNavigation.hasPrev}
+                  hasNext={approvalNavigation.hasNext}
+                  onNavigatePrev={approvalNavigation.navigatePrev}
+                  onNavigateNext={approvalNavigation.navigateNext}
+                />
+              ) : undefined
+            }
+            workflow={workflow}
+            execution={execution}
+            activities={activities}
+            executionId={executionId}
+            executionsQuery={executionsQuery}
+            searchParams={searchParams}
+            setLocation={setLocation}
+            filters={executionFilters}
+            onFilterChange={setExecutionFilters}
+            onNodeClick={handleNodeClick}
+            selectedNodeId={selectedNodeId}
+            selectedNodeName={selectedNodeName}
+            onNodeSelect={selectNode}
+            currentApprovalNodeId={currentApproval?.approval_node_id}
+          />
+        </NxPageBody>
+      </NxReactFlowViewportGuard>
 
       <CopyToEditorDialog
         isOpen={copyToEditorDialog.isOpen}

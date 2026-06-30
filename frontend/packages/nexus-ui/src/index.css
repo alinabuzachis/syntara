@@ -88,7 +88,7 @@ body {
 }
 
 /* Prevent horizontal scrollbar from PF portaled menus (Select/Dropdown) that
-   extend past the viewport edge. The app requires ≥1200px viewport anyway. */
+   extend past the viewport edge. */
 html {
   overflow-x: hidden;
 }
@@ -187,34 +187,4 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
 .version-view-readonly .react-flow__handle {
   pointer-events: none !important;
   opacity: 0 !important;
-}
-
-/* Disable Compass screen warning above 720px, show custom warning below. */
-@media (max-width: 1200px) {
-  .pf-v6-c-compass.pf-m-no-screen-warning {
-    position: relative;
-    display: grid;
-    grid-template-columns: auto;
-    grid-template-rows: auto;
-    place-content: center;
-    gap: 0;
-  }
-  .pf-v6-c-compass.pf-m-no-screen-warning::after {
-    padding: 1em;
-    border-radius: var(--pf-t--global--border--radius--large);
-    background: var(--pf-t--global--background--color--primary--default);
-    content: 'This app requires a viewport width of at least 1200px.\A\APlease use a larger display or expand your browser window.';
-    width: 300px;
-    border: 1px solid var(--pf-t--global--border--color--default);
-    box-shadow: var(--pf-t--global--box-shadow--md);
-    white-space: pre-wrap;
-    text-align: center;
-  }
-  .pf-v6-c-compass.pf-m-no-screen-warning * {
-    display: none;
-  }
-  /* Hide PF menu portals (Select/Dropdown) that render on document.body */
-  body > .pf-v6-c-menu__container {
-    display: none !important;
-  }
 }
