@@ -225,7 +225,7 @@ class TestAgenticActivityResponseSchema:
         """Test that invalid response_schema is rejected during validation."""
         input_config = {
             "prompt": "Test",
-            "responseSchema": {"properties": {"name": {"type": "string"}}},  # Missing 'type'
+            "responseSchema": {"type": "object", "properties": {"data": {"$ref": "https://evil.com/schema"}}},
         }
 
         with pytest.raises(ApplicationError) as exc_info:

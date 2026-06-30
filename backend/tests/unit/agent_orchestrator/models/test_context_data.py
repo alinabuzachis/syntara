@@ -60,6 +60,10 @@ class TestInvocationMetadata:
         assert "custom_key" not in meta.model_dump()
 
 
+_UUID_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+_UUID_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+
+
 class TestInvocationMetadataToolSelection:
     """Tests for InvocationMetadata.tool_selection_strategy and tool_selections fields."""
 
@@ -70,10 +74,10 @@ class TestInvocationMetadataToolSelection:
 
     def test_tool_selection_round_trip(self) -> None:
         meta = InvocationMetadata.model_validate(
-            {"tool_selection_strategy": "SELECTED", "tool_selections": ["uuid-a", "uuid-b"]}
+            {"tool_selection_strategy": "SELECTED", "tool_selections": [_UUID_A, _UUID_B]}
         )
         assert meta.tool_selection_strategy == "SELECTED"
-        assert meta.tool_selections == ["uuid-a", "uuid-b"]
+        assert meta.tool_selections == [_UUID_A, _UUID_B]
 
     def test_strategy_present_selections_absent_defaults_to_empty(self) -> None:
         meta = InvocationMetadata.model_validate({"tool_selection_strategy": "NONE"})
@@ -86,18 +90,41 @@ class TestInvocationMetadataToolSelection:
 
     def test_tool_selections_included_in_to_state_dict(self) -> None:
         ctx = InvocationContextData.model_validate(
-            {"metadata": {"tool_selection_strategy": "SELECTED", "tool_selections": ["uuid-a"]}}
+            {"metadata": {"tool_selection_strategy": "SELECTED", "tool_selections": [_UUID_A]}}
         )
         assert ctx.metadata is not None
         state = ctx.to_state_dict()
         assert state["metadata"]["tool_selection_strategy"] == "SELECTED"
-        assert state["metadata"]["tool_selections"] == ["uuid-a"]
+        assert state["metadata"]["tool_selections"] == [_UUID_A]
 
     def test_tool_selection_included_in_audit_safe_dump(self) -> None:
-        meta = InvocationMetadata.model_validate({"tool_selection_strategy": "SELECTED", "tool_selections": ["uuid-a"]})
+        meta = InvocationMetadata.model_validate({"tool_selection_strategy": "SELECTED", "tool_selections": [_UUID_A]})
         safe = meta.audit_safe_dump()
         assert safe["tool_selection_strategy"] == "SELECTED"
-        assert safe["tool_selections"] == ["uuid-a"]
+        assert safe["tool_selections"] == [_UUID_A]
+
+    def test_selected_with_empty_tools_rejected(self) -> None:
+        with pytest.raises(ValidationError, match=r"must not be empty"):
+            InvocationMetadata.model_validate({"tool_selection_strategy": "SELECTED", "tool_selections": []})
+
+    def test_none_strategy_with_tools_rejected(self) -> None:
+        with pytest.raises(ValidationError, match=r"must be empty"):
+            InvocationMetadata.model_validate({"tool_selection_strategy": "NONE", "tool_selections": [_UUID_A]})
+
+    def test_all_strategy_with_tools_rejected(self) -> None:
+        with pytest.raises(ValidationError, match=r"must be empty"):
+            InvocationMetadata.model_validate({"tool_selection_strategy": "ALL", "tool_selections": [_UUID_A]})
+
+    def test_none_default_strategy_with_tools_rejected(self) -> None:
+        """strategy=None (default) with non-empty tools is rejected."""
+        with pytest.raises(ValidationError, match=r"must be empty"):
+            InvocationMetadata.model_validate({"tool_selections": [_UUID_A]})
+
+    def test_invalid_tool_uuid_rejected(self) -> None:
+        with pytest.raises(ValidationError, match=r"Invalid UUID"):
+            InvocationMetadata.model_validate(
+                {"tool_selection_strategy": "SELECTED", "tool_selections": ["not-a-uuid"]}
+            )
 
 
 class TestInvocationContextData:
@@ -353,9 +380,16 @@ class TestOpaqueResponseSchema:
         with pytest.raises(ValidationError, match="response_schema must be a dict"):
             InvocationMetadata.model_validate({"response_schema": "not-a-dict"})
 
-    def test_rejects_missing_type_field(self) -> None:
-        with pytest.raises(ValidationError, match="must include a 'type' field"):
-            InvocationMetadata.model_validate({"response_schema": {"properties": {}}})
+    def test_accepts_missing_type_field_per_draft07(self) -> None:
+        """Schema without 'type' is valid per JSON Schema Draft-07."""
+        meta = InvocationMetadata.model_validate({"response_schema": {"properties": {}}})
+        assert meta.response_schema is not None
+
+    def test_rejects_ref_for_ssrf_prevention(self) -> None:
+        with pytest.raises(ValidationError, match="\\$ref"):
+            InvocationMetadata.model_validate(
+                {"response_schema": {"type": "object", "properties": {"x": {"$ref": "https://evil.com"}}}}
+            )
 
 
 class TestInvocationMetadataIntegrationConnections:

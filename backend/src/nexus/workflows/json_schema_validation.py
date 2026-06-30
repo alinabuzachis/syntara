@@ -74,7 +74,7 @@ def _walk_schema(schema: dict[str, Any]) -> None:
     """
     for key, value in schema.items():
         if key == "$ref":
-            msg = "JSON Schema must not contain $ref references. Trigger schemas must be self-contained."
+            msg = "JSON Schema must not contain $ref references. Schemas must be self-contained."
             raise ValueError(msg)
 
         if key == "pattern" and isinstance(value, str):

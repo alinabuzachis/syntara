@@ -14,10 +14,27 @@ Usage::
 
 from typing import Any, Literal, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, GetCoreSchemaHandler, HttpUrl, SecretStr, field_validator
+import structlog
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    GetCoreSchemaHandler,
+    HttpUrl,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 from pydantic_core import CoreSchema, core_schema
 
-from nexus.workflows.workflow_engine.models.workflow_definition import IntegrationConnectionConfig
+from nexus.workflows.json_schema_validation import validate_json_schema_definition
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    IntegrationConnectionConfig,
+    validate_tool_selection_coherence,
+    validate_uuid_or_template,
+)
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class OpaqueResponseSchema:
@@ -26,8 +43,9 @@ class OpaqueResponseSchema:
     Similar to ``SecretStr`` but for JSON Schema dicts.  The data is only
     returned when explicitly requested via :meth:`get_data`.
 
-    Validates that the value is a dict containing a ``'type'`` key (same
-    rule as ``validate_response_schema_structure``).
+    Validates the schema against JSON Schema Draft-07 meta-schema, rejects
+    ``$ref`` references (SSRF prevention), and detects ReDoS-vulnerable
+    regex patterns via ``validate_json_schema_definition()``.
 
     ``repr()`` / ``str()`` always return ``'OpaqueResponseSchema(**)'`` so
     the payload never leaks into audit logs, telemetry, or error messages.
@@ -62,7 +80,7 @@ class OpaqueResponseSchema:
         _source_type: Any,  # noqa: ANN401
         _handler: GetCoreSchemaHandler,
     ) -> CoreSchema:
-        """Accept a dict with a 'type' key and wrap it in OpaqueResponseSchema."""
+        """Accept a valid JSON Schema dict and wrap it in OpaqueResponseSchema."""
         return core_schema.no_info_plain_validator_function(
             cls._validate,
             serialization=core_schema.plain_serializer_function_ser_schema(
@@ -78,9 +96,14 @@ class OpaqueResponseSchema:
         if not isinstance(v, dict):
             msg = f"response_schema must be a dict; got {type(v).__name__}"
             raise ValueError(msg)  # noqa: TRY004 — Pydantic requires ValueError
-        if "type" not in v:
-            msg = "response_schema must include a 'type' field"
-            raise ValueError(msg)
+        try:
+            validate_json_schema_definition(v)
+        except ValueError as e:
+            msg = f"response_schema: {e}"
+            logger.warning(
+                "Config validation failed", source="OpaqueResponseSchema", field="response_schema", reason=str(e)
+            )
+            raise ValueError(msg) from None
         return cls(v)
 
     @staticmethod
@@ -126,6 +149,20 @@ class InvocationMetadata(BaseModel):
     tool_selection_strategy: Literal["ALL", "NONE", "SELECTED"] | None = None
     tool_selections: list[str] = Field(default_factory=list)
     integration_connections: list[IntegrationConnectionConfig] | None = None
+
+    @field_validator("tool_selections")
+    @classmethod
+    def validate_tool_selections_uuids(cls, v: list[str]) -> list[str]:
+        """Validate each tool_selection is a valid UUID or template expression."""
+        for i, tool_id in enumerate(v):
+            validate_uuid_or_template(tool_id, f"tool_selections[{i}]")
+        return v
+
+    @model_validator(mode="after")
+    def _validate_tool_selection_coherence(self) -> "InvocationMetadata":
+        """Validate that tool_selection_strategy and tool_selections are coherent."""
+        validate_tool_selection_coherence(self.tool_selection_strategy, self.tool_selections, "InvocationMetadata")
+        return self
 
     def audit_safe_dump(self) -> dict[str, Any]:
         """Return metadata dict with sensitive/opaque fields excluded."""

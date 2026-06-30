@@ -11,6 +11,7 @@ from typing import Any, Literal
 from urllib.parse import urlparse
 from zoneinfo import available_timezones
 
+import structlog
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import ModelWrapValidatorHandler
 
@@ -21,11 +22,51 @@ from nexus.workflows.json_schema_validation import validate_json_schema_definiti
 from nexus.workflows.utils.output_mapping import apply_output_mapping
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 
+logger = structlog.stdlib.get_logger(__name__)
+
 # Template expression pattern - matches ${...} expressions
 TEMPLATE_PATTERN = re.compile(r"\$\{[^}]+\}")
 
 
-def _validate_uuid_or_template(value: str, field_label: str) -> str:
+def validate_tool_selection_coherence(
+    strategy: str | None,
+    selections: list[str],
+    source: str,
+) -> None:
+    """Validate that tool_selection_strategy and tool_selections are coherent.
+
+    Shared validation used by both AgenticExecutorParameters and InvocationMetadata.
+
+    Raises SafeValueError if:
+    - SELECTED with empty selections
+    - NONE/ALL/None with non-empty selections
+    """
+    if strategy == "SELECTED" and not selections:
+        msg = "tool_selections must not be empty when tool_selection_strategy is 'SELECTED'"
+        logger.warning(
+            "Config validation failed",
+            source=source,
+            field="tool_selection_strategy",
+            strategy=strategy,
+            reason="empty_tool_selections",
+        )
+        raise SafeValueError(msg)
+
+    if strategy in ("NONE", "ALL", None) and selections:
+        label = f"'{strategy}'" if strategy else "not set"
+        msg = f"tool_selections must be empty when tool_selection_strategy is {label}"
+        logger.warning(
+            "Config validation failed",
+            source=source,
+            field="tool_selection_strategy",
+            strategy=strategy,
+            tool_count=len(selections),
+            reason="unexpected_tool_selections",
+        )
+        raise SafeValueError(msg)
+
+
+def validate_uuid_or_template(value: str, field_label: str) -> str:
     """Validate that a string is either a valid UUID or a template expression.
 
     Raises SafeValueError if neither.
@@ -36,6 +77,7 @@ def _validate_uuid_or_template(value: str, field_label: str) -> str:
         uuid.UUID(value)
     except ValueError as err:
         msg = f"Invalid UUID format for {field_label}: '{value}'. Must be a valid UUID."
+        logger.warning("Config validation failed", field=field_label, reason="invalid_uuid")
         raise SafeValueError(msg) from err
     return value
 
@@ -365,7 +407,7 @@ class IntegrationConnectionConfig(BaseModel):
     @classmethod
     def validate_uuid_format(cls, v: str) -> str:
         """Validate that each ID is a valid UUID or a template expression."""
-        return _validate_uuid_or_template(v, "integration_id/credential_id")
+        return validate_uuid_or_template(v, "integration_id/credential_id")
 
 
 class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
@@ -409,8 +451,8 @@ class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
     @classmethod
     def validate_tool_selections_format(cls, v: list[str]) -> list[str]:
         """Validate each tool_selection is a valid UUID (unless it's a template expression)."""
-        for tool_id in v:
-            _validate_uuid_or_template(tool_id, "tool_selections")
+        for i, tool_id in enumerate(v):
+            validate_uuid_or_template(tool_id, f"tool_selections[{i}]")
         return v
 
     @field_validator("prompt")
@@ -430,20 +472,18 @@ class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
     @classmethod
     def validate_file_ids_format(cls, v: list[str]) -> list[str]:
         """Validate each file_id is a valid UUID format (unless it's a template expression)."""
-        for file_id in v:
-            if isinstance(file_id, str) and TEMPLATE_PATTERN.search(file_id):
-                continue
-            try:
-                uuid.UUID(file_id)
-            except ValueError as err:
-                msg = f"Invalid file_id format: '{file_id}'. Must be a valid UUID."
-                raise SafeValueError(msg) from err
+        for i, file_id in enumerate(v):
+            validate_uuid_or_template(file_id, f"file_ids[{i}]")
         return v
 
     @field_validator("response_schema")
     @classmethod
     def validate_response_schema_structure(cls, v: dict[str, Any] | str | None) -> dict[str, Any] | str | None:
-        """Validate response_schema is a valid JSON schema object.
+        """Validate response_schema against JSON Schema Draft-07 with security hardening.
+
+        Checks structural validity, rejects $ref (SSRF prevention), and detects
+        ReDoS-vulnerable regex patterns. Uses the same validation as webhook
+        input_schema for consistency.
 
         Template expressions (str matching ${...}) bypass this validator via
         TemplateAwareBaseModel's wrap validator and arrive here as str.
@@ -451,10 +491,26 @@ class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
         """
         if v is None or isinstance(v, str):
             return v
-        if "type" not in v:
-            msg = "response_schema must include a 'type' field"
-            raise SafeValueError(msg)
+        try:
+            validate_json_schema_definition(v)
+        except ValueError as e:
+            msg = f"response_schema: {e}"
+            logger.warning(
+                "Config validation failed", source="AgenticExecutorParameters", field="response_schema", reason=str(e)
+            )
+            raise SafeValueError(msg) from None
         return v
+
+    @model_validator(mode="after")
+    def _validate_tool_selection_coherence(self) -> "AgenticExecutorParameters":
+        """Validate that tool_selection_strategy and tool_selections are coherent."""
+        strategy = self.tool_selection_strategy
+
+        if isinstance(strategy, str) and TEMPLATE_PATTERN.search(strategy):
+            return self
+
+        validate_tool_selection_coherence(strategy, self.tool_selections, "AgenticExecutorParameters")
+        return self
 
 
 class AAPVerbosity(IntEnum):

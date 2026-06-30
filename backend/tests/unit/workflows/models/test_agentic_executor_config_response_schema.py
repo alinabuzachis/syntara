@@ -10,9 +10,6 @@ These tests verify:
 - Template expressions bypass validation (TemplateAwareBaseModel behavior)
 """
 
-import pytest
-from pydantic import ValidationError
-
 from nexus.workflows.workflow_engine.models.workflow_definition import AgenticExecutorParameters
 
 
@@ -120,27 +117,18 @@ class TestAgenticExecutorParametersResponseSchema:
     # Invalid Cases
     # ==========================================================================
 
-    def test_response_schema_rejects_missing_type_field(self) -> None:
-        """Test that schema without 'type' field is rejected."""
+    def test_response_schema_accepts_missing_type_field(self) -> None:
+        """Schema without 'type' is valid per JSON Schema Draft-07 (matches anything)."""
         schema = {
             "properties": {"name": {"type": "string"}},
         }
+        config = AgenticExecutorParameters(prompt="Test", responseSchema=schema)
+        assert config.response_schema == schema
 
-        with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorParameters(prompt="Test", responseSchema=schema)
-
-        errors = exc_info.value.errors()
-        assert len(errors) == 1
-        assert "must include a 'type' field" in str(errors[0]["msg"])
-
-    def test_response_schema_rejects_empty_dict(self) -> None:
-        """Test that empty dict is rejected (missing 'type')."""
-        with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorParameters(prompt="Test", responseSchema={})
-
-        errors = exc_info.value.errors()
-        assert len(errors) == 1
-        assert "must include a 'type' field" in str(errors[0]["msg"])
+    def test_response_schema_accepts_empty_dict(self) -> None:
+        """Empty dict is valid JSON Schema per Draft-07 (matches anything)."""
+        config = AgenticExecutorParameters(prompt="Test", responseSchema={})
+        assert config.response_schema == {}
 
     # ==========================================================================
     # API Alias (responseSchema) Compatibility

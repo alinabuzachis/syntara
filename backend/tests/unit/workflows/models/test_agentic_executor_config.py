@@ -150,7 +150,7 @@ class TestAgenticExecutorParametersFileIds:
 
         errors = exc_info.value.errors()
         assert len(errors) == 1
-        assert "Invalid file_id format" in str(errors[0]["msg"])
+        assert "Invalid UUID format for file_ids" in str(errors[0]["msg"])
         assert "not-a-valid-uuid" in str(errors[0]["msg"])
 
     def test_file_ids_exceeds_max_length_rejected(self) -> None:
@@ -169,7 +169,7 @@ class TestAgenticExecutorParametersFileIds:
             AgenticExecutorParameters(prompt="Test", file_ids=[""])
 
         errors = exc_info.value.errors()
-        assert "Invalid file_id format" in str(errors[0]["msg"])
+        assert "Invalid UUID format for file_ids" in str(errors[0]["msg"])
 
     def test_file_ids_partial_uuid_rejected(self) -> None:
         """Test that partial UUID is rejected."""
@@ -179,7 +179,7 @@ class TestAgenticExecutorParametersFileIds:
             AgenticExecutorParameters(prompt="Test", file_ids=[partial_uuid])
 
         errors = exc_info.value.errors()
-        assert "Invalid file_id format" in str(errors[0]["msg"])
+        assert "Invalid UUID format for file_ids" in str(errors[0]["msg"])
 
     def test_file_ids_uuid_with_invalid_chars_rejected(self) -> None:
         """Test that UUID with invalid characters is rejected."""
@@ -189,7 +189,7 @@ class TestAgenticExecutorParametersFileIds:
             AgenticExecutorParameters(prompt="Test", file_ids=[invalid_uuid])
 
         errors = exc_info.value.errors()
-        assert "Invalid file_id format" in str(errors[0]["msg"])
+        assert "Invalid UUID format for file_ids" in str(errors[0]["msg"])
 
     def test_file_ids_whitespace_only_rejected(self) -> None:
         """Test that whitespace-only string is rejected."""
@@ -197,7 +197,7 @@ class TestAgenticExecutorParametersFileIds:
             AgenticExecutorParameters(prompt="Test", file_ids=["   "])
 
         errors = exc_info.value.errors()
-        assert "Invalid file_id format" in str(errors[0]["msg"])
+        assert "Invalid UUID format for file_ids" in str(errors[0]["msg"])
 
     def test_file_ids_mixed_valid_invalid_all_rejected(self) -> None:
         """Test that list with any invalid UUID is rejected."""
@@ -211,7 +211,7 @@ class TestAgenticExecutorParametersFileIds:
             AgenticExecutorParameters(prompt="Test", file_ids=file_ids)
 
         errors = exc_info.value.errors()
-        assert "Invalid file_id format" in str(errors[0]["msg"])
+        assert "Invalid UUID format for file_ids" in str(errors[0]["msg"])
         assert "invalid-uuid" in str(errors[0]["msg"])
 
     # ==========================================================================
