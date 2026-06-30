@@ -94,6 +94,8 @@ type UseProjectSelectorResult = {
   isAllProjects: boolean
   projects: ProjectRead[]
   ProjectSelector: ReactNode
+  /** Refetch the projects list (e.g., after creating, editing, or deleting a project) */
+  refetchProjects: () => Promise<unknown>
 }
 
 /**
@@ -305,5 +307,13 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
   const isAllProjects = selectedProjectId === null
   const stableProjectId = selectedProject?.id ?? (isAllProjects ? undefined : (selectedProjectId ?? undefined))
 
-  return { selectedProject, selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector }
+  return {
+    selectedProject,
+    selectedProjectId,
+    stableProjectId,
+    isAllProjects,
+    projects,
+    ProjectSelector,
+    refetchProjects: projectsQuery.refetch,
+  }
 }

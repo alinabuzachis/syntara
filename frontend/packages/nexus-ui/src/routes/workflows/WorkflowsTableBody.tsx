@@ -1,9 +1,10 @@
 import type { Workflow as WorkflowWithId, WorkflowAPI } from '@ansible/nexus-contracts'
-import { Flex, FlexItem, Label, Truncate } from '@patternfly/react-core'
+import { Flex, FlexItem, Truncate } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
 
 import groupedTableStyles from '../../components/groupedTable.module.css'
+import { NxLabel } from '../../components/labels/NxLabel'
 import type { KebabAction } from '../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { BadgesCell } from '../../components/table/BadgesCell'
@@ -65,6 +66,7 @@ type GroupedWorkflowsTableBodyProps = {
   collapsedProjects: Set<string>
   onToggleProject: (projectId: string) => void
   getRowActions: (workflow: Workflow) => RowAction[]
+  getProjectActions?: (project: ProjectRead | null) => RowAction[]
 }
 
 export function GroupedWorkflowsTableBody({
@@ -72,32 +74,43 @@ export function GroupedWorkflowsTableBody({
   collapsedProjects,
   onToggleProject,
   getRowActions,
+  getProjectActions,
 }: Readonly<GroupedWorkflowsTableBodyProps>) {
   return (
     <>
-      {[...groupedWorkflows.entries()].map(([projectId, { project, workflows }]) => (
-        <Tbody key={projectId}>
-          <Tr className={groupedTableStyles.groupHeader} onClick={() => onToggleProject(projectId)}>
-            <Td colSpan={6}>
-              <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-                <FlexItem>{collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>
-                <FlexItem>
-                  <strong>{project?.name ?? (projectId === 'unknown' ? 'No project' : projectId)}</strong>
-                </FlexItem>
-                <FlexItem>
-                  <Label isCompact color="purple">
-                    {workflows.length}
-                  </Label>
-                </FlexItem>
-              </Flex>
-            </Td>
-          </Tr>
-          {!collapsedProjects.has(projectId) &&
-            workflows.map((workflow) => (
-              <WorkflowRow key={workflow.id} workflow={workflow} getRowActions={getRowActions} />
-            ))}
-        </Tbody>
-      ))}
+      {[...groupedWorkflows.entries()].map(([projectId, { project, workflows }]) => {
+        const projectActions = getProjectActions?.(project) ?? []
+        const hasProjectActions = projectActions.length > 0
+
+        return (
+          <Tbody key={projectId}>
+            <Tr className={groupedTableStyles.groupHeader}>
+              <Td colSpan={hasProjectActions ? 5 : 6} onClick={() => onToggleProject(projectId)}>
+                <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                  <FlexItem>
+                    {collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}
+                  </FlexItem>
+                  <FlexItem>
+                    <strong>{project?.name ?? (projectId === 'unknown' ? 'No project' : projectId)}</strong>
+                  </FlexItem>
+                  <FlexItem>
+                    <NxLabel color="purple">{workflows.length}</NxLabel>
+                  </FlexItem>
+                </Flex>
+              </Td>
+              {hasProjectActions && (
+                <Td isActionCell onClick={(e) => e.stopPropagation()}>
+                  <NxKebabMenu actions={projectActions} aria-label={`Actions for ${project?.name ?? 'project'}`} />
+                </Td>
+              )}
+            </Tr>
+            {!collapsedProjects.has(projectId) &&
+              workflows.map((workflow) => (
+                <WorkflowRow key={workflow.id} workflow={workflow} getRowActions={getRowActions} />
+              ))}
+          </Tbody>
+        )
+      })}
     </>
   )
 }

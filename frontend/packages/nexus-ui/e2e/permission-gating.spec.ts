@@ -438,6 +438,235 @@ test.describe('Permission gating — Workflow actions', () => {
   })
 })
 
+// ── Action gating — Project actions on Workflows page ────────────────────
+
+test.describe('Permission gating — Project actions', () => {
+  test('viewer: project kebab menu in all projects view has disabled actions', async ({ app, viewerApp }) => {
+    // Create project and workflow so it appears in all projects view
+    const projectName = buildUniqueName('e2e-viewer-proj')
+    const workflowName = buildUniqueName('e2e-viewer-wf')
+
+    try {
+      // Create project as admin
+      const createProjectResp = await apiRequest(app, 'post', '/projects', {
+        data: { name: projectName },
+      })
+      if (!createProjectResp.ok()) throw new Error('Project creation failed')
+      const project = (await createProjectResp.json()) as { id: string }
+
+      // Create workflow in the project
+      const createWorkflowResp = await apiRequest(app, 'post', '/workflows', {
+        data: {
+          name: workflowName,
+          project_id: project.id,
+          workflow_definition: {
+            schema_version: '2.0.0',
+            name: workflowName,
+            triggers: [{ id: 'trigger_1', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
+            nodes: [],
+            edges: [],
+          },
+        },
+      })
+      if (!createWorkflowResp.ok()) throw new Error('Workflow creation failed')
+      const workflow = (await createWorkflowResp.json()) as { id: string }
+
+      // Navigate to All projects view as viewer
+      await viewerApp.goto(toAppUrl('/workflows'))
+      const projectSelector = viewerApp.getByPlaceholder(/All projects|Select a project/)
+      await projectSelector.click()
+      await viewerApp.getByRole('option', { name: 'All projects' }).click()
+
+      // Find project row and open kebab
+      const projectRow = viewerApp.getByRole('row').filter({ hasText: projectName })
+      await expect(projectRow).toBeVisible({ timeout: 15_000 })
+      const projectKebab = projectRow.getByRole('button', { name: /Actions for.*project/i })
+      await expect(projectKebab).toBeVisible()
+      await projectKebab.click()
+
+      // Verify all actions are disabled
+      await expect(viewerApp.getByRole('menuitem', { name: /Edit project/i })).toHaveAttribute('aria-disabled', 'true')
+      await expect(viewerApp.getByRole('menuitem', { name: /Delete project/i })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      )
+
+      // Clean up
+      await apiRequest(app, 'delete', `/workflows/${workflow.id}`)
+      await apiRequest(app, 'delete', `/projects/${project.id}`)
+    } catch (error) {
+      // Best-effort cleanup on failure
+      try {
+        const listResp = await apiRequest(app, 'get', '/workflows')
+        if (listResp.ok()) {
+          const list = (await listResp.json()) as { resources: Array<{ id: string; name: string }> }
+          const wf = list.resources.find((w) => w.name === workflowName)
+          if (wf) await apiRequest(app, 'delete', `/workflows/${wf.id}`)
+        }
+        const projListResp = await apiRequest(app, 'get', '/projects')
+        if (projListResp.ok()) {
+          const projList = (await projListResp.json()) as { resources: Array<{ id: string; name: string }> }
+          const proj = projList.resources.find((p) => p.name === projectName)
+          if (proj) await apiRequest(app, 'delete', `/projects/${proj.id}`)
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw error
+    }
+  })
+
+  test('auditor: project kebab menu in all projects view has disabled actions', async ({ app, auditorApp }) => {
+    // Create project and workflow so it appears in all projects view
+    const projectName = buildUniqueName('e2e-auditor-proj')
+    const workflowName = buildUniqueName('e2e-auditor-wf')
+
+    try {
+      // Create project as admin
+      const createProjectResp = await apiRequest(app, 'post', '/projects', {
+        data: { name: projectName },
+      })
+      if (!createProjectResp.ok()) throw new Error('Project creation failed')
+      const project = (await createProjectResp.json()) as { id: string }
+
+      // Create workflow in the project
+      const createWorkflowResp = await apiRequest(app, 'post', '/workflows', {
+        data: {
+          name: workflowName,
+          project_id: project.id,
+          workflow_definition: {
+            schema_version: '2.0.0',
+            name: workflowName,
+            triggers: [{ id: 'trigger_1', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
+            nodes: [],
+            edges: [],
+          },
+        },
+      })
+      if (!createWorkflowResp.ok()) throw new Error('Workflow creation failed')
+      const workflow = (await createWorkflowResp.json()) as { id: string }
+
+      // Navigate to All projects view as auditor
+      await auditorApp.goto(toAppUrl('/workflows'))
+      const projectSelector = auditorApp.getByPlaceholder(/All projects|Select a project/)
+      await projectSelector.click()
+      await auditorApp.getByRole('option', { name: 'All projects' }).click()
+
+      // Find project row and open kebab
+      const projectRow = auditorApp.getByRole('row').filter({ hasText: projectName })
+      await expect(projectRow).toBeVisible({ timeout: 15_000 })
+      const projectKebab = projectRow.getByRole('button', { name: /Actions for.*project/i })
+      await expect(projectKebab).toBeVisible()
+      await projectKebab.click()
+
+      // Verify all actions are disabled
+      await expect(auditorApp.getByRole('menuitem', { name: /Edit project/i })).toHaveAttribute('aria-disabled', 'true')
+      await expect(auditorApp.getByRole('menuitem', { name: /Delete project/i })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      )
+
+      // Clean up
+      await apiRequest(app, 'delete', `/workflows/${workflow.id}`)
+      await apiRequest(app, 'delete', `/projects/${project.id}`)
+    } catch (error) {
+      // Best-effort cleanup on failure
+      try {
+        const listResp = await apiRequest(app, 'get', '/workflows')
+        if (listResp.ok()) {
+          const list = (await listResp.json()) as { resources: Array<{ id: string; name: string }> }
+          const wf = list.resources.find((w) => w.name === workflowName)
+          if (wf) await apiRequest(app, 'delete', `/workflows/${wf.id}`)
+        }
+        const projListResp = await apiRequest(app, 'get', '/projects')
+        if (projListResp.ok()) {
+          const projList = (await projListResp.json()) as { resources: Array<{ id: string; name: string }> }
+          const proj = projList.resources.find((p) => p.name === projectName)
+          if (proj) await apiRequest(app, 'delete', `/projects/${proj.id}`)
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw error
+    }
+  })
+
+  test('viewer: project kebab menu in page header (selected project) has disabled actions', async ({
+    app,
+    viewerApp,
+  }) => {
+    const projectName = buildUniqueName('e2e-viewer-header-proj')
+    const workflowName = buildUniqueName('e2e-viewer-header-wf')
+
+    try {
+      // Create project as admin
+      const createProjectResp = await apiRequest(app, 'post', '/projects', {
+        data: { name: projectName },
+      })
+      if (!createProjectResp.ok()) throw new Error('Project creation failed')
+      const project = (await createProjectResp.json()) as { id: string }
+
+      // Create workflow in the project
+      const createWorkflowResp = await apiRequest(app, 'post', '/workflows', {
+        data: {
+          name: workflowName,
+          project_id: project.id,
+          workflow_definition: {
+            schema_version: '2.0.0',
+            name: workflowName,
+            triggers: [{ id: 'trigger_1', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
+            nodes: [],
+            edges: [],
+          },
+        },
+      })
+      if (!createWorkflowResp.ok()) throw new Error('Workflow creation failed')
+      const workflow = (await createWorkflowResp.json()) as { id: string }
+
+      // Navigate to workflows page and select the project as viewer
+      await viewerApp.goto(toAppUrl('/workflows'))
+      const projectSelector = viewerApp.getByPlaceholder(/All projects|Select a project/)
+      await projectSelector.click()
+      await viewerApp.getByRole('option', { name: projectName }).click()
+
+      // Find and click project kebab in page header
+      const headerKebab = viewerApp.getByRole('button', { name: 'Project actions' })
+      await expect(headerKebab).toBeVisible()
+      await headerKebab.click()
+
+      // Verify all actions are disabled
+      await expect(viewerApp.getByRole('menuitem', { name: /Edit project/i })).toHaveAttribute('aria-disabled', 'true')
+      await expect(viewerApp.getByRole('menuitem', { name: /Delete project/i })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      )
+
+      // Clean up
+      await apiRequest(app, 'delete', `/workflows/${workflow.id}`)
+      await apiRequest(app, 'delete', `/projects/${project.id}`)
+    } catch (error) {
+      // Best-effort cleanup on failure
+      try {
+        const listResp = await apiRequest(app, 'get', '/workflows')
+        if (listResp.ok()) {
+          const list = (await listResp.json()) as { resources: Array<{ id: string; name: string }> }
+          const wf = list.resources.find((w) => w.name === workflowName)
+          if (wf) await apiRequest(app, 'delete', `/workflows/${wf.id}`)
+        }
+        const projListResp = await apiRequest(app, 'get', '/projects')
+        if (projListResp.ok()) {
+          const projList = (await projListResp.json()) as { resources: Array<{ id: string; name: string }> }
+          const proj = projList.resources.find((p) => p.name === projectName)
+          if (proj) await apiRequest(app, 'delete', `/projects/${proj.id}`)
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw error
+    }
+  })
+})
+
 // ── Action gating — Credentials ──────────────────────────────────────────
 
 test.describe('Permission gating — Credential actions', () => {

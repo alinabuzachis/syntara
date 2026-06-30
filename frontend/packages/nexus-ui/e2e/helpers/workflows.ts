@@ -299,6 +299,57 @@ export async function deleteWorkflow(page: Page, workflowName: string) {
   }
 }
 
+/**
+ * Delete a project by name via the UI.
+ * Best-effort cleanup helper — catches and suppresses errors.
+ */
+export async function deleteProject(page: Page, projectName: string) {
+  if (page.isClosed()) return
+  try {
+    await page.goto(toAppUrl('/workflows'))
+
+    // Switch to the project in the project selector
+    const projectSelector = page.getByPlaceholder(/All projects|Select a project/)
+    await projectSelector.click()
+    const option = page.getByRole('option', { name: projectName, exact: true })
+    const optionExists = await expect(option)
+      .toBeVisible({ timeout: 5000 })
+      .then(() => true)
+      .catch(() => false)
+
+    if (!optionExists) return // Project doesn't exist, nothing to delete
+
+    await option.click()
+
+    // Click project kebab menu in page header
+    const headerKebab = page.getByRole('button', { name: 'Project actions' })
+    const kebabVisible = await expect(headerKebab)
+      .toBeVisible({ timeout: 5000 })
+      .then(() => true)
+      .catch(() => false)
+
+    if (!kebabVisible) return // No project actions available
+
+    await headerKebab.click()
+    await page.getByRole('menuitem', { name: /Delete project/i }).click()
+
+    // Confirm deletion
+    const deleteDialog = page.getByRole('dialog', { name: /Delete project/i })
+    await expect(deleteDialog).toBeVisible({ timeout: 5000 })
+    await deleteDialog.getByRole('checkbox', { name: /I understand/i }).check()
+    await deleteDialog.getByRole('button', { name: 'Delete' }).click()
+
+    // Wait for dialog to close
+    await expect(deleteDialog)
+      .not.toBeVisible({ timeout: 10000 })
+      .catch(() => {
+        // Best-effort cleanup
+      })
+  } catch {
+    // Best-effort cleanup — don't fail the test
+  }
+}
+
 /** Open a saved workflow in the builder by filtering the workflows list. */
 export async function openWorkflowInBuilder(page: Page, workflowName: string) {
   await page.goto(toAppUrl('/workflows'))

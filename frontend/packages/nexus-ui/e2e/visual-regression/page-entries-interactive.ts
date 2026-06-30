@@ -25,6 +25,33 @@ async function openStepEditorFromCanvasTitle(page: Page, title: string | RegExp)
   })
 }
 
+/**
+ * Finds and opens a workflow row kebab menu, skipping project header row kebabs.
+ * Returns the kebab locator that was opened.
+ *
+ * Project header rows have kebabs with "Edit project" / "Delete project" items.
+ * Workflow rows have kebabs with "Edit workflow" / "Run workflow" / etc.
+ *
+ * This helper iterates through all kebabs and finds one that has a workflow-specific
+ * menu item (determined by the menuItemPattern parameter).
+ */
+async function openWorkflowKebab(page: Page, menuItemPattern: string | RegExp = /Edit workflow/i) {
+  const kebabs = page.getByRole('button', { name: /Actions|Kebab toggle/i })
+  const count = await kebabs.count()
+
+  for (let i = 0; i < count; i++) {
+    const kebab = kebabs.nth(i)
+    await kebab.click()
+    const menuItem = page.getByRole('menuitem', { name: menuItemPattern })
+    if (await menuItem.isVisible().catch(() => false)) {
+      return kebab
+    }
+    await page.keyboard.press('Escape')
+  }
+
+  throw new Error(`No workflow kebab found with menu item matching: ${menuItemPattern}`)
+}
+
 // ---------------------------------------------------------------------------
 // Mock API IDs for interactive state entries
 // ---------------------------------------------------------------------------
@@ -375,8 +402,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await kebab.click()
+      await openWorkflowKebab(page)
       await expect(page.getByRole('menuitem', { name: /Edit workflow/i })).toBeVisible()
     },
   },
@@ -390,8 +416,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await kebab.click()
+      await openWorkflowKebab(page, 'Publish workflow')
       await page.getByRole('menuitem', { name: 'Publish workflow', exact: true }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
       await expect(page.getByText('Publish workflow?')).toBeVisible()
@@ -407,9 +432,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      // Find a workflow row that has a published version and open its kebab
-      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await kebab.click()
+      const workflowKebab = await openWorkflowKebab(page)
       // The unpublish option only appears for published workflows; if absent, click publish first
       const unpublishItem = page.getByRole('menuitem', { name: /Unpublish workflow/i })
       const hasUnpublish = await unpublishItem.isVisible().catch(() => false)
@@ -418,12 +441,12 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       } else {
         // Close menu and try publishing first so the unpublish item appears
         await page.keyboard.press('Escape')
-        await kebab.click()
+        await workflowKebab.click()
         await page.getByRole('menuitem', { name: /Publish workflow/i }).click()
         await expect(page.getByRole('dialog')).toBeVisible()
         await page.getByRole('button', { name: 'Publish' }).click()
         await expect(page.getByRole('dialog')).not.toBeVisible()
-        await kebab.click()
+        await workflowKebab.click()
         const unpublishAfterPublish = page.getByRole('menuitem', { name: /Unpublish workflow/i })
         await expect(unpublishAfterPublish).toBeVisible()
         await unpublishAfterPublish.click()
@@ -442,8 +465,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await kebab.click()
+      await openWorkflowKebab(page, /Run workflow/i)
       await page.getByRole('menuitem', { name: /Run workflow/i }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()

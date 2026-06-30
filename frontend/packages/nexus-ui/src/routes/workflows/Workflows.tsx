@@ -1,36 +1,40 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { AlertActionLink, Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
+import { Button } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiImportIcon } from '@patternfly/react-icons'
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
-import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
-import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
+import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { downloadWorkflowExportById } from '../../utils/downloadWorkflowExport'
-import { accessClient } from '../access/accessClient'
-import { PublishWorkflowDialog } from '../builder/PublishWorkflowDialog'
+import type { ProjectRead } from '../access/types'
+import { useProjectPermissions } from '../access-management/useProjectPermissions'
 
-import { ImportWorkflowDialog } from './ImportWorkflowDialog'
+import { buildProjectRowActions } from './projectRowActions'
+import { useDuplicateWorkflow } from './useDuplicateWorkflow'
+import { useProjectActions } from './useProjectActions'
+import { useWorkflowActions } from './useWorkflowActions'
 import { useWorkflowPermissions } from './useWorkflowPermissions'
+import { useWorkflowsPageToolbar } from './useWorkflowsPageToolbar'
+import { useWorkflowsQuery } from './useWorkflowsQuery'
+import { WorkflowDialogs } from './WorkflowDialogs'
+import { workflowFilterDefinitions } from './workflowFilterDefinitions'
 import { buildWorkflowRowActions } from './workflowRowActions'
 import { WorkflowsListPanel } from './WorkflowsListPanel'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
-type WorkflowDefinitionSchema = WorkflowAPI.components['schemas']['WorkflowDefinition']
 
 // Transform is_enabled string values to boolean for the API
 const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
@@ -41,13 +45,52 @@ const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
     return filter
   })
 
-// eslint-disable-next-line max-lines-per-function -- pre-existing size
+type WorkflowsPageToolbarProps = {
+  headerProjectActions: ReturnType<typeof buildProjectRowActions>
+  canCreate: boolean
+  createTooltip: string
+  showWorkflowActions: boolean
+  onImportClick: () => void
+  onCreateClick: () => void
+}
+
+function WorkflowsPageToolbar({
+  headerProjectActions,
+  canCreate,
+  createTooltip,
+  showWorkflowActions,
+  onImportClick,
+  onCreateClick,
+}: WorkflowsPageToolbarProps) {
+  return (
+    <>
+      {showWorkflowActions && (
+        <>
+          <DisabledWithTooltip isDisabled={!canCreate} content={createTooltip}>
+            <Button variant="secondary" icon={<RhUiImportIcon />} isAriaDisabled={!canCreate} onClick={onImportClick}>
+              Import workflow
+            </Button>
+          </DisabledWithTooltip>
+          <DisabledWithTooltip isDisabled={!canCreate} content={createTooltip}>
+            <Button variant="primary" icon={<RhUiAddIcon />} isAriaDisabled={!canCreate} onClick={onCreateClick}>
+              Create workflow
+            </Button>
+          </DisabledWithTooltip>
+        </>
+      )}
+      {headerProjectActions.length > 0 && <NxKebabMenu actions={headerProjectActions} aria-label="Project actions" />}
+    </>
+  )
+}
+
 export default function Workflows() {
   const workflowsDocLink = useDocLink('workflows')
   const { showAlert, showSuccess, showError } = useAlerts()
   const setLocation = useNavigate()
-  const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector, refetchProjects } =
+    useProjectSelector()
   const permissions = useWorkflowPermissions()
+  const projectPermissions = useProjectPermissions()
   const projectExtraParams = useMemo(
     () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
     [selectedProjectId]
@@ -69,75 +112,35 @@ export default function Workflows() {
   const publishDialog = useDialogState<Workflow>()
   const unpublishDialog = useDialogState<Workflow>()
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const projectEditDialog = useDialogState<ProjectRead>()
+  const projectDeleteDialog = useDialogState<ProjectRead>()
 
-  // Define filter field definitions for FilterBar
-  const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
-    () => [
-      {
-        key: 'name',
-        label: 'Name',
-        type: FilterTypeEnum.TEXT,
-        operators: [FilterOperatorEnum.CONTAINS],
-        defaultOperator: FilterOperatorEnum.CONTAINS,
-        placeholder: 'Filter by name',
-      },
-      {
-        key: 'is_enabled',
-        label: 'State',
-        type: FilterTypeEnum.SELECT,
-        options: [
-          { value: 'true', label: 'Enabled' },
-          { value: 'false', label: 'Disabled' },
-        ],
-        placeholder: 'Filter by state',
-      },
-    ],
-    []
-  )
-
-  // Query workflows — use project-scoped endpoint when a project is selected.
   const projectSelectorReady = isAllProjects || !!stableProjectId
+  const { workflowsQuery, workflows } = useWorkflowsQuery({
+    queryParams,
+    isAllProjects,
+    stableProjectId,
+    projectSelectorReady,
+  })
 
-  const allWorkflowsQuery = workflowClient.useQuery(
-    'get',
-    '/workflows',
-    {
-      params: { query: queryParams },
-    },
-    {
-      enabled: projectSelectorReady && isAllProjects,
-    }
-  )
-
-  const projectWorkflowsQuery = accessClient.useQuery(
-    'get',
-    '/projects/{project_id}/workflows',
-    {
-      params: {
-        path: { project_id: stableProjectId ?? '' },
-        query: queryParams,
-      },
-    },
-    {
-      enabled: !!stableProjectId && !isAllProjects,
-    }
-  )
-
-  const workflowsQuery = isAllProjects ? allWorkflowsQuery : projectWorkflowsQuery
-  const workflows = useMemo(() => (workflowsQuery.data?.resources ?? []) as Workflow[], [workflowsQuery.data])
-  const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
-  const { mutate: deleteWorkflow, isPending: isDeleting } = workflowClient.useMutation(
-    'delete',
-    '/workflows/{workflow_id}'
-  )
-  const { mutate: publishWorkflow, isPending: isPublishing } = workflowClient.useMutation(
-    'post',
-    '/workflows/{workflow_id}/versions/{version}/publish'
-  )
-  const { mutate: unpublishWorkflow } = workflowClient.useMutation('post', '/workflows/{workflow_id}/unpublish')
+  const {
+    handleRunWorkflow,
+    handleDeleteWorkflow,
+    handlePublishWorkflow,
+    handleUnpublishWorkflow,
+    isDeleting,
+    isPublishing,
+  } = useWorkflowActions({
+    showSuccess,
+    showError,
+    onNavigate: setLocation,
+    onRefetch: () => detachPromise(workflowsQuery.refetch()),
+    onDeleteSettled: () => deleteDialog.close(),
+    onPublishSettled: () => publishDialog.close(),
+    onUnpublishSettled: () => unpublishDialog.close(),
+  })
 
   const builtinProjectIds = useMemo(() => new Set(projects.filter((p) => p.is_builtin).map((p) => p.id)), [projects])
-
   const sortedWorkflows = useMemo(() => {
     if (!isAllProjects) return workflows
     return workflows.filter((w) => {
@@ -145,13 +148,12 @@ export default function Workflows() {
       return !builtinProjectIds.has(pid)
     })
   }, [workflows, isAllProjects, builtinProjectIds])
-
-  // Group workflows by project when viewing all projects
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
   const groupedWorkflows = useMemo(() => {
     if (!isAllProjects) return null
-    const groups = new Map<string, { project: (typeof projects)[number] | null; workflows: Workflow[] }>()
+    type WorkflowType = (typeof workflows)[number]
+    const groups = new Map<string, { project: (typeof projects)[number] | null; workflows: WorkflowType[] }>()
     for (const workflow of sortedWorkflows) {
       const projectId = workflow.project_id
       if (!groups.has(projectId)) {
@@ -165,210 +167,46 @@ export default function Workflows() {
     return groups
   }, [sortedWorkflows, projects, isAllProjects])
 
-  const toggleProjectCollapsed = (projectId: string) => {
-    setCollapsedProjects((prev) => {
-      const next = new Set(prev)
-      if (next.has(projectId)) {
-        next.delete(projectId)
-      } else {
-        next.add(projectId)
-      }
-      return next
-    })
-  }
+  const toggleProjectCollapsed = (projectId: string) =>
+    setCollapsedProjects((prev) =>
+      prev.has(projectId) ? new Set([...prev].filter((id) => id !== projectId)) : new Set([...prev, projectId])
+    )
 
   useCursorReset(sortedWorkflows.length, hasActiveFilters, cursor, workflowsQuery.isFetching, resetPagination)
 
-  const handleRunWorkflow = (workflow: Workflow) => {
-    if (!workflow.id) return
-    executeWorkflow(
-      { body: { workflow_id: workflow.id, input_data: {} } },
-      {
-        onSuccess: (data) => {
-          if (data && 'id' in data) {
-            setLocation(`/executions/${data.id}`)
-          }
-        },
-        onError: (error: unknown) => {
-          showError({
-            title: 'Workflow failed',
-            description: `Failed to start workflow "${workflow.name}": ${getErrorMessage(error)}`,
-          })
-        },
-      }
-    )
-  }
-
-  const handleDeleteWorkflow = () => {
-    const workflow = deleteDialog.item
-    if (!workflow?.id) return
-
-    deleteWorkflow(
-      { params: { path: { workflow_id: workflow.id } } },
-      {
-        onSuccess: () => {
-          showSuccess({ title: 'Workflow deleted', description: `Successfully deleted workflow "${workflow.name}"` })
-
-          detachPromise(workflowsQuery.refetch())
-        },
-        onError: (error: unknown) => {
-          showError({
-            title: 'Delete failed',
-            description: `Failed to delete workflow "${workflow.name}": ${getErrorMessage(error)}`,
-          })
-        },
-        onSettled: () => {
-          deleteDialog.close()
-        },
-      }
-    )
-  }
-
-  const handlePublishWorkflow = (publishName?: string, description?: string) => {
-    const workflow = publishDialog.item
-    if (!workflow?.id || !workflow.current_version) return
-
-    publishWorkflow(
-      {
-        params: { path: { workflow_id: workflow.id, version: workflow.current_version } },
-        body: { publish_name: publishName ?? null, change_description: description ?? null },
-      },
-      {
-        onSuccess: () => {
-          showSuccess({ title: 'Workflow published successfully' })
-          detachPromise(workflowsQuery.refetch())
-        },
-        onError: (error: unknown) => {
-          showError({ title: 'Failed to publish workflow', description: getErrorMessage(error) })
-        },
-        onSettled: () => publishDialog.close(),
-      }
-    )
-  }
-
-  const handleUnpublishWorkflow = () => {
-    const workflow = unpublishDialog.item
-    if (!workflow?.id) return
-
-    unpublishWorkflow(
-      { params: { path: { workflow_id: workflow.id } } },
-      {
-        onSuccess: () => {
-          showSuccess({ title: 'Workflow unpublished successfully' })
-          detachPromise(workflowsQuery.refetch())
-        },
-        onError: (error: unknown) => {
-          showError({ title: 'Failed to unpublish workflow', description: getErrorMessage(error) })
-        },
-        onSettled: () => unpublishDialog.close(),
-      }
-    )
-  }
-  const [isDuplicating, setIsDuplicating] = useState(false)
-
-  const handleDuplicateWorkflow = useCallback(
-    async (workflow: Workflow) => {
-      if (!workflow.id || isDuplicating) return
-      setIsDuplicating(true)
-      try {
-        const { data: fullWorkflow, error: fetchError } = await workflowFetchClient.GET('/workflows/{workflow_id}', {
-          params: { path: { workflow_id: workflow.id } },
-        })
-        if (fetchError || !fullWorkflow) {
-          showError({ title: 'Duplicate failed', description: getErrorMessage(fetchError) })
-          return
-        }
-
-        const definition = fullWorkflow.version?.workflow_definition as Record<string, unknown> | undefined
-        if (!definition) {
-          showError({ title: 'Duplicate failed', description: 'Workflow has no definition to duplicate' })
-          return
-        }
-
-        // Transform approval nodes: convert approver_users/approver_groups from objects to string arrays
-        // The API returns {id, username}/{id, name} objects but the workflow schema expects string arrays
-        const nodes = definition.nodes as Array<Record<string, unknown>> | undefined
-        const transformedDefinition = {
-          ...definition,
-          nodes: nodes?.map((node) => {
-            if (node.type === 'approval' && node.config) {
-              const config = node.config as Record<string, unknown>
-              const transformedConfig: Record<string, unknown> = { ...config }
-
-              // Extract usernames from ApproverUserSummary[] -> string[]
-              if (config.approver_users && Array.isArray(config.approver_users)) {
-                transformedConfig.approver_users = config.approver_users.map((u: unknown) =>
-                  typeof u === 'object' && u !== null && 'username' in u
-                    ? (u as { username: string }).username
-                    : String(u)
-                )
-              }
-
-              // Extract group names from ApproverGroupSummary[] -> string[]
-              if (config.approver_groups && Array.isArray(config.approver_groups)) {
-                transformedConfig.approver_groups = config.approver_groups.map((g: unknown) =>
-                  typeof g === 'object' && g !== null && 'name' in g ? (g as { name: string }).name : String(g)
-                )
-              }
-
-              return {
-                ...node,
-                config: transformedConfig,
-              }
-            }
-            return node
-          }),
-        }
-
-        if (!workflow.project_id) {
-          showError({ title: 'Duplicate failed', description: 'Workflow must have a project ID' })
-          return
-        }
-
-        const timestamp = Date.now().toString(36)
-        const duplicateName = `${workflow.name ?? 'workflow'} - duplicate-${timestamp}`
-
-        const { data: createdWorkflow, error: createError } = await workflowFetchClient.POST('/workflows', {
-          body: {
-            name: duplicateName,
-            description: workflow.description ?? '',
-            workflow_definition: transformedDefinition as unknown as WorkflowDefinitionSchema,
-            labels: (workflow.labels as Record<string, string> | undefined) ?? {},
-            project_id: workflow.project_id,
-          },
-        })
-
-        if (createError) {
-          showError({ title: 'Duplicate failed', description: getErrorMessage(createError) })
-          return
-        }
-
-        showAlert({
-          variant: 'success',
-          autoDismiss: true,
-          title: 'Workflow duplicated',
-          description: `Created "${duplicateName}"`,
-          actionLinks: createdWorkflow?.id ? (
-            <AlertActionLink onClick={() => setLocation(`/workflow-builder/${createdWorkflow.id}`)}>
-              Open workflow
-            </AlertActionLink>
-          ) : undefined,
-        })
-        detachPromise(workflowsQuery.refetch())
-      } catch (err: unknown) {
-        showError({ title: 'Duplicate failed', description: getErrorMessage(err) })
-      } finally {
-        setIsDuplicating(false)
-      }
+  const { handleDeleteProject: handleDeleteProjectBase, isDeletingProject } = useProjectActions({
+    showSuccess,
+    showError,
+    onRefetch: () => {
+      detachPromise(workflowsQuery.refetch())
+      detachPromise(refetchProjects())
     },
-    [isDuplicating, setLocation, showAlert, showError, workflowsQuery]
-  )
+    onDeleteSettled: () => projectDeleteDialog.close(),
+  })
+
+  const { duplicateWorkflow, isDuplicating } = useDuplicateWorkflow({
+    showAlert,
+    showError,
+    setLocation,
+    onSuccess: () => detachPromise(workflowsQuery.refetch()),
+  })
+
+  const { getProjectActions, headerProjectActions, showWorkflowActions, showToolbar } = useWorkflowsPageToolbar({
+    isAllProjects,
+    selectedProjectId,
+    projects,
+    sortedWorkflowsLength: sortedWorkflows.length,
+    hasActiveFilters,
+    projectEditDialog,
+    projectDeleteDialog,
+    projectPermissions,
+  })
 
   const getRowActions = (workflow: Workflow) =>
     buildWorkflowRowActions(workflow, permissions, {
       setLocation,
       onRun: (wf) => runDialog.open(wf),
-      onDuplicate: (wf) => detachPromise(handleDuplicateWorkflow(wf)),
+      onDuplicate: (wf) => detachPromise(duplicateWorkflow(wf)),
       onExport: (wf) => {
         if (wf.id) {
           detachPromise(
@@ -397,30 +235,16 @@ export default function Workflows() {
           docLink={workflowsDocLink}
           projectSelector={queryState ? undefined : ProjectSelector}
           toolbar={
-            queryState || (sortedWorkflows.length === 0 && !hasActiveFilters) ? undefined : (
-              <>
-                <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
-                  <Button
-                    variant="secondary"
-                    icon={<RhUiImportIcon />}
-                    isAriaDisabled={!permissions.canCreate}
-                    onClick={() => setImportDialogOpen(true)}
-                  >
-                    Import workflow
-                  </Button>
-                </DisabledWithTooltip>
-                <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
-                  <Button
-                    variant="primary"
-                    icon={<RhUiAddIcon />}
-                    isAriaDisabled={!permissions.canCreate}
-                    onClick={() => setLocation('/workflow-builder/new')}
-                  >
-                    Create workflow
-                  </Button>
-                </DisabledWithTooltip>
-              </>
-            )
+            !queryState && showToolbar ? (
+              <WorkflowsPageToolbar
+                headerProjectActions={headerProjectActions}
+                canCreate={permissions.canCreate}
+                createTooltip={permissions.tooltips.create}
+                showWorkflowActions={showWorkflowActions}
+                onImportClick={() => setImportDialogOpen(true)}
+                onCreateClick={() => setLocation('/workflow-builder/new')}
+              />
+            ) : undefined
           }
         />
 
@@ -430,7 +254,7 @@ export default function Workflows() {
               <WorkflowsListPanel
                 sortedWorkflows={sortedWorkflows}
                 hasActiveFilters={hasActiveFilters}
-                filterFieldDefinitions={filterFieldDefinitions}
+                filterFieldDefinitions={workflowFilterDefinitions}
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 onClearAllFilters={handleClearAllFilters}
@@ -441,80 +265,33 @@ export default function Workflows() {
                 collapsedProjects={collapsedProjects}
                 onToggleProject={toggleProjectCollapsed}
                 getRowActions={getRowActions}
+                getProjectActions={getProjectActions}
               />
             )}
           </NxPanel>
         </NxPageBody>
-
-        <NxConfirmationDialog
-          isOpen={runDialog.isOpen}
-          onClose={runDialog.close}
-          onConfirm={() => {
-            if (runDialog.item) {
-              handleRunWorkflow(runDialog.item)
-            }
-            runDialog.close()
-          }}
-          title={`Run ${runDialog.item?.name}?`}
-          confirmLabel="Run now"
-        >
-          You are about to manually run this workflow. This action will start the workflow immediately, bypassing its
-          normal trigger conditions.
-        </NxConfirmationDialog>
-
-        <NxConfirmationDialog
-          isOpen={deleteDialog.isOpen}
-          onClose={deleteDialog.close}
-          onConfirm={handleDeleteWorkflow}
-          title="Delete workflow?"
-          confirmLabel="Delete"
-          confirmVariant="danger"
-          titleIconVariant="warning"
-          confirmLoading={isDeleting}
-          destructiveAcknowledgement={{
-            checkboxId: 'delete-workflow-ack',
-            label: 'I understand this workflow and any dependent workflows will be affected by this deletion.',
-          }}
-        >
-          <Stack hasGutter>
-            <StackItem>
-              The workflow <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
-            </StackItem>
-            <StackItem>
-              <List>
-                <ListItem>This workflow will stop running immediately.</ListItem>
-                <ListItem>
-                  Any other workflows that use this one as a step will also become invalid and stop running.
-                </ListItem>
-              </List>
-            </StackItem>
-          </Stack>
-        </NxConfirmationDialog>
       </NxPage>
 
-      <ImportWorkflowDialog
-        isOpen={importDialogOpen}
-        onClose={() => setImportDialogOpen(false)}
-        onSuccess={() => detachPromise(workflowsQuery.refetch())}
-      />
-      <PublishWorkflowDialog
-        isOpen={publishDialog.isOpen}
+      <WorkflowDialogs
+        runDialog={runDialog}
+        deleteDialog={deleteDialog}
+        publishDialog={publishDialog}
+        unpublishDialog={unpublishDialog}
+        importDialogOpen={importDialogOpen}
+        setImportDialogOpen={setImportDialogOpen}
+        projectEditDialog={projectEditDialog}
+        projectDeleteDialog={projectDeleteDialog}
+        onRunWorkflow={handleRunWorkflow}
+        onDeleteWorkflow={handleDeleteWorkflow}
+        onPublishWorkflow={handlePublishWorkflow}
+        onUnpublishWorkflow={handleUnpublishWorkflow}
+        onDeleteProject={handleDeleteProjectBase}
+        onRefetchWorkflows={() => detachPromise(workflowsQuery.refetch())}
+        onRefetchProjects={() => detachPromise(refetchProjects())}
+        isDeleting={isDeleting}
         isPublishing={isPublishing}
-        onClose={publishDialog.close}
-        onPublish={handlePublishWorkflow}
+        isDeletingProject={isDeletingProject}
       />
-      <NxConfirmationDialog
-        isOpen={unpublishDialog.isOpen}
-        onClose={unpublishDialog.close}
-        onConfirm={handleUnpublishWorkflow}
-        title="Unpublish workflow?"
-        confirmLabel="Unpublish"
-        confirmVariant="danger"
-        titleIconVariant="warning"
-      >
-        The workflow <strong>{unpublishDialog.item?.name}</strong> will be unpublished. It will no longer be available
-        for execution until published again.
-      </NxConfirmationDialog>
     </>
   )
 }

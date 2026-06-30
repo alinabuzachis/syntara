@@ -211,6 +211,12 @@ describe('Workflows Component', () => {
       ...defaultMutationReturn,
       mutate: vi.fn(),
     })
+
+    // Mock accessClient.useMutation for project delete
+    vi.mocked(accessClient.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: vi.fn(),
+    })
   })
 
   describe('Rendering', () => {

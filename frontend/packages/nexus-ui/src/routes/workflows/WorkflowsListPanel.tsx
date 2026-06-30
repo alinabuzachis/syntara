@@ -31,6 +31,7 @@ export type WorkflowsListPanelProps = Readonly<{
   collapsedProjects: Set<string>
   onToggleProject: (projectId: string) => void
   getRowActions: (workflow: Workflow) => RowAction[]
+  getProjectActions?: (project: ProjectRead | null) => RowAction[]
 }>
 
 export function WorkflowsListPanel({
@@ -47,6 +48,7 @@ export function WorkflowsListPanel({
   collapsedProjects,
   onToggleProject,
   getRowActions,
+  getProjectActions,
 }: WorkflowsListPanelProps) {
   if (sortedWorkflows.length === 0 && !hasActiveFilters) {
     return (
@@ -94,6 +96,7 @@ export function WorkflowsListPanel({
               collapsedProjects={collapsedProjects}
               onToggleProject={onToggleProject}
               getRowActions={getRowActions}
+              getProjectActions={getProjectActions}
             />
           ) : (
             <FlatWorkflowsTableBody workflows={sortedWorkflows} getRowActions={getRowActions} />
