@@ -120,6 +120,7 @@ export function UsersTab() {
 
   const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
     initialDirection: 'asc',
+    onSortChange: resetPagination,
   })
 
   const finalQueryParams = useMemo(() => {

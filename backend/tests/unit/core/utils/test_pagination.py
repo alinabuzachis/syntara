@@ -726,3 +726,81 @@ class TestCursorDirectionAndConsistency:
         # But get_pagination_direction should handle this gracefully
         direction = get_pagination_direction("definitely_not_a_cursor")
         assert direction == PaginationDirection.NEXT  # Should default to safe value
+
+
+class TestGenerateResponseWithSortContext:
+    """Tests for generate_response with sort_field and sort_value_fn."""
+
+    def _make_items(self, count: int) -> list[MockResource]:
+        """Create a list of mock resources."""
+        return [
+            MockResource(
+                id=uuid4(),
+                created_at=datetime(2025, 1, 1 + i, tzinfo=UTC),
+                name=f"item-{chr(ord('a') + i)}",
+            )
+            for i in range(count)
+        ]
+
+    def test_sort_context_stored_in_next_cursor(self) -> None:
+        """Next cursor includes sort_value from the boundary item."""
+        items = self._make_items(11)  # N+1 to trigger has_more
+        result = generate_response(
+            items=items,
+            limit=10,
+            cursor=None,
+            sort_field="name",
+            sort_direction=SortDirection.ASC,
+            sort_value_fn=lambda item: item.name,  # type: ignore[attr-defined]
+        )
+        assert result["next"] is not None
+        decoded = decode_cursor(result["next"])
+        assert decoded["sort_field"] == "name"
+        assert decoded["sort_direction"] == "asc"
+        assert decoded["sort_value"] == items[9].name
+
+    def test_sort_context_stored_in_prev_cursor(self) -> None:
+        """Prev cursor includes sort_value from the first item."""
+        items = self._make_items(5)
+        cursor_data = create_cursor_data(
+            resource_id=items[0].id,
+            created_at=items[0].created_at,
+            direction=PaginationDirection.NEXT,
+        )
+        cursor = encode_cursor(cursor_data)
+        result = generate_response(
+            items=items,
+            limit=10,
+            cursor=cursor,
+            sort_field="name",
+            sort_direction=SortDirection.ASC,
+            sort_value_fn=lambda item: item.name,  # type: ignore[attr-defined]
+        )
+        assert result["prev"] is not None
+        decoded = decode_cursor(result["prev"])
+        assert decoded["sort_field"] == "name"
+        assert decoded["sort_value"] == items[0].name
+
+    def test_created_at_sort_omits_sort_value(self) -> None:
+        """When sort_field is created_at, sort_value should be omitted for backward compat."""
+        items = self._make_items(11)
+        result = generate_response(
+            items=items,
+            limit=10,
+            cursor=None,
+            sort_field="created_at",
+            sort_direction=SortDirection.DESC,
+            sort_value_fn=lambda item: item.created_at,
+        )
+        assert result["next"] is not None
+        decoded = decode_cursor(result["next"])
+        assert "sort_value" not in decoded
+
+    def test_no_sort_context_backward_compat(self) -> None:
+        """Without sort params, cursors are backward compatible."""
+        items = self._make_items(11)
+        result = generate_response(items=items, limit=10, cursor=None)
+        assert result["next"] is not None
+        decoded = decode_cursor(result["next"])
+        assert "sort_value" not in decoded
+        assert "sort_field" not in decoded

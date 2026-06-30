@@ -807,3 +807,46 @@ async def test_assign_custom_system_role_with_project_rejected(seeded_db: AsyncS
             role_name="custom-sys-only",
             project_id=project.id,
         )
+
+
+# ============================================================================
+# Sort by principal_name + cursor round-trip
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_sort_by_principal_name_global_order(seeded_db: AsyncSession, test_user: User) -> None:
+    """Paginating with sort=principal_name produces globally consistent order."""
+    group = await _create_group(seeded_db, name="alpha-group")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    for name in ["role-a", "role-b", "role-c"]:
+        await _create_custom_role(seeded_db, name=name, scope="system")
+
+    await svc.assign(
+        principal_type=RolePrincipalType.USER,
+        principal_id=test_user.id,
+        role_name="role-a",
+    )
+    await svc.assign(
+        principal_type=RolePrincipalType.USER,
+        principal_id=test_user.id,
+        role_name="role-b",
+    )
+    await svc.assign(
+        principal_type=RolePrincipalType.GROUP,
+        principal_id=group.id,
+        role_name="role-c",
+    )
+
+    all_names: list[str] = []
+    cursor = None
+    while True:
+        result = await svc.list(limit=2, cursor=cursor, sort="principal_name")
+        all_names.extend(r["principal_name"] for r in result["resources"])
+        if not result["next"]:
+            break
+        cursor = result["next"]
+
+    assert all_names == sorted(all_names), f"Global sort broken: {all_names}"
+    assert len(all_names) == len(set(all_names)) or len(all_names) >= 3

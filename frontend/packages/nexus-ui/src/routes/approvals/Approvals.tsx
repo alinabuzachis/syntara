@@ -348,6 +348,7 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
   const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
     initialSortIndex: 2,
     initialDirection: 'desc',
+    onSortChange: resetPagination,
   })
   const sortColumn = SORT_COLUMNS[activeSortIndex]
 

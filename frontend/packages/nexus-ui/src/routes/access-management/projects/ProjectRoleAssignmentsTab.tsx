@@ -3,30 +3,33 @@ import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
-import { useFilterState } from '../../../hooks/useFilterState'
-import { useSortState } from '../../../hooks/useSortState'
+import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
+import { useTableSort } from '../../../hooks/useTableSort'
 import { useAlerts } from '../../../providers/alerts'
-import type { FilterConfig, FilterFieldDefinition } from '../../../types/filters'
+import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { AddRoleDialog } from '../../access/AddRoleDialog'
+import type { RoleAssignmentRead } from '../../access/types'
 import { useAssignmentPermissions } from '../../access/useAssignmentPermissions'
 import { useRolePermissions } from '../../access/useRolePermissions'
 
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
 
+const SORT_FIELDS = ['principal_name', 'principal_type', 'role_name'] as const
+
 const filterFieldDefinitions: FilterFieldDefinition[] = [
   {
-    key: 'type',
+    key: 'principal_type',
     label: 'Principal Type',
     type: FilterTypeEnum.SELECT,
     options: [
@@ -36,7 +39,7 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
     placeholder: 'Filter by principal type',
   },
   {
-    key: 'name',
+    key: 'principal_name',
     label: 'Principal Name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
@@ -53,70 +56,9 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
   },
 ]
 
-const sortFieldByColumn: Record<number, string> = {
-  0: 'principal_name',
-  1: 'principal_type',
-  2: 'role_name',
-}
-
-const sortFieldToRowKey: Record<string, keyof RoleAssignmentRow> = {
-  principal_name: 'principalName',
-  principal_type: 'principalType',
-  role_name: 'roleName',
-}
-
-function applyFilters(rows: RoleAssignmentRow[], filters: FilterConfig[]): RoleAssignmentRow[] {
-  if (filters.length === 0) return rows
-  return rows.filter((row) =>
-    filters.every((filter) => {
-      const value = typeof filter.value === 'string' ? filter.value : String(filter.value)
-      switch (filter.key) {
-        case 'name':
-          return row.principalName.toLowerCase().includes(value.toLowerCase())
-        case 'role_name':
-          return row.roleName.toLowerCase().includes(value.toLowerCase())
-        case 'type':
-          return row.principalType === value
-        default:
-          return true
-      }
-    })
-  )
-}
-
-function sortRows(
-  rows: RoleAssignmentRow[],
-  activeSortIndex: number | undefined,
-  sortDirection: 'asc' | 'desc'
-): RoleAssignmentRow[] {
-  if (activeSortIndex === undefined) return rows
-  const sortField = sortFieldByColumn[activeSortIndex]
-  const rowKey = sortField ? sortFieldToRowKey[sortField] : undefined
-  if (!rowKey) return rows
-
-  return [...rows].sort((a, b) => {
-    const aVal = String(a[rowKey] ?? '')
-    const bVal = String(b[rowKey] ?? '')
-    const cmp = aVal.localeCompare(bVal)
-    return sortDirection === 'asc' ? cmp : -cmp
-  })
-}
-
-type RoleAssignmentRow = {
-  id: string
-  principalName: string
-  principalType: 'user' | 'group'
-  roleName: string
-  rolePolicies: string[]
-}
-
-type ProjectRoleAssignmentsTabProps = {
-  projectId: string
-}
-
 function getAssignmentActions(
-  row: RoleAssignmentRow,
-  onUnassign: (row: RoleAssignmentRow) => void,
+  assignment: RoleAssignmentRead,
+  onUnassign: (assignment: RoleAssignmentRead) => void,
   permissions: ReturnType<typeof useAssignmentPermissions>
 ): IAction[] {
   return [
@@ -124,20 +66,20 @@ function getAssignmentActions(
       title: <IconLabel icon={<RhUiTrashIcon />}>Unassign</IconLabel>,
       isAriaDisabled: !permissions.canRevoke,
       tooltipProps: permissions.canRevoke ? undefined : { content: permissions.tooltips.revoke },
-      onClick: permissions.canRevoke ? () => onUnassign(row) : undefined,
+      onClick: permissions.canRevoke ? () => onUnassign(assignment) : undefined,
     },
   ]
 }
 
 function RoleAssignmentsTable({
-  rows,
+  assignments,
   getSortParams,
   onUnassign,
   permissions,
 }: Readonly<{
-  rows: RoleAssignmentRow[]
+  assignments: RoleAssignmentRead[]
   getSortParams: (columnIndex: number) => ThProps['sort']
-  onUnassign: (row: RoleAssignmentRow) => void
+  onUnassign: (assignment: RoleAssignmentRead) => void
   permissions: ReturnType<typeof useAssignmentPermissions>
 }>) {
   return (
@@ -152,23 +94,23 @@ function RoleAssignmentsTable({
         </Tr>
       </Thead>
       <Tbody>
-        {rows.map((row) => (
-          <Tr key={row.id}>
+        {assignments.map((assignment) => (
+          <Tr key={assignment.id}>
             <Td dataLabel="Principal Name">
-              <Truncate content={row.principalName} />
+              <Truncate content={assignment.principal_name} />
             </Td>
             <Td dataLabel="Principal Type">
-              <Label isCompact color={row.principalType === 'user' ? 'blue' : 'teal'}>
-                {row.principalType === 'user' ? 'User' : 'Group'}
+              <Label isCompact color={assignment.principal_type === 'group' ? 'teal' : 'blue'}>
+                {assignment.principal_type === 'group' ? 'Group' : 'User'}
               </Label>
             </Td>
             <Td dataLabel="Role Name">
-              <Truncate content={row.roleName} />
+              <Truncate content={assignment.role_name} />
             </Td>
             <Td dataLabel="Policies">
-              {row.rolePolicies.length > 0 ? (
+              {(assignment.role_policies ?? []).length > 0 ? (
                 <LabelGroup numLabels={3}>
-                  {row.rolePolicies.map((name) => (
+                  {(assignment.role_policies ?? []).map((name) => (
                     <Label key={name} isCompact>
                       {name}
                     </Label>
@@ -179,7 +121,7 @@ function RoleAssignmentsTable({
               )}
             </Td>
             <Td isActionCell>
-              <ActionsColumn items={getAssignmentActions(row, onUnassign, permissions)} />
+              <ActionsColumn items={getAssignmentActions(assignment, onUnassign, permissions)} />
             </Td>
           </Tr>
         ))}
@@ -188,30 +130,51 @@ function RoleAssignmentsTable({
   )
 }
 
-function useProjectAssignmentData(projectId: string) {
+export function ProjectRoleAssignmentsTab({ projectId }: Readonly<{ projectId: string }>) {
   const queryClient = useQueryClient()
+  const assignmentPermissions = useAssignmentPermissions()
+  const rolePermissions = useRolePermissions()
   const { showAlert } = useAlerts()
+  const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [createRoleOpen, setCreateRoleOpen] = useState(false)
+  const [assignmentToUnassign, setAssignmentToUnassign] = useState<RoleAssignmentRead | null>(null)
+
+  const {
+    cursor,
+    resetPagination,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    getFooterProps,
+  } = useCursorPagination()
+
+  const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
+    initialDirection: 'asc',
+    onSortChange: resetPagination,
+  })
+
+  const finalQueryParams = useMemo(() => {
+    const field = SORT_FIELDS[activeSortIndex] ?? 'principal_name'
+    const sort = sortDirection === 'desc' ? `-${field}` : field
+    return { ...queryParams, sort }
+  }, [activeSortIndex, sortDirection, queryParams])
 
   const query = accessClient.useQuery('get', '/projects/{project_id}/role_assignments', {
-    params: { path: { project_id: projectId } },
+    params: {
+      path: { project_id: projectId },
+      query: finalQueryParams,
+    },
   })
-  const { mutate: deleteAssignment } = accessClient.useMutation(
-    'delete',
-    '/projects/{project_id}/role_assignments/{assignment_id}'
-  )
 
-  const assignments = useMemo(() => query.data?.resources ?? [], [query.data])
-  const rows = useMemo(
-    (): RoleAssignmentRow[] =>
-      assignments.map((a) => ({
-        id: a.id,
-        principalName: a.principal_name,
-        principalType: a.principal_type === 'group' ? 'group' : 'user',
-        roleName: a.role_name,
-        rolePolicies: a.role_policies ?? [],
-      })),
-    [assignments]
-  )
+  const data = query.data
+  const assignments = useMemo(() => data?.resources ?? [], [data])
+
+  useCursorReset(assignments.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
+
+  const refetch = useCallback(() => detachPromise(query.refetch()), [query])
+
   const assignedRolesByPrincipal = useMemo(() => {
     const map = new Map<string, Set<string>>()
     for (const a of assignments) {
@@ -225,19 +188,25 @@ function useProjectAssignmentData(projectId: string) {
     return map
   }, [assignments])
 
-  const refetch = () => detachPromise(query.refetch())
-  const handleRoleCreated = () => {
+  const handleRoleCreated = useCallback(() => {
     detachPromise(queryClient.invalidateQueries({ queryKey: ['all-project-roles', projectId] }))
     refetch()
-  }
-  const unassign = (row: RoleAssignmentRow, onSettled: () => void) => {
+  }, [queryClient, projectId, refetch])
+
+  const { mutate: deleteAssignment } = accessClient.useMutation(
+    'delete',
+    '/projects/{project_id}/role_assignments/{assignment_id}'
+  )
+
+  const handleUnassign = () => {
+    if (!assignmentToUnassign) return
     deleteAssignment(
-      { params: { path: { project_id: projectId, assignment_id: row.id } } },
+      { params: { path: { project_id: projectId, assignment_id: assignmentToUnassign.id } } },
       {
         onSuccess: () => {
           showAlert({
             title: 'Role unassigned',
-            description: `Role "${row.roleName}" has been unassigned from ${row.principalName}.`,
+            description: `Role "${assignmentToUnassign.role_name}" has been unassigned from ${assignmentToUnassign.principal_name}.`,
             variant: 'success',
             autoDismiss: true,
           })
@@ -251,45 +220,10 @@ function useProjectAssignmentData(projectId: string) {
             autoDismiss: true,
           })
         },
-        onSettled,
+        onSettled: () => setAssignmentToUnassign(null),
       }
     )
   }
-
-  return { query, rows, assignedRolesByPrincipal, refetch, handleRoleCreated, unassign }
-}
-
-export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAssignmentsTabProps>) {
-  const assignmentPermissions = useAssignmentPermissions()
-  const rolePermissions = useRolePermissions()
-  const [assignModalOpen, setAssignModalOpen] = useState(false)
-  const [createRoleOpen, setCreateRoleOpen] = useState(false)
-  const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
-  const { filters, setAllFilters, clearAllFilters } = useFilterState()
-  const { activeSortIndex, sortDirection, getSortParams } = useSortState(sortFieldByColumn)
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(20)
-  const { query, rows, assignedRolesByPrincipal, refetch, handleRoleCreated, unassign } =
-    useProjectAssignmentData(projectId)
-
-  const hasActiveFilters = filters.length > 0
-
-  const filteredRows = useMemo(() => applyFilters(rows, filters), [rows, filters])
-  const sortedRows = useMemo(
-    () => sortRows(filteredRows, activeSortIndex, sortDirection),
-    [filteredRows, activeSortIndex, sortDirection]
-  )
-  const paginatedRows = useMemo(() => {
-    const start = (page - 1) * perPage
-    return sortedRows.slice(start, start + perPage)
-  }, [sortedRows, page, perPage])
-
-  const handleUnassign = () => {
-    if (!rowToUnassign) return
-    unassign(rowToUnassign, () => setRowToUnassign(null))
-  }
-
-  const resetPage = () => setPage(1)
 
   return (
     <>
@@ -300,12 +234,9 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
         isFetching={query.isFetching}
         error={query.error}
         onRetry={refetch}
-        isEmpty={sortedRows.length === 0}
+        isEmpty={assignments.length === 0}
         hasActiveFilters={hasActiveFilters}
-        onClearAllFilters={() => {
-          clearAllFilters()
-          resetPage()
-        }}
+        onClearAllFilters={handleClearAllFilters}
         noDataState={
           <NxEmptyStateNoData
             title="No role assignments"
@@ -326,18 +257,12 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
           />
         }
         toolbar={
-          sortedRows.length > 0 || hasActiveFilters ? (
+          assignments.length > 0 || hasActiveFilters ? (
             <NxListPanelToolbar
               filters={filters}
               filterDefinitions={filterFieldDefinitions}
-              onFilterChange={(f) => {
-                setAllFilters(f)
-                resetPage()
-              }}
-              clearAllFilters={() => {
-                clearAllFilters()
-                resetPage()
-              }}
+              onFilterChange={handleFilterChange}
+              clearAllFilters={handleClearAllFilters}
               actions={
                 <>
                   <DisabledWithTooltip
@@ -371,25 +296,11 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
           ) : undefined
         }
         body={
-          <NxListPanelTable
-            caption="Project role assignments"
-            footer={{
-              page,
-              perPage,
-              total: sortedRows.length,
-              hasNext: page * perPage < sortedRows.length,
-              onPrev: () => setPage((p) => Math.max(1, p - 1)),
-              onNext: () => setPage((p) => p + 1),
-              onPerPageChange: (n: number) => {
-                setPerPage(n)
-                resetPage()
-              },
-            }}
-          >
+          <NxListPanelTable caption="Project role assignments" footer={getFooterProps(data)}>
             <RoleAssignmentsTable
-              rows={paginatedRows}
+              assignments={assignments}
               getSortParams={getSortParams}
-              onUnassign={setRowToUnassign}
+              onUnassign={setAssignmentToUnassign}
               permissions={assignmentPermissions}
             />
           </NxListPanelTable>
@@ -405,16 +316,16 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
       />
 
       <NxConfirmationDialog
-        isOpen={!!rowToUnassign}
-        onClose={() => setRowToUnassign(null)}
+        isOpen={!!assignmentToUnassign}
+        onClose={() => setAssignmentToUnassign(null)}
         onConfirm={handleUnassign}
         title="Unassign role?"
         confirmLabel="Unassign"
         confirmVariant="danger"
         titleIconVariant="warning"
       >
-        This unassigns the role <strong>{rowToUnassign?.roleName}</strong> from{' '}
-        <strong>{rowToUnassign?.principalName}</strong>. Related permissions will be revoked.
+        This unassigns the role <strong>{assignmentToUnassign?.role_name}</strong> from{' '}
+        <strong>{assignmentToUnassign?.principal_name}</strong>. Related permissions will be revoked.
       </NxConfirmationDialog>
 
       {createRoleOpen && (

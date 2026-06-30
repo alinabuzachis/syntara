@@ -63,6 +63,29 @@ class CursorData(TypedDict, total=False):
     # Sorting fields
     sort_field: str
     sort_direction: str
+    sort_value: str
+
+
+def serialize_sort_value(value: Any) -> str:  # noqa: ANN401
+    """Serialize a sort column value to a string for cursor storage.
+
+    Args:
+        value: The sort column value (datetime, UUID, bool, int, str, None, etc.)
+
+    Returns:
+        String representation suitable for cursor encoding.
+        Empty string for None values.
+
+    """
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, bool):
+        return str(value).lower()
+    return str(value)
 
 
 def create_cursor_data(
@@ -72,6 +95,7 @@ def create_cursor_data(
     direction: PaginationDirection = PaginationDirection.NEXT,
     sort_field: str | None = None,
     sort_direction: SortDirection = SortDirection.DESC,
+    sort_value: str | None = None,
 ) -> CursorData:
     """Create a cursor data structure with the provided parameters.
 
@@ -81,28 +105,14 @@ def create_cursor_data(
         direction: Pagination direction
         sort_field: Field name used for sorting
         sort_direction: Sort direction
+        sort_value: Serialized value of the sort field at the boundary item
 
     Returns:
         CursorData dictionary with the provided fields
 
-    Examples:
-        >>> create_cursor_data(
-        ...     resource_id="550e8400-e29b-41d4-a716-446655440000",
-        ...     created_at=datetime.now(),
-        ...     sort_field="name"
-        ... )
-        {
-            "id": "550e8400-e29b-41d4-a716-446655440000",
-            "created_at": "2025-01-01T12:00:00.000000",
-            "direction": "next",
-            "sort_field": "name",
-            "sort_direction": "desc"
-        }
-
     """
     cursor: CursorData = {}
 
-    # Add pagination fields if provided
     if resource_id is not None:
         cursor["id"] = str(resource_id)
 
@@ -112,16 +122,16 @@ def create_cursor_data(
         else:
             cursor["created_at"] = created_at
 
-    # Always include direction for pagination
     cursor["direction"] = direction.value
 
-    # Add sorting fields if provided
     if sort_field is not None:
         cursor["sort_field"] = sort_field
 
-    # Always include sort direction if we have a sort field
     if sort_field is not None:
         cursor["sort_direction"] = sort_direction.value
+
+    if sort_value is not None:
+        cursor["sort_value"] = sort_value
 
     return cursor
 
@@ -154,6 +164,8 @@ def _filter_to_cursor_data(raw_data: Any) -> CursorData:  # noqa: ANN401
         cursor_data["sort_field"] = raw_data["sort_field"]
     if "sort_direction" in raw_data and isinstance(raw_data["sort_direction"], str):
         cursor_data["sort_direction"] = raw_data["sort_direction"]
+    if "sort_value" in raw_data and isinstance(raw_data["sort_value"], str):
+        cursor_data["sort_value"] = raw_data["sort_value"]
 
     return cursor_data
 
@@ -315,3 +327,27 @@ def extract_pagination_from_cursor(cursor_data: CursorData) -> tuple[str | None,
         direction = PaginationDirection.NEXT
 
     return resource_id, created_at, direction
+
+
+def extract_keyset_from_cursor(
+    cursor_data: CursorData,
+) -> tuple[str | None, str | None, str | None, str | None, PaginationDirection]:
+    """Extract full keyset pagination info including sort value.
+
+    Returns:
+        Tuple of (sort_field, sort_value, resource_id, created_at, direction).
+        sort_field and sort_value are None for old cursors that lack them.
+
+    """
+    resource_id = cursor_data.get("id")
+    created_at = cursor_data.get("created_at")
+    sort_field = cursor_data.get("sort_field")
+    sort_value = cursor_data.get("sort_value")
+    direction_str = cursor_data.get("direction", "next")
+
+    try:
+        direction = PaginationDirection(direction_str)
+    except ValueError:
+        direction = PaginationDirection.NEXT
+
+    return sort_field, sort_value, resource_id, created_at, direction

@@ -727,3 +727,90 @@ class TestBidirectionalPagination:
         assert len(page1_backward.resources) == 1, "Page 1 backward should have 1 item"
         assert page1_backward.prev is None, "Page 1 backward should have prev=None"
         assert str(page1.resources[0].id) == str(page1_backward.resources[0].id), "Should return same item"
+
+
+@pytest.mark.asyncio
+class TestBidirectionalPaginationSortByName:
+    """Verify cursor pagination works correctly when sorting by name (non-default)."""
+
+    async def test_forward_pagination_sort_name_asc_global_order(
+        self, test_db_session: AsyncSession, test_user: User, workflows_dataset: list[Workflow]
+    ) -> None:
+        """All items collected via forward pagination should be globally sorted by name ASC."""
+        service = WorkflowService(test_db_session, test_user)
+
+        all_names: list[str] = []
+        cursor = None
+        while True:
+            page = await service.list_workflows_cursor(
+                limit=5,
+                cursor=cursor,
+                sort="name",
+                query_params_items=[],
+            )
+            all_names.extend(r.name for r in page.resources)
+            if not page.next:
+                break
+            cursor = page.next
+
+        assert len(all_names) == DATASET_SIZE
+        assert all_names == sorted(all_names), f"Global name ASC order broken: {all_names}"
+        assert len(set(all_names)) == len(all_names), "Duplicates found"
+
+    async def test_forward_pagination_sort_name_desc_global_order(
+        self, test_db_session: AsyncSession, test_user: User, workflows_dataset: list[Workflow]
+    ) -> None:
+        """All items collected via forward pagination should be globally sorted by name DESC."""
+        service = WorkflowService(test_db_session, test_user)
+
+        all_names: list[str] = []
+        cursor = None
+        while True:
+            page = await service.list_workflows_cursor(
+                limit=5,
+                cursor=cursor,
+                sort="-name",
+                query_params_items=[],
+            )
+            all_names.extend(r.name for r in page.resources)
+            if not page.next:
+                break
+            cursor = page.next
+
+        assert len(all_names) == DATASET_SIZE
+        assert all_names == sorted(all_names, reverse=True), f"Global name DESC order broken: {all_names}"
+        assert len(set(all_names)) == len(all_names), "Duplicates found"
+
+    async def test_bidirectional_sort_name_roundtrip(
+        self, test_db_session: AsyncSession, test_user: User, workflows_dataset: list[Workflow]
+    ) -> None:
+        """Navigating forward then backward by name returns consistent results."""
+        service = WorkflowService(test_db_session, test_user)
+
+        page1 = await service.list_workflows_cursor(
+            limit=5,
+            cursor=None,
+            sort="name",
+            query_params_items=[],
+        )
+        assert len(page1.resources) == 5
+        assert page1.next is not None
+
+        page2 = await service.list_workflows_cursor(
+            limit=5,
+            cursor=page1.next,
+            sort="name",
+            query_params_items=[],
+        )
+        assert len(page2.resources) == 5
+        assert page2.prev is not None
+
+        page1_back = await service.list_workflows_cursor(
+            limit=5,
+            cursor=page2.prev,
+            sort="name",
+            query_params_items=[],
+        )
+        page1_ids = [str(r.id) for r in page1.resources]
+        page1_back_ids = [str(r.id) for r in page1_back.resources]
+        assert page1_ids == page1_back_ids, "Backward navigation should return same items"

@@ -1,6 +1,6 @@
 import type { SortByDirection } from '@patternfly/react-table'
 import { renderHook, act } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { useTableSort } from './useTableSort'
 
@@ -62,6 +62,29 @@ describe('useTableSort', () => {
 
       expect(result.current.activeSortIndex).toBe(2)
       expect(result.current.sortDirection).toBe('desc')
+    })
+
+    it('calls onSortChange callback when sort changes', () => {
+      const onSortChange = vi.fn()
+      const { result } = renderHook(() => useTableSort({ onSortChange }))
+
+      const sortParams = result.current.getSortParams(1)
+      act(() => {
+        sortParams?.onSort?.(null as never, 1, 'desc' as SortByDirection, {} as never)
+      })
+
+      expect(onSortChange).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not throw when onSortChange is not provided', () => {
+      const { result } = renderHook(() => useTableSort())
+
+      const sortParams = result.current.getSortParams(1)
+      expect(() => {
+        act(() => {
+          sortParams?.onSort?.(null as never, 1, 'desc' as SortByDirection, {} as never)
+        })
+      }).not.toThrow()
     })
   })
 

@@ -21,9 +21,11 @@ from nexus.core.utils.cursor import (
     create_cursor_data,
     decode_cursor,
     encode_cursor,
+    extract_keyset_from_cursor,
     extract_pagination_from_cursor,
     extract_sort_from_cursor,
     get_pagination_direction,
+    serialize_sort_value,
 )
 
 
@@ -571,3 +573,118 @@ class TestCursorIntegration:
         sort_field, sort_direction = extract_sort_from_cursor(cursor_data)
         assert sort_field == "name"
         assert sort_direction == SortDirection.ASC
+
+
+class TestSerializeSortValue:
+    """Tests for serialize_sort_value function."""
+
+    def test_serialize_none(self) -> None:
+        assert serialize_sort_value(None) == ""
+
+    def test_serialize_string(self) -> None:
+        assert serialize_sort_value("hello") == "hello"
+
+    def test_serialize_int(self) -> None:
+        assert serialize_sort_value(42) == "42"
+
+    def test_serialize_bool(self) -> None:
+        true_val = True
+        false_val = False
+        assert serialize_sort_value(true_val) == "true"
+        assert serialize_sort_value(false_val) == "false"
+
+    def test_serialize_datetime(self) -> None:
+        dt = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
+        assert serialize_sort_value(dt) == dt.isoformat()
+
+    def test_serialize_uuid(self) -> None:
+        uid = uuid4()
+        assert serialize_sort_value(uid) == str(uid)
+
+
+class TestCreateCursorDataSortValue:
+    """Tests for sort_value parameter in create_cursor_data."""
+
+    def test_sort_value_included(self) -> None:
+        cursor = create_cursor_data(sort_field="name", sort_value="alice")
+        assert cursor["sort_value"] == "alice"
+        assert cursor["sort_field"] == "name"
+
+    def test_sort_value_not_included_when_none(self) -> None:
+        cursor = create_cursor_data(sort_field="name")
+        assert "sort_value" not in cursor
+
+    def test_sort_value_roundtrip(self) -> None:
+        cursor = create_cursor_data(
+            resource_id="abc",
+            created_at="2025-01-01T00:00:00",
+            sort_field="name",
+            sort_value="bob",
+        )
+        encoded = encode_cursor(cursor)
+        decoded = decode_cursor(encoded)
+        assert decoded["sort_value"] == "bob"
+
+    def test_sort_value_empty_string(self) -> None:
+        """Empty string is the sentinel for NULL sort values."""
+        cursor = create_cursor_data(sort_field="name", sort_value="")
+        assert cursor["sort_value"] == ""
+        encoded = encode_cursor(cursor)
+        decoded = decode_cursor(encoded)
+        assert decoded["sort_value"] == ""
+
+
+class TestFilterToCursorDataSortValue:
+    """Tests that _filter_to_cursor_data accepts sort_value."""
+
+    def test_sort_value_preserved_on_decode(self) -> None:
+        raw = {"id": "x", "direction": "next", "sort_value": "alice"}
+        encoded = base64.b64encode(json.dumps(raw).encode()).decode()
+        decoded = decode_cursor(encoded)
+        assert decoded.get("sort_value") == "alice"
+
+    def test_non_string_sort_value_filtered(self) -> None:
+        raw = {"sort_value": 123}
+        encoded = base64.b64encode(json.dumps(raw).encode()).decode()
+        decoded = decode_cursor(encoded)
+        assert "sort_value" not in decoded
+
+
+class TestExtractKeysetFromCursor:
+    """Tests for extract_keyset_from_cursor function."""
+
+    def test_full_keyset(self) -> None:
+        cursor: CursorData = {
+            "id": "uid-1",
+            "created_at": "2025-01-01T00:00:00",
+            "direction": "next",
+            "sort_field": "name",
+            "sort_value": "alice",
+        }
+        sf, sv, rid, cat, direction = extract_keyset_from_cursor(cursor)
+        assert sf == "name"
+        assert sv == "alice"
+        assert rid == "uid-1"
+        assert cat == "2025-01-01T00:00:00"
+        assert direction == PaginationDirection.NEXT
+
+    def test_old_cursor_without_sort_value(self) -> None:
+        cursor: CursorData = {
+            "id": "uid-1",
+            "created_at": "2025-01-01T00:00:00",
+            "direction": "prev",
+        }
+        sf, sv, rid, _cat, direction = extract_keyset_from_cursor(cursor)
+        assert sf is None
+        assert sv is None
+        assert rid == "uid-1"
+        assert direction == PaginationDirection.PREV
+
+    def test_empty_cursor(self) -> None:
+        cursor: CursorData = {}
+        sf, sv, rid, cat, direction = extract_keyset_from_cursor(cursor)
+        assert sf is None
+        assert sv is None
+        assert rid is None
+        assert cat is None
+        assert direction == PaginationDirection.NEXT

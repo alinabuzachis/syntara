@@ -25,14 +25,47 @@ from nexus.core.models import User
 from nexus.core.models.group import Group
 from nexus.core.utils.cursor import (
     PaginationDirection,
+    SortDirection,
     create_cursor_data,
     decode_cursor,
     encode_cursor,
+    serialize_sort_value,
 )
 
 logger = structlog.stdlib.get_logger(__name__)
 
 _SORTABLE_FIELDS = {"created_at", "principal_name", "principal_type", "role_name", "project_name"}
+
+
+def _sort_value_from_row(row: Any, sort_field: str) -> str | None:  # noqa: ANN401
+    """Extract the serialized sort value from a joined result row."""
+    if sort_field == "created_at":
+        return None
+    if sort_field == "principal_name":
+        return serialize_sort_value(row[1])
+    if sort_field == "project_name":
+        return serialize_sort_value(row[2])
+    return serialize_sort_value(getattr(row[0], sort_field, None))
+
+
+def _make_cursor_token(
+    row: Any,  # noqa: ANN401
+    direction: PaginationDirection,
+    sort_field: str,
+    sort_dir: SortDirection,
+) -> str:
+    """Build an encoded cursor token from a result row."""
+    assignment = row[0]
+    return encode_cursor(
+        create_cursor_data(
+            resource_id=str(assignment.id),
+            created_at=assignment.created_at,
+            direction=direction,
+            sort_field=sort_field,
+            sort_direction=sort_dir,
+            sort_value=_sort_value_from_row(row, sort_field),
+        )
+    )
 
 
 class RoleAssignmentService:
@@ -236,7 +269,7 @@ class RoleAssignmentService:
         id_col = RoleAssignment.id
         created_at_col = RoleAssignment.created_at
 
-        base, is_backward = self._apply_cursor(base, cursor, created_at_col, id_col, descending)
+        base, is_backward = self._apply_cursor(base, cursor, sort_col, created_at_col, id_col, descending, sort_field)
 
         effective_desc = descending ^ is_backward
         if effective_desc:
@@ -260,7 +293,14 @@ class RoleAssignmentService:
 
         return {
             "resources": resources,
-            **self._build_cursors(rows, has_more=has_more, cursor=cursor, is_backward=is_backward),
+            **self._build_cursors(
+                rows,
+                has_more=has_more,
+                cursor=cursor,
+                is_backward=is_backward,
+                sort_field=sort_field,
+                descending=descending,
+            ),
             "total": total,
         }
 
@@ -484,9 +524,11 @@ class RoleAssignmentService:
     def _apply_cursor(
         stmt: Any,  # noqa: ANN401
         cursor: str | None,
+        sort_col: Any,  # noqa: ANN401
         created_at_col: Any,  # noqa: ANN401
         id_col: Any,  # noqa: ANN401
         descending: bool,  # noqa: FBT001
+        sort_field: str = "created_at",
     ) -> tuple[Any, bool]:
         is_backward = False
         if not cursor:
@@ -495,12 +537,37 @@ class RoleAssignmentService:
         cursor_data = decode_cursor(cursor)
         rid = cursor_data.get("id")
         cat = cursor_data.get("created_at")
+        cursor_sv = cursor_data.get("sort_value")
+        cursor_sort_field = cursor_data.get("sort_field")
         direction = cursor_data.get("direction", "next")
         is_backward = direction == PaginationDirection.PREV.value
 
+        # New-style cursor with sort_value: 3-column keyset (sort_col, created_at, id)
+        use_sort_col = (
+            cursor_sv is not None
+            and cursor_sort_field is not None
+            and cursor_sort_field == sort_field
+            and cursor_sort_field != "created_at"
+        )
+
         if rid and cat:
             cursor_dt = datetime.fromisoformat(cat)
-            if descending ^ is_backward:
+            go_forward = descending ^ is_backward
+
+            if use_sort_col:
+                if go_forward:
+                    stmt = stmt.where(
+                        (sort_col < cursor_sv)
+                        | ((sort_col == cursor_sv) & (created_at_col < cursor_dt))
+                        | ((sort_col == cursor_sv) & (created_at_col == cursor_dt) & (id_col < rid))
+                    )
+                else:
+                    stmt = stmt.where(
+                        (sort_col > cursor_sv)
+                        | ((sort_col == cursor_sv) & (created_at_col > cursor_dt))
+                        | ((sort_col == cursor_sv) & (created_at_col == cursor_dt) & (id_col > rid))
+                    )
+            elif go_forward:
                 stmt = stmt.where((created_at_col < cursor_dt) | ((created_at_col == cursor_dt) & (id_col < rid)))
             else:
                 stmt = stmt.where((created_at_col > cursor_dt) | ((created_at_col == cursor_dt) & (id_col > rid)))
@@ -509,31 +576,30 @@ class RoleAssignmentService:
 
     @staticmethod
     def _build_cursors(
-        rows: builtins.list[Any], *, has_more: bool, cursor: str | None, is_backward: bool
+        rows: builtins.list[Any],
+        *,
+        has_more: bool,
+        cursor: str | None,
+        is_backward: bool,
+        sort_field: str = "created_at",
+        descending: bool = True,
     ) -> dict[str, str | None]:
+        if not rows:
+            return {"next": None, "prev": None}
+
+        sort_dir = SortDirection.DESC if descending else SortDirection.ASC
         next_cursor = None
         prev_cursor = None
 
-        if has_more and rows:
-            last_assignment = rows[-1][0]
-            next_cursor = encode_cursor(
-                create_cursor_data(
-                    resource_id=str(last_assignment.id),
-                    created_at=last_assignment.created_at,
-                    direction=PaginationDirection.NEXT,
-                )
-            )
-
-        if cursor is not None and rows:
-            is_first = is_backward and not has_more
-            if not is_first:
-                first_assignment = rows[0][0]
-                prev_cursor = encode_cursor(
-                    create_cursor_data(
-                        resource_id=str(first_assignment.id),
-                        created_at=first_assignment.created_at,
-                        direction=PaginationDirection.PREV,
-                    )
-                )
+        if is_backward:
+            if cursor is not None:
+                next_cursor = _make_cursor_token(rows[-1], PaginationDirection.NEXT, sort_field, sort_dir)
+            if has_more:
+                prev_cursor = _make_cursor_token(rows[0], PaginationDirection.PREV, sort_field, sort_dir)
+        else:
+            if has_more:
+                next_cursor = _make_cursor_token(rows[-1], PaginationDirection.NEXT, sort_field, sort_dir)
+            if cursor is not None:
+                prev_cursor = _make_cursor_token(rows[0], PaginationDirection.PREV, sort_field, sort_dir)
 
         return {"next": next_cursor, "prev": prev_cursor}

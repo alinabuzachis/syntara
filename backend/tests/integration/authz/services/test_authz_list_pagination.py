@@ -312,8 +312,8 @@ async def test_list_roles_single_item_pages(test_db_session: AsyncSession, test_
 async def test_list_roles_sort_by_name_asc_within_page(test_db_session: AsyncSession, test_user: User) -> None:
     """sort=name produces name-sorted results within each page.
 
-    Global cross-page sort by name is not guaranteed with cursor-based
-    pagination (cursors encode created_at, not name).  Each individual
+    Global cross-page sort by name is not guaranteed for RoleService because
+    it merges in-memory built-in roles with DB roles.  Each individual
     page should be sorted, and all items should still appear exactly once.
     """
     svc = RoleService(test_db_session, test_user)

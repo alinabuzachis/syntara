@@ -6,10 +6,12 @@ export type SortDirection = 'asc' | 'desc'
 export type UseTableSortOptions = {
   initialSortIndex?: number
   initialDirection?: SortDirection
+  /** Called whenever sort column or direction changes (e.g. to reset pagination) */
+  onSortChange?: () => void
 }
 
 export function useTableSort(options: UseTableSortOptions = {}) {
-  const { initialSortIndex = 0, initialDirection = 'asc' } = options
+  const { initialSortIndex = 0, initialDirection = 'asc', onSortChange } = options
 
   const [activeSortIndex, setActiveSortIndex] = useState(initialSortIndex)
   const [sortDirection, setSortDirection] = useState<SortDirection>(initialDirection)
@@ -24,10 +26,11 @@ export function useTableSort(options: UseTableSortOptions = {}) {
       onSort: (_event, _index, direction) => {
         setActiveSortIndex(columnIndex)
         setSortDirection(direction as SortDirection)
+        onSortChange?.()
       },
       columnIndex,
     }),
-    [activeSortIndex, sortDirection]
+    [activeSortIndex, sortDirection, onSortChange]
   )
 
   const sortData = useCallback(

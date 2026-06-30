@@ -8,15 +8,17 @@ Cursor Format:
     {"id": "uuid", "created_at": "iso8601", "direction": "next", ...}
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import TypedDict
 
 from nexus.core.models.base import BaseResource
 from nexus.core.utils.cursor import (
     PaginationDirection,
+    SortDirection,
     create_cursor_data,
     decode_cursor,
     encode_cursor,
+    serialize_sort_value,
 )
 
 
@@ -29,6 +31,30 @@ class PaginationResult(TypedDict):
     total: int | None
 
 
+def _make_cursor(
+    item: BaseResource,
+    direction: PaginationDirection,
+    sort_field: str | None,
+    sort_direction: SortDirection | None,
+    sort_value_fn: Callable[[BaseResource], object] | None,
+) -> str:
+    """Build and encode a cursor token for a boundary item."""
+    sv: str | None = None
+    if sort_value_fn is not None and sort_field is not None and sort_field != "created_at":
+        sv = serialize_sort_value(sort_value_fn(item))
+
+    return encode_cursor(
+        create_cursor_data(
+            resource_id=item.id,
+            created_at=item.created_at,
+            direction=direction,
+            sort_field=sort_field,
+            sort_direction=sort_direction or SortDirection.DESC,
+            sort_value=sv,
+        )
+    )
+
+
 def generate_response(
     items: Sequence[BaseResource],
     limit: int,
@@ -37,6 +63,9 @@ def generate_response(
     include_total: bool = False,
     total_count: int | None = None,
     is_first_page: bool = False,
+    sort_field: str | None = None,
+    sort_direction: SortDirection | None = None,
+    sort_value_fn: Callable[[BaseResource], object] | None = None,
 ) -> PaginationResult:
     """Generate paginated response with next/prev cursor tokens using N+1 pattern.
 
@@ -65,25 +94,12 @@ def generate_response(
         include_total: Whether to include total count in response
         total_count: Total count if include_total is True
         is_first_page: Explicit flag indicating this is the first page (for backward navigation)
+        sort_field: Name of the sort column (stored in generated cursors)
+        sort_direction: Direction of the sort (stored in generated cursors)
+        sort_value_fn: Callable that extracts the raw sort value from a boundary item
 
     Returns:
         Dictionary with trimmed_items, next, prev, and optional total fields
-
-    Examples:
-        >>> # from tests.fixtures.mock_base_resource import MockBaseResource
-        >>> # Fetch limit+1 items (11 items when limit=10)
-        >>> # mock_items = [MockBaseResource() for _ in range(11)]
-        >>> # generate_response(
-        >>> #     items=mock_items,
-        >>> #     limit=10,
-        >>> #     cursor=None
-        >>> # )
-        >>> # {
-        >>> #   "trimmed_items": [... 10 items ...],
-        >>> #   "next": "eyJpZCI6InV1aWQifQ==",
-        >>> #   "prev": None,
-        >>> #   "total": None
-        >>> # }
 
     """
     response: PaginationResult = {"trimmed_items": [], "next": None, "prev": None, "total": None}
@@ -99,12 +115,9 @@ def generate_response(
             pass
 
     # N+1 Pattern: Trim items if we got more than requested
-    # This definitively tells us if there are more pages
     has_more = len(items) > limit
 
-    # IMPORTANT: For backward pagination, after reversing results in the service layer,
-    # we have [oldest...newest] but the extra item is at the START (oldest), not the end.
-    # So we trim from the beginning [1:] instead of the end [:limit]
+    # For backward pagination, the extra item is at the START after reversal.
     trimmed_items = (
         (list(items[1 : limit + 1]) if is_backward_pagination else list(items[:limit])) if has_more else list(items)
     )
@@ -113,44 +126,27 @@ def generate_response(
 
     # Generate next cursor
     if is_backward_pagination:
-        # During backward pagination, N+1 tells us about items BEFORE (prev direction).
-        # For the next cursor, we need to know if there are items AFTER (forward direction).
-        # If we navigated here via a cursor, that means we're not on the last page originally,
-        # so next should exist to allow forward navigation back through the pages.
         if cursor is not None and len(trimmed_items) > 0:
-            cursor_data = create_cursor_data(
-                resource_id=trimmed_items[-1].id,
-                created_at=trimmed_items[-1].created_at,
-                direction=PaginationDirection.NEXT,
+            response["next"] = _make_cursor(
+                trimmed_items[-1], PaginationDirection.NEXT, sort_field, sort_direction, sort_value_fn
             )
-            response["next"] = encode_cursor(cursor_data)
         else:
             response["next"] = None
-    # Forward pagination: use N+1 pattern (has_more tells us about next direction)
     elif has_more and len(trimmed_items) > 0:
-        cursor_data = create_cursor_data(
-            resource_id=trimmed_items[-1].id,
-            created_at=trimmed_items[-1].created_at,
-            direction=PaginationDirection.NEXT,
+        response["next"] = _make_cursor(
+            trimmed_items[-1], PaginationDirection.NEXT, sort_field, sort_direction, sort_value_fn
         )
-        response["next"] = encode_cursor(cursor_data)
     else:
         response["next"] = None
 
     # Generate prev cursor for bidirectional navigation
     if cursor is None or is_first_page:
-        # First page - no previous page
         response["prev"] = None
     elif len(trimmed_items) > 0:
-        # Not the first page and we have items - generate prev cursor from first item
-        cursor_data = create_cursor_data(
-            resource_id=trimmed_items[0].id,
-            created_at=trimmed_items[0].created_at,
-            direction=PaginationDirection.PREV,
+        response["prev"] = _make_cursor(
+            trimmed_items[0], PaginationDirection.PREV, sort_field, sort_direction, sort_value_fn
         )
-        response["prev"] = encode_cursor(cursor_data)
     else:
-        # Empty page - no previous page
         response["prev"] = None
 
     # Include total count if requested

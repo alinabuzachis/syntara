@@ -28,7 +28,7 @@ from nexus.core.utils.cursor import (
     PaginationDirection,
     SortDirection,
     decode_cursor,
-    extract_pagination_from_cursor,
+    extract_keyset_from_cursor,
 )
 from nexus.core.utils.filters import Filter, apply_filters, parse_filters
 from nexus.core.utils.labels import apply_label_filters, parse_label_filter, parse_labels_query
@@ -232,7 +232,7 @@ class BaseService:
         model: type[TModel],
         *,
         reverse_for_backward: bool = False,
-    ) -> tuple[Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]], SortDirection]:
+    ) -> tuple[Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]], str, SortDirection]:
         """Apply sorting to query with automatic ID tiebreaker.
 
         This method ensures stable, deterministic ordering by:
@@ -256,7 +256,7 @@ class BaseService:
             reverse_for_backward: If True, reverse the sort direction for backward pagination
 
         Returns:
-            Tuple of (sorted_query, original_sort_direction)
+            Tuple of (sorted_query, resolved_sort_field, original_sort_direction)
 
         Example:
             For sort="-created_at":
@@ -276,53 +276,33 @@ class BaseService:
         # This is critical for cursor-based pagination when multiple items have the same sort field value
         sort_tuples = [(sort_field, actual_sort_direction), ("id", actual_sort_direction)]
         sorted_query = apply_sorting(query, sort_tuples, model)
-        return sorted_query, sort_direction  # Return original direction for cursor logic
+        return sorted_query, sort_field, sort_direction
 
     def _apply_cursor_pagination(
         self,
         query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
         cursor: str | None,
+        sort_field: str,
         sort_direction: SortDirection,
         model: type[TModel],
     ) -> tuple[Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]], bool]:
         """Apply cursor-based pagination using keyset pagination technique.
 
-        This is the ONLY pagination method that should be used across all services.
-        It implements the "keyset pagination" or "seek method" pattern, which:
-        - Uses indexed columns (created_at + id) to mark position
-        - Avoids OFFSET for consistent performance at any depth
-        - Handles real-time data changes gracefully
-
-        Cursor Format:
-            {
-                "id": "uuid-of-boundary-item",
-                "created_at": "2025-11-12T14:30:00+00:00",
-                "direction": "next" or "prev"
-            }
-
-        Forward Pagination (direction="next"):
-            WHERE (created_at < cursor_timestamp)
-               OR (created_at = cursor_timestamp AND id < cursor_id)
-            ORDER BY created_at DESC, id DESC
-
-        Backward Pagination (direction="prev"):
-            WHERE (created_at > cursor_timestamp)
-               OR (created_at = cursor_timestamp AND id > cursor_id)
-            ORDER BY created_at ASC, id ASC  (reversed)
-            Results reversed in memory afterward
-
-        The compound WHERE clause handles the tiebreaker case where multiple
-        items have identical timestamps by also comparing UUIDs.
+        Uses a compound keyset ``(sort_field, id)`` that matches the ORDER BY
+        produced by ``_apply_sorting``.  When the cursor carries a
+        ``sort_value`` (new-style), the WHERE clause filters on the actual sort
+        column.  Old cursors without ``sort_value`` fall back to
+        ``(created_at, id)`` for backward compatibility.
 
         Args:
             query: SQLAlchemy query to paginate
             cursor: Cursor token for pagination (None for first page)
+            sort_field: Resolved sort field name from ``_apply_sorting``
             sort_direction: Sort direction from sorting step
             model: BaseResource class to get field attributes from
 
         Returns:
             Tuple of (query with cursor-based pagination applied, needs_reverse flag)
-            The needs_reverse flag indicates if results need to be reversed after fetching
 
         """
         if not cursor:
@@ -331,45 +311,80 @@ class BaseService:
         needs_reverse = False
 
         cursor_data = decode_cursor(cursor)
-        resource_id, created_at, direction = extract_pagination_from_cursor(cursor_data)
+        cursor_sort_field, cursor_sort_value, resource_id, created_at, direction = extract_keyset_from_cursor(
+            cursor_data
+        )
+
+        # Decide which column to use for the keyset boundary.
+        # New cursors carry sort_value for the actual sort column.
+        # Old cursors (or created_at sort) use created_at as before.
+        use_sort_col = (
+            cursor_sort_value is not None
+            and cursor_sort_field is not None
+            and cursor_sort_field != "created_at"
+            and cursor_sort_field == sort_field
+        )
 
         try:
-            if resource_id and created_at:
-                # Convert cursor data to proper types
+            if resource_id:
                 cursor_id = UUID(resource_id)
-                cursor_timestamp = datetime.fromisoformat(created_at)
 
-                # Apply cursor-based filtering based on sort direction and pagination direction
-                if direction == PaginationDirection.NEXT:
-                    # Forward pagination - standard behavior
-                    if sort_direction.value == "desc":
-                        query = query.filter(
-                            (model.created_at < cursor_timestamp)  # type: ignore[arg-type]
-                            | ((model.created_at == cursor_timestamp) & (model.id < cursor_id))
-                        )
-                    else:  # asc
-                        query = query.filter(
-                            (model.created_at > cursor_timestamp)  # type: ignore[arg-type]
-                            | ((model.created_at == cursor_timestamp) & (model.id > cursor_id))
-                        )
-                # Backward pagination - reverse comparison and will need to reverse results
-                elif sort_direction.value == "desc":
-                    query = query.filter(
-                        (model.created_at > cursor_timestamp)  # type: ignore[arg-type]
-                        | ((model.created_at == cursor_timestamp) & (model.id > cursor_id))
+                if use_sort_col and hasattr(model, sort_field):
+                    sort_col = getattr(model, sort_field)
+                    cursor_sv = cursor_sort_value  # already a string
+                    query, needs_reverse = self._apply_keyset_filter(
+                        query,
+                        sort_col,
+                        cursor_sv,
+                        model.id,
+                        cursor_id,
+                        sort_direction,
+                        direction,
                     )
-                    # Note: Results will come back in wrong order, need to reverse after limit
-                    needs_reverse = True
-                else:  # asc
-                    query = query.filter(
-                        (model.created_at < cursor_timestamp)  # type: ignore[arg-type]
-                        | ((model.created_at == cursor_timestamp) & (model.id < cursor_id))
+                elif created_at:
+                    cursor_timestamp = datetime.fromisoformat(created_at)
+                    query, needs_reverse = self._apply_keyset_filter(
+                        query,
+                        model.created_at,
+                        cursor_timestamp,
+                        model.id,
+                        cursor_id,
+                        sort_direction,
+                        direction,
                     )
-                    # Note: Results will come back in wrong order, need to reverse after limit
-                    needs_reverse = True
         except (ValueError, KeyError):
-            # Invalid cursor - ignore and continue without cursor filtering
             pass
+
+        return query, needs_reverse
+
+    @staticmethod
+    def _apply_keyset_filter(
+        query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
+        col_a: Any,  # noqa: ANN401
+        val_a: Any,  # noqa: ANN401
+        col_b: Any,  # noqa: ANN401
+        val_b: Any,  # noqa: ANN401
+        sort_direction: SortDirection,
+        pagination_direction: PaginationDirection,
+    ) -> tuple[Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]], bool]:
+        """Apply a two-column keyset WHERE clause matching ORDER BY ``(col_a, col_b)``.
+
+        Returns (filtered_query, needs_reverse).
+        """
+        needs_reverse = False
+        is_desc = sort_direction.value == "desc"
+
+        if pagination_direction == PaginationDirection.NEXT:
+            if is_desc:
+                query = query.filter((col_a < val_a) | ((col_a == val_a) & (col_b < val_b)))
+            else:
+                query = query.filter((col_a > val_a) | ((col_a == val_a) & (col_b > val_b)))
+        elif is_desc:
+            query = query.filter((col_a > val_a) | ((col_a == val_a) & (col_b > val_b)))
+            needs_reverse = True
+        else:
+            query = query.filter((col_a < val_a) | ((col_a == val_a) & (col_b < val_b)))
+            needs_reverse = True
 
         return query, needs_reverse
 
@@ -433,19 +448,19 @@ class BaseService:
         if special_field_handlers:
             check_query = self._apply_special_filters(check_query, filters, model, special_field_handlers)
 
-        # Check if any items exist before first_item (using original sort direction, not reversed)
-        _, original_sort_direction = parse_sort(sort or "-created_at", model.__sortable_fields__)
+        # Check if any items exist before first_item using the sort column keyset.
+        sort_field_name, original_sort_direction = parse_sort(sort or "-created_at", model.__sortable_fields__)
+        sort_col = getattr(model, sort_field_name, model.created_at)
+        sort_val = getattr(first_item, sort_field_name, first_item.created_at)
         if original_sort_direction.value == "desc":
-            # DESC: check if any items have created_at > first_item (newer items toward first page)
             check_query = check_query.filter(
-                (model.created_at > first_item.created_at)  # type: ignore[arg-type]
-                | ((model.created_at == first_item.created_at) & (model.id > first_item.id))
+                (sort_col > sort_val)  # type: ignore[arg-type]
+                | ((sort_col == sort_val) & (model.id > first_item.id))
             )
         else:
-            # ASC: check if any items have created_at < first_item (older items toward first page)
             check_query = check_query.filter(
-                (model.created_at < first_item.created_at)  # type: ignore[arg-type]
-                | ((model.created_at == first_item.created_at) & (model.id < first_item.id))
+                (sort_col < sort_val)  # type: ignore[arg-type]
+                | ((sort_col == sort_val) & (model.id < first_item.id))
             )
 
         check_result = await self.session.exec(check_query.limit(1))  # type: ignore[arg-type]
@@ -744,14 +759,13 @@ class BaseService:
         if built is None:
             return response_type(resources=[], next=None, prev=None, total=0 if include_total else None)
 
-        query, filters, label_filters, is_backward = built
+        query, filters, label_filters, is_backward, sort_field_name, sort_dir = built
 
         trimmed, pagination = await self._fetch_and_paginate(
             query,
             model,
             query_params,
-            filters,
-            label_filters,
+            (filters, label_filters),
             sort,
             cursor,
             limit,
@@ -760,6 +774,7 @@ class BaseService:
             special_field_handlers=special_field_handlers,
             allowed_projects=allowed_projects,
             id_restriction=id_restriction,
+            sort_context=(sort_field_name, sort_dir),
         )
 
         if post_query_callback:
@@ -819,6 +834,8 @@ class BaseService:
             list[Filter],
             dict[str, str],
             bool,
+            str,
+            SortDirection,
         ]
         | None
     ):
@@ -845,25 +862,33 @@ class BaseService:
             except (ValueError, KeyError):
                 pass
 
-        query, sort_direction = self._apply_sorting(query, sort, model, reverse_for_backward=is_backward)
-        query, needs_reverse = self._apply_cursor_pagination(query, cursor, sort_direction, model)
+        query, sort_field_name, sort_direction = self._apply_sorting(
+            query,
+            sort,
+            model,
+            reverse_for_backward=is_backward,
+        )
+        query, needs_reverse = self._apply_cursor_pagination(
+            query,
+            cursor,
+            sort_field_name,
+            sort_direction,
+            model,
+        )
         query = query.limit(limit + 1)
         query = self.enrich_query_mixin.enrich(query)
 
-        # Reverse is only needed during execution, encode it into the backward flag
-        # so _fetch_and_paginate knows whether to reverse results
         if needs_reverse:
             is_backward = True
 
-        return query, filters, label_filters, is_backward
+        return query, filters, label_filters, is_backward, sort_field_name, sort_direction
 
     async def _fetch_and_paginate(
         self,
         query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
         model: type[TModel],
         query_params: dict[str, str],
-        filters: list[Filter],
-        label_filters: dict[str, str],
+        filter_context: tuple[list[Filter], dict[str, str]],
         sort: str | None,
         cursor: str | None,
         limit: int,
@@ -873,8 +898,11 @@ class BaseService:
         special_field_handlers: dict[str, Any] | None,
         allowed_projects: AllowedProjectsResult | None,
         id_restriction: list[UUID] | None = None,
+        sort_context: tuple[str, SortDirection] = ("created_at", SortDirection.DESC),
     ) -> tuple[list[TModel], PaginationResult]:
         """Execute query, apply N+1 pagination, and return trimmed resources with metadata."""
+        filters, label_filters = filter_context
+        sort_field_name, sort_direction = sort_context
         result = await self.session.exec(query)  # type: ignore[arg-type]
         resources = list(result.all())
 
@@ -912,6 +940,9 @@ class BaseService:
             include_total=include_total,
             total_count=total_count,
             is_first_page=is_first_page,
+            sort_field=sort_field_name,
+            sort_direction=sort_direction,
+            sort_value_fn=lambda item: getattr(item, sort_field_name, item.created_at),
         )
 
         trimmed: list[TModel] = pagination["trimmed_items"]  # type: ignore[assignment]
