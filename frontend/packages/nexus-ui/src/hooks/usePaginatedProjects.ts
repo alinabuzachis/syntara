@@ -39,7 +39,6 @@ export function usePaginatedProjects() {
       params: {
         query: {
           limit: PAGE_SIZE,
-          is_builtin: false,
           ...(debouncedFilter ? { name: debouncedFilter } : {}),
           ...(cursor ? { cursor } : {}),
         },

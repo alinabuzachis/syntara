@@ -77,12 +77,12 @@ describe('usePaginatedProjects', () => {
       expect(result.current.isLoadingMore).toBe(false)
     })
 
-    it('passes is_builtin: false to exclude builtin projects', () => {
+    it('does not filter out builtin projects so the project switcher shows them', () => {
       renderHook(() => usePaginatedProjects(), { wrapper })
 
       const callArgs = vi.mocked(accessClient.useQuery).mock.calls[0] as unknown[]
       const options = callArgs[2] as { params: { query: Record<string, unknown> } }
-      expect(options.params.query).toHaveProperty('is_builtin', false)
+      expect(options.params.query).not.toHaveProperty('is_builtin')
     })
 
     it('returns empty array when query data is undefined', () => {

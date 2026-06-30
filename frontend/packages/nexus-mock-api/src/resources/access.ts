@@ -47,6 +47,16 @@ export interface MockProject {
 
 export const mockProjects: MockProject[] = [
   {
+    id: 'p-builtin',
+    name: 'built-in',
+    description: 'Built-in system project containing predefined workflows',
+    labels: {},
+    is_default: false,
+    is_builtin: true,
+    created_at: '2024-01-01T00:00:00.000Z',
+    updated_at: '2024-01-01T00:00:00.000Z',
+  },
+  {
     id: 'p-001',
     name: 'default',
     description: 'Default project for all users',
