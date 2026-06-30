@@ -1,4 +1,4 @@
-import { ActionGroup, Button, Stack, StackItem, Tab } from '@patternfly/react-core'
+import { ActionGroup, Alert, Button, Stack, StackItem, Tab } from '@patternfly/react-core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -12,6 +12,7 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useLocation } from '../../../hooks/routing/useLocation'
 import { useNavigate } from '../../../hooks/routing/useNavigate'
+import { FILE_STORAGE_UNCONFIGURED_MESSAGE, useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
@@ -24,6 +25,12 @@ import { useAllSettings } from './useAllSettings'
 import { useSettingsPermissions } from './useSettingsPermissions'
 
 const basePath = AppRoute.SystemAdministration.Settings
+
+function FileStorageAlert() {
+  const { isConfigured } = useFileStorageStatus()
+  if (isConfigured) return null
+  return <Alert variant="warning" isInline title={FILE_STORAGE_UNCONFIGURED_MESSAGE} />
+}
 
 export default function Settings() {
   const settingsDocLink = useDocLink('settings')
@@ -190,6 +197,7 @@ export default function Settings() {
     <NxPage>
       <NxPageHeader title="Settings" docLink={settingsDocLink} breadcrumbs={settingsBreadcrumbs} />
       <NxPageBody>
+        <FileStorageAlert />
         <NxPanel
           isFullHeight
           panelMainBodyProps={{ style: { flex: 1, minHeight: 0 } }}

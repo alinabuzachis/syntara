@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { settingsClient } from '../../../client'
+import { useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
 
 import Settings from './Settings'
 import { useAllSettings } from './useAllSettings'
@@ -48,6 +49,11 @@ vi.mock('../../../hooks/useMutationErrorHandler', () => ({
 
 vi.mock('./useSettingsPermissions', () => ({
   useSettingsPermissions: vi.fn(() => ({ canRead: true, canWrite: true })),
+}))
+
+vi.mock('../../../hooks/useFileStorageStatus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../hooks/useFileStorageStatus')>()),
+  useFileStorageStatus: vi.fn().mockReturnValue({ isConfigured: true, isLoading: false, isError: false }),
 }))
 
 vi.mock('./useAllSettings', () => ({
@@ -142,6 +148,7 @@ describe('Settings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockLocation.value = '/system-administration/settings/context_manager'
+    vi.mocked(useFileStorageStatus).mockReturnValue({ isConfigured: true, isLoading: false, isError: false })
   })
 
   it('has no accessibility violations', async () => {
@@ -418,6 +425,26 @@ describe('Settings', () => {
       render(<Settings />)
 
       expect(screen.getByRole('spinbutton')).toBeDisabled()
+    })
+  })
+
+  describe('file storage status', () => {
+    it('shows warning banner when S3 is unconfigured', () => {
+      mockQueries()
+      vi.mocked(useFileStorageStatus).mockReturnValue({ isConfigured: false, isLoading: false, isError: false })
+
+      render(<Settings />)
+
+      expect(screen.getByText(/File uploads are disabled/)).toBeInTheDocument()
+    })
+
+    it('does not show warning banner when S3 is configured', () => {
+      mockQueries()
+      vi.mocked(useFileStorageStatus).mockReturnValue({ isConfigured: true, isLoading: false, isError: false })
+
+      render(<Settings />)
+
+      expect(screen.queryByText(/File uploads are disabled/)).not.toBeInTheDocument()
     })
   })
 })

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
+import { useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { useAllProjects } from '../../access/useAllProjects'
 
@@ -35,6 +36,11 @@ vi.mock('../../access/useAllProjects', () => ({
 const mockUploadFiles = vi.fn()
 vi.mock('../../../hooks/useFileUploadWithProgress', () => ({
   useFileUploadWithProgress: vi.fn(),
+}))
+
+vi.mock('../../../hooks/useFileStorageStatus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../hooks/useFileStorageStatus')>()),
+  useFileStorageStatus: vi.fn().mockReturnValue({ isConfigured: true, isLoading: false, isError: false }),
 }))
 
 // Mock FileUpload component to expose file selection handler
@@ -135,6 +141,7 @@ describe('AIAgentNodeForm', () => {
       refetch: vi.fn(),
     } as never)
     vi.mocked(useAllProjects).mockReturnValue({ projects: [], isLoading: false, error: null, refetch: vi.fn() })
+    vi.mocked(useFileStorageStatus).mockReturnValue({ isConfigured: true, isLoading: false, isError: false })
     vi.mocked(useFileUploadWithProgress).mockReturnValue({
       uploadFiles: mockUploadFiles,
       progress: [],

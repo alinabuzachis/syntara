@@ -224,7 +224,7 @@ export default tseslint.config(
         'error',
         {
           // XMLHttpRequest required for upload progress (fetch lacks upload progress events)
-          allowedFiles: ['**/useFileUploadWithProgress.ts'],
+          allowedFiles: ['**/useFileUploadWithProgress.ts', '**/useFileStorageStatus.ts'],
         },
       ],
       'nexus/prefer-pf-list-components': 'error',

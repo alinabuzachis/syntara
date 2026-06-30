@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { FileUpload } from './FileUpload'
 import {
@@ -255,6 +256,36 @@ describe('FileUpload', () => {
       const files: UploadedFile[] = [{ id: '1', file: new File([''], 'test.png'), progress: 100, status: 'success' }]
       render(<FileUpload files={files} />)
       expect(screen.getByLabelText('Uploaded files')).toBeInTheDocument()
+    })
+
+    it('has no accessibility violations when disabled with tooltip', async () => {
+      const { container } = render(<FileUpload disabled disabledTooltip="S3 not configured" />)
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+  })
+
+  describe('disabled state', () => {
+    it('renders with disabled class when disabled', () => {
+      const { container } = render(<FileUpload disabled />)
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- PatternFly MultipleFileUpload has no accessible role; checking CSS module class on the wrapper
+      const wrapper = container.querySelector('.pf-v6-c-multiple-file-upload')
+      expect(wrapper?.className).toMatch(/disabled/)
+    })
+
+    it('wraps content in tooltip when disabled with disabledTooltip', () => {
+      render(<FileUpload disabled disabledTooltip="S3 not configured" />)
+      expect(screen.getByText('Drag and drop files here')).toBeInTheDocument()
+    })
+
+    it('does not render tooltip when disabled without disabledTooltip', () => {
+      render(<FileUpload disabled />)
+      expect(screen.getByText('Drag and drop files here')).toBeInTheDocument()
+    })
+
+    it('does not render tooltip when not disabled', () => {
+      render(<FileUpload disabledTooltip="S3 not configured" />)
+      expect(screen.getByText('Drag and drop files here')).toBeInTheDocument()
     })
   })
 

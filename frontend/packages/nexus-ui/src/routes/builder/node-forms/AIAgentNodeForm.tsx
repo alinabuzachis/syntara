@@ -17,6 +17,7 @@ import type { Control, UseFormSetValue } from 'react-hook-form'
 import { Controller, FormProvider, useForm, useFormContext, useFormState, useWatch } from 'react-hook-form'
 
 import { integrationsClient, toolManagerClient } from '../../../client'
+import { FILE_STORAGE_UNCONFIGURED_MESSAGE, useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
 import { type FileProgress, useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { detachPromise } from '../../../utils/detachPromise'
 import { generateUUID } from '../../../utils/generateUUID'
@@ -204,6 +205,7 @@ function AIAgentFormFields({
   const { completedFiles, setCompletedFiles } = fileContext
   const [uploadingFiles, setUploadingFiles] = useState<UploadedFile[]>([])
   const { uploadFiles, progress, error } = useFileUploadWithProgress()
+  const { isConfigured: isFileStorageConfigured } = useFileStorageStatus()
 
   const { toolSelection, handleToolSelectionChange } = useToolSelection(control, setValue)
 
@@ -381,6 +383,8 @@ function AIAgentFormFields({
               onFileRemove={handleFileRemove}
               acceptedMimeTypes={['.pdf', '.doc', '.docx', '.txt', '.md']}
               aria-label="Context file upload"
+              disabled={!isFileStorageConfigured}
+              disabledTooltip={FILE_STORAGE_UNCONFIGURED_MESSAGE}
             />
           </fieldset>
         </FormGroup>

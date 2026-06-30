@@ -5,12 +5,14 @@ import {
   MultipleFileUpload,
   MultipleFileUploadMain,
   MultipleFileUploadStatus,
+  Tooltip,
 } from '@patternfly/react-core'
 import { RhUiUploadIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 
 import { generateUUID } from '../../../../utils/generateUUID'
 
+import styles from './FileUpload.module.css'
 import { FileUploadItem, type FileUploadItemProps } from './FileUploadItem'
 import {
   computeUploadStatusProps,
@@ -34,6 +36,10 @@ export type FileUploadProps = {
   browseButtonText?: string
   className?: string
   'aria-label'?: string
+  /** When true, disables the dropzone and file input, preventing file selection. */
+  disabled?: boolean
+  /** Tooltip text shown when hovering over the disabled dropzone. Only displayed when `disabled` is true. */
+  disabledTooltip?: string
 }
 
 function formatAcceptProp(acceptedMimeTypes?: string[]): Record<string, string[]> | undefined {
@@ -66,6 +72,8 @@ export function FileUpload({
   browseButtonText = 'Upload',
   className,
   'aria-label': ariaLabel,
+  disabled = false,
+  disabledTooltip,
 }: FileUploadProps) {
   const [internalFiles, setInternalFiles] = useState<UploadedFile[]>([])
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -113,6 +121,7 @@ export function FileUpload({
     maxSize: effectiveMaxSizeBytes,
     maxFiles: maxFiles,
     onDropRejected: handleDropRejected,
+    disabled,
   }
 
   const { statusToggleText, statusToggleIcon } = computeUploadStatusProps(uploadedFiles)
@@ -120,8 +129,18 @@ export function FileUpload({
   const resolvedInfoText =
     infoText ?? (acceptedTypesDisplay ? `Accepted file types: ${acceptedTypesDisplay}` : undefined)
 
-  return (
-    <MultipleFileUpload onFileDrop={handleFileDrop} dropzoneProps={dropzoneProps} isHorizontal className={className}>
+  let resolvedClassName = className
+  if (disabled) {
+    resolvedClassName = className ? `${className} ${styles.disabled}` : styles.disabled
+  }
+
+  const fileUploadContent = (
+    <MultipleFileUpload
+      onFileDrop={handleFileDrop}
+      dropzoneProps={dropzoneProps}
+      isHorizontal
+      className={resolvedClassName}
+    >
       <MultipleFileUploadMain
         titleIcon={<RhUiUploadIcon />}
         titleText={titleText}
@@ -155,6 +174,16 @@ export function FileUpload({
       )}
     </MultipleFileUpload>
   )
+
+  if (disabled && disabledTooltip) {
+    return (
+      <Tooltip content={disabledTooltip}>
+        <div>{fileUploadContent}</div>
+      </Tooltip>
+    )
+  }
+
+  return fileUploadContent
 }
 
 export type { FileUploadItemProps }
