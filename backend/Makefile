@@ -160,19 +160,19 @@ test-performance: check-deps ## Run performance tests only (excluded from defaul
 .PHONY: test-unit-coverage
 test-unit-coverage: check-deps ## Run unit tests with coverage report
 	@echo "📊 Running unit tests with coverage..."
-	$(call run-tests,tests/unit/ -v -n auto --cov=src --cov-report=html:htmlcov-unit --cov-report=term --cov-config=pyproject.toml --cov-fail-under=0)
+	$(call run-tests,tests/unit/ -v -n auto --cov=src --cov-report=html:htmlcov-unit --cov-report=term --cov-config=pyproject.toml --cov-fail-under=0 --junitxml=pytest-results-unit.xml)
 	@echo "✅ Unit test coverage report: htmlcov-unit/index.html"
 
 .PHONY: test-cli-coverage
 test-cli-coverage: check-deps ## Run CLI tests with coverage report
 	@echo "📊 Running CLI tests with coverage..."
-	$(call run-tests,tests/cli/ -v -n auto --cov=src --cov-report=html:htmlcov-cli --cov-report=term --cov-config=pyproject.toml --cov-fail-under=0)
+	$(call run-tests,tests/cli/ -v -n auto --cov=src --cov-report=html:htmlcov-cli --cov-report=term --cov-config=pyproject.toml --cov-fail-under=0 --junitxml=pytest-results-cli.xml)
 	@echo "✅ CLI test coverage report: htmlcov-cli/index.html"
 
 .PHONY: test-integration-coverage
 test-integration-coverage: check-deps ## Run integration tests with coverage report
 	@echo "📊 Running integration tests with coverage..."
-	$(call run-tests,tests/integration/ -v -n auto -m "not mcp" --cov=src --cov-report=html:htmlcov-integration --cov-report=term --cov-config=pyproject.toml --cov-fail-under=0)
+	$(call run-tests,tests/integration/ -v -n auto -m "not mcp" --cov=src --cov-report=html:htmlcov-integration --cov-report=term --cov-config=pyproject.toml --cov-fail-under=0 --junitxml=pytest-results-integration.xml)
 	@echo "✅ Integration test coverage report: htmlcov-integration/index.html"
 
 .PHONY: test-coverage
@@ -760,7 +760,9 @@ update-hooks: ## Update pre-commit hooks to latest versions
 _clean-test:
 	@echo "🧹 Cleaning test artifacts..."
 	rm -f .coverage
+	rm -f pytest-results*.xml
 	rm -rf htmlcov/
+	rm -rf htmlcov-*/
 	rm -rf .pytest_cache/
 	rm -rf tests/__pycache__/
 	rm -rf __pycache__/

@@ -1325,6 +1325,15 @@ wheels = [
 ]
 
 [[package]]
+name = "junitparser"
+version = "5.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/12/ed/063362ed6c5e39273879ba3db91da13b00551c6277de6842e45ab55a1a22/junitparser-5.0.1.tar.gz", hash = "sha256:45d100ca35ce5e2596c1f251de5e0f9411827aa93edaba7ad2d8eef423eecdd0", size = 12051, upload-time = "2026-06-05T03:55:55.888Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/32/15c6dd4267d530c38ca8b661c8322d201a6766087efd81ef81d3456e3cad/junitparser-5.0.1-py3-none-any.whl", hash = "sha256:019410471ac82c6b49c3cd500b930b3f39a5dae34e5ca5d5f719c4dcd9bb7e9a", size = 15014, upload-time = "2026-06-05T03:55:54.478Z" },
+]
+
+[[package]]
 name = "keyring"
 version = "25.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2013,6 +2022,7 @@ dev = [
     { name = "fastmcp" },
     { name = "httpx" },
     { name = "jsonschema" },
+    { name = "junitparser" },
     { name = "moto", extra = ["s3"] },
     { name = "msgraph-sdk" },
     { name = "mypy" },
@@ -2076,6 +2086,7 @@ requires-dist = [
     { name = "jmespath", specifier = ">=1.0.0" },
     { name = "jsonschema", specifier = ">=4.0.0" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+    { name = "junitparser", marker = "extra == 'dev'", specifier = ">=3.2.0" },
     { name = "langchain", specifier = ">=1.2.10" },
     { name = "langchain-core", specifier = ">=1.3.3" },
     { name = "langchain-mcp-adapters", specifier = ">=0.1.0,<0.2.0" },

@@ -165,6 +165,7 @@ jobs:
           path: |
             backend/.coverage
             backend/htmlcov-unit/
+            backend/pytest-results-unit.xml
           retention-days: 30
           include-hidden-files: true
 
@@ -204,6 +205,7 @@ jobs:
           path: |
             backend/.coverage
             backend/htmlcov-cli/
+            backend/pytest-results-cli.xml
           retention-days: 30
           include-hidden-files: true
 
@@ -242,6 +244,7 @@ jobs:
           path: |
             backend/.coverage
             backend/htmlcov-integration/
+            backend/pytest-results-integration.xml
           retention-days: 30
           include-hidden-files: true
 
@@ -410,6 +413,36 @@ jobs:
           echo "Combined coverage from all test jobs"
         working-directory: backend
 
+      - name: Combine JUnit XML reports
+        working-directory: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! -d coverage-artifacts ]]; then
+            echo "coverage-artifacts directory not found"
+            exit 1
+          fi
+
+          mapfile -d '' reports < <(
+            find coverage-artifacts \
+              -type f \
+              -name 'pytest-results-*.xml' \
+              -print0
+          )
+
+          if ((${#reports[@]} == 0)); then
+            echo "No JUnit XML files found to merge"
+            exit 1
+          fi
+
+          echo "Merging ${#reports[@]} JUnit XML report(s):"
+          printf '  %s\n' "${reports[@]}"
+
+          uv run python -m junitparser merge -- "${reports[@]}" pytest-results.xml
+
+          echo "Combined report written to pytest-results.xml"
+
       # Pass the PR number as an artifact so the workflow_run-based SonarCloud
       # fallback (for fork PRs) can identify and tag the analysis correctly.
       - name: Save PR number
@@ -429,6 +462,7 @@ jobs:
           name: backend-coverage-combined
           path: |
             backend/coverage.xml
+            backend/pytest-results.xml
             backend/htmlcov/
           retention-days: 30
 
