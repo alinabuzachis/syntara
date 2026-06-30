@@ -269,11 +269,7 @@ jobs:
           script: |
             let sha;
             if (context.eventName === 'merge_group') {
-              // merge_group has no pull_request payload; extract the PR head SHA
-              // from the ref (gh-readonly-queue/<base>/pr-<N>-<sha>) so we can
-              // look up the E2E status already posted for that commit.
-              const match = context.ref.match(/pr-\d+-([0-9a-f]+)$/);
-              sha = match ? match[1] : context.sha;
+              sha = context.sha;
             } else {
               sha = context.payload.pull_request.head.sha;
             }

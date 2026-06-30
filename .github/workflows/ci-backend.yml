@@ -538,8 +538,7 @@ jobs:
           script: |
             let sha;
             if (context.eventName === 'merge_group') {
-              const match = context.ref.match(/pr-\d+-([0-9a-f]+)$/);
-              sha = match ? match[1] : context.sha;
+              sha = context.sha;
             } else {
               sha = context.payload.pull_request.head.sha;
             }
