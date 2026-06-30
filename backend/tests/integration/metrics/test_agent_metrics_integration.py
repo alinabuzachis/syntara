@@ -15,11 +15,12 @@ from tests.helpers.invocations import wait_for_invocation_execution
 @pytest.mark.asyncio
 async def test_agent_metrics_on_openmetrics_endpoint(
     auth_client_with_mocked_llm: AsyncClient,
+    test_project_id,
 ) -> None:
     """Agent invocation causes Prometheus counters/histograms to be non-zero."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
-        json={"prompt": "What is 2+2?", "session_id": "prom-metrics-test"},
+        json={"prompt": "What is 2+2?", "session_id": "prom-metrics-test", "project_id": str(test_project_id)},
     )
     assert response.status_code == 202
     invocation_id = response.json()["id"]

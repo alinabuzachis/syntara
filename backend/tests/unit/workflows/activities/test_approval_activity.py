@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.clients.approvals_client import ApprovalsApiClientError
 from nexus.workflows.workflow_engine.activities.approval_activity import (
@@ -28,6 +29,12 @@ def _mock_heartbeat() -> Generator[None, None, None]:
 @pytest.fixture
 def execution_id() -> str:
     """Workflow execution ID."""
+    return str(uuid4())
+
+
+@pytest.fixture
+def test_project_id() -> str:
+    """Project ID for approval requests."""
     return str(uuid4())
 
 
@@ -92,6 +99,7 @@ async def test_create_approval_request_success(
     next_step_approved: dict[str, Any],
     workflow_context: dict[str, Any],
     mock_approval_response: dict[str, Any],
+    test_project_id: str,
 ) -> None:
     """Test successful approval request creation via API."""
     mock_client = AsyncMock()
@@ -116,6 +124,7 @@ async def test_create_approval_request_success(
             name="Approve deployment",
             next_step_approved=next_step_approved,
             workflow_context=workflow_context,
+            project_id=test_project_id,
         )
 
     # Verify the request payload passed to the client
@@ -135,6 +144,7 @@ async def test_create_approval_request_with_timeout(
     next_step_approved: dict[str, Any],
     workflow_context: dict[str, Any],
     mock_approval_response: dict[str, Any],
+    test_project_id: str,
 ) -> None:
     """Test approval request with timeout_at."""
     mock_client = AsyncMock()
@@ -162,6 +172,7 @@ async def test_create_approval_request_with_timeout(
             next_step_approved=next_step_approved,
             workflow_context=workflow_context,
             timeout_at=timeout_at,
+            project_id=test_project_id,
         )
 
     request_data = mock_client.create_approval.call_args[0][0]
@@ -175,6 +186,7 @@ async def test_create_approval_request_with_rejected_path(
     next_step_approved: dict[str, Any],
     workflow_context: dict[str, Any],
     mock_approval_response: dict[str, Any],
+    test_project_id: str,
 ) -> None:
     """Test approval request with rejected path."""
     next_step_rejected = {"id": "rollback", "name": "Rollback", "type": "task"}
@@ -202,6 +214,7 @@ async def test_create_approval_request_with_rejected_path(
             next_step_approved=next_step_approved,
             workflow_context=workflow_context,
             next_step_rejected=next_step_rejected,
+            project_id=test_project_id,
         )
 
     request_data = mock_client.create_approval.call_args[0][0]
@@ -215,6 +228,7 @@ async def test_create_approval_request_api_error(
     approval_node_id: str,
     next_step_approved: dict[str, Any],
     workflow_context: dict[str, Any],
+    test_project_id: str,
 ) -> None:
     """Test that API errors are wrapped in ApprovalActivityError."""
     mock_client = AsyncMock()
@@ -239,6 +253,7 @@ async def test_create_approval_request_api_error(
             name="Approve deployment",
             next_step_approved=next_step_approved,
             workflow_context=workflow_context,
+            project_id=test_project_id,
         )
 
 
@@ -248,6 +263,7 @@ async def test_create_approval_request_unexpected_error(
     approval_node_id: str,
     next_step_approved: dict[str, Any],
     workflow_context: dict[str, Any],
+    test_project_id: str,
 ) -> None:
     """Test that unexpected errors are wrapped in ApprovalActivityError."""
     mock_client = AsyncMock()
@@ -272,4 +288,25 @@ async def test_create_approval_request_unexpected_error(
             name="Approve deployment",
             next_step_approved=next_step_approved,
             workflow_context=workflow_context,
+            project_id=test_project_id,
         )
+
+
+@pytest.mark.asyncio
+async def test_create_approval_request_missing_project_id(
+    execution_id: str,
+    approval_node_id: str,
+    next_step_approved: dict[str, Any],
+    workflow_context: dict[str, Any],
+) -> None:
+    """Test that empty project_id raises ApplicationError."""
+    with pytest.raises(ApplicationError) as exc_info:
+        await create_approval_request_activity(
+            execution_id=execution_id,
+            approval_node_id=approval_node_id,
+            name="Approve deployment",
+            next_step_approved=next_step_approved,
+            workflow_context=workflow_context,
+            project_id="",
+        )
+    assert exc_info.value.type == "ConfigError"

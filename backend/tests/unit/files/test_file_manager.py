@@ -16,6 +16,7 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, Mock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -50,7 +51,8 @@ async def test_validate_and_save_files_success() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files([mock_file])
+    project_id = uuid4()
+    result = await file_manager.validate_and_save_files([mock_file], project_id=project_id)
 
     # Assert
     assert len(result) == 1
@@ -59,6 +61,7 @@ async def test_validate_and_save_files_success() -> None:
     assert metadata.size_bytes == len(file_content)
     assert metadata.mime_type == "text/plain"  # python-magic detects actual content
     assert metadata.status == FileStatus.PENDING_CONVERSION
+    assert metadata.project_id == project_id
     assert f"nexus-{metadata.id}-test.pdf" in metadata.file_path
 
 
@@ -82,7 +85,7 @@ async def test_files_saved_with_correct_naming_pattern() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files([mock_file])
+    result = await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
     # Assert
     metadata = result[0]
@@ -113,7 +116,7 @@ async def test_async_io_used_for_file_operations() -> None:
 
     # Act & Assert
     # Should complete without blocking
-    result = await asyncio.wait_for(file_manager.validate_and_save_files([mock_file]), timeout=5.0)
+    result = await asyncio.wait_for(file_manager.validate_and_save_files([mock_file], project_id=uuid4()), timeout=5.0)
     assert len(result) == 1
 
 
@@ -140,7 +143,7 @@ async def test_storage_exception_on_disk_full(
 
         # Act & Assert
         with pytest.raises((OSError, FileContentNotFoundError)):
-            await file_manager.validate_and_save_files([mock_file])
+            await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
 
 @pytest.mark.asyncio
@@ -163,7 +166,7 @@ async def test_file_upload_events_logged() -> None:
         file_manager = FileManager()
 
         # Act
-        await file_manager.validate_and_save_files([mock_file])
+        await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
         # Assert
         # Should have logged the upload
@@ -197,7 +200,7 @@ async def test_storage_failure_detailed_logging(
 
         # Act & Assert
         with pytest.raises((OSError, FileContentNotFoundError)):
-            await file_manager.validate_and_save_files([mock_file])
+            await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
         # Should have logged error with details
         assert mock_logger.error.called or mock_logger.exception.called
@@ -226,7 +229,7 @@ async def test_multiple_files_saved_successfully() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
+    result = await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), project_id=uuid4())
 
     # Assert
     assert len(result) == 3
@@ -261,7 +264,7 @@ async def test_configurable_storage_directory(
             file_manager = FileManager()
 
             # Act
-            result = await file_manager.validate_and_save_files([mock_file])
+            result = await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
             # Assert
             file_path = result[0].file_path
@@ -341,7 +344,7 @@ async def test_upload_sets_storage_backend_and_content_hash() -> None:
     mock_file.seek = AsyncMock()
 
     fm = FileManager()
-    result = await fm.validate_and_save_files([mock_file])
+    result = await fm.validate_and_save_files([mock_file], project_id=uuid4())
     metadata = result[0]
 
     assert metadata.storage_backend == StorageBackend.LOCAL
@@ -368,7 +371,7 @@ async def test_upload_sets_retention_when_ttl_configured(
 
     with override_settings(file_retention_ttl_hours=24):
         fm = FileManager()
-        result = await fm.validate_and_save_files([mock_file])
+        result = await fm.validate_and_save_files([mock_file], project_id=uuid4())
         metadata = result[0]
         assert metadata.retention_expires_at is not None
 
@@ -384,7 +387,7 @@ async def test_upload_no_retention_when_ttl_not_configured() -> None:
     mock_file.seek = AsyncMock()
 
     fm = FileManager()
-    result = await fm.validate_and_save_files([mock_file])
+    result = await fm.validate_and_save_files([mock_file], project_id=uuid4())
     metadata = result[0]
     assert metadata.retention_expires_at is None
 
@@ -690,7 +693,7 @@ async def test_validate_and_save_files_validation_error_dispatches_audit() -> No
         ),
     ):
         with pytest.raises(FileValidationError):
-            await fm.validate_and_save_files([mock_file])
+            await fm.validate_and_save_files([mock_file], project_id=uuid4())
 
         # Audit event should have been dispatched
         mock_dispatch.assert_called_once()

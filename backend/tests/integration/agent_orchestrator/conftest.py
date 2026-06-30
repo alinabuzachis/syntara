@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
     from temporalio.testing import WorkflowEnvironment
@@ -18,6 +19,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.services.token_service import TokenService
+from nexus.authz.models.project import Project
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 
@@ -25,6 +27,20 @@ from nexus.core.models import User
 @pytest_asyncio.fixture(autouse=True)
 async def _seed_data(_seed_integration_data: None) -> None:
     """Opt into shared authz + builtin workflow seeding."""
+
+
+@pytest_asyncio.fixture
+async def test_project_id(test_db_session: AsyncSession) -> UUID:
+    """Create a test project and return its ID.
+
+    Commits the project so it is visible across separate DB sessions
+    (e.g. sessions created by test_db_session_factory for API tests).
+    """
+    project = Project(name=f"test-project-{uuid4().hex[:8]}", description="Test project")
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+    return project.id
 
 
 @asynccontextmanager

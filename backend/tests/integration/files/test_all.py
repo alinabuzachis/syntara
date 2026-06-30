@@ -27,7 +27,9 @@ from tests.fixtures import generate_large_file
 
 
 @pytest.mark.asyncio
-async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_user, sample_pdf_path: Path) -> None:
+async def test_upload_pdf_file(
+    auth_client_with_mocked_llm: AsyncClient, test_user, sample_pdf_path: Path, test_project_id: str
+) -> None:
     """Scenario 1: Upload Valid PDF File.
 
     Validates:
@@ -43,6 +45,7 @@ async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_us
         data = {
             "prompt": "Analyze the attached document and summarize key points",
             "session_id": "test-session-001",
+            "project_id": test_project_id,
         }
 
         # Act
@@ -71,7 +74,9 @@ async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_us
 
 
 @pytest.mark.asyncio
-async def test_upload_docx_file(auth_client_with_mocked_llm: AsyncClient, test_user, sample_docx_path: Path) -> None:
+async def test_upload_docx_file(
+    auth_client_with_mocked_llm: AsyncClient, test_user, sample_docx_path: Path, test_project_id: str
+) -> None:
     """Scenario 2: Upload DOCX File.
 
     Validates:
@@ -94,6 +99,7 @@ async def test_upload_docx_file(auth_client_with_mocked_llm: AsyncClient, test_u
         data = {
             "prompt": "Extract action items from this document",
             "session_id": "test-session-002",
+            "project_id": test_project_id,
         }
 
         # Act
@@ -123,6 +129,7 @@ async def test_upload_text_and_markdown(
     test_user,
     sample_txt_path: Path,
     sample_md_path: Path,
+    test_project_id: str,
 ) -> None:
     """Scenario 3: Upload Text/Markdown Files.
 
@@ -140,6 +147,7 @@ async def test_upload_text_and_markdown(
         data = {
             "prompt": "Summarize this README",
             "session_id": "test-session-003a",
+            "project_id": test_project_id,
         }
 
         response = await auth_client_with_mocked_llm.post(
@@ -162,6 +170,7 @@ async def test_upload_text_and_markdown(
         data = {
             "prompt": "Review this documentation",
             "session_id": "test-session-003b",
+            "project_id": test_project_id,
         }
 
         response = await auth_client_with_mocked_llm.post(
@@ -179,7 +188,9 @@ async def test_upload_text_and_markdown(
 
 
 @pytest.mark.asyncio
-async def test_invocation_without_files(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invocation_without_files(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Scenario 4: Invocation Without Files (Backward Compatibility).
 
     Validates:
@@ -191,6 +202,7 @@ async def test_invocation_without_files(auth_client_with_mocked_llm: AsyncClient
     payload = {
         "prompt": "What is the weather today?",
         "session_id": "test-session-004",
+        "project_id": test_project_id,
     }
 
     # Act
@@ -211,7 +223,7 @@ async def test_invocation_without_files(auth_client_with_mocked_llm: AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_file_too_large_error(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_file_too_large_error(auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str) -> None:
     """Scenario 5: File Too Large Error.
 
     Validates:
@@ -227,6 +239,7 @@ async def test_file_too_large_error(auth_client_with_mocked_llm: AsyncClient, te
     data = {
         "prompt": "Analyze this large document",
         "session_id": "test-session-005",
+        "project_id": test_project_id,
     }
 
     # Act
@@ -250,7 +263,7 @@ async def test_file_too_large_error(auth_client_with_mocked_llm: AsyncClient, te
 
 @pytest.mark.asyncio
 async def test_unsupported_format_error(
-    auth_client_with_mocked_llm: AsyncClient, test_user, sample_image_path: Path
+    auth_client_with_mocked_llm: AsyncClient, test_user, sample_image_path: Path, test_project_id: str
 ) -> None:
     """Scenario 6: Unsupported Format Error.
 
@@ -267,6 +280,7 @@ async def test_unsupported_format_error(
         data = {
             "prompt": "Analyze this image",
             "session_id": "test-session-006",
+            "project_id": test_project_id,
         }
 
         # Act
@@ -290,7 +304,9 @@ async def test_unsupported_format_error(
 
 
 @pytest.mark.asyncio
-async def test_too_many_files_error(auth_client_with_mocked_llm: AsyncClient, test_user, sample_pdf_path: Path) -> None:
+async def test_too_many_files_error(
+    auth_client_with_mocked_llm: AsyncClient, test_user, sample_pdf_path: Path, test_project_id: str
+) -> None:
     """Scenario 7: Too Many Files Error.
 
     Validates:
@@ -309,6 +325,7 @@ async def test_too_many_files_error(auth_client_with_mocked_llm: AsyncClient, te
     data = {
         "prompt": "Analyze all these documents",
         "session_id": "test-session-007",
+        "project_id": test_project_id,
     }
 
     # Act
@@ -344,6 +361,7 @@ async def test_multiple_files_upload(
     sample_pdf_path: Path,
     sample_docx_path: Path,
     sample_txt_path: Path,
+    test_project_id: str,
 ) -> None:
     """Scenario 8: Multiple Files Upload.
 
@@ -374,6 +392,7 @@ async def test_multiple_files_upload(
     data = {
         "prompt": "Analyze all these related documents together",
         "session_id": "test-session-multi-010",
+        "project_id": test_project_id,
     }
 
     # Act
@@ -401,7 +420,9 @@ async def test_multiple_files_upload(
 
 
 @pytest.mark.asyncio
-async def test_context_metadata(auth_client_with_mocked_llm: AsyncClient, test_user, sample_pdf_path: Path) -> None:
+async def test_context_metadata(
+    auth_client_with_mocked_llm: AsyncClient, test_user, sample_pdf_path: Path, test_project_id: str
+) -> None:
     """Scenario 9: Context Data Integration.
 
     Validates:
@@ -418,6 +439,7 @@ async def test_context_metadata(auth_client_with_mocked_llm: AsyncClient, test_u
         data = {
             "prompt": "Summarize the document",
             "session_id": "test-session-011",
+            "project_id": test_project_id,
         }
 
         # Act - Create invocation with file

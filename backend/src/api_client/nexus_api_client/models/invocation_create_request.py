@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -28,12 +29,14 @@ class InvocationCreateRequest:
         Attributes:
             prompt (str): Natural language request describing desired automation task
             session_id (str): Session identifier for grouping related invocations
+            project_id (UUID): Project to associate this invocation with
             context_data (InvocationCreateRequestContextdata | Unset): Optional additional context for the request. Use
                 'file_ids' (array of UUID strings) to reference uploaded files.
     """
 
     prompt: str
     session_id: str
+    project_id: UUID
     context_data: InvocationCreateRequestContextdata | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -41,6 +44,8 @@ class InvocationCreateRequest:
         prompt = self.prompt
 
         session_id = self.session_id
+
+        project_id = str(self.project_id)
 
         context_data: dict[str, Any] | Unset = UNSET
         if not isinstance(self.context_data, Unset):
@@ -52,6 +57,7 @@ class InvocationCreateRequest:
             {
                 "prompt": prompt,
                 "sessionId": session_id,
+                "projectId": project_id,
             }
         )
         if context_data is not UNSET:
@@ -68,6 +74,8 @@ class InvocationCreateRequest:
 
         session_id = d.pop("sessionId")
 
+        project_id = UUID(d.pop("projectId"))
+
         _context_data = d.pop("contextData", UNSET)
         context_data: InvocationCreateRequestContextdata | Unset
         if isinstance(_context_data, Unset):
@@ -78,6 +86,7 @@ class InvocationCreateRequest:
         invocation_create_request = cls(
             prompt=prompt,
             session_id=session_id,
+            project_id=project_id,
             context_data=context_data,
         )
 

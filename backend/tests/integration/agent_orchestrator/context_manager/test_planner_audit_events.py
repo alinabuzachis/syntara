@@ -53,7 +53,7 @@ class TestContextPlanningEventDispatch:
 
     @pytest.mark.asyncio
     async def test_retrieval_phase_emits_started_and_completed_events(
-        self, test_db_session: AsyncSession, test_user: User, mock_compressor
+        self, test_db_session: AsyncSession, test_user: User, mock_compressor, test_project_id
     ) -> None:
         """Successful retrieval emits STARTED and COMPLETED events."""
         session_id = "sess-123"
@@ -65,6 +65,7 @@ class TestContextPlanningEventDispatch:
             prompt="test prompt",
             session_id=session_id,
             created_by=test_user.id,
+            project_id=test_project_id,
             status=InvocationStatus.RUNNING,
         )
         test_db_session.add(invocation)
@@ -155,7 +156,7 @@ class TestContextPlanningEventDispatch:
 
     @pytest.mark.asyncio
     async def test_retrieval_phase_emits_failed_event_on_error(
-        self, test_db_session: AsyncSession, test_user: User, mock_compressor
+        self, test_db_session: AsyncSession, test_user: User, mock_compressor, test_project_id
     ) -> None:
         """Failed retrieval emits STARTED and FAILED events."""
         session_id = "sess-456"
@@ -167,6 +168,7 @@ class TestContextPlanningEventDispatch:
             prompt="test prompt",
             session_id=session_id,
             created_by=test_user.id,
+            project_id=test_project_id,
             status=InvocationStatus.RUNNING,
         )
         test_db_session.add(invocation)
@@ -241,7 +243,7 @@ class TestContextPlanningEventDispatch:
 
     @pytest.mark.asyncio
     async def test_assembly_phase_emits_started_and_completed_events(
-        self, test_db_session: AsyncSession, test_user: User, mock_compressor
+        self, test_db_session: AsyncSession, test_user: User, mock_compressor, test_project_id
     ) -> None:
         """Successful assembly emits STARTED and COMPLETED events."""
         session_id = "sess-789"
@@ -253,6 +255,7 @@ class TestContextPlanningEventDispatch:
             prompt="test prompt",
             session_id=session_id,
             created_by=test_user.id,
+            project_id=test_project_id,
             status=InvocationStatus.RUNNING,
         )
         test_db_session.add(invocation)
@@ -331,7 +334,7 @@ class TestContextPlanningEventDispatch:
 
     @pytest.mark.asyncio
     async def test_assembly_phase_emits_failed_event_on_error(
-        self, test_db_session: AsyncSession, test_user: User, mock_compressor
+        self, test_db_session: AsyncSession, test_user: User, mock_compressor, test_project_id
     ) -> None:
         """Failed assembly emits STARTED and FAILED events."""
         session_id = "sess-assembly-fail"
@@ -343,6 +346,7 @@ class TestContextPlanningEventDispatch:
             prompt="test prompt",
             session_id=session_id,
             created_by=test_user.id,
+            project_id=test_project_id,
             status=InvocationStatus.RUNNING,
         )
         test_db_session.add(invocation)
@@ -411,7 +415,7 @@ class TestContextPlanningEventDispatch:
 
     @pytest.mark.asyncio
     async def test_session_id_propagation_in_planning_events(
-        self, test_db_session: AsyncSession, test_user: User, mock_compressor
+        self, test_db_session: AsyncSession, test_user: User, mock_compressor, test_project_id
     ) -> None:
         """session_id is correctly included in all planning events."""
         session_id = "sess-propagation-test"
@@ -423,6 +427,7 @@ class TestContextPlanningEventDispatch:
             prompt="test prompt",
             session_id=session_id,
             created_by=test_user.id,
+            project_id=test_project_id,
             status=InvocationStatus.RUNNING,
         )
         test_db_session.add(invocation)
@@ -507,7 +512,7 @@ class TestCancellationEventDispatch:
 
     @pytest.mark.asyncio
     async def test_cancellation_during_retrieval_emits_event(
-        self, test_db_session: AsyncSession, test_user: User, mock_compressor
+        self, test_db_session: AsyncSession, test_user: User, mock_compressor, test_project_id
     ) -> None:
         """Cancellation detected during retrieval emits CancellationEvent."""
         session_id = "sess-cancel-retrieval"
@@ -519,6 +524,7 @@ class TestCancellationEventDispatch:
             prompt="test prompt",
             session_id=session_id,
             created_by=test_user.id,
+            project_id=test_project_id,
             status=InvocationStatus.CANCELLED,
         )
         test_db_session.add(invocation)
@@ -570,7 +576,7 @@ class TestCancellationEventDispatch:
 
     @pytest.mark.asyncio
     async def test_cancellation_during_assembly_emits_event(
-        self, test_db_session: AsyncSession, test_user: User, mock_compressor
+        self, test_db_session: AsyncSession, test_user: User, mock_compressor, test_project_id
     ) -> None:
         """Cancellation detected during assembly emits CancellationEvent.
 
@@ -590,6 +596,7 @@ class TestCancellationEventDispatch:
             prompt="test prompt",
             session_id=session_id,
             created_by=test_user.id,
+            project_id=test_project_id,
             status=InvocationStatus.CANCELLED,
         )
         test_db_session.add(invocation)

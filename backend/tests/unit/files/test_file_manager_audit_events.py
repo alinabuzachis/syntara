@@ -60,7 +60,7 @@ class TestFileManagerAuditEvents:
 
         # Act
         with patch("magic.from_buffer", return_value="application/pdf"):
-            await file_manager.validate_and_save_files([mock_file])
+            await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
         # Assert - verify audit event was emitted
         assert mock_do_emit.call_count == 1
@@ -107,7 +107,7 @@ class TestFileManagerAuditEvents:
 
         # Act
         with patch("magic.from_buffer", return_value="text/plain"):
-            await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
+            await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), project_id=uuid4())
 
         # Assert
         assert mock_do_emit.call_count == 1
@@ -142,7 +142,7 @@ class TestFileManagerAuditEvents:
             patch("magic.from_buffer", return_value="application/x-msdownload"),
             pytest.raises(FileValidationError),
         ):
-            await file_manager.validate_and_save_files([mock_file])
+            await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
         # Verify error audit event was emitted
         assert mock_do_emit.call_count == 1

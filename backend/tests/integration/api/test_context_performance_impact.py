@@ -24,6 +24,7 @@ class TestContextPerformanceImpact:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test performance comparison between baseline and context-enhanced invocations.
 
@@ -44,6 +45,7 @@ class TestContextPerformanceImpact:
                 "prompt": baseline_prompt,
                 "created_by": str(test_user.id),
                 "session_id": baseline_session,
+                "project_id": test_project_id,
             },
         )
 
@@ -86,6 +88,7 @@ class TestContextPerformanceImpact:
                     "prompt": context_prompt,
                     "created_by": str(test_user.id),
                     "session_id": context_session,
+                    "project_id": test_project_id,
                 },
             )
 
@@ -122,6 +125,7 @@ class TestContextPerformanceImpact:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test that context processing timeouts don't significantly impact performance."""
 
@@ -143,6 +147,7 @@ class TestContextPerformanceImpact:
                     "prompt": prompt,
                     "created_by": str(test_user.id),
                     "session_id": session_id,
+                    "project_id": test_project_id,
                 },
             )
 
@@ -167,6 +172,7 @@ class TestContextPerformanceImpact:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test performance under concurrent context-enhanced invocations."""
 
@@ -193,6 +199,7 @@ class TestContextPerformanceImpact:
                         "prompt": f"Concurrent test prompt {i}",
                         "created_by": str(test_user.id),
                         "session_id": f"concurrent-session-{i}",
+                        "project_id": test_project_id,
                     },
                 )
                 assert response.status_code == 202
@@ -229,6 +236,7 @@ class TestContextPerformanceImpact:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test that context enhancement doesn't cause excessive memory usage."""
         # Test with larger context payloads to check memory handling
@@ -257,6 +265,7 @@ class TestContextPerformanceImpact:
                         "prompt": prompt,
                         "created_by": str(test_user.id),
                         "session_id": session_id,
+                        "project_id": test_project_id,
                     },
                 )
 
@@ -281,6 +290,7 @@ class TestContextPerformanceImpact:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test potential performance benefits from context caching (future optimization).
 
@@ -307,6 +317,7 @@ class TestContextPerformanceImpact:
                     "prompt": prompt,
                     "created_by": str(test_user.id),
                     "session_id": f"caching-test-{i}",
+                    "project_id": test_project_id,
                 },
             )
 

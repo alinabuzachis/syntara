@@ -27,6 +27,7 @@ class Invocation:
 
     Attributes:
         created_by (UUID): User (or automation) that created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
+        project_id (UUID): Project namespace for resource isolation
         prompt (str): Natural language user request
         session_id (str): Session identifier for multi-tenant isolation
         id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
@@ -48,6 +49,7 @@ class Invocation:
     """
 
     created_by: UUID
+    project_id: UUID
     prompt: str
     session_id: str
     id: UUID | Unset = UNSET
@@ -69,6 +71,8 @@ class Invocation:
         from ..models.invocation_result_type_0 import InvocationResultType0
 
         created_by = str(self.created_by)
+
+        project_id = str(self.project_id)
 
         prompt = self.prompt
 
@@ -155,6 +159,7 @@ class Invocation:
         field_dict.update(
             {
                 "created_by": created_by,
+                "project_id": project_id,
                 "prompt": prompt,
                 "session_id": session_id,
             }
@@ -197,6 +202,8 @@ class Invocation:
 
         d = dict(src_dict)
         created_by = UUID(d.pop("created_by"))
+
+        project_id = UUID(d.pop("project_id"))
 
         prompt = d.pop("prompt")
 
@@ -349,6 +356,7 @@ class Invocation:
 
         invocation = cls(
             created_by=created_by,
+            project_id=project_id,
             prompt=prompt,
             session_id=session_id,
             id=id,

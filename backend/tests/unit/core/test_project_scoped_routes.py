@@ -34,6 +34,7 @@ _MODEL_TO_ROUTE_SEGMENT: dict[str, str] = {
     "Policy": "/policies",
     "RoleAssignment": "/role_assignments",
     "ServiceAccount": "/service_accounts",
+    "Invocation": "/invocations",
 }
 
 # Junction/internal tables with project_id FK that are not first-class
@@ -47,6 +48,7 @@ _JUNCTION_TABLES: set[str] = {
 _MODELS_WITHOUT_LIST_ROUTE: set[str] = {
     "Execution",
     "FileMetadata",
+    "Invocation",
     "ServiceAccount",
 }
 

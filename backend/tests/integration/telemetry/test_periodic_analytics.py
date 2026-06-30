@@ -376,7 +376,9 @@ class TestQueryModelUsageRealDB:
         assert usage_by_model["claude-3"].total_tokens == 900
         assert usage_by_model["claude-3"].invocation_count == 1
 
-    async def test_excludes_records_without_actual_tokens(self, test_db_session: AsyncSession, test_user: User):
+    async def test_excludes_records_without_actual_tokens(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id
+    ):
         """Records without post-LLM actual tokens (pre-LLM estimates only) are excluded."""
         now = datetime.now(UTC)
 
@@ -384,6 +386,7 @@ class TestQueryModelUsageRealDB:
             prompt="in-flight prompt",
             session_id="test-session",
             created_by=test_user.id,
+            project_id=test_project_id,
             model_name="gpt-4",
         )
         test_db_session.add(inv)
@@ -404,7 +407,9 @@ class TestQueryModelUsageRealDB:
 
         assert result == []
 
-    async def ***REMOVED***(self, test_db_session: AsyncSession, test_user: User):
+    async def ***REMOVED***(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id
+    ):
         """Invocations without a model_name are excluded from aggregation."""
         now = datetime.now(UTC)
 
@@ -412,6 +417,7 @@ class TestQueryModelUsageRealDB:
             prompt="no model prompt",
             session_id="test-session",
             created_by=test_user.id,
+            project_id=test_project_id,
             model_name=None,
         )
         test_db_session.add(inv)

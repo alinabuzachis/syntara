@@ -7,6 +7,7 @@ workflow execution details (which are tested in tests/integration/workflow/).
 
 import asyncio
 from collections.abc import AsyncGenerator
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -42,6 +43,11 @@ async def execution_service(
     return TemporalExecutionService(temporal_client=temporal_client, task_queue=task_queue)
 
 
+TEST_WORKFLOW_METADATA = {
+    "workflow_context": {"workflow": {"project_id": str(uuid4())}},
+}
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 class TestTemporalExecutionServiceIntegration:
@@ -74,6 +80,7 @@ edges:
         result = await execution_service.start_workflow(
             workflow_def=workflow_def,
             workflow_name="integration-test",
+            workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
         # Verify result structure (Pydantic model)
@@ -118,6 +125,7 @@ edges:
             workflow_def=workflow_def,
             workflow_name="custom-id-test",
             workflow_id=custom_id,
+            workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
         assert result.workflow_id == custom_id
@@ -155,6 +163,7 @@ edges:
             workflow_def=workflow_def,
             workflow_name="input-test",
             input_data={"user_name": "Alice"},
+            workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
         # Wait for completion
@@ -190,6 +199,7 @@ edges: []
             await execution_service.start_workflow(
                 workflow_def=workflow_def,
                 workflow_name="invalid-workflow",
+                workflow_metadata=TEST_WORKFLOW_METADATA,
             )
 
     async def test_get_workflow_status(self, execution_service: TemporalExecutionService) -> None:
@@ -221,6 +231,7 @@ edges:
         result = await execution_service.start_workflow(
             workflow_def=workflow_def,
             workflow_name="status-test",
+            workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
         # Get status while running
@@ -269,6 +280,7 @@ edges:
         result = await execution_service.start_workflow(
             workflow_def=workflow_def,
             workflow_name="cancel-test",
+            workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
         # Give it a moment to start
@@ -345,6 +357,7 @@ edges:
                 result = await service.start_workflow(
                     workflow_def=workflow_def,
                     workflow_name="factory-test",
+                    workflow_metadata=TEST_WORKFLOW_METADATA,
                 )
 
                 assert result.status == "running"

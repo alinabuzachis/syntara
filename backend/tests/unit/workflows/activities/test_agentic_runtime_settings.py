@@ -2,6 +2,7 @@
 
 from collections.abc import Generator
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 from temporalio.exceptions import ApplicationError
@@ -55,5 +56,13 @@ class TestExecuteAgenticActivitySettingsIntegration:
         """Activity raises ApplicationError when prompt exceeds max length."""
         config: dict[str, object] = {"prompt": "x" * 200000, "timeout": 300}
         with pytest.raises(ApplicationError) as exc_info:
-            await execute_agentic_activity(config, None)
+            await execute_agentic_activity(config, None, project_id=str(uuid4()))
+        assert exc_info.value.type == "ConfigError"
+
+    @pytest.mark.asyncio
+    async def test_missing_project_id_raises(self) -> None:
+        """Activity raises ApplicationError when project_id is empty."""
+        config: dict[str, object] = {"prompt": "test", "timeout": 300}
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_agentic_activity(config, None, project_id="")
         assert exc_info.value.type == "ConfigError"

@@ -225,6 +225,9 @@ function AIAgentFormFields({
     setUploadingFiles(newFiles)
 
     try {
+      if (!projectId) {
+        throw new Error('Cannot upload files without a project context')
+      }
       const response = await uploadFiles(files, projectId)
 
       // Move files to completed with success status and server-assigned IDs

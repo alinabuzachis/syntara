@@ -259,13 +259,16 @@ async def test_token_usage_record_with_actual_tokens(test_db_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_token_usage_record_invocation_id(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_token_usage_record_invocation_id(
+    test_db_session: AsyncSession, test_user: User, test_project_id
+) -> None:
     """Test that invocation_id can be set as a UUID referencing an invocation."""
     from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 
     invocation = Invocation(
         prompt="test prompt",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-001",
         status=InvocationStatus.RUNNING,
     )

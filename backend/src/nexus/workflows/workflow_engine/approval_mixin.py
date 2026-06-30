@@ -40,7 +40,7 @@ class WorkflowApprovalMixin:
     """
 
     execution_id: str
-    _project_id: str | None
+    _project_id: str
     resolver: NamespaceResolver
     _runtime_settings: dict[str, Any]
     skipped_nodes: set[str]

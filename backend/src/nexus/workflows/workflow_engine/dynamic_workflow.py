@@ -153,12 +153,12 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
         self.request_id = request_id
         self.resolver = NamespaceResolver()
 
-        self._project_id: str | None = None
+        self._project_id: str = ""
         if workflow_metadata:
             for ns_key, ns_data in workflow_metadata.items():
                 self.resolver.set_namespace(ns_key, ns_data)
             wf_ctx = workflow_metadata.get("workflow_context", {}).get("workflow", {})
-            self._project_id = wf_ctx.get("project_id")
+            self._project_id = wf_ctx.get("project_id", "")
 
         self.node_inputs: dict[str, dict[str, Any]] = {}
         self.node_control_data: dict[str, dict[str, Any]] = {}
@@ -1299,7 +1299,7 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
         if node_type in self._EXECUTOR_ACTIVITY_MAP:
             extra_args = None
             if node_type == NodeType.AGENTIC:
-                extra_args = [self.execution_id, self.request_id]
+                extra_args = [self.execution_id, self.request_id, self._project_id]
             # Inject the operational timeout BEFORE adding the Temporal margin so
             # activities use the operator-configured deadline, not the Temporal ceiling.
             parameters_with_timeout = {**resolved_parameters, ENGINE_TIMEOUT_SECONDS_KEY: timeout_seconds}

@@ -8,7 +8,9 @@ from tests.helpers.invocations import wait_for_invocation_execution
 
 
 @pytest.mark.asyncio
-async def test_invoke_accepts_camel_case_field_names(auth_client_with_mocked_llm: AsyncClient) -> None:
+async def test_invoke_accepts_camel_case_field_names(
+    auth_client_with_mocked_llm: AsyncClient, test_project_id: str
+) -> None:
     """Test that POST /invocations accepts camelCase aliases sessionId and contextData.
 
     InvocationCreateRequest supports camelCase for backward compatibility with
@@ -19,6 +21,7 @@ async def test_invoke_accepts_camel_case_field_names(auth_client_with_mocked_llm
         json={
             "prompt": "camelCase aliases test",
             "sessionId": "camel-session-001",
+            "project_id": test_project_id,
             "contextData": {"environment": "staging"},
         },
     )
@@ -30,7 +33,9 @@ async def test_invoke_accepts_camel_case_field_names(auth_client_with_mocked_llm
 
 
 @pytest.mark.asyncio
-async def test_multipart_request_rejected_by_json_endpoint(auth_client_with_mocked_llm: AsyncClient) -> None:
+async def test_multipart_request_rejected_by_json_endpoint(
+    auth_client_with_mocked_llm: AsyncClient, test_project_id: str
+) -> None:
     """Test that POST /invocations rejects multipart/form-data requests.
 
     The JSON endpoint is strict; multipart payloads must use POST /invocations/chat.
@@ -40,6 +45,7 @@ async def test_multipart_request_rejected_by_json_endpoint(auth_client_with_mock
         data={
             "prompt": "multipart body",
             "session_id": "form-session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -47,7 +53,9 @@ async def test_multipart_request_rejected_by_json_endpoint(auth_client_with_mock
 
 
 @pytest.mark.asyncio
-async def test_invoke_returns_202_accepted(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_returns_202_accepted(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test that POST /api/v1/invocations returns 202 Accepted status."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
@@ -55,6 +63,7 @@ async def test_invoke_returns_202_accepted(auth_client_with_mocked_llm: AsyncCli
             "prompt": "Deploy app to production",
             "created_by": str(test_user.id),
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -62,13 +71,16 @@ async def test_invoke_returns_202_accepted(auth_client_with_mocked_llm: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_invoke_response_schema(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_response_schema(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test that response matches expected schema."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app to production",
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -96,16 +108,19 @@ async def test_invoke_response_schema(auth_client_with_mocked_llm: AsyncClient, 
     assert data["created_by"] == str(test_user.id)
     assert data["prompt"] == "Deploy app to production"
     assert data["session_id"] == "session-001"
+    assert "project_id" in data
+    assert data["project_id"] == test_project_id
 
 
 @pytest.mark.asyncio
-async def test_invoke_with_context(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_with_context(auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str) -> None:
     """Test invocation request with context data."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app",
             "session_id": "session-001",
+            "project_id": test_project_id,
             "context_data": {"environment": "production", "file_metadata": [], "region": "us-east-1"},
         },
     )
@@ -116,13 +131,16 @@ async def test_invoke_with_context(auth_client_with_mocked_llm: AsyncClient, tes
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_missing_session_id(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_validation_missing_session_id(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test validation error for missing session_id."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app",
             "created_by": str(test_user.id),
+            "project_id": test_project_id,
         },
     )
 
@@ -155,7 +173,9 @@ async def test_list_invocations_response_schema(auth_client: AsyncClient, test_u
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def ***REMOVED***(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test filtering invocations by status."""
     # First create an invocation
     await auth_client_with_mocked_llm.post(
@@ -164,6 +184,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
             "prompt": "Deploy app",
             "created_by": str(test_user.id),
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -210,7 +231,9 @@ async def test_list_invocations_limit_too_large(auth_client: AsyncClient, test_u
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_by_created_by(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_list_invocations_filter_by_created_by(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test filtering invocations by creator UUID."""
     user_uuid = str(test_user.id)
 
@@ -221,6 +244,7 @@ async def test_list_invocations_filter_by_created_by(auth_client_with_mocked_llm
             "prompt": "Test prompt",
             "created_by": user_uuid,
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -236,7 +260,9 @@ async def test_list_invocations_filter_by_created_by(auth_client_with_mocked_llm
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_by_session_id(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_list_invocations_filter_by_session_id(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test filtering invocations by session ID."""
     session_id = "test-session-123"
 
@@ -247,6 +273,7 @@ async def test_list_invocations_filter_by_session_id(auth_client_with_mocked_llm
             "prompt": "Test prompt",
             "created_by": str(test_user.id),
             "session_id": session_id,
+            "project_id": test_project_id,
         },
     )
 
@@ -310,7 +337,9 @@ async def test_list_invocations_pagination_metadata(auth_client: AsyncClient, te
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_with_multiple_filters(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_list_invocations_with_multiple_filters(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test combining multiple filters."""
     user_uuid = str(test_user.id)
     session_id = "multi-filter-session"
@@ -322,6 +351,7 @@ async def test_list_invocations_with_multiple_filters(auth_client_with_mocked_ll
             "prompt": "Multi-filter test",
             "created_by": user_uuid,
             "session_id": session_id,
+            "project_id": test_project_id,
         },
     )
 
@@ -344,13 +374,16 @@ async def test_list_invocations_with_multiple_filters(auth_client_with_mocked_ll
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_missing_prompt(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_validation_missing_prompt(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test validation error for missing prompt."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         json={
             "created_by": str(test_user.id),
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -358,7 +391,9 @@ async def test_invoke_validation_missing_prompt(auth_client_with_mocked_llm: Asy
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_empty_prompt(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_validation_empty_prompt(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test validation error for empty prompt."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
@@ -366,6 +401,7 @@ async def test_invoke_validation_empty_prompt(auth_client_with_mocked_llm: Async
             "prompt": "",
             "created_by": str(test_user.id),
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -373,7 +409,56 @@ async def test_invoke_validation_empty_prompt(auth_client_with_mocked_llm: Async
 
 
 @pytest.mark.asyncio
-async def test_invoke_with_very_long_prompt(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_validation_missing_project_id(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+    """Test validation error for missing project_id on JSON endpoint."""
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations",
+        json={
+            "prompt": "Deploy app",
+            "session_id": "session-001",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_chat_invoke_missing_project_id(
+    auth_client_with_mocked_llm: AsyncClient,
+) -> None:
+    """Test validation error for missing project_id on chat endpoint."""
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data={
+            "prompt": "Deploy app",
+            "session_id": "session-001",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_chat_invoke_invalid_project_id(
+    auth_client_with_mocked_llm: AsyncClient,
+) -> None:
+    """Test validation error for invalid project_id on chat endpoint."""
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data={
+            "prompt": "Deploy app",
+            "session_id": "session-001",
+            "project_id": "not-a-uuid",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_invoke_with_very_long_prompt(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test invocation with very long prompt (near max length)."""
     # OpenAPI spec shows maxLength: 10000 for prompt
     long_prompt = "Deploy application " * 500  # ~9000 chars
@@ -384,6 +469,7 @@ async def test_invoke_with_very_long_prompt(auth_client_with_mocked_llm: AsyncCl
             "prompt": long_prompt,
             "created_by": str(test_user.id),
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -393,7 +479,9 @@ async def test_invoke_with_very_long_prompt(auth_client_with_mocked_llm: AsyncCl
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_prompt_exceeds_max_length(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_validation_prompt_exceeds_max_length(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test validation error for prompt exceeding max length (10000 chars)."""
     # Create a prompt that exceeds 10000 characters
     too_long_prompt = "a" * 10001
@@ -404,6 +492,7 @@ async def test_invoke_validation_prompt_exceeds_max_length(auth_client_with_mock
             "prompt": too_long_prompt,
             "created_by": str(test_user.id),
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -466,7 +555,9 @@ async def test_list_invocations_sort_by_non_sortable_field(auth_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def ***REMOVED***(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test that default sort order is -created_at (descending)."""
     # Create two invocations with slight delay to ensure different timestamps
     await auth_client_with_mocked_llm.post(
@@ -475,6 +566,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
             "prompt": "First invocation",
             "created_by": str(test_user.id),
             "session_id": "default-sort-test",
+            "project_id": test_project_id,
         },
     )
 
@@ -484,6 +576,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
             "prompt": "Second invocation",
             "created_by": str(test_user.id),
             "session_id": "default-sort-test",
+            "project_id": test_project_id,
         },
     )
 
@@ -540,7 +633,9 @@ async def test_list_invocations_invalid_status(auth_client: AsyncClient, test_us
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def ***REMOVED***(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test that POST response includes all expected fields including inherited ones."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
@@ -548,6 +643,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
             "prompt": "Complete field test",
             "created_by": str(test_user.id),
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -577,7 +673,9 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
 
 
 @pytest.mark.asyncio
-async def test_list_response_includes_all_fields(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_list_response_includes_all_fields(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test that GET response resources include all fields."""
     # Create an invocation first
     await auth_client_with_mocked_llm.post(
@@ -586,6 +684,7 @@ async def test_list_response_includes_all_fields(auth_client_with_mocked_llm: As
             "prompt": "Field test",
             "created_by": str(test_user.id),
             "session_id": "field-test",
+            "project_id": test_project_id,
         },
     )
 
@@ -611,7 +710,9 @@ async def test_list_response_includes_all_fields(auth_client_with_mocked_llm: As
 
 
 @pytest.mark.asyncio
-async def test_invoke_null_fields_handling(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_null_fields_handling(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test that null/optional fields are properly returned as null."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
@@ -619,6 +720,7 @@ async def test_invoke_null_fields_handling(auth_client_with_mocked_llm: AsyncCli
             "prompt": "Null field test",
             "created_by": str(test_user.id),
             "session_id": "session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -725,7 +827,9 @@ async def test_list_invocations_with_limit_one(auth_client: AsyncClient, test_us
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_prompt_contains(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_list_invocations_filter_prompt_contains(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test filtering by prompt text with contains operator."""
     # Create invocations with different prompts
     await auth_client_with_mocked_llm.post(
@@ -734,6 +838,7 @@ async def test_list_invocations_filter_prompt_contains(auth_client_with_mocked_l
             "prompt": "Deploy application to production",
             "created_by": str(test_user.id),
             "session_id": "prompt-filter-test",
+            "project_id": test_project_id,
         },
     )
 
@@ -743,6 +848,7 @@ async def test_list_invocations_filter_prompt_contains(auth_client_with_mocked_l
             "prompt": "Analyze system metrics",
             "created_by": str(test_user.id),
             "session_id": "prompt-filter-test",
+            "project_id": test_project_id,
         },
     )
 
@@ -758,7 +864,9 @@ async def test_list_invocations_filter_prompt_contains(auth_client_with_mocked_l
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_prompt_starts_with(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_list_invocations_filter_prompt_starts_with(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test filtering by prompt text with starts_with operator."""
     # Create invocations
     await auth_client_with_mocked_llm.post(
@@ -767,6 +875,7 @@ async def test_list_invocations_filter_prompt_starts_with(auth_client_with_mocke
             "prompt": "Deploy application",
             "created_by": str(test_user.id),
             "session_id": "prompt-filter-test-2",
+            "project_id": test_project_id,
         },
     )
 
@@ -776,6 +885,7 @@ async def test_list_invocations_filter_prompt_starts_with(auth_client_with_mocke
             "prompt": "Analyze deployment logs",
             "created_by": str(test_user.id),
             "session_id": "prompt-filter-test-2",
+            "project_id": test_project_id,
         },
     )
 
@@ -930,7 +1040,7 @@ async def test_list_invocations_filter_updated_at_lte(auth_client: AsyncClient, 
 
 @pytest.mark.asyncio
 async def test_list_invocations_filter_created_by_eq_operator(
-    auth_client_with_mocked_llm: AsyncClient, test_user
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
 ) -> None:
     """Test filtering by created_by with explicit eq operator."""
     user_uuid = str(test_user.id)
@@ -942,6 +1052,7 @@ async def test_list_invocations_filter_created_by_eq_operator(
             "prompt": "Test created_by operator",
             "created_by": user_uuid,
             "session_id": "created-by-op-test",
+            "project_id": test_project_id,
         },
     )
 
@@ -958,7 +1069,7 @@ async def test_list_invocations_filter_created_by_eq_operator(
 
 @pytest.mark.asyncio
 async def test_list_invocations_filter_session_id_eq_operator(
-    auth_client_with_mocked_llm: AsyncClient, test_user
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
 ) -> None:
     """Test filtering by session_id with explicit eq operator."""
     session_id = "test-session-eq"
@@ -969,6 +1080,7 @@ async def test_list_invocations_filter_session_id_eq_operator(
             "prompt": "Test session_id eq operator",
             "created_by": str(test_user.id),
             "session_id": session_id,
+            "project_id": test_project_id,
         },
     )
 
@@ -983,7 +1095,9 @@ async def test_list_invocations_filter_session_id_eq_operator(
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_session_id_contains(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_list_invocations_filter_session_id_contains(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
+) -> None:
     """Test filtering by session_id with contains operator."""
     # Create invocations with different session IDs
     await auth_client_with_mocked_llm.post(
@@ -992,6 +1106,7 @@ async def test_list_invocations_filter_session_id_contains(auth_client_with_mock
             "prompt": "Session contains test 1",
             "created_by": str(test_user.id),
             "session_id": "prod-session-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -1001,6 +1116,7 @@ async def test_list_invocations_filter_session_id_contains(auth_client_with_mock
             "prompt": "Session contains test 2",
             "created_by": str(test_user.id),
             "session_id": "dev-session-002",
+            "project_id": test_project_id,
         },
     )
 
@@ -1017,7 +1133,7 @@ async def test_list_invocations_filter_session_id_contains(auth_client_with_mock
 
 @pytest.mark.asyncio
 async def test_list_invocations_filter_session_id_starts_with(
-    auth_client_with_mocked_llm: AsyncClient, test_user
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
 ) -> None:
     """Test filtering by session_id with starts_with operator."""
     await auth_client_with_mocked_llm.post(
@@ -1026,6 +1142,7 @@ async def test_list_invocations_filter_session_id_starts_with(
             "prompt": "Session starts_with test",
             "created_by": str(test_user.id),
             "session_id": "prefix-session-123",
+            "project_id": test_project_id,
         },
     )
 
@@ -1044,13 +1161,16 @@ async def test_list_invocations_filter_session_id_starts_with(
 
 
 @pytest.mark.asyncio
-async def test_chat_invoke_returns_202_without_files(auth_client_with_mocked_llm: AsyncClient) -> None:
+async def test_chat_invoke_returns_202_without_files(
+    auth_client_with_mocked_llm: AsyncClient, test_project_id: str
+) -> None:
     """Test that POST /invocations/chat returns 202 when no files are provided."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations/chat",
         data={
             "prompt": "No files chat",
             "session_id": "chat-test-001",
+            "project_id": test_project_id,
         },
     )
 
@@ -1064,7 +1184,9 @@ async def test_chat_invoke_returns_202_without_files(auth_client_with_mocked_llm
 
 
 @pytest.mark.asyncio
-async def test_chat_invoke_returns_202_with_files(auth_client_with_mocked_llm: AsyncClient) -> None:
+async def test_chat_invoke_returns_202_with_files(
+    auth_client_with_mocked_llm: AsyncClient, test_project_id: str
+) -> None:
     """Test that POST /invocations/chat returns 202 and file_ids when files are uploaded."""
     files = [
         ("files", ("doc.pdf", b"PDF content", "application/pdf")),
@@ -1075,6 +1197,7 @@ async def test_chat_invoke_returns_202_with_files(auth_client_with_mocked_llm: A
         data={
             "prompt": "Summarise these docs",
             "session_id": "chat-test-002",
+            "project_id": test_project_id,
         },
         files=files,
     )
@@ -1087,29 +1210,33 @@ async def test_chat_invoke_returns_202_with_files(auth_client_with_mocked_llm: A
 
 
 @pytest.mark.asyncio
-async def test_chat_invoke_missing_prompt_returns_400(auth_client_with_mocked_llm: AsyncClient) -> None:
+async def test_chat_invoke_missing_prompt_returns_400(
+    auth_client_with_mocked_llm: AsyncClient, test_project_id: str
+) -> None:
     """Test that POST /invocations/chat returns 400 when prompt is missing."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations/chat",
-        data={"session_id": "chat-test-003"},
+        data={"session_id": "chat-test-003", "project_id": test_project_id},
     )
 
     assert response.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_chat_invoke_missing_session_id_returns_400(auth_client_with_mocked_llm: AsyncClient) -> None:
+async def test_chat_invoke_missing_session_id_returns_400(
+    auth_client_with_mocked_llm: AsyncClient, test_project_id: str
+) -> None:
     """Test that POST /invocations/chat returns 400 when session_id is missing."""
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations/chat",
-        data={"prompt": "Missing session id"},
+        data={"prompt": "Missing session id", "project_id": test_project_id},
     )
 
     assert response.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_chat_invoke_with_context_data(auth_client_with_mocked_llm: AsyncClient) -> None:
+async def test_chat_invoke_with_context_data(auth_client_with_mocked_llm: AsyncClient, test_project_id: str) -> None:
     """Test that POST /invocations/chat correctly parses JSON-encoded context_data form field."""
     import json
 
@@ -1119,6 +1246,7 @@ async def test_chat_invoke_with_context_data(auth_client_with_mocked_llm: AsyncC
         data={
             "prompt": "Context data test",
             "session_id": "chat-test-005",
+            "project_id": test_project_id,
             "context_data": json.dumps(context),
         },
     )
@@ -1130,17 +1258,21 @@ async def test_chat_invoke_with_context_data(auth_client_with_mocked_llm: AsyncC
 
 
 @pytest.mark.asyncio
-async def test_json_request_rejected_by_chat_endpoint(auth_client_with_mocked_llm: AsyncClient) -> None:
+async def test_json_request_rejected_by_chat_endpoint(
+    auth_client_with_mocked_llm: AsyncClient, test_project_id: str
+) -> None:
     """Test that POST /invocations/chat rejects application/json content-type.
 
     The /chat endpoint is multipart-only; JSON payloads must use POST /invocations.
+    FastAPI returns 422 because it cannot parse multipart form fields from a JSON body.
     """
     response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations/chat",
         json={
             "prompt": "JSON body",
             "session_id": "chat-test-006",
+            "project_id": test_project_id,
         },
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 422

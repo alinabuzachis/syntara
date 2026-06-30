@@ -33,11 +33,12 @@ async def user_config(test_db_session: AsyncSession, test_user) -> UserTokenConf
 
 
 @pytest_asyncio.fixture
-async def invocation(test_db_session: AsyncSession, test_user) -> Invocation:
+async def invocation(test_db_session: AsyncSession, test_user, test_project_id) -> Invocation:
     """Create a test invocation."""
     inv = Invocation(
         prompt="test prompt",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-001",
         status=InvocationStatus.RUNNING,
     )

@@ -79,7 +79,7 @@ class TestAgenticActivityWorkflowContextMetadata:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None, execution_id=execution_id)
+            await execute_agentic_activity(input_config, None, execution_id=execution_id, project_id=str(uuid4()))
 
         # Verify invoke_agent_async was called
         mock_agent_client.invoke_agent_async.assert_called_once()
@@ -122,7 +122,7 @@ class TestAgenticActivityWorkflowContextMetadata:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None, execution_id=execution_id)
+            await execute_agentic_activity(input_config, None, execution_id=execution_id, project_id=str(uuid4()))
 
         # Verify callback URL was generated with correct parameters
         from uuid import UUID
@@ -158,7 +158,7 @@ class TestAgenticActivityWorkflowContextMetadata:
         ):
             mock_cls.return_value = mock_agent_client
             # execution_id defaults to "" when not provided
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         # Verify callback_url is NOT in metadata
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -193,7 +193,9 @@ class TestAgenticActivityWorkflowContextMetadata:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None, execution_id=execution_id, request_id=request_id)
+            await execute_agentic_activity(
+                input_config, None, execution_id=execution_id, request_id=request_id, project_id=str(uuid4())
+            )
 
         # Verify request_id is in metadata
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -228,7 +230,9 @@ class TestAgenticActivityWorkflowContextMetadata:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None, execution_id=execution_id, request_id=None)
+            await execute_agentic_activity(
+                input_config, None, execution_id=execution_id, request_id=None, project_id=str(uuid4())
+            )
 
         # Verify request_id is NOT in metadata
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -271,7 +275,9 @@ class TestAgenticActivityWorkflowContextMetadata:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None, execution_id=execution_id, request_id=request_id)
+            await execute_agentic_activity(
+                input_config, None, execution_id=execution_id, request_id=request_id, project_id=str(uuid4())
+            )
 
         # Verify both context and credential metadata are present
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -319,7 +325,7 @@ class TestAgenticActivityWorkflowContextMetadata:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None, execution_id=execution_id)
+            await execute_agentic_activity(input_config, None, execution_id=execution_id, project_id=str(uuid4()))
 
         # Verify both context and response_schema metadata are present
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -360,7 +366,7 @@ class TestAgenticActivityWorkflowContextMetadata:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None, execution_id=execution_id)
+            await execute_agentic_activity(input_config, None, execution_id=execution_id, project_id=str(uuid4()))
 
         # Verify fallback values are used
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -406,7 +412,9 @@ class TestAgenticActivityWorkflowContextMetadata:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None, execution_id=execution_id, request_id=request_id)
+            await execute_agentic_activity(
+                input_config, None, execution_id=execution_id, request_id=request_id, project_id=str(uuid4())
+            )
 
         # Verify all metadata fields are present
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -456,7 +464,7 @@ class TestAgenticActivityIntegrationConnections:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
         metadata = call_kwargs["metadata"]
@@ -495,7 +503,7 @@ class TestAgenticActivityIntegrationConnections:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
         assert metadata["integration_connections"] == connections
@@ -520,7 +528,7 @@ class TestAgenticActivityIntegrationConnections:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
         assert "integration_connections" not in metadata
@@ -554,7 +562,7 @@ class TestAgenticActivityToolSelection:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
         assert metadata["tool_selection_strategy"] == "SELECTED"
@@ -578,7 +586,7 @@ class TestAgenticActivityToolSelection:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
         assert metadata["tool_selection_strategy"] == "ALL"
@@ -604,7 +612,7 @@ class TestAgenticActivityToolSelection:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
         assert "tool_selection_strategy" not in metadata

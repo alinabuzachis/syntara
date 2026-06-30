@@ -257,6 +257,7 @@ async def test_budget_reflects_actual_tokens_after_update(
     user_a_config: UserTokenConfig,
     test_db_session: AsyncSession,
     test_user,
+    test_project_id,
 ) -> None:
     """US1-S2/US3-S3: Budget uses actual token_count for completed invocations.
 
@@ -269,6 +270,7 @@ async def test_budget_reflects_actual_tokens_after_update(
     invocation = Invocation(
         prompt="test prompt",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-001",
         status=InvocationStatus.RUNNING,
     )

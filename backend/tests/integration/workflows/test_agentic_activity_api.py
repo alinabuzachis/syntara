@@ -10,6 +10,7 @@ import asyncio
 from collections.abc import Generator
 from typing import Any
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from temporalio.exceptions import ApplicationError
@@ -85,7 +86,7 @@ class TestAgenticActivityExecution:
         }
 
         with pytest.raises(CompleteAsyncError):
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         # Verify Agent Orchestrator was called asynchronously
         mock_agent_client.invoke_agent_async.assert_called_once()
@@ -100,7 +101,7 @@ class TestAgenticActivityExecution:
         }
 
         with pytest.raises(CompleteAsyncError):
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         # Verify invoke_agent_async was called with correct parameters
         call_args = mock_agent_client.invoke_agent_async.call_args
@@ -124,7 +125,7 @@ class TestAgenticActivityExecution:
         }
 
         with pytest.raises(CompleteAsyncError):
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         # Verify invoke_agent_async was called
         mock_agent_client.invoke_agent_async.assert_called()
@@ -148,7 +149,7 @@ class TestAgenticActivityErrorHandling:
         }
 
         with pytest.raises(ApplicationError) as exc_info:
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
         assert "agent orchestrator" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
@@ -166,7 +167,7 @@ class TestAgenticActivityErrorHandling:
         }
 
         with pytest.raises(ApplicationError):
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
     @pytest.mark.asyncio
     async def test_handles_agent_orchestrator_error_response(self, mock_agent_client) -> None:
@@ -179,7 +180,7 @@ class TestAgenticActivityErrorHandling:
         }
 
         with pytest.raises(CompleteAsyncError):
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         # Activity invoked agent successfully (raise_complete_async was called)
         mock_agent_client.invoke_agent_async.assert_called_once()
@@ -197,7 +198,7 @@ class TestAgenticActivityEdgeCases:
         }
 
         with pytest.raises(ApplicationError) as exc_info:
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
         assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
@@ -209,7 +210,7 @@ class TestAgenticActivityEdgeCases:
         }
 
         with pytest.raises(ApplicationError) as exc_info:
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
         assert exc_info.value.type == "ConfigError"
 
 
@@ -225,7 +226,7 @@ class TestAgenticActivityTimeoutConfiguration:
         }
 
         with pytest.raises(CompleteAsyncError):
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         mock_agent_client.invoke_agent_async.assert_called_once()
 
@@ -239,7 +240,7 @@ class TestAgenticActivityTimeoutConfiguration:
         }
 
         with pytest.raises(CompleteAsyncError):
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         mock_agent_client.invoke_agent_async.assert_called_once()
 
@@ -256,7 +257,7 @@ class TestAgenticActivityInputEdgeCases:
         }
 
         with pytest.raises(CompleteAsyncError):
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
     @pytest.mark.asyncio
     async def test_concurrent_invocations_use_separate_clients(self) -> None:
@@ -268,9 +269,9 @@ class TestAgenticActivityInputEdgeCases:
 
         # All three invocations raise CompleteAsyncError on success
         results = await asyncio.gather(
-            execute_agentic_activity(input_config, None),
-            execute_agentic_activity(input_config, None),
-            execute_agentic_activity(input_config, None),
+            execute_agentic_activity(input_config, None, project_id=str(uuid4())),
+            execute_agentic_activity(input_config, None, project_id=str(uuid4())),
+            execute_agentic_activity(input_config, None, project_id=str(uuid4())),
             return_exceptions=True,
         )
 

@@ -325,7 +325,7 @@ class ExecutionService(BaseService):
                     "version": workflow_version.version,
                     "published": workflow.published_version is not None,
                     "author": workflow_author,
-                    "project_id": str(workflow.project_id) if workflow.project_id else None,
+                    "project_id": str(workflow.project_id),
                 },
                 "execution": {
                     "id": pre_generated_execution_id,
@@ -640,7 +640,7 @@ class ExecutionService(BaseService):
                     "version": workflow_version.version,
                     "published": workflow.published_version is not None,
                     "author": workflow_author,
-                    "project_id": str(workflow.project_id) if workflow.project_id else None,
+                    "project_id": str(workflow.project_id),
                 },
                 "execution": {
                     "id": pre_generated_execution_id,

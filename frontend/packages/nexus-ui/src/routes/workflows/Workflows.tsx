@@ -31,7 +31,6 @@ import { WorkflowsListPanel } from './WorkflowsListPanel'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 type WorkflowDefinitionSchema = WorkflowAPI.components['schemas']['WorkflowDefinition']
-type WorkflowWithProject = Workflow & { project_id?: string }
 
 // Transform is_enabled string values to boolean for the API
 const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
@@ -142,7 +141,7 @@ export default function Workflows() {
   const sortedWorkflows = useMemo(() => {
     if (!isAllProjects) return workflows
     return workflows.filter((w) => {
-      const pid = (w as WorkflowWithProject).project_id ?? 'unknown'
+      const pid = w.project_id
       return !builtinProjectIds.has(pid)
     })
   }, [workflows, isAllProjects, builtinProjectIds])
@@ -154,7 +153,7 @@ export default function Workflows() {
     if (!isAllProjects) return null
     const groups = new Map<string, { project: (typeof projects)[number] | null; workflows: Workflow[] }>()
     for (const workflow of sortedWorkflows) {
-      const projectId = (workflow as WorkflowWithProject).project_id ?? 'unknown'
+      const projectId = workflow.project_id
       if (!groups.has(projectId)) {
         groups.set(projectId, {
           project: projects.find((p) => p.id === projectId) ?? null,

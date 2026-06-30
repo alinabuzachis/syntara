@@ -41,7 +41,8 @@ router = NexusRouter(prefix="/invocations", tags=["Invocation"])
 
 logger = structlog.stdlib.get_logger(__name__)
 
-_invocation_perm_create = PermissionChecker("invocation", "create")
+_invocation_perm_create_json = PermissionChecker("invocation", "create", body_project_field="project_id")
+_invocation_perm_create_form = PermissionChecker("invocation", "create", form_project_field="project_id")
 _invocation_perm_read = PermissionChecker("invocation", "read")
 _invocation_perm_cancel = PermissionChecker("invocation", "cancel")
 
@@ -128,7 +129,7 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
     status_code=status.HTTP_202_ACCEPTED,
     summary="Create Invocation (Async)",
     description="Accept async agent invocation request and return invocation ID immediately.",
-    dependencies=[Depends(_invocation_perm_create)],
+    dependencies=[Depends(_invocation_perm_create_json)],
     operation_id="create_invocation",
     response_description="Invocation accepted",
     openapi_extra={
@@ -188,6 +189,7 @@ async def create_invocation(
     return await service.create_invocation(
         prompt=request_body.prompt,
         session_id=request_body.session_id,
+        project_id=request_body.project_id,
         context_data=request_body.context_data,
         files=None,
     )
@@ -198,7 +200,7 @@ async def create_invocation(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Create Invocation with File Uploads (Async)",
     description="Accept async agent invocation request with optional file uploads via multipart/form-data.",
-    dependencies=[Depends(_invocation_perm_create)],
+    dependencies=[Depends(_invocation_perm_create_form)],
     operation_id="create_invocation_chat",
     response_description="Invocation accepted",
 )
@@ -222,9 +224,17 @@ async def create_invocation_chat(
     prompt, session_id = _validate_multipart_required_fields(form.prompt, form.session_id)
     context_data: dict[str, object] | None = json.loads(form.context_data) if form.context_data else None
 
+    try:
+        project_id = UUID(form.project_id)
+    except ValueError:
+        raise HTTPException(  # noqa: B904
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="project_id must be a valid UUID"
+        )
+
     return await service.create_invocation(
         prompt=prompt,
         session_id=session_id,
+        project_id=project_id,
         context_data=context_data,
         files=form.files,
     )

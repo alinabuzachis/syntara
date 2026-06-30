@@ -215,6 +215,7 @@ class AgentOrchestratorClient:
         input_data: dict[str, Any] | None,
         file_ids: list[str] | None,
         metadata: dict[str, Any] | None,
+        project_id: str,
     ) -> dict[str, Any]:
         """Build the request payload for agent invocation.
 
@@ -227,6 +228,7 @@ class AgentOrchestratorClient:
             input_data: Optional input data
             file_ids: Optional list of file IDs
             metadata: Optional metadata (callback_url will be extracted to top level)
+            project_id: Project ID to include in the payload
 
         Returns:
             Request payload dictionary
@@ -248,7 +250,7 @@ class AgentOrchestratorClient:
             if not metadata:
                 metadata = None
 
-        return {
+        payload: dict[str, Any] = {
             "prompt": prompt,
             "createdBy": user_id,
             "sessionId": session_id,
@@ -268,7 +270,9 @@ class AgentOrchestratorClient:
                 }.items()
                 if v is not None
             },
+            "projectId": project_id,
         }
+        return payload
 
     async def _attempt_invocation(
         self,
@@ -349,6 +353,7 @@ class AgentOrchestratorClient:
         self,
         prompt: str,
         user_id: str,
+        project_id: str,
         session_id: str | None = None,
         agent: str | None = None,
         model: str | None = None,
@@ -365,6 +370,7 @@ class AgentOrchestratorClient:
         Args:
             prompt: Natural language prompt for the agent
             user_id: User identifier for authentication and audit
+            project_id: Project ID to associate the invocation with
             session_id: Optional session ID for tracking conversation context (auto-generated if not provided)
             agent: Optional agent identifier for routing (included in metadata)
             model: Optional model identifier to use
@@ -392,7 +398,7 @@ class AgentOrchestratorClient:
 
         # Build request payload
         payload = self._build_invocation_payload(
-            prompt, user_id, session_id, agent, model, input_data, file_ids, metadata
+            prompt, user_id, session_id, agent, model, input_data, file_ids, metadata, project_id
         )
 
         # Invoke with retry logic for transient failures

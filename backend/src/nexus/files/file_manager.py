@@ -169,6 +169,7 @@ class FileManager:
     async def validate_and_save_files(
         self,
         files: list[UploadFile],
+        project_id: UUID,
     ) -> list[FileMetadata]:
         """Validate and save uploaded files with transactional cleanup.
 
@@ -185,6 +186,7 @@ class FileManager:
 
         Args:
             files: List of uploaded files
+            project_id: Project to associate files with
 
         Returns:
             List of FileMetadata objects with file information (not yet persisted)
@@ -263,6 +265,7 @@ class FileManager:
                     content_hash=content_hash,
                     retention_expires_at=retention_expires_at,
                     status=FileStatus.PENDING_CONVERSION,
+                    project_id=project_id,
                 )
                 file_metadata_list.append(metadata)
 

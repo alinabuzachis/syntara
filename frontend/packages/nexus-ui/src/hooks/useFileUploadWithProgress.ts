@@ -103,7 +103,7 @@ export type FileProgress = {
  */
 export type UseFileUploadWithProgressResult = {
   /** Function to upload files with progress tracking */
-  uploadFiles: (files: File[], projectId?: string) => Promise<FileUploadResponse>
+  uploadFiles: (files: File[], projectId: string) => Promise<FileUploadResponse>
   /** Whether an upload is currently in progress */
   uploading: boolean
   /** Progress information for each file being uploaded */
@@ -166,7 +166,7 @@ export function useFileUploadWithProgress(): UseFileUploadWithProgressResult {
    * @returns Promise resolving to FileUploadResponse with file_ids
    * @throws FileUploadError if upload fails
    */
-  const uploadFiles = useCallback(async (files: File[], projectId?: string): Promise<FileUploadResponse> => {
+  const uploadFiles = useCallback(async (files: File[], projectId: string): Promise<FileUploadResponse> => {
     setUploading(true)
     setError(null)
 
@@ -191,9 +191,7 @@ export function useFileUploadWithProgress(): UseFileUploadWithProgressResult {
     return new Promise((resolve, reject) => {
       const formData = new FormData()
       files.forEach((file) => formData.append('files', file))
-      if (projectId) {
-        formData.append('project_id', projectId)
-      }
+      formData.append('project_id', projectId)
 
       const xhr = new XMLHttpRequest()
       xhrRef.current = xhr

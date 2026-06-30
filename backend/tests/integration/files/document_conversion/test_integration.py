@@ -19,7 +19,9 @@ FIXTURES_DIR = Path(__file__).parent.parent.parent.parent / "fixtures" / "files"
 
 
 @pytest.mark.asyncio
-async def test_invoke_agent_with_pdf_document_conversion(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_agent_with_pdf_document_conversion(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test complete agent invocation workflow with PDF document conversion.
 
     This test demonstrates T028 requirements:
@@ -45,6 +47,7 @@ async def test_invoke_agent_with_pdf_document_conversion(auth_client_with_mocked
         data = {
             "prompt": "Please analyze the content of the uploaded documents and summarize them.",
             "session_id": "document-conversion-test",
+            "project_id": str(test_project_id),
         }
 
         # POST invocation with document
@@ -100,7 +103,9 @@ async def test_invoke_agent_with_pdf_document_conversion(auth_client_with_mocked
 
 
 @pytest.mark.asyncio
-async def test_invoke_agent_with_text_document_conversion(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_invoke_agent_with_text_document_conversion(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test agent invocation workflow with text file document conversion.
 
     Tests text-to-markdown conversion workflow.
@@ -115,6 +120,7 @@ async def test_invoke_agent_with_text_document_conversion(auth_client_with_mocke
         data = {
             "prompt": "What is the main content of this text file?",
             "session_id": "text-conversion-test",
+            "project_id": str(test_project_id),
         }
 
         # POST invocation with document

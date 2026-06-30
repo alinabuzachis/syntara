@@ -24,6 +24,7 @@ from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 @pytest.mark.asyncio
 async def test_files_parameter_is_optional(
     auth_client_with_mocked_llm: AsyncClient,
+    test_project_id,
 ) -> None:
     """Test that files parameter is optional on POST /invocations/chat.
 
@@ -35,6 +36,7 @@ async def test_files_parameter_is_optional(
     data = {
         "prompt": "No files needed",
         "session_id": "contract-test-002",
+        "project_id": str(test_project_id),
     }
 
     # Act
@@ -54,6 +56,7 @@ async def test_files_parameter_is_optional(
 @pytest.mark.asyncio
 async def test_files_array_max_items_constraint(
     auth_client_with_mocked_llm: AsyncClient,
+    test_project_id,
 ) -> None:
     """Test that POST /invocations/chat enforces maxItems: 10 constraint on files.
 
@@ -66,6 +69,7 @@ async def test_files_array_max_items_constraint(
     data = {
         "prompt": "Process 10 files",
         "session_id": "contract-test-003",
+        "project_id": str(test_project_id),
     }
 
     # Act - 10 files
@@ -95,6 +99,7 @@ async def test_files_array_max_items_constraint(
 @pytest.mark.asyncio
 async def test_response_schema_file_ids(
     auth_client_with_mocked_llm: AsyncClient,
+    test_project_id,
 ) -> None:
     """Test file_ids array schema in POST /invocations/chat response.
 
@@ -112,6 +117,7 @@ async def test_response_schema_file_ids(
     data = {
         "prompt": "Upload test",
         "session_id": "contract-test-004",
+        "project_id": str(test_project_id),
     }
 
     # Act

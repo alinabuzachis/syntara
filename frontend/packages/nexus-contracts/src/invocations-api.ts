@@ -104,6 +104,12 @@ export interface components {
      */
     Invocation: components['schemas']['UserOwnedResource'] & {
       /**
+       * Project Id
+       * Format: uuid
+       * @description Project namespace for resource isolation
+       */
+      project_id: string
+      /**
        * Prompt
        * @description Natural language user request
        */
@@ -173,6 +179,8 @@ export interface components {
       context_data?: string | null
       /** Files */
       files?: string[] | null
+      /** Project Id */
+      project_id: string
     }
     /**
      * InvocationListResponse
@@ -209,6 +217,12 @@ export interface components {
       contextData?: {
         [key: string]: unknown
       }
+      /**
+       * Projectid
+       * Format: uuid
+       * @description Project to associate this invocation with
+       */
+      projectId: string
     }
     /**
      * InvocationCancelRequest

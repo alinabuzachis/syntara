@@ -23,6 +23,20 @@ POLL_TIMEOUT = 20
 API_RETRIES = 3
 API_RETRY_DELAY = 2
 
+
+def get_first_non_builtin_project_id(api: NexusApiRegistry) -> UUID:
+    """Return the ID of the first available non-builtin project.
+
+    Raises AssertionError if no non-builtin projects exist.
+    """
+    projects_list = api.projects.list().assert_and_get()
+    for project in projects_list.resources:
+        if not getattr(project, "is_builtin", False):
+            return UUID(str(project.id))
+    msg = "No non-builtin projects available"
+    raise AssertionError(msg)
+
+
 TERMINAL_STATUSES = {
     ExecutionStatus.COMPLETED,
     ExecutionStatus.COMPLETED_WITH_ERRORS,
@@ -133,35 +147,23 @@ def create_and_run_workflow(
     If *project_id* is not provided, the first available project is looked up from the API.
     """
     if project_id is None:
-        projects_list = api.projects.list().assert_and_get()
-        for project in projects_list.resources:
-            if not getattr(project, "is_builtin", False):
-                project_id = UUID(str(project.id))
-                break
-        assert project_id is not None, "No non-builtin projects available"
+        project_id = get_first_non_builtin_project_id(api)
 
     list_response = _retry_api_call(
-        lambda: api.workflows.list(
-            additional_params={"name": name},
-        )
+        lambda: api.workflows.list(additional_params={"name": name, "project_id[eq]": str(project_id)})
     )
     workflows_list = list_response.assert_and_get()
     existing = [w for w in workflows_list.resources if w.name == name]
 
     wf_def = WorkflowDefinition.from_dict(definition)
 
-    if existing and UUID(str(existing[0].project_id)) == project_id:
+    if existing:
         wf_id = existing[0].id
         update_response = _retry_api_call(
-            lambda: api.workflows.update(
-                workflow_id=wf_id,
-                body=WorkflowUpdate(workflow_definition=wf_def),
-            )
+            lambda: api.workflows.update(workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=wf_def))
         )
         update_response.assert_and_get()
     else:
-        if existing:
-            _retry_api_call(lambda: api.workflows.delete(workflow_id=existing[0].id))
         create_response = _retry_api_call(
             lambda: api.workflows.create(
                 body=WorkflowCreate(

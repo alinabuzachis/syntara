@@ -264,7 +264,7 @@ async def test_update_user_config_create_new(
 
 @pytest_asyncio.fixture
 async def token_record_with_invocation(
-    test_db_session: AsyncSession, test_user: "User", user_config: UserTokenConfig
+    test_db_session: AsyncSession, test_user: "User", user_config: UserTokenConfig, test_project_id
 ) -> TokenUsageRecord:
     """Create a token usage record with invocation_id set (simulating pre-LLM creation)."""
     from nexus.agent_orchestrator.models import Invocation, InvocationStatus
@@ -272,6 +272,7 @@ async def token_record_with_invocation(
     invocation = Invocation(
         prompt="test prompt",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-001",
         status=InvocationStatus.RUNNING,
     )
@@ -415,6 +416,7 @@ async def test_record_usage_with_invocation_id(
     user_config: UserTokenConfig,
     test_db_session: AsyncSession,
     test_user: "User",
+    test_project_id,
 ) -> None:
     """Test that record_usage stores invocation_id when provided."""
     from nexus.agent_orchestrator.models import Invocation, InvocationStatus
@@ -422,6 +424,7 @@ async def test_record_usage_with_invocation_id(
     invocation = Invocation(
         prompt="test prompt",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-001",
         status=InvocationStatus.RUNNING,
     )

@@ -59,6 +59,7 @@ class TestInvocationServiceCreateAuditEvents:
         invocation = await service.create_invocation(
             prompt="Test prompt",
             session_id="session-123",
+            project_id=uuid4(),
         )
 
         # Assert - verify audit event was emitted
@@ -105,6 +106,7 @@ class TestInvocationServiceCreateAuditEvents:
         await service.create_invocation(
             prompt="Test prompt",
             session_id="session-456",
+            project_id=uuid4(),
             context_data={
                 "agent": "workflow-agent",
                 "model": "gpt-4",
@@ -164,6 +166,7 @@ class TestInvocationServiceCreateAuditEvents:
         await service.create_invocation(
             prompt="Test prompt",
             session_id="session-789",
+            project_id=uuid4(),
             files=[mock_upload_file],
         )
 
@@ -199,6 +202,7 @@ class TestInvocationServiceCreateAuditEvents:
             await service.create_invocation(
                 prompt="Test prompt",
                 session_id="session-error",
+                project_id=uuid4(),
             )
 
         # Verify error audit event was emitted

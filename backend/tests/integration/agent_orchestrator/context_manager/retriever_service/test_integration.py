@@ -22,7 +22,7 @@ FIXTURES_DIR = Path(__file__).parent.parent.parent.parent.parent / "fixtures" / 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("mock_relevancy_checker", "test_user_token_config")
 async def test_retriever_service_integration_with_agent_invocation(
-    auth_client_with_mocked_llm, test_user, mock_openrouter_llm
+    auth_client_with_mocked_llm, test_user, mock_openrouter_llm, test_project_id
 ) -> None:
     """Test complete file upload -> invocation -> agent execution flow.
 
@@ -39,6 +39,7 @@ async def test_retriever_service_integration_with_agent_invocation(
         data = {
             "prompt": "What are the key machine learning algorithms I should know about?",
             "session_id": f"retriever-integration-test-{uuid4().hex[:8]}",
+            "project_id": str(test_project_id),
         }
 
         response = await auth_client_with_mocked_llm.post(
@@ -72,7 +73,9 @@ async def test_retriever_service_integration_with_agent_invocation(
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("mock_relevancy_checker", "test_user_token_config")
-async def test_file_upload_with_streaming_events(auth_client_with_mocked_llm, test_user, mock_openrouter_llm) -> None:
+async def test_file_upload_with_streaming_events(
+    auth_client_with_mocked_llm, test_user, mock_openrouter_llm, test_project_id
+) -> None:
     """Test complete flow: upload files -> execute -> response streams via Redis.
 
     Verifies that file upload invocations produce streaming events
@@ -92,6 +95,7 @@ async def test_file_upload_with_streaming_events(auth_client_with_mocked_llm, te
         data = {
             "prompt": "Summarize this document",
             "session_id": f"streaming-integration-test-{uuid4().hex[:8]}",
+            "project_id": str(test_project_id),
         }
 
         response = await auth_client_with_mocked_llm.post(
@@ -140,7 +144,9 @@ async def test_file_upload_with_streaming_events(auth_client_with_mocked_llm, te
 
 
 @pytest.mark.asyncio
-async def test_invocation_with_invalid_file_id_fails_gracefully(auth_client_with_mocked_llm, test_user) -> None:
+async def test_invocation_with_invalid_file_id_fails_gracefully(
+    auth_client_with_mocked_llm, test_user, test_project_id
+) -> None:
     """Test that invoking with an invalid file_id fails gracefully.
 
     Verifies graceful error handling when file_id doesn't exist.
@@ -148,6 +154,7 @@ async def test_invocation_with_invalid_file_id_fails_gracefully(auth_client_with
     data = {
         "prompt": "Process this file",
         "session_id": f"invalid-file-test-{uuid4().hex[:8]}",
+        "project_id": str(test_project_id),
         "context_data": '{"file_ids": ["00000000-0000-0000-0000-000000000000"]}',
     }
 
@@ -164,14 +171,20 @@ async def test_invocation_with_invalid_file_id_fails_gracefully(auth_client_with
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("mock_relevancy_checker")
-async def test_file_upload_creates_db_records(auth_client_with_mocked_llm, test_user, test_db_session) -> None:
+async def test_file_upload_creates_db_records(
+    auth_client_with_mocked_llm, test_user, test_db_session, test_project_id
+) -> None:
     """Verify file upload creates FileMetadata records in the database."""
     text_file_path = FIXTURES_DIR / "sample.txt"
     assert text_file_path.exists()
 
     with text_file_path.open("rb") as text_file:
         files = {"files": ("test_file.txt", text_file, "text/plain")}
-        data = {"prompt": "Test prompt", "session_id": f"db-record-test-{uuid4().hex[:8]}"}
+        data = {
+            "prompt": "Test prompt",
+            "session_id": f"db-record-test-{uuid4().hex[:8]}",
+            "project_id": str(test_project_id),
+        }
 
         response = await auth_client_with_mocked_llm.post("/api/v1/invocations/chat", data=data, files=files)
 
@@ -191,12 +204,15 @@ async def test_file_upload_creates_db_records(auth_client_with_mocked_llm, test_
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(auth_client_with_mocked_llm, test_user, test_db_session) -> None:
+async def ***REMOVED***(
+    auth_client_with_mocked_llm, test_user, test_db_session, test_project_id
+) -> None:
     """Verify callback_url in context_data is preserved in invocation."""
     callback_url = "http://example.com/executions/123/activities/456/signal"
     data = {
         "prompt": "Test prompt",
         "session_id": f"callback-test-{uuid4().hex[:8]}",
+        "project_id": str(test_project_id),
         "context_data": f'{{"callback_url": "{callback_url}"}}',
     }
 

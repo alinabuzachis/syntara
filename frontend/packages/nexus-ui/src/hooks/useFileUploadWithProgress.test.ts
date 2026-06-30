@@ -136,6 +136,7 @@ describe('useFileUploadWithProgress', () => {
   })
 
   const getLastXhr = () => mockXhrInstances[mockXhrInstances.length - 1]
+  const TEST_PROJECT_ID = '550e8400-e29b-41d4-a716-446655440000'
 
   it('initializes with default state', () => {
     const { result } = renderHook(() => useFileUploadWithProgress())
@@ -150,7 +151,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file]))
+      detachPromise(result.current.uploadFiles([file], TEST_PROJECT_ID))
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -163,7 +164,7 @@ describe('useFileUploadWithProgress', () => {
     const file2 = new File(['content2'], 'file2.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file1, file2]))
+      detachPromise(result.current.uploadFiles([file1, file2], TEST_PROJECT_ID))
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -177,7 +178,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file]))
+      detachPromise(result.current.uploadFiles([file], TEST_PROJECT_ID))
     })
 
     await waitFor(() => {
@@ -188,34 +189,18 @@ describe('useFileUploadWithProgress', () => {
     })
   })
 
-  it('appends project_id to FormData when provided', async () => {
+  it('appends project_id to FormData', async () => {
     const { result } = renderHook(() => useFileUploadWithProgress())
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
-    const projectId = '550e8400-e29b-41d4-a716-446655440000'
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file], projectId))
+      detachPromise(result.current.uploadFiles([file], TEST_PROJECT_ID))
     })
 
     await waitFor(() => {
       const xhr = getLastXhr()
       const sentFormData = xhr.send.mock.calls[0][0] as FormData
-      expect(sentFormData.get('project_id')).toBe(projectId)
-    })
-  })
-
-  it('does not append project_id when not provided', async () => {
-    const { result } = renderHook(() => useFileUploadWithProgress())
-    const file = new File(['content'], 'test.txt', { type: 'text/plain' })
-
-    act(() => {
-      detachPromise(result.current.uploadFiles([file]))
-    })
-
-    await waitFor(() => {
-      const xhr = getLastXhr()
-      const sentFormData = xhr.send.mock.calls[0][0] as FormData
-      expect(sentFormData.has('project_id')).toBe(false)
+      expect(sentFormData.get('project_id')).toBe(TEST_PROJECT_ID)
     })
   })
 
@@ -224,7 +209,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file]))
+      detachPromise(result.current.uploadFiles([file], TEST_PROJECT_ID))
     })
 
     await waitFor(() => {
@@ -244,7 +229,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file]))
+      detachPromise(result.current.uploadFiles([file], TEST_PROJECT_ID))
     })
 
     await waitFor(() => {
@@ -264,7 +249,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file]))
+      detachPromise(result.current.uploadFiles([file], TEST_PROJECT_ID))
     })
 
     await waitFor(() => {
@@ -283,7 +268,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file]))
+      detachPromise(result.current.uploadFiles([file], TEST_PROJECT_ID))
     })
 
     await waitFor(() => {
@@ -301,7 +286,7 @@ describe('useFileUploadWithProgress', () => {
 
     let uploadPromise: Promise<unknown>
     act(() => {
-      uploadPromise = result.current.uploadFiles([file])
+      uploadPromise = result.current.uploadFiles([file], TEST_PROJECT_ID)
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -325,7 +310,7 @@ describe('useFileUploadWithProgress', () => {
 
     let uploadPromise: Promise<unknown>
     act(() => {
-      uploadPromise = result.current.uploadFiles([file])
+      uploadPromise = result.current.uploadFiles([file], TEST_PROJECT_ID)
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -351,7 +336,7 @@ describe('useFileUploadWithProgress', () => {
 
     let uploadPromise: Promise<unknown>
     act(() => {
-      uploadPromise = result.current.uploadFiles([file])
+      uploadPromise = result.current.uploadFiles([file], TEST_PROJECT_ID)
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -377,7 +362,7 @@ describe('useFileUploadWithProgress', () => {
 
     let uploadPromise: Promise<unknown>
     act(() => {
-      uploadPromise = result.current.uploadFiles([file])
+      uploadPromise = result.current.uploadFiles([file], TEST_PROJECT_ID)
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -397,7 +382,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file]))
+      detachPromise(result.current.uploadFiles([file], TEST_PROJECT_ID))
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -419,7 +404,7 @@ describe('useFileUploadWithProgress', () => {
 
     let uploadPromise: Promise<unknown>
     act(() => {
-      uploadPromise = result.current.uploadFiles([file])
+      uploadPromise = result.current.uploadFiles([file], TEST_PROJECT_ID)
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -445,7 +430,7 @@ describe('useFileUploadWithProgress', () => {
 
     let uploadPromise: Promise<unknown>
     act(() => {
-      uploadPromise = result.current.uploadFiles([file])
+      uploadPromise = result.current.uploadFiles([file], TEST_PROJECT_ID)
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -473,7 +458,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([file]))
+      detachPromise(result.current.uploadFiles([file], TEST_PROJECT_ID))
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -493,7 +478,7 @@ describe('useFileUploadWithProgress', () => {
     const large = new File(['a'.repeat(100)], 'large.txt', { type: 'text/plain' })
 
     act(() => {
-      detachPromise(result.current.uploadFiles([small, large]))
+      detachPromise(result.current.uploadFiles([small, large], TEST_PROJECT_ID))
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -522,7 +507,7 @@ describe('useFileUploadWithProgress', () => {
 
     let uploadPromise: Promise<unknown>
     act(() => {
-      uploadPromise = result.current.uploadFiles([file])
+      uploadPromise = result.current.uploadFiles([file], TEST_PROJECT_ID)
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())
@@ -545,7 +530,7 @@ describe('useFileUploadWithProgress', () => {
 
     let uploadPromise: Promise<unknown>
     act(() => {
-      uploadPromise = result.current.uploadFiles([file])
+      uploadPromise = result.current.uploadFiles([file], TEST_PROJECT_ID)
     })
 
     await waitFor(() => expect(getLastXhr()).toBeDefined())

@@ -246,7 +246,7 @@ describe('AIAgentNodeForm', () => {
 
   it('handles file upload success', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="project-789" />)
 
     await user.click(screen.getByTestId('upload-files'))
 
@@ -266,11 +266,22 @@ describe('AIAgentNodeForm', () => {
     })
   })
 
+  it('shows error when uploading files without projectId', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+    await user.click(screen.getByTestId('upload-files'))
+
+    await waitFor(() => {
+      expect(mockUploadFiles).not.toHaveBeenCalled()
+    })
+  })
+
   it('handles file upload error', async () => {
     const user = userEvent.setup()
     mockUploadFiles.mockRejectedValueOnce(new Error('Upload failed'))
 
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="project-789" />)
 
     await user.click(screen.getByTestId('upload-files'))
 
@@ -281,7 +292,7 @@ describe('AIAgentNodeForm', () => {
 
   it('handles file removal', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="project-789" />)
 
     // Upload a file first
     await user.click(screen.getByTestId('upload-files'))

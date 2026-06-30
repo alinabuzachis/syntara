@@ -25,7 +25,7 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -1581,9 +1581,11 @@ async def credential_factory(test_db_session: AsyncSession, test_user: User) -> 
 
 
 @pytest_asyncio.fixture
-async def token_usage_factory(test_db_session: AsyncSession, test_user: User) -> TokenUsageFactory:
+async def token_usage_factory(
+    test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+) -> TokenUsageFactory:
     """Factory for creating invocations with linked token usage records."""
-    return TokenUsageFactory(test_db_session, test_user)
+    return TokenUsageFactory(test_db_session, test_user, test_project_id)
 
 
 @pytest_asyncio.fixture

@@ -27,6 +27,7 @@ class TestContextErrorHandling:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test that Context Manager failures don't break invocation processing.
 
@@ -50,6 +51,7 @@ class TestContextErrorHandling:
                     "prompt": prompt,
                     "created_by": str(test_user.id),
                     "session_id": session_id,
+                    "project_id": test_project_id,
                 },
             )
 
@@ -88,6 +90,7 @@ class TestContextErrorHandling:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
         override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]],
     ) -> None:
         """Test graceful handling of Context Manager timeouts.
@@ -116,6 +119,7 @@ class TestContextErrorHandling:
                     "prompt": prompt,
                     "created_by": str(test_user.id),
                     "session_id": session_id,
+                    "project_id": test_project_id,
                 },
             )
 
@@ -141,6 +145,7 @@ class TestContextErrorHandling:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test handling of partial context failures.
 
@@ -165,6 +170,7 @@ class TestContextErrorHandling:
                     "prompt": prompt,
                     "created_by": str(test_user.id),
                     "session_id": session_id,
+                    "project_id": test_project_id,
                 },
             )
 
@@ -190,6 +196,7 @@ class TestContextErrorHandling:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test handling of different types of Context Manager exceptions.
 
@@ -214,6 +221,7 @@ class TestContextErrorHandling:
                         "prompt": prompt,
                         "created_by": str(test_user.id),
                         "session_id": session_id,
+                        "project_id": test_project_id,
                     },
                 )
 
@@ -239,6 +247,7 @@ class TestContextErrorHandling:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test that context failures are properly logged for debugging.
 
@@ -257,6 +266,7 @@ class TestContextErrorHandling:
                     "prompt": prompt,
                     "created_by": str(test_user.id),
                     "session_id": session_id,
+                    "project_id": test_project_id,
                 },
             )
 

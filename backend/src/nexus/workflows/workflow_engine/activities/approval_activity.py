@@ -9,6 +9,7 @@ from uuid import UUID
 
 import structlog
 from temporalio import activity, workflow
+from temporalio.exceptions import ApplicationError
 
 with workflow.unsafe.imports_passed_through():
     from nexus.approvals.audit.approval import ApprovalExpiredEvent
@@ -41,7 +42,7 @@ async def create_approval_request_activity(
     next_step_rejected: dict[str, Any] | None = None,
     approver_user_ids: list[str] | None = None,
     approver_group_ids: list[str] | None = None,
-    project_id: str | None = None,
+    project_id: str = "",
 ) -> NoReturn:
     """Create an approval request via the Approvals API.
 
@@ -66,6 +67,10 @@ async def create_approval_request_activity(
 
     """
     activity.heartbeat({HEARTBEAT_STOP_MONITOR: True})
+
+    if not project_id:
+        msg = "Approval activity requires non-empty 'project_id'"
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True)
 
     logger.info(
         "Creating approval request via Approvals API",

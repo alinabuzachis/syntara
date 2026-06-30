@@ -80,13 +80,11 @@ class InvocationService(BaseService):
         self.session_factory = session_factory
         self.execution_service = execution_service
 
-    async def _handle_file_uploads(self, files: list[UploadFile]) -> list[FileMetadata]:
+    async def _handle_file_uploads(self, files: list[UploadFile], project_id: UUID) -> list[FileMetadata]:
         if not files:
             return []
 
-        # Validate and save files (may raise ValidationError or OSError)
-        # FileManager handles cleanup if validation/storage fails
-        return await self.file_manager.validate_and_save_files(files=files)
+        return await self.file_manager.validate_and_save_files(files=files, project_id=project_id)
 
     async def _validate_file_ids(self, file_ids: list[str]) -> list[FileMetadata]:
         """Validate that file_ids reference existing FileMetadata records.
@@ -171,6 +169,7 @@ class InvocationService(BaseService):
         self,
         prompt: str,
         session_id: str,
+        project_id: UUID,
         context_data: dict[str, object] | None = None,
         files: list[UploadFile] | None = None,
     ) -> Invocation:
@@ -185,6 +184,7 @@ class InvocationService(BaseService):
         Args:
             prompt: Natural language prompt
             session_id: Session identifier for multi-tenant isolation
+            project_id: Project to associate this invocation with
             context_data: Optional context data (may contain file_ids)
             files: Optional list of file uploads (runtime upload)
 
@@ -229,7 +229,7 @@ class InvocationService(BaseService):
             )
 
         # Process runtime file uploads
-        new_file_metadata_list: list[FileMetadata] = await self._handle_file_uploads(files or [])
+        new_file_metadata_list: list[FileMetadata] = await self._handle_file_uploads(files or [], project_id)
         new_file_ids: list[str] = [str(fm.id) for fm in new_file_metadata_list]
 
         # Persist new FileMetadata records to database (they need to exist before conversion)
@@ -247,6 +247,7 @@ class InvocationService(BaseService):
                 prompt=prompt,
                 created_by=self.user.id,
                 session_id=session_id,
+                project_id=project_id,
                 status=InvocationStatus.CREATED,
                 context_data=final_context_data,
             )

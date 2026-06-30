@@ -77,8 +77,7 @@ class FileMetadata(BaseResource, table=True):
     __tablename__ = "file_metadata"
 
     # Project isolation
-    project_id: UUID | None = Field(
-        default=None,
+    project_id: UUID = Field(
         foreign_key="projects.id",
         description="Project namespace for resource isolation",
         index=True,

@@ -40,7 +40,7 @@ def _make_workflow(
     """Create a NexusWorkflow with initialized state, bypassing __init__."""
     wf = NexusWorkflow.__new__(NexusWorkflow)
     wf.execution_id = execution_id
-    wf._project_id = None
+    wf._project_id = "00000000-0000-0000-0000-000000000001"
     wf.skipped_nodes = set()
     wf.failed_nodes = {}
     wf.resolver = resolver if resolver is not None else NamespaceResolver()

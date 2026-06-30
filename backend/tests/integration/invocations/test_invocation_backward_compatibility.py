@@ -16,7 +16,9 @@ from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def ***REMOVED***(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test that application/json requests still work without files.
 
     Validates:
@@ -27,6 +29,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
     payload = {
         "prompt": "What is the weather today?",
         "session_id": "backward-compat-001",
+        "project_id": str(test_project_id),
     }
 
     # Act
@@ -44,7 +47,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
 
 @pytest.mark.asyncio
 async def test_json_request_context_data_empty_without_files(
-    auth_client_with_mocked_llm: AsyncClient, test_user
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
 ) -> None:
     """Test that context_data is empty object when no files uploaded.
 
@@ -56,6 +59,7 @@ async def test_json_request_context_data_empty_without_files(
     payload = {
         "prompt": "Test context data",
         "session_id": "backward-compat-002",
+        "project_id": str(test_project_id),
     }
 
     # Act
@@ -74,7 +78,9 @@ async def test_json_request_context_data_empty_without_files(
 
 
 @pytest.mark.asyncio
-async def test_json_request_with_existing_context_data(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_json_request_with_existing_context_data(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test that existing context_data functionality still works.
 
     Validates:
@@ -85,6 +91,7 @@ async def test_json_request_with_existing_context_data(auth_client_with_mocked_l
     payload = {
         "prompt": "Test with context",
         "session_id": "backward-compat-003",
+        "project_id": str(test_project_id),
         CONTEXT_KEY: {
             "environment": "production",
             "region": "us-east-1",
@@ -110,7 +117,9 @@ async def test_json_request_with_existing_context_data(auth_client_with_mocked_l
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def ***REMOVED***(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test that POST /invocations rejects multipart/form-data requests.
 
     Validates:
@@ -121,6 +130,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
     data = {
         "prompt": "Multipart payload",
         "session_id": "backward-compat-rejection-001",
+        "project_id": str(test_project_id),
     }
 
     # Act — send as multipart/form-data (httpx uses this when `data=` is passed)
@@ -134,7 +144,9 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
 
 
 @pytest.mark.asyncio
-async def test_multipart_request_without_files_compatible(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_multipart_request_without_files_compatible(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test that POST /invocations/chat without files works as expected.
 
     Validates:
@@ -145,6 +157,7 @@ async def test_multipart_request_without_files_compatible(auth_client_with_mocke
     data = {
         "prompt": "Multipart without files",
         "session_id": "backward-compat-004",
+        "project_id": str(test_project_id),
     }
 
     # Act
@@ -162,7 +175,9 @@ async def test_multipart_request_without_files_compatible(auth_client_with_mocke
 
 
 @pytest.mark.asyncio
-async def test_all_existing_fields_present_in_response(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_all_existing_fields_present_in_response(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test that all existing response fields still present.
 
     Validates:
@@ -173,6 +188,7 @@ async def test_all_existing_fields_present_in_response(auth_client_with_mocked_l
     payload = {
         "prompt": "Full field test",
         "session_id": "backward-compat-005",
+        "project_id": str(test_project_id),
     }
 
     # Act

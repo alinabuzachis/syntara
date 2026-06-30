@@ -70,7 +70,7 @@ class TestAgenticActivityFileIds:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid.uuid4()))
 
         mock_agent_client.invoke_agent_async.assert_called_once()
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -93,7 +93,7 @@ class TestAgenticActivityFileIds:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid.uuid4()))
 
         # Verify file_ids was passed as empty list parameter
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -118,7 +118,7 @@ class TestAgenticActivityFileIds:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid.uuid4()))
 
         # Verify file_ids passed as separate parameter
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -143,7 +143,7 @@ class TestAgenticActivityFileIds:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid.uuid4()))
 
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
         assert "file_ids" in call_kwargs
@@ -158,7 +158,7 @@ class TestAgenticActivityFileIds:
         }
 
         with pytest.raises(ApplicationError) as exc_info:
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid.uuid4()))
         err = str(exc_info.value).lower()
         assert "invalid" in err or "file_id" in err
 
@@ -171,7 +171,7 @@ class TestAgenticActivityFileIds:
         }
 
         with pytest.raises(ApplicationError):
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid.uuid4()))
 
     @pytest.mark.asyncio
     async def test_file_count_logged(self, mock_agent_client: AsyncMock) -> None:
@@ -192,7 +192,7 @@ class TestAgenticActivityFileIds:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid.uuid4()))
 
         # Verify logging includes file_count as a keyword argument
         info_calls = mock_logger.info.call_args_list

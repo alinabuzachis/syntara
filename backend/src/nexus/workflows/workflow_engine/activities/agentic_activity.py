@@ -76,6 +76,7 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
     output_config: dict[str, str] | None,  # noqa: ARG001  # must match Temporal dispatch signature; agentic completes async via callback, not via return value
     execution_id: str = "",
     request_id: str | None = None,
+    project_id: str = "",
 ) -> dict[str, Any]:
     """V2 agentic activity with async completion.
 
@@ -88,6 +89,7 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
         output_config: Output mapping configuration
         execution_id: Workflow execution ID for callback URL generation
         request_id: Optional X-Request-Id (UUID) from the originating HTTP request
+        project_id: Project ID to associate the invocation with (required)
 
     """
     logger.info("Starting agentic activity (v2)")
@@ -107,6 +109,10 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
         # Validate prompt
         if not config.prompt.strip():
             msg = "Agentic activity requires non-empty 'prompt' field"
+            raise ApplicationError(msg, type="ConfigError", non_retryable=True)  # noqa: TRY301
+
+        if not project_id:
+            msg = "Agentic activity requires non-empty 'project_id'"
             raise ApplicationError(msg, type="ConfigError", non_retryable=True)  # noqa: TRY301
 
         # Extract file_ids from config
@@ -180,6 +186,7 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
                 input_data={},  # input_data is part of prompt in v2
                 file_ids=file_ids,
                 metadata=agent_metadata,
+                project_id=project_id,
             )
 
             logger.info(

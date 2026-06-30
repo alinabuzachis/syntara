@@ -138,6 +138,7 @@ class TestAgentOrchestratorClientFileIds:
                 prompt="Test prompt",
                 user_id="test-user",
                 file_ids=file_ids,
+                project_id=str(uuid.uuid4()),
             )
 
         # Verify file_ids were sent in contextData
@@ -159,6 +160,7 @@ class TestAgentOrchestratorClientFileIds:
             invocation_id = await client.invoke_agent_async(
                 prompt="Test prompt",
                 user_id="test-user",
+                project_id=str(uuid.uuid4()),
             )
 
         # Verify file_ids not in contextData when not provided
@@ -182,6 +184,7 @@ class TestAgentOrchestratorClientFileIds:
                 prompt="Test prompt",
                 user_id="test-user",
                 file_ids=[],  # Empty list
+                project_id=str(uuid.uuid4()),
             )
 
         # Empty list should still be included (it's truthy in the filter)
@@ -210,6 +213,7 @@ class TestAgentOrchestratorClientFileIds:
                     prompt="Test prompt",
                     user_id="test-user",
                     file_ids=file_ids,
+                    project_id=str(uuid.uuid4()),
                 )
 
             # Verify file_count=3 in log
@@ -236,6 +240,7 @@ class TestAgentOrchestratorClientFileIds:
                 await client.invoke_agent_async(
                     prompt="Test prompt",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             # Verify file_count=0 in log
@@ -284,6 +289,7 @@ class TestAgentOrchestratorClientRetryLogic:
             invocation_id = await client.invoke_agent_async(
                 prompt="Test",
                 user_id="test-user",
+                project_id=str(uuid.uuid4()),
             )
 
             assert invocation_id == "inv_test_123"
@@ -317,6 +323,7 @@ class TestAgentOrchestratorClientRetryLogic:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             # Should only make 1 attempt (no retries)
@@ -336,6 +343,7 @@ class TestAgentOrchestratorClientRetryLogic:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             assert exc_info.value.code == ErrorCode.CONNECTION_FAILED
@@ -363,6 +371,7 @@ class TestAgentOrchestratorClientRetryLogic:
             invocation_id = await client.invoke_agent_async(
                 prompt="Test",
                 user_id="test-user",
+                project_id=str(uuid.uuid4()),
             )
 
             assert invocation_id == "inv_test_123"
@@ -389,6 +398,7 @@ class TestAgentOrchestratorClientRetryLogic:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             assert exc_info.value.code == ErrorCode.HTTP_CLIENT_ERROR
@@ -411,6 +421,7 @@ class TestAgentOrchestratorClientRetryLogic:
             await client.invoke_agent_async(
                 prompt="Test",
                 user_id="test-user",
+                project_id=str(uuid.uuid4()),
             )
 
             # Verify exponential backoff: 0.1s, 0.2s between attempts
@@ -441,6 +452,7 @@ class TestAgentOrchestratorClientRetryLogic:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             # Should fail immediately without retry
@@ -476,6 +488,7 @@ class TestAgentOrchestratorClientResponseValidation:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             assert exc_info.value.code == ErrorCode.MISSING_FIELD
@@ -558,6 +571,7 @@ class TestAgentOrchestratorClientEdgeCases:
             await client.invoke_agent_async(
                 prompt="Test",
                 user_id="test-user",
+                project_id=str(uuid.uuid4()),
             )
 
         # Verify ID was generated and is a valid UUID
@@ -581,6 +595,7 @@ class TestAgentOrchestratorClientEdgeCases:
                 prompt="Test",
                 user_id="test-user",
                 metadata={"callback_url": "http://test.com/callback", "other": "value"},
+                project_id=str(uuid.uuid4()),
             )
 
         # callback_url should be at top level of contextData
@@ -602,6 +617,7 @@ class TestAgentOrchestratorClientEdgeCases:
                 prompt="Test",
                 user_id="test-user",
                 metadata={"callback_url": "http://test.com/callback"},
+                project_id=str(uuid.uuid4()),
             )
 
         # callback_url at top level
@@ -628,6 +644,7 @@ class TestAgentOrchestratorClientEdgeCases:
                 input_data={"key": "value"},
                 file_ids=["file1", "file2"],
                 metadata={"custom": "data"},
+                project_id=str(uuid.uuid4()),
             )
 
         # Verify all parameters in payload
@@ -708,6 +725,7 @@ class TestAgentOrchestratorClientErrorHandling:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             assert exc_info.value.code == ErrorCode.UNEXPECTED_ERROR
@@ -732,6 +750,7 @@ class TestAgentOrchestratorClientErrorHandling:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             # Verify it's the same error instance with unchanged properties
@@ -753,6 +772,7 @@ class TestAgentOrchestratorClientErrorHandling:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             assert exc_info.value.code == ErrorCode.UNEXPECTED_ERROR
@@ -777,6 +797,7 @@ class TestAgentOrchestratorClientErrorHandling:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             assert exc_info.value.code == ErrorCode.HTTP_SERVER_ERROR
@@ -798,6 +819,7 @@ class TestAgentOrchestratorClientErrorHandling:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             assert exc_info.value.code == ErrorCode.CONNECTION_FAILED
@@ -835,12 +857,14 @@ class TestAgentOrchestratorClientStateManagement:
             id1 = await client.invoke_agent_async(
                 prompt="First prompt",
                 user_id="test-user",
+                project_id=str(uuid.uuid4()),
             )
 
             # Second invocation
             id2 = await client.invoke_agent_async(
                 prompt="Second prompt",
                 user_id="test-user",
+                project_id=str(uuid.uuid4()),
             )
 
         # Both should succeed with unique IDs
@@ -872,9 +896,9 @@ class TestAgentOrchestratorClientStateManagement:
 
             # Launch 3 concurrent invocations
             results = await asyncio.gather(
-                client.invoke_agent_async(prompt="Prompt 1", user_id="test-user"),
-                client.invoke_agent_async(prompt="Prompt 2", user_id="test-user"),
-                client.invoke_agent_async(prompt="Prompt 3", user_id="test-user"),
+                client.invoke_agent_async(prompt="Prompt 1", user_id="test-user", project_id=str(uuid.uuid4())),
+                client.invoke_agent_async(prompt="Prompt 2", user_id="test-user", project_id=str(uuid.uuid4())),
+                client.invoke_agent_async(prompt="Prompt 3", user_id="test-user", project_id=str(uuid.uuid4())),
             )
 
         # All should complete successfully
@@ -900,6 +924,7 @@ class TestAgentOrchestratorClientLogging:
                 await client.invoke_agent_async(
                     prompt=sensitive_prompt,
                     user_id="test-user",
+                    project_id=str(uuid.uuid4()),
                 )
 
             # Verify logger.info was called for invocation (second call after client init)
@@ -939,6 +964,7 @@ class TestAgentOrchestratorClientPayloadConstruction:
             await client.invoke_agent_async(
                 prompt=special_prompt,
                 user_id="test-user",
+                project_id=str(uuid.uuid4()),
             )
 
         # Verify prompt is correctly included in payload
@@ -976,6 +1002,7 @@ class TestAgentOrchestratorClientPayloadConstruction:
                 prompt="Test",
                 user_id="test-user",
                 input_data=complex_input,
+                project_id=str(uuid.uuid4()),
             )
 
         # Verify complex structure is preserved in contextData
@@ -1002,6 +1029,7 @@ class TestAgentOrchestratorClientPayloadConstruction:
                     "model": "metadata_model",  # Reserved key
                     "custom": "value",
                 },
+                project_id=str(uuid.uuid4()),
             )
 
         # Top-level input_data should be from the actual parameter, not metadata

@@ -19,6 +19,7 @@ class TestContextEnhancedInvocations:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test that invocations automatically include context enhancement.
 
@@ -39,6 +40,7 @@ class TestContextEnhancedInvocations:
                 "prompt": prompt,
                 "created_by": str(test_user.id),
                 "session_id": session_id,
+                "project_id": test_project_id,
             },
         )
 

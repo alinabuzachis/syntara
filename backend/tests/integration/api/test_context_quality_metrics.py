@@ -34,6 +34,7 @@ class TestContextQualityMetrics:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test that grounding scores accurately reflect context quality.
 
@@ -53,6 +54,7 @@ class TestContextQualityMetrics:
                 "prompt": prompt_empty_context,
                 "created_by": str(test_user.id),
                 "session_id": session_id,
+                "project_id": test_project_id,
             },
         )
 
@@ -98,6 +100,7 @@ class TestContextQualityMetrics:
                     "prompt": prompt_with_context,
                     "created_by": str(test_user.id),
                     "session_id": session_id_context,
+                    "project_id": test_project_id,
                 },
             )
 
@@ -128,6 +131,7 @@ class TestContextQualityMetrics:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test that grounding scores are always in valid range (0.0-1.0)."""
         test_scores = [0.0, 0.25, 0.5, 0.75, 1.0]
@@ -151,6 +155,7 @@ class TestContextQualityMetrics:
                         "prompt": prompt,
                         "created_by": str(test_user.id),
                         "session_id": session_id,
+                        "project_id": test_project_id,
                     },
                 )
 
@@ -179,6 +184,7 @@ class TestContextQualityMetrics:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test that context enhancement provides complete information for quality assessment."""
         mock_context_package = ContextPackage(
@@ -202,6 +208,7 @@ class TestContextQualityMetrics:
                     "prompt": prompt,
                     "created_by": str(test_user.id),
                     "session_id": session_id,
+                    "project_id": test_project_id,
                 },
             )
 
@@ -241,6 +248,7 @@ class TestContextQualityMetrics:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        test_project_id: str,
     ) -> None:
         """Test that system can distinguish between empty and populated context scenarios.
 
@@ -262,6 +270,7 @@ class TestContextQualityMetrics:
                     "prompt": "Test empty context",
                     "created_by": str(test_user.id),
                     "session_id": "empty-context-distinction",
+                    "project_id": test_project_id,
                 },
             )
 
@@ -298,6 +307,7 @@ class TestContextQualityMetrics:
                     "prompt": "Test populated context",
                     "created_by": str(test_user.id),
                     "session_id": "populated-context-distinction",
+                    "project_id": test_project_id,
                 },
             )
 

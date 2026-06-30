@@ -6,7 +6,7 @@ ensuring proper end-to-end document retrieval without mocking core components.
 
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -31,7 +31,7 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
 
     @pytest.mark.asyncio
     async def test_retrieve_database_and_filemanager(
-        self, test_db_session: AsyncSession, test_user, tmp_path: Path
+        self, test_db_session: AsyncSession, test_user, tmp_path: Path, test_project_id
     ) -> None:
         """Test retrieval with real database and FileManager.
 
@@ -55,6 +55,7 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
             status=FileStatus.CONVERTED,
             converted_content_path=str(test_file),
             created_by=test_user.id,
+            project_id=test_project_id,
         )
         test_db_session.add(file_metadata)
         await test_db_session.commit()
@@ -84,7 +85,9 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
         assert "retrieved_at" in doc.retrieval_metadata
 
     @pytest.mark.asyncio
-    async def test_converted_status_with_null_path_raises_error(self, test_db_session: AsyncSession, test_user) -> None:
+    async def test_converted_status_with_null_path_raises_error(
+        self, test_db_session: AsyncSession, test_user, test_project_id
+    ) -> None:
         """Test that CONVERTED status without converted_content_path raises DocumentRetrievalError."""
         file_id = uuid4()
         file_metadata = FileMetadata(
@@ -96,6 +99,7 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
             status=FileStatus.CONVERTED,
             converted_content_path=None,
             created_by=test_user.id,
+            project_id=test_project_id,
         )
         test_db_session.add(file_metadata)
         await test_db_session.commit()
@@ -118,7 +122,9 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
                 pass
 
     @pytest.mark.asyncio
-    async def test_real_file_io_error_handling(self, test_db_session: AsyncSession, test_user, tmp_path: Path) -> None:
+    async def test_real_file_io_error_handling(
+        self, test_db_session: AsyncSession, test_user, tmp_path: Path, test_project_id: UUID
+    ) -> None:
         """Test handling of real file I/O errors with fail-fast behavior.
 
         This validates:
@@ -138,6 +144,7 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
             status=FileStatus.CONVERTED,
             converted_content_path=str(non_existent_path),
             created_by=test_user.id,
+            project_id=test_project_id,
         )
         test_db_session.add(file_metadata)
         await test_db_session.commit()
@@ -159,7 +166,9 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
                 pass
 
     @pytest.mark.asyncio
-    async def test_exception_propagation_through_service_stack(self, test_db_session: AsyncSession, test_user) -> None:
+    async def test_exception_propagation_through_service_stack(
+        self, test_db_session: AsyncSession, test_user, test_project_id
+    ) -> None:
         """Test exception propagation through RetrieverService → UploadedFileRetriever → FileManager.
 
         This validates:
@@ -175,6 +184,7 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
             status="created",
             context_data={CONTEXT_KEY_FILE_IDS: [str(invalid_file_id)]},
             created_by=test_user.id,
+            project_id=test_project_id,
         )
         test_db_session.add(invocation)
         await test_db_session.commit()
@@ -194,7 +204,7 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
 
     @pytest.mark.asyncio
     async def test_multiple_files_mixed_conversion_states(
-        self, test_db_session: AsyncSession, test_user, tmp_path: Path
+        self, test_db_session: AsyncSession, test_user, tmp_path: Path, test_project_id
     ) -> None:
         """Test retrieval with multiple files in different states.
 
@@ -219,6 +229,7 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
             status=FileStatus.CONVERTED,
             converted_content_path=str(test_file),
             created_by=test_user.id,
+            project_id=test_project_id,
         )
         file_2 = FileMetadata(
             id=file_id_2,
@@ -228,6 +239,7 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
             file_path=str(tmp_path / "original2.txt"),
             status=FileStatus.PENDING_CONVERSION,
             created_by=test_user.id,
+            project_id=test_project_id,
         )
         file_3 = FileMetadata(
             id=file_id_3,
@@ -238,6 +250,7 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
             status=FileStatus.CONVERSION_FAILED,
             conversion_error="Test error",
             created_by=test_user.id,
+            project_id=test_project_id,
         )
 
         test_db_session.add_all([file_1, file_2, file_3])

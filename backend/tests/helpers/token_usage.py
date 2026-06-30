@@ -1,6 +1,7 @@
 """Test fixtures and helpers for token usage tests."""
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -12,10 +13,11 @@ from nexus.core.models import User
 class TokenUsageFactory:
     """Factory for creating invocations with linked token usage records."""
 
-    def __init__(self, session: AsyncSession, user: User) -> None:
-        """Initialize with database session and user."""
+    def __init__(self, session: AsyncSession, user: User, project_id: UUID) -> None:
+        """Initialize with database session, user, and project ID."""
         self.session = session
         self.user = user
+        self.project_id = project_id
 
     async def create(
         self,
@@ -31,6 +33,7 @@ class TokenUsageFactory:
             prompt=f"test {model_name} prompt",
             session_id="test-session",
             created_by=self.user.id,
+            project_id=self.project_id,
             model_name=model_name,
         )
         self.session.add(inv)

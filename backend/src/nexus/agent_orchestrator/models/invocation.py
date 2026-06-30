@@ -3,6 +3,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import ClassVar
+from uuid import UUID
 
 from sqlalchemy import Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -39,6 +40,7 @@ class Invocation(UserOwnedResource, table=True):
     # Define filterable fields for API endpoints - extend base UserOwnedResource fields
     __filterable_fields__: ClassVar[list[str]] = [
         *UserOwnedResource.__filterable_fields__,
+        "project_id",
         "status",
         "session_id",
         "started_at",
@@ -55,6 +57,12 @@ class Invocation(UserOwnedResource, table=True):
         "status",
         "model_name",
     ]
+
+    project_id: UUID = Field(
+        foreign_key="projects.id",
+        description="Project namespace for resource isolation",
+        index=True,
+    )
 
     # Required fields
     prompt: str = Field(

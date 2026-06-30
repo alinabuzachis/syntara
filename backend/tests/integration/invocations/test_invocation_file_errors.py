@@ -14,7 +14,9 @@ from tests.fixtures import get_fixtures_dir
 
 
 @pytest.mark.asyncio
-async def test_file_too_large_error_format(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_file_too_large_error_format(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test RFC 9457 error format for fileTooLarge on POST /invocations/chat (400).
 
     Validates:
@@ -32,6 +34,7 @@ async def test_file_too_large_error_format(auth_client_with_mocked_llm: AsyncCli
     data = {
         "prompt": "Process large file",
         "session_id": "error-test-001",
+        "project_id": str(test_project_id),
     }
 
     # Act
@@ -54,7 +57,9 @@ async def test_file_too_large_error_format(auth_client_with_mocked_llm: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_unsupported_format_error_format(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_unsupported_format_error_format(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test RFC 9457 error format for unsupportedFormat on POST /invocations/chat (400).
 
     Validates:
@@ -73,6 +78,7 @@ async def test_unsupported_format_error_format(auth_client_with_mocked_llm: Asyn
         data = {
             "prompt": "Process image",
             "session_id": "error-test-002",
+            "project_id": str(test_project_id),
         }
 
         # Act
@@ -95,7 +101,9 @@ async def test_unsupported_format_error_format(auth_client_with_mocked_llm: Asyn
 
 
 @pytest.mark.asyncio
-async def test_too_many_files_error_format(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_too_many_files_error_format(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test RFC 9457 error format for tooManyFiles on POST /invocations/chat (400).
 
     Validates:
@@ -108,6 +116,7 @@ async def test_too_many_files_error_format(auth_client_with_mocked_llm: AsyncCli
     data = {
         "prompt": "Process too many files",
         "session_id": "error-test-003",
+        "project_id": str(test_project_id),
     }
 
     # Act
@@ -130,7 +139,9 @@ async def test_too_many_files_error_format(auth_client_with_mocked_llm: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_validation_error_no_invocation_created(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def test_validation_error_no_invocation_created(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test that file validation errors on POST /invocations/chat do not create invocation records.
 
     Validates:
@@ -142,6 +153,7 @@ async def test_validation_error_no_invocation_created(auth_client_with_mocked_ll
     data = {
         "prompt": "Should not create invocation",
         "session_id": "error-test-005",
+        "project_id": str(test_project_id),
     }
 
     # Act
@@ -162,7 +174,9 @@ async def test_validation_error_no_invocation_created(auth_client_with_mocked_ll
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+async def ***REMOVED***(
+    auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
+) -> None:
     """Test that POST /invocations/chat file error responses follow consistent RFC 9457 structure.
 
     Validates:
@@ -180,6 +194,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
         data = {
             "prompt": "Test error structure",
             "session_id": "error-test-006",
+            "project_id": str(test_project_id),
         }
 
         # Act

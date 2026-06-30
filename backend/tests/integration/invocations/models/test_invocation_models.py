@@ -28,11 +28,14 @@ from nexus.core.models import User
 
 
 @pytest.mark.asyncio
-async def test_create_invocation_with_required_fields(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_create_invocation_with_required_fields(
+    test_db_session: AsyncSession, test_user: User, test_project_id
+) -> None:
     """Test creating an invocation with required fields only."""
     invocation = Invocation(
         prompt="Deploy customer service app to production",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-001",
         status=InvocationStatus.RUNNING,
     )
@@ -61,13 +64,16 @@ async def test_create_invocation_with_required_fields(test_db_session: AsyncSess
 
 
 @pytest.mark.asyncio
-async def test_create_invocation_with_all_fields(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_create_invocation_with_all_fields(
+    test_db_session: AsyncSession, test_user: User, test_project_id
+) -> None:
     """Test creating an invocation with all fields populated."""
     now = datetime.now(UTC)
 
     invocation = Invocation(
         prompt="Analyze production metrics",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-002",
         status=InvocationStatus.COMPLETED,
         started_at=now,
@@ -94,11 +100,12 @@ async def test_create_invocation_with_all_fields(test_db_session: AsyncSession, 
 
 
 @pytest.mark.asyncio
-async def test_invocation_status_transitions(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_status_transitions(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test invocation status can be updated."""
     invocation = Invocation(
         prompt="Test workflow",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-003",
         status=InvocationStatus.RUNNING,
     )
@@ -118,11 +125,12 @@ async def test_invocation_status_transitions(test_db_session: AsyncSession, test
 
 
 @pytest.mark.asyncio
-async def test_invocation_timestamps(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_timestamps(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test timestamp fields behavior."""
     invocation = Invocation(
         prompt="Test timestamps",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-100",
         status=InvocationStatus.RUNNING,
     )
@@ -148,7 +156,7 @@ async def test_invocation_timestamps(test_db_session: AsyncSession, test_user: U
 
 
 @pytest.mark.asyncio
-async def test_invocation_jsonb_fields(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_jsonb_fields(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test JSONB fields can store complex data."""
     complex_context = {
         "environment": "production",
@@ -162,6 +170,7 @@ async def test_invocation_jsonb_fields(test_db_session: AsyncSession, test_user:
     invocation = Invocation(
         prompt="Complex JSONB test",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-200",
         status=InvocationStatus.RUNNING,
         context_data=complex_context,
@@ -176,24 +185,27 @@ async def test_invocation_jsonb_fields(test_db_session: AsyncSession, test_user:
 
 
 @pytest.mark.asyncio
-async def test_query_invocations_by_status(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_query_invocations_by_status(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test querying invocations by status."""
     # Create multiple invocations with different statuses
     invocation1 = Invocation(
         prompt="Running task 1",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-300",
         status=InvocationStatus.RUNNING,
     )
     invocation2 = Invocation(
         prompt="Running task 2",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-300",
         status=InvocationStatus.RUNNING,
     )
     invocation3 = Invocation(
         prompt="Completed task",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-300",
         status=InvocationStatus.COMPLETED,
     )
@@ -211,7 +223,7 @@ async def test_query_invocations_by_status(test_db_session: AsyncSession, test_u
 
 @pytest.mark.asyncio
 async def test_query_invocations_by_user(
-    test_db_session: AsyncSession, test_user: User, user_factory: Callable[..., Awaitable[User]]
+    test_db_session: AsyncSession, test_user: User, user_factory: Callable[..., Awaitable[User]], test_project_id
 ) -> None:
     """Test querying invocations by created_by."""
     # Create a second user for testing
@@ -226,12 +238,14 @@ async def test_query_invocations_by_user(
     invocation1 = Invocation(
         prompt="User 1 task",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-400",
         status=InvocationStatus.RUNNING,
     )
     invocation2 = Invocation(
         prompt="User 2 task",
         created_by=user2.id,
+        project_id=test_project_id,
         session_id="session-500",
         status=InvocationStatus.RUNNING,
     )
@@ -248,11 +262,12 @@ async def test_query_invocations_by_user(
 
 
 @pytest.mark.asyncio
-async def test_invocation_repr(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_repr(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test __repr__ method."""
     invocation = Invocation(
         prompt="Test repr",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-600",
         status=InvocationStatus.RUNNING,
     )
@@ -283,6 +298,7 @@ class TestInvocationValidation:
             id=invocation_id,
             prompt="Deploy app to production",
             created_by=user_uuid,
+            project_id=uuid4(),
             session_id="session-001",
             status=InvocationStatus.RUNNING,
             created_at=now,
@@ -309,6 +325,7 @@ class TestInvocationValidation:
             id=invocation_id,
             prompt="Deploy app",
             created_by=uuid4(),
+            project_id=uuid4(),
             session_id="session-001",
             status=InvocationStatus.COMPLETED,
             created_at=now,
@@ -345,6 +362,7 @@ class TestInvocationListResponse:
             id=uuid4(),
             prompt="Test 1",
             created_by=uuid4(),
+            project_id=uuid4(),
             session_id="session-001",
             status=InvocationStatus.RUNNING,
             created_at=datetime.now(UTC),
@@ -354,6 +372,7 @@ class TestInvocationListResponse:
             id=uuid4(),
             prompt="Test 2",
             created_by=uuid4(),
+            project_id=uuid4(),
             session_id="session-002",
             status=InvocationStatus.COMPLETED,
             created_at=datetime.now(UTC),
@@ -397,6 +416,7 @@ class TestInvocationBaseResourceFields:
             id=uuid4(),
             prompt="Test with labels",
             created_by=uuid4(),
+            project_id=uuid4(),
             session_id="session-001",
             status=InvocationStatus.RUNNING,
             created_at=datetime.now(UTC),
@@ -415,6 +435,7 @@ class TestInvocationBaseResourceFields:
             id=uuid4(),
             prompt="Test default labels",
             created_by=uuid4(),
+            project_id=uuid4(),
             session_id="session-001",
             status=InvocationStatus.RUNNING,
             created_at=datetime.now(UTC),
@@ -433,6 +454,7 @@ class TestInvocationBaseResourceFields:
             id=uuid4(),
             prompt="Test updated_by",
             created_by=created_by_uuid,
+            project_id=uuid4(),
             session_id="session-001",
             status=InvocationStatus.RUNNING,
             created_at=datetime.now(UTC),
@@ -449,6 +471,7 @@ class TestInvocationBaseResourceFields:
             id=uuid4(),
             prompt="Test nullable updated_by",
             created_by=uuid4(),
+            project_id=uuid4(),
             session_id="session-001",
             status=InvocationStatus.RUNNING,
             created_at=datetime.now(UTC),
@@ -477,24 +500,27 @@ class TestInvocationSortableFields:
 
 
 @pytest.mark.asyncio
-async def test_query_invocations_by_session_id(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_query_invocations_by_session_id(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test querying invocations by session_id."""
     # Create invocations for different sessions
     invocation1 = Invocation(
         prompt="Session 1 task 1",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-alpha",
         status=InvocationStatus.RUNNING,
     )
     invocation2 = Invocation(
         prompt="Session 1 task 2",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-alpha",
         status=InvocationStatus.RUNNING,
     )
     invocation3 = Invocation(
         prompt="Session 2 task",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-beta",
         status=InvocationStatus.RUNNING,
     )
@@ -511,11 +537,12 @@ async def test_query_invocations_by_session_id(test_db_session: AsyncSession, te
 
 
 @pytest.mark.asyncio
-async def test_invocation_status_completed(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_status_completed(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test invocation with COMPLETED status."""
     invocation = Invocation(
         prompt="Test completion",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-700",
         status=InvocationStatus.RUNNING,
     )
@@ -533,11 +560,12 @@ async def test_invocation_status_completed(test_db_session: AsyncSession, test_u
 
 
 @pytest.mark.asyncio
-async def test_invocation_status_failed(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_status_failed(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test invocation with FAILED status."""
     invocation = Invocation(
         prompt="Test failure",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-800",
         status=InvocationStatus.RUNNING,
     )
@@ -557,13 +585,14 @@ async def test_invocation_status_failed(test_db_session: AsyncSession, test_user
 
 
 @pytest.mark.asyncio
-async def test_invocation_error_message_field(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_error_message_field(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test error_message field can store error details."""
     error_msg = "Database connection timeout after 30 seconds. Failed to connect to postgres://db:5432"
 
     invocation = Invocation(
         prompt="Test error message",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-900",
         status=InvocationStatus.FAILED,
         error_message=error_msg,
@@ -605,13 +634,16 @@ async def test_invocation_indexes_exist(test_db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(test_db_session: AsyncSession, test_user: User) -> None:
+async def ***REMOVED***(
+    test_db_session: AsyncSession, test_user: User, test_project_id
+) -> None:
     """Test that timestamp fields preserve timezone information."""
     now = datetime.now(UTC)
 
     invocation = Invocation(
         prompt="Test timezone awareness",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-1000",
         status=InvocationStatus.RUNNING,
         started_at=now,
@@ -633,7 +665,9 @@ async def ***REMOVED***(test_db_session: AsyncSession, test_user: User) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invocation_session_id_max_length(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_session_id_max_length(
+    test_db_session: AsyncSession, test_user: User, test_project_id
+) -> None:
     """Test session_id field respects max_length constraint."""
     # Create session_id at exactly max length (255 chars)
     max_length_session_id = "s" * 255
@@ -641,6 +675,7 @@ async def test_invocation_session_id_max_length(test_db_session: AsyncSession, t
     invocation = Invocation(
         prompt="Test session_id max length",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id=max_length_session_id,
         status=InvocationStatus.RUNNING,
     )
@@ -653,11 +688,12 @@ async def test_invocation_session_id_max_length(test_db_session: AsyncSession, t
 
 
 @pytest.mark.asyncio
-async def test_invocation_status_default_value(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_status_default_value(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test that status defaults to CREATED when not specified."""
     invocation = Invocation(
         prompt="Test default status",
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-1100",
         # Note: status not explicitly set
     )
@@ -669,7 +705,7 @@ async def test_invocation_status_default_value(test_db_session: AsyncSession, te
 
 
 @pytest.mark.asyncio
-async def test_invocation_prompt_max_length(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_invocation_prompt_max_length(test_db_session: AsyncSession, test_user: User, test_project_id) -> None:
     """Test prompt field respects max_length constraint (10000 chars)."""
     # Create prompt at exactly max length (10000 chars)
     max_length_prompt = "a" * 10000
@@ -677,6 +713,7 @@ async def test_invocation_prompt_max_length(test_db_session: AsyncSession, test_
     invocation = Invocation(
         prompt=max_length_prompt,
         created_by=test_user.id,
+        project_id=test_project_id,
         session_id="session-1200",
         status=InvocationStatus.RUNNING,
     )

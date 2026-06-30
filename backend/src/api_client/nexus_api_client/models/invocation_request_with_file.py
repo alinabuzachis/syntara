@@ -18,12 +18,14 @@ class InvocationRequestWithFile:
     """Multipart form body for POST /invocations/chat (file upload path).
 
     Attributes:
+        project_id (str):
         prompt (None | str | Unset):
         session_id (None | str | Unset):
         context_data (None | str | Unset):
         files (list[File] | None | Unset):
     """
 
+    project_id: str
     prompt: None | str | Unset = UNSET
     session_id: None | str | Unset = UNSET
     context_data: None | str | Unset = UNSET
@@ -31,6 +33,8 @@ class InvocationRequestWithFile:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        project_id = self.project_id
+
         prompt: None | str | Unset
         if isinstance(self.prompt, Unset):
             prompt = UNSET
@@ -64,7 +68,11 @@ class InvocationRequestWithFile:
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({})
+        field_dict.update(
+            {
+                "project_id": project_id,
+            }
+        )
         if prompt is not UNSET:
             field_dict["prompt"] = prompt
         if session_id is not UNSET:
@@ -78,6 +86,8 @@ class InvocationRequestWithFile:
 
     def to_multipart(self) -> types.RequestFiles:
         files: types.RequestFiles = []
+
+        files.append(("project_id", (None, str(self.project_id).encode(), "text/plain")))
 
         if not isinstance(self.prompt, Unset):
             if isinstance(self.prompt, str):
@@ -112,6 +122,7 @@ class InvocationRequestWithFile:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+        project_id = d.pop("project_id")
 
         def _parse_prompt(data: object) -> None | str | Unset:
             if data is None:
@@ -163,6 +174,7 @@ class InvocationRequestWithFile:
         files = _parse_files(d.pop("files", UNSET))
 
         invocation_request_with_file = cls(
+            project_id=project_id,
             prompt=prompt,
             session_id=session_id,
             context_data=context_data,

@@ -899,11 +899,9 @@ def first_project_id(nexus_api: NexusApiRegistry) -> UUID:
     Tests that need a valid project ID can use this fixture.
     Skips built-in projects since workflow creation is blocked in them.
     """
-    projects_list = nexus_api.projects.list().assert_and_get()
-    for project in projects_list.resources:
-        if not getattr(project, "is_builtin", False):
-            return UUID(str(project.id))
-    pytest.fail("No non-builtin projects available")
+    from tests.e2e.helpers import get_first_non_builtin_project_id
+
+    return get_first_non_builtin_project_id(nexus_api)
 
 
 @pytest.fixture

@@ -165,11 +165,9 @@ async def upload_files(
         )
 
     # Validate and save files (returns in-memory FileMetadata objects)
-    file_metadata_list = await file_manager.validate_and_save_files(body.files)
+    file_metadata_list = await file_manager.validate_and_save_files(body.files, body.project_id)
 
-    # Set project association before persisting
     for metadata in file_metadata_list:
-        metadata.project_id = body.project_id
         db.add(metadata)
 
     await db.commit()

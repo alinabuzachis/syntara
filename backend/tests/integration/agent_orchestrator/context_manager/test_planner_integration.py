@@ -8,7 +8,7 @@ import math
 from collections.abc import AsyncGenerator, Callable
 from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -46,6 +46,7 @@ def create_test_document(
             size_bytes=100,
             mime_type="text/plain",
             file_path=f"/path/to/{filename}",
+            project_id=uuid4(),
         ),
         source_type="uploaded_file",
     )
@@ -73,6 +74,7 @@ async def execute_planner_request(
     planner: ContextManagerPlanner,
     test_db_session: AsyncSession,
     test_user: User,
+    test_project_id: UUID,
 ) -> ContextPackage:
     """Execute plan_request with standard setup.
 
@@ -80,7 +82,9 @@ async def execute_planner_request(
     - Creating invocation in test DB
     - Executing plan_request with user_id
     """
-    invocation = Invocation(created_by=test_user.id, prompt="test", session_id="session-abc")
+    invocation = Invocation(
+        created_by=test_user.id, prompt="test", session_id="session-abc", project_id=test_project_id
+    )
     test_db_session.add(invocation)
     await test_db_session.commit()  # Commit so other sessions can see the invocation
     await test_db_session.refresh(invocation)
@@ -107,6 +111,7 @@ class TestPlannerAssemblerIntegration:
         test_user,
         mock_compressor,
         context_manager_session_factory,
+        test_project_id,
     ) -> None:
         """Test planner passes compression_loop parameter correctly to AssemblerService."""
         docs = [create_test_document("Test document content", 0.8)]
@@ -119,7 +124,7 @@ class TestPlannerAssemblerIntegration:
             session_factory=context_manager_session_factory,
         )
 
-        result = await execute_planner_request(planner, test_db_session, test_user)
+        result = await execute_planner_request(planner, test_db_session, test_user, test_project_id)
 
         # Verify ContextPackage was returned
         assert result is not None
@@ -137,6 +142,7 @@ class TestPlannerAssemblerIntegration:
         test_user,
         mock_compressor,
         context_manager_session_factory,
+        test_project_id,
     ) -> None:
         """Test planner injects TokenValidationService and CompressorService into AssemblerService."""
         doc = create_test_document("Short document", 0.9)
@@ -150,7 +156,7 @@ class TestPlannerAssemblerIntegration:
             session_factory=context_manager_session_factory,
         )
 
-        result = await execute_planner_request(planner, test_db_session, test_user)
+        result = await execute_planner_request(planner, test_db_session, test_user, test_project_id)
 
         # Verify result is valid
         assert result is not None
@@ -167,6 +173,7 @@ class TestPlannerAssemblerIntegration:
         test_db_session,
         test_user,
         context_manager_session_factory,
+        test_project_id,
     ) -> None:
         """Test planner injects CompressorService into AssemblerService correctly."""
         docs = [create_test_document("Test content", 0.8)]
@@ -183,7 +190,7 @@ class TestPlannerAssemblerIntegration:
             session_factory=context_manager_session_factory,
         )
 
-        result = await execute_planner_request(planner, test_db_session, test_user)
+        result = await execute_planner_request(planner, test_db_session, test_user, test_project_id)
 
         # Verify result is valid
         assert result is not None
@@ -195,6 +202,7 @@ class TestPlannerAssemblerIntegration:
         test_user,
         mock_compressor,
         context_manager_session_factory,
+        test_project_id,
     ) -> None:
         """Test planner returns ContextPackage directly from AssemblerService without rebuilding."""
         doc1 = create_test_document("Document 1", 0.7, "test1.txt")
@@ -209,7 +217,7 @@ class TestPlannerAssemblerIntegration:
             session_factory=context_manager_session_factory,
         )
 
-        result = await execute_planner_request(planner, test_db_session, test_user)
+        result = await execute_planner_request(planner, test_db_session, test_user, test_project_id)
 
         # Verify ContextPackage has all AssemblerService-generated fields
         assert math.isclose(result.grounding_score, 0.8)  # (0.7 + 0.9) / 2

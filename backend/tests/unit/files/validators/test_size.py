@@ -9,6 +9,7 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, Mock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -40,7 +41,7 @@ async def test_rejects_file_exceeding_size_limit() -> None:
 
     # Act & Assert
     with pytest.raises(FileValidationError) as exc_info:
-        await file_manager.validate_and_save_files([mock_file])
+        await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
     # Error message should mention file is too large
     error_message = str(exc_info.value)
@@ -69,7 +70,7 @@ async def test_error_message_includes_actual_and_max_size() -> None:
 
     # Act & Assert
     with pytest.raises(FileValidationError) as exc_info:
-        await file_manager.validate_and_save_files([mock_file])
+        await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
     error_message = str(exc_info.value)
     # Should mention actual and max size in MB
@@ -102,7 +103,7 @@ async def test_accepts_file_at_exact_size_limit() -> None:
         file_manager = FileManager()
 
         # Act
-        result = await file_manager.validate_and_save_files([mock_file])
+        result = await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
         # Assert
         assert len(result) == 1
@@ -133,7 +134,7 @@ async def test_accepts_file_below_size_limit() -> None:
         file_manager = FileManager()
 
         # Act
-        result = await file_manager.validate_and_save_files([mock_file])
+        result = await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
         # Assert
         assert len(result) == 1
@@ -182,7 +183,7 @@ async def test_validates_each_file_size_independently() -> None:
 
     # Act & Assert
     with pytest.raises(FileValidationError) as exc_info:
-        await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
+        await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), project_id=uuid4())
 
     # Should fail due to large.pdf being too large
     error_message = str(exc_info.value)
@@ -215,7 +216,7 @@ async def test_configurable_max_size_limit(
 
         # Act & Assert
         with pytest.raises(FileValidationError) as exc_info:
-            await file_manager.validate_and_save_files([mock_file])
+            await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
         # Should validate against custom limit (5MB)
         error_message = str(exc_info.value)
@@ -243,7 +244,7 @@ async def test_very_small_file_accepted() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files([mock_file])
+    result = await file_manager.validate_and_save_files([mock_file], project_id=uuid4())
 
     # Assert
     assert len(result) == 1

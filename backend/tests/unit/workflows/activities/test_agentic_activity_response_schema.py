@@ -11,6 +11,7 @@ These tests verify:
 
 from collections.abc import Generator
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from temporalio.exceptions import ApplicationError
@@ -67,7 +68,7 @@ class TestAgenticActivityResponseSchema:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         # Verify invoke_agent_async was called
         mock_agent_client.invoke_agent_async.assert_called_once()
@@ -94,7 +95,7 @@ class TestAgenticActivityResponseSchema:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         # Verify response_schema is NOT in metadata when None
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -119,7 +120,7 @@ class TestAgenticActivityResponseSchema:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
         assert call_kwargs["metadata"]["response_schema"] == schema
@@ -145,7 +146,7 @@ class TestAgenticActivityResponseSchema:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
         assert call_kwargs["metadata"]["response_schema"] == schema
@@ -185,7 +186,7 @@ class TestAgenticActivityResponseSchema:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
         assert call_kwargs["metadata"]["response_schema"] == schema
@@ -211,7 +212,7 @@ class TestAgenticActivityResponseSchema:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
         assert call_kwargs["prompt"] == "Analyze data"
@@ -228,7 +229,7 @@ class TestAgenticActivityResponseSchema:
         }
 
         with pytest.raises(ApplicationError) as exc_info:
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
         assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
@@ -249,7 +250,7 @@ class TestAgenticActivityResponseSchema:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         # Template expressions are passed through to metadata
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
@@ -280,7 +281,7 @@ class TestAgenticActivityResponseSchema:
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-            await execute_agentic_activity(input_config, None)
+            await execute_agentic_activity(input_config, None, project_id=str(uuid4()))
 
         # Verify both credential and response_schema are in metadata
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs

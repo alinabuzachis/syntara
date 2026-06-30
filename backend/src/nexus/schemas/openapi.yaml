@@ -28196,6 +28196,11 @@ components:
           title: Updated By
           description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project namespace for resource isolation
         prompt:
           type: string
           minLength: 1
@@ -28260,6 +28265,7 @@ components:
             - type: 'null'
       required:
         - created_by
+        - project_id
         - prompt
         - session_id
       type: object
@@ -28267,6 +28273,8 @@ components:
       type: object
       title: InvocationRequestWithFile
       description: Multipart form body for POST /invocations/chat (file upload path).
+      required:
+        - project_id
       properties:
         prompt:
           anyOf:
@@ -28291,6 +28299,9 @@ components:
               type: array
             - type: 'null'
           title: Files
+        project_id:
+          type: string
+          title: Project Id
     InvocationListResponse:
       title: InvocationListResponse
       description: Paginated list response for invocations.
@@ -28343,6 +28354,7 @@ components:
       required:
         - prompt
         - sessionId
+        - projectId
       properties:
         prompt:
           type: string
@@ -28359,6 +28371,11 @@ components:
           title: Contextdata
           description: Optional additional context for the request. Use 'file_ids' (array of UUID strings) to reference uploaded files.
           additionalProperties: true
+        projectId:
+          type: string
+          format: uuid
+          title: Projectid
+          description: Project to associate this invocation with
     InvocationCancelRequest:
       type: object
       title: InvocationCancelRequest

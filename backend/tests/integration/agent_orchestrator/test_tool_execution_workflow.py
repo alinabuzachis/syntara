@@ -174,7 +174,9 @@ class TestToolExecutionWorkflow:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
-    async def test_invocation_with_tool_execution(self, auth_client_with_tool_aware_mocked_llm: AsyncClient) -> None:
+    async def test_invocation_with_tool_execution(
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient, test_project_id
+    ) -> None:
         """Test that invocations can execute tools through StateGraph ToolNode integration.
 
         This test verifies the complete workflow:
@@ -202,6 +204,7 @@ class TestToolExecutionWorkflow:
         invocation_data = {
             "prompt": "Calculate the sum of 5 and 3 using available tools.",
             "session_id": "test-tool-execution-session",
+            "project_id": str(test_project_id),
             "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
@@ -245,7 +248,7 @@ class TestToolExecutionWorkflow:
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
     async def test_invocation_with_greeter_tool_execution(
-        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient, test_project_id
     ) -> None:
         """Test that the LLM can intelligently select and execute different tools based on prompts."""
         # Set up MCP Integration and refresh tools
@@ -264,6 +267,7 @@ class TestToolExecutionWorkflow:
         invocation_data = {
             "prompt": "Please greet me with a hello message using the available tools.",
             "session_id": "test-greeter-execution-session",
+            "project_id": str(test_project_id),
             "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
@@ -297,13 +301,14 @@ class TestToolExecutionWorkflow:
 
     @pytest.mark.asyncio
     async def test_invocation_without_available_tools(
-        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient, test_project_id
     ) -> None:
         """Test that invocations complete gracefully when no tools are available."""
         # Create invocation without any MCP providers configured
         invocation_data = {
             "prompt": "Calculate the sum of 5 and 3",
             "session_id": "test-no-tools-session",
+            "project_id": str(test_project_id),
         }
 
         create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
@@ -330,7 +335,9 @@ class TestToolExecutionWorkflow:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
-    async def test_invocation_with_disabled_tools(self, auth_client_with_tool_aware_mocked_llm: AsyncClient) -> None:
+    async def test_invocation_with_disabled_tools(
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient, test_project_id
+    ) -> None:
         """Test invocation behavior when tools are discovered but disabled."""
         # Set up MCP Integration and refresh tools
         integration_id = await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
@@ -355,6 +362,7 @@ class TestToolExecutionWorkflow:
         invocation_data = {
             "prompt": f"Use the {tools[0]['name']} tool to calculate something",
             "session_id": "test-disabled-tools-session",
+            "project_id": str(test_project_id),
             "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
@@ -381,7 +389,7 @@ class TestToolExecutionFailureRetryWorkflow:
     @pytest.mark.usefixtures("fast_retry_settings")
     @pytest.mark.usefixtures("mock_mcp_provider_with_retry_tools")
     async def test_tool_retry_mechanism_with_eventual_success(
-        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient, test_project_id
     ) -> None:
         """Test that the retry mechanism works when a tool fails initially but succeeds on retry."""
         # Set up MCP Integration and refresh tools
@@ -400,6 +408,7 @@ class TestToolExecutionFailureRetryWorkflow:
         invocation_data = {
             "prompt": "Use the mock_retry_tool to process the message 'test data'.",
             "session_id": "test-retry-mechanism-session",
+            "project_id": str(test_project_id),
             "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
@@ -430,7 +439,7 @@ class TestToolExecutionFailureRetryWorkflow:
     @pytest.mark.usefixtures("fast_retry_settings")
     @pytest.mark.usefixtures("mock_mcp_provider_with_retry_tools")
     async def test_tool_retry_mechanism_with_network_error_recovery(
-        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient, test_project_id
     ) -> None:
         """Test that the retry mechanism handles network errors and recovers on retry."""
         # Set up MCP Integration and refresh tools
@@ -449,6 +458,7 @@ class TestToolExecutionFailureRetryWorkflow:
         invocation_data = {
             "prompt": "Use the mock_network_tool to connect to endpoint 'api.example.com'.",
             "session_id": "test-network-retry-session",
+            "project_id": str(test_project_id),
             "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
@@ -479,7 +489,7 @@ class TestToolExecutionFailureRetryWorkflow:
     @pytest.mark.usefixtures("fast_retry_settings")
     @pytest.mark.usefixtures("mock_mcp_provider_with_retry_tools")
     async def test_tool_automatic_disable_on_persistent_failure(
-        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient, test_project_id
     ) -> None:
         """Test that consistently failing tools are automatically disabled."""
         # Set up MCP Integration and refresh tools
@@ -505,6 +515,7 @@ class TestToolExecutionFailureRetryWorkflow:
         invocation_data = {
             "prompt": "Use the mock_failing_tool to process data 'test input'.",
             "session_id": "test-auto-disable-session",
+            "project_id": str(test_project_id),
             "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
@@ -554,7 +565,7 @@ class TestToolEventWebSocketStreaming:
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
     async def test_tool_events_published_to_redis_stream(
-        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient, test_project_id
     ) -> None:
         """Test that tool_call and tool_result events appear in the Redis stream.
 
@@ -577,6 +588,7 @@ class TestToolEventWebSocketStreaming:
         invocation_data = {
             "prompt": "Use the calculator to add 5 and 3.",
             "session_id": "test-tool-events-stream-session",
+            "project_id": str(test_project_id),
             "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
