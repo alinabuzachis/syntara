@@ -51,7 +51,7 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
         deleted_by: UUID of user who performed soft delete (from SoftDeletableResource)
         workflow_id: Foreign key to parent Workflow
         version: Version number (auto-incremented per workflow)
-        schema_version: Workflow schema version (e.g., "1.0.0")
+        schema_version: Workflow schema version (e.g., "2.0.0")
         workflow_definition: Complete workflow definition as dict (JSONB)
         change_description: Optional description of changes in this version
 
@@ -80,7 +80,7 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
         min_length=1,
         max_length=FieldLimits.SCHEMA_VERSION_MAX_LENGTH,
         sa_type=String(FieldLimits.SCHEMA_VERSION_MAX_LENGTH),  # type: ignore[call-overload]
-        description="Workflow schema version (e.g., '1.0.0')",
+        description="Workflow schema version (e.g., '2.0.0')",
         index=True,
     )
 

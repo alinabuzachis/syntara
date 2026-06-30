@@ -27,6 +27,7 @@ from nexus.projects.service import ProjectService
 from nexus.workflows.models.execution import Execution
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest.fixture
@@ -399,8 +400,8 @@ async def test_delete_project_soft_deletes_executions(seeded_db: AsyncSession, t
     wf_version = WorkflowVersion(
         workflow_id=workflow.id,
         version=1,
-        schema_version="1.0.0",
-        workflow_definition={"steps": []},
+        schema_version="2.0.0",
+        workflow_definition=create_minimal_workflow_definition(name="test-cascade"),
         created_by=user_id,
         labels={},
     )
@@ -507,8 +508,8 @@ async def test_delete_project_hard_deletes_approval_requests(seeded_db: AsyncSes
     wf_version = WorkflowVersion(
         workflow_id=workflow.id,
         version=1,
-        schema_version="1.0.0",
-        workflow_definition={"steps": []},
+        schema_version="2.0.0",
+        workflow_definition=create_minimal_workflow_definition(name="test-cascade"),
         created_by=user_id,
         labels={},
     )

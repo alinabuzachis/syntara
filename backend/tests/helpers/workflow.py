@@ -93,20 +93,6 @@ def create_workflow_definition_with_activities(
     }
 
 
-_WF_DEF_TEMPLATE: dict[str, object] = {
-    "schemaVersion": "1.0.0",
-    "version": 1,
-    "metadata": {"name": "placeholder"},
-    "triggers": [{"type": "manual"}],
-    "workflow": {"activities": []},
-}
-
-
-def _wf_def(name: str) -> dict[str, object]:
-    """Build a minimal workflow definition dict."""
-    return {**_WF_DEF_TEMPLATE, "metadata": {"name": name}}
-
-
 class WorkflowFactory:
     """Factory for creating workflows with versions."""
 
@@ -136,8 +122,8 @@ class WorkflowFactory:
         version = WorkflowVersion(
             workflow_id=wf.id,
             version=1,
-            schema_version="1.0.0",
-            workflow_definition=_wf_def(name),
+            schema_version="2.0.0",
+            workflow_definition=create_minimal_workflow_definition(name=name),
             created_by=self.user.id,
             status=WorkflowVersionStatus.PUBLISHED if is_enabled else WorkflowVersionStatus.DRAFT,
         )

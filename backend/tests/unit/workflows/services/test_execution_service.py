@@ -244,7 +244,7 @@ class TestCreateExecution:
         workflow_version = Mock(spec=WorkflowVersion)
         workflow_version.id = version_id
         workflow_version.version = 1
-        workflow_version.schema_version = "1.0.0"
+        workflow_version.schema_version = "2.0.0"
         workflow_version.workflow_definition = {
             "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
         }
@@ -312,7 +312,7 @@ class TestCreateExecution:
         workflow_version = Mock(spec=WorkflowVersion)
         workflow_version.id = version_id
         workflow_version.version = 1
-        workflow_version.schema_version = "1.0.0"
+        workflow_version.schema_version = "2.0.0"
         workflow_version.workflow_definition = {
             "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
         }

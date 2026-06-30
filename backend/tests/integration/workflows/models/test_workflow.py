@@ -246,7 +246,7 @@ async def test_workflow_relationship_with_versions(
         id=uuid4(),
         workflow_id=workflow.id,
         version=1,
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="v1"),
         created_by=test_user.id,
     )
@@ -254,7 +254,7 @@ async def test_workflow_relationship_with_versions(
         id=uuid4(),
         workflow_id=workflow.id,
         version=2,
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="v2"),
         created_by=test_user.id,
     )

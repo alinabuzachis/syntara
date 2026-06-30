@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.core.models import User
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest_asyncio.fixture
@@ -59,8 +60,8 @@ async def test_workflow_version_minimal(
         id=uuid4(),
         workflow_id=test_workflow_minimal.id,
         version=1,
-        schema_version="1.0.0",
-        workflow_definition={"test": "definition"},
+        schema_version="2.0.0",
+        workflow_definition=create_minimal_workflow_definition(name="test-workflow"),
         created_by=test_user.id,
     )
     test_db_session.add(workflow_version)

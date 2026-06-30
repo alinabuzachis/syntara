@@ -66,7 +66,8 @@ def _make_workflow_definition(triggers: list[dict[str, Any]] | None = None) -> d
     """Build a minimal workflow definition with optional trigger nodes."""
     return {
         "triggers": triggers or [],
-        "activities": [],
+        "nodes": [],
+        "edges": [],
     }
 
 
@@ -407,7 +408,7 @@ class TestSyncWebhookTriggers:
 
         service = _make_service(session=mock_session)
 
-        definition: dict[str, Any] = {"activities": []}
+        definition: dict[str, Any] = {"nodes": [], "edges": []}
 
         results = await service.sync_webhook_triggers(uuid4(), definition)
 
