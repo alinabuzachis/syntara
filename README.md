@@ -25,14 +25,14 @@ See [backend/README.md](backend/README.md) and [frontend/README.md](frontend/REA
 ## Quick Start
 
 ```bash
-# Install all dependencies
-make install
+# One-time setup: install deps, generate secrets + TLS certs, build images, start services, migrate, seed
+make setup
 
 # Start full-stack development (backend API + frontend UI)
 make dev
 
 # Or use containers for the full stack
-podman-compose up --build
+make -C backend run-all
 ```
 
 ## Common Commands

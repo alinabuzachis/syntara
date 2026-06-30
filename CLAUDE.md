@@ -46,8 +46,8 @@ User-invocable skills: `/frontend-review-pr`, `/frontend-build-ui-feature`, `/ba
 ### First-Time Setup
 
 ```bash
-make setup    # Installs deps, generates secrets, starts services, runs migrations, seeds DB
-make dev      # Starts backend API (port 8000) + Temporal worker + frontend dev server (port 5173)
+make setup    # Installs deps, generates secrets + TLS certs, builds images, starts services, runs migrations, seeds DB
+make dev      # Starts backend API (HTTPS, port 8000) + Temporal worker + frontend dev server (port 5173)
 ```
 
 ### Day-to-Day
@@ -78,7 +78,7 @@ make -C backend db-clean      # Reset database (destructive)
 
 | Service | Port | Notes |
 |---|---|---|
-| Backend API | 8000 | `make dev` or `make -C backend dev` |
+| Backend API | 8000 | `make dev` or `make -C backend dev` (HTTPS with self-signed cert) |
 | Frontend UI | 5173 | `npm start` from frontend/ |
 | Mock API | 3000 | Standalone frontend dev without backend |
 | Temporal UI | 8081 | Workflow monitoring |

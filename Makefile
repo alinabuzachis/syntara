@@ -19,9 +19,9 @@ pre-commit-install: ## Install pre-commit hooks
 dev: ## Start backend API, Temporal worker, and frontend dev servers
 	$(MAKE) -C backend dev &
 	$(MAKE) -C backend worker-run &
-	cd frontend && npm run start
+	cd frontend && VITE_API_URL=https://localhost:8000 npm run start
 
-setup: _ensure-env install secrets services-up db-migrate db-seed admin-password ## One-shot bootstrap: install, secrets, services, migrations, seed
+setup: _ensure-env install secrets certs build-images services-up db-migrate db-seed admin-password ## One-shot bootstrap: install, secrets, certs, services, migrations, seed
 	@echo ""
 	@echo "Setup complete. Run 'make dev' to start the development servers."
 
@@ -68,6 +68,12 @@ services-logs: ## Tail logs from all services
 
 secrets: ## Generate JWT keys, admin password, encryption key
 	$(MAKE) -C backend secrets-generate
+
+certs: ## Generate self-signed TLS certificates for local development
+	$(MAKE) -C backend certs-generate
+
+build-images: ## Build container images
+	$(MAKE) -C backend build-images
 
 db-migrate: ## Run database migrations
 	cd backend && APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head

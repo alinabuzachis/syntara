@@ -15,7 +15,7 @@ from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.setting_update import SettingUpdate
 from nexus_api_client.models.user_update import UserUpdate
 
-from tests.e2e.conftest import local_user_login
+from tests.e2e.conftest import e2e_tls_verify, local_user_login
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -217,6 +217,7 @@ class TestLocalLoginRuntimeSettings:
                 f"{nexus_base_url}/api/v1/auth/login",
                 json={"username": local_user.username, "password": local_password},
                 timeout=10,
+                verify=e2e_tls_verify(),
             )
             assert login_resp.status_code == HTTPStatus.UNAUTHORIZED
         finally:

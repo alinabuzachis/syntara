@@ -265,6 +265,14 @@ def admin_password() -> str:
     return password
 
 
+_CA_CERT_PATH = Path(os.environ.get("APP_S2S_TLS_CA_CERT_PATH", ".secrets/certs/ca.pem"))
+
+
+def e2e_tls_verify() -> str | bool:
+    """Return the CA cert path for TLS verification, or False if unavailable."""
+    return str(_CA_CERT_PATH) if _CA_CERT_PATH.exists() else False
+
+
 def _require_session_cookies(cookies: dict[str, str]) -> None:
     missing = [name for name in (REFRESH_COOKIE_NAME, CSRF_COOKIE_NAME) if name not in cookies]
     if missing:

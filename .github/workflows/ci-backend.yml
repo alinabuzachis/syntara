@@ -278,6 +278,10 @@ jobs:
         run: make secrets-generate
         working-directory: backend
 
+      - name: Generate TLS certificates
+        run: make certs-generate
+        working-directory: backend
+
       - name: Start services with podman-compose
         timeout-minutes: 15
         env:
@@ -323,7 +327,8 @@ jobs:
           retry_wait_seconds: 30
           command: cd backend && make test-e2e
         env:
-          APP_BASE_URL: http://localhost:8000
+          APP_BASE_URL: https://localhost:8000
+          APP_WORKER_BASE_URL: https://host.containers.internal:8000
           APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           SEGMENT_SERVER_URL: http://localhost:9999
 
@@ -335,7 +340,8 @@ jobs:
           retry_wait_seconds: 30
           command: cd backend && make test-e2e-global-revocation
         env:
-          APP_BASE_URL: http://localhost:8000
+          APP_BASE_URL: https://localhost:8000
+          APP_WORKER_BASE_URL: https://host.containers.internal:8000
           SEGMENT_SERVER_URL: http://localhost:9999
 
       - name: Show service logs on failure

@@ -23,8 +23,6 @@ def get_api_base_url() -> str:
         return settings.workflow_base_url.rstrip("/")
 
     # Otherwise construct from host and port
-    # DEVELOPMENT ONLY: Fallback to HTTP for local development
-    # Production deployments MUST set workflow_base_url with HTTPS in settings
     host = settings.server_host
     port = settings.server_port
 
@@ -32,9 +30,8 @@ def get_api_base_url() -> str:
     if host in ("0.0.0.0", "localhost", "127.0.0.1"):  # noqa: S104
         host = "localhost"
 
-    # HTTP is acceptable for local development only  # NOSONAR
-    # Production: Configure workflow_base_url with HTTPS in environment settings
-    return f"http://{host}:{port}/api/v1"  # NOSONAR
+    scheme = "https" if settings.s2s_tls_enabled else "http"
+    return f"{scheme}://{host}:{port}/api/v1"
 
 
 def generate_activity_signal_url(execution_id: UUID, activity_id: str) -> str:

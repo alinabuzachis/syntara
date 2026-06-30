@@ -37,6 +37,12 @@ COMPOSE_CMD ?= uv run podman-compose
 COMPOSE_ARGS ?= -p $(PODMAN_PROJECT) -f ../podman-compose.yml
 COMPOSE_FINAL_CMD := $(COMPOSE_CMD) $(COMPOSE_ARGS)
 
+# S2S mTLS configuration for local development
+S2S_TLS_VARS = \
+	APP_S2S_TLS_ENABLED=true \
+	APP_S2S_TLS_CA_CERT_PATH=.secrets/certs/ca.pem
+WORKER_BASE_URL = https://localhost:8000/api/v1
+
 
 # UV environment setup
 # ========================================================
@@ -263,28 +269,38 @@ db-seed-all: check-deps ## Run all database seeders including dev samples
 	@echo "✅ Seeding complete"
 
 .PHONY: dev
-dev: check-deps _ensure-secrets ## Run development server with auto-reload
+dev: check-deps _ensure-secrets _ensure-certs ## Run development server with auto-reload
 	@echo "🔄 Running database migrations..."
 	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head
 	@$(MAKE) db-seed
 	@echo "✅ Migrations and seeding complete"
 	@echo "🚀 Starting Nexus API server..."
-	@echo "📍 API URL: http://localhost:8000"
-	@echo "📍 API Docs: http://localhost:8000/docs"
+	@echo "📍 API URL: https://localhost:8000"
+	@echo "📍 API Docs: https://localhost:8000/docs"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
 	APP_JWT_BACKUP_KEYS='[{"key_id":"nexus-backup","key_path":".secrets/jwt-backup.pem"}]' \
 	APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
+	$(S2S_TLS_VARS) \
+	APP_S2S_TLS_CERT_PATH=.secrets/certs/backend.crt \
+	APP_S2S_TLS_KEY_PATH=.secrets/certs/backend.key \
 	uv run python -m nexus.api.main
 
 
 .PHONY: worker-run
-worker-run: check-deps _ensure-secrets ## Run Temporal workflow worker
+worker-run: check-deps _ensure-secrets _ensure-certs ## Run Temporal workflow worker
 	@echo "🔄 Starting Temporal workflow worker..."
 	@echo "📍 Temporal UI: http://localhost:8081"
 	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
 	APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
+	$(S2S_TLS_VARS) \
+	APP_S2S_TLS_CERT_PATH=.secrets/certs/worker.crt \
+	APP_S2S_TLS_KEY_PATH=.secrets/certs/worker.key \
+	APP_WORKFLOW_BASE_URL=$(WORKER_BASE_URL) \
+	APP_AGENT_ORCHESTRATOR_BASE_URL=$(WORKER_BASE_URL) \
+	APP_APPROVALS_API_BASE_URL=$(WORKER_BASE_URL) \
+	APP_TOOL_MANAGER_BASE_URL=$(WORKER_BASE_URL) \
 	uv run python -m nexus.workflows.worker
 
 
@@ -394,6 +410,24 @@ secrets-clean: ## Remove generated secrets
 	@rm -rf .secrets/
 	@echo "✅ Secrets removed"
 
+
+# TLS certificate management
+# ========================================================
+.PHONY: certs-generate
+certs-generate: ## Generate self-signed TLS certificates for local development
+	@uv run python tools/generate_certs.py
+
+.PHONY: certs-generate-force
+certs-generate-force: ## Regenerate TLS certificates (overwrites existing)
+	@uv run python tools/generate_certs.py --force
+
+.PHONY: _ensure-certs
+_ensure-certs:
+	@if [ ! -f .secrets/certs/ca.pem ]; then \
+		echo "🔐 Generating TLS certificates..."; \
+		$(MAKE) certs-generate; \
+	fi
+
 .PHONY: generate-token
 generate-token: _ensure-secrets ## Generate a JWT token for testing (ROLE=creator|approver|administrator|viewer KEY=primary|backup)
 	@# -T disables TTY so uv progress bars and ANSI escapes stay on stderr instead of merging into stdout
@@ -407,7 +441,7 @@ _ensure-secrets:
 	fi
 
 .PHONY: run-all
-run-all: _ensure-secrets ## Start all services (foreground, Ctrl+C to stop)
+run-all: _ensure-secrets _ensure-certs ## Start all services (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting all services..."
 	@echo "📍 Nexus API: http://localhost:$${APP_API_PORT:-8000}"
 	@echo "📍 Nexus UI: http://localhost:$${APP_UI_PORT:-8080}"
@@ -421,7 +455,7 @@ run-all: _ensure-secrets ## Start all services (foreground, Ctrl+C to stop)
 	$(COMPOSE_FINAL_CMD) up --build --force-recreate
 
 .PHONY: services-run
-services-run: _ensure-secrets ## Start all services (database + cache + temporal + UI + worker + MCP) in background
+services-run: _ensure-secrets _ensure-certs ## Start all services (database + cache + temporal + UI + worker + MCP) in background
 	@echo "🚀 Starting all services (database + cache + temporal + UI + worker + MCP)..."
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${APP_DB_PORT:-5432}/nexus_api"
 	@echo "📍 Cache: cache://localhost:$${APP_CACHE_PORT:-6379}"

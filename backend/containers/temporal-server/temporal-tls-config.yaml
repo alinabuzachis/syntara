@@ -1,0 +1,7 @@
+---
+global:
+  tls:
+    frontend:
+      client:
+        rootCaFiles:
+          - /etc/temporal/config/certs/ca.pem
