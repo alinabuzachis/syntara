@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
+from nexus.core.lib.url_validation import validate_url_no_ssrf
 from nexus.credentials.lib.auth_types import AUTH_TYPE_API_KEY, AUTH_TYPE_BASIC, AUTH_TYPE_BEARER
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.workflow_definition import (
@@ -130,6 +131,12 @@ async def execute_http_request_activity(
         msg = f"Invalid configuration: {exc.error_count()} error(s) in fields {fields}"
         raise ApplicationError(msg, type="ValidationError", non_retryable=True) from None
 
+    # SSRF validation: reject private/internal IPs and cloud metadata endpoints
+    try:
+        validate_url_no_ssrf(config.url)
+    except ValueError as exc:
+        raise ApplicationError(str(exc), type="SSRFValidationError", non_retryable=True) from None
+
     # Build headers — Nexus credentials take priority over config-based auth
     headers = dict(config.headers)
     resolved_creds = input_config.get("_resolved_credentials")
@@ -144,7 +151,7 @@ async def execute_http_request_activity(
     start_time = time.time()
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=False) as client:
             response = await client.request(
                 method=config.method.value,
                 url=config.url,

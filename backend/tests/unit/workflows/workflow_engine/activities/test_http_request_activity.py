@@ -51,6 +51,11 @@ def _mock_response(status_code: int, json_body: object = None, text_body: str = 
 VALID_CONFIG: dict[str, Any] = {"method": "GET", "url": "https://example.com/api"}
 
 
+def _mock_getaddrinfo(ip: str) -> list[tuple[None, None, None, None, tuple[str, int]]]:
+    """Return a mock getaddrinfo result for a given IP."""
+    return [(None, None, None, None, (ip, 0))]
+
+
 # ---------------------------------------------------------------------------
 # _add_credential_auth_headers
 # ---------------------------------------------------------------------------
@@ -340,3 +345,49 @@ class TestExecuteHttpRequestActivityAuth:
             await execute_http_request_activity(config, None)
         headers_sent = mock_req.call_args.kwargs["headers"]
         assert headers_sent.get("Authorization") == "Bearer ${secrets.token}"
+
+
+_PATCH_GETADDRINFO = "socket.getaddrinfo"
+
+
+class TestSsrfValidation:
+    """Tests for SSRF mitigation in execute_http_request_activity."""
+
+    @pytest.mark.asyncio
+    async def test_loopback_rejected(self) -> None:
+        """Reject URLs resolving to loopback."""
+        config = {"method": "GET", "url": "http://localhost:8181/v1/data"}
+        with (
+            patch(_PATCH_GETADDRINFO, return_value=_mock_getaddrinfo("127.0.0.1")),
+            pytest.raises(ApplicationError, match="SSRF blocked"),
+        ):
+            await execute_http_request_activity(config, None)
+
+    @pytest.mark.asyncio
+    async def test_cloud_metadata_rejected(self) -> None:
+        """Reject cloud metadata endpoint."""
+        config = {"method": "GET", "url": "http://169.254.169.254/latest/meta-data/"}
+        with pytest.raises(ApplicationError, match="SSRF blocked"):
+            await execute_http_request_activity(config, None)
+
+    @pytest.mark.asyncio
+    async def test_public_url_accepted(self) -> None:
+        """Accept URLs resolving to public IPs."""
+        resp = _mock_response(200, json_body={"ok": True})
+        config = {"method": "GET", "url": "https://example.com/api"}
+        with (
+            patch(_PATCH_GETADDRINFO, return_value=_mock_getaddrinfo("93.184.216.34")),
+            patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=resp),
+        ):
+            result = await execute_http_request_activity(config, None)
+        assert result["output"]["status_code"] == 200
+
+    @pytest.mark.asyncio
+    async def test_private_ip_rejected(self) -> None:
+        """Reject URLs resolving to private IPs."""
+        config = {"method": "GET", "url": "https://internal-service.example.com"}
+        with (
+            patch(_PATCH_GETADDRINFO, return_value=_mock_getaddrinfo("10.0.0.1")),
+            pytest.raises(ApplicationError, match="SSRF blocked"),
+        ):
+            await execute_http_request_activity(config, None)

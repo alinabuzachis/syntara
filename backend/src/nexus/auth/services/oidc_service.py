@@ -9,9 +9,7 @@ Handles the full OpenID Connect authorization code flow with PKCE:
 """
 
 import hashlib
-import ipaddress
 import secrets
-import socket
 import ssl
 import time
 from base64 import urlsafe_b64encode
@@ -24,6 +22,7 @@ import httpx
 import jwt as pyjwt
 import structlog
 from jwt import PyJWKClient
+from langchain_core._security._ssrf_protection import validate_safe_url
 from starlette import status
 
 from nexus.auth.exceptions import OIDCErrorCode
@@ -107,25 +106,12 @@ class OIDCService:
     def _validate_url(self, url: str) -> None:
         """Validate a URL to mitigate SSRF attacks.
 
-        Applied to all outbound OIDC HTTP requests (discovery, token exchange)
-        to prevent an attacker-controlled IdP configuration from targeting
-        internal services.
-
-        Checks:
-        1. URL scheme must be HTTPS (HTTP allowed when private networks enabled).
-        2. Hostname must not resolve to a private/internal IP address.
+        Delegates to the shared validate_url_no_ssrf() utility for hostname
+        resolution checks. OIDC-specific scheme enforcement (HTTPS required
+        unless oidc_allow_private_networks is enabled) is applied here.
 
         Note: a TOCTOU DNS rebinding gap exists between this validation and the
-        subsequent HTTP request (the hostname is resolved again by httpx).  This
-        is an accepted risk.  DNS-pinning (connecting directly to the validated
-        IP) was evaluated but rejected because it breaks TLS certificate
-        validation, SNI routing, and CDN/WAF compatibility with real-world OIDC
-        providers (Azure AD, Google, Okta).  Exploiting the gap requires admin
-        access (only admins configure IdPs), control of a DNS server, and
-        sub-millisecond timing — an admin already has full system access.
-
-        Args:
-            url: The URL to validate
+        subsequent HTTP request. See validate_url_no_ssrf() for details.
 
         Raises:
             OIDCError: If the URL fails validation
@@ -134,7 +120,6 @@ class OIDCService:
         parsed = urlparse(url)
         allow_private = get_settings().oidc_allow_private_networks
 
-        # Scheme check: require HTTPS unless private networks are allowed
         if parsed.scheme == "http" and not allow_private:
             msg = "OIDC issuer URL must use HTTPS"
             raise OIDCError(msg)
@@ -142,28 +127,10 @@ class OIDCService:
             msg = "OIDC issuer URL must use HTTPS"
             raise OIDCError(msg)
 
-        if allow_private:
-            return
-
-        # Hostname resolution check: reject private/internal IPs to prevent SSRF
-        hostname = parsed.hostname
-        if not hostname:
-            msg = "OIDC issuer URL has no hostname"
-            raise OIDCError(msg)
-
         try:
-            addr_infos = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
-        except socket.gaierror as e:
-            msg = f"Cannot resolve OIDC issuer hostname: {hostname}"
-            raise OIDCError(msg) from e
-
-        for addr_info in addr_infos:
-            ip = ipaddress.ip_address(addr_info[4][0])
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-                # Log the actual IP for diagnostics but don't expose it to the caller
-                logger.warning("OIDC issuer resolves to private IP", hostname=hostname, ip=str(ip))
-                msg = "OIDC issuer URL resolves to a private or internal network address"
-                raise OIDCError(msg)
+            validate_safe_url(url, allow_private=allow_private, allow_http=True)
+        except ValueError as e:
+            raise OIDCError(str(e)) from e
 
     async def fetch_discovery_config(self, issuer_url: str, *, disable_tls_verify: bool = False) -> dict[str, Any]:
         """Fetch OIDC discovery configuration from the provider.

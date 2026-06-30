@@ -97,8 +97,14 @@ def test_script_node_python(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_http_request_node(nexus_api: NexusApiRegistry, worker_base_url: str):
-    """An HTTP request node calls an endpoint and the workflow completes."""
+def test_http_request_node(nexus_api: NexusApiRegistry):
+    """An HTTP request node calls an endpoint and the workflow completes.
+
+    Note: targets an external URL because SSRF mitigation (AAP-79016) blocks
+    private IPs until the allowlist for worker_base_url is propagated by the
+    Operator. Revert to worker_base_url/health once the allowlist is confirmed
+    working in CI.
+    """
     result = create_and_run_workflow(
         nexus_api,
         "e2e-http-request",
@@ -115,7 +121,7 @@ def test_http_request_node(nexus_api: NexusApiRegistry, worker_base_url: str):
                     "type": "http_request",
                     "parameters": {
                         "method": "GET",
-                        "url": f"{worker_base_url}/health",
+                        "url": "https://example.com",
                     },
                 },
             ],
@@ -583,9 +589,15 @@ def test_loop_with_agentic_body(
 
 @pytest.mark.e2e
 def test_http_request_then_agentic(
-    nexus_api: NexusApiRegistry, worker_base_url: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
+    nexus_api: NexusApiRegistry, llm_credential_id: str, llm_model: str, first_project_id: UUID
 ):
-    """An HTTP request node feeds into an agentic node."""
+    """An HTTP request node feeds into an agentic node.
+
+    Note: targets an external URL because SSRF mitigation (AAP-79016) blocks
+    private IPs until the allowlist for worker_base_url is propagated by the
+    Operator. Revert to worker_base_url/health once the allowlist is confirmed
+    working in CI.
+    """
     result = create_and_run_workflow(
         nexus_api,
         "e2e-http-to-agentic",
@@ -598,11 +610,11 @@ def test_http_request_then_agentic(
             "nodes": [
                 {
                     "id": "fetch",
-                    "name": "Fetch Health",
+                    "name": "Fetch Page",
                     "type": "http_request",
                     "parameters": {
                         "method": "GET",
-                        "url": f"{worker_base_url}/health",
+                        "url": "https://example.com",
                     },
                 },
                 {

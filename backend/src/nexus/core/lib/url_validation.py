@@ -1,11 +1,16 @@
 """URL validation utilities for SSRF prevention.
 
 Ensures host URLs contain only scheme, hostname, and optional port.
+Delegates SSRF IP/hostname checks to langchain-core's validate_safe_url.
 """
 
 from __future__ import annotations
 
 from urllib.parse import ParseResult, urlparse
+
+from langchain_core._security._ssrf_protection import validate_safe_url
+
+from nexus.core.config.base import get_settings
 
 _ALLOWED_SCHEMES = frozenset({"https", "http"})
 _HTTPS_ONLY = frozenset({"https"})
@@ -111,3 +116,26 @@ def validate_endpoint_url(url: str, *, allow_http: bool = False) -> str:
     parsed = _parse_and_validate(url, label="Endpoint URL", allow_http=allow_http)
     _check_disallowed_components(parsed, label="Endpoint URL", allow_path=True)
     return url
+
+
+def validate_url_no_ssrf(url: str) -> None:
+    """Validate a URL to mitigate SSRF attacks.
+
+    Delegates to langchain-core's validate_safe_url which resolves the hostname
+    and rejects private, loopback, link-local, reserved, cloud metadata, and
+    Kubernetes internal DNS addresses. Hosts in the
+    workflow_http_request_allowed_hosts setting bypass the private IP check but
+    cloud metadata endpoints are always blocked.
+
+    Raises:
+        ValueError: If the URL fails validation.
+
+    """
+    allowed = {h.lower() for h in get_settings().workflow_http_request_allowed_hosts}
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+
+    if hostname in allowed:
+        validate_safe_url(url, allow_private=True, allow_http=True)
+    else:
+        validate_safe_url(url, allow_private=False, allow_http=True)

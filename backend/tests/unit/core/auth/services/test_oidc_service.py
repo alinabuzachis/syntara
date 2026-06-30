@@ -591,11 +591,11 @@ class TestExchangeCodeForTokens:
         """Test that token exchange rejects endpoints resolving to private IPs (SSRF, AAP-71276)."""
         with (
             patch("nexus.auth.services.oidc_service.get_settings") as mock_gs,
-            patch("nexus.auth.services.oidc_service.socket.getaddrinfo") as mock_getaddrinfo,
+            patch("socket.getaddrinfo") as mock_getaddrinfo,
         ):
             mock_gs.return_value.oidc_allow_private_networks = False
             mock_getaddrinfo.return_value = [(None, None, None, None, ("127.0.0.1", 443))]
-            with pytest.raises(OIDCError, match="private or internal network"):
+            with pytest.raises(OIDCError, match="SSRF blocked"):
                 await oidc_service.exchange_code_for_tokens(
                     token_endpoint="https://evil-idp.com/token",
                     code="auth-code-123",
@@ -604,6 +604,13 @@ class TestExchangeCodeForTokens:
                     client_secret="secret-456",
                     code_verifier="verifier-789",
                 )
+
+    async def test_allow_private_still_blocks_cloud_metadata(self, oidc_service: OIDCService) -> None:
+        """Cloud metadata endpoints are blocked even when oidc_allow_private_networks=True."""
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_gs:
+            mock_gs.return_value.oidc_allow_private_networks = True
+            with pytest.raises(OIDCError, match="SSRF blocked"):
+                oidc_service._validate_url("http://169.254.169.254/latest/meta-data/")
 
     @pytest.mark.asyncio
     async def test_exchange_disable_tls_verify(self, oidc_service: OIDCService) -> None:
@@ -998,11 +1005,11 @@ class TestValidateIdToken:
         """Test that ID token validation rejects jwks_uri resolving to private IPs (SSRF, AAP-71276)."""
         with (
             patch("nexus.auth.services.oidc_service.get_settings") as mock_gs,
-            patch("nexus.auth.services.oidc_service.socket.getaddrinfo") as mock_getaddrinfo,
+            patch("socket.getaddrinfo") as mock_getaddrinfo,
         ):
             mock_gs.return_value.oidc_allow_private_networks = False
             mock_getaddrinfo.return_value = [(None, None, None, None, ("10.0.0.1", 443))]
-            with pytest.raises(OIDCError, match="private or internal network"):
+            with pytest.raises(OIDCError, match="SSRF blocked"):
                 oidc_service.validate_id_token(
                     id_token="mock-token",
                     jwks_uri="https://evil-idp.com/jwks",

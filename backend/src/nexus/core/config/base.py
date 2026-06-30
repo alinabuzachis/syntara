@@ -671,6 +671,13 @@ class ServerSettings(BaseSettings):
             raise ValueError(msg)
         return self
 
+    workflow_http_request_allowed_hosts: list[str] = Field(
+        default_factory=list,
+        description="Hostnames that workflow HTTP request nodes are permitted to target "
+        "despite resolving to private IPs. Set via APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS "
+        "as a JSON array.",
+    )
+
 
 # =============================================================================
 # Retriever Service Configuration
