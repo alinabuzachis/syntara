@@ -239,6 +239,19 @@ vi.mock('./hooks/useAutoApprovalDetection', () => ({
   useAutoApprovalDetection: vi.fn(),
 }))
 
+const mockShowError = vi.fn()
+vi.mock('../../providers/alerts', () => ({
+  useAlerts: vi.fn(() => ({
+    showError: mockShowError,
+    showSuccess: vi.fn(),
+    showWarning: vi.fn(),
+    showInfo: vi.fn(),
+    showAlert: vi.fn(),
+    dismissAlert: vi.fn(),
+    clearAllAlerts: vi.fn(),
+  })),
+}))
+
 // Mock useExecutionNodeClick hook
 const mockHandleNodeClick = vi.fn()
 const mockSelectNode = vi.fn()
@@ -766,6 +779,73 @@ describe('ExecutionDetail', () => {
       )
 
       expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Failure Toast Alert', () => {
+    it('shows failure toast when execution transitions from running to failed', () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'running' } }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(mockShowError).not.toHaveBeenCalled()
+
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'failed' } }
+        }
+        return mockExecutionsQuery
+      })
+
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Test Workflow run failed',
+        description: 'View the run logs and copy to the editor to debug within the editor',
+      })
+    })
+
+    it('does not show failure toast when navigating directly to a failed execution', () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'failed' } }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(mockShowError).not.toHaveBeenCalled()
+    })
+
+    it('does not show failure toast when execution is still running', () => {
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(mockShowError).not.toHaveBeenCalled()
     })
   })
 

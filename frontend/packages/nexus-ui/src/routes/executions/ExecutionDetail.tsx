@@ -1,16 +1,8 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import {
-  Alert,
-  AlertActionCloseButton,
-  Content,
-  ContentVariants,
-  Flex,
-  FlexItem,
-  TitleSizes,
-} from '@patternfly/react-core'
+import { Flex, FlexItem, TitleSizes } from '@patternfly/react-core'
 import type React from 'react'
 import '@xyflow/react/dist/style.css'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
 import { executionsClient } from '../../client'
@@ -22,6 +14,7 @@ import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useParams } from '../../hooks/routing/useParams'
 import { useSearch } from '../../hooks/routing/useSearch'
 import { useDialogState } from '../../hooks/useDialogState'
+import { useAlerts } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { buildFilterParams } from '../../utils/filterUtils'
@@ -46,9 +39,6 @@ import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 import { useExecutionStreaming, useSyncActivityStore } from './hooks/useExecutionStreaming'
 import { useExecutionWorkflow } from './hooks/useExecutionWorkflow'
 import { useForkWorkflow } from './hooks/useForkWorkflow'
-
-/** Width constraint for the inline failure alert floating over the execution canvas. */
-const INLINE_ALERT_WIDTH = 'clamp(15rem, 20vw, 22rem)'
 
 /** Build activity name map from workflow definition for resolving approval node names. */
 function useActivityNamesForExecution(
@@ -124,9 +114,25 @@ function ExecutionDetailContent({
 }>) {
   const isStale = useExecutionStore((state) => state.isStale)
   const isComplete = useExecutionStore((state) => state.isComplete)
-  const showFailureAlert = execution?.status === 'failed'
-  const [alertDismissed, setAlertDismissed] = useState(false)
+  const { showError } = useAlerts()
+  const prevStatusRef = useRef(execution?.status)
   const [panelHeight, setPanelHeight] = useState(300)
+
+  const showFailureToast = useCallback(() => {
+    showError({
+      title: `${workflow?.name ?? 'Automation'} run failed`,
+      description: 'View the run logs and copy to the editor to debug within the editor',
+    })
+  }, [workflow?.name, showError])
+
+  useEffect(() => {
+    const prevStatus = prevStatusRef.current
+    prevStatusRef.current = execution?.status
+
+    if (execution?.status === 'failed' && prevStatus && prevStatus !== 'failed') {
+      showFailureToast()
+    }
+  }, [execution?.status, showFailureToast])
 
   const MIN_PANEL_HEIGHT = 100
   const MAX_PANEL_HEIGHT = 600
@@ -179,34 +185,6 @@ function ExecutionDetailContent({
               <ConnectionBanner isVisible />
             </FlexItem>
           </Flex>
-        )}
-        {showFailureAlert && !alertDismissed && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 'var(--pf-t--global--spacer--md)',
-              right: 0,
-              zIndex: 10,
-              width: INLINE_ALERT_WIDTH,
-            }}
-          >
-            {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- event-stopping layer to prevent clicks from propagating to canvas below */}
-            <div
-              style={{ pointerEvents: 'auto' }}
-              onMouseDown={(event) => event.stopPropagation()}
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <Alert
-                variant="danger"
-                title={`${workflow?.name ?? 'Automation'} run failed`}
-                actionClose={<AlertActionCloseButton onClose={() => setAlertDismissed(true)} />}
-              >
-                <Content component={ContentVariants.p} style={{ margin: 0 }}>
-                  View the run logs and copy to the editor to debug within the editor
-                </Content>
-              </Alert>
-            </div>
-          </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           {/* Workflow Canvas */}
