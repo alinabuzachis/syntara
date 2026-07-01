@@ -7,7 +7,6 @@ import {
   EmptyStateFooter,
   Flex,
   FlexItem,
-  StackItem,
   Switch,
   Truncate,
 } from '@patternfly/react-core'
@@ -20,13 +19,9 @@ import { AppRoute } from '../../../app/AppRoute'
 import { adminClient, identityProvidersClient } from '../../../client'
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
-import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
-import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { ProviderIcon } from '../../../components/ProviderIcon'
-import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
-import { useQueryState } from '../../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { navigate } from '../../../hooks/routing/navigate'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
@@ -292,87 +287,75 @@ export function IdentityProvidersTab() {
     )
   }
 
-  const queryState = useQueryState(query, {
-    title: 'Error loading identity providers',
-    onRetry: () => detachPromise(query.refetch()),
-  })
-  if (queryState) return queryState
-
-  if (providers.length === 0 && !cursor && !hasActiveFilters) {
-    return (
-      <>
-        <NoProvidersEmptyState
-          showAapButton={!hasAapProvider}
-          onAapSetup={() => setAapSetupOpen(true)}
-          permissions={permissions}
-        />
-        <AAPSetupModal
-          isOpen={aapSetupOpen}
-          onClose={() => setAapSetupOpen(false)}
-          onSuccess={() => detachPromise(query.refetch())}
-        />
-      </>
-    )
-  }
-
   return (
-    <NxPanelContentStack hasGutter>
-      <StackItem>
-        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-          <FlexItem grow={{ default: 'grow' }}>
-            <FilterBar
-              fieldDefinitions={filterFieldDefinitions}
+    <>
+      <NxListPanelView
+        isPending={query.isPending}
+        isFetching={query.isFetching}
+        error={query.error}
+        errorTitle="Error loading identity providers"
+        onRetry={() => detachPromise(query.refetch())}
+        isEmpty={providers.length === 0 && !cursor}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={() => handleFilterChange([])}
+        noDataState={
+          <NoProvidersEmptyState
+            showAapButton={!hasAapProvider}
+            onAapSetup={() => setAapSetupOpen(true)}
+            permissions={permissions}
+          />
+        }
+        toolbar={
+          providers.length > 0 || cursor || hasActiveFilters ? (
+            <NxListPanelToolbar
               filters={filters}
+              filterDefinitions={filterFieldDefinitions}
               onFilterChange={handleFilterChange}
+              actions={
+                <>
+                  {!hasAapProvider && (
+                    <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                      <Button
+                        variant="secondary"
+                        isAriaDisabled={!permissions.canCreate}
+                        onClick={permissions.canCreate ? () => setAapSetupOpen(true) : undefined}
+                      >
+                        Add Ansible Automation Platform
+                      </Button>
+                    </DisabledWithTooltip>
+                  )}
+                  <AddProviderButton permissions={permissions} />
+                </>
+              }
             />
-          </FlexItem>
-          {!hasAapProvider && (
-            <FlexItem>
-              <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
-                <Button
-                  variant="secondary"
-                  isAriaDisabled={!permissions.canCreate}
-                  onClick={permissions.canCreate ? () => setAapSetupOpen(true) : undefined}
-                >
-                  Add Ansible Automation Platform
-                </Button>
-              </DisabledWithTooltip>
-            </FlexItem>
-          )}
-          <FlexItem>
-            <AddProviderButton permissions={permissions} />
-          </FlexItem>
-        </Flex>
-      </StackItem>
-      {providers.length === 0 && hasActiveFilters ? (
-        <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <NxEmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
-        </StackItem>
-      ) : (
-        <NxScrollableTableContainer caption="Identity providers table" footer={getFooterProps(query.data)}>
-          <Thead>
-            <Tr>
-              <Th sort={getSortParams(0)}>Name</Th>
-              <Th sort={getSortParams(1)}>Issuer URL</Th>
-              <Th sort={getSortParams(2)}>Client ID</Th>
-              <Th sort={getSortParams(3)}>State</Th>
-              <Th screenReaderText="Actions" />
-            </Tr>
-          </Thead>
-          <Tbody>
-            {providers.map((provider) => (
-              <ProviderRow
-                key={provider.id}
-                provider={provider}
-                permissions={permissions}
-                onDelete={deleteDialog.open}
-                onRevoke={revokeDialog.open}
-                onToggleEnabled={handleToggleEnabled}
-              />
-            ))}
-          </Tbody>
-        </NxScrollableTableContainer>
-      )}
+          ) : undefined
+        }
+        body={
+          <NxListPanelTable caption="Identity providers table" footer={getFooterProps(query.data)}>
+            <Thead>
+              <Tr>
+                <Th sort={getSortParams(0)}>Name</Th>
+                <Th sort={getSortParams(1)}>Issuer URL</Th>
+                <Th sort={getSortParams(2)}>Client ID</Th>
+                <Th sort={getSortParams(3)}>State</Th>
+                <Th screenReaderText="Actions" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {providers.map((provider) => (
+                <ProviderRow
+                  key={provider.id}
+                  provider={provider}
+                  permissions={permissions}
+                  onDelete={deleteDialog.open}
+                  onRevoke={revokeDialog.open}
+                  onToggleEnabled={handleToggleEnabled}
+                />
+              ))}
+            </Tbody>
+          </NxListPanelTable>
+        }
+      />
       <IdentityProviderDeleteDialog
         isOpen={deleteDialog.isOpen}
         providerName={deleteDialog.item?.name ?? ''}
@@ -402,6 +385,6 @@ export function IdentityProvidersTab() {
         onClose={() => setAapSetupOpen(false)}
         onSuccess={() => detachPromise(query.refetch())}
       />
-    </NxPanelContentStack>
+    </>
   )
 }

@@ -69,6 +69,8 @@ export type NxListPanelViewProps = {
   error: unknown
   /** Called when the user clicks "Retry". */
   onRetry: () => void
+  /** Override the error state heading. Defaults to the error's HTTP status phrase, or "Error" for plain JS errors. */
+  errorTitle?: string
 
   /** True when the current data set has zero items. */
   isEmpty: boolean
@@ -117,13 +119,14 @@ function ListPanelStateContent({
   isPending,
   error,
   onRetry,
+  errorTitle,
   isEmpty,
   hasActiveFilters,
   onClearAllFilters,
   noDataState,
 }: Omit<NxListPanelViewProps, 'body' | 'toolbar'>) {
   if (isPending) return <NxLoadingState />
-  if (error) return <NxErrorState message={error} onRetry={onRetry} />
+  if (error) return <NxErrorState title={errorTitle} message={error} onRetry={onRetry} />
   if (isEmpty && hasActiveFilters) return <NxEmptyStateFilter clearAllFilters={onClearAllFilters} />
   if (isEmpty) return noDataState ?? <NxEmptyStateNoData />
   return null
@@ -136,6 +139,7 @@ export function NxListPanelView({
   isFetching,
   error,
   onRetry,
+  errorTitle,
   isEmpty,
   hasActiveFilters,
   onClearAllFilters,
@@ -168,6 +172,7 @@ export function NxListPanelView({
             isPending={isPending}
             error={error}
             onRetry={onRetry}
+            errorTitle={errorTitle}
             isEmpty={isEmpty}
             hasActiveFilters={hasActiveFilters}
             onClearAllFilters={onClearAllFilters}

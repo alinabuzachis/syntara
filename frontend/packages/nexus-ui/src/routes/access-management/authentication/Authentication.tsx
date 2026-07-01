@@ -3,6 +3,7 @@ import { EmptyStateAccessDenied } from '../../../components/EmptyStateAccessDeni
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxListPanel } from '../../../components/panels/list/NxListPanel'
 import { useCanI } from '../../../hooks/useCanI'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 
@@ -44,9 +45,9 @@ export default function Authentication() {
         breadcrumbs={breadcrumbsIdentityProvidersPage()}
       />
       <NxPageBody>
-        <NxPanel isFullHeight>
+        <NxListPanel>
           <IdentityProvidersTab />
-        </NxPanel>
+        </NxListPanel>
       </NxPageBody>
     </NxPage>
   )

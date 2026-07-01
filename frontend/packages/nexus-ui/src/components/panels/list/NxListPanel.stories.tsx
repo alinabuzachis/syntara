@@ -185,6 +185,25 @@ export const ServiceUnavailable: Story = {
   ),
 }
 
+/** `errorTitle` override — replaces the default "Error" heading with a page-specific label. */
+export const ErrorWithCustomTitle: Story = {
+  render: () => (
+    <NxListPanel>
+      <NxListPanelView
+        isPending={false}
+        error="Network error"
+        errorTitle="Error loading identity providers"
+        onRetry={() => {}}
+        isEmpty={false}
+        hasActiveFilters={false}
+        onClearAllFilters={() => {}}
+        toolbar={defaultToolbar}
+        body={<SampleTable rows={SAMPLE_ROWS} />}
+      />
+    </NxListPanel>
+  ),
+}
+
 /** Toggle `isFetching` in the Controls panel to show/hide skeleton rows during a background refetch. */
 export const SkeletonFetching: StoryObj<{ isFetching: boolean }> = {
   args: { isFetching: true },
