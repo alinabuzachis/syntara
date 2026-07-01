@@ -58,6 +58,21 @@ const mockTypes = [
     injectors: {},
     managed: true,
   },
+  {
+    id: 'type-aap',
+    name: 'Ansible Automation Platform',
+    description: 'AAP API access',
+    inputs: {
+      fields: [
+        { id: 'host', label: 'Host', type: 'string', secret: false },
+        { id: 'oauth_token', label: 'OAuth Token', type: 'string', secret: true },
+        { id: 'verify_ssl', label: 'Verify SSL', type: 'boolean', secret: false, default: true },
+      ],
+      required: ['host'],
+    },
+    injectors: {},
+    managed: true,
+  },
 ]
 
 const mockProjects = [
@@ -438,6 +453,13 @@ describe('CredentialFormModal', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 
     expect(screen.getByText('Failed to load projects')).toBeInTheDocument()
+  })
+
+  it('applies boolean field defaults when preSelectedTypeId is provided (AAP-81038)', () => {
+    render(<CredentialFormModal isOpen onClose={vi.fn()} preSelectedTypeId="type-aap" />, { wrapper })
+
+    const verifySSLSwitch = screen.getByRole('switch')
+    expect(verifySSLSwitch).toBeChecked()
   })
 
   it('calls onCreated with the new credential ID on successful create', async () => {

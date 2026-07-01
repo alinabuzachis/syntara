@@ -135,12 +135,13 @@ export function CredentialFormModal({
         inputs: credentialToEdit.inputs as Record<string, unknown>,
       })
     } else {
+      const preSelectedType = preSelectedTypeId ? types.find((t) => t.id === preSelectedTypeId) : undefined
       reset({
         name: '',
         description: '',
         project_id: defaultProjectId ?? '',
         credential_type_id: preSelectedTypeId ?? '',
-        inputs: {},
+        inputs: preSelectedType ? getDefaultInputs(preSelectedType) : {},
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset on modal open/close, keyed by resetKey
