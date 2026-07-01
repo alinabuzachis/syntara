@@ -2,22 +2,24 @@ import { Content, Truncate } from '@patternfly/react-core'
 import { RhUiCodeIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { IconLabel } from '../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
+import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
+import { useTableSort } from '../../hooks/useTableSort'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
+import { buildFilterParams } from '../../utils/filterUtils'
 
 import { accessClient } from './accessClient'
 import { PolicyJsonModal } from './PolicyJsonModal'
 import { toPolicyRead } from './policyUtils'
-import { buildAccessApiQueryParams, buildProjectFilterDefs, POLICY_SCOPE_OPTIONS } from './scopeFilterUtils'
+import { buildProjectFilterDefs, POLICY_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
 import { PolicyTypeLabel, ProjectLabel, ScopeLabel, StatementsCell } from './ScopeLabel'
 import type { PolicyRead } from './types'
-import { useBuiltinListState } from './useBuiltinListState'
 import { useProjectNameMap } from './useProjectNameMap'
 
 const BASE_FILTER_FIELD_DEFS = [
@@ -63,7 +65,7 @@ const BASE_FILTER_FIELD_DEFS = [
   },
 ]
 
-const sortFieldByColumn: Record<number, string> = {
+const SORT_FIELDS: Record<number, string> = {
   0: 'name',
   2: 'scope',
   4: 'project_id',
@@ -138,19 +140,22 @@ function PoliciesTableBody({
 
 export function PoliciesTab() {
   const policyJsonDialog = useDialogState<PolicyRead>()
+
   const {
+    cursor,
+    resetPagination,
     filters,
     hasActiveFilters,
     handleFilterChange,
-    clearAllFilters,
-    getSortParams,
-    queryParams: baseQueryParams,
-    page,
+    handleClearAllFilters,
+    getFooterProps,
     perPage,
-    handlePerPageChange,
-    goToPrevPage,
-    goToNextPage,
-  } = useBuiltinListState(sortFieldByColumn)
+  } = useCursorPagination()
+
+  const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
+    initialDirection: 'asc',
+    onSortChange: resetPagination,
+  })
 
   const { projectNameMap } = useProjectNameMap()
 
@@ -159,29 +164,24 @@ export function PoliciesTab() {
     [projectNameMap]
   )
 
-  const queryParams = useMemo(() => buildAccessApiQueryParams(baseQueryParams, filters), [baseQueryParams, filters])
+  const queryParams = useMemo(() => {
+    const field = SORT_FIELDS[activeSortIndex] ?? 'name'
+    const sort = sortDirection === 'desc' ? `-${field}` : field
+    const params: Record<string, unknown> = { limit: perPage, include_total: true, sort }
+    if (cursor) params.cursor = cursor
+    Object.assign(params, buildFilterParams(transformFiltersForApi(filters)))
+    return params
+  }, [activeSortIndex, sortDirection, perPage, cursor, filters])
 
   const policiesQuery = accessClient.useQuery('get', '/policies', {
     params: { query: queryParams },
   })
 
-  const policies = useMemo(
-    () => (policiesQuery.data?.resources ?? []).map(toPolicyRead),
-    [policiesQuery.data?.resources]
-  )
+  const data = policiesQuery.data
+  const policies = useMemo(() => (data?.resources ?? []).map(toPolicyRead), [data?.resources])
+  const refetch = useCallback(() => detachPromise(policiesQuery.refetch()), [policiesQuery])
 
-  const tableFooter = useMemo(
-    () => ({
-      page,
-      perPage,
-      total: policiesQuery.data?.total ?? null,
-      hasNext: !!policiesQuery.data?.next,
-      onPrev: goToPrevPage,
-      onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
-      onPerPageChange: handlePerPageChange,
-    }),
-    [page, perPage, policiesQuery.data, goToPrevPage, goToNextPage, handlePerPageChange]
-  )
+  useCursorReset(policies.length, hasActiveFilters, cursor, policiesQuery.isFetching, resetPagination)
 
   return (
     <>
@@ -191,10 +191,10 @@ export function PoliciesTab() {
         isPending={policiesQuery.isPending}
         isFetching={policiesQuery.isFetching}
         error={policiesQuery.error}
-        onRetry={() => detachPromise(policiesQuery.refetch())}
+        onRetry={refetch}
         isEmpty={policies.length === 0}
         hasActiveFilters={hasActiveFilters}
-        onClearAllFilters={clearAllFilters}
+        onClearAllFilters={handleClearAllFilters}
         noDataState={<NxEmptyStateNoData title="No policies found" description="No policies are available." />}
         toolbar={
           policies.length > 0 || hasActiveFilters ? (
@@ -202,7 +202,7 @@ export function PoliciesTab() {
               filters={filters}
               filterDefinitions={filterFieldDefinitions}
               onFilterChange={handleFilterChange}
-              clearAllFilters={clearAllFilters}
+              clearAllFilters={handleClearAllFilters}
             />
           ) : undefined
         }
@@ -213,7 +213,7 @@ export function PoliciesTab() {
               built-in policies to understand available permissions, then group them into roles for project scoped or
               system level assignments to users and groups.
             </Content>
-            <NxListPanelTable caption="Policies" footer={tableFooter}>
+            <NxListPanelTable caption="Policies" footer={getFooterProps(data)}>
               <PoliciesTableBody
                 policies={policies}
                 projectNameMap={projectNameMap}

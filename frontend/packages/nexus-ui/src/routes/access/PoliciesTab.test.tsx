@@ -11,6 +11,10 @@ import { accessClient } from './accessClient'
 import { PoliciesTab } from './PoliciesTab'
 import type { PolicyRead } from './types'
 
+vi.mock('../../app/routerFlag', () => ({
+  isTanStackRouter: () => false,
+}))
+
 vi.mock('./accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),
@@ -81,6 +85,8 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 )
 
+const mockRefetch = vi.fn().mockResolvedValue({})
+
 function setupPoliciesQuery(policies: PolicyRead[], options?: { total?: number; next?: string | null }) {
   vi.mocked(accessClient.useQuery).mockReturnValue({
     data: {
@@ -90,9 +96,11 @@ function setupPoliciesQuery(policies: PolicyRead[], options?: { total?: number; 
       prev: null,
     },
     isPending: false,
+    isFetching: false,
+    isError: false,
     error: null,
-    refetch: vi.fn(),
-  } as ReturnType<typeof accessClient.useQuery>)
+    refetch: mockRefetch,
+  } as never)
 }
 
 describe('PoliciesTab', () => {
@@ -115,9 +123,11 @@ describe('PoliciesTab', () => {
     vi.mocked(accessClient.useQuery).mockReturnValue({
       data: undefined,
       isPending: true,
+      isFetching: true,
+      isError: false,
       error: null,
-      refetch: vi.fn(),
-    } as ReturnType<typeof accessClient.useQuery>)
+      refetch: mockRefetch,
+    } as never)
 
     render(<PoliciesTab />, { wrapper })
 
@@ -128,9 +138,11 @@ describe('PoliciesTab', () => {
     vi.mocked(accessClient.useQuery).mockReturnValue({
       data: undefined,
       isPending: false,
+      isFetching: false,
+      isError: true,
       error: new Error('Network error'),
-      refetch: vi.fn(),
-    } as ReturnType<typeof accessClient.useQuery>)
+      refetch: mockRefetch,
+    } as never)
 
     render(<PoliciesTab />, { wrapper })
 
@@ -222,18 +234,23 @@ describe('PoliciesTab', () => {
     expect(results).toHaveNoViolations()
   })
 
-  it('passes query params from filters to useQuery', () => {
+  it('passes sort and pagination params to the API', () => {
     setupPoliciesQuery(samplePolicies)
 
     render(<PoliciesTab />, { wrapper })
 
-    // Verify useQuery was called with the policies endpoint and pagination params
-    const calls = vi.mocked(accessClient.useQuery).mock.calls
-    const policiesCall = calls.find((c) => c[1] === '/policies')
-    expect(policiesCall).toBeDefined()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access -- test assertion on mock call args
-    const queryParams = (policiesCall?.[2] as any)?.params?.query as Record<string, unknown>
-    expect(queryParams).toMatchObject({ limit: 20, include_total: true })
+    const callArgs = vi
+      .mocked(accessClient.useQuery)
+      .mock.calls.find((call) => call[0] === 'get' && call[1] === '/policies')
+    expect(callArgs).toBeDefined()
+    const queryOptions = callArgs![2] as unknown as {
+      params: { query: Record<string, unknown> }
+    }
+    expect(queryOptions.params.query).toMatchObject({
+      sort: 'name',
+      limit: 20,
+      include_total: true,
+    })
   })
 
   it('shows the selected policy definition when opened from a different row kebab', async () => {
@@ -359,7 +376,6 @@ describe('PoliciesTab', () => {
 
   it('shows empty filter state when filters produce no results', async () => {
     const user = userEvent.setup()
-    // Mock returns data on first calls, then empty after filter is applied
     let returnEmpty = false
 
     vi.mocked(accessClient.useQuery).mockImplementation((() => ({
@@ -370,8 +386,10 @@ describe('PoliciesTab', () => {
         prev: null,
       },
       isPending: false,
+      isFetching: false,
+      isError: false,
       error: null,
-      refetch: vi.fn(),
+      refetch: mockRefetch,
     })) as unknown as typeof accessClient.useQuery)
 
     render(<PoliciesTab />, { wrapper })
