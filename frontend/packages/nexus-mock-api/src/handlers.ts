@@ -1009,7 +1009,13 @@ export const handlers = [
 
     const project_id = url.searchParams.get('project_id')
 
+    const status = url.searchParams.get('status')
+
     let filtered = workflow_id ? executions.filter((e) => e.workflow_id === workflow_id) : executions
+
+    if (status) {
+      filtered = filtered.filter((e) => e.status === status)
+    }
 
     // Filter by project: find workflow IDs belonging to the project, then filter executions
     if (project_id) {
