@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, cast
-from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -18,15 +17,19 @@ T = TypeVar("T", bound="WhoCanResponse")
 
 @_attrs_define
 class WhoCanResponse:
-    """Response body for the Who can? endpoint.
+    """Paginated response body for the Who can? endpoint.
 
     Attributes:
-        resources (list[WhoCanUser]):
-        next_ (None | Unset | UUID):
+        resources (list[WhoCanUser]): Array of resources in current page
+        next_ (None | str | Unset): Cursor for next page of results
+        prev (None | str | Unset): Cursor for previous page of results
+        total (int | None | Unset): Total count of resources (only when include_total=true)
     """
 
     resources: list[WhoCanUser]
-    next_: None | Unset | UUID = UNSET
+    next_: None | str | Unset = UNSET
+    prev: None | str | Unset = UNSET
+    total: int | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -38,10 +41,20 @@ class WhoCanResponse:
         next_: None | str | Unset
         if isinstance(self.next_, Unset):
             next_ = UNSET
-        elif isinstance(self.next_, UUID):
-            next_ = str(self.next_)
         else:
             next_ = self.next_
+
+        prev: None | str | Unset
+        if isinstance(self.prev, Unset):
+            prev = UNSET
+        else:
+            prev = self.prev
+
+        total: int | None | Unset
+        if isinstance(self.total, Unset):
+            total = UNSET
+        else:
+            total = self.total
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -52,6 +65,10 @@ class WhoCanResponse:
         )
         if next_ is not UNSET:
             field_dict["next"] = next_
+        if prev is not UNSET:
+            field_dict["prev"] = prev
+        if total is not UNSET:
+            field_dict["total"] = total
 
         return field_dict
 
@@ -67,26 +84,38 @@ class WhoCanResponse:
 
             resources.append(resources_item)
 
-        def _parse_next_(data: object) -> None | Unset | UUID:
+        def _parse_next_(data: object) -> None | str | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                next_type_0 = UUID(data)
-
-                return next_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(None | Unset | UUID, data)
+            return cast(None | str | Unset, data)
 
         next_ = _parse_next_(d.pop("next", UNSET))
+
+        def _parse_prev(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        prev = _parse_prev(d.pop("prev", UNSET))
+
+        def _parse_total(data: object) -> int | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(int | None | Unset, data)
+
+        total = _parse_total(d.pop("total", UNSET))
 
         who_can_response = cls(
             resources=resources,
             next_=next_,
+            prev=prev,
+            total=total,
         )
 
         who_can_response.additional_properties = d

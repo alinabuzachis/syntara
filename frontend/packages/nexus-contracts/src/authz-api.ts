@@ -190,6 +190,28 @@ export interface components {
      * @description Request body for the Who can? endpoint.
      */
     WhoCanRequest: {
+      /**
+       * Limit
+       * @description Maximum number of results per page
+       * @default 20
+       */
+      limit?: number
+      /**
+       * Cursor
+       * @description Pagination cursor from previous response
+       */
+      cursor?: string | null
+      /**
+       * Sort
+       * @description Sort parameter (e.g., 'name', '-created_at')
+       */
+      sort?: string | null
+      /**
+       * Include Total
+       * @description Include total count in response (expensive)
+       * @default false
+       */
+      include_total?: boolean
       /** Action */
       action: string
       /** Resource Type */
@@ -199,17 +221,11 @@ export interface components {
        * @default
        */
       resource_id?: string
-      /**
-       * Resource Labels
-       * @default {}
-       */
+      /** Resource Labels */
       resource_labels?: {
         [key: string]: string
       }
-      /**
-       * Resource Metadata
-       * @default {}
-       */
+      /** Resource Metadata */
       resource_metadata?: {
         [key: string]: unknown
       }
@@ -219,14 +235,6 @@ export interface components {
        * @default
        */
       resource_project?: string
-      /**
-       * Limit
-       * @description Maximum number of results per page
-       * @default 20
-       */
-      limit?: number
-      /** Cursor */
-      cursor?: string | null
     }
     /**
      * WhoCanUser
@@ -243,13 +251,37 @@ export interface components {
     }
     /**
      * WhoCanResponse
-     * @description Response body for the Who can? endpoint.
+     * @description Paginated response body for the Who can? endpoint.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     WhoCanResponse: {
-      /** Resources */
-      resources: components['schemas']['WhoCanUser'][]
-      /** Next */
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
       next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['WhoCanUser'][]
     }
     /**
      * PermissionEntry

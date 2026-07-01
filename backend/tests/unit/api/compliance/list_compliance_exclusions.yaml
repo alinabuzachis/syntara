@@ -40,9 +40,6 @@ exclusions:
   # ===========================================================================
 
   # Authorization endpoints with custom response schemas
-  - operation_id: who_can
-    reason: "AAP-77347: Non-standard response shape (WhoCanResponse), missing prev field"
-
   - operation_id: what_can_i
     reason: "Non-standard response shape (WhatCanIResponse), returns permissions array not resources"
 

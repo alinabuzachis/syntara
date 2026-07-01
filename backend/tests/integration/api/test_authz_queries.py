@@ -452,7 +452,7 @@ async def test_who_can_pagination(
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """WC-5: who-can paginates results with cursor."""
+    """WC-5: who-can paginates results with cursor, includes prev field."""
     await make_admin(test_db_session, test_user)
 
     # Create extra users with the user role so we have enough to paginate
@@ -472,6 +472,7 @@ async def test_who_can_pagination(
     page1 = response.json()
     assert len(page1["resources"]) == 2
     assert page1["next"] is not None
+    assert page1["prev"] is None  # First page has no prev
 
     # Request page 2 using cursor
     response = await auth_client.post(
@@ -481,11 +482,95 @@ async def test_who_can_pagination(
     assert response.status_code == 200
     page2 = response.json()
     assert len(page2["resources"]) > 0
+    assert page2["prev"] is not None  # Second page has prev
 
     # No overlap between pages
     page1_ids = {u["id"] for u in page1["resources"]}
     page2_ids = {u["id"] for u in page2["resources"]}
     assert page1_ids.isdisjoint(page2_ids)
+
+
+@pytest.mark.asyncio
+async def test_who_can_backward_pagination(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+    user_factory: Callable[..., Awaitable[User]],
+) -> None:
+    """WC-6: who-can supports backward pagination via prev cursor."""
+    await make_admin(test_db_session, test_user)
+
+    test_group = (await test_db_session.exec(select(Group).where(Group.name == "test-users"))).first()
+    assert test_group is not None
+    for i in range(3):
+        u = await user_factory(username=f"back-user-{i}", email=f"back{i}@example.com", first_name=f"Back {i}")
+        await test_db_session.exec(insert(user_groups).values(user_id=u.id, group_id=test_group.id))
+    await test_db_session.commit()
+
+    # Get page 1
+    response = await auth_client.post(
+        "/api/v1/authz/who_can",
+        json={"action": "read", "resource_type": "user", "limit": 2},
+    )
+    assert response.status_code == 200
+    page1 = response.json()
+    page1_ids = [u["id"] for u in page1["resources"]]
+    assert page1["next"] is not None
+
+    # Get page 2
+    response = await auth_client.post(
+        "/api/v1/authz/who_can",
+        json={"action": "read", "resource_type": "user", "limit": 2, "cursor": page1["next"]},
+    )
+    assert response.status_code == 200
+    page2 = response.json()
+    assert page2["prev"] is not None
+
+    # Navigate back using prev cursor — should return the same users as page 1
+    response = await auth_client.post(
+        "/api/v1/authz/who_can",
+        json={"action": "read", "resource_type": "user", "limit": 2, "cursor": page2["prev"]},
+    )
+    assert response.status_code == 200
+    back_page = response.json()
+    back_ids = [u["id"] for u in back_page["resources"]]
+    assert back_ids == page1_ids
+
+
+@pytest.mark.asyncio
+async def test_who_can_include_total(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+    user_factory: Callable[..., Awaitable[User]],
+) -> None:
+    """WC-7: who-can returns total count when include_total is true."""
+    await make_admin(test_db_session, test_user)
+
+    test_group = (await test_db_session.exec(select(Group).where(Group.name == "test-users"))).first()
+    assert test_group is not None
+    for i in range(2):
+        u = await user_factory(username=f"total-user-{i}", email=f"total{i}@example.com", first_name=f"Total {i}")
+        await test_db_session.exec(insert(user_groups).values(user_id=u.id, group_id=test_group.id))
+    await test_db_session.commit()
+
+    # Without include_total, total should be None
+    response = await auth_client.post(
+        "/api/v1/authz/who_can",
+        json={"action": "read", "resource_type": "user", "limit": 1},
+    )
+    assert response.status_code == 200
+    assert response.json()["total"] is None
+
+    # With include_total, total should be an integer >= the page size
+    response = await auth_client.post(
+        "/api/v1/authz/who_can",
+        json={"action": "read", "resource_type": "user", "limit": 1, "include_total": True},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data["total"], int)
+    assert data["total"] >= len(data["resources"])
 
 
 # ============================================================================

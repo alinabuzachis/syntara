@@ -25435,45 +25435,61 @@ components:
         - action
         - resource_type
       properties:
-        action:
-          type: string
-          title: Action
-        resource_type:
-          type: string
-          title: Resource Type
-        resource_id:
-          type: string
-          default: ''
-          title: Resource Id
-        resource_labels:
-          type: object
-          default: {}
-          additionalProperties:
-            type: string
-          title: Resource Labels
-        resource_metadata:
-          type: object
-          default: {}
-          additionalProperties: true
-          title: Resource Metadata
-        resource_project:
-          type: string
-          default: ''
-          title: Resource Project
-          description: Project scope of the resource (project name or UUID)
         limit:
           type: integer
-          default: 20
-          exclusiveMinimum: 0.0
-          maximum: 100.0
-          description: Maximum number of results per page
+          maximum: 100
+          exclusiveMinimum: 0
           title: Limit
+          description: Maximum number of results per page
+          default: 20
         cursor:
           anyOf:
             - type: string
-              format: uuid
             - type: 'null'
           title: Cursor
+          description: Pagination cursor from previous response
+        sort:
+          anyOf:
+            - type: string
+              pattern: ^-?[a-z][a-z0-9_]*$
+            - type: 'null'
+          title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
+        include_total:
+          type: boolean
+          title: Include Total
+          description: Include total count in response (expensive)
+          default: false
+        action:
+          type: string
+          title: Action
+          x-query-param: true
+        resource_type:
+          type: string
+          title: Resource Type
+          x-query-param: true
+        resource_id:
+          type: string
+          title: Resource Id
+          default: ''
+          x-query-param: true
+        resource_labels:
+          additionalProperties:
+            type: string
+          type: object
+          title: Resource Labels
+          x-query-param: true
+        resource_metadata:
+          additionalProperties: true
+          type: object
+          title: Resource Metadata
+          x-query-param: true
+        resource_project:
+          type: string
+          title: Resource Project
+          description: Project scope of the resource (project name or UUID)
+          default: ''
+          x-query-param: true
     WhoCanUser:
       type: object
       title: WhoCanUser
@@ -25492,21 +25508,41 @@ components:
     WhoCanResponse:
       type: object
       title: WhoCanResponse
-      description: Response body for the Who can? endpoint.
+      description: Paginated response body for the Who can? endpoint.
       required:
         - resources
       properties:
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/WhoCanUser'
-          title: Resources
         next:
           anyOf:
             - type: string
-              format: uuid
             - type: 'null'
           title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          items:
+            $ref: '#/components/schemas/WhoCanUser'
+          type: array
+          maxItems: 100
+          title: Resources
+          description: Array of resources in current page
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     PermissionEntry:
       type: object
       title: PermissionEntry

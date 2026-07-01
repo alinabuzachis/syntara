@@ -277,7 +277,11 @@ class TestListEndpointCompliance:
         """
         pagination_fields = set(BaseListParams.model_fields.keys())
         all_fields = self._get_endpoint_fields(endpoint, openapi_spec)
-        filter_fields = {name: schema for name, schema in all_fields.items() if name not in pagination_fields}
+        filter_fields = {
+            name: schema
+            for name, schema in all_fields.items()
+            if name not in pagination_fields and not schema.get("x-query-param")
+        }
 
         if not filter_fields:
             pytest.skip(f"{endpoint.operation_id} has no filter parameters")

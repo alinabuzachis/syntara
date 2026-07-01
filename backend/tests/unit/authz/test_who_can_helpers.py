@@ -1,0 +1,411 @@
+"""Unit tests for who_can helper functions in nexus.authz.router."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID, uuid4
+
+import pytest
+from sqlalchemy import Select
+from sqlmodel import select
+
+from nexus.authz.router import (
+    WhoCanRequest,
+    WhoCanUser,
+    _apply_who_can_cursor_filter,
+    _build_opa_input,
+    _build_page_cursors,
+    _check_batch_authorization,
+    _check_user_authorized,
+    _extract_batch_sort_value,
+    _flip_sort_direction,
+)
+from nexus.core.models.user import User
+from nexus.core.utils.cursor import PaginationDirection, SortDirection
+
+# ---------------------------------------------------------------------------
+# _flip_sort_direction
+# ---------------------------------------------------------------------------
+
+
+class TestFlipSortDirection:
+    """Tests for _flip_sort_direction."""
+
+    def test_desc_to_asc(self) -> None:
+        assert _flip_sort_direction(SortDirection.DESC) == SortDirection.ASC
+
+    def test_asc_to_desc(self) -> None:
+        assert _flip_sort_direction(SortDirection.ASC) == SortDirection.DESC
+
+
+# ---------------------------------------------------------------------------
+# _extract_batch_sort_value
+# ---------------------------------------------------------------------------
+
+
+class TestExtractBatchSortValue:
+    """Tests for _extract_batch_sort_value."""
+
+    def _make_user(self, **kwargs: object) -> User:
+        defaults = {
+            "id": uuid4(),
+            "username": "alice",
+            "email": "alice@example.com",
+            "first_name": "Alice",
+            "hashed_password": "x",
+            "is_enabled": True,
+        }
+        defaults.update(kwargs)
+        return User(**defaults)
+
+    def test_id_field_returns_none(self) -> None:
+        user = self._make_user()
+        assert _extract_batch_sort_value(user, "id") is None
+
+    def test_username_field(self) -> None:
+        user = self._make_user(username="bob")
+        assert _extract_batch_sort_value(user, "username") == "bob"
+
+
+# ---------------------------------------------------------------------------
+# _build_opa_input
+# ---------------------------------------------------------------------------
+
+
+class TestBuildOpaInput:
+    """Tests for _build_opa_input."""
+
+    def test_builds_correct_structure(self) -> None:
+        user = MagicMock(spec=User)
+        user.id = uuid4()
+        user.authz_metadata = {"role": "admin"}
+        user.labels = {"team": "infra"}
+
+        body = WhoCanRequest(action="read", resource_type="workflow")
+        groups = [{"name": "g1"}]
+        effective = [{"name": "p1"}]
+
+        result = _build_opa_input(user, body, "my-project", groups, effective)
+
+        assert result["user"]["id"] == str(user.id)
+        assert result["user"]["metadata"] == {"role": "admin"}
+        assert result["user"]["labels"] == {"team": "infra"}
+        assert result["action"] == "read"
+        assert result["resource"]["type"] == "workflow"
+        assert result["resource"]["project"] == "my-project"
+        assert result["groups"] == groups
+        assert result["effective_policies"] == effective
+
+
+# ---------------------------------------------------------------------------
+# _apply_who_can_cursor_filter
+# ---------------------------------------------------------------------------
+
+
+class TestApplyWhoCanCursorFilter:
+    """Tests for _apply_who_can_cursor_filter."""
+
+    def _base_query(self) -> Select[tuple[User]]:
+        return select(User)
+
+    def test_id_sort_forward_asc(self) -> None:
+        cursor_id = uuid4()
+        result = _apply_who_can_cursor_filter(
+            self._base_query(),
+            sort_field="id",
+            sort_direction=SortDirection.ASC,
+            direction=PaginationDirection.NEXT,
+            cursor_id=cursor_id,
+            cursor_sort_value=None,
+        )
+        where_clause = str(result.whereclause)
+        assert ">" in where_clause
+
+    def test_id_sort_forward_desc(self) -> None:
+        cursor_id = uuid4()
+        result = _apply_who_can_cursor_filter(
+            self._base_query(),
+            sort_field="id",
+            sort_direction=SortDirection.DESC,
+            direction=PaginationDirection.NEXT,
+            cursor_id=cursor_id,
+            cursor_sort_value=None,
+        )
+        where_clause = str(result.whereclause)
+        assert "<" in where_clause
+
+    def test_id_sort_backward_asc(self) -> None:
+        cursor_id = uuid4()
+        result = _apply_who_can_cursor_filter(
+            self._base_query(),
+            sort_field="id",
+            sort_direction=SortDirection.ASC,
+            direction=PaginationDirection.PREV,
+            cursor_id=cursor_id,
+            cursor_sort_value=None,
+        )
+        where_clause = str(result.whereclause)
+        assert "<" in where_clause
+
+    def test_username_sort_no_cursor_value_returns_unchanged(self) -> None:
+        base = self._base_query()
+        result = _apply_who_can_cursor_filter(
+            base,
+            sort_field="username",
+            sort_direction=SortDirection.ASC,
+            direction=PaginationDirection.NEXT,
+            cursor_id=uuid4(),
+            cursor_sort_value=None,
+        )
+        assert str(result) == str(base)
+
+    def test_username_sort_forward_asc(self) -> None:
+        cursor_id = uuid4()
+        result = _apply_who_can_cursor_filter(
+            self._base_query(),
+            sort_field="username",
+            sort_direction=SortDirection.ASC,
+            direction=PaginationDirection.NEXT,
+            cursor_id=cursor_id,
+            cursor_sort_value="alice",
+        )
+        where_clause = str(result.whereclause)
+        assert "username" in where_clause.lower()
+
+    def test_username_sort_backward_desc(self) -> None:
+        cursor_id = uuid4()
+        result = _apply_who_can_cursor_filter(
+            self._base_query(),
+            sort_field="username",
+            sort_direction=SortDirection.DESC,
+            direction=PaginationDirection.PREV,
+            cursor_id=cursor_id,
+            cursor_sort_value="bob",
+        )
+        where_clause = str(result.whereclause)
+        assert "username" in where_clause.lower()
+
+    def test_username_sort_forward_desc_hits_less_than_branch(self) -> None:
+        cursor_id = uuid4()
+        result = _apply_who_can_cursor_filter(
+            self._base_query(),
+            sort_field="username",
+            sort_direction=SortDirection.DESC,
+            direction=PaginationDirection.NEXT,
+            cursor_id=cursor_id,
+            cursor_sort_value="carol",
+        )
+        where_clause = str(result.whereclause)
+        assert "username" in where_clause.lower()
+
+    def test_username_sort_backward_asc_hits_less_than_branch(self) -> None:
+        cursor_id = uuid4()
+        result = _apply_who_can_cursor_filter(
+            self._base_query(),
+            sort_field="username",
+            sort_direction=SortDirection.ASC,
+            direction=PaginationDirection.PREV,
+            cursor_id=cursor_id,
+            cursor_sort_value="dan",
+        )
+        where_clause = str(result.whereclause)
+        assert "username" in where_clause.lower()
+
+
+# ---------------------------------------------------------------------------
+# _build_page_cursors
+# ---------------------------------------------------------------------------
+
+
+class TestBuildPageCursors:
+    """Tests for _build_page_cursors."""
+
+    def _make_who_can_user(self, username: str = "user") -> WhoCanUser:
+        return WhoCanUser(id=uuid4(), username=username)
+
+    def test_empty_results_returns_none_none(self) -> None:
+        next_c, prev_c = _build_page_cursors(
+            [],
+            direction=PaginationDirection.NEXT,
+            has_more=False,
+            cursor_id=None,
+            sort_field="id",
+            sort_direction=SortDirection.ASC,
+        )
+        assert next_c is None
+        assert prev_c is None
+
+    def test_first_page_with_more(self) -> None:
+        results = [self._make_who_can_user("a"), self._make_who_can_user("b")]
+        next_c, prev_c = _build_page_cursors(
+            results,
+            direction=PaginationDirection.NEXT,
+            has_more=True,
+            cursor_id=None,
+            sort_field="id",
+            sort_direction=SortDirection.ASC,
+        )
+        assert next_c is not None
+        assert prev_c is None
+
+    def test_middle_page_forward(self) -> None:
+        results = [self._make_who_can_user("a"), self._make_who_can_user("b")]
+        cursor_id = uuid4()
+        next_c, prev_c = _build_page_cursors(
+            results,
+            direction=PaginationDirection.NEXT,
+            has_more=True,
+            cursor_id=cursor_id,
+            sort_field="id",
+            sort_direction=SortDirection.ASC,
+        )
+        assert next_c is not None
+        assert prev_c is not None
+
+    def test_last_page_forward(self) -> None:
+        results = [self._make_who_can_user("a")]
+        cursor_id = uuid4()
+        next_c, prev_c = _build_page_cursors(
+            results,
+            direction=PaginationDirection.NEXT,
+            has_more=False,
+            cursor_id=cursor_id,
+            sort_field="id",
+            sort_direction=SortDirection.ASC,
+        )
+        assert next_c is None
+        assert prev_c is not None
+
+    def test_backward_with_more(self) -> None:
+        results = [self._make_who_can_user("a"), self._make_who_can_user("b")]
+        cursor_id = uuid4()
+        next_c, prev_c = _build_page_cursors(
+            results,
+            direction=PaginationDirection.PREV,
+            has_more=True,
+            cursor_id=cursor_id,
+            sort_field="id",
+            sort_direction=SortDirection.ASC,
+        )
+        assert next_c is not None
+        assert prev_c is not None
+
+    def test_backward_no_more(self) -> None:
+        results = [self._make_who_can_user("a")]
+        cursor_id = uuid4()
+        next_c, prev_c = _build_page_cursors(
+            results,
+            direction=PaginationDirection.PREV,
+            has_more=False,
+            cursor_id=cursor_id,
+            sort_field="id",
+            sort_direction=SortDirection.ASC,
+        )
+        assert next_c is not None
+        assert prev_c is None
+
+    def test_username_sort_encodes_sort_value(self) -> None:
+        results = [self._make_who_can_user("alice")]
+        next_c, _ = _build_page_cursors(
+            results,
+            direction=PaginationDirection.NEXT,
+            has_more=True,
+            cursor_id=None,
+            sort_field="username",
+            sort_direction=SortDirection.ASC,
+        )
+        assert next_c is not None
+
+
+# ---------------------------------------------------------------------------
+# _check_user_authorized
+# ---------------------------------------------------------------------------
+
+
+class TestCheckUserAuthorized:
+    """Tests for _check_user_authorized."""
+
+    @pytest.mark.asyncio
+    async def test_returns_allowed_from_authorize(self) -> None:
+        db = AsyncMock()
+        opa_client = AsyncMock()
+        user = MagicMock(spec=User)
+        user.id = uuid4()
+        user.labels = {}
+        user.authz_metadata = {}
+        body = WhoCanRequest(action="read", resource_type="workflow")
+
+        mock_result = MagicMock()
+        mock_result.allowed = True
+
+        with patch("nexus.authz.router.authorize", return_value=mock_result) as mock_auth:
+            result = await _check_user_authorized(db, opa_client, user, body, "proj")
+            assert result is True
+            mock_auth.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_denied(self) -> None:
+        db = AsyncMock()
+        opa_client = AsyncMock()
+        user = MagicMock(spec=User)
+        user.id = uuid4()
+        user.labels = {}
+        user.authz_metadata = {}
+        body = WhoCanRequest(action="delete", resource_type="project")
+
+        mock_result = MagicMock()
+        mock_result.allowed = False
+
+        with patch("nexus.authz.router.authorize", return_value=mock_result):
+            result = await _check_user_authorized(db, opa_client, user, body, "")
+            assert result is False
+
+
+# ---------------------------------------------------------------------------
+# _check_batch_authorization
+# ---------------------------------------------------------------------------
+
+
+class TestCheckBatchAuthorization:
+    """Tests for _check_batch_authorization."""
+
+    def _make_user(self, username: str) -> MagicMock:
+        user = MagicMock(spec=User)
+        user.id = uuid4()
+        user.username = username
+        user.labels = {}
+        user.authz_metadata = {}
+        return user
+
+    @pytest.mark.asyncio
+    async def test_collects_authorized_users(self) -> None:
+        db = AsyncMock()
+        opa_client = AsyncMock()
+        u1 = self._make_user("alice")
+        u2 = self._make_user("bob")
+        body = WhoCanRequest(action="read", resource_type="workflow")
+        authorized: list[WhoCanUser] = []
+        checked: set[UUID] = set()
+
+        with patch("nexus.authz.router._check_user_authorized", side_effect=[True, False]):
+            await _check_batch_authorization(db, opa_client, [u1, u2], body, "", authorized, checked, 10)
+
+        assert len(authorized) == 1
+        assert authorized[0].username == "alice"
+        assert u1.id in checked
+        assert u2.id in checked
+
+    @pytest.mark.asyncio
+    async def test_stops_at_target_count(self) -> None:
+        db = AsyncMock()
+        opa_client = AsyncMock()
+        u1 = self._make_user("alice")
+        u2 = self._make_user("bob")
+        u3 = self._make_user("charlie")
+        body = WhoCanRequest(action="read", resource_type="workflow")
+        authorized: list[WhoCanUser] = []
+        checked: set[UUID] = set()
+
+        with patch("nexus.authz.router._check_user_authorized", return_value=True):
+            await _check_batch_authorization(db, opa_client, [u1, u2, u3], body, "", authorized, checked, 2)
+
+        assert len(authorized) == 2
+        assert len(checked) == 2

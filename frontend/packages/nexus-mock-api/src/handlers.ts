@@ -4158,7 +4158,7 @@ export const handlers = [
           ? mockUsers.filter((u) => u.username !== 'operator')
           : mockUsers
 
-    return HttpResponse.json({ resources: users, next: null })
+    return HttpResponse.json({ resources: users, next: null, prev: null, total: users.length })
   }),
 
   http.post('/api/v1/authz/what_can_i', async ({ request }) => {
