@@ -173,7 +173,7 @@ def workflow_name_conflict_handler(request: Request, exc: "WorkflowNameConflictE
         status_code=status.HTTP_409_CONFLICT,
         problem_type=PROBLEM_TYPES["name_conflict"],
         title="Workflow Name Conflict",
-        detail="A workflow with this name already exists",
+        detail="A workflow with this name already exists in this project",
         code="WORKFLOW_NAME_CONFLICT",
         retryable=False,
         instance=str(request.url),

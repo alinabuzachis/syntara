@@ -129,8 +129,9 @@ class Workflow(Resource, table=True):
         ),
         # Partial unique index for name (only for non-deleted workflows)
         Index(
-            "ix_workflows_name_unique",
+            "ix_workflows_name_project_unique",
             "name",
+            "project_id",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),

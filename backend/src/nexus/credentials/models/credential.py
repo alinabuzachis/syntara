@@ -56,7 +56,7 @@ class Credential(NamedResource, UserOwnedResource, table=True):
     credential_type: CredentialType | None = Relationship()
 
     __table_args__ = (
-        Index("ix_credentials_name_unique", "name", unique=True),
+        Index("ix_credentials_name_project_unique", "name", "project_id", unique=True),
         Index("ix_credentials_created_at_id", "created_at", "id"),
     )
 

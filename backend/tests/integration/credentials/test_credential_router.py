@@ -10,6 +10,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.models import Project
 from nexus.core.models import User
 from nexus.credentials.lib.preseed import GA_CREDENTIAL_TYPES, preseed_credential_types
 from nexus.credentials.models.credential_type import CredentialType
@@ -65,6 +66,53 @@ class TestCreateCredential:
 
         resp2 = await auth_client.post("/api/v1/credentials", json=payload)
         assert resp2.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_create_same_name_different_project_returns_201(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str, test_db_session: AsyncSession
+    ) -> None:
+        other_project = Project(name=f"other-project-{uuid4().hex[:8]}", labels={})
+        test_db_session.add(other_project)
+        await test_db_session.commit()
+        await test_db_session.refresh(other_project)
+
+        base_payload = {
+            "name": "Cross Project Cred",
+            "credential_type_id": str(bearer_type.id),
+            "inputs": {"token": "abc"},
+        }
+
+        resp1 = await auth_client.post(
+            "/api/v1/credentials",
+            json={**base_payload, "project_id": test_project_id},
+        )
+        assert resp1.status_code == 201
+
+        resp2 = await auth_client.post(
+            "/api/v1/credentials",
+            json={**base_payload, "project_id": str(other_project.id)},
+        )
+        assert resp2.status_code == 201
+
+        assert resp1.json()["name"] == resp2.json()["name"] == "Cross Project Cred"
+        assert resp1.json()["project_id"] != resp2.json()["project_id"]
+
+    @pytest.mark.asyncio
+    async def test_create_same_name_same_project_returns_409(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
+        payload = {
+            "name": "Same Project Cred",
+            "credential_type_id": str(bearer_type.id),
+            "project_id": test_project_id,
+            "inputs": {"token": "abc"},
+        }
+        resp1 = await auth_client.post("/api/v1/credentials", json=payload)
+        assert resp1.status_code == 201
+
+        resp2 = await auth_client.post("/api/v1/credentials", json=payload)
+        assert resp2.status_code == 409
+        assert "in this project" in resp2.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_create_without_required_inputs_returns_422(

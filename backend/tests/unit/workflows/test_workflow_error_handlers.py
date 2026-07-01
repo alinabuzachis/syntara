@@ -168,7 +168,7 @@ class TestWorkflowNameConflictHandler:
         data = json.loads(bytes(response.body).decode())
         assert data["type"] == PROBLEM_TYPES["name_conflict"]
         assert data["title"] == "Workflow Name Conflict"
-        assert data["detail"] == "A workflow with this name already exists"
+        assert data["detail"] == "A workflow with this name already exists in this project"
         assert data["code"] == "WORKFLOW_NAME_CONFLICT"
         assert data["retryable"] is False
 
@@ -183,7 +183,7 @@ class TestWorkflowNameConflictHandler:
 
         data = json.loads(bytes(response.body).decode())
         # Should use the hardcoded message, not the exception message
-        assert data["detail"] == "A workflow with this name already exists"
+        assert data["detail"] == "A workflow with this name already exists in this project"
 
     def test_not_retryable(self) -> None:
         """Test that workflow name conflicts are not retryable."""

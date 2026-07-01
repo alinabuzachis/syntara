@@ -272,7 +272,7 @@ class WorkflowService(BaseService):
         """
         error_str = str(e)
         return (
-            "ix_workflows_name_unique" in error_str
+            "ix_workflows_name_project_unique" in error_str
             or "workflows.name" in error_str
             or "duplicate key" in error_str.lower()
         )

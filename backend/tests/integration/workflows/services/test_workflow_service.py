@@ -223,7 +223,7 @@ class TestWorkflowServiceDuplicateDetection(TestWorkflowServiceBase):
                 "duplicate key value violates unique constraint",
                 (
                     "(psycopg2.errors.UniqueViolation) duplicate key value violates unique "
-                    'constraint "ix_workflows_name_unique"',
+                    'constraint "ix_workflows_name_project_unique"',
                 ),
                 True,
             ),
@@ -275,13 +275,13 @@ class TestWorkflowServiceFlushWithDuplicateCheck(TestWorkflowServiceBase):
         # Now try to create another with the same name using direct SQL to trigger IntegrityError
         with patch.object(test_db_session, "flush") as mock_flush:
             duplicate_error = IntegrityError("duplicate", "SELECT", None)  # type: ignore[arg-type]
-            duplicate_error.args = ("ix_workflows_name_unique constraint violated",)
+            duplicate_error.args = ("ix_workflows_name_project_unique constraint violated",)
             mock_flush.side_effect = duplicate_error
 
             with pytest.raises(WorkflowNameConflictError) as exc_info:
                 await service._flush_with_duplicate_check("duplicate-name")
 
-            assert str(exc_info.value) == "Workflow with name 'duplicate-name' already exists"
+            assert str(exc_info.value) == "Workflow with name 'duplicate-name' already exists in this project"
 
 
 class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
@@ -378,6 +378,69 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
         ):
             await service.create_workflow(
                 name="duplicate-workflow",
+                description=None,
+                labels={},
+                workflow_definition=workflow_definition,
+                project_id=test_project_id,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_workflow_same_name_different_project(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        """Same workflow name in different projects should succeed."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_definition = self._create_workflow_definition()
+
+        other_project = Project(name=f"other-project-{uuid4().hex[:8]}", labels={})
+        test_db_session.add(other_project)
+        await test_db_session.commit()
+        await test_db_session.refresh(other_project)
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
+            wf_a, _ = await service.create_workflow(
+                name="cross-project-wf",
+                description=None,
+                labels={},
+                workflow_definition=workflow_definition,
+                project_id=test_project_id,
+            )
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
+            wf_b, _ = await service.create_workflow(
+                name="cross-project-wf",
+                description=None,
+                labels={},
+                workflow_definition=workflow_definition,
+                project_id=other_project.id,
+            )
+
+        assert wf_a.name == wf_b.name == "cross-project-wf"
+        assert wf_a.project_id != wf_b.project_id
+
+    @pytest.mark.asyncio
+    async def test_create_workflow_same_name_same_project_fails(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        """Same workflow name in the same project should fail with 409."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_definition = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
+            await service.create_workflow(
+                name="same-project-wf",
+                description=None,
+                labels={},
+                workflow_definition=workflow_definition,
+                project_id=test_project_id,
+            )
+
+        with (
+            patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()),
+            pytest.raises(WorkflowNameConflictError),
+        ):
+            await service.create_workflow(
+                name="same-project-wf",
                 description=None,
                 labels={},
                 workflow_definition=workflow_definition,

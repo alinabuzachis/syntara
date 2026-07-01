@@ -21,7 +21,7 @@ class CredentialNameConflictError(CredentialError):
     def __init__(self, name: str) -> None:
         """Initialize exception with credential name."""
         self.name = name
-        super().__init__(f"Credential with name '{name}' already exists")
+        super().__init__(f"Credential with name '{name}' already exists in this project")
 
 
 @fastapi_exception(handler="nexus.credentials.error_handlers.credential_validation_error_handler")

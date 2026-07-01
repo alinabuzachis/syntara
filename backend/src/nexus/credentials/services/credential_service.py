@@ -314,7 +314,7 @@ class CredentialService(BaseService):
         # Validate inputs against type schema (always validate — empty dict may miss required fields)
         _validate_inputs(data.inputs, credential_type.inputs)
 
-        existing = await self._find_by_name(data.name)
+        existing = await self._find_by_name(data.name, data.project_id)
         if existing:
             raise CredentialNameConflictError(data.name)
 
@@ -426,7 +426,7 @@ class CredentialService(BaseService):
         enabled_changed = data.enabled is not None and data.enabled != credential.enabled
 
         if data.name is not None and data.name != credential.name:
-            existing = await self._find_by_name(data.name)
+            existing = await self._find_by_name(data.name, credential.project_id)
             if existing and existing.id != credential.id:
                 raise CredentialNameConflictError(data.name)
             credential.name = data.name
@@ -786,10 +786,11 @@ class CredentialService(BaseService):
             msg = "Failed to decrypt credential data"
             raise CredentialDecryptionError(msg) from e
 
-    async def _find_by_name(self, name: str) -> Credential | None:
-        """Find a credential by name."""
+    async def _find_by_name(self, name: str, project_id: UUID) -> Credential | None:
+        """Find a credential by name within a project."""
         stmt = select(Credential).where(
             Credential.name == name,
+            Credential.project_id == project_id,
         )
         result = await self.session.exec(stmt)
         return result.first()

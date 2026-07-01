@@ -67,7 +67,7 @@ class WorkflowNameConflictError(WorkflowError):
     def __init__(self, name: str) -> None:
         """Initialize exception with workflow name."""
         self.name = name
-        super().__init__(f"Workflow with name '{name}' already exists")
+        super().__init__(f"Workflow with name '{name}' already exists in this project")
 
 
 @fastapi_exception(handler="nexus.workflows.error_handlers.workflow_version_not_found_handler")
