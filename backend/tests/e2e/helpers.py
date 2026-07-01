@@ -1,5 +1,6 @@
 """Shared utility functions for E2E tests."""
 
+import copy
 import time
 from typing import Any, cast
 from uuid import UUID
@@ -180,3 +181,79 @@ def create_and_run_workflow(
     exec_response = _retry_api_call(lambda: api.executions.create(body=ExecutionCreate(workflow_id=wf_id)))
     execution = exec_response.assert_and_get()
     return poll_execution(api, str(execution.id), timeout=timeout)
+
+
+# ---------------------------------------------------------------------------
+# Reusable workflow definitions for verification / test-node tests
+# ---------------------------------------------------------------------------
+
+_TRIGGER: dict[str, Any] = {"id": "trigger", "type": "manual_trigger", "parameters": {}}
+
+_CONDITION_NODE: dict[str, Any] = {
+    "id": "condition_node",
+    "name": "Check Condition",
+    "type": "condition",
+    "parameters": {"condition": "true"},
+}
+
+_ACTION_NODE: dict[str, Any] = {
+    "id": "action_node",
+    "name": "Run Action",
+    "type": "script",
+    "parameters": {"language": "bash", "code": "echo 'action executed'"},
+}
+
+_EXTRA_NODE: dict[str, Any] = {
+    "id": "extra_node",
+    "name": "Extra Step",
+    "type": "script",
+    "parameters": {"language": "bash", "code": "echo 'extra step'"},
+}
+
+
+def connected_definition() -> dict[str, Any]:
+    """Trigger -> Condition -> Action (valid, fully connected)."""
+    return copy.deepcopy(
+        {
+            "name": "verification-e2e",
+            "schema_version": "2.0.0",
+            "triggers": [_TRIGGER],
+            "nodes": [_CONDITION_NODE, _ACTION_NODE],
+            "edges": [
+                {"from": "trigger", "to": "condition_node"},
+                {"from": "condition_node", "to": "action_node", "from_port": "true"},
+            ],
+        }
+    )
+
+
+def orphaned_definition() -> dict[str, Any]:
+    """Trigger -> Action only; Condition is orphaned (no incoming edge)."""
+    return copy.deepcopy(
+        {
+            "name": "verification-e2e",
+            "schema_version": "2.0.0",
+            "triggers": [_TRIGGER],
+            "nodes": [_CONDITION_NODE, _ACTION_NODE],
+            "edges": [
+                {"from": "trigger", "to": "action_node"},
+            ],
+        }
+    )
+
+
+def extended_definition() -> dict[str, Any]:
+    """Trigger -> Condition -> Extra -> Action (valid, with extra node)."""
+    return copy.deepcopy(
+        {
+            "name": "verification-e2e",
+            "schema_version": "2.0.0",
+            "triggers": [_TRIGGER],
+            "nodes": [_CONDITION_NODE, _EXTRA_NODE, _ACTION_NODE],
+            "edges": [
+                {"from": "trigger", "to": "condition_node"},
+                {"from": "condition_node", "to": "extra_node", "from_port": "true"},
+                {"from": "extra_node", "to": "action_node"},
+            ],
+        }
+    )

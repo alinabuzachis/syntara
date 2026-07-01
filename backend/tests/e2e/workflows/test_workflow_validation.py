@@ -355,3 +355,40 @@ class TestOrphanedNodeDetection:
         findings = getattr(body, "findings", []) or []
         orphan_findings = [f for f in findings if f.category == "orphaned_node"]
         assert len(orphan_findings) == 0, f"Expected no orphaned_node findings, got: {orphan_findings}"
+
+
+class TestInvalidEdgeReferenceValidation:
+    """Edges referencing non-existent nodes are rejected.
+
+    Given a workflow definition with an edge pointing to a node ID
+    that does not exist, validation returns a finding with
+    category=invalid_reference.
+    """
+
+    def test_edge_to_nonexistent_node_rejected(self, nexus_api: NexusApiRegistry) -> None:
+        """An edge targeting a non-existent node produces an invalid_reference finding."""
+        definition = _definition(
+            nodes=[
+                {
+                    "id": "action_node",
+                    "name": "Run Action",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": "echo 'hello'"},
+                },
+            ],
+            edges=[{"from": "trigger", "to": "nonexistent_node"}],
+        )
+
+        response = _validate(nexus_api, definition)
+
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, (
+            f"Expected 422 for invalid edge reference, got {response.status_code}"
+        )
+
+        body = response.parsed
+        assert body is not None
+
+        validation_result = getattr(body, "validation_result", None) or body
+        findings = getattr(validation_result, "findings", []) or []
+        categories = [f.category for f in findings]
+        assert "invalid_reference" in categories, f"Expected invalid_reference finding, got categories: {categories}"

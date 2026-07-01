@@ -8,11 +8,70 @@ Run with:
     APP_BASE_URL=http://localhost:8000 make test-e2e
 """
 
+from http import HTTPStatus
+
 import pytest
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models import WorkflowDefinition
 from nexus_api_client.models.execution_status import ExecutionStatus
+from nexus_api_client.models.workflow_validate_request import WorkflowValidateRequest
 
 from tests.e2e.helpers import create_and_run_workflow
+
+# ---------------------------------------------------------------------------
+# Converge validation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.e2e
+def test_converge_with_single_branch_rejected(nexus_api: NexusApiRegistry) -> None:
+    """A converge node with only one incoming branch produces a validation error."""
+    definition = WorkflowDefinition.from_dict(
+        {
+            "name": "converge-validation",
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "action_node",
+                    "name": "Run Action",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": "echo 'hello'"},
+                },
+                {"id": "converge_node", "name": "Join", "type": "converge", "parameters": {}},
+            ],
+            "edges": [
+                {"from": "trigger", "to": "action_node"},
+                {"from": "action_node", "to": "converge_node"},
+            ],
+        }
+    )
+
+    response = nexus_api.workflows.validate_definition_detailed(
+        body=WorkflowValidateRequest(workflow_definition=definition)
+    )
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, (
+        f"Expected 422 for converge with single branch, got {response.status_code}"
+    )
+
+    body = response.parsed
+    assert body is not None
+
+    validation_result = getattr(body, "validation_result", None)
+    assert validation_result is not None
+    assert not validation_result.is_valid
+
+    findings = validation_result.findings or []
+    categories = [f.category for f in findings]
+    assert "converge_configuration" in categories, (
+        f"Expected converge_configuration finding, got categories: {categories}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Converge execution strategies
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.e2e

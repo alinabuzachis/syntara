@@ -5,15 +5,18 @@ Tests single-node execution with mocked predecessor data.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
+from nexus_api_client.models.publish_version_request import PublishVersionRequest
 from nexus_api_client.models.test_execution_create import TestExecutionCreate
 from nexus_api_client.models.***REMOVED*** import TestExecutionCreatePreResolvedNodes
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.e2e.conftest import poll_execution_until_complete, unique_name
+from tests.e2e.helpers import connected_definition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -127,3 +130,86 @@ class TestWorkflowTestNode:
 
         # Expected 3: No full workflow execution record is created
         assert str(final_execution.mode) == "test", f"Execution mode should be 'test', got: {final_execution.mode}"
+
+
+class TestTestExecutionWithConditionNode:
+    """Test execution with mocked action outputs.
+
+    Given a published workflow, when POST /workflows/{id}/test is called
+    with a target node and pre-resolved mock outputs, then the execution
+    is created with mode=TEST and execution_metadata containing the
+    target node and mocked predecessor outputs.
+    """
+
+    def test_test_execution_returns_test_mode(
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: WorkflowFactory,
+        first_project_id: UUID,
+    ) -> None:
+        """Publish a workflow and run a test execution with mocked action outputs."""
+        workflow = workflow_factory(
+            WorkflowCreate(
+                name=unique_name("e2e-ac5-test-exec"),
+                workflow_definition=WorkflowDefinition.from_dict(connected_definition()),
+                project_id=first_project_id,
+            )
+        )
+
+        publish_resp = nexus_api.workflows.publish_version(
+            workflow_id=workflow.id,
+            version=workflow.current_version,
+            body=PublishVersionRequest(publish_name="for-testing"),
+        )
+        assert publish_resp.status_code == HTTPStatus.OK
+
+        test_resp = nexus_api.workflows.test_node(
+            workflow_id=workflow.id,
+            body=TestExecutionCreate.from_dict(
+                {
+                    "target_node_id": "action_node",
+                    "pre_resolved_nodes": {
+                        "condition_node": {
+                            "output": {"result": "mocked-condition-pass"},
+                            "control": {"next_port": "true"},
+                        },
+                    },
+                    "trigger_inputs": {"test_key": "test_value"},
+                }
+            ),
+        )
+
+        assert test_resp.status_code == HTTPStatus.CREATED, (
+            f"Expected 201 for test execution, got {test_resp.status_code}: {test_resp.content!r}"
+        )
+
+        execution = test_resp.parsed
+        assert execution is not None
+        assert str(execution.mode) == "test", f"Expected mode='test', got '{execution.mode}'"
+        assert execution.execution_metadata is not None
+        assert execution.execution_metadata["target_node_id"] == "action_node"
+        assert "pre_resolved_nodes" in execution.execution_metadata, (
+            "Mocked pre_resolved_nodes should be in execution metadata"
+        )
+        assert "condition_node" in execution.execution_metadata["pre_resolved_nodes"], (
+            "Mocked condition_node output should be in pre_resolved_nodes"
+        )
+
+        input_data = execution.input_data
+        assert input_data is not None, "trigger_inputs should be persisted as input_data"
+        input_dict = input_data if isinstance(input_data, dict) else getattr(input_data, "additional_properties", {})
+        assert input_dict.get("test_key") == "test_value", (
+            f"Expected trigger_inputs to contain test_key=test_value, got: {input_dict}"
+        )
+
+        final_execution = poll_execution_until_complete(nexus_api, execution.id)
+        assert str(final_execution.status) == "completed", f"Expected completed status, got {final_execution.status}"
+
+        assert final_execution.activities is not None, "Execution should include activities"
+        activities_by_id = {a.activity_id: a for a in final_execution.activities}
+        assert activities_by_id["condition_node"].status == "skipped", (
+            f"Pre-resolved condition_node should be skipped, got: {activities_by_id['condition_node'].status}"
+        )
+        assert activities_by_id["action_node"].status == "completed", (
+            f"Target action_node should be completed, got: {activities_by_id['action_node'].status}"
+        )
