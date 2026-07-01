@@ -6,9 +6,8 @@ import { useMemo, useState } from 'react'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
-import { NxPanel } from '../../components/layout/NxPanel'
 import { NxKebabMenu } from '../../components/NxKebabMenu'
-import { useQueryState } from '../../components/states/useQueryState'
+import { NxListPanel } from '../../components/panels/list/NxListPanel'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -32,7 +31,7 @@ import { useWorkflowsQuery } from './useWorkflowsQuery'
 import { WorkflowDialogs } from './WorkflowDialogs'
 import { workflowFilterDefinitions } from './workflowFilterDefinitions'
 import { buildWorkflowRowActions } from './workflowRowActions'
-import { WorkflowsListPanel } from './WorkflowsListPanel'
+import { WorkflowsListView } from './WorkflowsListView'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
@@ -222,10 +221,7 @@ export default function Workflows() {
       isDuplicating,
     })
 
-  const queryState = useQueryState(workflowsQuery, {
-    title: 'Error loading workflows',
-    onRetry: () => detachPromise(workflowsQuery.refetch()),
-  })
+  const hasQueryState = workflowsQuery.isPending || !!workflowsQuery.error
 
   return (
     <>
@@ -233,9 +229,9 @@ export default function Workflows() {
         <NxPageHeader
           title="Workflows"
           docLink={workflowsDocLink}
-          projectSelector={queryState ? undefined : ProjectSelector}
+          projectSelector={hasQueryState ? undefined : ProjectSelector}
           toolbar={
-            !queryState && showToolbar ? (
+            !hasQueryState && showToolbar ? (
               <WorkflowsPageToolbar
                 headerProjectActions={headerProjectActions}
                 canCreate={permissions.canCreate}
@@ -249,26 +245,28 @@ export default function Workflows() {
         />
 
         <NxPageBody>
-          <NxPanel isFullHeight>
-            {queryState ?? (
-              <WorkflowsListPanel
-                sortedWorkflows={sortedWorkflows}
-                hasActiveFilters={hasActiveFilters}
-                filterFieldDefinitions={workflowFilterDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                onClearAllFilters={handleClearAllFilters}
-                onCreateWorkflow={permissions.canCreate ? () => setLocation('/workflow-builder/new') : undefined}
-                footer={getFooterProps(workflowsQuery.data)}
-                isAllProjects={isAllProjects}
-                groupedWorkflows={groupedWorkflows}
-                collapsedProjects={collapsedProjects}
-                onToggleProject={toggleProjectCollapsed}
-                getRowActions={getRowActions}
-                getProjectActions={getProjectActions}
-              />
-            )}
-          </NxPanel>
+          <NxListPanel>
+            <WorkflowsListView
+              isPending={workflowsQuery.isPending}
+              error={workflowsQuery.error}
+              onRetry={() => detachPromise(workflowsQuery.refetch())}
+              isFetching={workflowsQuery.isFetching}
+              sortedWorkflows={sortedWorkflows}
+              hasActiveFilters={hasActiveFilters}
+              filters={filters}
+              filterFieldDefinitions={workflowFilterDefinitions}
+              onFilterChange={handleFilterChange}
+              onClearAllFilters={handleClearAllFilters}
+              onCreateWorkflow={permissions.canCreate ? () => setLocation('/workflow-builder/new') : undefined}
+              footer={getFooterProps(workflowsQuery.data)}
+              isAllProjects={isAllProjects}
+              groupedWorkflows={groupedWorkflows}
+              collapsedProjects={collapsedProjects}
+              onToggleProject={toggleProjectCollapsed}
+              getRowActions={getRowActions}
+              getProjectActions={getProjectActions}
+            />
+          </NxListPanel>
         </NxPageBody>
       </NxPage>
 

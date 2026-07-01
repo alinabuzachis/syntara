@@ -1,13 +1,9 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { StackItem } from '@patternfly/react-core'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 
-import { FilterBar } from '../../components/filters'
-import { NxPageBody } from '../../components/layout/NxPage'
-import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
-import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { NxScrollableTableContainer, type TableFooterProps } from '../../components/table/NxScrollableTableContainer'
+import type { TableFooterProps } from '../../components/table/NxScrollableTableContainer'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import type { ProjectRead } from '../access/types'
 
@@ -17,7 +13,11 @@ type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
 type GroupedWorkflows = Map<string, { project: ProjectRead | null; workflows: Workflow[] }>
 
-export type WorkflowsListPanelProps = Readonly<{
+export type WorkflowsListViewProps = Readonly<{
+  isPending: boolean
+  error: unknown
+  onRetry: () => void
+  isFetching?: boolean
   sortedWorkflows: Workflow[]
   hasActiveFilters: boolean
   filterFieldDefinitions: FilterFieldDefinition[]
@@ -34,7 +34,11 @@ export type WorkflowsListPanelProps = Readonly<{
   getProjectActions?: (project: ProjectRead | null) => RowAction[]
 }>
 
-export function WorkflowsListPanel({
+export function WorkflowsListView({
+  isPending,
+  error,
+  onRetry,
+  isFetching,
   sortedWorkflows,
   hasActiveFilters,
   filterFieldDefinitions,
@@ -49,37 +53,39 @@ export function WorkflowsListPanel({
   onToggleProject,
   getRowActions,
   getProjectActions,
-}: WorkflowsListPanelProps) {
-  if (sortedWorkflows.length === 0 && !hasActiveFilters) {
-    return (
-      <NxPageBody isCentered>
+}: WorkflowsListViewProps) {
+  const isEmpty = sortedWorkflows.length === 0
+
+  return (
+    <NxListPanelView
+      isPending={isPending}
+      isFetching={isFetching}
+      error={error}
+      errorTitle="Error loading workflows"
+      onRetry={onRetry}
+      isEmpty={isEmpty}
+      hasActiveFilters={hasActiveFilters}
+      onClearAllFilters={onClearAllFilters}
+      noDataState={
         <NxEmptyStateNoData
           title="No workflows yet"
           description="Create your first workflow to get started."
           buttonText="Create workflow"
           addData={onCreateWorkflow}
         />
-      </NxPageBody>
-    )
-  }
-
-  return (
-    <NxPanelContentStack variant="inset">
-      <StackItem>
-        <FilterBar
-          fieldDefinitions={filterFieldDefinitions}
-          filters={filters}
-          onFilterChange={onFilterChange}
-          showClearAll={true}
-        />
-      </StackItem>
-
-      {sortedWorkflows.length === 0 ? (
-        <NxPageBody isCentered>
-          <NxEmptyStateFilter clearAllFilters={onClearAllFilters} />
-        </NxPageBody>
-      ) : (
-        <NxScrollableTableContainer caption="Workflows table" footer={footer}>
+      }
+      toolbar={
+        !isEmpty || hasActiveFilters ? (
+          <NxListPanelToolbar
+            filters={filters}
+            filterDefinitions={filterFieldDefinitions}
+            onFilterChange={onFilterChange}
+            clearAllFilters={onClearAllFilters}
+          />
+        ) : undefined
+      }
+      body={
+        <NxListPanelTable caption="Workflows table" footer={footer}>
           <Thead>
             <Tr>
               <Th>Name</Th>
@@ -100,8 +106,8 @@ export function WorkflowsListPanel({
           ) : (
             <FlatWorkflowsTableBody workflows={sortedWorkflows} getRowActions={getRowActions} />
           )}
-        </NxScrollableTableContainer>
-      )}
-    </NxPanelContentStack>
+        </NxListPanelTable>
+      }
+    />
   )
 }
