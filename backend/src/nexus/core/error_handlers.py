@@ -40,6 +40,7 @@ PROBLEM_TYPES = {
     "integration_error": "https://api.nexus.com/errors/integration-error",
     "internal_error": "https://api.nexus.com/errors/internal-error",
     "definition_warnings": "https://api.nexus.com/errors/definition-warnings",
+    "publish_validation": "https://api.nexus.com/errors/publish-validation",
 }
 
 

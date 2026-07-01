@@ -41,6 +41,7 @@ from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
+    WorkflowPublishValidationError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
@@ -834,13 +835,14 @@ class WorkflowService(BaseService):
         if not target_version:
             raise WorkflowVersionNotFoundError(workflow_id, version)
 
+        definition = workflow_definition or target_version.workflow_definition
+        result = workflow_validator.collect_findings(definition)
+        if result.error_count > 0 or result.warning_count > 0:
+            raise WorkflowPublishValidationError(result)
+
         if workflow.published_version is not None:
             await self._demote_published_version(workflow_id, workflow.published_version, "publish")
             await self.session.flush()
-
-        definition = workflow_definition or target_version.workflow_definition
-        if workflow_definition:
-            workflow_validator.validate_workflow_definition(workflow_definition)
 
         count_result = await self.session.exec(
             select(func.max(WorkflowVersion.version)).filter(

@@ -304,7 +304,11 @@ class TestPublishWithUnsavedChanges:
                 {"workflow_definition": {"schema_version": "2.0.0", "name": "invalid"}}
             ),
         )
-        assert pub_resp.status_code in (HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY)
+        assert pub_resp.status_code in (
+            HTTPStatus.BAD_REQUEST,
+            HTTPStatus.CONFLICT,
+            HTTPStatus.UNPROCESSABLE_ENTITY,
+        )
 
         wf_resp = nexus_api.workflows.get(workflow_id=wf_id)
         assert wf_resp.parsed is not None

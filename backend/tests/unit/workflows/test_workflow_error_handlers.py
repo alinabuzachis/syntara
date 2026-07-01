@@ -11,6 +11,7 @@ from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.workflows.error_handlers import (
     definition_invalid_handler,
     execution_not_found_handler,
+    publish_validation_handler,
     workflow_name_conflict_handler,
     workflow_not_found_handler,
     workflow_not_published_handler,
@@ -22,6 +23,7 @@ from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
+    WorkflowPublishValidationError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models.validation_finding import (
@@ -283,3 +285,58 @@ class TestDefinitionInvalidHandler:
         assert vr["error_count"] == 1
         assert len(vr["findings"]) == 1
         assert vr["findings"][0]["node_id"] == "n1"
+
+
+class TestPublishValidationHandler:
+    """Test suite for publish_validation_handler."""
+
+    def test_returns_409_with_validation_result(self) -> None:
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/workflows/123/versions/1/publish"
+
+        findings = [
+            ValidationFinding(
+                severity=ValidationSeverity.error,
+                category=ValidationCategory.orphaned_node,
+                message="Node 'orphan' is unreachable from any trigger",
+                node_id="orphan",
+            ),
+        ]
+        result = ValidationResult.from_findings(findings)
+        exc = WorkflowPublishValidationError(result)
+        response = publish_validation_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 409
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["publish_validation"]
+        assert data["title"] == "Workflow Publish Blocked"
+        assert data["code"] == "WORKFLOW_PUBLISH_VALIDATION_ERROR"
+        assert data["retryable"] is False
+        assert "validation_result" in data
+        assert data["validation_result"]["error_count"] == 1
+        assert data["validation_result"]["is_valid"] is False
+
+    def test_not_retryable(self) -> None:
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/workflows/123/versions/1/publish"
+
+        result = ValidationResult(
+            is_valid=True,
+            error_count=0,
+            warning_count=1,
+            findings=[
+                ValidationFinding(
+                    severity=ValidationSeverity.warning,
+                    category=ValidationCategory.schema_violation,
+                    message="Missing recommended field",
+                ),
+            ],
+        )
+        exc = WorkflowPublishValidationError(result)
+        response = publish_validation_handler(request, exc)
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["retryable"] is False

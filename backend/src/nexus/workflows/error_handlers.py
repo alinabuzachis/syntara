@@ -31,6 +31,7 @@ if TYPE_CHECKING:
         WorkflowNameConflictError,
         WorkflowNotFoundError,
         WorkflowNotPublishedError,
+        WorkflowPublishValidationError,
         WorkflowValidationError,
         WorkflowVersionNotFoundError,
     )
@@ -68,6 +69,25 @@ def definition_warnings_handler(request: Request, exc: "WorkflowDefinitionWarnin
         "detail": "The workflow definition has validation warnings that can be bypassed with force_save",
         "code": "WORKFLOW_DEFINITION_WARNINGS",
         "retryable": True,
+        "instance": str(request.url),
+        "validation_result": exc.validation_result.model_dump(mode="json"),
+    }
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content=content,
+        media_type="application/problem+json",
+    )
+
+
+def publish_validation_handler(request: Request, exc: "WorkflowPublishValidationError") -> JSONResponse:
+    """Return RFC 9457 problem details when publishing is blocked due to validation issues."""
+    logger.warning("Workflow publish blocked due to validation issues", exc_info=exc)
+    content = {
+        "type": PROBLEM_TYPES["publish_validation"],
+        "title": "Workflow Publish Blocked",
+        "detail": "Cannot publish a workflow version with validation errors or warnings",
+        "code": "WORKFLOW_PUBLISH_VALIDATION_ERROR",
+        "retryable": False,
         "instance": str(request.url),
         "validation_result": exc.validation_result.model_dump(mode="json"),
     }

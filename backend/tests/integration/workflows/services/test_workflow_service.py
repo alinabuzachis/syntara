@@ -30,6 +30,7 @@ from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
+    WorkflowPublishValidationError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
@@ -1573,6 +1574,107 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         # All calls should pass is_enabled=True
         for call in mock_sync.call_args_list:
             assert call.kwargs["is_enabled"] is True
+
+    @pytest.mark.asyncio
+    async def test_publish_blocked_when_definition_has_errors(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        """Test that publishing is blocked when the definition has validation errors."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
+            workflow, _ = await service.create_workflow(
+                name="publish-errors-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+                project_id=test_project_id,
+                force_save=True,
+            )
+
+        mock_val = MagicMock()
+        mock_val.collect_findings.return_value = _invalid_result()
+
+        with (
+            patch("nexus.workflows.services.workflow_service.workflow_validator", mock_val),
+            pytest.raises(WorkflowPublishValidationError),
+        ):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+
+    @pytest.mark.asyncio
+    async def test_publish_blocked_when_definition_has_warnings(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        """Test that publishing is blocked when the definition has only warnings."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
+            workflow, _ = await service.create_workflow(
+                name="publish-warnings-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+                project_id=test_project_id,
+                force_save=True,
+            )
+
+        mock_val = MagicMock()
+        mock_val.collect_findings.return_value = _warnings_result()
+
+        with (
+            patch("nexus.workflows.services.workflow_service.workflow_validator", mock_val),
+            pytest.raises(WorkflowPublishValidationError),
+        ):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+
+    @pytest.mark.asyncio
+    async def test_publish_blocked_preserves_previous_published_version(
+        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+    ) -> None:
+        """Test that a failed publish attempt does not affect the existing published version."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
+            workflow, _ = await service.create_workflow(
+                name="publish-preserves-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+                project_id=test_project_id,
+            )
+
+        mock_wh_svc = MagicMock()
+        mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
+        with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
+            _, published_v2 = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+
+        assert published_v2.status == WorkflowVersionStatus.PUBLISHED
+        assert workflow.published_version == 2
+
+        v3_def = self._create_workflow_definition()
+        v3_def["description"] = "updated definition"
+        with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
+            v3 = await service.create_workflow_version(workflow, v3_def, "update with issues")
+        assert v3 is not None
+
+        mock_val = MagicMock()
+        mock_val.collect_findings.return_value = _invalid_result()
+
+        with (
+            patch("nexus.workflows.services.workflow_service.workflow_validator", mock_val),
+            pytest.raises(WorkflowPublishValidationError),
+        ):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=v3.version)
+
+        await test_db_session.refresh(workflow)
+        assert workflow.published_version == 2
+        assert workflow.is_enabled is True
+
+        await test_db_session.refresh(published_v2)
+        assert published_v2.status == WorkflowVersionStatus.PUBLISHED
 
 
 class TestUnpublishWorkflow(TestWorkflowServiceBase):

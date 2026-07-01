@@ -4,10 +4,37 @@ Tests for POST /api/v1/workflows/{id}/versions/{version}/publish
 and POST /api/v1/workflows/{id}/unpublish.
 """
 
+from typing import Any
+
 import pytest
 from httpx import AsyncClient
 
 from tests.helpers.workflow import create_minimal_workflow_definition
+
+
+def _create_invalid_workflow_definition() -> dict[str, Any]:
+    """Create a workflow definition with validation errors (orphaned node)."""
+    return {
+        "schema_version": "2.0.0",
+        "name": "invalid-test",
+        "description": "Test",
+        "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
+        "nodes": [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "type": "script",
+                "parameters": {"language": "python", "code": "print('hello')"},
+            },
+            {
+                "id": "orphaned_task",
+                "name": "Orphaned Task",
+                "type": "script",
+                "parameters": {"language": "python", "code": "print('orphaned')"},
+            },
+        ],
+        "edges": [{"from": "trigger_manual", "to": "task1"}],
+    }
 
 
 @pytest.mark.asyncio
@@ -456,3 +483,114 @@ async def test_publish_with_unsaved_step_includes_all_nodes(jwt_client: AsyncCli
     assert v1_resp.status_code == 200
     v1_node_ids = [n["id"] for n in v1_resp.json()["workflow_definition"]["nodes"]]
     assert v1_node_ids == ["step1"]
+
+
+@pytest.mark.asyncio
+async def test_publish_blocked_for_definition_with_errors(jwt_client: AsyncClient, test_project_id: str) -> None:
+    """Test that publishing is blocked with 409 when the saved definition has validation errors.
+
+    Expected: 409 Conflict with WORKFLOW_PUBLISH_VALIDATION_ERROR code
+    """
+    create_resp = await jwt_client.post(
+        "/api/v1/workflows",
+        params={"force_save": "true"},
+        json={
+            "name": "publish-blocked-errors",
+            "project_id": test_project_id,
+            "workflow_definition": _create_invalid_workflow_definition(),
+        },
+    )
+    assert create_resp.status_code == 201
+    workflow_id = create_resp.json()["id"]
+    assert create_resp.json()["has_validation_issues"] is True
+
+    response = await jwt_client.post(
+        f"/api/v1/workflows/{workflow_id}/versions/1/publish",
+        json={},
+    )
+
+    assert response.status_code == 409
+    data = response.json()
+    assert data["code"] == "WORKFLOW_PUBLISH_VALIDATION_ERROR"
+    assert "validation_result" in data
+    assert data["validation_result"]["error_count"] > 0
+
+
+@pytest.mark.asyncio
+async def test_publish_blocked_with_inline_invalid_definition(jwt_client: AsyncClient, test_project_id: str) -> None:
+    """Test that publishing with an inline invalid definition is blocked with 409.
+
+    Expected: 409 Conflict even when workflow_definition is provided in publish request
+    """
+    create_resp = await jwt_client.post(
+        "/api/v1/workflows",
+        json={
+            "name": "publish-blocked-inline",
+            "project_id": test_project_id,
+            "workflow_definition": create_minimal_workflow_definition(
+                name="publish-blocked-inline", description="Test", activity_id="task1"
+            ),
+        },
+    )
+    assert create_resp.status_code == 201
+    workflow_id = create_resp.json()["id"]
+
+    response = await jwt_client.post(
+        f"/api/v1/workflows/{workflow_id}/versions/1/publish",
+        json={"workflow_definition": _create_invalid_workflow_definition()},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "WORKFLOW_PUBLISH_VALIDATION_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_publish_blocked_preserves_existing_published_version(
+    jwt_client: AsyncClient, test_project_id: str
+) -> None:
+    """Test that a blocked publish does not demote the existing published version.
+
+    Expected: Previous published version remains active and unaffected
+    """
+    create_resp = await jwt_client.post(
+        "/api/v1/workflows",
+        json={
+            "name": "publish-preserves-published",
+            "project_id": test_project_id,
+            "workflow_definition": create_minimal_workflow_definition(
+                name="publish-preserves", description="Test v1", activity_id="task1"
+            ),
+        },
+    )
+    assert create_resp.status_code == 201
+    workflow_id = create_resp.json()["id"]
+
+    pub_resp = await jwt_client.post(
+        f"/api/v1/workflows/{workflow_id}/versions/1/publish",
+        json={},
+    )
+    assert pub_resp.status_code == 200
+    assert pub_resp.json()["published_version"] == 2
+
+    update_resp = await jwt_client.patch(
+        f"/api/v1/workflows/{workflow_id}",
+        params={"force_save": "true"},
+        json={"workflow_definition": _create_invalid_workflow_definition()},
+    )
+    assert update_resp.status_code == 200
+    new_version = update_resp.json()["current_version"]
+
+    response = await jwt_client.post(
+        f"/api/v1/workflows/{workflow_id}/versions/{new_version}/publish",
+        json={},
+    )
+    assert response.status_code == 409
+
+    get_resp = await jwt_client.get(f"/api/v1/workflows/{workflow_id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["published_version"] == 2
+    assert get_resp.json()["is_enabled"] is True
+
+    v2_resp = await jwt_client.get(f"/api/v1/workflows/{workflow_id}/versions/2")
+    assert v2_resp.status_code == 200
+    assert v2_resp.json()["status"] == "published"

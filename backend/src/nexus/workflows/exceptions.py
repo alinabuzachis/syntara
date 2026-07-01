@@ -46,6 +46,16 @@ class WorkflowDefinitionWarningsError(WorkflowError):
         super().__init__("Workflow definition has validation warnings")
 
 
+@fastapi_exception(handler="nexus.workflows.error_handlers.publish_validation_handler")
+class WorkflowPublishValidationError(WorkflowError):
+    """Raised when publishing is blocked because the workflow definition has validation issues."""
+
+    def __init__(self, validation_result: ValidationResult) -> None:
+        """Initialize with the validation result."""
+        self.validation_result = validation_result
+        super().__init__("Cannot publish workflow with validation errors or warnings")
+
+
 @fastapi_exception(handler="nexus.workflows.error_handlers.workflow_not_found_handler")
 class WorkflowNotFoundError(WorkflowError):
     """Raised when a workflow is not found."""
