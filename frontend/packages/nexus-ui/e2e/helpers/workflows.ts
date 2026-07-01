@@ -81,6 +81,50 @@ export async function closeNodeEditorPanel(page: Page) {
   }
 }
 
+/**
+ * Save and close a node form by clicking Create/Update button.
+ * Waits for the button to detach (form closed) and optionally verifies the node appears on canvas.
+ *
+ * @param page - Playwright Page instance
+ * @param isUpdate - If true, clicks "Update" button; otherwise clicks "Create" button
+ * @param nodeName - Optional node name to verify it appears on canvas after saving
+ */
+export async function saveAndCloseNodeForm(page: Page, isUpdate = false, nodeName?: string) {
+  const buttonName = isUpdate ? 'Update' : 'Create'
+  const saveButton = page.getByRole('button', { name: buttonName })
+  await expect(saveButton).toBeEnabled()
+  await saveButton.click()
+
+  // Wait for negative signal (button detaches - form closed)
+  await expect(page.getByRole('button', { name: buttonName })).not.toBeAttached({ timeout: 15_000 })
+
+  await waitForUIReady(page)
+  await closeNodeEditorPanel(page)
+
+  // Wait for positive signal (node appears on canvas) if node name provided
+  if (nodeName) {
+    await verifyNodeVisible(page, nodeName)
+  }
+}
+
+/**
+ * Open a node for editing by double-clicking it on the canvas.
+ * Uses toPass retry pattern to handle React Flow rendering delays.
+ *
+ * @param page - Playwright Page instance
+ * @param nodeName - Name of the node to open
+ */
+export async function openNodeForEditing(page: Page, nodeName: string) {
+  const node = page.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: nodeName })
+  await waitForUIReady(page)
+
+  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
+  await expect(async () => {
+    await node.dblclick({ force: true })
+    await expect(nameInput).toBeVisible()
+  }).toPass({ timeout: 15_000, intervals: [1_000, 2_000, 3_000] })
+}
+
 export async function fillCodeEditor(
   page: Page,
   { value, label = 'Script code editor' }: { value: string; label?: string }

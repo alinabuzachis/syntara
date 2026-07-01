@@ -21,6 +21,7 @@ import {
   clickAddConnectedStep,
   closeNodeEditorPanel,
   deleteWorkflow,
+  openNodeForEditing,
   saveWorkflow,
   startWorkflowWithTrigger,
   verifyNodeVisible,
@@ -76,19 +77,8 @@ test('user reopens Conditional node to verify configuration persists', async ({ 
 
     // Act - Reopen the Conditional node to verify configuration persists
     await verifyNodeVisible(app, 'Initial condition')
-    const conditionalNode = app
-      .locator('[role="group"][aria-roledescription="node"]')
-      .filter({ hasText: 'Initial condition' })
-
-    // Wait for UI to be fully ready before interacting
-    await waitForUIReady(app)
-
     // Double-click on the node to open its configuration
-    const nameInput = app.getByRole('textbox', { name: 'Name', exact: true })
-    await expect(async () => {
-      await conditionalNode.dblclick({ force: true })
-      await expect(nameInput).toBeVisible()
-    }).toPass({ timeout: 15_000, intervals: [1_000, 2_000, 3_000] })
+    await openNodeForEditing(app, 'Initial condition')
 
     // Assert - Verify all configuration fields persisted
     await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Initial condition')
@@ -96,10 +86,22 @@ test('user reopens Conditional node to verify configuration persists', async ({ 
     await expect(app.getByLabel('Comparison operator')).toHaveText('is greater than')
     await expect(app.getByRole('textbox', { name: 'Value', exact: true })).toHaveValue('100')
 
+    // Close the panel to verify workflow state
+    // When editing (vs creating), the node details panel must close before the editor drawer
+    // There may be multiple nested panels, so close them all until only the drawer remains
+    const closeButtons = app.getByRole('button', { name: 'Close' })
+    while ((await closeButtons.count()) > 1) {
+      // Multiple Close buttons - close the innermost panel first
+      const initialCount = await closeButtons.count()
+      await closeButtons.last().click()
+      await expect(closeButtons).not.toHaveCount(initialCount, { timeout: 5000 })
+    }
+    // Wait for UI to stabilize after closing nested panels
+    await waitForUIReady(app)
     await closeNodeEditorPanel(app)
 
     // Verify the node is still on the canvas after reopening and closing
-    await expect(conditionalNode).toBeVisible()
+    await verifyNodeVisible(app, 'Initial condition')
   } finally {
     await deleteWorkflow(app, workflowName)
   }
@@ -168,33 +170,41 @@ test('user configures Conditional node with if/else-if/else branches', async ({ 
 
     // Assert - Verify the Conditional node appears on canvas
     await verifyNodeVisible(app, 'Multi-branch conditional')
-    const conditionalNode = app
-      .locator('[role="group"][aria-roledescription="node"]')
-      .filter({ hasText: 'Multi-branch conditional' })
 
     // Save the workflow
     await saveWorkflow(app, workflowName)
 
     // Verify workflow is persisted
     await expect(app).toHaveURL(/workflow-builder\/.+/)
+
     // Verify output handles on the canvas (at least 2 for if/else-if)
+    const conditionalNode = app
+      .locator('[role="group"][aria-roledescription="node"]')
+      .filter({ hasText: 'Multi-branch conditional' })
     const outputHandles = conditionalNode.locator('[data-handlepos="right"]')
     await expect(outputHandles).not.toHaveCount(0, { timeout: 10_000 })
     await expect(outputHandles).not.toHaveCount(1, { timeout: 10_000 })
     await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
 
     // Reopen the node to verify branches persisted
-    await waitForUIReady(app)
-    const nameInputReopened = app.getByRole('textbox', { name: 'Name', exact: true })
-    await expect(async () => {
-      await conditionalNode.dblclick({ force: true })
-      await expect(nameInputReopened).toBeVisible()
-    }).toPass({ timeout: 15_000, intervals: [1_000, 2_000, 3_000] })
+    await openNodeForEditing(app, 'Multi-branch conditional')
 
     // Verify both conditions (if + else-if) are still present
     const reopenedFieldInputs = app.getByRole('textbox', { name: 'Field', exact: true })
     await expect(reopenedFieldInputs).toHaveCount(2)
 
+    // Close the panel to verify workflow state
+    // When editing (vs creating), the node details panel must close before the editor drawer
+    // There may be multiple nested panels, so close them all until only the drawer remains
+    const closeButtons = app.getByRole('button', { name: 'Close' })
+    while ((await closeButtons.count()) > 1) {
+      // Multiple Close buttons - close the innermost panel first
+      const initialCount = await closeButtons.count()
+      await closeButtons.last().click()
+      await expect(closeButtons).not.toHaveCount(initialCount, { timeout: 5000 })
+    }
+    // Wait for UI to stabilize after closing nested panels
+    await waitForUIReady(app)
     await closeNodeEditorPanel(app)
   } finally {
     await deleteWorkflow(app, workflowName)
