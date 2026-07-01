@@ -79,7 +79,7 @@ echo "✅ Infrastructure ready"
 
 echo "⏳ Waiting for API server to be ready..."
 TRIES=0
-until curl -sf http://localhost:8000/health 2>/dev/null | grep -q '"status":"healthy"'; do
+until curl -sf --cacert .secrets/certs/ca.pem https://localhost:8000/health 2>/dev/null | grep -q '"status":"healthy"'; do
     sleep 1
     TRIES=$((TRIES + 1))
     if [[ $TRIES -ge 60 ]]; then
@@ -94,5 +94,5 @@ echo "🔧 Creating system user..."
 uv run python tools/create_system_user.py
 
 SEGMENT_SERVER_URL="http://localhost:9999" \
-APP_BASE_URL="${APP_BASE_URL:-http://localhost:8000}" \
+APP_BASE_URL="${APP_BASE_URL:-https://localhost:8000}" \
 uv run pytest "${PYTEST_ARGS[@]}"
