@@ -135,19 +135,20 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
 
       const importedDescription =
         typeof definition.description === 'string' && definition.description.length > 0 ? definition.description : ''
-      const fullDefinition = {
-        schema_version: '2.0.0' as const,
+      // parseWorkflowFile runtime-validates structure; assert the validated shape
+      const fullDefinition: V2WorkflowDefinition = {
+        schema_version: '2.0.0',
         name: data.name,
         description: importedDescription,
-        triggers: definition.triggers,
-        nodes: definition.nodes,
-        edges: definition.edges,
+        triggers: definition.triggers as V2WorkflowDefinition['triggers'],
+        nodes: definition.nodes as V2WorkflowDefinition['nodes'],
+        edges: definition.edges as V2WorkflowDefinition['edges'],
       }
 
       const { data: result, error } = await workflowFetchClient.POST('/workflows', {
         body: {
           name: data.name,
-          workflow_definition: fullDefinition as V2WorkflowDefinition,
+          workflow_definition: fullDefinition,
           project_id: selectedProjectId,
         },
       })
@@ -160,9 +161,7 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
             description: getErrorMessage(error),
             actionLinks: (
               <AlertActionLink
-                onClick={() =>
-                  detachPromise(handleForceSave(data.name, fullDefinition as V2WorkflowDefinition, selectedProjectId))
-                }
+                onClick={() => detachPromise(handleForceSave(data.name, fullDefinition, selectedProjectId))}
               >
                 Save anyway
               </AlertActionLink>

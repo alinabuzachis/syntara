@@ -1,11 +1,15 @@
 """Workflow API endpoints."""
 
+import json
+import re
 from collections.abc import Callable, Coroutine
+from io import BytesIO
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -514,3 +518,41 @@ async def restore_workflow_version(
         version=version,
     )
     return _build_workflow_with_version_response(workflow, restored_version)
+
+
+def _sanitize_filename(name: str) -> str:
+    """Sanitize a string for use as a filename."""
+    safe = re.sub(r"[^\w\-.]", "_", name, flags=re.ASCII)
+    return safe[:200] or "workflow"
+
+
+@router.get(
+    "/{workflow_id}/versions/{version}/export",
+    dependencies=[Depends(_wf_perm_read)],
+    operation_id="export_workflow_version",
+    response_class=StreamingResponse,
+    responses={
+        200: {"content": {"application/json": {}}, "description": "Workflow version definition as JSON file"},
+        404: {"description": WORKFLOW_NOT_FOUND},
+    },
+)
+async def export_workflow_version(
+    workflow_id: UUID,
+    version: int,
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
+) -> StreamingResponse:
+    """Export a workflow version definition as a downloadable JSON file."""
+    workflow, version_record = await service.get_version_for_export(
+        workflow_id=workflow_id,
+        version=version,
+    )
+
+    safe_name = _sanitize_filename(workflow.name)
+    filename = f"{safe_name}-v{version}.json"
+    content = json.dumps(version_record.workflow_definition, indent=2)
+
+    return StreamingResponse(
+        BytesIO(content.encode("utf-8")),
+        media_type="application/json",
+        headers={"content-disposition": f'attachment; filename="{filename}"'},
+    )

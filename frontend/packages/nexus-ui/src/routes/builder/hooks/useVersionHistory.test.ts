@@ -4,7 +4,7 @@ import { createElement } from 'react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useVersionHistory } from './useVersionHistory'
+import { isVersionStatus, useVersionHistory } from './useVersionHistory'
 
 const mockMutate = vi.fn()
 const mockRefetch = vi.fn()
@@ -20,6 +20,14 @@ vi.mock('../../../providers/alerts', () => ({
 
 vi.mock('../../../utils/apiErrors', () => ({
   getErrorMessage: (e: unknown) => (e instanceof Error ? e.message : 'Unknown error'),
+}))
+
+const mockDownloadVersionExport = vi.fn()
+vi.mock('../../../utils/downloadWorkflowExport', () => ({
+  downloadVersionExport: (...args: unknown[]) => {
+    mockDownloadVersionExport(...args)
+    return Promise.resolve()
+  },
 }))
 
 vi.mock('../../../client', () => ({
@@ -49,6 +57,19 @@ function makeWrapper(queryClient: QueryClient) {
 }
 
 describe('useVersionHistory', () => {
+  describe('isVersionStatus', () => {
+    it('returns true for valid status strings', () => {
+      expect(isVersionStatus('draft')).toBe(true)
+      expect(isVersionStatus('published')).toBe(true)
+      expect(isVersionStatus('previously_published')).toBe(true)
+    })
+
+    it('returns false for invalid status strings', () => {
+      expect(isVersionStatus('unknown')).toBe(false)
+      expect(isVersionStatus('')).toBe(false)
+    })
+  })
+
   let queryClient: QueryClient
 
   beforeEach(() => {
@@ -114,64 +135,28 @@ describe('useVersionHistory', () => {
   })
 
   describe('exportVersion', () => {
-    it('creates a download link for the version definition', () => {
-      const mockClick = vi.fn()
-      const originalCreateElement = document.createElement.bind(document)
-      vi.spyOn(document, 'createElement').mockImplementation((tag: string, options?: ElementCreationOptions) => {
-        if (tag === 'a') {
-          return { click: mockClick, href: '', download: '' } as unknown as HTMLAnchorElement
-        }
-        return originalCreateElement(tag, options)
-      })
-      const mockCreateObjectURL = vi.fn().mockReturnValue('blob:mock-url')
-      const mockRevokeObjectURL = vi.fn()
-      vi.spyOn(URL, 'createObjectURL').mockImplementation(mockCreateObjectURL)
-      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(mockRevokeObjectURL)
-
+    it('calls downloadVersionExport with correct params', () => {
       const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
         wrapper: makeWrapper(queryClient),
       })
 
       act(() => {
-        result.current.exportVersion(2, 'my-workflow')
+        result.current.exportVersion(2)
       })
 
-      expect(mockCreateObjectURL).toHaveBeenCalled()
-      expect(mockClick).toHaveBeenCalled()
-      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
-
-      vi.restoreAllMocks()
+      expect(mockDownloadVersionExport).toHaveBeenCalledWith('wf-1', 2)
     })
 
-    it('does nothing when version is not found in the list', () => {
-      const mockCreateObjectURL = vi.fn()
-      vi.spyOn(URL, 'createObjectURL').mockImplementation(mockCreateObjectURL)
-
-      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+    it('does nothing when workflowId is not set', () => {
+      const { result } = renderHook(() => useVersionHistory({ workflowId: null, isNew: false }), {
         wrapper: makeWrapper(queryClient),
       })
 
       act(() => {
-        result.current.exportVersion(99, 'my-workflow')
+        result.current.exportVersion(2)
       })
 
-      expect(mockCreateObjectURL).not.toHaveBeenCalled()
-    })
-
-    it('does nothing when version has no workflow_definition', () => {
-      mockVersions = [{ version: 1, status: 'draft', workflow_definition: null as unknown as { name: string } }]
-      const mockCreateObjectURL = vi.fn()
-      vi.spyOn(URL, 'createObjectURL').mockImplementation(mockCreateObjectURL)
-
-      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
-        wrapper: makeWrapper(queryClient),
-      })
-
-      act(() => {
-        result.current.exportVersion(1, 'my-workflow')
-      })
-
-      expect(mockCreateObjectURL).not.toHaveBeenCalled()
+      expect(mockDownloadVersionExport).not.toHaveBeenCalled()
     })
   })
 

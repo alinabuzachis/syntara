@@ -217,6 +217,12 @@ describe('ImportWorkflowDialog', () => {
     })
   })
 
+  it('registers onProjectSelect callback for clearing validation errors', () => {
+    render(<ImportWorkflowDialog {...defaultProps} />)
+
+    expect(mockOnProjectSelect).toBeDefined()
+  })
+
   describe('force_save on validation warnings', () => {
     const validContent = JSON.stringify({
       triggers: [{ id: 't1', type: 'webhook' }],

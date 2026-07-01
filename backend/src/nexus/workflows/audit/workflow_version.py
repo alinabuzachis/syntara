@@ -1,6 +1,6 @@
 """Workflow version domain events and audit handlers.
 
-Covers version creation, publish, unpublish, and restore operations.
+Covers version creation, publish, unpublish, restore, and export operations.
 """
 
 from __future__ import annotations
@@ -34,6 +34,15 @@ class WorkflowVersionCreatedEvent:
     version: int
     workflow_name: str
     change_summary: dict[str, Any] | None = field(default=None)
+
+
+@dataclass
+class WorkflowVersionExportedEvent:
+    """Domain event fired when a workflow version is exported."""
+
+    workflow_id: UUID
+    version: int
+    workflow_name: str
 
 
 @dataclass
@@ -191,6 +200,28 @@ class WorkflowVersionRestoredHandler(AuditEventHandler[WorkflowVersionRestoredEv
             ),
             source_component="nexus.workflows",
             structured_data=data,
+            workflow_id=event.workflow_id,
+            resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
+            resource_name=event.workflow_name,
+        )
+
+
+class WorkflowVersionExportedHandler(AuditEventHandler[WorkflowVersionExportedEvent]):
+    """Records an audit entry when a workflow version is exported."""
+
+    def handle(self, event: WorkflowVersionExportedEvent) -> AuditEvent:
+        """Map a WorkflowVersionExportedEvent to an AuditEvent."""
+        return AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_severity=EventSeverity.INFO,
+            event_status=EventStatus.SUCCESS,
+            event_action="workflow_version_exported",
+            event_message=f"Workflow version {event.version} exported",
+            source_component="nexus.workflows",
+            structured_data=AuditContextData(
+                data_type="workflow-version-exported",
+                version=event.version,
+            ),
             workflow_id=event.workflow_id,
             resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,

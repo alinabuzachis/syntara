@@ -127,3 +127,11 @@ class WorkflowsApi:
     async def async_restore_version(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("restore_workflow_version")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def export_version(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("export_workflow_version")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_export_version(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("export_workflow_version")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)

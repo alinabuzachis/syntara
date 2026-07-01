@@ -8,6 +8,8 @@ from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventSt
 from nexus.workflows.audit.workflow_version import (
     WorkflowVersionCreatedEvent,
     WorkflowVersionCreatedHandler,
+    WorkflowVersionExportedEvent,
+    WorkflowVersionExportedHandler,
     WorkflowVersionPublishedEvent,
     WorkflowVersionPublishedHandler,
     WorkflowVersionRestoredEvent,
@@ -219,3 +221,29 @@ class TestWorkflowVersionRestoredHandler:
         audit_event = WorkflowVersionRestoredHandler().handle(event)
 
         assert audit_event.structured_data.project_id == str(PROJECT_ID)
+
+
+class TestWorkflowVersionExportedHandler:
+    """Tests for WorkflowVersionExportedHandler."""
+
+    def test_produces_audit_event(self) -> None:
+        event = WorkflowVersionExportedEvent(workflow_id=WORKFLOW_ID, version=2, workflow_name="test-wf")
+        audit_event = WorkflowVersionExportedHandler().handle(event)
+
+        assert audit_event is not None
+        assert audit_event.event_category == EventCategory.USER_ACTION
+        assert audit_event.event_severity == EventSeverity.INFO
+        assert audit_event.event_status == EventStatus.SUCCESS
+        assert audit_event.event_action == "workflow_version_exported"
+        assert audit_event.source_component == "nexus.workflows"
+        assert audit_event.workflow_id == WORKFLOW_ID
+        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_name == "test-wf"
+        assert audit_event.event_message == "Workflow version 2 exported"
+
+    def test_structured_data_contains_version(self) -> None:
+        event = WorkflowVersionExportedEvent(workflow_id=WORKFLOW_ID, version=4, workflow_name="test-wf")
+        audit_event = WorkflowVersionExportedHandler().handle(event)
+
+        assert audit_event.structured_data.data_type == "workflow-version-exported"
+        assert audit_event.structured_data.version == 4

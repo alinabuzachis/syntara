@@ -6,6 +6,7 @@ import { workflowClient } from '../../../client'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { downloadVersionExport } from '../../../utils/downloadWorkflowExport'
 
 export type VersionStatus = 'draft' | 'published' | 'previously_published'
 
@@ -50,19 +51,15 @@ export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams
   }, [allVersions, statusFilter])
 
   const exportVersion = useCallback(
-    (version: number, workflowName: string) => {
-      const versionData = allVersions?.find((v) => v.version === version)
-      if (!versionData?.workflow_definition) return
-
-      const blob = new Blob([JSON.stringify(versionData.workflow_definition, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${workflowName}-v${version}.json`
-      a.click()
-      URL.revokeObjectURL(url)
+    (version: number) => {
+      if (!workflowId) return
+      detachPromise(
+        downloadVersionExport(workflowId, version).catch((err: unknown) => {
+          showError({ title: 'Export failed', description: getErrorMessage(err) })
+        })
+      )
     },
-    [allVersions]
+    [workflowId, showError]
   )
 
   const publishVersion = useCallback(

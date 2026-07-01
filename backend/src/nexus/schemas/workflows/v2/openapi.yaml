@@ -646,6 +646,53 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
+  /workflows/{workflow_id}/versions/{version}/export:
+    get:
+      summary: Export Workflow Version
+      description: Export a workflow version definition as a downloadable JSON file.
+      operationId: export_workflow_version
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: workflow
+        action: read
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Workflow Id
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Version
+          description: Version number to export
+      responses:
+        '200':
+          description: Workflow version definition as JSON file
+          content:
+            application/json: {}
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          description: Workflow not found
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+
   # Note: Approval endpoints are in a separate API
   # See: src/nexus/schemas/approvals/openapi.yaml
 

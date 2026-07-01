@@ -3,12 +3,14 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import {
   downloadWorkflowDefinition,
   downloadWorkflowExportById,
+  downloadVersionExport,
   parseWorkflowFile,
   validateFileSize,
 } from './downloadWorkflowExport'
 
 // Mock workflowFetchClient
-const mockGet = vi.fn<(...args: unknown[]) => Promise<{ data?: unknown; error?: unknown }>>()
+const mockGet =
+  vi.fn<(...args: unknown[]) => Promise<{ data?: unknown; error?: unknown; response?: { headers: Headers } }>>()
 vi.mock('../client', () => ({
   workflowFetchClient: { GET: (...args: unknown[]) => mockGet(...args) },
 }))
@@ -102,6 +104,12 @@ describe('parseWorkflowFile', () => {
     expect(() => parseWorkflowFile(JSON.stringify(def), 'workflow.json')).toThrow('must be arrays')
   })
 
+  it('rejects non-object items in nodes', () => {
+    const def = { triggers: [], nodes: ['not-an-object'], edges: [] }
+
+    expect(() => parseWorkflowFile(JSON.stringify(def), 'workflow.json')).toThrow('Each node must be an object')
+  })
+
   it('rejects node without id', () => {
     const def = { triggers: [], nodes: [{ type: 'action' }], edges: [] }
 
@@ -186,23 +194,36 @@ describe('downloadWorkflowDefinition', () => {
 })
 
 describe('downloadWorkflowExportById', () => {
-  it('fetches workflow and triggers download', async () => {
-    mockGet.mockResolvedValue({
-      data: {
-        name: 'My Workflow',
-        version: {
-          workflow_definition: { triggers: [], nodes: [], edges: [] },
-        },
-      },
-    })
+  it('fetches version and triggers download via export endpoint', async () => {
+    mockGet
+      .mockResolvedValueOnce({
+        data: { current_version: 3, version: { version: 3 } },
+      })
+      .mockResolvedValueOnce({
+        data: new Blob(['{}'], { type: 'application/json' }),
+        response: new Response(null, {
+          headers: { 'content-disposition': 'attachment; filename="my_workflow-v3.json"' },
+        }),
+      })
 
     await downloadWorkflowExportById('wf-123')
 
-    expect(mockGet).toHaveBeenCalledWith('/workflows/{workflow_id}', {
-      params: { path: { workflow_id: 'wf-123' } },
-    })
-    expect(lastAnchor.download).toBe('my_workflow.json')
+    expect(mockGet).toHaveBeenCalledTimes(2)
     expect(lastAnchor.click).toHaveBeenCalled()
+    expect(lastAnchor.download).toBe('my_workflow-v3.json')
+  })
+
+  it('skips workflow fetch when version is provided', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: new Blob(['{}'], { type: 'application/json' }),
+      response: new Response(null, {
+        headers: { 'content-disposition': 'attachment; filename="wf-v2.json"' },
+      }),
+    })
+
+    await downloadWorkflowExportById('wf-123', 2)
+
+    expect(mockGet).toHaveBeenCalledTimes(1)
   })
 
   it('throws when fetch returns error', async () => {
@@ -211,24 +232,32 @@ describe('downloadWorkflowExportById', () => {
     await expect(downloadWorkflowExportById('wf-bad')).rejects.toThrow('Failed to fetch workflow details for export')
   })
 
-  it('throws when workflow has no definition', async () => {
-    mockGet.mockResolvedValue({ data: { name: 'Empty', version: {} } })
+  it('throws when workflow has no version', async () => {
+    mockGet.mockResolvedValue({ data: { current_version: undefined, version: undefined } })
 
-    await expect(downloadWorkflowExportById('wf-empty')).rejects.toThrow('Workflow has no definition to export')
+    await expect(downloadWorkflowExportById('wf-empty')).rejects.toThrow('Workflow has no version to export')
   })
+})
 
-  it('uses fallback name when workflow has no name', async () => {
-    mockGet.mockResolvedValue({
-      data: {
-        version: {
-          workflow_definition: { triggers: [], nodes: [], edges: [] },
-        },
-      },
+describe('downloadVersionExport', () => {
+  it('triggers download using server-provided filename', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: new Blob(['{}'], { type: 'application/json' }),
+      response: new Response(null, {
+        headers: { 'content-disposition': 'attachment; filename="My_Workflow-v1.json"' },
+      }),
     })
 
-    await downloadWorkflowExportById('wf-noname')
+    await downloadVersionExport('wf-123', 1)
 
-    expect(lastAnchor.download).toBe('workflow.json')
+    expect(lastAnchor.download).toBe('My_Workflow-v1.json')
+    expect(lastAnchor.click).toHaveBeenCalled()
+  })
+
+  it('throws when export endpoint returns error', async () => {
+    mockGet.mockResolvedValueOnce({ error: { detail: 'Not found' } })
+
+    await expect(downloadVersionExport('wf-bad', 1)).rejects.toThrow('Failed to export workflow')
   })
 })
 

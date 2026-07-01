@@ -29,6 +29,7 @@ from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.workflows.audit.workflow_lifecycle import WorkflowAction, WorkflowLifecycleEvent
 from nexus.workflows.audit.workflow_version import (
     WorkflowVersionCreatedEvent,
+    WorkflowVersionExportedEvent,
     WorkflowVersionPublishedEvent,
     WorkflowVersionRestoredEvent,
     WorkflowVersionUnpublishedEvent,
@@ -605,6 +606,34 @@ class WorkflowService(BaseService):
             raise WorkflowVersionNotFoundError(workflow_id, workflow.current_version)
 
         return workflow, current_version
+
+    async def get_version_for_export(
+        self,
+        workflow_id: UUID,
+        version: int,
+    ) -> tuple[Workflow, WorkflowVersion]:
+        """Get a workflow and specific version for export.
+
+        Args:
+            workflow_id: Workflow UUID
+            version: Version number to export
+
+        Returns:
+            Tuple of (workflow, requested version)
+
+        Raises:
+            WorkflowNotFoundError: If workflow not found
+            WorkflowVersionNotFoundError: If version not found
+
+        """
+        workflow = await self.get_workflow_by_id(workflow_id)
+        version_record = await self._get_version_or_none(workflow_id, version)
+        if not version_record:
+            raise WorkflowVersionNotFoundError(workflow_id, version)
+        AuditEventDispatcher.dispatch(
+            WorkflowVersionExportedEvent(workflow_id=workflow_id, version=version, workflow_name=workflow.name)
+        )
+        return workflow, version_record
 
     async def update_workflow_metadata(
         self,

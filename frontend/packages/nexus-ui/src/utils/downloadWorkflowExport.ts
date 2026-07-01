@@ -15,35 +15,48 @@ function sanitizeFilename(name: string): string {
   return name.replaceAll(/[^\w.-]/g, '_').toLowerCase()
 }
 
-const METADATA_KEYS = new Set(['schema_version', 'name', 'description'])
-
-function stripMetadata(definition: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(definition).filter(([key]) => !METADATA_KEYS.has(key)))
-}
-
-export async function downloadWorkflowExportById(workflowId: string): Promise<void> {
-  const { data, error } = await workflowFetchClient.GET('/workflows/{workflow_id}', {
-    params: { path: { workflow_id: workflowId } },
+async function fetchExportBlob(workflowId: string, version: number): Promise<{ blob: Blob; filename: string }> {
+  const result = await workflowFetchClient.GET('/workflows/{workflow_id}/versions/{version}/export', {
+    params: { path: { workflow_id: workflowId, version } },
+    parseAs: 'blob',
   })
 
-  if (error || !data) {
-    throw new Error('Failed to fetch workflow details for export')
+  if (result.error || !result.data) {
+    throw new Error('Failed to export workflow')
   }
 
-  const definition = data.version?.workflow_definition
+  const disposition = result.response.headers.get('content-disposition')
+  const match = disposition?.match(/filename="?([^"]+)"?/)
+  const filename = match?.[1] ?? `workflow-v${String(version)}.json`
+  return { blob: result.data, filename }
+}
 
-  if (!definition) {
-    throw new Error('Workflow has no definition to export')
+export async function downloadWorkflowExportById(workflowId: string, version?: number): Promise<void> {
+  let exportVersion = version
+  if (exportVersion == null) {
+    const { data, error } = await workflowFetchClient.GET('/workflows/{workflow_id}', {
+      params: { path: { workflow_id: workflowId } },
+    })
+    if (error || !data) {
+      throw new Error('Failed to fetch workflow details for export')
+    }
+    exportVersion = data.current_version ?? data.version?.version
+    if (exportVersion == null) {
+      throw new Error('Workflow has no version to export')
+    }
   }
 
-  const name = data.name ?? 'workflow'
-  const content = JSON.stringify(stripMetadata(definition as Record<string, unknown>), null, 2)
-  const blob = new Blob([content], { type: 'application/json' })
-  triggerDownload(blob, `${sanitizeFilename(name)}.json`)
+  const { blob, filename } = await fetchExportBlob(workflowId, exportVersion)
+  triggerDownload(blob, filename)
+}
+
+export async function downloadVersionExport(workflowId: string, version: number): Promise<void> {
+  const { blob, filename } = await fetchExportBlob(workflowId, version)
+  triggerDownload(blob, filename)
 }
 
 export function downloadWorkflowDefinition(definition: Record<string, unknown>, workflowName: string): void {
-  const content = JSON.stringify(stripMetadata(definition), null, 2)
+  const content = JSON.stringify(definition, null, 2)
   const blob = new Blob([content], { type: 'application/json' })
   triggerDownload(blob, `${sanitizeFilename(workflowName)}.json`)
 }

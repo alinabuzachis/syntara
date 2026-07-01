@@ -228,6 +228,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/workflows/{workflow_id}/versions/{version}/export': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Export Workflow Version
+     * @description Export a workflow version definition as a downloadable JSON file.
+     */
+    get: operations['export_workflow_version']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/webhooks/{webhook_path}': {
     parameters: {
       query?: never
@@ -2773,6 +2793,43 @@ export interface operations {
       401: components['responses']['UnauthorizedError']
       403: components['responses']['ForbiddenError']
       404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  export_workflow_version: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+        /** @description Version number to export */
+        version: number
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Workflow version definition as JSON file */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      /** @description Workflow not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
       409: components['responses']['ConflictError']
       422: components['responses']['ValidationError']
       500: components['responses']['InternalServerError']

@@ -24,18 +24,18 @@ type UseBuilderVersionPanelParams = {
   baseHandleToggleVersionHistory: () => void
 }
 
-export function useBuilderVersionPanel({
-  workflowId,
-  isNew,
-  workflow,
-  viewingVersion,
-  versionHistoryOpen,
-  dispatch,
-  handleSaveWorkflow,
-  workflowName,
-  expandAllEvent,
-  baseHandleToggleVersionHistory,
-}: UseBuilderVersionPanelParams) {
+export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
+  const {
+    workflowId,
+    isNew,
+    workflow,
+    viewingVersion,
+    versionHistoryOpen,
+    dispatch,
+    handleSaveWorkflow,
+    expandAllEvent,
+    baseHandleToggleVersionHistory,
+  } = params
   const { isDirty } = useWorkflowStore()
   const { showSuccess, showError } = useAlerts()
 
@@ -136,7 +136,7 @@ export function useBuilderVersionPanel({
       onClose: () => dispatch({ type: 'SET_VERSION_HISTORY_OPEN', payload: false }),
       onSelectVersion: handleSelectVersion,
       onRestoreVersion: (v: number, createdAt: string) => restoreDialog.open({ version: v, dateTime: createdAt }),
-      onExportVersion: (v: number) => exportVersion(v, workflowName),
+      onExportVersion: (v: number) => exportVersion(v),
       onOpenInNewWindow: openInNewWindow,
       onPublishVersion: (v: number) => versionPublishDialog.open(v),
 
