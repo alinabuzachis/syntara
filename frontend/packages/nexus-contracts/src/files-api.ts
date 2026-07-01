@@ -24,6 +24,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/files/metadata': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Files Metadata (Batch)
+     * @description Retrieve metadata for one or more files by their IDs. Returns file information (filename, size, MIME type, status) without file content.
+     */
+    get: operations['get_files_metadata']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/files/{file_id}/download': {
     parameters: {
       query?: never
@@ -120,6 +140,17 @@ export interface components {
       mime_type: string
       /** @description Processing status (pending_conversion) */
       status: components['schemas']['FileStatus']
+    }
+    /**
+     * FilesMetadataResponse
+     * @description Response model for GET /files/metadata endpoint.
+     */
+    FilesMetadataResponse: {
+      /**
+       * Files
+       * @description Metadata for each found file (missing IDs are silently omitted)
+       */
+      files: components['schemas']['FileUploadInfo'][]
     }
     /**
      * FileStatus
@@ -357,6 +388,36 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['FileUploadResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_files_metadata: {
+    parameters: {
+      query: {
+        /** @description List of file IDs to retrieve metadata for */
+        file_ids: string[]
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['FilesMetadataResponse']
         }
       }
       400: components['responses']['BadRequestError']

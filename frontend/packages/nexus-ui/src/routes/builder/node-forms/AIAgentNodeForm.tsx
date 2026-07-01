@@ -1,9 +1,9 @@
-import type { FilesAPI, IntegrationsAPI, ToolManagerAPI } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
-  Button,
+  Alert,
   FormGroup,
   FormHelperText,
+  FormSelect,
+  FormSelectOption,
   HelperText,
   HelperTextItem,
   Stack,
@@ -13,13 +13,10 @@ import {
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import type { Control, UseFormSetValue } from 'react-hook-form'
-import { Controller, FormProvider, useForm, useFormContext, useFormState, useWatch } from 'react-hook-form'
+import { Controller, FormProvider, useForm, useFormContext, useFormState } from 'react-hook-form'
 
-import { integrationsClient, toolManagerClient } from '../../../client'
 import { FILE_STORAGE_UNCONFIGURED_MESSAGE, useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
-import { type FileProgress, useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
-import { detachPromise } from '../../../utils/detachPromise'
+import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { generateUUID } from '../../../utils/generateUUID'
 import { CredentialSelector } from '../components/CredentialSelector'
 import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
@@ -28,7 +25,6 @@ import { DroppableField } from '../panels/fields/DroppableField'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { aiAgentFormSchema, type AIAgentFormData } from './aiAgentFormSchema'
-import { ConnectionsSection } from './ConnectionsSection'
 import { credentialHelpText } from './credentialSelectorHelpText'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
@@ -36,12 +32,7 @@ import { NodeFormContainer } from './shared/NodeFormContainer'
 import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
-import type { IntegrationWithTools, ToolSelection } from './ToolsMultiSelect'
-import { ToolsMultiSelect } from './ToolsMultiSelect'
-
-type FileUploadInfo = FilesAPI.components['schemas']['FileUploadInfo']
-type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
-type ToolWithParameters = ToolManagerAPI.components['schemas']['ToolWithParameters']
+import { useFilesMetadata } from './useFilesMetadata'
 
 export type { AIAgentFormData }
 
@@ -57,101 +48,19 @@ export type AIAgentFormInitialData = Partial<AIAgentFormData>
 /** Context to share file state between form components */
 type FileContextType = {
   completedFiles: UploadedFile[]
-  setCompletedFiles: React.Dispatch<React.SetStateAction<UploadedFile[]>>
+  addFiles: (files: UploadedFile[]) => void
+  removeFile: (fileId: string) => void
+  removeFilesByName: (names: Set<string>) => void
+  isFilesError: boolean
 }
 const FileContext = createContext<FileContextType | null>(null)
 
 export type AIAgentNodeFormProps = {
   onSubmit: (data: AIAgentFormSubmitData) => void
   initialData?: AIAgentFormInitialData
+  existingFileIds?: string[]
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
-}
-
-function mergeWithUploadProgress(
-  completedFiles: UploadedFile[],
-  uploadingFiles: UploadedFile[],
-  progress: FileProgress[],
-  error: { message: string } | null
-): UploadedFile[] {
-  return [
-    ...completedFiles,
-    ...uploadingFiles.map((f) => {
-      const fileProgress = progress.find((p) => p.fileName === f.file.name)
-      return {
-        ...f,
-        progress: fileProgress?.percentage ?? f.progress,
-        status: error ? ('error' as const) : f.status,
-        errorMessage: error?.message ?? f.errorMessage,
-      }
-    }),
-  ]
-}
-
-/** Group flat tool list by integration_id, filtering out disabled tools. */
-function groupToolsByIntegration(tools: ToolWithParameters[], integrations: IntegrationRead[]): IntegrationWithTools[] {
-  const integrationMap = new Map(
-    integrations.filter((i): i is IntegrationRead & { id: string } => Boolean(i.id)).map((i) => [i.id, i.name])
-  )
-
-  const grouped = new Map<string, { name: string; tools: { id: string; name: string; description: string | null }[] }>()
-  for (const tool of tools) {
-    const integrationId = tool.integration_id
-    if (!integrationId) continue
-    if (!integrationMap.has(integrationId)) continue
-    if (tool.enabled === false) continue
-    if (!tool.id) continue
-    if (!grouped.has(integrationId)) {
-      grouped.set(integrationId, {
-        name: integrationMap.get(integrationId) ?? integrationId,
-        tools: [],
-      })
-    }
-    const entry = grouped.get(integrationId)
-    entry?.tools.push({
-      id: tool.id,
-      name: tool.namespaced_name,
-      description: null,
-    })
-  }
-
-  return Array.from(grouped.entries()).map(([id, { name, tools: discovered_tools }]) => ({
-    id,
-    name,
-    discovered_tools,
-  }))
-}
-
-function useToolSelection(control: Control<AIAgentFormData>, setValue: UseFormSetValue<AIAgentFormData>) {
-  const toolSelectionStrategy = useWatch({ control, name: 'tool_selection_strategy' }) ?? 'NONE'
-  const rawToolSelections = useWatch({ control, name: 'tool_selections' })
-
-  const toolSelection = useMemo<ToolSelection>(() => {
-    const toolSelections = rawToolSelections ?? []
-    if (toolSelectionStrategy === 'ALL') return { strategy: 'ALL' }
-    if (toolSelectionStrategy === 'SELECTED' && toolSelections.length > 0)
-      return { strategy: 'SELECTED', toolIds: toolSelections }
-    return { strategy: 'NONE' }
-  }, [toolSelectionStrategy, rawToolSelections])
-
-  const handleToolSelectionChange = useCallback(
-    (selection: ToolSelection) => {
-      if (selection.strategy === 'ALL') {
-        setValue('tool_selection_strategy', 'ALL')
-        setValue('tool_selections', [])
-      } else if (selection.strategy === 'SELECTED') {
-        setValue('tool_selection_strategy', 'SELECTED')
-        setValue('tool_selections', selection.toolIds)
-      } else {
-        setValue('tool_selection_strategy', 'NONE')
-        setValue('tool_selections', [])
-        setValue('integration_connections', [])
-      }
-    },
-    [setValue]
-  )
-
-  return { toolSelection, handleToolSelectionChange }
 }
 
 function FieldError({ message }: Readonly<{ message: string | undefined }>) {
@@ -167,49 +76,35 @@ function FieldError({ message }: Readonly<{ message: string | undefined }>) {
   )
 }
 
-function ToolsLoadError({ onRetry }: Readonly<{ onRetry: () => void }>) {
-  return (
-    <FormHelperText>
-      <HelperText>
-        <HelperTextItem variant="error" icon={<RhUiErrorIcon />}>
-          Failed to load tools or integrations.{' '}
-          <Button variant="link" isInline onClick={onRetry}>
-            Retry
-          </Button>
-        </HelperTextItem>
-      </HelperText>
-    </FormHelperText>
-  )
-}
-
-function AIAgentFormFields({
-  onHeaderContentChange,
-  projectId,
-  integrations,
-  isLoadingIntegrations,
-  isToolsError,
-  onRetryTools,
-}: {
+type AIAgentFormFieldsProps = Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
-  integrations: IntegrationWithTools[]
-  isLoadingIntegrations: boolean
-  isToolsError: boolean
-  onRetryTools: () => void
-}) {
+}>
+
+function AIAgentFormFields({ onHeaderContentChange, projectId }: AIAgentFormFieldsProps) {
   const isVersionView = useIsVersionView()
   const { register, control, getValues, setValue } = useFormContext<AIAgentFormData>()
   const { errors } = useFormState({ control })
   const fileContext = useContext(FileContext)
   if (!fileContext) throw new Error('AIAgentFormFields must be used within FileContext.Provider')
-  const { completedFiles, setCompletedFiles } = fileContext
+  const { completedFiles, addFiles, removeFile, removeFilesByName, isFilesError } = fileContext
   const [uploadingFiles, setUploadingFiles] = useState<UploadedFile[]>([])
   const { uploadFiles, progress, error } = useFileUploadWithProgress()
   const { isConfigured: isFileStorageConfigured } = useFileStorageStatus()
 
-  const { toolSelection, handleToolSelectionChange } = useToolSelection(control, setValue)
-
-  const uploadedFiles = mergeWithUploadProgress(completedFiles, uploadingFiles, progress, error)
+  // Derive final uploadedFiles by merging completed files with current upload progress
+  const uploadedFiles: UploadedFile[] = [
+    ...completedFiles,
+    ...uploadingFiles.map((f) => {
+      const fileProgress = progress.find((p) => p.fileName === f.file.name)
+      return {
+        ...f,
+        progress: fileProgress?.percentage ?? f.progress,
+        status: error ? ('error' as const) : f.status,
+        errorMessage: error?.message ?? f.errorMessage,
+      }
+    }),
+  ]
 
   const handleFilesSelected = async (files: File[]) => {
     const reUploadNames = new Set(files.map((f) => f.name))
@@ -223,7 +118,7 @@ function AIAgentFormFields({
     }))
 
     // Remove any existing files with same name from completed, add new files to uploading
-    setCompletedFiles((prev) => prev.filter((f) => !reUploadNames.has(f.file.name)))
+    removeFilesByName(reUploadNames)
     setUploadingFiles(newFiles)
 
     try {
@@ -232,19 +127,17 @@ function AIAgentFormFields({
       }
       const response = await uploadFiles(files, projectId)
 
-      // Move files to completed with success status and server-assigned IDs
-      const successFiles = newFiles.map((f) => {
-        const serverFile = response.files?.find(
-          (sf: FileUploadInfo) => sf.filename === f.file.name && sf.size_bytes === f.file.size
-        )
-        return {
-          ...f,
-          id: serverFile?.file_id ?? f.id,
-          progress: 100,
-          status: 'success' as const,
-        }
-      })
-      setCompletedFiles((prev) => [...prev, ...successFiles])
+      // Move files to completed with success status and server-assigned IDs.
+      // Match by index: server returns files in upload order.
+      // Filename matching is unreliable because the backend sanitizes filenames
+      // (e.g. "Pack Pal - My list.pdf" → "PackPal-Mylist.pdf").
+      const successFiles = newFiles.map((f, i) => ({
+        ...f,
+        id: response.files?.[i]?.file_id ?? f.id,
+        progress: 100,
+        status: 'success' as const,
+      }))
+      addFiles(successFiles)
       setUploadingFiles([])
     } catch (err) {
       // Move files to completed with error status
@@ -254,13 +147,13 @@ function AIAgentFormFields({
         status: 'error' as const,
         errorMessage,
       }))
-      setCompletedFiles((prev) => [...prev, ...errorFiles])
+      addFiles(errorFiles)
       setUploadingFiles([])
     }
   }
 
   const handleFileRemove = (fileId: string) => {
-    setCompletedFiles((prev) => prev.filter((f) => f.id !== fileId))
+    removeFile(fileId)
     setUploadingFiles((prev) => prev.filter((f) => f.id !== fileId))
   }
 
@@ -294,8 +187,6 @@ function AIAgentFormFields({
               placeholder="Select LLM credential"
               allowCreate
               isDisabled={isVersionView}
-              isRequired
-              errorMessage={errors.credential_id?.message}
               projectId={projectId}
               helpText={credentialHelpText(
                 'Select a stored credential for the LLM provider. Credentials securely store API keys and authentication tokens.'
@@ -326,28 +217,22 @@ function AIAgentFormFields({
       </StackItem>
       <StackItem>
         <FormGroup label="Tools" fieldId="agent-tools">
-          <ToolsMultiSelect
-            value={toolSelection}
-            onChange={handleToolSelectionChange}
-            integrations={integrations}
-            isLoading={isLoadingIntegrations}
+          <Controller
+            control={control}
+            name="tool_selection_strategy"
+            render={({ field }) => (
+              <FormSelect
+                id="agent-tools"
+                aria-label="Tools"
+                value={field.value}
+                onChange={(_event, value) => field.onChange(value)}
+                isDisabled
+              >
+                <FormSelectOption value="ALL" label="All tools selected" />
+              </FormSelect>
+            )}
           />
-          {isToolsError && <ToolsLoadError onRetry={onRetryTools} />}
         </FormGroup>
-      </StackItem>
-      <StackItem>
-        <Controller
-          control={control}
-          name="integration_connections"
-          render={({ field }) => (
-            <ConnectionsSection
-              integrations={integrations}
-              toolSelection={toolSelection}
-              integrationConnections={field.value}
-              onConnectionChange={field.onChange}
-            />
-          )}
-        />
       </StackItem>
       <StackItem>
         <FormGroup label="Response schema" fieldId="agent-response-schema">
@@ -374,6 +259,16 @@ function AIAgentFormFields({
           <FieldError message={errors.responseSchema?.message} />
         </FormGroup>
       </StackItem>
+      {isFilesError && (
+        <StackItem>
+          <Alert
+            variant="warning"
+            isInline
+            isPlain
+            title="Previously attached files could not be loaded. They will be removed if you save."
+          />
+        </StackItem>
+      )}
       <StackItem>
         <FormGroup label="Context file upload" fieldId="agent-context">
           <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
@@ -401,42 +296,44 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
   const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
   const defaultModel = envModel || 'anthropic/claude-haiku-4.5'
 
-  // Track only newly uploaded files (existing files handled by parent)
-  const [completedFiles, setCompletedFiles] = useState<UploadedFile[]>([])
+  const { data: hydratedFiles, isError: isFilesError } = useFilesMetadata(props.existingFileIds)
+  const [userFiles, setUserFiles] = useState<UploadedFile[]>([])
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
 
-  const {
-    data: toolsData,
-    isPending: isLoadingTools,
-    isError: isToolsError,
-    refetch: refetchTools,
-  } = toolManagerClient.useQuery('get', '/tool_manager/tools')
+  const completedFiles = useMemo(() => {
+    const userIds = new Set(userFiles.map((f) => f.id))
+    const visibleHydrated = hydratedFiles.filter((f) => !removedIds.has(f.id) && !userIds.has(f.id))
+    return [...visibleHydrated, ...userFiles]
+  }, [hydratedFiles, userFiles, removedIds])
 
-  const {
-    data: integrationsData,
-    isError: isIntegrationsError,
-    refetch: refetchIntegrations,
-  } = integrationsClient.useQuery('get', '/integrations', {
-    params: { query: { integration_type: IntegrationTypeEnum.MCP_SERVER, enabled: true } },
-  })
+  const addFiles = useCallback((files: UploadedFile[]) => {
+    setUserFiles((prev) => [...prev, ...files])
+  }, [])
 
-  const isLoadingIntegrations = isLoadingTools
-  const isAnyToolsError = isToolsError || isIntegrationsError
-  const handleRetryTools = () => {
-    detachPromise(refetchTools())
-    detachPromise(refetchIntegrations())
-  }
+  const removeFile = useCallback((fileId: string) => {
+    setUserFiles((prev) => prev.filter((f) => f.id !== fileId))
+    setRemovedIds((prev) => new Set(prev).add(fileId))
+  }, [])
 
-  const integrations = useMemo<IntegrationWithTools[]>(
-    () =>
-      groupToolsByIntegration((toolsData?.resources ?? []) as ToolWithParameters[], integrationsData?.resources ?? []),
-    [toolsData, integrationsData]
+  const removeFilesByName = useCallback(
+    (names: Set<string>) => {
+      setUserFiles((prev) => prev.filter((f) => !names.has(f.file.name)))
+      setRemovedIds((prev) => {
+        const next = new Set(prev)
+        for (const f of hydratedFiles) {
+          if (names.has(f.file.name)) next.add(f.id)
+        }
+        return next
+      })
+    },
+    [hydratedFiles]
   )
 
   const defaultValues: AIAgentFormData = {
     name: '',
     model: defaultModel,
     prompt: '',
-    tool_selection_strategy: 'NONE',
+    tool_selection_strategy: 'ALL',
     tool_selections: [],
     integration_connections: [],
     credential_id: '',
@@ -461,20 +358,22 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
     reValidateMode: 'onChange',
   })
 
-  const fileContextValue = useMemo(() => ({ completedFiles, setCompletedFiles }), [completedFiles, setCompletedFiles])
+  const fileContextValue = useMemo(
+    () => ({
+      completedFiles,
+      addFiles,
+      removeFile,
+      removeFilesByName,
+      isFilesError: isFilesError && !!props.existingFileIds?.length,
+    }),
+    [completedFiles, addFiles, removeFile, removeFilesByName, isFilesError, props.existingFileIds]
+  )
 
   return (
     <FileContext.Provider value={fileContextValue}>
       <FormProvider {...methods}>
         <NodeFormContainer formId="ai-agent-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-          <AIAgentFormFields
-            onHeaderContentChange={props.onHeaderContentChange}
-            projectId={props.projectId}
-            integrations={integrations}
-            isLoadingIntegrations={isLoadingIntegrations}
-            isToolsError={isAnyToolsError}
-            onRetryTools={handleRetryTools}
-          />
+          <AIAgentFormFields onHeaderContentChange={props.onHeaderContentChange} projectId={props.projectId} />
         </NodeFormContainer>
       </FormProvider>
     </FileContext.Provider>

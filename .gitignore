@@ -68,6 +68,9 @@ frontend/.eslintcache
 # Shared
 # ==============================================================================
 
+# File upload storage (container bind mount)
+data/uploads/
+
 # Environment variables
 .env
 .env.local

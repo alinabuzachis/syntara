@@ -7311,6 +7311,124 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
+  /files/metadata:
+    get:
+      summary: Get Files Metadata (Batch)
+      description: Retrieve metadata for one or more files by their IDs. Returns file information (filename, size, MIME type, status) without file content.
+      operationId: get_files_metadata
+      tags:
+        - Files
+      parameters:
+        - name: file_ids
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+            minItems: 1
+            maxItems: 10
+            title: File IDs
+          description: List of file IDs to retrieve metadata for
+      x-app-permission:
+        resource: files
+        action: download
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilesMetadataResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
   /files/{file_id}/download:
     get:
       summary: Download File
@@ -26481,6 +26599,19 @@ components:
         status:
           $ref: '#/components/schemas/FileStatus'
           description: Processing status (pending_conversion)
+    FilesMetadataResponse:
+      type: object
+      title: FilesMetadataResponse
+      description: Response model for GET /files/metadata endpoint.
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileUploadInfo'
+          title: Files
+          description: Metadata for each found file (missing IDs are silently omitted)
     FileStatus:
       type: string
       enum:

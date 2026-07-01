@@ -16,6 +16,7 @@ from fastapi import (
     Depends,
     Form,
     HTTPException,
+    Query,
     UploadFile,
     status,
 )
@@ -25,7 +26,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
+from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
@@ -223,6 +225,53 @@ _files_perm_download = PermissionChecker(
     resource_model=FileMetadata,
     resource_id_param="file_id",
 )
+
+
+class FilesMetadataResponse(BaseModel):
+    """Response model for GET /files/metadata endpoint."""
+
+    files: list[FileUploadInfo] = Field(
+        description="Metadata for each found file (missing IDs are silently omitted)",
+    )
+
+
+_files_visibility = VisibilityFilter("files", "download")
+
+
+@router.get(
+    "/metadata",
+    summary="Get Files Metadata (Batch)",
+    description="Retrieve metadata for one or more files by their IDs. "
+    "Returns file information (filename, size, MIME type, status) without file content.",
+    operation_id="get_files_metadata",
+)
+async def get_files_metadata(
+    file_ids: Annotated[
+        list[UUID],
+        Query(min_length=1, max_length=10, title="File IDs", description="List of file IDs to retrieve metadata for"),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    file_manager: Annotated[FileManager, Depends(get_file_manager)],
+    visibility: Annotated[VisibilityResult, Depends(_files_visibility)],
+) -> FilesMetadataResponse:
+    """Retrieve metadata for multiple files by their IDs."""
+    metadata_list = await file_manager.get_files_metadata(
+        file_ids,
+        db,
+        allowed_projects=visibility.to_allowed_projects(),
+    )
+    return FilesMetadataResponse(
+        files=[
+            FileUploadInfo(
+                file_id=m.id,
+                filename=m.filename,
+                size_bytes=m.size_bytes,
+                mime_type=m.mime_type,
+                status=m.status,
+            )
+            for m in metadata_list
+        ],
+    )
 
 
 @router.get(

@@ -67,13 +67,10 @@ export function AIAgentNodeDetails({
     settings: taskData.settings,
   }
 
+  const existingFileIds = agentConfig.file_ids ?? agentConfig.fileIds ?? []
+
   const handleSubmit = (data: AIAgentFormSubmitData) => {
     try {
-      // Merge existing file IDs with newly uploaded ones (Set removes any duplicates)
-      const existingFileIds = agentConfig.file_ids ?? agentConfig.fileIds ?? []
-      const allFileIds = [...new Set([...existingFileIds, ...data.fileIds])]
-
-      // Create updated agentic activity with merged file IDs and response schema
       const updatedActivity = createAgenticActivity({
         id: nodeId,
         name: data.name,
@@ -82,7 +79,7 @@ export function AIAgentNodeDetails({
         integrationConnections: data.integration_connections.length > 0 ? data.integration_connections : undefined,
         prompt: data.prompt ?? undefined,
         model: data.model ?? undefined,
-        fileIds: allFileIds.length > 0 ? allFileIds : undefined,
+        fileIds: data.fileIds.length > 0 ? data.fileIds : undefined,
         credentialId: data.credential_id ?? undefined,
         responseSchema: data.parsedResponseSchema,
       })
@@ -100,6 +97,7 @@ export function AIAgentNodeDetails({
   return (
     <AIAgentNodeForm
       initialData={initialData}
+      existingFileIds={existingFileIds}
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
       projectId={projectId}

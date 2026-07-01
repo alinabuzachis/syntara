@@ -59,6 +59,7 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
     onSubmit,
     onCancel,
     initialData,
+    existingFileIds,
     submitButtonText,
   }: {
     onSubmit: (data: Record<string, unknown>) => void
@@ -72,6 +73,7 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
       credential_id?: string
       responseSchema?: string
     }
+    existingFileIds?: string[]
     submitButtonText?: string
   }) => (
     <div data-testid="ai-agent-form">
@@ -92,7 +94,7 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
             prompt: 'Updated prompt',
             tool_selections: ['calculator', 'web_search'],
             integration_connections: [],
-            fileIds: [],
+            fileIds: existingFileIds ?? [],
           })
         }
         data-testid="submit-button"

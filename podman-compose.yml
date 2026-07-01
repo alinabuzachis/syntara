@@ -111,7 +111,7 @@ services:
       dockerfile: containers/nexus/Containerfile
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, 'uv run alembic upgrade head && uv run python -m nexus.seed --all && uv run python -m nexus.api.main']
+    command: [sh, -c, 'chmod -R g+rwX /data/file-uploads /data/audit-exports 2>/dev/null; uv run alembic upgrade head && uv run python -m nexus.seed --all && uv run python -m nexus.api.main']
     ports:
       - ${APP_API_PORT:-8000}:8000
     environment:
@@ -213,7 +213,7 @@ services:
       - APP_AAP_TOKEN=${APP_AAP_TOKEN}
       - APP_AAP_TIMEOUT_SECONDS=${APP_AAP_TIMEOUT_SECONDS:-3600}
       - APP_AAP_POLL_INTERVAL_SECONDS=${APP_AAP_POLL_INTERVAL_SECONDS:-5.0}
-      - APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS=${APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS:-}
+      - APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS=${APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS:-[]}
       - APP_AAP_VERIFY_SSL=${APP_AAP_VERIFY_SSL:-true}
       - APP_SEGMENT_WRITE_KEY=${APP_SEGMENT_WRITE_KEY}
       - APP_SEGMENT_ENDPOINT=${APP_SEGMENT_ENDPOINT:-http://mock-segment:9999}

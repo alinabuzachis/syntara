@@ -88,6 +88,55 @@ paths:
       security:
         - bearerAuth: []
 
+  /files/metadata:
+    get:
+      summary: Get Files Metadata (Batch)
+      description: >-
+        Retrieve metadata for one or more files by their IDs. Returns file
+        information (filename, size, MIME type, status) without file content.
+      operationId: get_files_metadata
+      tags:
+        - Files
+      parameters:
+        - name: file_ids
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+            minItems: 1
+            maxItems: 10
+            title: File IDs
+          description: List of file IDs to retrieve metadata for
+      x-app-permission:
+        resource: files
+        action: download
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilesMetadataResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
   /files/{file_id}/download:
     get:
       summary: Download File
@@ -224,6 +273,20 @@ components:
         status:
           $ref: '#/components/schemas/FileStatus'
           description: Processing status (pending_conversion)
+
+    FilesMetadataResponse:
+      type: object
+      title: FilesMetadataResponse
+      description: Response model for GET /files/metadata endpoint.
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileUploadInfo'
+          title: Files
+          description: Metadata for each found file (missing IDs are silently omitted)
 
     FileStatus:
       type: string

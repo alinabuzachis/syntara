@@ -5,6 +5,7 @@ import type {
   AuthAPI,
   CredentialsAPI,
   ExecutionsAPI,
+  FilesAPI,
   IdentityProvidersAPI,
   IntegrationsAPI,
   SettingsAPI,
@@ -154,3 +155,6 @@ export const aapClient = createClient(aapFetchClient)
 const adminFetchClient = createFetchClient<AdminAPI.paths>({ baseUrl: '/api/v1/' })
 adminFetchClient.use(authMiddleware)
 export const adminClient = createClient(adminFetchClient)
+
+export const filesFetchClient = createFetchClient<FilesAPI.paths>({ baseUrl: '/api/v1/' })
+filesFetchClient.use(authMiddleware)

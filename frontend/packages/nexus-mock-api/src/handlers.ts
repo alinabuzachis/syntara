@@ -2765,6 +2765,19 @@ export const handlers = [
     })
   }),
 
+  http.get('/api/v1/files/metadata', ({ request }) => {
+    const url = new URL(request.url)
+    const fileIds = url.searchParams.getAll('file_ids')
+    const files = fileIds.map((id) => ({
+      file_id: id,
+      filename: `mock-file-${id.slice(0, 8)}.txt`,
+      size_bytes: 1024,
+      mime_type: 'text/plain',
+      status: 'pending_conversion',
+    }))
+    return HttpResponse.json({ files })
+  }),
+
   // Settings endpoints
   http.get('/api/v1/settings/categories', () => {
     return HttpResponse.json({ resources: settingsCategories })

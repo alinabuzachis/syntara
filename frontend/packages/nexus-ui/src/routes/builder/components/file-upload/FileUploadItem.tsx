@@ -4,6 +4,7 @@ import { RhUiDocumentFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 export type FileUploadItemProps = {
   file: File
   fileId: string
+  fileSize?: number
   status?: 'pending' | 'uploading' | 'success' | 'error'
   progress?: number
   errorMessage?: string
@@ -26,6 +27,7 @@ function getFileExtension(filename: string): string {
 
 export function FileUploadItem({
   file,
+  fileSize,
   status = 'pending',
   progress,
   errorMessage,
@@ -82,7 +84,7 @@ export function FileUploadItem({
             {displayName}
           </Content>
           <Content component={ContentVariants.small} style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
-            {fileExtension} | {formatFileSize(file.size)}
+            {fileExtension} | {formatFileSize(fileSize ?? file.size)}
             {isError && errorMessage && ` - ${errorMessage}`}
           </Content>
         </FlexItem>

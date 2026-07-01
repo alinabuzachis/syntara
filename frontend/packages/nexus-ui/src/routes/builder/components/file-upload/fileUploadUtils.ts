@@ -1,6 +1,7 @@
 export type UploadedFile = {
   id: string
   file: File
+  fileSize?: number
   progress: number
   status: 'pending' | 'uploading' | 'success' | 'error'
   errorMessage?: string

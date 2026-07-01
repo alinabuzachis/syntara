@@ -19,6 +19,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.config.base import get_settings
 from nexus.core.exceptions import SafeValueError
 from nexus.files import storage, validators
@@ -353,12 +354,17 @@ class FileManager:
         self,
         file_ids: list[UUID],
         session: AsyncSession,
+        *,
+        allowed_projects: AllowedProjectsResult | None = None,
     ) -> list[FileMetadata]:
         """Get multiple FileMetadata records by file_ids.
 
         Args:
             file_ids: List of file UUIDs to retrieve
             session: Database session
+            allowed_projects: Project-scoped access filter; when provided and not
+                all_projects, only files belonging to the user's accessible projects
+                are returned.
 
         Returns:
             List of FileMetadata records (may be fewer than requested if some not found)
@@ -367,9 +373,17 @@ class FileManager:
         if not file_ids:
             return []
 
-        # Query all matching records
+        if allowed_projects is not None and not allowed_projects.all_projects and not allowed_projects.project_ids:
+            return []
+
         # FileMetadata.id is inherited from BaseResource, so type checker doesn't see in_() method
         statement = select(FileMetadata).where(FileMetadata.id.in_(file_ids))  # type: ignore[attr-defined]
+
+        if allowed_projects is not None and not allowed_projects.all_projects:
+            statement = statement.where(
+                FileMetadata.project_id.in_(allowed_projects.project_ids),  # type: ignore[attr-defined]
+            )
+
         result = await session.exec(statement)
         return list(result.all())
 

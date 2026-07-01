@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
+import { credentialsClient } from '../../../client'
 import { useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { useAllProjects } from '../../access/useAllProjects'
@@ -118,28 +118,6 @@ describe('AIAgentNodeForm', () => {
       mutate: vi.fn(),
       isPending: false,
     } as never)
-    vi.mocked(integrationsClient.useQuery).mockReturnValue({
-      data: {
-        resources: [
-          {
-            id: 'int-1',
-            name: 'Primary MCP Server',
-            integration_type: 'mcp_server',
-            configuration: {
-              integration_type: 'mcp_server',
-              base_url: 'https://mcp.example.com',
-              discovered_tools: [
-                { name: 'list_resources', description: 'List resources' },
-                { name: 'get_resource', description: 'Get resource' },
-              ],
-            },
-          },
-        ],
-      },
-      isPending: false,
-      isError: false,
-      refetch: vi.fn(),
-    } as never)
     vi.mocked(useAllProjects).mockReturnValue({ projects: [], isLoading: false, error: null, refetch: vi.fn() })
     vi.mocked(useFileStorageStatus).mockReturnValue({ isConfigured: true, isLoading: false, isError: false })
     vi.mocked(useFileUploadWithProgress).mockReturnValue({
@@ -160,7 +138,7 @@ describe('AIAgentNodeForm', () => {
 
     expect(screen.getByLabelText('Name')).toBeInTheDocument()
     expect(screen.getByLabelText(/Prompt/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Select tools')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tools')).toBeInTheDocument()
   })
 
   it('validates required prompt field', async () => {
@@ -191,7 +169,7 @@ describe('AIAgentNodeForm', () => {
 
     expect(screen.getByDisplayValue('Existing Agent')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Analyze the data')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('No tools selected')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tools')).toBeDisabled()
   })
 
   it('passes projectId to CredentialSelector', () => {
@@ -207,42 +185,12 @@ describe('AIAgentNodeForm', () => {
     expect(hasProjectIdCall).toBe(true)
   })
 
-  it('renders tools multi-select with no tools selected by default', () => {
+  it('renders tools select as disabled with all tools selected', () => {
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
-    expect(screen.getByPlaceholderText('Select tools')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('No tools selected')).toBeInTheDocument()
-  })
-
-  it('excludes disabled tools from the tools dropdown', async () => {
-    const user = userEvent.setup()
-    vi.mocked(integrationsClient.useQuery).mockReturnValue({
-      data: {
-        resources: [{ id: 'int-1', name: 'My MCP Server', integration_type: 'mcp_server', configuration: {} }],
-      },
-      isPending: false,
-      isError: false,
-      refetch: vi.fn(),
-    } as never)
-    vi.mocked(toolManagerClient.useQuery).mockReturnValue({
-      data: {
-        resources: [
-          { id: 't1', namespaced_name: 'My MCP Server::enabled_tool', enabled: true, integration_id: 'int-1' },
-          { id: 't2', namespaced_name: 'My MCP Server::disabled_tool', enabled: false, integration_id: 'int-1' },
-          { id: 't3', namespaced_name: 'My MCP Server::also_enabled', integration_id: 'int-1' },
-        ],
-      },
-      isPending: false,
-      isError: false,
-      refetch: vi.fn(),
-    } as never)
-
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
-    await user.click(screen.getByRole('button', { name: 'Tools' }))
-
-    expect(screen.getByText('enabled_tool')).toBeInTheDocument()
-    expect(screen.getByText('also_enabled')).toBeInTheDocument()
-    expect(screen.queryByText('disabled_tool')).not.toBeInTheDocument()
+    const toolsSelect = screen.getByLabelText('Tools')
+    expect(toolsSelect).toBeInTheDocument()
+    expect(toolsSelect).toBeDisabled()
   })
 
   it('renders file upload component', () => {

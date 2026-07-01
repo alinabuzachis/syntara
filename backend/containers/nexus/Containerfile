@@ -69,6 +69,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /opt/app-root/src
 
+# Create data directories for file uploads and audit exports
+RUN mkdir -p /data/file-uploads /data/audit-exports && \
+    chown -R 1001:0 /data/file-uploads /data/audit-exports && \
+    chmod -R g=u /data/file-uploads /data/audit-exports
+
 # Fix permissions for OpenShift/UBI (runs as arbitrary UID)
 RUN chown -R 1001:0 /opt/app-root && \
     chmod -R g=u /opt/app-root

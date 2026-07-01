@@ -1,24 +1,23 @@
-"""Unit tests for Files API endpoint (POST /api/v1/files).
-
-These tests validate the standalone file upload API that creates FileMetadata
-records in the database for later use in agent invocations.
+"""Integration tests for Files API endpoints.
 
 Tests cover:
-- Single and multiple file uploads
-- File validation (size, type, count)
-- FileMetadata creation in database
-- Response schema validation
+- POST /api/v1/files — file uploads
+- GET /api/v1/files/metadata — batch file metadata retrieval
 - Document conversion scheduling and execution
 """
 
-from collections.abc import AsyncGenerator
-from uuid import UUID
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.api.main import app
+from nexus.auth.dependencies import get_current_user
+from nexus.authz.models import Project
+from nexus.core.models import User
 from nexus.files.document_conversion.tasks import get_document_conversion_task
 from nexus.files.models import FileMetadata, FileStatus
 
@@ -160,8 +159,6 @@ class TestFilesAPIUpload:
         assert response.status_code == 201
         response_data = response.json()
         file_id = response_data["file_ids"][0]
-
-        from sqlmodel import select
 
         result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
         file_record = result.one_or_none()
@@ -339,3 +336,224 @@ startxref
             updated_record = result.one()
             assert updated_record.status == FileStatus.CONVERTED
             assert updated_record.converted_content_path is not None
+
+
+async def _create_file_metadata(
+    session: AsyncSession,
+    *,
+    project_id: str,
+    filename: str = "test.txt",
+    size_bytes: int = 100,
+    mime_type: str = "text/plain",
+    file_status: FileStatus = FileStatus.PENDING_CONVERSION,
+) -> FileMetadata:
+    """Insert a FileMetadata record directly for testing (bypasses upload API)."""
+    fm = FileMetadata(
+        filename=filename,
+        size_bytes=size_bytes,
+        mime_type=mime_type,
+        file_path=f"/opt/app-root/uploads/nexus-{uuid4()}-{filename}",
+        status=file_status,
+        project_id=UUID(project_id),
+    )
+    session.add(fm)
+    await session.commit()
+    await session.refresh(fm)
+    return fm
+
+
+_METADATA_URL = "/api/v1/files/metadata"
+
+
+class TestFilesAPIMetadata:
+    """Test GET /api/v1/files/metadata endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_metadata_single_file_returns_correct_info(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        test_project_id: str,
+    ) -> None:
+        """Test that requesting metadata for a single file returns correct fields."""
+        fm = await _create_file_metadata(
+            test_db_session,
+            project_id=test_project_id,
+            filename="report.pdf",
+            size_bytes=2048,
+            mime_type="application/pdf",
+        )
+
+        response = await auth_client.get(
+            _METADATA_URL,
+            params=[("file_ids", str(fm.id))],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["files"]) == 1
+
+        file_info = data["files"][0]
+        assert file_info["file_id"] == str(fm.id)
+        assert file_info["filename"] == "report.pdf"
+        assert file_info["size_bytes"] == 2048
+        assert file_info["mime_type"] == "application/pdf"
+        assert file_info["status"] == "pending_conversion"
+
+    @pytest.mark.asyncio
+    async def test_metadata_nonexistent_ids_returns_empty_files(
+        self,
+        auth_client: AsyncClient,
+    ) -> None:
+        """Test that non-existent file IDs return an empty files array (not 404)."""
+        response = await auth_client.get(
+            _METADATA_URL,
+            params=[("file_ids", str(uuid4()))],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["files"] == []
+
+    @pytest.mark.asyncio
+    async def test_metadata_mixed_existing_and_nonexistent_ids(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        test_project_id: str,
+    ) -> None:
+        """Test that a mix of real and fake IDs returns only the existing files."""
+        fm1 = await _create_file_metadata(test_db_session, project_id=test_project_id, filename="exists1.txt")
+        fm2 = await _create_file_metadata(test_db_session, project_id=test_project_id, filename="exists2.txt")
+
+        response = await auth_client.get(
+            _METADATA_URL,
+            params=[("file_ids", str(fm1.id)), ("file_ids", str(fm2.id)), ("file_ids", str(uuid4()))],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["files"]) == 2
+        returned_ids = {f["file_id"] for f in data["files"]}
+        assert returned_ids == {str(fm1.id), str(fm2.id)}
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(
+        self,
+        auth_client: AsyncClient,
+    ) -> None:
+        """Test that missing file_ids query parameter is rejected with 422."""
+        response = await auth_client.get(_METADATA_URL)
+
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_metadata_exceeding_max_ids_returns_422(
+        self,
+        auth_client: AsyncClient,
+    ) -> None:
+        """Test that exceeding the 10-ID limit is rejected with 422."""
+        response = await auth_client.get(
+            _METADATA_URL,
+            params=[("file_ids", str(uuid4())) for _ in range(11)],
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_metadata_unauthenticated_returns_401(
+        self,
+        base_client: AsyncClient,
+    ) -> None:
+        """Test that unauthenticated requests are rejected with 401."""
+        response = await base_client.get(
+            _METADATA_URL,
+            params=[("file_ids", str(uuid4()))],
+        )
+
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_metadata_no_role_returns_empty(
+        self,
+        base_client: AsyncClient,
+        user_factory: Callable[..., Awaitable[User]],
+    ) -> None:
+        """Test that an authenticated user without any role gets an empty result."""
+        limited_user = await user_factory(username="metadata-auth-only", email="metadata-auth-only@example.com")
+
+        async def override() -> User:
+            return limited_user
+
+        app.dependency_overrides[get_current_user] = override
+
+        response = await base_client.get(
+            _METADATA_URL,
+            params=[("file_ids", str(uuid4()))],
+        )
+
+        assert response.status_code == 200
+        assert response.json()["files"] == []
+
+    @pytest.mark.asyncio
+    async def test_metadata_cross_project_isolation(
+        self,
+        base_client: AsyncClient,
+        test_db_session: AsyncSession,
+        test_project_id: str,
+        user_factory: Callable[..., Awaitable[User]],
+    ) -> None:
+        """Test that a user cannot access file metadata from another project.
+
+        Creates a file in project A, then authenticates as a user who only
+        has access to project B. The file from project A should not be returned.
+        """
+        from tests.integration.api.conftest import make_project_user
+
+        fm = await _create_file_metadata(test_db_session, project_id=test_project_id, filename="secret.txt")
+
+        other_project = Project(
+            name=f"other-project-{uuid4().hex[:8]}",
+            description="Another project",
+        )
+        test_db_session.add(other_project)
+        await test_db_session.commit()
+        await test_db_session.refresh(other_project)
+
+        scoped_user = await user_factory(username="scoped-user", email="scoped@example.com")
+        await make_project_user(test_db_session, scoped_user, other_project)
+
+        async def override() -> User:
+            return scoped_user
+
+        app.dependency_overrides[get_current_user] = override
+
+        response = await base_client.get(
+            _METADATA_URL,
+            params=[("file_ids", str(fm.id))],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["files"] == [], "User with access only to project B should not see files from project A"
+
+    @pytest.mark.asyncio
+    async def test_metadata_does_not_expose_internal_paths(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        test_project_id: str,
+    ) -> None:
+        """Test that internal storage paths are never leaked in the API response."""
+        fm = await _create_file_metadata(test_db_session, project_id=test_project_id, filename="paths.txt")
+
+        response = await auth_client.get(
+            _METADATA_URL,
+            params=[("file_ids", str(fm.id))],
+        )
+
+        assert response.status_code == 200
+        raw = response.text
+        assert "file_path" not in raw
+        assert "converted_content_path" not in raw
+        assert "/opt/app-root/uploads/nexus-" not in raw

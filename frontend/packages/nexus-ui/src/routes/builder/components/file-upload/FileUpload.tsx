@@ -164,6 +164,7 @@ export function FileUpload({
               key={uploadedFile.id}
               file={uploadedFile.file}
               fileId={uploadedFile.id}
+              fileSize={uploadedFile.fileSize}
               status={uploadedFile.status}
               progress={uploadedFile.progress}
               errorMessage={uploadedFile.errorMessage}
