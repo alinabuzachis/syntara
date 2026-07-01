@@ -432,6 +432,7 @@ async def token(
     access_token = token_service.create_access_token(
         subject_id=sa.id,
         username=sa.name,
+        token_version=sa.token_version,
         principal_type=PrincipalType.SERVICE_ACCOUNT,
     )
 
@@ -848,10 +849,9 @@ async def logout(
         store = create_session_store(db)
         session_metadata = await store.get(payload.jti)
 
-        # Increment token version first to invalidate access tokens before revoking the session.
-        # Both operations share the same AsyncSession and commit atomically via get_db().
         await store.increment_token_version(UUID(payload.sub))
         revoked = await store.revoke(payload.jti)
+        await db.commit()
 
         if revoked:
             logger.info(

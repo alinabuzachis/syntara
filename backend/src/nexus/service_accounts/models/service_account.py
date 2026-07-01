@@ -9,7 +9,7 @@ from enum import StrEnum
 from typing import ClassVar
 from uuid import UUID, uuid4
 
-from sqlalchemy import Index, String
+from sqlalchemy import Index, String, text
 from sqlmodel import CheckConstraint, DateTime, Field
 
 from nexus.core.models.base.base_resource import AuditLevel
@@ -51,6 +51,12 @@ class ServiceAccount(NamedResource, SoftDeletableResource, UserOwnedResource, ta
         foreign_key="projects.id",
         description="Project namespace for resource isolation",
         index=True,
+    )
+
+    token_version: int = Field(
+        default=0,
+        sa_column_kwargs={"server_default": text("0")},
+        description="Incremented on disable/delete to invalidate issued tokens",
     )
 
     last_authenticated_at: datetime | None = Field(
@@ -97,6 +103,7 @@ class ServiceAccount(NamedResource, SoftDeletableResource, UserOwnedResource, ta
         "description",
         "status",
         "project_id",
+        "token_version",
         "last_authenticated_at",
         "created_by",
         "updated_by",

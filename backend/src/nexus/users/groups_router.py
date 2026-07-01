@@ -198,6 +198,7 @@ async def add_member(
     await service.add_member(group_id, request.user_id)
     store = create_session_store(db)
     await store.increment_token_version(request.user_id)
+    await db.commit()
     return GroupMemberAddResponse()
 
 
@@ -219,6 +220,7 @@ async def remove_member(
     await service.remove_member(group_id, user_id)
     store = create_session_store(db)
     await store.increment_token_version(user_id)
+    await db.commit()
 
 
 @router.get(

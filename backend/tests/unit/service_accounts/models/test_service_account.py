@@ -45,6 +45,7 @@ class TestServiceAccountModel:
             "description",
             "status",
             "project_id",
+            "token_version",
             "last_authenticated_at",
             "created_by",
             "updated_by",

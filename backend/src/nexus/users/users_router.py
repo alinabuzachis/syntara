@@ -234,6 +234,7 @@ async def update_user(
     # Signal that the user's token claims are stale so the frontend
     # triggers a background refresh on the next API response.
     await store.increment_token_version(user_id)
+    await db.commit()
 
     return await service.to_read(user)
 
@@ -259,6 +260,7 @@ async def delete_user(
     # Signal stale token so the deleted user's next request triggers a
     # refresh attempt, which will fail with 401 (user not found).
     await store.increment_token_version(user_id)
+    await db.commit()
 
 
 @router.get(

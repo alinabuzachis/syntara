@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from uuid import UUID
 
 import structlog
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -174,8 +175,14 @@ class ServiceAccountService(BaseService):
 
         """
         service_account = await self.get_service_account(service_account_id)
-        service_account.soft_delete(self.user.id)
 
+        await self.session.exec(
+            update(ServiceAccount)
+            .where(ServiceAccount.id == service_account_id)  # type: ignore[arg-type]
+            .values(token_version=ServiceAccount.token_version + 1)
+        )
+
+        service_account.soft_delete(self.user.id)
         self.session.add(service_account)
         await self.session.flush()
         await self.session.commit()
@@ -190,9 +197,15 @@ class ServiceAccountService(BaseService):
 
         """
         service_account = await self.get_service_account(service_account_id)
+
+        await self.session.exec(
+            update(ServiceAccount)
+            .where(ServiceAccount.id == service_account_id)  # type: ignore[arg-type]
+            .values(token_version=ServiceAccount.token_version + 1)
+        )
+
         service_account.status = ServiceAccountStatus.DISABLED
         service_account.update_by_user(self.user.id)
-
         self.session.add(service_account)
         await self.session.flush()
         await self.session.commit()

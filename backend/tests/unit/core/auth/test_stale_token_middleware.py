@@ -18,7 +18,7 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from nexus.auth.exceptions import InvalidTokenError
-from nexus.auth.middleware import StaleTokenMiddleware, _user_status_cache
+from nexus.auth.middleware import StaleTokenMiddleware, _sa_status_cache, _user_status_cache
 from nexus.auth.services.token_service import TokenPayload
 
 
@@ -412,3 +412,137 @@ class TestStaleTokenMiddleware:
 
         assert response.status_code == 401
         assert response.json()["code"] == "TOKEN_STALE"
+
+
+def _make_sa_payload(sub: str = "sa-456", token_version: int = 0) -> TokenPayload:
+    """Create a service account TokenPayload for testing."""
+    now = datetime.now(UTC)
+    return TokenPayload(
+        sub=sub,
+        iss="nexus",
+        iat=now,
+        exp=now,
+        token_type="service_account",  # noqa: S106
+        token_version=token_version,
+    )
+
+
+def _mock_sa_async_session(
+    sa_status: str = "active",
+    *,
+    is_alive: bool = True,
+    token_version: int = 0,
+    not_found: bool = False,
+) -> AsyncMock:
+    """Create a mock AsyncSessionLocal that returns SA status rows."""
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    if not_found:
+        mock_result.one_or_none.return_value = None
+    else:
+        mock_result.one_or_none.return_value = (sa_status, is_alive, token_version)
+    mock_session.exec.return_value = mock_result
+
+    mock_ctx = AsyncMock()
+    mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_ctx.__aexit__ = AsyncMock(return_value=False)
+    return mock_ctx
+
+
+class TestStaleTokenMiddlewareSA:
+    """Tests for StaleTokenMiddleware service account handling."""
+
+    def setup_method(self) -> None:
+        """Clear caches between tests."""
+        _sa_status_cache.clear()
+        _user_status_cache.clear()
+
+    def ***REMOVED***(self) -> None:
+        """Active SA with matching token_ver passes through."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="active", token_version=1)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 200
+
+    def test_disabled_sa_returns_401(self) -> None:
+        """Disabled SA returns 401 SA_DISABLED."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=0)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="disabled", token_version=0)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "SA_DISABLED"
+
+    def test_deleted_sa_returns_401(self) -> None:
+        """Deleted SA (is_alive=False) returns 401 SA_DISABLED."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=0)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="active", is_alive=False, token_version=0)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "SA_DISABLED"
+
+    def test_stale_sa_token_returns_401(self) -> None:
+        """SA token with token_ver < DB version returns 401 SA_TOKEN_REVOKED."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="active", token_version=3)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "SA_TOKEN_REVOKED"
+        assert response.json()["retryable"] is False
+
+    def test_sa_not_found_returns_401(self) -> None:
+        """SA not found in DB returns 401 SA_DISABLED."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-nonexistent", token_version=0)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(not_found=True)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "SA_DISABLED"

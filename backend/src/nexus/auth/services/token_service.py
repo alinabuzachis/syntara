@@ -483,6 +483,7 @@ class TokenService:
                 "token_type": "service_account",
                 "preferred_username": username,
                 "groups": [],
+                "token_ver": token_version,
             }
         else:
             if amr is None:

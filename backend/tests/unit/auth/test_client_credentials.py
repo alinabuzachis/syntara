@@ -206,6 +206,7 @@ class TestTokenEndpoint:
         mock_ts.return_value.create_access_token.assert_called_once_with(
             subject_id=sa.id,
             username=sa.name,
+            token_version=sa.token_version,
             principal_type=PrincipalType.SERVICE_ACCOUNT,
         )
 
@@ -627,7 +628,7 @@ class TestTokenServiceExtension:
         assert "email" not in payload
         assert "amr" not in payload
         assert "idp" not in payload
-        assert "token_ver" not in payload
+        assert payload["token_ver"] == 0
 
     def test_user_token_unchanged(self, token_service: TokenService) -> None:
         """User tokens are not affected by the service_account extension."""

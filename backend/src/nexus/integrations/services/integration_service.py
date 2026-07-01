@@ -209,6 +209,8 @@ class IntegrationService(BaseService):
             integration.last_refreshed_at = datetime.now(UTC)
             await self.session.flush()
 
+        await self.session.commit()
+
         result = await self._to_read_with_counts(integration)
         AuditEventDispatcher.dispatch(
             IntegrationCreateEvent(
@@ -734,6 +736,7 @@ class IntegrationService(BaseService):
         await self.session.exec(stmt)
 
         await self.session.flush()
+        await self.session.commit()
 
         AuditEventDispatcher.dispatch(
             IntegrationDeleteEvent(
