@@ -152,6 +152,66 @@ describe('ImportWorkflowDialog', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it.each([
+    { case: 'undefined (key absent)', description: undefined },
+    { case: 'empty string', description: '' },
+    { case: 'whitespace-only', description: '   ' },
+  ])('omits description from payload when description is $case', async ({ description }) => {
+    const user = userEvent.setup()
+    mockPost.mockResolvedValue({ data: { id: 'new-wf' } })
+
+    const definition: Record<string, unknown> = {
+      triggers: [{ id: 't1', type: 'webhook' }],
+      nodes: [{ id: 'n1', type: 'action' }],
+      edges: [{ from: 't1', to: 'n1' }],
+    }
+    if (description !== undefined) {
+      definition.description = description
+    }
+
+    render(<ImportWorkflowDialog {...defaultProps} />)
+
+    const file = new File([JSON.stringify(definition)], 'workflow.json', {
+      type: 'application/json',
+    })
+    await user.upload(getFileInput(), file)
+    await user.type(screen.getByLabelText(/Workflow name/i), 'Test WF')
+    await user.click(screen.getByRole('button', { name: /^Import$/i }))
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalled()
+    })
+    const callArgs = mockPost.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    const workflowDefinition = callArgs[1].body.workflow_definition as Record<string, unknown>
+    expect(workflowDefinition).not.toHaveProperty('description')
+  })
+
+  it('preserves description field from imported file when present', async () => {
+    const user = userEvent.setup()
+    mockPost.mockResolvedValue({ data: { id: 'new-wf' } })
+
+    const validContent = JSON.stringify({
+      description: 'This is my workflow',
+      triggers: [{ id: 't1', type: 'webhook' }],
+      nodes: [{ id: 'n1', type: 'action' }],
+      edges: [{ from: 't1', to: 'n1' }],
+    })
+
+    render(<ImportWorkflowDialog {...defaultProps} />)
+
+    const file = new File([validContent], 'workflow.json', { type: 'application/json' })
+    await user.upload(getFileInput(), file)
+    await user.type(screen.getByLabelText(/Workflow name/i), 'Test WF')
+    await user.click(screen.getByRole('button', { name: /^Import$/i }))
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalled()
+    })
+    const callArgs = mockPost.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    const workflowDefinition = callArgs[1].body.workflow_definition as Record<string, unknown>
+    expect(workflowDefinition.description).toBe('This is my workflow')
+  })
+
   it('shows error when no project is selected on submit', async () => {
     mockSelectedProjectId = null
     const user = userEvent.setup()

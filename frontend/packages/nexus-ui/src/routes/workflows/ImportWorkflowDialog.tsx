@@ -133,16 +133,19 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
       const content = await file.text()
       const definition = parseWorkflowFile(content, file.name)
 
-      const importedDescription =
-        typeof definition.description === 'string' && definition.description.length > 0 ? definition.description : ''
+      const description =
+        definition.description && typeof definition.description === 'string' && definition.description.trim()
+          ? definition.description
+          : undefined
+
       // parseWorkflowFile runtime-validates structure; assert the validated shape
       const fullDefinition: V2WorkflowDefinition = {
         schema_version: '2.0.0',
         name: data.name,
-        description: importedDescription,
         triggers: definition.triggers as V2WorkflowDefinition['triggers'],
         nodes: definition.nodes as V2WorkflowDefinition['nodes'],
         edges: definition.edges as V2WorkflowDefinition['edges'],
+        ...(description !== undefined && { description }),
       }
 
       const { data: result, error } = await workflowFetchClient.POST('/workflows', {
