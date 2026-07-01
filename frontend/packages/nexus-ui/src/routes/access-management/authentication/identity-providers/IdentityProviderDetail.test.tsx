@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useParams } from '@tanstack/react-router'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
@@ -7,6 +8,7 @@ import { axe } from 'vitest-axe'
 
 import { identityProvidersClient } from '../../../../client'
 import { AlertProvider } from '../../../../providers/alerts'
+import { routerTestState } from '../../../../test/setup'
 import { accessFetchClient } from '../../../access/accessClient'
 
 import { IdentityProviderDetail } from './IdentityProviderDetail'
@@ -50,16 +52,8 @@ vi.mock('../../../../client', async (importOriginal) => {
 
 const VALID_PROVIDER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
-const mockSetLocation = vi.fn()
-const mockLocationRef = { current: `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}` }
-vi.mock('wouter', () => ({
-  useLocation: (): [string, typeof mockSetLocation] => [mockLocationRef.current, mockSetLocation],
-  useParams: () => ({ providerId: VALID_PROVIDER_ID }),
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
-}))
-
 const mockNavigate = vi.fn()
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../../hooks/routing/navigate', () => ({
   navigate: (...args: unknown[]): void => {
     mockNavigate(...args)
   },
@@ -128,12 +122,13 @@ describe('IdentityProviderDetail', () => {
     vi.clearAllMocks()
     vi.mocked(identityProvidersClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+    vi.mocked(useParams).mockReturnValue({ providerId: VALID_PROVIDER_ID })
     mockIdpPermissions.canCreate = true
     mockIdpPermissions.canUpdate = true
     mockIdpPermissions.canDelete = true
     mockIdpPermissions.canTest = true
     mockIdpPermissions.isLoading = false
-    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}`
+    routerTestState.pathname = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}`
   })
 
   it('renders provider details when data is loaded', () => {
@@ -696,11 +691,13 @@ describe('IdentityProviderDetail', () => {
     const groupMappingTab = screen.getByRole('tab', { name: /group mapping/i })
     await user.click(groupMappingTab)
 
-    expect(mockSetLocation).toHaveBeenCalledWith(expect.stringContaining('group-mapping'))
+    expect(routerTestState.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: expect.stringContaining('group-mapping') as string })
+    )
   })
 
   it('renders GroupMappingTab content when tab is group-mapping', () => {
-    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
+    routerTestState.pathname = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
@@ -709,7 +706,7 @@ describe('IdentityProviderDetail', () => {
   })
 
   it('renders ProviderDetailsContent when tab is details', () => {
-    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/details`
+    routerTestState.pathname = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/details`
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
@@ -720,7 +717,7 @@ describe('IdentityProviderDetail', () => {
   })
 
   it('defaults to details tab when tab param is invalid', () => {
-    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/invalid-tab`
+    routerTestState.pathname = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/invalid-tab`
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
@@ -732,7 +729,7 @@ describe('IdentityProviderDetail', () => {
 
   it('switches to the Details tab from group-mapping', async () => {
     const user = userEvent.setup()
-    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
+    routerTestState.pathname = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
@@ -740,7 +737,9 @@ describe('IdentityProviderDetail', () => {
     const detailsTab = screen.getByRole('tab', { name: /details/i })
     await user.click(detailsTab)
 
-    expect(mockSetLocation).toHaveBeenCalledWith(expect.stringContaining('/details'))
+    expect(routerTestState.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: expect.stringContaining('/details') as string })
+    )
   })
 
   it('shows group mapping badge count when entries exist', () => {
@@ -921,7 +920,7 @@ describe('IdentityProviderDetail', () => {
         },
       }
       vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: providerWithMapping }))
-      mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
+      routerTestState.pathname = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
 
       render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
@@ -941,7 +940,7 @@ describe('IdentityProviderDetail', () => {
         },
       }
       vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: providerWithMapping }))
-      mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
+      routerTestState.pathname = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
 
       render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 

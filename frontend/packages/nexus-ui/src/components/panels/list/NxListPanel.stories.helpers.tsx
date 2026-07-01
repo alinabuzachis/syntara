@@ -7,11 +7,10 @@ import { Badge, Button, Content, Tab, TabTitleText } from '@patternfly/react-cor
 import { RhUiAddIcon, RhUiExportIcon, RhUiImportIcon, RhUiRefreshIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
-import { Router } from 'wouter'
-import { memoryLocation } from 'wouter/memory-location'
 
 import { useTableSort } from '../../../hooks/useTableSort'
 import { useUrlTab } from '../../../hooks/useUrlTab'
+import { createTestRouter } from '../../../test/createTestRouter'
 import {
   type FilterConfig,
   type FilterFieldDefinition,
@@ -165,13 +164,14 @@ function TabbedListContent() {
   )
 }
 
+const TabbedListWrapper = createTestRouter(`${TABBED_BASE_PATH}/members`)
+
 /** Renders the tabbed list inside a memory router; for use as a story render function. */
 export function TabbedListStory() {
-  const { hook } = useMemo(() => memoryLocation({ path: `${TABBED_BASE_PATH}/members`, record: true }), [])
   return (
-    <Router hook={hook}>
+    <TabbedListWrapper>
       <TabbedListContent />
-    </Router>
+    </TabbedListWrapper>
   )
 }
 

@@ -7,13 +7,10 @@ import { AppDockedNav } from './AppDockedNav'
 import { AppLogin } from './AppLogin'
 
 /**
- * Shared app chrome: authentication gate, top-level navigation, and the main
- * content area. Used by both the wouter and TanStack router paths so the
- * visible shell is identical regardless of the active router.
+ * App chrome: authentication gate, top-level navigation, and the main content area.
  *
- * `UnsavedChangesProvider` lives here so it is always inside a router context:
- * - TanStack: AppShell is the root layout route component, rendered inside RouterProvider.
- * - Wouter: no Router wrapper is required (wouter reads browser location directly).
+ * Rendered as the root layout route component inside TanStack Router's RouterProvider.
+ * `UnsavedChangesProvider` lives here so it is always inside a router context.
  */
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

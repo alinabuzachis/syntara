@@ -1,17 +1,14 @@
+import { useParams } from '@tanstack/react-router'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-let mockSearchParams = ''
+import { routerTestState } from '../../test/setup'
+
 let mockWorkflowQuery: { data: unknown; error: unknown; isLoading: boolean } = {
   data: undefined,
   error: null,
   isLoading: true,
 }
-
-vi.mock('wouter', () => ({
-  useParams: () => ({ workflowId: 'wf-1' }),
-  useSearch: () => mockSearchParams,
-}))
 
 vi.mock('../../client', () => ({
   workflowClient: {
@@ -31,7 +28,8 @@ vi.mock('./BuilderContent', () => ({
 describe('BuilderEdit', () => {
   beforeEach(() => {
     vi.resetModules()
-    mockSearchParams = ''
+    routerTestState.searchStr = ''
+    vi.mocked(useParams).mockReturnValue({ workflowId: 'wf-1' })
     mockWorkflowQuery = { data: undefined, error: null, isLoading: true }
   })
 
@@ -51,7 +49,7 @@ describe('BuilderEdit', () => {
   })
 
   it('renders BuilderContent with valid version param', async () => {
-    mockSearchParams = 'version=3'
+    routerTestState.searchStr = '?version=3'
     mockWorkflowQuery = { data: { id: 'wf-1', name: 'test' }, error: null, isLoading: false }
     const { default: BuilderEdit } = await import('./BuilderEdit')
     render(<BuilderEdit />)
@@ -61,7 +59,7 @@ describe('BuilderEdit', () => {
   })
 
   it('passes null initialViewVersion when no version param', async () => {
-    mockSearchParams = ''
+    routerTestState.searchStr = ''
     mockWorkflowQuery = { data: { id: 'wf-1', name: 'test' }, error: null, isLoading: false }
     const { default: BuilderEdit } = await import('./BuilderEdit')
     render(<BuilderEdit />)
@@ -71,7 +69,7 @@ describe('BuilderEdit', () => {
   })
 
   it('passes null for non-numeric version param', async () => {
-    mockSearchParams = 'version=abc'
+    routerTestState.searchStr = '?version=abc'
     mockWorkflowQuery = { data: { id: 'wf-1', name: 'test' }, error: null, isLoading: false }
     const { default: BuilderEdit } = await import('./BuilderEdit')
     render(<BuilderEdit />)
@@ -81,7 +79,7 @@ describe('BuilderEdit', () => {
   })
 
   it('passes null for negative version param', async () => {
-    mockSearchParams = 'version=-1'
+    routerTestState.searchStr = '?version=-1'
     mockWorkflowQuery = { data: { id: 'wf-1', name: 'test' }, error: null, isLoading: false }
     const { default: BuilderEdit } = await import('./BuilderEdit')
     render(<BuilderEdit />)
@@ -91,7 +89,7 @@ describe('BuilderEdit', () => {
   })
 
   it('passes null for zero version param', async () => {
-    mockSearchParams = 'version=0'
+    routerTestState.searchStr = '?version=0'
     mockWorkflowQuery = { data: { id: 'wf-1', name: 'test' }, error: null, isLoading: false }
     const { default: BuilderEdit } = await import('./BuilderEdit')
     render(<BuilderEdit />)

@@ -1,22 +1,21 @@
 import { useRouter, useRouterState } from '@tanstack/react-router'
 import { useCallback, useMemo } from 'react'
-import { useSearchParams as useWouterSearchParams } from 'wouter'
 
-import { isTanStackRouter } from '../../app/routerFlag'
 import type { tanstackRouter } from '../../app/tanstackRouter'
 
-function useSearchParamsWouter() {
-  return useWouterSearchParams()
-}
-
-function useSearchParamsTanStack(): readonly [URLSearchParams, (params: URLSearchParams) => void] {
+/**
+ * Routing bridge: returns `[searchParams, setSearchParams]` backed by the current URL query string.
+ *
+ * Uses `router.history.push` directly to set arbitrary search params without
+ * being constrained by the current route's `validateSearch` schema — necessary
+ * for `useFilterState` and `useSortState` which pass through unstructured params.
+ */
+export function useSearchParams(): readonly [URLSearchParams, (params: URLSearchParams) => void] {
   const router = useRouter<typeof tanstackRouter>()
   const searchStr = useRouterState({ select: (s) => s.location.searchStr })
 
   const params = useMemo(() => new URLSearchParams(searchStr), [searchStr])
 
-  // Use history.push directly to avoid TanStack's route-typed navigate() constraints.
-  // The bridge hook needs to set arbitrary search params regardless of the current route's schema.
   const setParams = useCallback(
     (newParams: URLSearchParams) => {
       const newSearch = newParams.toString()
@@ -28,12 +27,3 @@ function useSearchParamsTanStack(): readonly [URLSearchParams, (params: URLSearc
 
   return [params, setParams] as const
 }
-
-/**
- * Routing bridge: returns `[searchParams, setSearchParams]` backed by the current URL query string.
- *
- * Delegates to wouter or TanStack Router depending on the `nexus-ui-router`
- * localStorage flag. The implementation never changes at runtime — a page
- * reload is required to switch routers.
- */
-export const useSearchParams = isTanStackRouter() ? useSearchParamsTanStack : useSearchParamsWouter

@@ -50,16 +50,14 @@ import { useUnsavedChanges } from './useUnsavedChanges'
 
 function findFirstEnabledPath(item: TNavigationItem): string {
   if (item.children?.length) {
-    const firstEnabled = item.children.find((child) => !!child.element)
-    return firstEnabled?.path ?? item.path
+    return item.children[0].path
   }
   return item.path
 }
 
 /** Items with children that should show a dropdown instead of navigating directly. */
 function hasDropdownChildren(item: TNavigationItem): boolean {
-  const enabledChildren = item.children?.filter((child) => !!child.element) ?? []
-  return enabledChildren.length > 1
+  return (item.children?.length ?? 0) > 1
 }
 
 function createNavItemRefs(items: TNavigationItem[]) {
@@ -92,15 +90,14 @@ function NavDropdownItem({
   isActive: boolean
   requestNavigation: (path: string) => void
 }>) {
-  const enabledChildren = item.children?.filter((child) => !!child.element) ?? []
+  const enabledChildren = item.children ?? []
   const { setFlyoutRef } = useContext(NavContext)
 
   const onMenuSelect = (_event: React.MouseEvent | undefined, itemId: string | number | undefined) => {
     const child = enabledChildren.find((c) => c.path === itemId)
     if (child) {
-      // dismiss the flyout panel before navigating
       setFlyoutRef?.(null)
-      requestNavigation(child.element ? child.path : findFirstEnabledPath(child))
+      requestNavigation(child.path)
     }
   }
 

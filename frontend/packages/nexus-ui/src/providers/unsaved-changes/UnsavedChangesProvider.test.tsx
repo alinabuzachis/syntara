@@ -457,7 +457,6 @@ describe('UnsavedChangesProvider (TanStack router path)', () => {
     mockBlockerState = { status: 'idle' }
 
     vi.resetModules()
-    vi.doMock('../../app/routerFlag', () => ({ isTanStackRouter: () => true }))
     vi.doMock('@tanstack/react-router', () => ({
       useBlocker: vi.fn(() => mockBlockerState),
     }))
@@ -476,7 +475,7 @@ describe('UnsavedChangesProvider (TanStack router path)', () => {
     vi.restoreAllMocks()
   })
 
-  it('navigates directly without showing modal', async () => {
+  it('shows modal via direct check when navigating with unsaved changes', async () => {
     const user = userEvent.setup()
     const { UnsavedChangesProvider } = await import('./UnsavedChangesProvider')
     const { useUnsavedChanges: useTanStackUnsavedChanges } = await import('../../app/useUnsavedChanges')
@@ -494,8 +493,8 @@ describe('UnsavedChangesProvider (TanStack router path)', () => {
 
     await user.click(screen.getByText('Navigate Away'))
 
-    expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
-    expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+    expect(screen.getByText('Save changes before exiting the workflow builder?')).toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
   it('shows modal when TanStack router blocks navigation', async () => {

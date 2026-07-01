@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
+import { searchParamsMock } from '../../../test/searchParamsMock'
 import { accessClient } from '../../access/accessClient'
 import { useAllUsers } from '../../access/useAllUsers'
 
@@ -40,6 +41,18 @@ vi.mock('../useGroupPermissions', () => ({
     tooltips: { create: '', update: '', delete: '', manageMembers: '' },
   }),
 }))
+
+vi.mock('../../../hooks/routing/useSearchParams', async () => {
+  const { useState, useEffect } = await import('react')
+  const { searchParamsMock: mock } = await import('../../../test/searchParamsMock')
+  return {
+    useSearchParams: () => {
+      const [, forceRender] = useState(0)
+      useEffect(() => mock.subscribe(() => forceRender((n) => n + 1)), [])
+      return [mock.get(), mock.set] as const
+    },
+  }
+})
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -79,6 +92,7 @@ describe('GroupMembersPanel', () => {
   beforeEach(() => {
     // Reset URL search params so filter state from previous tests doesn't leak
     window.history.replaceState({}, '', window.location.pathname)
+    searchParamsMock.reset()
 
     vi.mocked(useAllUsers).mockReturnValue({
       users: [],

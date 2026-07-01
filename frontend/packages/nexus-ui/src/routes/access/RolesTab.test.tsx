@@ -7,7 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { useQueryState } from '../../components/states/useQueryState'
 import { AlertProvider } from '../../providers/alerts'
-import { createTestRouter } from '../../test/createTestRouter'
+import { routerTestState } from '../../test/setup'
 
 import { accessClient } from './accessClient'
 import { RolesTab } from './RolesTab'
@@ -53,13 +53,11 @@ const queryClient = new QueryClient({
 })
 
 function createWrapper(initialPath = '/system-administration/access-management/roles') {
-  const RouterWrapper = createTestRouter(initialPath)
+  routerTestState.pathname = initialPath
   return function wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <AlertProvider>
-          <RouterWrapper>{children}</RouterWrapper>
-        </AlertProvider>
+        <AlertProvider>{children}</AlertProvider>
       </QueryClientProvider>
     )
   }

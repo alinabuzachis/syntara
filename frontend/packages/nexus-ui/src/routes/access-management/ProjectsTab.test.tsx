@@ -41,6 +41,10 @@ vi.mock('../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => vi.fn(),
+}))
+
 vi.mock('../../hooks/routing/useLocation', () => ({
   useLocation: () => '/system-administration/access-management/projects',
 }))

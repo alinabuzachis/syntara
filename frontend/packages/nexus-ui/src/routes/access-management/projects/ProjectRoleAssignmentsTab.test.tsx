@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
+import { searchParamsMock } from '../../../test/searchParamsMock'
 import { accessClient } from '../../access/accessClient'
 
 import { ProjectRoleAssignmentsTab } from './ProjectRoleAssignmentsTab'
@@ -103,6 +104,54 @@ vi.mock('../../../utils/dateUtils', () => ({
   formatDateTime: (v: string | null | undefined) => v ?? 'N/A',
 }))
 
+vi.mock('../../../components/table/PaginationFooter', () => ({
+  PaginationFooter: ({
+    onPrev,
+    onNext,
+    onPerPageChange,
+    page,
+    perPage,
+    total,
+  }: {
+    onPrev: () => void
+    onNext: () => void
+    onPerPageChange: (perPage: number) => void
+    page: number
+    perPage: number
+    total: number
+  }) => (
+    <div data-testid="pagination-footer">
+      <span>
+        Page {page} of {Math.ceil(total / perPage) || 1}
+      </span>
+      <button type="button" onClick={onPrev} aria-label="Go to previous page">
+        Previous
+      </button>
+      <button type="button" onClick={onNext} aria-label="Go to next page">
+        Next
+      </button>
+      <button type="button" onClick={() => onPerPageChange(10)} aria-label="Set 10 per page">
+        10 per page
+      </button>
+    </div>
+  ),
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', async () => {
+  const { useState, useEffect } = await import('react')
+  const { searchParamsMock: mock } = await import('../../../test/searchParamsMock')
+  return {
+    useSearchParams: () => {
+      const [, forceRender] = useState(0)
+      useEffect(() => mock.subscribe(() => forceRender((n) => n + 1)), [])
+      return [mock.get(), mock.set] as const
+    },
+  }
+})
+
+vi.mock('../../../hooks/routing/useSearch', () => ({ useSearch: () => '' }))
+vi.mock('../../../hooks/routing/useLocation', () => ({ useLocation: () => '/' }))
+vi.mock('../../../hooks/routing/useNavigate', () => ({ useNavigate: () => vi.fn() }))
 const mockMutationReturn = {
   mutate: vi.fn(),
   isPending: false,
@@ -209,6 +258,7 @@ describe('ProjectRoleAssignmentsTab', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    searchParamsMock.reset()
     mockRefetch.mockResolvedValue({})
     setupMocks()
   })

@@ -3,12 +3,12 @@ import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
-import { useMemo } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
-import { Router } from 'wouter'
-import { memoryLocation } from 'wouter/memory-location'
 
+vi.mock('@tanstack/react-router', async () => vi.importActual('@tanstack/react-router'))
+
+import { createTestRouter } from '../../../test/createTestRouter'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 
 import {
@@ -68,11 +68,8 @@ function renderPanel(ui: ReactElement) {
 
 // Router wrapper for tab tests
 function withRouter(ui: ReactElement, path = '/group/tabs') {
-  function Wrapper() {
-    const { hook } = useMemo(() => memoryLocation({ path, record: true }), [])
-    return <Router hook={hook}>{ui}</Router>
-  }
-  return renderPanel(<Wrapper />)
+  const Wrapper = createTestRouter(path)
+  return renderPanel(<Wrapper>{ui}</Wrapper>)
 }
 
 describe('NxListPanel', () => {
@@ -482,7 +479,7 @@ describe('NxListPanelSkeletonTbody', () => {
 })
 
 describe('NxListPanelTabs', () => {
-  it('renders tab bar with the correct tabs', () => {
+  it('renders tab bar with the correct tabs', async () => {
     withRouter(
       <NxListPanel>
         <NxListPanelTabs basePath="/group/tabs" defaultTab="members" aria-label="Group tabs">
@@ -493,11 +490,11 @@ describe('NxListPanelTabs', () => {
       '/group/tabs/members'
     )
 
-    expect(screen.getByRole('tab', { name: 'Members' })).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: 'Members' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument()
   })
 
-  it('activates the tab that matches the URL', () => {
+  it('activates the tab that matches the URL', async () => {
     withRouter(
       <NxListPanel>
         <NxListPanelTabs basePath="/group/tabs" defaultTab="members" aria-label="Group tabs">
@@ -508,10 +505,10 @@ describe('NxListPanelTabs', () => {
       '/group/tabs/roles'
     )
 
-    expect(screen.getByRole('tab', { name: 'Roles', selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: 'Roles', selected: true })).toBeInTheDocument()
   })
 
-  it('tab aria-controls targets the matching tabpanel id', () => {
+  it('tab aria-controls targets the matching tabpanel id', async () => {
     withRouter(
       <NxListPanel>
         <NxListPanelTabs basePath="/group/tabs" defaultTab="members" aria-label="Group tabs">
@@ -529,7 +526,7 @@ describe('NxListPanelTabs', () => {
       '/group/tabs/members'
     )
 
-    const tab = screen.getByRole('tab', { name: 'Members' })
+    const tab = await screen.findByRole('tab', { name: 'Members' })
     const tabPanel = screen.getByRole('tabpanel', { name: 'Members' })
     expect(tab.getAttribute('aria-controls')).toBe(tabPanel.id)
   })
@@ -552,6 +549,7 @@ describe('NxListPanelTabs', () => {
       '/group/tabs/members'
     )
 
+    await screen.findByRole('tab', { name: 'Members' })
     expect(await axe(container)).toHaveNoViolations()
   })
 })

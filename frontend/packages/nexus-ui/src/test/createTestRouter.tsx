@@ -1,23 +1,71 @@
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from '@tanstack/react-router'
 import React from 'react'
-import { Route, Router } from 'wouter'
-import { memoryLocation } from 'wouter/memory-location'
+
+import { convertWouterPathToTanStack } from '../app/convertParamSyntax'
 
 /**
- * Returns a React wrapper component that provides a wouter memory router.
- * Use as the `wrapper` option in `renderHook` or `render` for contract tests.
+ * Module-scoped context used to pass test children into the matched route's component.
+ * Test isolation relies on Vitest's per-file module scope (each test file gets its own
+ * `TestChildrenCtx` instance) and React's component-tree-based context resolution
+ * (each `TestRouterWrapper` renders its own `Provider`, so renders don't share state).
+ */
+const TestChildrenCtx = React.createContext<React.ReactNode>(null)
+
+function TestRouteComponent() {
+  const children = React.useContext(TestChildrenCtx)
+  return <>{children}</>
+}
+
+/**
+ * Returns a React wrapper component that provides a TanStack Router memory
+ * router pre-set to `initialPath`. Use as the `wrapper` option in `renderHook`
+ * or `render` for routing contract tests.
+ *
+ * `RouterProvider` handles route loading internally; no `await router.load()`
+ * is required. Use `waitFor` in tests that assert on navigation side-effects
+ * (which are inherently async in TanStack Router).
  *
  * @param initialPath - The initial URL path (may include query string, e.g. "/users?tab=groups")
- * @param routePattern - Optional route pattern (e.g. "/users/:userId") for `useParams` tests.
- *   When provided, children are rendered inside a matching `<Route>` so params are available.
+ * @param routePattern - Optional wouter-style route pattern (e.g. "/users/:userId") for
+ *   `useParams` tests. Converted to TanStack syntax (`$userId`) automatically.
+ *   When omitted, a catch-all route is used so location/navigate/search tests work.
  */
 export function createTestRouter(initialPath = '/', routePattern?: string) {
-  const { hook } = memoryLocation({ path: initialPath, record: true })
+  const history = createMemoryHistory({ initialEntries: [initialPath] })
+  const rootRoute = createRootRoute({ component: Outlet })
+
+  const router = createRouter({
+    history,
+    defaultPendingMinMs: 0,
+    routeTree: routePattern
+      ? rootRoute.addChildren([
+          createRoute({
+            getParentRoute: () => rootRoute,
+            path: convertWouterPathToTanStack(routePattern),
+            component: TestRouteComponent,
+          }),
+        ])
+      : rootRoute.addChildren([
+          createRoute({
+            getParentRoute: () => rootRoute,
+            path: '$',
+            component: TestRouteComponent,
+          }),
+        ]),
+  })
 
   function TestRouterWrapper({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
-      <Router hook={hook}>
-        {routePattern ? <Route path={routePattern}>{() => <>{children}</>}</Route> : <>{children}</>}
-      </Router>
+      <TestChildrenCtx.Provider value={children}>
+        <RouterProvider router={router} />
+      </TestChildrenCtx.Provider>
     )
   }
 

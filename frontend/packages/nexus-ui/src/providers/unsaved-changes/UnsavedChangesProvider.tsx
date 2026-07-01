@@ -2,7 +2,6 @@ import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/
 import { useBlocker } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { isTanStackRouter } from '../../app/routerFlag'
 import { useLocation } from '../../hooks/routing/useLocation'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
@@ -90,11 +89,6 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
 
   const requestNavigation = useCallback(
     (targetPath: string) => {
-      if (isTanStackRouter()) {
-        navigate(targetPath)
-        return
-      }
-
       if (targetPath.startsWith('/workflow-builder') || !hasUnsavedChanges()) {
         navigate(targetPath)
         return
@@ -124,8 +118,8 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
 
   const proceedNavigation = useCallback(() => {
     setIsModalOpen(false)
-    if (isTanStackRouter()) {
-      proceedNavRef.current?.()
+    if (proceedNavRef.current) {
+      proceedNavRef.current()
       proceedNavRef.current = null
       resetNavRef.current = null
     } else if (pendingTargetRef.current) {
@@ -136,8 +130,8 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
 
   const cancelNavigation = useCallback(() => {
     setIsModalOpen(false)
-    if (isTanStackRouter()) {
-      resetNavRef.current?.()
+    if (resetNavRef.current) {
+      resetNavRef.current()
       proceedNavRef.current = null
       resetNavRef.current = null
     } else {
@@ -198,9 +192,7 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
 
   return (
     <UnsavedChangesContext.Provider value={contextValue}>
-      {isTanStackRouter() && (
-        <TanStackNavigationBlocker onBlock={handleTanStackBlock} dirtyChecksRef={dirtyChecksRef} />
-      )}
+      <TanStackNavigationBlocker onBlock={handleTanStackBlock} dirtyChecksRef={dirtyChecksRef} />
       {children}
 
       <Modal

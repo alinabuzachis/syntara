@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../providers/alerts'
+import { searchParamsMock } from '../../test/searchParamsMock'
 import { accessClient } from '../access/accessClient'
 import { useAllProjects } from '../access/useAllProjects'
 import { useAllRoles } from '../access/useAllRoles'
@@ -41,6 +42,22 @@ vi.mock('../access/useAssignmentPermissions', () => ({
     tooltips: { assign: '', revoke: '' },
   }),
 }))
+
+vi.mock('../../hooks/routing/useSearchParams', async () => {
+  const { useState, useEffect } = await import('react')
+  const { searchParamsMock: mock } = await import('../../test/searchParamsMock')
+  return {
+    useSearchParams: () => {
+      const [, forceRender] = useState(0)
+      useEffect(() => mock.subscribe(() => forceRender((n) => n + 1)), [])
+      return [mock.get(), mock.set] as const
+    },
+  }
+})
+
+vi.mock('../../hooks/routing/useSearch', () => ({ useSearch: () => '' }))
+vi.mock('../../hooks/routing/useLocation', () => ({ useLocation: () => '/' }))
+vi.mock('../../hooks/routing/useNavigate', () => ({ useNavigate: () => vi.fn() }))
 
 const mockDeleteSystemAssignment = vi.fn()
 const mockDeleteProjectAssignment = vi.fn()
@@ -182,6 +199,7 @@ function setupMocks(overrides?: { userAssignments?: AssignmentResource[]; groupA
 describe('RoleAssignmentsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    searchParamsMock.reset()
     vi.mocked(useAllRoles).mockReturnValue({ roles: [], isLoading: false, error: null, refetch: vi.fn() })
     vi.mocked(useAllProjects).mockReturnValue({
       projects: [],

@@ -33,6 +33,14 @@ vi.mock('../../../components/filters/FilterBar', () => ({
   FilterBar: () => <div data-testid="filter-bar" />,
 }))
 
+vi.mock('../../../hooks/routing/useSearchParams', () => ({
+  useSearchParams: () => [new URLSearchParams(), vi.fn()] as const,
+}))
+
+vi.mock('../../../hooks/routing/useSearch', () => ({ useSearch: () => '' }))
+vi.mock('../../../hooks/routing/useLocation', () => ({ useLocation: () => '/' }))
+vi.mock('../../../hooks/routing/useNavigate', () => ({ useNavigate: () => vi.fn() }))
+
 const mockDeleteMutate = vi.fn()
 
 const mockMutationReturn = {

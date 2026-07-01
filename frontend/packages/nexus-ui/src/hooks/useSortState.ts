@@ -2,9 +2,7 @@ import type { ThProps } from '@patternfly/react-table'
 import { SortByDirection } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
 
-import { useLocation } from './routing/useLocation'
-import { useNavigate } from './routing/useNavigate'
-import { useSearch } from './routing/useSearch'
+import { useSearchParams } from './routing/useSearchParams'
 
 export type UseSortStateResult = {
   activeSortIndex: number | undefined
@@ -14,10 +12,7 @@ export type UseSortStateResult = {
 }
 
 export function useSortState(sortFieldByColumn: Record<number, string>, onSortChange?: () => void): UseSortStateResult {
-  const search = useSearch()
-  const location = useLocation()
-  const navigate = useNavigate()
-  const searchParams = useMemo(() => new URLSearchParams(search), [search])
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const { activeSortIndex, sortDirection } = useMemo(() => {
     const raw = searchParams.get('sort')
@@ -47,17 +42,14 @@ export function useSortState(sortFieldByColumn: Record<number, string>, onSortCh
         if (!field) return
 
         const prefix = direction === SortByDirection.desc ? '-' : ''
-        // Read current URL search params directly from the browser to avoid
-        // stale closure issues when other hooks (e.g. useFilterState) also
-        // write to search params via a separate useSearchParams() instance.
         const liveParams = new URLSearchParams(window.location.search)
         liveParams.set('sort', `${prefix}${field}`)
-        navigate(`${location}?${liveParams}`)
+        setSearchParams(liveParams)
         onSortChange?.()
       },
       columnIndex,
     }),
-    [activeSortIndex, sortDirection, sortFieldByColumn, location, navigate, onSortChange]
+    [activeSortIndex, sortDirection, sortFieldByColumn, setSearchParams, onSortChange]
   )
 
   return { activeSortIndex, sortDirection, sortParam, getSortParams }

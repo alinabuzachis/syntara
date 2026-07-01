@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { integrationsClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 
 import { useIntegrationActions } from './useIntegrationActions'
 
@@ -13,12 +14,6 @@ vi.mock('../../../client', () => ({
   integrationsClient: {
     useMutation: vi.fn(),
   },
-}))
-
-const mockNavigate = vi.fn()
-
-vi.mock('wouter', () => ({
-  useLocation: () => ['/configuration/integrations/int-1', mockNavigate],
 }))
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
@@ -127,7 +122,7 @@ describe('useIntegrationActions', () => {
       act(() => result.current.handleDelete())
 
       expect(mockMutate).toHaveBeenCalled()
-      expect(mockNavigate).toHaveBeenCalled()
+      expect(routerTestState.navigate).toHaveBeenCalled()
     })
   })
 

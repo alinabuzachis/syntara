@@ -273,7 +273,7 @@ export default tseslint.config(
   },
   {
     // Test utility files that export factory functions alongside components
-    files: ['**/test/createTanStackTestRouter.tsx'],
+    files: ['**/test/createTestRouter.tsx'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },
