@@ -20,7 +20,7 @@ def mock_file_manager() -> MagicMock:
     This fixture provides a mock FileManager with a file metadata store
     that tests can populate. The mock supports:
     - get_files_metadata: Returns metadata from the store based on file IDs
-    - get_retriever_for_file: Returns a mock retriever that loads files from disk
+    - get_retriever: Returns a mock retriever that loads files from disk
     - _test_file_metadata_store: Dictionary to populate with test data
 
     Usage:
@@ -41,7 +41,7 @@ def mock_file_manager() -> MagicMock:
         return Path(path).read_bytes()
 
     mock_retriever.load_file = AsyncMock(side_effect=mock_load_file)
-    mock_file_manager.get_retriever_for_file = MagicMock(return_value=mock_retriever)
+    mock_file_manager.get_retriever = MagicMock(return_value=mock_retriever)
 
     mock_file_manager._test_file_metadata_store = file_metadata_store
 

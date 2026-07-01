@@ -3,7 +3,6 @@
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
-import aiofiles
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -50,16 +49,15 @@ async def authenticated_only_client(base_client: AsyncClient, authenticated_only
 @pytest.mark.asyncio
 async def test_upload_authorised(auth_client: AsyncClient, sample_pdf_path: Path, test_project_id: str) -> None:
     """Test that users with 'user' role can successfully upload files."""
-    async with aiofiles.open(sample_pdf_path, "rb") as f:
-        file_content = await f.read()
-        files = [("files", ("sample.pdf", file_content, "application/pdf"))]
+    file_content = sample_pdf_path.read_bytes()
+    files = [("files", ("sample.pdf", file_content, "application/pdf"))]
 
-        # Act
-        response = await auth_client.post(
-            "/api/v1/files",
-            files=files,
-            data={"project_id": test_project_id},
-        )
+    # Act
+    response = await auth_client.post(
+        "/api/v1/files",
+        files=files,
+        data={"project_id": test_project_id},
+    )
 
     # Assert
     assert response.status_code == 201

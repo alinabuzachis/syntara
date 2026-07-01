@@ -37,7 +37,7 @@ class TestFileDownloadedHandler:
             filename="missing.pdf",
             mime_type="application/pdf",
             size_bytes=512,
-            storage_backend="local",
+            storage_backend="s3",
             error_type="FileContentNotFoundError",
         )
 

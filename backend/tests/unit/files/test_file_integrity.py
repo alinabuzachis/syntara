@@ -8,7 +8,7 @@ import pytest
 
 from nexus.files.exceptions import FileContentNotFoundError, FileIntegrityError
 from nexus.files.file_manager import FileManager
-from nexus.files.models import FileMetadata, FileStatus, StorageBackend
+from nexus.files.models import FileMetadata, FileStatus
 
 
 class TestLoadFileWithIntegrityCheck:
@@ -26,7 +26,6 @@ class TestLoadFileWithIntegrityCheck:
             mime_type="text/plain",
             size_bytes=len(content),
             file_path="/storage/valid.txt",
-            storage_backend="local",
             content_hash=content_hash,
             status=FileStatus.CONVERTED,
         )
@@ -34,7 +33,7 @@ class TestLoadFileWithIntegrityCheck:
         fm = FileManager()
         mock_retriever = AsyncMock()
         mock_retriever.load_file = AsyncMock(return_value=content)
-        fm.retrievers[StorageBackend.LOCAL] = mock_retriever
+        fm._retriever = mock_retriever
 
         result = await fm.load_file_with_integrity_check(metadata)
         assert result == content
@@ -52,7 +51,6 @@ class TestLoadFileWithIntegrityCheck:
             mime_type="text/plain",
             size_bytes=len(original_content),
             file_path="/storage/tampered.txt",
-            storage_backend="local",
             content_hash=content_hash,
             status=FileStatus.CONVERTED,
         )
@@ -60,7 +58,7 @@ class TestLoadFileWithIntegrityCheck:
         fm = FileManager()
         mock_retriever = AsyncMock()
         mock_retriever.load_file = AsyncMock(return_value=tampered_content)
-        fm.retrievers[StorageBackend.LOCAL] = mock_retriever
+        fm._retriever = mock_retriever
 
         with pytest.raises(FileIntegrityError, match="integrity check failed"):
             await fm.load_file_with_integrity_check(metadata)
@@ -76,7 +74,6 @@ class TestLoadFileWithIntegrityCheck:
             mime_type="text/plain",
             size_bytes=len(content),
             file_path="/storage/legacy.txt",
-            storage_backend="local",
             content_hash=None,
             status=FileStatus.CONVERTED,
         )
@@ -84,7 +81,7 @@ class TestLoadFileWithIntegrityCheck:
         fm = FileManager()
         mock_retriever = AsyncMock()
         mock_retriever.load_file = AsyncMock(return_value=content)
-        fm.retrievers[StorageBackend.LOCAL] = mock_retriever
+        fm._retriever = mock_retriever
 
         result = await fm.load_file_with_integrity_check(metadata)
         assert result == content
@@ -98,7 +95,6 @@ class TestLoadFileWithIntegrityCheck:
             mime_type="text/plain",
             size_bytes=100,
             file_path="/storage/missing.txt",
-            storage_backend="local",
             status=FileStatus.CONVERTED,
         )
 
@@ -107,7 +103,7 @@ class TestLoadFileWithIntegrityCheck:
         mock_retriever.load_file = AsyncMock(
             side_effect=FileContentNotFoundError("File not found: /storage/missing.txt"),
         )
-        fm.retrievers[StorageBackend.LOCAL] = mock_retriever
+        fm._retriever = mock_retriever
 
         with pytest.raises(FileContentNotFoundError):
             await fm.load_file_with_integrity_check(metadata)

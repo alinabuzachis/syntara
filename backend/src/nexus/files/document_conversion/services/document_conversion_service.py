@@ -82,9 +82,7 @@ class DocumentConversionService:
             raise SafeValueError(msg)
 
         # Get retriever for saving converted file
-        output_retriever = self.file_manager.get_retriever_for_file(
-            len(conversion_result.converted_content.encode("utf-8")), "text/markdown"
-        )
+        output_retriever = self.file_manager.get_retriever()
 
         # Store converted content via retriever
         output_path: str = await output_retriever.save_file(
@@ -228,7 +226,7 @@ class DocumentConversionService:
         await status_updater(file_metadata)
 
         # Get appropriate retriever for loading source file
-        retriever = self.file_manager.get_retriever_for_file(file_metadata.size_bytes, file_metadata.mime_type)
+        retriever = self.file_manager.get_retriever()
 
         try:
             # Load file content via retriever

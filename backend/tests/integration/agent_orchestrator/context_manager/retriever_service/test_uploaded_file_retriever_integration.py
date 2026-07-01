@@ -6,7 +6,7 @@ ensuring proper end-to-end document retrieval without mocking core components.
 
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -41,19 +41,22 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
         - Real file I/O from temp files
         - UploadedFileRetriever works end-to-end
         """
-        test_file = tmp_path / "test_document.txt"
         test_content = "This is a test document about Python programming and machine learning algorithms."
-        test_file.write_text(test_content, encoding="utf-8")
-
         file_id = uuid4()
+
+        file_manager = get_file_manager()
+        s3 = file_manager.get_retriever()
+        s3_path = f"nexus-{file_id}-test_document.txt"
+        await s3.save_file(test_content.encode("utf-8"), s3_path)
+
         file_metadata = FileMetadata(
             id=file_id,
             filename="test_document.txt",
             size_bytes=len(test_content),
             mime_type="text/plain",
-            file_path=str(tmp_path / "original.txt"),
+            file_path=s3_path,
             status=FileStatus.CONVERTED,
-            converted_content_path=str(test_file),
+            converted_content_path=s3_path,
             created_by=test_user.id,
             project_id=test_project_id,
         )
@@ -122,27 +125,23 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
                 pass
 
     @pytest.mark.asyncio
-    async def test_real_file_io_error_handling(
-        self, test_db_session: AsyncSession, test_user, tmp_path: Path, test_project_id: UUID
-    ) -> None:
-        """Test handling of real file I/O errors with fail-fast behavior.
+    async def test_real_file_io_error_handling(self, test_db_session: AsyncSession, test_user, test_project_id) -> None:
+        """Test handling of missing S3 objects with fail-fast behavior.
 
         This validates:
-        - Real file system operations
-        - Missing files on disk cause immediate failure
+        - Missing S3 keys cause immediate failure
         - User-friendly error messages
         """
         file_id = uuid4()
-        non_existent_path = tmp_path / "does_not_exist.txt"
 
         file_metadata = FileMetadata(
             id=file_id,
             filename="missing_file.txt",
             size_bytes=100,
             mime_type="text/plain",
-            file_path=str(tmp_path / "original.txt"),
+            file_path="nexus-nonexistent-original.txt",
             status=FileStatus.CONVERTED,
-            converted_content_path=str(non_existent_path),
+            converted_content_path="nexus-nonexistent-does_not_exist.txt",
             created_by=test_user.id,
             project_id=test_project_id,
         )
@@ -213,21 +212,23 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
         - Handling CONVERTED vs PENDING vs FAILED
         - Real FileManager batch operations
         """
-        test_file = tmp_path / "converted.txt"
-        test_file.write_text("Valid content", encoding="utf-8")
-
         file_id_1 = uuid4()
         file_id_2 = uuid4()
         file_id_3 = uuid4()
+
+        file_manager = get_file_manager()
+        s3 = file_manager.get_retriever()
+        s3_path = f"nexus-{file_id_1}-converted.txt"
+        await s3.save_file(b"Valid content", s3_path)
 
         file_1 = FileMetadata(
             id=file_id_1,
             filename="converted.txt",
             size_bytes=100,
             mime_type="text/plain",
-            file_path=str(tmp_path / "original1.txt"),
+            file_path=s3_path,
             status=FileStatus.CONVERTED,
-            converted_content_path=str(test_file),
+            converted_content_path=s3_path,
             created_by=test_user.id,
             project_id=test_project_id,
         )

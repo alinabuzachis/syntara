@@ -10,7 +10,6 @@ import hashlib
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-import aiofiles
 import pytest
 
 if TYPE_CHECKING:
@@ -32,8 +31,7 @@ class TestDownloadEndpoint:
         project_id: str,
     ) -> dict[str, Any]:
         """Upload a file via POST /api/v1/files and return the response JSON."""
-        async with aiofiles.open(file_path, "rb") as f:
-            content = await f.read()
+        content = file_path.read_bytes()
 
         response = await client.post(
             "/api/v1/files",
@@ -61,8 +59,7 @@ class TestDownloadEndpoint:
         file_id = upload_data["file_ids"][0]
 
         # Read original bytes for comparison
-        async with aiofiles.open(sample_pdf_path, "rb") as f:
-            original_content = await f.read()
+        original_content = sample_pdf_path.read_bytes()
 
         # Download
         response = await auth_client_with_mocked_llm.get(
@@ -98,8 +95,7 @@ class TestDownloadEndpoint:
         file_id = upload_data["file_ids"][0]
 
         # Read original bytes for comparison
-        async with aiofiles.open(sample_txt_path, "rb") as f:
-            original_content = await f.read()
+        original_content = sample_txt_path.read_bytes()
 
         # Download
         response = await auth_client_with_mocked_llm.get(
@@ -162,8 +158,7 @@ class TestDownloadEndpoint:
         file_id = upload_data["file_ids"][0]
 
         # Read original and compute hash
-        async with aiofiles.open(sample_pdf_path, "rb") as f:
-            original_content = await f.read()
+        original_content = sample_pdf_path.read_bytes()
         original_sha256 = hashlib.sha256(original_content).hexdigest()
 
         # Download and compute hash

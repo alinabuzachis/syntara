@@ -18,7 +18,6 @@ are stored in the FileMetadata database table, not in context_data.
 
 from pathlib import Path
 
-import aiofiles
 import pytest
 from httpx import AsyncClient
 
@@ -39,21 +38,20 @@ async def test_upload_pdf_file(
     - FileMetadata records created in database
     """
     # Arrange
-    async with aiofiles.open(sample_pdf_path, "rb") as f:
-        file_content = await f.read()
-        files = [("files", ("sample.pdf", file_content, "application/pdf"))]
-        data = {
-            "prompt": "Analyze the attached document and summarize key points",
-            "session_id": "test-session-001",
-            "project_id": test_project_id,
-        }
+    file_content = sample_pdf_path.read_bytes()
+    files = [("files", ("sample.pdf", file_content, "application/pdf"))]
+    data = {
+        "prompt": "Analyze the attached document and summarize key points",
+        "session_id": "test-session-001",
+        "project_id": test_project_id,
+    }
 
-        # Act
-        response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations/chat",
-            data=data,
-            files=files,
-        )
+    # Act
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data=data,
+        files=files,
+    )
 
     # Assert
     assert response.status_code == 202
@@ -84,30 +82,29 @@ async def test_upload_docx_file(
     - file_ids array in context_data
     """
     # Arrange
-    async with aiofiles.open(sample_docx_path, "rb") as f:
-        file_content = await f.read()
-        files = [
+    file_content = sample_docx_path.read_bytes()
+    files = [
+        (
+            "files",
             (
-                "files",
-                (
-                    "sample.docx",
-                    file_content,
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                ),
-            )
-        ]
-        data = {
-            "prompt": "Extract action items from this document",
-            "session_id": "test-session-002",
-            "project_id": test_project_id,
-        }
-
-        # Act
-        response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations/chat",
-            data=data,
-            files=files,
+                "sample.docx",
+                file_content,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ),
         )
+    ]
+    data = {
+        "prompt": "Extract action items from this document",
+        "session_id": "test-session-002",
+        "project_id": test_project_id,
+    }
+
+    # Act
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data=data,
+        files=files,
+    )
 
     # Assert
     assert response.status_code == 202
@@ -141,20 +138,19 @@ async def test_upload_text_and_markdown(
     import uuid
 
     # Test TXT file
-    async with aiofiles.open(sample_txt_path, "rb") as f:
-        file_content = await f.read()
-        files = [("files", ("sample.txt", file_content, "text/plain"))]
-        data = {
-            "prompt": "Summarize this README",
-            "session_id": "test-session-003a",
-            "project_id": test_project_id,
-        }
+    file_content = sample_txt_path.read_bytes()
+    files = [("files", ("sample.txt", file_content, "text/plain"))]
+    data = {
+        "prompt": "Summarize this README",
+        "session_id": "test-session-003a",
+        "project_id": test_project_id,
+    }
 
-        response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations/chat",
-            data=data,
-            files=files,
-        )
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data=data,
+        files=files,
+    )
 
     # Assert TXT
     assert response.status_code == 202
@@ -164,20 +160,19 @@ async def test_upload_text_and_markdown(
     uuid.UUID(file_ids[0])
 
     # Test MD file
-    async with aiofiles.open(sample_md_path, "rb") as f:
-        file_content = await f.read()
-        files = [("files", ("sample.md", file_content, "text/markdown"))]
-        data = {
-            "prompt": "Review this documentation",
-            "session_id": "test-session-003b",
-            "project_id": test_project_id,
-        }
+    file_content = sample_md_path.read_bytes()
+    files = [("files", ("sample.md", file_content, "text/markdown"))]
+    data = {
+        "prompt": "Review this documentation",
+        "session_id": "test-session-003b",
+        "project_id": test_project_id,
+    }
 
-        response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations/chat",
-            data=data,
-            files=files,
-        )
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data=data,
+        files=files,
+    )
 
     # Assert MD
     assert response.status_code == 202
@@ -274,21 +269,20 @@ async def test_unsupported_format_error(
     - No invocation created
     """
     # Arrange
-    async with aiofiles.open(sample_image_path, "rb") as f:
-        file_content = await f.read()
-        files = [("files", ("image.png", file_content, "image/png"))]
-        data = {
-            "prompt": "Analyze this image",
-            "session_id": "test-session-006",
-            "project_id": test_project_id,
-        }
+    file_content = sample_image_path.read_bytes()
+    files = [("files", ("image.png", file_content, "image/png"))]
+    data = {
+        "prompt": "Analyze this image",
+        "session_id": "test-session-006",
+        "project_id": test_project_id,
+    }
 
-        # Act
-        response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations/chat",
-            data=data,
-            files=files,
-        )
+    # Act
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data=data,
+        files=files,
+    )
 
     # Assert
     assert response.status_code == 400
@@ -317,8 +311,7 @@ async def test_too_many_files_error(
     """
     # Arrange - 15 files (exceeds limit of 10)
     # Reuse the same PDF file content 15 times with different names
-    async with aiofiles.open(sample_pdf_path, "rb") as f:
-        pdf_content = await f.read()
+    pdf_content = sample_pdf_path.read_bytes()
 
     files = [("files", (f"sample{i}.pdf", pdf_content, "application/pdf")) for i in range(1, 16)]
 
@@ -374,12 +367,9 @@ async def test_multiple_files_upload(
     import uuid
 
     # Arrange
-    async with aiofiles.open(sample_pdf_path, "rb") as pdf_file:
-        pdf_content = await pdf_file.read()
-    async with aiofiles.open(sample_docx_path, "rb") as docx_file:
-        docx_content = await docx_file.read()
-    async with aiofiles.open(sample_txt_path, "rb") as txt_file:
-        txt_content = await txt_file.read()
+    pdf_content = sample_pdf_path.read_bytes()
+    docx_content = sample_docx_path.read_bytes()
+    txt_content = sample_txt_path.read_bytes()
 
     files = [
         ("files", ("sample.pdf", pdf_content, "application/pdf")),
@@ -433,21 +423,20 @@ async def test_context_metadata(
     import uuid
 
     # Arrange
-    async with aiofiles.open(sample_pdf_path, "rb") as f:
-        file_content = await f.read()
-        files = [("files", ("sample.pdf", file_content, "application/pdf"))]
-        data = {
-            "prompt": "Summarize the document",
-            "session_id": "test-session-011",
-            "project_id": test_project_id,
-        }
+    file_content = sample_pdf_path.read_bytes()
+    files = [("files", ("sample.pdf", file_content, "application/pdf"))]
+    data = {
+        "prompt": "Summarize the document",
+        "session_id": "test-session-011",
+        "project_id": test_project_id,
+    }
 
-        # Act - Create invocation with file
-        response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations/chat",
-            data=data,
-            files=files,
-        )
+    # Act - Create invocation with file
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data=data,
+        files=files,
+    )
 
     # Assert creation
     assert response.status_code == 202

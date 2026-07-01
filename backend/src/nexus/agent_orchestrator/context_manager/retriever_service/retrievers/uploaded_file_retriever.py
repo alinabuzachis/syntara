@@ -368,10 +368,7 @@ class UploadedFileRetriever(DocumentRetriever):
             RelevantDocument with loaded content and metadata, or None if loading fails
 
         """
-        # Get appropriate retriever for this file from FileManager
-        retriever = self.file_manager.get_retriever_for_file(
-            _file_size_bytes=file_metadata.size_bytes, _mime_type=file_metadata.mime_type
-        )
+        retriever = self.file_manager.get_retriever()
 
         # Load converted document content
         content_bytes = await retriever.load_file(converted_file_path)

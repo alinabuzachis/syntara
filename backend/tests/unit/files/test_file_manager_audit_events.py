@@ -57,6 +57,9 @@ class TestFileManagerAuditEvents:
         mock_file.seek = AsyncMock()
 
         file_manager = FileManager()
+        mock_retriever = AsyncMock()
+        mock_retriever.save_file = AsyncMock(return_value="nexus-uuid-test.pdf")
+        file_manager._retriever = mock_retriever
 
         # Act
         with patch("magic.from_buffer", return_value="application/pdf"):
@@ -104,6 +107,9 @@ class TestFileManagerAuditEvents:
             mock_files.append(mock_file)
 
         file_manager = FileManager()
+        mock_retriever = AsyncMock()
+        mock_retriever.save_file = AsyncMock(return_value="nexus-uuid-test.pdf")
+        file_manager._retriever = mock_retriever
 
         # Act
         with patch("magic.from_buffer", return_value="text/plain"):
@@ -194,7 +200,7 @@ class TestDocumentConversionServiceAuditEvents:
         mock_converter = Mock()
         mock_retriever = AsyncMock()
 
-        mock_file_manager.get_retriever_for_file.return_value = mock_retriever
+        mock_file_manager.get_retriever.return_value = mock_retriever
         mock_retriever.load_file.return_value = b"PDF content"
         mock_converter_registry.get_converter.return_value = mock_converter
         mock_converter.convert_with_timeout = AsyncMock(
@@ -204,16 +210,7 @@ class TestDocumentConversionServiceAuditEvents:
             )
         )
 
-        # Mock storage
-        mock_storage_retriever = AsyncMock()
-        mock_storage_retriever.save_file.return_value = "path/to/converted.md"
-
-        def get_retriever_side_effect(size_bytes: int, mime_type: str) -> AsyncMock:
-            if mime_type == "text/markdown":
-                return mock_storage_retriever
-            return mock_retriever
-
-        mock_file_manager.get_retriever_for_file.side_effect = get_retriever_side_effect
+        mock_retriever.save_file.return_value = "path/to/converted.md"
 
         service = DocumentConversionService(
             file_manager_factory=lambda: mock_file_manager,
@@ -266,7 +263,7 @@ class TestDocumentConversionServiceAuditEvents:
         mock_converter = Mock()
         mock_retriever = AsyncMock()
 
-        mock_file_manager.get_retriever_for_file.return_value = mock_retriever
+        mock_file_manager.get_retriever.return_value = mock_retriever
         mock_retriever.load_file.return_value = b"Broken PDF"
         mock_converter_registry.get_converter.return_value = mock_converter
         mock_converter.convert_with_timeout = AsyncMock(
@@ -363,7 +360,7 @@ class TestDocumentConversionServiceAuditEvents:
         mock_converter_registry = Mock()
         mock_retriever = AsyncMock()
 
-        mock_file_manager.get_retriever_for_file.return_value = mock_retriever
+        mock_file_manager.get_retriever.return_value = mock_retriever
         mock_retriever.load_file.return_value = b"Unknown content"
         mock_converter_registry.get_converter.return_value = None  # No converter
 

@@ -274,6 +274,18 @@ dev: check-deps _ensure-secrets _ensure-certs ## Run development server with aut
 	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head
 	@$(MAKE) db-seed
 	@echo "✅ Migrations and seeding complete"
+	@echo "🪣 Ensuring S3 bucket exists on moto..."
+	@uv run python -c "\
+	import boto3; \
+	c = boto3.client('s3', \
+	    endpoint_url='$${APP_S3_ENDPOINT_URL:-http://localhost:5555}', \
+	    aws_access_key_id='$${APP_S3_ACCESS_KEY_ID:-testing}', \
+	    aws_secret_access_key='$${APP_S3_SECRET_ACCESS_KEY:-testing}', \
+	    region_name='$${APP_S3_REGION:-us-east-1}'); \
+	c.create_bucket(Bucket='$${APP_S3_BUCKET_NAME:-nexus-files}'); \
+	print('  ✅ Bucket ready') \
+	" 2>.s3-bucket-setup.err || { echo "  ⚠️  S3 not available — file uploads will be disabled"; cat .s3-bucket-setup.err | head -5; }
+	@rm -f .s3-bucket-setup.err
 	@echo "🚀 Starting Nexus API server..."
 	@echo "📍 API URL: https://localhost:8000"
 	@echo "📍 API Docs: https://localhost:8000/docs"
@@ -285,6 +297,13 @@ dev: check-deps _ensure-secrets _ensure-certs ## Run development server with aut
 	$(S2S_TLS_VARS) \
 	APP_S2S_TLS_CERT_PATH=.secrets/certs/backend.crt \
 	APP_S2S_TLS_KEY_PATH=.secrets/certs/backend.key \
+	APP_S3_ENDPOINT_URL=$${APP_S3_ENDPOINT_URL:-http://localhost:5555} \
+	APP_S3_BUCKET_NAME=$${APP_S3_BUCKET_NAME:-nexus-files} \
+	APP_S3_REGION=$${APP_S3_REGION:-us-east-1} \
+	APP_S3_ACCESS_KEY_ID=$${APP_S3_ACCESS_KEY_ID:-testing} \
+	APP_S3_SECRET_ACCESS_KEY=$${APP_S3_SECRET_ACCESS_KEY:-testing} \
+	APP_S3_VERIFY_SSL=$${APP_S3_VERIFY_SSL:-false} \
+	APP_S3_USE_PATH_STYLE=$${APP_S3_USE_PATH_STYLE:-true} \
 	uv run python -m nexus.api.main
 
 
@@ -462,7 +481,7 @@ services-run: _ensure-secrets _ensure-certs ## Start all services (database + ca
 	@echo "📍 Temporal Server: localhost:$${APP_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${APP_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
-	$(COMPOSE_FINAL_CMD) up --build --force-recreate -d database redis temporal temporal-ui temporal-worker mcp-server opa
+	$(COMPOSE_FINAL_CMD) up --build --force-recreate -d database redis temporal temporal-ui temporal-worker mcp-server opa moto
 	@echo "✅ All services started in background"
 	@echo "   Use 'make services-logs' to view logs"
 	@echo "   Use 'make services-stop' to stop services"

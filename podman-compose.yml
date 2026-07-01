@@ -105,13 +105,24 @@ services:
       temporal:
         condition: service_healthy
 
+  moto:
+    image: motoserver/moto:latest
+    restart: unless-stopped
+    ports:
+      - ${APP_MOTO_PORT:-5555}:5000
+    healthcheck:
+      test: [CMD-SHELL, 'curl -sf http://localhost:5000/moto-api/ > /dev/null']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   nexus:
     build:
       context: ./backend
       dockerfile: containers/nexus/Containerfile
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, 'chmod -R g+rwX /data/file-uploads /data/audit-exports 2>/dev/null; uv run alembic upgrade head && uv run python -m nexus.seed --all && uv run python -m nexus.api.main']
+    command: [sh, -c, 'chmod -R g+rwX /data/audit-exports 2>/dev/null; uv run alembic upgrade head && uv run python -m nexus.seed --all && (uv run python -c "import boto3; boto3.client(\"s3\", endpoint_url=\"http://moto:5000\", aws_access_key_id=\"testing\", aws_secret_access_key=\"testing\", region_name=\"us-east-1\").create_bucket(Bucket=\"nexus-files\")" || true) && uv run python -m nexus.api.main']
     ports:
       - ${APP_API_PORT:-8000}:8000
     environment:
@@ -120,6 +131,14 @@ services:
       - APP_DB_USER=${APP_DB_USER:-admin}
       - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
       - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
+
+      - APP_S3_ENDPOINT_URL=http://moto:5000
+      - APP_S3_BUCKET_NAME=${APP_S3_BUCKET_NAME:-nexus-files}
+      - APP_S3_REGION=${APP_S3_REGION:-us-east-1}
+      - APP_S3_ACCESS_KEY_ID=${APP_S3_ACCESS_KEY_ID:-testing}
+      - APP_S3_SECRET_ACCESS_KEY=${APP_S3_SECRET_ACCESS_KEY:-testing}
+      - APP_S3_VERIFY_SSL=false
+      - APP_S3_USE_PATH_STYLE=true
 
       - APP_TEMPORAL_ADDRESS=temporal:7233
       - APP_TEMPORAL_NAMESPACE=default
@@ -148,7 +167,6 @@ services:
       - APP_ADMIN_PASSWORD_PATH=/run/secrets/admin-password
       - APP_OPA_URL=${APP_OPA_URL:-http://opa:8181}
       - APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key
-      - APP_FILE_UPLOAD_STORAGE_DIR=/data/file-uploads
       - APP_AUDIT_EXPORT_DIR=/data/audit-exports
       - APP_S2S_TLS_ENABLED=${APP_S2S_TLS_ENABLED:-true}
       - APP_S2S_TLS_CA_CERT_PATH=/run/secrets/s2s-ca.pem
@@ -156,7 +174,6 @@ services:
       - APP_S2S_TLS_KEY_PATH=/run/secrets/s2s-cert.key
     volumes:
       - ./backend/src:/opt/app-root/src/src:z
-      - nexus_file_uploads:/data/file-uploads:z
       - nexus_audit_exports:/data/audit-exports:z
       - ./backend/.secrets/jwt-primary.pem:/run/secrets/jwt-primary.pem:ro,z
       - ./backend/.secrets/jwt-backup.pem:/run/secrets/jwt-backup.pem:ro,z
@@ -171,6 +188,8 @@ services:
       temporal:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      moto:
         condition: service_healthy
     healthcheck:
       test: [CMD-SHELL, 'python3 -c "import urllib.request,ssl;ctx=ssl.create_default_context(cafile=\"/run/secrets/s2s-ca.pem\");urllib.request.urlopen(\"https://localhost:8000/health\",context=ctx)"']
@@ -191,6 +210,14 @@ services:
       - APP_DB_USER=${APP_DB_USER:-admin}
       - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
       - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
+
+      - APP_S3_ENDPOINT_URL=http://moto:5000
+      - APP_S3_BUCKET_NAME=${APP_S3_BUCKET_NAME:-nexus-files}
+      - APP_S3_REGION=${APP_S3_REGION:-us-east-1}
+      - APP_S3_ACCESS_KEY_ID=${APP_S3_ACCESS_KEY_ID:-testing}
+      - APP_S3_SECRET_ACCESS_KEY=${APP_S3_SECRET_ACCESS_KEY:-testing}
+      - APP_S3_VERIFY_SSL=false
+      - APP_S3_USE_PATH_STYLE=true
 
       - APP_SERVER_SCHEME=${APP_SERVER_SCHEME:-https}
       - APP_SERVER_HOST=${APP_SERVER_HOST:-0.0.0.0}
@@ -224,7 +251,6 @@ services:
       - APP_JWT_PRIVATE_KEY_PATH=/run/secrets/jwt-primary.pem
       - APP_JWT_BACKUP_KEYS=[{"key_id":"nexus-backup","key_path":"/run/secrets/jwt-backup.pem"}]
       - APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key
-      - APP_FILE_UPLOAD_STORAGE_DIR=/data/file-uploads
       - APP_AUDIT_EXPORT_DIR=/data/audit-exports
       - APP_S2S_TLS_ENABLED=${APP_S2S_TLS_ENABLED:-true}
       - APP_S2S_TLS_CA_CERT_PATH=/run/secrets/s2s-ca.pem
@@ -232,7 +258,6 @@ services:
       - APP_S2S_TLS_KEY_PATH=/run/secrets/s2s-cert.key
     volumes:
       - ./backend/src:/opt/app-root/src/src:z
-      - nexus_file_uploads:/data/file-uploads:z
       - nexus_audit_exports:/data/audit-exports:z
       - ./backend/.secrets/jwt-primary.pem:/run/secrets/jwt-primary.pem:ro,z
       - ./backend/.secrets/jwt-backup.pem:/run/secrets/jwt-backup.pem:ro,z
@@ -246,6 +271,8 @@ services:
       temporal:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      moto:
         condition: service_healthy
     healthcheck:
       test: [CMD-SHELL, 'cat /proc/[0-9]*/cmdline 2>/dev/null | grep -qa nexus.workflows.worker']
@@ -301,8 +328,6 @@ services:
 
 volumes:
   nexus_postgres_data:
-    driver: local
-  nexus_file_uploads:
     driver: local
   nexus_audit_exports:
     driver: local

@@ -10,8 +10,8 @@ Tests cover:
 - Inheritance from BaseResource (id, created_at, updated_at)
 """
 
-from datetime import UTC, datetime
-from uuid import UUID
+from datetime import datetime
+from uuid import UUID, uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,7 +20,7 @@ from nexus.files.models import FileMetadata, FileStatus
 
 
 @pytest.mark.asyncio
-async def test_file_metadata_create_with_defaults(test_db_session: AsyncSession, test_project_id) -> None:
+async def test_file_metadata_create_with_defaults(test_db_session: AsyncSession, test_project_id: str) -> None:
     """Test creating FileMetadata with required fields and default values."""
     file_metadata = FileMetadata(
         filename="document.pdf",
@@ -54,7 +54,7 @@ async def test_file_metadata_create_with_defaults(test_db_session: AsyncSession,
 
 
 @pytest.mark.asyncio
-async def test_file_metadata_status_enum_values(test_db_session: AsyncSession, test_project_id) -> None:
+async def test_file_metadata_status_enum_values(test_db_session: AsyncSession, test_project_id: str) -> None:
     """Test FileStatus enum has all expected values."""
     # Verify all expected enum values exist
     assert FileStatus.PENDING_CONVERSION.value == "pending_conversion"
@@ -69,8 +69,8 @@ async def test_file_metadata_status_enum_values(test_db_session: AsyncSession, t
             mime_type="text/plain",
             size_bytes=100,
             file_path=f"/storage/nexus-{status.value}-file.txt",
-            project_id=test_project_id,
             status=status,
+            project_id=test_project_id,
         )
         test_db_session.add(file_metadata)
         await test_db_session.commit()
@@ -79,7 +79,7 @@ async def test_file_metadata_status_enum_values(test_db_session: AsyncSession, t
 
 
 @pytest.mark.asyncio
-async def test_file_metadata_validates_required_fields(test_db_session: AsyncSession, test_project_id) -> None:
+async def test_file_metadata_validates_required_fields(test_db_session: AsyncSession) -> None:
     """Test that required fields are enforced via validation."""
     from pydantic import ValidationError as PydanticValidationError
 
@@ -90,7 +90,7 @@ async def test_file_metadata_validates_required_fields(test_db_session: AsyncSes
         mime_type="application/pdf",
         size_bytes=1024,
         file_path="/storage/file.pdf",
-        project_id=test_project_id,
+        project_id=uuid4(),
     )
 
     # Trying to set a required field to None should raise validation error
@@ -99,7 +99,7 @@ async def test_file_metadata_validates_required_fields(test_db_session: AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_file_metadata_inherits_base_resource_fields(test_db_session: AsyncSession, test_project_id) -> None:
+async def test_file_metadata_inherits_base_resource_fields(test_db_session: AsyncSession, test_project_id: str) -> None:
     """Test that FileMetadata inherits id, created_at, updated_at from BaseResource."""
     file_metadata = FileMetadata(
         filename="test.txt",
@@ -126,16 +126,16 @@ async def test_file_metadata_inherits_base_resource_fields(test_db_session: Asyn
 
 
 @pytest.mark.asyncio
-async def test_file_metadata_with_converted_content(test_db_session: AsyncSession, test_project_id) -> None:
+async def test_file_metadata_with_converted_content(test_db_session: AsyncSession, test_project_id: str) -> None:
     """Test FileMetadata with converted content path set."""
     file_metadata = FileMetadata(
         filename="document.pdf",
         mime_type="application/pdf",
         size_bytes=2048,
         file_path="/storage/nexus-abc123-document.pdf",
-        project_id=test_project_id,
         converted_content_path="/storage/nexus-abc123-content.md",
         status=FileStatus.CONVERTED,
+        project_id=test_project_id,
     )
 
     test_db_session.add(file_metadata)
@@ -147,7 +147,7 @@ async def test_file_metadata_with_converted_content(test_db_session: AsyncSessio
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(test_db_session: AsyncSession, test_project_id) -> None:
+async def ***REMOVED***(test_db_session: AsyncSession, test_project_id: str) -> None:
     """Test FileMetadata with conversion failure and error message."""
     error_message = "Failed to parse PDF: corrupted file"
 
@@ -156,9 +156,9 @@ async def ***REMOVED***(test_db_session: AsyncSession, test_project_id) -> None:
         mime_type="application/pdf",
         size_bytes=512,
         file_path="/storage/nexus-xyz789-corrupted.pdf",
-        project_id=test_project_id,
         status=FileStatus.CONVERSION_FAILED,
         conversion_error=error_message,
+        project_id=test_project_id,
     )
 
     test_db_session.add(file_metadata)
@@ -170,7 +170,7 @@ async def ***REMOVED***(test_db_session: AsyncSession, test_project_id) -> None:
 
 
 @pytest.mark.asyncio
-async def test_file_metadata_size_bytes_must_be_non_negative(test_db_session: AsyncSession, test_project_id) -> None:
+async def test_file_metadata_size_bytes_must_be_non_negative(test_db_session: AsyncSession) -> None:
     """Test that size_bytes field must be non-negative (ge=0)."""
     with pytest.raises((ValueError, TypeError)):
         FileMetadata(
@@ -178,12 +178,12 @@ async def test_file_metadata_size_bytes_must_be_non_negative(test_db_session: As
             mime_type="text/plain",
             size_bytes=-1,  # Negative size should fail
             file_path="/storage/test.txt",
-            project_id=test_project_id,
+            project_id=uuid4(),
         )
 
 
 @pytest.mark.asyncio
-async def test_file_metadata_update_status(test_db_session: AsyncSession, test_project_id) -> None:
+async def test_file_metadata_update_status(test_db_session: AsyncSession, test_project_id: str) -> None:
     """Test updating FileMetadata status after creation."""
     # Create with pending status
     file_metadata = FileMetadata(
@@ -191,8 +191,8 @@ async def test_file_metadata_update_status(test_db_session: AsyncSession, test_p
         mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         size_bytes=4096,
         file_path="/storage/nexus-proc123-processing.docx",
-        project_id=test_project_id,
         status=FileStatus.PENDING_CONVERSION,
+        project_id=test_project_id,
     )
 
     test_db_session.add(file_metadata)
@@ -214,40 +214,7 @@ async def test_file_metadata_update_status(test_db_session: AsyncSession, test_p
 
 
 @pytest.mark.asyncio
-async def test_file_metadata_storage_backend_defaults_to_local(test_db_session: AsyncSession, test_project_id) -> None:
-    """Test that storage_backend defaults to 'local'."""
-    file_metadata = FileMetadata(
-        filename="test.pdf",
-        mime_type="application/pdf",
-        size_bytes=1024,
-        file_path="/storage/nexus-abc-test.pdf",
-        project_id=test_project_id,
-    )
-    test_db_session.add(file_metadata)
-    await test_db_session.commit()
-
-    assert file_metadata.storage_backend == "local"
-
-
-@pytest.mark.asyncio
-async def test_file_metadata_storage_backend_custom_value(test_db_session: AsyncSession, test_project_id) -> None:
-    """Test setting storage_backend to a custom value like 's3'."""
-    file_metadata = FileMetadata(
-        filename="test.pdf",
-        mime_type="application/pdf",
-        size_bytes=1024,
-        file_path="nexus-abc-test.pdf",
-        project_id=test_project_id,
-        storage_backend="s3",
-    )
-    test_db_session.add(file_metadata)
-    await test_db_session.commit()
-
-    assert file_metadata.storage_backend == "s3"
-
-
-@pytest.mark.asyncio
-async def ***REMOVED***(test_db_session: AsyncSession, test_project_id) -> None:
+async def ***REMOVED***(test_db_session: AsyncSession, test_project_id: str) -> None:
     """Test that content_hash defaults to None and accepts a SHA-256 value."""
     file_metadata = FileMetadata(
         filename="test.pdf",
@@ -268,30 +235,8 @@ async def ***REMOVED***(test_db_session: AsyncSession, test_project_id) -> None:
 
 
 @pytest.mark.asyncio
-async def test_file_metadata_retention_expires_at_nullable(test_db_session: AsyncSession, test_project_id) -> None:
-    """Test that retention_expires_at defaults to None and accepts a datetime."""
-    file_metadata = FileMetadata(
-        filename="test.pdf",
-        mime_type="application/pdf",
-        size_bytes=1024,
-        file_path="/storage/nexus-abc-test.pdf",
-        project_id=test_project_id,
-    )
-    test_db_session.add(file_metadata)
-    await test_db_session.commit()
-
-    assert file_metadata.retention_expires_at is None
-
-    expiry = datetime(2026, 12, 31, 23, 59, 59, tzinfo=UTC)
-    file_metadata.retention_expires_at = expiry
-    await test_db_session.commit()
-    assert file_metadata.retention_expires_at is not None
-
-
-@pytest.mark.asyncio
-async def test_file_metadata_create_with_all_new_fields(test_db_session: AsyncSession, test_project_id) -> None:
-    """Test creating FileMetadata with all three new fields set."""
-    expiry = datetime(2026, 7, 1, 0, 0, 0, tzinfo=UTC)
+async def test_file_metadata_create_with_content_hash(test_db_session: AsyncSession, test_project_id: str) -> None:
+    """Test creating FileMetadata with content_hash set."""
     sha256 = "b" * 64
 
     file_metadata = FileMetadata(
@@ -299,14 +244,10 @@ async def test_file_metadata_create_with_all_new_fields(test_db_session: AsyncSe
         mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         size_bytes=4096,
         file_path="nexus-xyz-report.docx",
-        project_id=test_project_id,
-        storage_backend="s3",
         content_hash=sha256,
-        retention_expires_at=expiry,
+        project_id=test_project_id,
     )
     test_db_session.add(file_metadata)
     await test_db_session.commit()
 
-    assert file_metadata.storage_backend == "s3"
     assert file_metadata.content_hash == sha256
-    assert file_metadata.retention_expires_at == expiry

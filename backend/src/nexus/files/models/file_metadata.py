@@ -8,13 +8,12 @@ by FileManager. File content is stored on the filesystem, with
 only paths stored in the database (protects against DB bloat).
 """
 
-from datetime import datetime
-from enum import Enum, StrEnum
+from enum import Enum
 from typing import ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
-from sqlmodel import AutoString, DateTime, Field
+from sqlmodel import Field
 
 from nexus.core.models.base.base_resource import BaseResource
 
@@ -33,13 +32,6 @@ class FileStatus(str, Enum):
     CONVERTING = "converting"
     CONVERTED = "converted"
     CONVERSION_FAILED = "conversion_failed"
-
-
-class StorageBackend(StrEnum):
-    """Storage backend identifiers for file storage."""
-
-    LOCAL = "local"
-    S3 = "s3"
 
 
 class FileMetadata(BaseResource, table=True):
@@ -109,23 +101,11 @@ class FileMetadata(BaseResource, table=True):
         description="Path to converted markdown: nexus-{file_id}-content.md",
     )
 
-    # Storage backend tracking
-    storage_backend: StorageBackend = Field(  # type: ignore[call-overload]
-        default=StorageBackend.LOCAL,
-        sa_type=AutoString(length=50),
-        description="Storage backend identifier",
-        index=True,
-    )
+    # Integrity
     content_hash: str | None = Field(
         default=None,
         max_length=128,
         description="SHA-256 hash of file content, computed on upload",
-    )
-    retention_expires_at: datetime | None = Field(
-        default=None,
-        description="Expiration timestamp for automatic cleanup; null means no expiration",
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
-        index=True,
     )
 
     # Conversion status
@@ -145,7 +125,6 @@ class FileMetadata(BaseResource, table=True):
         "filename",
         "mime_type",
         "status",
-        "storage_backend",
         "project_id",
     ]
 
@@ -153,7 +132,6 @@ class FileMetadata(BaseResource, table=True):
         *BaseResource.__sortable_fields__,
         "filename",
         "size_bytes",
-        "retention_expires_at",
         "project_id",
     ]
 
@@ -168,5 +146,4 @@ class FileMetadata(BaseResource, table=True):
 __all__ = [
     "FileMetadata",
     "FileStatus",
-    "StorageBackend",
 ]

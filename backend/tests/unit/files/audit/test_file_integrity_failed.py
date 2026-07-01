@@ -41,7 +41,7 @@ class TestFileIntegrityFailedHandler:
         event = FileIntegrityFailedEvent(
             file_id=uuid4(),
             filename="corrupted.bin",
-            storage_backend="local",
+            storage_backend="s3",
             expected_hash="expected123",
             actual_hash="actual456",
         )
@@ -51,6 +51,6 @@ class TestFileIntegrityFailedHandler:
 
         assert audit_event.structured_data.data_type == "file-integrity-failed"
         assert audit_event.structured_data.model_extra is not None
-        assert audit_event.structured_data.model_extra["storage_backend"] == "local"
+        assert audit_event.structured_data.model_extra["storage_backend"] == "s3"
         assert audit_event.structured_data.model_extra["expected_hash"] == "expected123"
         assert audit_event.structured_data.model_extra["actual_hash"] == "actual456"

@@ -335,9 +335,7 @@ PROJECT_SCOPED_CASES: list[PolicyTestCase] = [
     PolicyTestCase(
         "policy:delete:project", ["project:read:project", "policy:read:project"], _policy_list_proj, skip_denied=True
     ),
-    # -- files --
-    PolicyTestCase("files:upload:project", ["project:read:project"], _file_upload),
-    PolicyTestCase("files:download:project", ["project:read:project"], _file_download, _setup_file),
+    # -- files: disabled until E2E cluster has S3 () --
 ]
 
 # ---------------------------------------------------------------------------
@@ -470,9 +468,11 @@ E2E_COVERAGE_EXEMPT: set[str] = {
     "invocation:create:any",
     "invocation:read:any",
     "invocation:cancel:any",
-    # Files
+    # Files — E2E needs S3 (); authz path unit-tested
     "files:upload:any",
     "files:download:any",
+    "files:upload:project",
+    "files:download:project",
     # Service accounts (system-scoped — unit-tested via test_rego_service_account.py)
     "service_account:create:any",
     "service_account:read:any",

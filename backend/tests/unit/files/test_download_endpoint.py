@@ -19,7 +19,6 @@ def _make_metadata() -> FileMetadata:
         mime_type="application/pdf",
         size_bytes=100,
         file_path="nexus-abc-test.pdf",
-        storage_backend="local",
         status=FileStatus.CONVERTED,
     )
 
@@ -39,7 +38,6 @@ class TestDownloadEndpoint:
             mime_type="application/pdf",
             size_bytes=len(file_content),
             file_path="/storage/nexus-abc-report.pdf",
-            storage_backend="local",
             status=FileStatus.CONVERTED,
         )
 

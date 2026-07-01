@@ -30,3 +30,8 @@ class FileContentNotFoundError(FileError):
 @fastapi_exception(handler="nexus.files.error_handlers.file_integrity_error_handler")
 class FileIntegrityError(FileError):
     """Raised when file content hash does not match the stored hash."""
+
+
+@fastapi_exception(handler="nexus.files.error_handlers.file_storage_unavailable_handler")
+class FileStorageUnavailableError(FileError):
+    """Raised when file storage (S3) is not configured."""

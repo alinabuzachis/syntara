@@ -53,7 +53,7 @@ from nexus.core.router_discovery import _get_lock_file_path, discover_and_regist
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
 from nexus.files.health import check_file_storage_health, validate_file_storage_at_startup
-from nexus.files.workers.file_cleanup import get_file_cleanup_worker
+from nexus.files.workers.file_cleanup import get_multipart_cleanup_worker
 from nexus.metrics.cleanup import get_metrics_cleanup_worker
 from nexus.metrics.completion_poller import get_completion_poller
 from nexus.metrics.dependencies import get_metrics_recorder
@@ -206,8 +206,8 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     session_cleanup_worker = get_session_cleanup_worker()
     session_cleanup_worker.start()
 
-    file_cleanup_worker = get_file_cleanup_worker()
-    file_cleanup_worker.start()
+    multipart_cleanup_worker = get_multipart_cleanup_worker()
+    multipart_cleanup_worker.start()
 
     periodic_collector.start()
     logger.info("Periodic analytics collector started")
@@ -220,14 +220,14 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         "metrics_cleanup_worker": metrics_cleanup_worker,
         "queue_depth_poller": queue_depth_poller,
         "session_cleanup_worker": session_cleanup_worker,
-        "file_cleanup_worker": file_cleanup_worker,
+        "multipart_cleanup_worker": multipart_cleanup_worker,
         "runtime_settings": runtime_settings,
     }
 
 
 async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
     """Clean up application resources during shutdown."""
-    await resources["file_cleanup_worker"].stop()
+    await resources["multipart_cleanup_worker"].stop()
     await resources["queue_depth_poller"].stop()
     await resources["session_cleanup_worker"].stop()
     await resources["metrics_cleanup_worker"].stop()

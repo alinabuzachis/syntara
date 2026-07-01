@@ -31,7 +31,6 @@ from sqlalchemy.engine import URL, make_url
 
 from nexus.core.constants import RetrieverServiceDefaults
 from nexus.core.exceptions import SafeValueError
-from nexus.files.models.file_metadata import StorageBackend
 
 # =============================================================================
 # LLM Provider Configuration
@@ -94,11 +93,6 @@ class FileUploadSettings(BaseSettings):
         description="Maximum number of files per invocation",
     )
 
-    file_upload_storage_dir: str = Field(
-        default_factory=tempfile.gettempdir,
-        description="Storage directory for uploaded files",
-    )
-
     file_upload_allowed_mime_types: list[str] = Field(
         default=[
             "application/pdf",
@@ -137,18 +131,14 @@ class DocumentConversionSettings(BaseSettings):
 
 
 class FileStorageSettings(BaseSettings):
-    """File storage backend configuration.
+    """S3-compatible file storage configuration.
 
-    Settings for pluggable file storage backends (local filesystem, S3-compatible, etc.).
     S3 credentials are injected via K8s secrets in production.
+    If S3 is not configured (s3_endpoint_url is None), file uploads
+    are disabled and return 503.
 
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
-
-    file_storage_backend: StorageBackend = Field(
-        default=StorageBackend.LOCAL,
-        description="Active storage backend: 'local' or 's3'",
-    )
 
     s3_endpoint_url: str | None = Field(
         default=None,
@@ -185,21 +175,9 @@ class FileStorageSettings(BaseSettings):
         description="Path to CA bundle for S3 endpoint TLS verification (e.g. OCP cluster CA)",
     )
 
-    file_retention_ttl_hours: int | None = Field(
-        default=None,
-        description="Default file retention TTL in hours; null means no expiration",
-    )
-
-    file_cleanup_interval_seconds: float = Field(
-        default=3600.0,
-        description="Seconds between periodic file cleanup cycles",
-        gt=0,
-    )
-
-    file_cleanup_batch_size: int = Field(
-        default=1000,
-        description="Maximum number of expired files to process per cleanup batch",
-        ge=1,
+    s3_use_path_style: bool = Field(
+        default=True,
+        description="Use path-style S3 addressing (required for ODF/NooBaa/Ceph)",
     )
 
     file_multipart_cleanup_threshold_hours: int = Field(

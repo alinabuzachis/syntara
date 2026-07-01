@@ -18,10 +18,12 @@ from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
+import boto3
 import pytest
 import pytest_asyncio
 import sqlalchemy
 from fastapi import FastAPI
+from moto import mock_aws
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,6 +34,9 @@ from nexus.authz.models.project import Project
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.models.group import Group
 from nexus.core.websocket.router import build_websocket_router
+
+_MOTO_BUCKET = "nexus-integration-test"
+_MOTO_REGION = "us-east-1"
 
 
 async def _truncate_all_tables(engine: AsyncEngine) -> None:
@@ -764,3 +769,31 @@ async def example_app_server(websocket_example_app: tuple[Path, FastAPI]) -> Asy
         server_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await server_task
+
+
+@pytest.fixture(autouse=True)
+def _moto_s3() -> Generator[None, None, None]:
+    """Provide a moto-backed S3 retriever for all integration tests.
+
+    Creates a real S3FileRetriever backed by moto's mock_aws, then injects
+    it into the FileManager singleton. This avoids endpoint_url conflicts
+    between moto interception and custom S3 endpoints.
+    """
+    with mock_aws():
+        conn = boto3.client("s3", region_name=_MOTO_REGION)
+        conn.create_bucket(Bucket=_MOTO_BUCKET)
+
+        from nexus.files.file_manager import get_file_manager
+        from nexus.files.retrievers.s3 import S3FileRetriever
+
+        retriever = S3FileRetriever(
+            endpoint_url=None,
+            bucket_name=_MOTO_BUCKET,
+            region_name=_MOTO_REGION,
+        )
+
+        fm = get_file_manager()
+        original_retriever = fm._retriever
+        fm._retriever = retriever
+        yield
+        fm._retriever = original_retriever

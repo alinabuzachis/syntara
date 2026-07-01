@@ -35,10 +35,7 @@ class BaseRetriever(ABC):
                        relative path for local storage, key for cloud storage)
 
         Returns:
-            Storage-specific identifier for the saved file:
-            - LocalFileRetriever: Absolute filesystem path (e.g., /tmp/nexus-uuid-file.pdf)
-            - S3FileRetriever: s3://bucket/key URL (future implementation)
-            - GCSFileRetriever: gs://bucket/path URL (future implementation)
+            Storage-specific identifier for the saved file (S3 object key).
 
             This identifier is stored in FileMetadata.file_path and used internally
             for file retrieval operations. It is NOT exposed in API responses.

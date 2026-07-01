@@ -41,6 +41,7 @@ class S3FileRetriever(BaseRetriever):
         *,
         verify_ssl: bool = True,
         ca_bundle: str | None = None,
+        use_path_style: bool = True,
     ) -> None:
         self._bucket_name = bucket_name
         verify: bool | str = ca_bundle if (verify_ssl and ca_bundle) else verify_ssl
@@ -52,6 +53,7 @@ class S3FileRetriever(BaseRetriever):
             aws_secret_access_key=aws_secret_access_key.get_secret_value() if aws_secret_access_key else None,
             verify=verify,
             config=Config(
+                s3={"addressing_style": "path" if use_path_style else "virtual"},
                 connect_timeout=5,
                 read_timeout=30,
                 retries={"max_attempts": 3, "mode": "adaptive"},

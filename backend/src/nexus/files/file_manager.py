@@ -10,7 +10,6 @@ database queries (encapsulation principle).
 """
 
 import hashlib
-from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import structlog
@@ -25,10 +24,9 @@ from nexus.core.exceptions import SafeValueError
 from nexus.files import storage, validators
 from nexus.files.audit.file_integrity_failed import FileIntegrityFailedEvent
 from nexus.files.audit.files_uploaded import FilesUploadedEvent
-from nexus.files.exceptions import FileError, FileIntegrityError, FileValidationError
-from nexus.files.models import FileMetadata, FileStatus, StorageBackend
+from nexus.files.exceptions import FileError, FileIntegrityError, FileStorageUnavailableError, FileValidationError
+from nexus.files.models import FileMetadata, FileStatus
 from nexus.files.retrievers.base import BaseRetriever
-from nexus.files.retrievers.local import LocalFileRetriever
 from nexus.files.retrievers.s3 import S3FileRetriever
 from nexus.files.storage import sanitize_filename
 
@@ -38,34 +36,28 @@ UNKNOWN_FILENAME = "unknown"
 
 
 class FileManager:
-    """Manager for file upload operations.
-
-    This class handles file validation, storage, and metadata generation
-    for file uploads. The FileManager supports multiple storage backends
-    and selects the appropriate retriever based on runtime context
-    (file size, type, user preferences, etc.).
+    """Manager for file upload operations using S3-compatible storage.
 
     The FileManager is the single source of truth for all FileMetadata operations.
     All components (DocumentConversionTask, InvocationService, UploadedFileRetriever)
     must access FileMetadata records through FileManager methods, not via direct
     database queries (encapsulation principle).
 
+    If S3 is not configured (APP_S3_ENDPOINT_URL not set), the FileManager
+    initializes without a retriever and file operations return 503.
+
     Attributes:
         settings: Application settings for validation limits
-        retrievers: Dictionary of available retrievers keyed by name
 
     """
 
     def __init__(self) -> None:
         """Initialize FileManager with application settings."""
         self.settings = get_settings()
-
-        self.retrievers: dict[StorageBackend, BaseRetriever] = {
-            StorageBackend.LOCAL: LocalFileRetriever(storage_dir=self.settings.file_upload_storage_dir),
-        }
+        self._retriever: BaseRetriever | None = None
 
         if self.settings.s3_endpoint_url is not None:
-            self.retrievers[StorageBackend.S3] = S3FileRetriever(
+            self._retriever = S3FileRetriever(
                 endpoint_url=self.settings.s3_endpoint_url,
                 bucket_name=self.settings.s3_bucket_name,
                 region_name=self.settings.s3_region,
@@ -73,53 +65,30 @@ class FileManager:
                 aws_secret_access_key=self.settings.s3_secret_access_key,
                 verify_ssl=self.settings.s3_verify_ssl,
                 ca_bundle=self.settings.s3_ca_bundle,
+                use_path_style=self.settings.s3_use_path_style,
+            )
+        else:
+            logger.warning(
+                "S3 not configured — file uploads will be unavailable",
+                hint="Set APP_S3_ENDPOINT_URL to enable file storage",
             )
 
-        self.active_backend = self.settings.file_storage_backend
-        if self.active_backend == StorageBackend.S3 and self.settings.s3_endpoint_url is None:
-            msg = "Storage backend 's3' selected but APP_S3_ENDPOINT_URL is not configured"
-            raise SafeValueError(msg)
+    @property
+    def s3_configured(self) -> bool:
+        """Whether S3 storage is configured and available."""
+        return self._retriever is not None
 
-    def _require_backend(self, backend: StorageBackend) -> None:
-        if backend not in self.retrievers:
-            msg = f"Storage backend '{backend}' not available. Registered: {list(self.retrievers)}"
-            raise SafeValueError(msg)
-
-    def get_retriever_for_file(
-        self,
-        _file_size_bytes: int,
-        _mime_type: str,
-    ) -> BaseRetriever:
-        """Select the active retriever for new uploads.
-
-        Args:
-            _file_size_bytes: Size of the file in bytes (reserved for future selection logic)
-            _mime_type: Detected MIME type of the file (reserved for future selection logic)
-
-        Returns:
-            The active backend retriever
-
-        """
-        return self.retrievers[self.active_backend]
-
-    def get_retriever_for_existing_file(self, storage_backend: StorageBackend) -> BaseRetriever:
-        """Look up retriever by a file's stored backend name.
-
-        Enables dual-read: files uploaded to local before an S3 switch
-        remain readable via the local retriever.
-
-        Args:
-            storage_backend: Backend identifier from FileMetadata.storage_backend
-
-        Returns:
-            The retriever for the given backend
+    def get_retriever(self) -> BaseRetriever:
+        """Return the S3 retriever.
 
         Raises:
-            ValueError: If the backend is not registered
+            FileStorageUnavailableError: If S3 is not configured (maps to 503)
 
         """
-        self._require_backend(storage_backend)
-        return self.retrievers[storage_backend]
+        if self._retriever is None:
+            msg = "File storage is not configured. An administrator must set APP_S3_ENDPOINT_URL."
+            raise FileStorageUnavailableError(msg)
+        return self._retriever
 
     async def load_file_with_integrity_check(self, file_metadata: FileMetadata) -> bytes:
         """Load file content and verify SHA-256 hash integrity.
@@ -127,7 +96,7 @@ class FileManager:
         Skips verification for legacy files without a stored content_hash.
 
         Args:
-            file_metadata: FileMetadata with storage_backend, file_path, and content_hash
+            file_metadata: FileMetadata with file_path and content_hash
 
         Returns:
             File content as bytes
@@ -136,7 +105,7 @@ class FileManager:
             FileIntegrityError: If computed hash doesn't match stored hash
 
         """
-        retriever = self.get_retriever_for_existing_file(file_metadata.storage_backend)
+        retriever = self.get_retriever()
         content = await retriever.load_file(file_metadata.file_path)
 
         if file_metadata.content_hash is not None:
@@ -146,7 +115,7 @@ class FileManager:
                     "File integrity check failed",
                     file_id=str(file_metadata.id),
                     filename=file_metadata.filename,
-                    storage_backend=file_metadata.storage_backend,
+                    storage_backend="s3",
                     expected_hash=file_metadata.content_hash,
                     actual_hash=actual_hash,
                 )
@@ -154,7 +123,7 @@ class FileManager:
                     FileIntegrityFailedEvent(
                         file_id=file_metadata.id,
                         filename=file_metadata.filename,
-                        storage_backend=file_metadata.storage_backend,
+                        storage_backend="s3",
                         expected_hash=file_metadata.content_hash,
                         actual_hash=actual_hash,
                     ),
@@ -177,7 +146,7 @@ class FileManager:
         This method performs the following operations:
         1. Validate file count, size, and MIME types (reads each file once)
         2. Generate unique file_id (UUID) for each file
-        3. Save files to storage using the configured retriever
+        3. Save files to storage using the S3 retriever
         4. Generate FileMetadata for each file
         5. Cleanup saved files if any step fails
 
@@ -194,9 +163,8 @@ class FileManager:
 
         Raises:
             FileValidationError: If file validation fails (count, size, or MIME type)
-            OSError: If storage operation fails (disk full, permission denied)
-            PermissionError: If insufficient permissions to write
-            IOError: If I/O operation fails
+            FileStorageUnavailableError: If S3 is not configured (503)
+            OSError: If storage operation fails
 
         """
         logger.info(
@@ -209,7 +177,6 @@ class FileManager:
             validated_files = await validators.validate_files(files, self.settings)
         except FileValidationError:
             logger.warning("File validation failed")
-            # Dispatch error audit event before raising
             AuditEventDispatcher.dispatch(
                 FilesUploadedEvent(
                     file_count=len(files),
@@ -220,30 +187,20 @@ class FileManager:
             )
             raise
 
-        # Step 2: Save files and collect metadata
-        # Track saved files for cleanup on failure
+        # Step 2: Ensure S3 is configured before saving
+        retriever = self.get_retriever()
+
+        # Step 3: Save files and collect metadata
         file_metadata_list: list[FileMetadata] = []
         saved_file_paths: list[str] = []
-
-        retention_expires_at = None
-        if self.settings.file_retention_ttl_hours is not None:
-            retention_expires_at = datetime.now(UTC) + timedelta(hours=self.settings.file_retention_ttl_hours)
 
         try:
             for (file_content, mime_type), file in zip(validated_files, files, strict=True):
                 safe_filename = sanitize_filename(file.filename) if file.filename else UNKNOWN_FILENAME
                 file_size_bytes = len(file_content)
 
-                # Generate unique file_id first (used for storage path)
                 file_id = uuid4()
 
-                # Select appropriate retriever based on file context
-                retriever = self.get_retriever_for_file(
-                    _file_size_bytes=file_size_bytes,
-                    _mime_type=mime_type,
-                )
-
-                # Save file to storage using file_id for path naming
                 file_path = await storage.save_file(
                     file_content,
                     safe_filename,
@@ -251,7 +208,6 @@ class FileManager:
                     retriever,
                 )
 
-                # Track saved path for potential cleanup
                 saved_file_paths.append(file_path)
 
                 content_hash = hashlib.sha256(file_content).hexdigest()
@@ -262,9 +218,7 @@ class FileManager:
                     size_bytes=file_size_bytes,
                     mime_type=mime_type,
                     file_path=file_path,
-                    storage_backend=self.active_backend,
                     content_hash=content_hash,
-                    retention_expires_at=retention_expires_at,
                     status=FileStatus.PENDING_CONVERSION,
                     project_id=project_id,
                 )
@@ -277,21 +231,17 @@ class FileManager:
                 )
 
         except (OSError, FileError) as e:
-            # Storage failure - cleanup already saved files
             logger.exception(
                 "Storage failure during file processing, cleaning up saved files",
                 saved_file_count=len(saved_file_paths),
             )
 
-            # Attempt retriever-aware cleanup of saved files
-            retriever = self.retrievers[self.active_backend]
             for path in saved_file_paths:
                 try:
                     await retriever.delete_file(path)
                 except (OSError, FileError):
                     logger.warning("Cleanup failed for saved file", path=path, exc_info=True)
 
-            # Dispatch error audit event before raising
             error_type = type(e).__name__
             AuditEventDispatcher.dispatch(
                 FilesUploadedEvent(
@@ -302,7 +252,6 @@ class FileManager:
                 )
             )
 
-            # Re-raise original exception
             raise
 
         logger.info(
@@ -310,14 +259,13 @@ class FileManager:
             file_count=len(file_metadata_list),
         )
 
-        # Dispatch success audit event
         file_details = [
             {
                 "file_id": str(fm.id),
                 "filename": fm.filename,
                 "mime_type": fm.mime_type,
                 "size_bytes": fm.size_bytes,
-                "storage_backend": fm.storage_backend,
+                "storage_backend": "s3",
             }
             for fm in file_metadata_list
         ]
@@ -375,7 +323,6 @@ class FileManager:
 
         if allowed_projects is not None and not allowed_projects.all_projects and not allowed_projects.project_ids:
             return []
-
         # FileMetadata.id is inherited from BaseResource, so type checker doesn't see in_() method
         statement = select(FileMetadata).where(FileMetadata.id.in_(file_ids))  # type: ignore[attr-defined]
 
@@ -419,7 +366,6 @@ class FileManager:
             msg = f"File not found: {file_id}"
             raise SafeValueError(msg)
 
-        # Update fields
         file_metadata.status = status
         if converted_content_path is not None:
             file_metadata.converted_content_path = converted_content_path
@@ -439,22 +385,22 @@ class FileManager:
 
 
 # ===================================================
-# Factory function for dependency injection
+# Lazy singleton — instantiated on first get_file_manager() call
+# to avoid import-time crashes when S3 env vars are missing.
 # ---------------------------------------------------
-_file_manager: FileManager = FileManager()
+_file_manager: FileManager | None = None
 
 
 def get_file_manager() -> FileManager:
-    """Create a FileManager instance with fresh dependencies.
+    """Get the FileManager singleton (lazy-initialized).
 
     Returns:
-        FileManager: Fresh FileManager instance
-
-    Example:
-        file_manager = get_file_manager()
-        retriever = file_manager.get_retriever_for_file(...)
+        FileManager: Shared FileManager instance
 
     """
+    global _file_manager  # noqa: PLW0603
+    if _file_manager is None:
+        _file_manager = FileManager()
     return _file_manager
 
 

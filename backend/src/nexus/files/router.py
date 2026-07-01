@@ -293,10 +293,7 @@ async def download_file(
     db: Annotated[AsyncSession, Depends(get_db)],
     file_manager: Annotated[FileManager, Depends(get_file_manager)],
 ) -> StreamingResponse:
-    """Download a file by ID from the configured storage backend.
-
-    Uses the file's stored storage_backend to select the correct retriever,
-    enabling dual-read during local-to-S3 migration.
+    """Download a file by ID from S3 storage.
 
     Authorization is handled entirely by PermissionChecker (dependency),
     which verifies files:download permission via project-scoped OPA policies.
@@ -333,7 +330,7 @@ async def download_file(
                 filename=metadata.filename,
                 mime_type=metadata.mime_type,
                 size_bytes=metadata.size_bytes,
-                storage_backend=metadata.storage_backend,
+                storage_backend="s3",
                 error_type=download_error,
             ),
         )

@@ -45,8 +45,7 @@ class ConversionTestHelper:
 
     def _setup_default_mocks(self) -> None:
         """Set up default mock behaviors."""
-        # File manager returns our mock retriever
-        self.mock_file_manager.get_retriever_for_file.return_value = self.mock_retriever
+        self.mock_file_manager.get_retriever.return_value = self.mock_retriever
 
         # Registry returns our mock converter by default
         self.mock_converter_registry.get_converter.return_value = self.mock_converter
@@ -68,31 +67,11 @@ class ConversionTestHelper:
 
     def setup_file_storage(self, output_path: str) -> None:
         """Configure mock file storage behavior."""
-        # Create a mock storage retriever that will be returned for markdown files
-        mock_storage_retriever = AsyncMock()
-        mock_storage_retriever.save_file.return_value = output_path
-
-        # Configure the file manager to return different retrievers based on mime type
-        def get_retriever_side_effect(size_bytes: int, mime_type: str) -> AsyncMock:
-            if mime_type == "text/markdown":
-                return mock_storage_retriever
-            return self.mock_retriever
-
-        self.mock_file_manager.get_retriever_for_file.side_effect = get_retriever_side_effect
+        self.mock_retriever.save_file.return_value = output_path
 
     def setup_file_storage_error(self, error: Exception) -> None:
         """Configure mock file storage to raise an error."""
-        # Create a mock storage retriever that will raise an error
-        mock_storage_retriever = AsyncMock()
-        mock_storage_retriever.save_file.side_effect = error
-
-        # Configure the file manager to return different retrievers based on mime type
-        def get_retriever_side_effect(size_bytes: int, mime_type: str) -> AsyncMock:
-            if mime_type == "text/markdown":
-                return mock_storage_retriever
-            return self.mock_retriever
-
-        self.mock_file_manager.get_retriever_for_file.side_effect = get_retriever_side_effect
+        self.mock_retriever.save_file.side_effect = error
 
     def setup_file_loading_error(self, error: Exception) -> None:
         """Configure mock file loading to raise an error."""
@@ -225,7 +204,7 @@ class TestDocumentConversionServiceConverterIntegration:
 
     @pytest.mark.asyncio
     async def test_convert_file_uses_file_manager_get_retriever(self, conversion_helper: ConversionTestHelper) -> None:
-        """Test that convert_file uses FileManager.get_retriever_for_file."""
+        """Test that convert_file uses FileManager.get_retriever."""
         file_metadata = create_file_metadata()
 
         conversion_helper.setup_file_loading(b"PDF content")
@@ -233,10 +212,7 @@ class TestDocumentConversionServiceConverterIntegration:
 
         await conversion_helper.service.convert_file(file_metadata, conversion_helper.status_updater)
 
-        # Verify get_retriever_for_file was called with correct parameters
-        conversion_helper.mock_file_manager.get_retriever_for_file.assert_called_once_with(
-            file_metadata.size_bytes, file_metadata.mime_type
-        )
+        conversion_helper.mock_file_manager.get_retriever.assert_called()
 
     @pytest.mark.asyncio
     async def test_convert_file_loads_file_content_via_retriever(self, conversion_helper: ConversionTestHelper) -> None:
@@ -397,29 +373,22 @@ class TestDocumentConversionServiceStorageIntegration:
 
     @pytest.mark.asyncio
     async def test_store_converted_file_uses_correct_retriever(self, conversion_helper: ConversionTestHelper) -> None:
-        """Test that _store_converted_file uses FileManager.get_retriever_for_file."""
+        """Test that _store_converted_file uses FileManager.get_retriever."""
         file_metadata = create_file_metadata(filename="store_test.pdf", status=FileStatus.CONVERTING)
         conversion_result = create_success_result("# Converted Content\n\nThis is the markdown version.", 1000)
 
-        # Set up mock retriever for storage operation
-        mock_storage_retriever = AsyncMock()
-        mock_storage_retriever.save_file.return_value = "/output/store_test.md"
-        conversion_helper.mock_file_manager.get_retriever_for_file.return_value = mock_storage_retriever
+        mock_retriever = AsyncMock()
+        mock_retriever.save_file.return_value = "/output/store_test.md"
+        conversion_helper.mock_file_manager.get_retriever.return_value = mock_retriever
 
-        # Access private method for testing purposes
         output_filename, output_path = await conversion_helper.service._store_converted_file(
             file_metadata, conversion_result
         )
 
-        # Verify correct parameters were used for retriever selection
-        assert conversion_result.converted_content is not None
-        expected_content_bytes = len(conversion_result.converted_content.encode("utf-8"))
-        conversion_helper.mock_file_manager.get_retriever_for_file.assert_called_with(
-            expected_content_bytes, "text/markdown"
-        )
+        conversion_helper.mock_file_manager.get_retriever.assert_called()
 
-        # Verify save_file was called with correct parameters
-        mock_storage_retriever.save_file.assert_called_once_with(
+        assert conversion_result.converted_content is not None
+        mock_retriever.save_file.assert_called_once_with(
             conversion_result.converted_content.encode("utf-8"), "store_test.md"
         )
         assert output_path == "/output/store_test.md"

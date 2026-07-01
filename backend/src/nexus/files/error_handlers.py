@@ -12,7 +12,13 @@ from fastapi.responses import JSONResponse
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
 
 if TYPE_CHECKING:
-    from nexus.files.exceptions import FileContentNotFoundError, FileError, FileIntegrityError, FileValidationError
+    from nexus.files.exceptions import (
+        FileContentNotFoundError,
+        FileError,
+        FileIntegrityError,
+        FileStorageUnavailableError,
+        FileValidationError,
+    )
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -54,6 +60,20 @@ def file_integrity_error_handler(request: Request, exc: "FileIntegrityError") ->
         title="File Integrity Error",
         detail="File integrity verification failed",
         code="FILE_INTEGRITY_ERROR",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def file_storage_unavailable_handler(request: Request, exc: "FileStorageUnavailableError") -> JSONResponse:
+    """Handle FileStorageUnavailableError with RFC 9457 format (503)."""
+    logger.warning("File storage not configured", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        problem_type=PROBLEM_TYPES["service_unavailable"],
+        title="File Storage Unavailable",
+        detail="File storage is not configured. Contact an administrator.",
+        code="FILE_STORAGE_UNAVAILABLE",
         retryable=False,
         instance=str(request.url),
     )
