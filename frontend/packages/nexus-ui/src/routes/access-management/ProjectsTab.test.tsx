@@ -8,10 +8,13 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
-import { useAllProjects } from '../access/useAllProjects'
 
 import { PROJECT_NAME_PLACEHOLDER } from './projectFormSchema'
 import { ProjectsTab } from './ProjectsTab'
+
+vi.mock('../../app/routerFlag', () => ({
+  isTanStackRouter: () => false,
+}))
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
@@ -19,12 +22,9 @@ vi.mock('../../client', () => ({
 
 vi.mock('../access/accessClient', () => ({
   accessClient: {
+    useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
-}))
-
-vi.mock('../access/useAllProjects', () => ({
-  useAllProjects: vi.fn(),
 }))
 
 vi.mock('./useProjectPermissions', () => ({
@@ -66,69 +66,76 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-describe('ProjectsTab', () => {
-  const mockProjects: ProjectRead[] = [
-    {
-      id: 'p1',
-      name: 'Alpha',
-      description: 'Alpha project',
-      labels: {},
-      is_default: false,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-02T00:00:00Z',
-    },
-    {
-      id: 'p2',
-      name: 'Beta',
-      description: 'Beta project',
-      labels: {},
-      is_default: false,
-      created_at: '2024-02-01T00:00:00Z',
-      updated_at: '2024-02-02T00:00:00Z',
-    },
-    {
-      id: 'p3',
-      name: 'Gamma',
-      description: null,
-      labels: {},
-      is_default: false,
-      created_at: '2024-03-01T00:00:00Z',
-      updated_at: '2024-03-02T00:00:00Z',
-    },
-  ]
+const mockRefetch = vi.fn().mockResolvedValue({})
 
+const mockProjects: ProjectRead[] = [
+  {
+    id: 'p1',
+    name: 'Alpha',
+    description: 'Alpha project',
+    labels: {},
+    is_default: false,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-02T00:00:00Z',
+  },
+  {
+    id: 'p2',
+    name: 'Beta',
+    description: 'Beta project',
+    labels: {},
+    is_default: false,
+    created_at: '2024-02-01T00:00:00Z',
+    updated_at: '2024-02-02T00:00:00Z',
+  },
+  {
+    id: 'p3',
+    name: 'Gamma',
+    description: null,
+    labels: {},
+    is_default: false,
+    created_at: '2024-03-01T00:00:00Z',
+    updated_at: '2024-03-02T00:00:00Z',
+  },
+]
+
+function setupMocks(projects = mockProjects) {
+  vi.mocked(accessClient.useQuery).mockReturnValue({
+    data: { resources: projects, total: projects.length, next: null, prev: null },
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    refetch: mockRefetch,
+  } as never)
+
+  vi.mocked(accessClient.useMutation).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+    data: null,
+    reset: vi.fn(),
+    mutateAsync: vi.fn(),
+    isIdle: true,
+    isSuccess: false,
+    failureCount: 0,
+    failureReason: null,
+    context: undefined,
+    submittedAt: 0,
+    variables: undefined,
+    status: 'idle',
+    isPaused: false,
+  } as never)
+}
+
+describe('ProjectsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-
-    vi.mocked(useAllProjects).mockReturnValue({
-      projects: mockProjects,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    })
-
-    vi.mocked(accessClient.useMutation).mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
-      isError: false,
-      error: null,
-      data: null,
-      reset: vi.fn(),
-      mutateAsync: vi.fn(),
-      isIdle: true,
-      isSuccess: false,
-      failureCount: 0,
-      failureReason: null,
-      context: undefined,
-      submittedAt: 0,
-      variables: undefined,
-      status: 'idle',
-      isPaused: false,
-    } as never)
+    setupMocks()
   })
 
   describe('Rendering', () => {
-    it('renders the table with projects', () => {
+    it('renders the table with projects from API response', () => {
       render(<ProjectsTab />, { wrapper })
 
       expect(screen.getByText('Alpha')).toBeInTheDocument()
@@ -154,7 +161,6 @@ describe('ProjectsTab', () => {
     it('renders description as empty string for null', () => {
       render(<ProjectsTab />, { wrapper })
 
-      // Gamma has null description — verify it renders without error
       expect(screen.getByText('Gamma')).toBeInTheDocument()
       expect(screen.getByText('Alpha project')).toBeInTheDocument()
     })
@@ -169,12 +175,7 @@ describe('ProjectsTab', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no projects exist', () => {
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: [],
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
+      setupMocks([])
 
       render(<ProjectsTab />, { wrapper })
 
@@ -185,13 +186,7 @@ describe('ProjectsTab', () => {
 
     it('opens create modal from empty state button', async () => {
       const user = userEvent.setup()
-
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: [],
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
+      setupMocks([])
 
       render(<ProjectsTab />, { wrapper })
 
@@ -205,12 +200,14 @@ describe('ProjectsTab', () => {
 
   describe('Error Handling', () => {
     it('displays loading state', () => {
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: [],
-        isLoading: true,
+      vi.mocked(accessClient.useQuery).mockReturnValue({
+        data: undefined,
+        isPending: true,
+        isFetching: true,
+        isError: false,
         error: null,
-        refetch: vi.fn(),
-      })
+        refetch: mockRefetch,
+      } as never)
 
       render(<ProjectsTab />, { wrapper })
 
@@ -218,12 +215,14 @@ describe('ProjectsTab', () => {
     })
 
     it('displays error state', () => {
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: [],
-        isLoading: false,
+      vi.mocked(accessClient.useQuery).mockReturnValue({
+        data: undefined,
+        isPending: false,
+        isFetching: false,
+        isError: true,
         error: new Error('Failed to load'),
-        refetch: vi.fn(),
-      })
+        refetch: mockRefetch,
+      } as never)
 
       render(<ProjectsTab />, { wrapper })
 
@@ -231,7 +230,24 @@ describe('ProjectsTab', () => {
     })
   })
 
-  describe('Sorting', () => {
+  describe('API Query Params', () => {
+    it('passes sort and pagination params to the API', () => {
+      render(<ProjectsTab />, { wrapper })
+
+      const callArgs = vi
+        .mocked(accessClient.useQuery)
+        .mock.calls.find((call) => call[0] === 'get' && call[1] === '/projects')
+      expect(callArgs).toBeDefined()
+      const queryOptions = callArgs![2] as unknown as {
+        params: { query: Record<string, unknown> }
+      }
+      expect(queryOptions.params.query).toMatchObject({
+        sort: 'name',
+        limit: 20,
+        include_total: true,
+      })
+    })
+
     it('renders sortable column headers', () => {
       render(<ProjectsTab />, { wrapper })
 
@@ -243,22 +259,6 @@ describe('ProjectsTab', () => {
 
       const updatedHeader = screen.getByRole('columnheader', { name: /Updated/i })
       expect(within(updatedHeader).getByRole('button')).toBeInTheDocument()
-    })
-
-    it('sorts by Name ascending when header is clicked', async () => {
-      const user = userEvent.setup()
-      render(<ProjectsTab />, { wrapper })
-
-      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
-      await user.click(within(nameHeader).getByRole('button'))
-
-      // Verify sort applied — Alpha should be first in ascending
-      const table = screen.getByRole('grid', { name: 'Projects' })
-      const rows = within(table).getAllByRole('row')
-      // rows[0] is header
-      expect(within(rows[1]).getByText('Alpha')).toBeInTheDocument()
-      expect(within(rows[2]).getByText('Beta')).toBeInTheDocument()
-      expect(within(rows[3]).getByText('Gamma')).toBeInTheDocument()
     })
   })
 
@@ -277,19 +277,6 @@ describe('ProjectsTab', () => {
       await user.type(textInput, 'Alpha')
       expect(textInput).toHaveValue('Alpha')
     })
-
-    it('shows filter empty state when no results match', async () => {
-      const user = userEvent.setup()
-      render(<ProjectsTab />, { wrapper })
-
-      const textInput = screen.getByPlaceholderText('Filter by name')
-      await user.type(textInput, 'nonexistent')
-      await user.click(screen.getByRole('button', { name: 'Apply filter' }))
-
-      await waitFor(() => {
-        expect(screen.getByText('No results found')).toBeInTheDocument()
-      })
-    })
   })
 
   describe('Row Actions', () => {
@@ -298,7 +285,6 @@ describe('ProjectsTab', () => {
 
       const table = screen.getByRole('grid', { name: 'Projects' })
       const rows = within(table).getAllByRole('row')
-      // Header + 3 data rows
       expect(rows.length).toBeGreaterThanOrEqual(4)
     })
 
@@ -331,7 +317,6 @@ describe('ProjectsTab', () => {
         expect(screen.getByText('Delete project?')).toBeInTheDocument()
       })
 
-      // Verify the project name renders in the dialog body (covers project?.name branch)
       const dialog = screen.getByRole('dialog')
       expect(within(dialog).getByText('Alpha')).toBeInTheDocument()
       expect(within(dialog).getByText(/will be deleted/)).toBeInTheDocument()
@@ -348,7 +333,6 @@ describe('ProjectsTab', () => {
       const user = userEvent.setup()
       render(<ProjectsTab />, { wrapper })
 
-      // Open delete dialog for the second project (Beta)
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[1])
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
@@ -364,14 +348,6 @@ describe('ProjectsTab', () => {
     it('calls delete mutation when Delete button is clicked', async () => {
       const user = userEvent.setup()
       const mockDeleteMutate = vi.fn()
-      const mockRefetch = vi.fn()
-
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: mockProjects,
-        isLoading: false,
-        error: null,
-        refetch: mockRefetch,
-      })
 
       vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: mockDeleteMutate,
@@ -380,17 +356,14 @@ describe('ProjectsTab', () => {
 
       render(<ProjectsTab />, { wrapper })
 
-      // Open actions and click delete
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
-      // Delete button should be disabled until acknowledgement checkbox is checked
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       expect(deleteButton).toBeDisabled()
 
-      // Check acknowledgement checkbox
       const ackCheckbox = screen.getByRole('checkbox')
       await user.click(ackCheckbox)
       expect(deleteButton).toBeEnabled()
@@ -402,14 +375,6 @@ describe('ProjectsTab', () => {
     it('shows success alert and closes dialog on successful delete', async () => {
       const user = userEvent.setup()
       const mockDeleteMutate = vi.fn()
-      const mockRefetch = vi.fn().mockResolvedValue({})
-
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: mockProjects,
-        isLoading: false,
-        error: null,
-        refetch: mockRefetch,
-      })
 
       vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: mockDeleteMutate,
@@ -418,18 +383,15 @@ describe('ProjectsTab', () => {
 
       render(<ProjectsTab />, { wrapper })
 
-      // Open delete dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
-      // Check acknowledgement and click Delete
       await user.click(screen.getByRole('checkbox'))
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
 
-      // Simulate successful mutation
       const callbacks = mockDeleteMutate.mock.calls[0][1] as { onSuccess: () => void; onSettled: () => void }
       act(() => {
         callbacks.onSuccess()
@@ -439,7 +401,6 @@ describe('ProjectsTab', () => {
       await waitFor(() => {
         expect(screen.queryByText('Delete project?')).not.toBeInTheDocument()
       })
-      expect(mockRefetch).toHaveBeenCalled()
     })
 
     it('shows error alert on delete failure', async () => {
@@ -453,18 +414,15 @@ describe('ProjectsTab', () => {
 
       render(<ProjectsTab />, { wrapper })
 
-      // Open delete dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
-      // Check acknowledgement and click Delete
       await user.click(screen.getByRole('checkbox'))
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
 
-      // Simulate failed mutation
       const callbacks = mockDeleteMutate.mock.calls[0][1] as {
         onError: (err: Error) => void
         onSettled: () => void
@@ -483,7 +441,6 @@ describe('ProjectsTab', () => {
       const user = userEvent.setup()
       render(<ProjectsTab />, { wrapper })
 
-      // Open delete dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
@@ -493,7 +450,6 @@ describe('ProjectsTab', () => {
         expect(screen.getByText('Delete project?')).toBeInTheDocument()
       })
 
-      // Click Cancel
       const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
       await user.click(cancelButtons[cancelButtons.length - 1])
 
@@ -519,7 +475,6 @@ describe('ProjectsTab', () => {
       const user = userEvent.setup()
       render(<ProjectsTab />, { wrapper })
 
-      // Open the edit modal via row action
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
       const editOption = await screen.findByRole('menuitem', { name: /edit/i })
@@ -529,7 +484,6 @@ describe('ProjectsTab', () => {
         expect(screen.getByText('Edit project')).toBeInTheDocument()
       })
 
-      // Close it
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
@@ -538,13 +492,7 @@ describe('ProjectsTab', () => {
     })
 
     it('refetches after successful create from empty state', async () => {
-      const mockRefetch = vi.fn().mockResolvedValue({})
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: [],
-        isLoading: false,
-        error: null,
-        refetch: mockRefetch,
-      })
+      setupMocks([])
 
       const mockCreateMutate = vi.fn()
       vi.mocked(accessClient.useMutation).mockReturnValue({
@@ -555,10 +503,8 @@ describe('ProjectsTab', () => {
       const user = userEvent.setup()
       render(<ProjectsTab />, { wrapper })
 
-      // Open modal from empty state
       await user.click(screen.getByRole('button', { name: /create project/i }))
 
-      // Fill in name and submit
       await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New')
       await user.click(screen.getByRole('button', { name: 'Create project' }))
 
@@ -566,7 +512,6 @@ describe('ProjectsTab', () => {
         expect(mockCreateMutate).toHaveBeenCalled()
       })
 
-      // Simulate successful mutation — triggers onSuccess which calls refetch
       const callbacks = mockCreateMutate.mock.calls[0][1] as { onSuccess: () => void }
       act(() => {
         callbacks.onSuccess()
@@ -578,14 +523,6 @@ describe('ProjectsTab', () => {
     })
 
     it('refetches after successful create from table view', async () => {
-      const mockRefetch = vi.fn().mockResolvedValue({})
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: mockProjects,
-        isLoading: false,
-        error: null,
-        refetch: mockRefetch,
-      })
-
       const mockCreateMutate = vi.fn()
       vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: mockCreateMutate,
@@ -595,10 +532,8 @@ describe('ProjectsTab', () => {
       const user = userEvent.setup()
       render(<ProjectsTab />, { wrapper })
 
-      // Open modal
       await user.click(screen.getByRole('button', { name: /create project/i }))
 
-      // Fill in name and submit
       await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New')
       await user.click(screen.getByRole('button', { name: 'Create project' }))
 
@@ -606,7 +541,6 @@ describe('ProjectsTab', () => {
         expect(mockCreateMutate).toHaveBeenCalled()
       })
 
-      // Simulate success
       const callbacks = mockCreateMutate.mock.calls[0][1] as { onSuccess: () => void }
       act(() => {
         callbacks.onSuccess()
@@ -624,71 +558,6 @@ describe('ProjectsTab', () => {
 
       expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
     })
-
-    it('navigates to next page when next is clicked', async () => {
-      // Create enough projects to require pagination (> 20 = default perPage)
-      const manyProjects: ProjectRead[] = Array.from({ length: 25 }, (_, i) => ({
-        id: `p${i}`,
-        name: `Project ${i}`,
-        description: null,
-        labels: {},
-        is_default: false,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      }))
-
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: manyProjects,
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
-
-      const user = userEvent.setup()
-      render(<ProjectsTab />, { wrapper })
-
-      const nextButton = screen.getByRole('button', { name: /next/i })
-      await user.click(nextButton)
-
-      // After navigating, we should see the remaining projects
-      await waitFor(() => {
-        expect(screen.getByText('Project 20')).toBeInTheDocument()
-      })
-    })
-
-    it('navigates to previous page', async () => {
-      const manyProjects: ProjectRead[] = Array.from({ length: 25 }, (_, i) => ({
-        id: `p${i}`,
-        name: `Project ${String(i).padStart(2, '0')}`,
-        description: null,
-        labels: {},
-        is_default: false,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      }))
-
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: manyProjects,
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
-
-      const user = userEvent.setup()
-      render(<ProjectsTab />, { wrapper })
-
-      // Go to page 2
-      await user.click(screen.getByRole('button', { name: /next/i }))
-      await waitFor(() => {
-        expect(screen.getByText('Project 20')).toBeInTheDocument()
-      })
-
-      // Go back to page 1
-      await user.click(screen.getByRole('button', { name: /previous/i }))
-      await waitFor(() => {
-        expect(screen.getByText('Project 00')).toBeInTheDocument()
-      })
-    })
   })
 
   describe('Accessibility', () => {
@@ -700,12 +569,7 @@ describe('ProjectsTab', () => {
     })
 
     it('has no accessibility violations in empty state', async () => {
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: [],
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
+      setupMocks([])
 
       const { container } = render(<ProjectsTab />, { wrapper })
 

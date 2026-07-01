@@ -2,7 +2,7 @@ import { Button, Content, List, ListItem, Stack, StackItem, Truncate } from '@pa
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
@@ -11,9 +11,9 @@ import { IconLabel } from '../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { navigate } from '../../hooks/routing/navigate'
+import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
-import { useFilterState } from '../../hooks/useFilterState'
-import { useSortState } from '../../hooks/useSortState'
+import { useTableSort } from '../../hooks/useTableSort'
 import { useAlerts } from '../../providers/alerts'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
@@ -22,7 +22,6 @@ import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
-import { useAllProjects } from '../access/useAllProjects'
 
 import { ProjectFormModal } from './ProjectFormModal'
 import { useProjectPermissions } from './useProjectPermissions'
@@ -162,7 +161,7 @@ function DeleteProjectDialog({
   )
 }
 
-const projectSortFieldByColumn: Record<number, string> = {
+const SORT_FIELDS: Record<number, string> = {
   0: 'name',
   2: 'created_at',
   3: 'updated_at',
@@ -170,57 +169,38 @@ const projectSortFieldByColumn: Record<number, string> = {
 
 export function ProjectsTab() {
   const permissions = useProjectPermissions()
-  const { filters, setAllFilters, clearAllFilters } = useFilterState()
-  const { activeSortIndex, sortDirection, getSortParams } = useSortState(projectSortFieldByColumn)
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(20)
-  const handlePerPageChange = useCallback((newPerPage: number) => {
-    setPerPage(newPerPage)
-    setPage(1)
-  }, [])
   const deleteDialog = useDialogState<ProjectRead>()
   const formDialog = useDialogState<ProjectRead | null>()
   const { showAlert } = useAlerts()
-  const hasActiveFilters = filters.length > 0
 
-  const handleFilterChange = (newFilters: typeof filters) => {
-    setAllFilters(newFilters)
-    setPage(1)
-  }
+  const {
+    cursor,
+    resetPagination,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    getFooterProps,
+  } = useCursorPagination()
 
-  const handleClearAllFilters = useCallback(() => {
-    clearAllFilters()
-    setPage(1)
-  }, [clearAllFilters])
+  const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
+    initialDirection: 'asc',
+    onSortChange: resetPagination,
+  })
 
-  const { projects: allProjects, isLoading, error, refetch } = useAllProjects()
+  const finalQueryParams = useMemo(() => {
+    const field = SORT_FIELDS[activeSortIndex] ?? 'name'
+    const sort = sortDirection === 'desc' ? `-${field}` : field
+    return { ...queryParams, sort }
+  }, [activeSortIndex, sortDirection, queryParams])
 
-  const { sortedProjects, paginatedProjects, hasNext } = useMemo(() => {
-    const filtered = allProjects.filter((project) =>
-      filters.every((filter) => {
-        const value = project[filter.key as keyof ProjectRead]
-        if (typeof value !== 'string') return true
-        return value.toLowerCase().includes(String(filter.value).toLowerCase())
-      })
-    )
+  const query = accessClient.useQuery('get', '/projects', { params: { query: finalQueryParams } })
+  const data = query.data
+  const projects = data?.resources ?? []
+  const refetch = useCallback(() => detachPromise(query.refetch()), [query])
 
-    const sorted = [...filtered].sort((a, b) => {
-      if (activeSortIndex === undefined) return 0
-      const field = projectSortFieldByColumn[activeSortIndex] as 'name' | 'created_at' | 'updated_at' | undefined
-      if (!field) return 0
-      const aVal = a[field] ?? ''
-      const bVal = b[field] ?? ''
-      const cmp = aVal.localeCompare(bVal)
-      return sortDirection === 'desc' ? -cmp : cmp
-    })
-
-    const startIndex = (page - 1) * perPage
-    return {
-      sortedProjects: sorted,
-      paginatedProjects: sorted.slice(startIndex, startIndex + perPage),
-      hasNext: startIndex + perPage < sorted.length,
-    }
-  }, [allProjects, filters, activeSortIndex, sortDirection, page, perPage])
+  useCursorReset(projects.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
   const { mutate: deleteProject } = accessClient.useMutation('delete', '/projects/{project_id}')
 
@@ -237,12 +217,12 @@ export function ProjectsTab() {
             variant: 'success',
             autoDismiss: true,
           })
-          detachPromise(refetch())
+          refetch()
         },
-        onError: (error: unknown) => {
+        onError: (deleteError: unknown) => {
           showAlert({
             title: 'Delete failed',
-            description: `Failed to delete project "${project.name}": ${getErrorMessage(error)}`,
+            description: `Failed to delete project "${project.name}": ${getErrorMessage(deleteError)}`,
             variant: 'error',
             autoDismiss: true,
           })
@@ -259,10 +239,11 @@ export function ProjectsTab() {
       <NxListPanelView
         tabKey="projects"
         tabLabel="Projects"
-        isPending={isLoading}
-        error={error}
-        onRetry={() => detachPromise(refetch())}
-        isEmpty={sortedProjects.length === 0}
+        isPending={query.isPending}
+        isFetching={query.isFetching}
+        error={query.error}
+        onRetry={refetch}
+        isEmpty={projects.length === 0}
         hasActiveFilters={hasActiveFilters}
         onClearAllFilters={handleClearAllFilters}
         noDataState={
@@ -274,7 +255,7 @@ export function ProjectsTab() {
           />
         }
         toolbar={
-          sortedProjects.length > 0 || hasActiveFilters ? (
+          projects.length > 0 || hasActiveFilters ? (
             <NxListPanelToolbar
               filters={filters}
               filterDefinitions={filterFieldDefinitions}
@@ -302,20 +283,9 @@ export function ProjectsTab() {
               workflow and credential belongs to exactly one project. Use projects to keep related automation work
               together and to control access through role assignments.
             </Content>
-            <NxListPanelTable
-              caption="Projects"
-              footer={{
-                page,
-                perPage,
-                total: sortedProjects.length,
-                hasNext,
-                onPrev: () => setPage(Math.max(1, page - 1)),
-                onNext: () => setPage(page + 1),
-                onPerPageChange: handlePerPageChange,
-              }}
-            >
+            <NxListPanelTable caption="Projects" footer={getFooterProps(data)}>
               <ProjectsTable
-                projects={paginatedProjects}
+                projects={projects}
                 getSortParams={getSortParams}
                 permissions={permissions}
                 onEdit={(p) => formDialog.open(p)}
@@ -330,9 +300,7 @@ export function ProjectsTab() {
         project={formDialog.item}
         isOpen={formDialog.isOpen}
         onClose={formDialog.close}
-        onSuccess={() => {
-          detachPromise(refetch())
-        }}
+        onSuccess={refetch}
       />
 
       <DeleteProjectDialog
