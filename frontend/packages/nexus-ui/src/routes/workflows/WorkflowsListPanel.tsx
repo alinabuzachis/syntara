@@ -85,7 +85,6 @@ export function WorkflowsListPanel({
               <Th>Name</Th>
               <Th>Created at</Th>
               <Th>Updated at</Th>
-              <Th>Tags</Th>
               <Th>State</Th>
               <Th screenReaderText="Actions" />
             </Tr>

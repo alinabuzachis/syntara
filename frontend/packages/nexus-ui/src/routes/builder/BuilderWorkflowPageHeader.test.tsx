@@ -50,10 +50,9 @@ vi.mock('./EditWorkflowDetailsPopover', () => ({
   }: {
     name: string
     description: string
-    tags: string[]
-    onApply: (name: string, description: string, tags: string[]) => void
+    onApply: (name: string, description: string) => void
   }) => (
-    <button onClick={() => onApply('New Name', 'New Desc', ['new-tag'])} aria-label="Apply details">
+    <button onClick={() => onApply('New Name', 'New Desc')} aria-label="Apply details">
       Edit details
     </button>
   ),
@@ -63,7 +62,6 @@ describe('BuilderWorkflowPageHeader', () => {
   const baseProps: BuilderWorkflowPageHeaderProps = {
     workflowName: 'wf',
     workflowDescription: '',
-    workflowTags: [],
     isBuiltin: false,
     isNew: true,
     workflow: undefined,
@@ -215,7 +213,6 @@ describe('BuilderWorkflowPageHeader', () => {
         {...baseProps}
         workflowName="Original Name"
         workflowDescription="Original Description"
-        workflowTags={['tag1']}
         dispatch={dispatch}
         markDirty={markDirty}
       />
@@ -317,7 +314,7 @@ describe('BuilderWorkflowPageHeader', () => {
     expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
   })
 
-  it('dispatches name, description, and tag changes via onApply callback', async () => {
+  it('dispatches name and description changes via onApply callback', async () => {
     const user = userEvent.setup()
     const dispatch = vi.fn()
     const markDirty = vi.fn()
@@ -327,7 +324,6 @@ describe('BuilderWorkflowPageHeader', () => {
         {...baseProps}
         workflowName="Old Name"
         workflowDescription="Old Desc"
-        workflowTags={['old-tag']}
         dispatch={dispatch}
         markDirty={markDirty}
       />
@@ -337,7 +333,6 @@ describe('BuilderWorkflowPageHeader', () => {
 
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_WORKFLOW_NAME', payload: 'New Name' })
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_WORKFLOW_DESCRIPTION', payload: 'New Desc' })
-    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_WORKFLOW_TAGS', payload: ['new-tag'] })
     expect(markDirty).toHaveBeenCalled()
   })
 
@@ -349,9 +344,9 @@ describe('BuilderWorkflowPageHeader', () => {
     vi.mocked(await import('./EditWorkflowDetailsPopover')).EditWorkflowDetailsPopover = (({
       onApply,
     }: {
-      onApply: (name: string, description: string, tags: string[]) => void
+      onApply: (name: string, description: string) => void
     }) => (
-      <button onClick={() => onApply('wf', '', [])} aria-label="Apply details">
+      <button onClick={() => onApply('wf', '')} aria-label="Apply details">
         Edit details
       </button>
     )) as never

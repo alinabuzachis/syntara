@@ -107,7 +107,6 @@ export function BuilderContent(props: BuilderContentProps) {
     replacementNodeId,
     workflowName,
     workflowDescription,
-    workflowTags,
     mostRecentExecutionId,
     mostRecentRunPanelOpen,
     selectedTriggerIndex,
@@ -168,7 +167,6 @@ export function BuilderContent(props: BuilderContentProps) {
     currentWorkflow,
     workflowName,
     workflowDescription,
-    workflowTags,
     workflowId,
     isNew,
     selectedProject: selectedProject?.id ? { id: selectedProject.id } : null,
@@ -336,7 +334,6 @@ export function BuilderContent(props: BuilderContentProps) {
                   <BuilderWorkflowPageHeader
                     workflowName={workflowName}
                     workflowDescription={workflowDescription}
-                    workflowTags={workflowTags}
                     isNew={isNew}
                     workflow={workflow?.id ? { id: workflow.id } : undefined}
                     isPending={isCreating || isUpdating}

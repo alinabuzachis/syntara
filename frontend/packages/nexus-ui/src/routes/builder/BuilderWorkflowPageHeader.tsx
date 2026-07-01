@@ -198,7 +198,6 @@ function BuilderToolbarContent({
 export type BuilderWorkflowPageHeaderProps = Readonly<{
   workflowName: string
   workflowDescription: string
-  workflowTags: string[]
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
@@ -245,7 +244,6 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
 export function BuilderWorkflowPageHeader({
   workflowName,
   workflowDescription,
-  workflowTags,
   isNew,
   workflow,
   isPending,
@@ -330,16 +328,12 @@ export function BuilderWorkflowPageHeader({
                 <EditWorkflowDetailsPopover
                   name={workflowName}
                   description={workflowDescription}
-                  tags={workflowTags}
-                  onApply={(name, description, tags) => {
+                  onApply={(name, description) => {
                     const nameChanged = name !== workflowName
                     const descriptionChanged = description !== workflowDescription
-                    const tagsChanged =
-                      tags.length !== workflowTags.length || tags.some((t, i) => t !== workflowTags[i])
                     if (nameChanged) dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
                     if (descriptionChanged) dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
-                    if (tagsChanged) dispatch({ type: 'SET_WORKFLOW_TAGS', payload: tags })
-                    if (nameChanged || descriptionChanged || tagsChanged) markDirty()
+                    if (nameChanged || descriptionChanged) markDirty()
                   }}
                 />
               </FlexItem>

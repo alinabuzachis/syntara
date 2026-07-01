@@ -1,9 +1,8 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import { Content, ContentVariants, Flex, FlexItem, Label, Truncate } from '@patternfly/react-core'
-import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
+import { Content, ContentVariants, Truncate } from '@patternfly/react-core'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
 
-import groupedTableStyles from '../../components/groupedTable.module.css'
+import { ProjectGroupHeaderRow } from '../../components/ProjectGroupHeaderRow'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { WorkflowName } from '../../components/WorkflowName'
@@ -84,21 +83,14 @@ export function GroupedExecutionsTableBody({
     <>
       {[...groupedExecutions.entries()].map(([projectId, { project, executions }]) => (
         <Tbody key={projectId}>
-          <Tr className={groupedTableStyles.groupHeader} onClick={() => onToggleProject(projectId)}>
-            <Td colSpan={5}>
-              <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-                <FlexItem>{collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>
-                <FlexItem>
-                  <strong>{project?.name ?? (projectId === 'unknown' ? 'No project' : projectId)}</strong>
-                </FlexItem>
-                <FlexItem>
-                  <Label isCompact color="purple">
-                    {executions.length}
-                  </Label>
-                </FlexItem>
-              </Flex>
-            </Td>
-          </Tr>
+          <ProjectGroupHeaderRow
+            projectId={projectId}
+            projectName={project?.name}
+            itemCount={executions.length}
+            isCollapsed={collapsedProjects.has(projectId)}
+            colSpan={5}
+            onToggle={() => onToggleProject(projectId)}
+          />
           {!collapsedProjects.has(projectId) &&
             executions.map((execution) => <ExecutionRow key={execution.id} execution={execution} />)}
         </Tbody>

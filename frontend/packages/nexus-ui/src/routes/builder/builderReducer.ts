@@ -39,7 +39,6 @@ export type BuilderState = {
   selectedTriggerIndex: number
   workflowName: string
   workflowDescription: string
-  workflowTags: string[]
   validationErrors: ValidationError[]
   validationBannerDismissed: boolean
 }
@@ -69,7 +68,6 @@ export type BuilderAction =
   | { type: 'SET_REPLACEMENT_NODE_ID'; payload: string | null }
   | { type: 'SET_WORKFLOW_NAME'; payload: string }
   | { type: 'SET_WORKFLOW_DESCRIPTION'; payload: string }
-  | { type: 'SET_WORKFLOW_TAGS'; payload: string[] }
   | {
       type: 'OPEN_ADD_NODE_FROM_EDGE'
       payload: {
@@ -96,7 +94,7 @@ export type BuilderAction =
   | { type: 'SET_SELECTED_TRIGGER'; payload: number }
   | {
       type: 'INIT_WORKFLOW'
-      payload: { name: string; description: string; tags: string[]; initialViewVersion?: number | null }
+      payload: { name: string; description: string; initialViewVersion?: number | null }
     }
   | { type: 'SET_VALIDATION_ERRORS'; payload: ValidationError[] }
   | { type: 'CLEAR_VALIDATION_ERRORS' }
@@ -127,7 +125,6 @@ const SIMPLE_STATE_KEY_MAP: Record<
     | 'replacementNodeId'
     | 'workflowName'
     | 'workflowDescription'
-    | 'workflowTags'
     | 'selectedTriggerIndex'
     | 'validationErrors'
   >
@@ -149,7 +146,6 @@ const SIMPLE_STATE_KEY_MAP: Record<
   SET_REPLACEMENT_NODE_ID: 'replacementNodeId',
   SET_WORKFLOW_NAME: 'workflowName',
   SET_WORKFLOW_DESCRIPTION: 'workflowDescription',
-  SET_WORKFLOW_TAGS: 'workflowTags',
   SET_SELECTED_TRIGGER: 'selectedTriggerIndex',
 }
 
@@ -337,7 +333,6 @@ const SIMPLE_ACTIONS = [
   'SET_REPLACEMENT_NODE_ID',
   'SET_WORKFLOW_NAME',
   'SET_WORKFLOW_DESCRIPTION',
-  'SET_WORKFLOW_TAGS',
   'SET_SELECTED_TRIGGER',
 ] as const
 
@@ -460,7 +455,6 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         // Reset workflow metadata
         workflowName: action.payload.name,
         workflowDescription: action.payload.description,
-        workflowTags: action.payload.tags,
         // Reset UI state to prevent stale selections/panels from previous workflow
         selectedNode: null,
         nodeEditorMode: null,
@@ -517,7 +511,6 @@ export function getInitialBuilderState(): BuilderState {
     selectedTriggerIndex: 0,
     workflowName: '',
     workflowDescription: '',
-    workflowTags: [],
     validationErrors: [],
     validationBannerDismissed: false,
   }

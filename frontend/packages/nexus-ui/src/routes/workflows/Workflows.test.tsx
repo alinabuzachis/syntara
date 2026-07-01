@@ -373,45 +373,6 @@ describe('Workflows Component', () => {
       await user.click(workflowNode)
       expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/1')
     })
-
-    it('renders tags column with label keys from workflow.labels', () => {
-      render(<Workflows />, { wrapper })
-
-      // Tags column shows label keys (mock workflows have labels: { type, status } per row)
-      expect(screen.getAllByText('type').length).toBeGreaterThanOrEqual(1)
-      expect(screen.getAllByText('status').length).toBeGreaterThanOrEqual(1)
-    })
-
-    it('renders tags column from workflow.labels (tags stored as label keys)', () => {
-      const workflowsWithTags = [
-        {
-          id: '1',
-          name: 'Tagged Workflow',
-          description: 'Has tags as labels',
-          created_at: '2023-01-01T00:00:00Z',
-          updated_at: '2023-01-02T00:00:00Z',
-          is_enabled: true,
-          labels: { deploy: '', prod: '' },
-        },
-      ]
-      mockWorkflowQuery({
-        data: {
-          resources: workflowsWithTags,
-          next: null,
-          prev: null,
-          total: 1,
-        },
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      })
-
-      render(<Workflows />, { wrapper })
-
-      expect(screen.getByText('deploy')).toBeInTheDocument()
-      expect(screen.getByText('prod')).toBeInTheDocument()
-    })
   })
 
   describe('Execute Workflow Row Action', () => {

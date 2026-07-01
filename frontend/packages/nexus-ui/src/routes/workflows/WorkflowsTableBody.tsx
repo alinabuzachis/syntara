@@ -1,4 +1,4 @@
-import type { Workflow as WorkflowWithId, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Flex, FlexItem, Truncate } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
@@ -7,12 +7,10 @@ import groupedTableStyles from '../../components/groupedTable.module.css'
 import { NxLabel } from '../../components/labels/NxLabel'
 import type { KebabAction } from '../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../components/NxKebabMenu'
-import { BadgesCell } from '../../components/table/BadgesCell'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { WorkflowPublishStatusBadge } from '../../components/WorkflowPublishStatusBadge'
 import { getDateField } from '../../utils/getDateField'
-import { getWorkflowTagsForDisplay } from '../../utils/workflowTags'
 import type { ProjectRead } from '../access/types'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
@@ -39,9 +37,6 @@ function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
       </Td>
       <Td dataLabel="Updated at">
         <DateCell dateString={getDateField(workflow, 'updatedAt')} />
-      </Td>
-      <Td dataLabel="Tags">
-        <BadgesCell items={getWorkflowTagsForDisplay(workflow as WorkflowWithId)} />
       </Td>
       <Td dataLabel="Status">
         <WorkflowPublishStatusBadge
@@ -85,7 +80,7 @@ export function GroupedWorkflowsTableBody({
         return (
           <Tbody key={projectId}>
             <Tr className={groupedTableStyles.groupHeader}>
-              <Td colSpan={hasProjectActions ? 5 : 6} onClick={() => onToggleProject(projectId)}>
+              <Td colSpan={hasProjectActions ? 4 : 5} onClick={() => onToggleProject(projectId)}>
                 <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
                   <FlexItem>
                     {collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}

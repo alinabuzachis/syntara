@@ -21,7 +21,7 @@ const processExistingWorkflowMock = vi.hoisted(() =>
       workflow: { activities: [] },
     } as WorkflowDefinition,
     generatedEdges: [] as EdgeConnection[],
-    initPayload: { name: 'processed', description: 'd', tags: [] as string[] },
+    initPayload: { name: 'processed', description: 'd' },
   }))
 )
 
@@ -105,7 +105,7 @@ describe('useBuilderWorkflowLifecycle', () => {
       expect(dispatch).toHaveBeenCalledWith({
         type: 'INIT_WORKFLOW',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- vitest asymmetric matcher
-        payload: expect.objectContaining({ name: DEFAULT_WORKFLOW_NAME, tags: [] }),
+        payload: expect.objectContaining({ name: DEFAULT_WORKFLOW_NAME }),
       })
     })
   })
@@ -161,7 +161,7 @@ describe('useBuilderWorkflowLifecycle', () => {
     })
   })
 
-  it('syncs INIT_WORKFLOW from workflow labels when editing', async () => {
+  it('syncs INIT_WORKFLOW from workflow metadata when editing', async () => {
     processExistingWorkflowMock.mockImplementationOnce((wf: WorkflowWithVersion) => ({
       flattenedWorkflow: {
         schema_version: '2.0.0',
@@ -173,7 +173,6 @@ describe('useBuilderWorkflowLifecycle', () => {
       initPayload: {
         name: wf.name,
         description: wf.description ?? wf.name ?? DEFAULT_WORKFLOW_NAME,
-        tags: Object.keys(wf.labels ?? {}),
       },
     }))
     const workflow = {
@@ -201,7 +200,6 @@ describe('useBuilderWorkflowLifecycle', () => {
         payload: {
           name: 'Named',
           description: 'Desc',
-          tags: ['env'],
         },
       })
     })

@@ -2872,7 +2872,7 @@ describe('BuilderContent', () => {
         expect(useWorkflowStore.getState().isDirty).toBe(true)
       })
 
-      // This tests the branches: if (nameChanged) and if (descriptionChanged) and if (nameChanged || descriptionChanged || tagsChanged)
+      // This tests the branches: if (nameChanged) and if (descriptionChanged)
     })
   })
 

@@ -236,12 +236,6 @@ describe('builderReducer', () => {
       const result = builderReducer(initialState, action)
       expect(result.workflowDescription).toBe('Description')
     })
-
-    it('SET_WORKFLOW_TAGS sets workflowTags', () => {
-      const action: BuilderAction = { type: 'SET_WORKFLOW_TAGS', payload: ['tag1', 'tag2'] }
-      const result = builderReducer(initialState, action)
-      expect(result.workflowTags).toEqual(['tag1', 'tag2'])
-    })
   })
 
   describe('Complex panel actions', () => {
@@ -487,14 +481,12 @@ describe('builderReducer', () => {
         payload: {
           name: 'My Workflow',
           description: 'Test Description',
-          tags: ['tag1', 'tag2'],
         },
       }
       const result = builderReducer(initialState, action)
 
       expect(result.workflowName).toBe('My Workflow')
       expect(result.workflowDescription).toBe('Test Description')
-      expect(result.workflowTags).toEqual(['tag1', 'tag2'])
     })
 
     it('resets UI state to prevent stale state from previous workflow', () => {
@@ -520,7 +512,6 @@ describe('builderReducer', () => {
         payload: {
           name: 'New Workflow',
           description: 'Fresh Start',
-          tags: [],
         },
       }
 
@@ -529,7 +520,6 @@ describe('builderReducer', () => {
       // Workflow metadata should be updated
       expect(result.workflowName).toBe('New Workflow')
       expect(result.workflowDescription).toBe('Fresh Start')
-      expect(result.workflowTags).toEqual([])
 
       // UI state should be reset to initial values
       expect(result.selectedNode).toBeNull()
@@ -551,7 +541,7 @@ describe('builderReducer', () => {
     it('sets viewingVersion and versionHistoryOpen when initialViewVersion is provided', () => {
       const action: BuilderAction = {
         type: 'INIT_WORKFLOW',
-        payload: { name: 'Test', description: '', tags: [], initialViewVersion: 3 },
+        payload: { name: 'Test', description: '', initialViewVersion: 3 },
       }
       const result = builderReducer(initialState, action)
 
@@ -563,7 +553,7 @@ describe('builderReducer', () => {
       const stateViewing: BuilderState = { ...initialState, viewingVersion: 2, versionHistoryOpen: true }
       const action: BuilderAction = {
         type: 'INIT_WORKFLOW',
-        payload: { name: 'Test', description: '', tags: [] },
+        payload: { name: 'Test', description: '' },
       }
       const result = builderReducer(stateViewing, action)
 
@@ -605,7 +595,7 @@ describe('builderReducer', () => {
 
       const action: BuilderAction = {
         type: 'INIT_WORKFLOW',
-        payload: { name: 'Fresh', description: '', tags: [] },
+        payload: { name: 'Fresh', description: '' },
       }
       const result = builderReducer(stateWithExecution, action)
 
@@ -663,7 +653,6 @@ describe('builderReducer', () => {
       expect(state.selectedNode).toBeNull()
       expect(state.workflowName).toBe('')
       expect(state.workflowDescription).toBe('')
-      expect(state.workflowTags).toEqual([])
     })
   })
 
@@ -708,7 +697,7 @@ describe('builderReducer', () => {
       }
       const action: BuilderAction = {
         type: 'INIT_WORKFLOW',
-        payload: { name: 'New', description: '', tags: [] },
+        payload: { name: 'New', description: '' },
       }
       const result = builderReducer(stateWithErrors, action)
 

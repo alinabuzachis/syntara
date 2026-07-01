@@ -24,7 +24,6 @@ export type UseBuilderSaveWorkflowParams = {
   currentWorkflow: WorkflowDefinition | null
   workflowName: string
   workflowDescription: string
-  workflowTags: string[]
   workflowId: string | null
   isNew: boolean
   /** When creating a workflow, scopes the resource to this project (access control). */
@@ -180,7 +179,6 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
     currentWorkflow,
     workflowName,
     workflowDescription,
-    workflowTags,
     workflowId,
     isNew,
     selectedProject,
@@ -237,18 +235,15 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
     }
 
     workflowDef.name = nameToSave
-    const labels = Object.fromEntries(workflowTags.map((t) => [t, '']))
     const createPayload: CreateWorkflowBody = {
       name: nameToSave,
       description: workflowDescription,
       workflow_definition: workflowDef as unknown as CreateWorkflowBody['workflow_definition'],
       project_id: selectedProject!.id,
-      ...(Object.keys(labels).length > 0 && { labels }),
     }
     const patchPayload: PatchWorkflowBody = {
       name: nameToSave,
       description: workflowDescription,
-      labels,
       workflow_definition: workflowDef as unknown as PatchWorkflowBody['workflow_definition'],
     }
 
@@ -274,7 +269,6 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
     currentWorkflow,
     workflowName,
     workflowDescription,
-    workflowTags,
     getWorkflowDefinition,
     workflowId,
     isNew,

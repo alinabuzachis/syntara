@@ -35,7 +35,6 @@ function buildParams(overrides: Partial<UseBuilderSaveWorkflowParams> = {}): Use
     currentWorkflow: minimalWorkflow(),
     workflowName: 'test-wf',
     workflowDescription: 'd',
-    workflowTags: [],
     workflowId: null,
     isNew: true,
     /** Create path requires a project; tests that assert missing-project behavior override with `null`. */
@@ -121,21 +120,21 @@ describe('useBuilderSaveWorkflow', () => {
     expect(vars.body).toMatchObject({
       name: 'test-wf',
       description: 'd',
-      labels: {},
     })
+    expect(vars.body).not.toHaveProperty('labels')
     expect(markClean).toHaveBeenCalled()
     expect(showSuccess).not.toHaveBeenCalled()
     expect(invalidateQueries).toHaveBeenCalled()
   })
 
-  it('creates workflow in one call without labels when there are no tags', async () => {
+  it('creates workflow in one call without labels', async () => {
     const showSuccess = vi.fn()
     const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
       detachPromise(args[1]?.onSuccess?.({ id: 'new-wf-id' }))
     }) as MockedFunction<CreateWorkflow>
     const setLocation = vi.fn()
     const { result } = renderHook(() =>
-      useBuilderSaveWorkflow(buildParams({ createWorkflow, setLocation, workflowTags: [], showSuccess }))
+      useBuilderSaveWorkflow(buildParams({ createWorkflow, setLocation, showSuccess }))
     )
 
     await expect(result.current()).resolves.toBe(true)
@@ -145,20 +144,6 @@ describe('useBuilderSaveWorkflow', () => {
     const [{ body }] = createWorkflow.mock.calls[0]
     expect(body.labels).toBeUndefined()
     expect(setLocation).toHaveBeenCalledWith('/workflow-builder/new-wf-id')
-  })
-
-  it('creates workflow in one call with labels when tags are present', async () => {
-    const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.({ id: 'id-2' }))
-    }) as MockedFunction<CreateWorkflow>
-    const { result } = renderHook(() =>
-      useBuilderSaveWorkflow(buildParams({ createWorkflow, workflowTags: ['env', 'team'] }))
-    )
-
-    await expect(result.current()).resolves.toBe(true)
-
-    const [{ body }] = createWorkflow.mock.calls[0]
-    expect(body.labels).toEqual({ env: '', team: '' })
   })
 
   it('includes project_id on create when isNew and selectedProject are set', async () => {

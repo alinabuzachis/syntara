@@ -126,8 +126,6 @@ export function processExistingWorkflow(workflow: WorkflowWithVersion) {
     workflow: { activities: flattenedActivities },
   } as unknown as WorkflowDefinition
 
-  const tagKeys = Object.keys(workflow.labels ?? {})
-
   return {
     flattenedWorkflow,
     generatedEdges,
@@ -135,7 +133,6 @@ export function processExistingWorkflow(workflow: WorkflowWithVersion) {
     initPayload: {
       name: workflow.name,
       description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,
-      tags: tagKeys,
     },
   }
 }

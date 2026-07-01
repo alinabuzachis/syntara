@@ -1,7 +1,5 @@
 /**
- * Popover for editing workflow name, description, and tags.
- * Updates apply to builder state on Close. On Save, tags are persisted as workflow.labels
- * (key = tag name, value = '') so they appear in the list API and Tags column.
+ * Popover for editing workflow name and description.
  *
  * Form layout matches other builder forms: Stack hasGutter > StackItem > FormGroup per field.
  */
@@ -25,24 +23,19 @@ import {
 import { RhUiEditIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import { useEffect, useState } from 'react'
 
-import { TagInput } from '../../components/forms/TagInput'
-
 export type EditWorkflowDetailsPopoverProps = {
   /** Current name (from builder state) */
   name: string
   /** Current description (from builder state) */
   description: string
-  /** Current tags (from builder state) */
-  tags: string[]
   /** Called when user clicks Close; apply these values to builder state */
-  onApply: (name: string, description: string, tags: string[]) => void
+  onApply: (name: string, description: string) => void
 }
 
-export function EditWorkflowDetailsPopover({ name, description, tags, onApply }: EditWorkflowDetailsPopoverProps) {
+export function EditWorkflowDetailsPopover({ name, description, onApply }: Readonly<EditWorkflowDetailsPopoverProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [localName, setLocalName] = useState(name)
   const [localDescription, setLocalDescription] = useState(description)
-  const [localTags, setLocalTags] = useState<string[]>(tags)
   const [nameError, setNameError] = useState<string | null>(null)
 
   // Sync from props when popover opens (defer to avoid synchronous setState in effect)
@@ -51,11 +44,10 @@ export function EditWorkflowDetailsPopover({ name, description, tags, onApply }:
     const id = window.setTimeout(() => {
       setLocalName(name)
       setLocalDescription(description)
-      setLocalTags([...tags])
       setNameError(null)
     }, 0)
     return () => clearTimeout(id)
-  }, [isOpen, name, description, tags])
+  }, [isOpen, name, description])
 
   const tryApplyAndClose = (hide?: () => void) => {
     const trimmedName = localName.trim()
@@ -64,7 +56,7 @@ export function EditWorkflowDetailsPopover({ name, description, tags, onApply }:
       return
     }
     setNameError(null)
-    onApply(trimmedName, localDescription.trim(), localTags)
+    onApply(trimmedName, localDescription.trim())
     setIsOpen(false)
     hide?.()
   }
@@ -113,18 +105,6 @@ export function EditWorkflowDetailsPopover({ name, description, tags, onApply }:
             placeholder="Enter description"
             rows={3}
             aria-label="Description"
-          />
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Tags" fieldId="edit-workflow-tags">
-          <TagInput
-            id="edit-workflow-tags-inline-input"
-            value={localTags}
-            onChange={setLocalTags}
-            ariaLabel="Add tag"
-            placeholder="Enter a tag"
-            helperText="Type a tag and press Enter or comma to add"
           />
         </FormGroup>
       </StackItem>
