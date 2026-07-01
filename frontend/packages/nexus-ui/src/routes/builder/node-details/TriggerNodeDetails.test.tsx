@@ -680,6 +680,43 @@ describe('TriggerNodeDetails Component', () => {
 
       formSpy.mockRestore()
     })
+
+    it('accepts recurring interval with end date', async () => {
+      const user = userEvent.setup()
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-with-end-date"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'R/2024-01-01T10:00:00Z/P1D/2024-12-31T23:59:59+00:00',
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        id: 'scheduled_trigger',
+        type: TriggerTypeEnum.SCHEDULED,
+        name: 'Trigger',
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      await user.click(screen.getByTestId('submit-with-end-date'))
+
+      expect(mockShowError).not.toHaveBeenCalled()
+      expect(mockOnClose).toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
   })
 
   describe('Submit Button', () => {

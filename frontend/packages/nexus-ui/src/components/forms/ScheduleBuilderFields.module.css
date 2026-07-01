@@ -1,0 +1,25 @@
+.startDateTimeRow {
+  display: flex;
+  gap: var(--pf-t--global--spacer--sm);
+  align-items: flex-end;
+  flex-wrap: nowrap;
+}
+
+.dateInput {
+  flex: 1 1 auto;
+  min-width: 10rem;
+}
+
+.timeInput {
+  flex: 0 0 auto;
+  width: 7rem;
+}
+
+.timezoneSelect {
+  flex: 1 1 auto;
+  min-width: 10rem;
+}
+
+.intervalInput {
+  max-width: 10rem;
+}

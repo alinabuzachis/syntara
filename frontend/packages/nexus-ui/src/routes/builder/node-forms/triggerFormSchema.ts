@@ -1,7 +1,13 @@
-import { TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
+import {
+  MissedSchedulePolicyEnum,
+  ScheduleTypeEnum,
+  TriggerTypeEnum,
+  WEBHOOK_TRIGGER_TYPES,
+} from '@ansible/nexus-contracts'
 import { z } from 'zod'
 
 import { safeJSONReviver } from '../../../utils/jsonSafeParse'
+import { parseRepeatingInterval } from '../../../utils/triggerFormatting'
 import { isValidWebhookPath } from '../../../utils/webhookPath'
 
 /**
@@ -91,26 +97,41 @@ const triggerFormSchemaBase = z.object({
   scheduleType: z.string().optional(),
   interval: z.string().optional(),
   cron: z.string().max(256).optional(),
+  timezone: z.string().optional(),
+  missedSchedulePolicy: z
+    .enum([MissedSchedulePolicyEnum.SKIP, MissedSchedulePolicyEnum.RUN_ONCE, MissedSchedulePolicyEnum.RUN_ALL])
+    .optional(),
   inputSchema: z.string().optional(),
   webhookPath: z.string().optional(),
 })
+
+function validateScheduleInterval(data: z.infer<typeof triggerFormSchemaBase>, ctx: z.RefinementCtx) {
+  const parsed = parseRepeatingInterval(data.interval ?? '')
+  if (!parsed.start) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Start date is required',
+      path: ['interval'],
+    })
+  } else if (parsed.end && parsed.end < parsed.start) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'End date must be on or after the start date',
+      path: ['interval'],
+    })
+  }
+}
 
 export const triggerFormSchema = triggerFormSchemaBase.superRefine((data, ctx) => {
   if (data.triggerType === TriggerTypeEnum.MANUAL_TRIGGER) {
     validateInputSchemaJson(data, ctx)
   }
 
-  if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType === 'interval') {
-    if (!data.interval?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Start date is required',
-        path: ['interval'],
-      })
-    }
+  if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType === ScheduleTypeEnum.INTERVAL) {
+    validateScheduleInterval(data, ctx)
   }
 
-  if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType === 'cron') {
+  if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType === ScheduleTypeEnum.CRON) {
     const cronValue = data.cron?.trim() ?? ''
     if (!cronValue) {
       ctx.addIssue({

@@ -330,7 +330,7 @@ describe('triggerFormSchema — scheduled trigger validation', () => {
   })
 
   it('accepts present interval', () => {
-    expect(parseScheduled('interval', '2024-01-01T00:00:00Z').success).toBe(true)
+    expect(parseScheduled('interval', 'R/2024-01-01T00:00:00Z/P1D').success).toBe(true)
   })
 
   it('does not require interval for cron schedule', () => {
@@ -381,6 +381,19 @@ describe('triggerFormSchema — scheduled trigger validation', () => {
     const longCron = `${Array(150).fill('1').join(',')} * * * *`
     const result = parseScheduled('cron', undefined, longCron)
     expect(result.success).toBe(false)
+  })
+
+  it('rejects interval when end date is before start date', () => {
+    const result = parseScheduled('interval', 'R/2024-06-15T10:00:00Z/P1D/2024-06-01T23:59:59Z')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const intervalError = result.error.issues.find((i) => i.path.includes('interval'))?.message
+      expect(intervalError).toBe('End date must be on or after the start date')
+    }
+  })
+
+  it('accepts interval when end date is after start date', () => {
+    expect(parseScheduled('interval', 'R/2024-01-15T10:00:00Z/P1D/2024-12-31T23:59:59Z').success).toBe(true)
   })
 })
 

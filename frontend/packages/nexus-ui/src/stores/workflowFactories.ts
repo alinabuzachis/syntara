@@ -1,6 +1,7 @@
 import {
   ActivityTypeEnum,
   EdgeHandleEnum,
+  type ScheduleType,
   TriggerTypeEnum,
   type Activity,
   type NodeSettings,
@@ -55,11 +56,12 @@ export function createManualTrigger(
  */
 export function createScheduledTrigger(
   id: string,
-  scheduleType: 'cron' | 'interval',
+  scheduleType: ScheduleType,
   config: {
     cron?: string
     timezone?: string
     interval?: string
+    missed_schedule_policy?: string
   },
   name?: string
 ): Activity {
@@ -72,6 +74,7 @@ export function createScheduledTrigger(
       ...(config.cron && { cron: config.cron }),
       ...(config.timezone && { timezone: config.timezone }),
       ...(config.interval && { interval: config.interval }),
+      ...(config.missed_schedule_policy && { missed_schedule_policy: config.missed_schedule_policy }),
     },
   }
 }

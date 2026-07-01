@@ -1,3 +1,5 @@
+import type { MissedSchedulePolicy, NodeSettings } from '@ansible/nexus-contracts'
+
 export type TriggerFormData = {
   name?: string
   triggerType: string
@@ -5,13 +7,12 @@ export type TriggerFormData = {
   cron?: string
   timezone?: string
   interval?: string
+  missedSchedulePolicy?: MissedSchedulePolicy
   eventSource?: string
   eventType?: string
   webhookPath?: string
   inputSchema?: string
 }
-
-import type { NodeSettings } from '@ansible/nexus-contracts'
 
 export type ActionFormData = {
   name: string

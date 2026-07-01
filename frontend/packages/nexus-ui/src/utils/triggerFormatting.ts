@@ -39,27 +39,108 @@ export function parseRepeatingInterval(interval: string): ParsedRepeatingInterva
   return { start: '', cadence: '' }
 }
 
+export type ScheduleFrequency = 'none' | 'minutely' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly'
+
+const DATE_COMPONENT_PATTERN = /(\d+)([YMWD])/g
+const TIME_COMPONENT_PATTERN = /(\d+)([HMS])/g
+
+function parseComponents(pattern: RegExp, str: string): Record<string, number> {
+  const result: Record<string, number> = {}
+  let m: RegExpExecArray | null = null
+  while ((m = pattern.exec(str)) !== null) {
+    result[m[2]] = Number(m[1])
+  }
+  pattern.lastIndex = 0
+  return result
+}
+
+function parseDurationComponents(duration: string): Record<string, number> {
+  const upper = duration.toUpperCase()
+  const tIndex = upper.indexOf('T')
+  const datePart = tIndex === -1 ? upper : upper.substring(0, tIndex)
+  const result = parseComponents(DATE_COMPONENT_PATTERN, datePart)
+  if (tIndex !== -1) {
+    const timePart = upper.substring(tIndex + 1)
+    const timeComponents = parseComponents(TIME_COMPONENT_PATTERN, timePart)
+    if (timeComponents.M !== undefined) {
+      result.Min = timeComponents.M
+      delete timeComponents.M
+    }
+    Object.assign(result, timeComponents)
+  }
+  return result
+}
+
+/**
+ * Convert a schedule frequency and interval count to an ISO 8601 duration string.
+ * Example: ('daily', 2) -> 'P2D', ('weekly', 3) -> 'P3W'
+ */
+export function frequencyAndIntervalToDuration(frequency: ScheduleFrequency, count: number): string {
+  const n = Math.max(1, Math.floor(count))
+  switch (frequency) {
+    case 'minutely':
+      return `PT${n}M`
+    case 'hourly':
+      return `PT${n}H`
+    case 'daily':
+      return `P${n}D`
+    case 'weekly':
+      return `P${n}W`
+    case 'monthly':
+      return `P${n}M`
+    case 'yearly':
+      return `P${n}Y`
+    case 'none':
+    default:
+      return ''
+  }
+}
+
+/**
+ * Convert an ISO 8601 duration string to a schedule frequency and interval count.
+ * Example: 'P2D' -> { frequency: 'daily', count: 2 }
+ */
+export function durationToFrequencyAndInterval(duration: string): { frequency: ScheduleFrequency; count: number } {
+  if (!duration || duration === 'PT0S') return { frequency: 'none', count: 1 }
+
+  const components = parseDurationComponents(duration.trim())
+  const entries = Object.entries(components).filter(([, v]) => v > 0)
+
+  if (entries.length !== 1) return { frequency: 'none', count: 1 }
+
+  const [unit, count] = entries[0]
+  const unitToFrequency: Record<string, ScheduleFrequency> = {
+    Y: 'yearly',
+    M: 'monthly',
+    W: 'weekly',
+    D: 'daily',
+    H: 'hourly',
+    Min: 'minutely',
+  }
+
+  return { frequency: unitToFrequency[unit] ?? 'none', count }
+}
+
 /**
  * Convert ISO 8601 duration string to human-readable cadence
  */
 export function durationToHumanReadableCadence(duration: string): string {
   if (!duration) return 'Does not repeat'
 
-  const normalized = duration.toUpperCase().trim()
+  const { frequency, count } = durationToFrequencyAndInterval(duration)
+  if (frequency === 'none') return 'Does not repeat'
 
-  switch (normalized) {
-    case 'P1D':
-      return 'Daily'
-    case 'P7D':
-    case 'P1W':
-      return 'Weekly'
-    case 'P1M':
-      return 'Monthly'
-    case 'P1Y':
-      return 'Annually'
-    default:
-      return 'Does not repeat'
+  const labels: Record<ScheduleFrequency, [string, string]> = {
+    none: ['Does not repeat', 'Does not repeat'],
+    minutely: ['Every minute', 'minutes'],
+    hourly: ['Hourly', 'hours'],
+    daily: ['Daily', 'days'],
+    weekly: ['Weekly', 'weeks'],
+    monthly: ['Monthly', 'months'],
+    yearly: ['Yearly', 'years'],
   }
+  const [singular, plural] = labels[frequency]
+  return count === 1 ? singular : `Every ${count} ${plural}`
 }
 
 /**

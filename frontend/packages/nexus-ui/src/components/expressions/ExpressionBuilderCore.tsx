@@ -143,7 +143,7 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
  * Expression builder core component
  *
  * Manages the expression tree state and provides visual/raw mode toggle
- * Follows the DateRangeCadencePicker pattern for external sync
+ * Follows the ScheduleBuilderFields pattern for external sync
  */
 export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
   const {

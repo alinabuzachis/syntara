@@ -1,4 +1,4 @@
-import { TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
+import { type ScheduleType, TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
 import { RhUiCalendarIcon, RhUiLanguageIcon, RhUiPlayIcon } from '@patternfly/react-icons'
 
 import EdaIcon from '../../../../assets/eda.svg?react'
@@ -81,11 +81,12 @@ export default function registerTriggerNode() {
             if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType) {
               return createScheduledTrigger(
                 triggerId,
-                data.scheduleType as 'cron' | 'interval',
+                data.scheduleType as ScheduleType,
                 {
                   cron: data.cron,
                   timezone: data.timezone,
                   interval: data.interval,
+                  missed_schedule_policy: data.missedSchedulePolicy,
                 },
                 name
               )

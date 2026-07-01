@@ -35,9 +35,9 @@ vi.mock('../../../utils/backendUrl', () => ({
   WEBHOOK_BASE_URL: 'https://example.com/api/v1/webhooks',
 }))
 
-// Mock DateRangeCadencePicker
-vi.mock('../../../components/forms/DateRangeCadencePicker', () => ({
-  DateRangeCadencePicker: ({
+// Mock ScheduleBuilderFields
+vi.mock('../../../components/forms/ScheduleBuilderFields', () => ({
+  ScheduleBuilderFields: ({
     value,
     onChange,
     errorMessage,
@@ -45,10 +45,9 @@ vi.mock('../../../components/forms/DateRangeCadencePicker', () => ({
     value: string
     onChange: (value: string) => void
     required?: boolean
-    showTime?: boolean
     errorMessage?: string
   }) => (
-    <div data-testid="date-range-cadence-picker">
+    <div data-testid="schedule-builder-fields">
       <input
         type="text"
         value={value}
@@ -163,8 +162,8 @@ describe('TriggerNodeForm Component', () => {
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.SCHEDULED }} />
       )
 
-      expect(screen.getByLabelText('Schedule type')).toBeInTheDocument()
-      expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
+      expect(screen.getByLabelText('Schedule expression')).toBeInTheDocument()
+      expect(screen.getByLabelText('Schedule expression')).toHaveValue('interval')
     })
 
     it('shows interval picker for interval schedule type', () => {
@@ -175,7 +174,7 @@ describe('TriggerNodeForm Component', () => {
         />
       )
 
-      expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
+      expect(screen.getByTestId('schedule-builder-fields')).toBeInTheDocument()
     })
 
     it('toggles cron input when schedule type changes', async () => {
@@ -189,14 +188,16 @@ describe('TriggerNodeForm Component', () => {
 
       expect(screen.queryByLabelText('Cron expression')).not.toBeInTheDocument()
 
-      await user.selectOptions(screen.getByLabelText('Schedule type'), 'cron')
-      expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
-      expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
+      await user.selectOptions(screen.getByLabelText('Schedule expression'), 'cron')
 
-      await user.selectOptions(screen.getByLabelText('Schedule type'), 'interval')
+      expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
+      expect(screen.queryByTestId('schedule-builder-fields')).not.toBeInTheDocument()
+
+      await user.selectOptions(screen.getByLabelText('Schedule expression'), 'interval')
       expect(screen.queryByLabelText('Cron expression')).not.toBeInTheDocument()
 
-      await user.selectOptions(screen.getByLabelText('Schedule type'), 'cron')
+      await user.selectOptions(screen.getByLabelText('Schedule expression'), 'cron')
+
       expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
     })
 
@@ -209,7 +210,7 @@ describe('TriggerNodeForm Component', () => {
       )
 
       expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
-      expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('schedule-builder-fields')).not.toBeInTheDocument()
     })
 
     it('shows cron input with initial value', () => {
@@ -245,7 +246,7 @@ describe('TriggerNodeForm Component', () => {
 
       renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
-      expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
+      expect(screen.getByLabelText('Schedule expression')).toHaveValue('interval')
       expect(screen.getByTestId('interval-input')).toHaveValue('R/2024-01-01T10:00:00Z/P1D')
     })
   })
@@ -369,8 +370,8 @@ describe('TriggerNodeForm Component', () => {
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
       )
 
-      expect(screen.queryByLabelText('Schedule type')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Schedule expression')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('schedule-builder-fields')).not.toBeInTheDocument()
     })
 
     it('renders with initial webhook trigger data', () => {
@@ -408,7 +409,7 @@ describe('TriggerNodeForm Component', () => {
 
       expect(screen.getByLabelText('Webhook path')).toBeInTheDocument()
       expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toBeInTheDocument()
-      expect(screen.queryByLabelText('Schedule type')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Schedule expression')).not.toBeInTheDocument()
     })
 
     it('shows EDA connection instructions', () => {

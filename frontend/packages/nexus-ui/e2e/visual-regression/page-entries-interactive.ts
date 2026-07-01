@@ -336,11 +336,11 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     },
     setup: async (page) => {
       await page.getByRole('button', { name: 'Schedule trigger' }).click()
-      const scheduleType = page.getByLabel('Schedule type')
-      await expect(scheduleType).toBeVisible()
-      await scheduleType.selectOption('interval')
-      await expect(page.getByLabel('Start date')).toBeVisible()
-      await expect(page.getByLabel('Hour')).toBeVisible()
+      const scheduleExpression = page.getByLabel('Schedule expression', { exact: true })
+      await expect(scheduleExpression).toBeVisible()
+      await scheduleExpression.selectOption('interval')
+      await expect(page.getByLabel('Start date', { exact: true })).toBeVisible()
+      await expect(page.getByLabel('Frequency', { exact: true })).toBeVisible()
     },
   },
   {

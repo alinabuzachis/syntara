@@ -5,6 +5,8 @@ import {
   durationToHumanReadableCadence,
   formatIntervalDescription,
   formatScheduleSummary,
+  frequencyAndIntervalToDuration,
+  durationToFrequencyAndInterval,
 } from './triggerFormatting'
 
 describe('parseRepeatingInterval', () => {
@@ -52,8 +54,8 @@ describe('durationToHumanReadableCadence', () => {
     expect(durationToHumanReadableCadence('P1D')).toBe('Daily')
   })
 
-  it('converts P7D to Weekly', () => {
-    expect(durationToHumanReadableCadence('P7D')).toBe('Weekly')
+  it('converts P7D to Every 7 days', () => {
+    expect(durationToHumanReadableCadence('P7D')).toBe('Every 7 days')
   })
 
   it('converts P1W to Weekly', () => {
@@ -64,13 +66,22 @@ describe('durationToHumanReadableCadence', () => {
     expect(durationToHumanReadableCadence('P1M')).toBe('Monthly')
   })
 
-  it('converts P1Y to Annually', () => {
-    expect(durationToHumanReadableCadence('P1Y')).toBe('Annually')
+  it('converts P1Y to Yearly', () => {
+    expect(durationToHumanReadableCadence('P1Y')).toBe('Yearly')
   })
 
-  it('returns "Does not repeat" for unknown durations', () => {
-    expect(durationToHumanReadableCadence('P2D')).toBe('Does not repeat')
-    expect(durationToHumanReadableCadence('PT1H')).toBe('Does not repeat')
+  it('converts PT1H to Hourly', () => {
+    expect(durationToHumanReadableCadence('PT1H')).toBe('Hourly')
+  })
+
+  it('converts multi-unit durations to human-readable', () => {
+    expect(durationToHumanReadableCadence('P2D')).toBe('Every 2 days')
+    expect(durationToHumanReadableCadence('PT30M')).toBe('Every 30 minutes')
+    expect(durationToHumanReadableCadence('P3W')).toBe('Every 3 weeks')
+  })
+
+  it('returns "Does not repeat" for compound durations', () => {
+    expect(durationToHumanReadableCadence('P1DT12H')).toBe('Does not repeat')
   })
 
   it('returns "Does not repeat" for empty input', () => {
@@ -113,8 +124,13 @@ describe('formatScheduleSummary', () => {
     expect(result).toMatch(/^Daily at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 2024$/)
   })
 
-  it('formats weekly schedule', () => {
+  it('formats weekly schedule with P7D', () => {
     const result = formatScheduleSummary('R/2024-03-15T14:30:00Z/P7D')
+    expect(result).toMatch(/^Every 7 days at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 2024$/)
+  })
+
+  it('formats weekly schedule with P1W', () => {
+    const result = formatScheduleSummary('R/2024-03-15T14:30:00Z/P1W')
     expect(result).toMatch(/^Weekly at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 2024$/)
   })
 
@@ -123,9 +139,9 @@ describe('formatScheduleSummary', () => {
     expect(result).toMatch(/^Monthly at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 2026$/)
   })
 
-  it('formats annually schedule', () => {
+  it('formats yearly schedule', () => {
     const result = formatScheduleSummary('R/2024-01-01T00:00:00Z/P1Y')
-    expect(result).toMatch(/^Annually at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 202[34]$/)
+    expect(result).toMatch(/^Yearly at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 202[34]$/)
   })
 
   it('includes end date when present', () => {
@@ -138,8 +154,9 @@ describe('formatScheduleSummary', () => {
     expect(result).toMatch(/^Once on \w{3} \d{1,2}, 2024 at \d{1,2}:\d{2} [AP]M$/)
   })
 
-  it('returns null for unsupported durations', () => {
-    expect(formatScheduleSummary('R/2024-01-01T10:00:00Z/PT1H')).toBeNull()
+  it('formats hourly schedule', () => {
+    const result = formatScheduleSummary('R/2024-01-01T10:00:00Z/PT1H')
+    expect(result).toMatch(/^Hourly at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 2024$/)
   })
 
   it('returns null for non-ISO format', () => {
@@ -152,5 +169,99 @@ describe('formatScheduleSummary', () => {
 
   it('returns null for invalid input', () => {
     expect(formatScheduleSummary('invalid')).toBeNull()
+  })
+})
+
+describe('frequencyAndIntervalToDuration', () => {
+  it('converts daily frequency', () => {
+    expect(frequencyAndIntervalToDuration('daily', 1)).toBe('P1D')
+    expect(frequencyAndIntervalToDuration('daily', 3)).toBe('P3D')
+  })
+
+  it('converts weekly frequency', () => {
+    expect(frequencyAndIntervalToDuration('weekly', 1)).toBe('P1W')
+    expect(frequencyAndIntervalToDuration('weekly', 2)).toBe('P2W')
+  })
+
+  it('converts monthly frequency', () => {
+    expect(frequencyAndIntervalToDuration('monthly', 1)).toBe('P1M')
+  })
+
+  it('converts yearly frequency', () => {
+    expect(frequencyAndIntervalToDuration('yearly', 1)).toBe('P1Y')
+  })
+
+  it('converts minutely frequency', () => {
+    expect(frequencyAndIntervalToDuration('minutely', 5)).toBe('PT5M')
+  })
+
+  it('converts hourly frequency', () => {
+    expect(frequencyAndIntervalToDuration('hourly', 2)).toBe('PT2H')
+  })
+
+  it('returns empty string for none', () => {
+    expect(frequencyAndIntervalToDuration('none', 1)).toBe('')
+  })
+
+  it('clamps count to minimum 1', () => {
+    expect(frequencyAndIntervalToDuration('daily', 0)).toBe('P1D')
+    expect(frequencyAndIntervalToDuration('daily', -5)).toBe('P1D')
+  })
+})
+
+describe('durationToFrequencyAndInterval', () => {
+  it('parses daily duration', () => {
+    expect(durationToFrequencyAndInterval('P1D')).toEqual({ frequency: 'daily', count: 1 })
+    expect(durationToFrequencyAndInterval('P3D')).toEqual({ frequency: 'daily', count: 3 })
+  })
+
+  it('parses weekly duration', () => {
+    expect(durationToFrequencyAndInterval('P1W')).toEqual({ frequency: 'weekly', count: 1 })
+    expect(durationToFrequencyAndInterval('P2W')).toEqual({ frequency: 'weekly', count: 2 })
+  })
+
+  it('parses monthly duration', () => {
+    expect(durationToFrequencyAndInterval('P1M')).toEqual({ frequency: 'monthly', count: 1 })
+  })
+
+  it('parses yearly duration', () => {
+    expect(durationToFrequencyAndInterval('P1Y')).toEqual({ frequency: 'yearly', count: 1 })
+  })
+
+  it('parses minutely duration', () => {
+    expect(durationToFrequencyAndInterval('PT5M')).toEqual({ frequency: 'minutely', count: 5 })
+  })
+
+  it('parses hourly duration', () => {
+    expect(durationToFrequencyAndInterval('PT2H')).toEqual({ frequency: 'hourly', count: 2 })
+  })
+
+  it('returns none for empty input', () => {
+    expect(durationToFrequencyAndInterval('')).toEqual({ frequency: 'none', count: 1 })
+  })
+
+  it('returns none for PT0S (run-once)', () => {
+    expect(durationToFrequencyAndInterval('PT0S')).toEqual({ frequency: 'none', count: 1 })
+  })
+
+  it('returns none for compound durations', () => {
+    expect(durationToFrequencyAndInterval('P1DT12H')).toEqual({ frequency: 'none', count: 1 })
+    expect(durationToFrequencyAndInterval('P1MT5M')).toEqual({ frequency: 'none', count: 1 })
+  })
+
+  it('round-trips with frequencyAndIntervalToDuration', () => {
+    const cases: Array<[string, number]> = [
+      ['daily', 2],
+      ['weekly', 3],
+      ['monthly', 1],
+      ['yearly', 1],
+      ['minutely', 15],
+      ['hourly', 4],
+    ]
+    for (const [freq, count] of cases) {
+      const duration = frequencyAndIntervalToDuration(freq as 'daily', count)
+      const result = durationToFrequencyAndInterval(duration)
+      expect(result).toEqual({ frequency: freq, count })
+    }
   })
 })

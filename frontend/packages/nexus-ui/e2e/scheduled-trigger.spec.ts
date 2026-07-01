@@ -3,7 +3,7 @@
  *
  * Critical paths covered:
  * - Creating a workflow with a scheduled trigger and saving it
- * - Schedule form shows DateRangeCadencePicker for interval type
+ * - Schedule form shows ScheduleBuilderFields for visual builder
  * - Form validation: empty start date rejected
  * - Canvas rendering: correct label and detail text for scheduled triggers
  */
@@ -28,7 +28,7 @@ test.describe('Scheduled Trigger', () => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 
     try {
-      await addScheduledTrigger(app, 'Daily Build', { startDate: '2026-01-15', cadence: 'daily' })
+      await addScheduledTrigger(app, 'Daily Build', { startDate: '2026-01-15', frequency: 'daily' })
 
       // Add a connected script action
       const panel = await clickAddConnectedStep(app)
@@ -59,16 +59,16 @@ test.describe('Scheduled Trigger', () => {
     }
   })
 
-  test('schedule form shows date picker for interval type', async ({ app }) => {
+  test('schedule form shows visual builder fields', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 
     await expect(app.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10_000 })
     await app.getByRole('button', { name: 'Schedule trigger', exact: true }).click()
 
-    // DateRangeCadencePicker should be visible for the default "interval" schedule type
-    await expect(app.getByTestId('date-range-cadence-picker')).toBeVisible({ timeout: 5_000 })
-    await expect(app.getByLabel('Start date')).toBeVisible()
-    await expect(app.getByLabel('Cadence')).toBeVisible()
+    // ScheduleBuilderFields should be visible for the default "Visual schedule builder" expression
+    await expect(app.getByTestId('schedule-builder-fields')).toBeVisible({ timeout: 5_000 })
+    await expect(app.getByLabel('Start date', { exact: true })).toBeVisible()
+    await expect(app.getByLabel('Frequency', { exact: true })).toBeVisible()
   })
 
   test('schedule form validates empty start date', async ({ app }) => {
@@ -91,7 +91,7 @@ test.describe('Scheduled Trigger', () => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 
     try {
-      await addScheduledTrigger(app, 'Weekly Sync', { startDate: '2026-03-01', cadence: 'weekly' })
+      await addScheduledTrigger(app, 'Weekly Sync', { startDate: '2026-03-01', frequency: 'weekly' })
 
       // Add a connected action so workflow can be saved
       const panel = await clickAddConnectedStep(app)

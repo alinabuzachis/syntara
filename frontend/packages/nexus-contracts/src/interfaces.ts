@@ -49,6 +49,29 @@ export const TriggerTypeEnum = {
 export type TriggerType = (typeof TriggerTypeEnum)[keyof typeof TriggerTypeEnum]
 
 /**
+ * Constants for schedule type discriminators.
+ * Matches backend ScheduleType enum.
+ */
+export const ScheduleTypeEnum = {
+  INTERVAL: 'interval',
+  CRON: 'cron',
+} as const
+
+export type ScheduleType = (typeof ScheduleTypeEnum)[keyof typeof ScheduleTypeEnum]
+
+/**
+ * Constants for missed schedule policy.
+ * Matches backend MissedSchedulePolicy enum.
+ */
+export const MissedSchedulePolicyEnum = {
+  SKIP: 'skip',
+  RUN_ONCE: 'run_once',
+  RUN_ALL: 'run_all',
+} as const
+
+export type MissedSchedulePolicy = (typeof MissedSchedulePolicyEnum)[keyof typeof MissedSchedulePolicyEnum]
+
+/**
  * Trigger types that share webhook-style config (webhook_path, input_schema).
  */
 export const WEBHOOK_TRIGGER_TYPES: ReadonlySet<string> = new Set([

@@ -71,20 +71,20 @@ test.describe('Visual regression — PF6 token migration', { tag: '@local-only' 
     await expect(app).toHaveScreenshot('condition-expression-group.png', screenshotOptions)
   })
 
-  test('scheduled trigger with date range picker', async ({ app }) => {
+  test('scheduled trigger with schedule builder', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
     await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
     // Add a scheduled trigger
     await app.getByRole('button', { name: 'Schedule trigger' }).click()
 
-    // Select Interval schedule type to show DateRangeCadencePicker
-    const scheduleType = app.getByLabel('Schedule type')
-    await expect(scheduleType).toBeVisible()
-    await scheduleType.selectOption('interval')
+    // Select Visual schedule builder to show ScheduleBuilderFields
+    const scheduleExpression = app.getByLabel('Schedule expression', { exact: true })
+    await expect(scheduleExpression).toBeVisible()
+    await scheduleExpression.selectOption('interval')
 
-    // Wait for the cadence picker to render
-    await expect(app.getByLabel('Start date')).toBeVisible()
-    await expect(app).toHaveScreenshot('scheduled-trigger-date-picker.png', screenshotOptions)
+    // Wait for the schedule builder to render
+    await expect(app.getByLabel('Start date', { exact: true })).toBeVisible()
+    await expect(app).toHaveScreenshot('scheduled-trigger-schedule-builder.png', screenshotOptions)
   })
 })

@@ -1,4 +1,9 @@
-import { TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
+import {
+  MissedSchedulePolicyEnum,
+  ScheduleTypeEnum,
+  TriggerTypeEnum,
+  WEBHOOK_TRIGGER_TYPES,
+} from '@ansible/nexus-contracts'
 import {
   FormGroup,
   FormHelperText,
@@ -6,15 +11,26 @@ import {
   FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   Stack,
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { DateRangeCadencePicker } from '../../../components/forms/DateRangeCadencePicker'
+import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
+import { ScheduleBuilderFields } from '../../../components/forms/ScheduleBuilderFields'
+import {
+  CRON_EXPRESSION_HELP,
+  MISSED_SCHEDULE_HELP,
+  SCHEDULE_EXPRESSION_HELP,
+} from '../../../components/forms/scheduleHelpText'
 import { generateWebhookPath } from '../../../utils/webhookPath'
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -30,16 +46,94 @@ import { WebhookFields } from './WebhookTriggerFields'
 
 export type { TriggerFormData }
 
-type TriggerNodeFormProps = {
+type TriggerNodeFormProps = Readonly<{
   onSubmit: (data: TriggerFormData) => void
   initialData?: Partial<TriggerFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
+}>
+
+// ── Missed schedule behavior options ─────────────────────────────────────
+
+const missedPolicyOptions = [
+  { value: MissedSchedulePolicyEnum.SKIP, label: 'Skip' },
+  { value: MissedSchedulePolicyEnum.RUN_ONCE, label: 'Run once' },
+  { value: MissedSchedulePolicyEnum.RUN_ALL, label: 'Run all' },
+]
+
+// ── Sub-components (module-scoped per S6478) ─────────────────────────────
+
+function MissedScheduleBehaviorField({
+  value,
+  onChange,
+  isDisabled,
+}: Readonly<{
+  value: string
+  onChange: (val: string) => void
+  isDisabled: boolean
+}>) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedLabel = missedPolicyOptions.find((o) => o.value === value)?.label ?? 'Skip'
+
+  const handleSelect = useCallback(
+    (_event: React.MouseEvent | undefined, val: string | number | undefined) => {
+      if (val === undefined) return
+      onChange(String(val))
+      setIsOpen(false)
+    },
+    [onChange]
+  )
+
+  const renderToggle = useCallback(
+    (toggleRef: React.Ref<MenuToggleElement>) => (
+      <MenuToggle
+        ref={toggleRef}
+        onClick={() => setIsOpen((prev) => !prev)}
+        isExpanded={isOpen}
+        isFullWidth
+        isDisabled={isDisabled}
+        aria-label="Missed schedule behavior"
+      >
+        {selectedLabel}
+      </MenuToggle>
+    ),
+    [isOpen, selectedLabel, isDisabled]
+  )
+
+  return (
+    <StackItem>
+      <FormGroup
+        label={<FormLabelWithHelp label="Missed schedule behavior" helpText={MISSED_SCHEDULE_HELP} />}
+        fieldId="missed-schedule-behavior"
+        isRequired
+      >
+        <Select
+          id="missed-schedule-behavior"
+          isOpen={isOpen}
+          selected={value}
+          onSelect={handleSelect}
+          onOpenChange={setIsOpen}
+          shouldFocusToggleOnSelect
+          toggle={renderToggle}
+        >
+          <SelectList aria-label="Missed schedule behavior options">
+            {missedPolicyOptions.map((option) => (
+              <SelectOption key={option.value} value={option.value}>
+                {option.label}
+              </SelectOption>
+            ))}
+          </SelectList>
+        </Select>
+      </FormGroup>
+    </StackItem>
+  )
 }
+
+// ── Main form fields ─────────────────────────────────────────────────────
 
 function TriggerFormFields({
   onHeaderContentChange,
   validationErrors,
-}: {
+}: Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: {
     interval?: { message?: string }
@@ -47,7 +141,7 @@ function TriggerFormFields({
     inputSchema?: { message?: string }
     webhookPath?: { message?: string }
   }
-}) {
+}>) {
   const isVersionView = useIsVersionView()
   const {
     control,
@@ -58,9 +152,13 @@ function TriggerFormFields({
   const triggerType = useWatch({ control, name: 'triggerType' })
   const scheduleType = useWatch({ control, name: 'scheduleType' })
 
+  const isEndDateError = errors.interval?.message?.toLowerCase().includes('end date')
+
   useEffect(() => {
-    if (errors.interval) document.getElementById('cadence-start')?.focus()
-  }, [errors.interval])
+    if (!errors.interval) return
+    const target = isEndDateError ? 'schedule-end-date' : 'schedule-start-date'
+    document.getElementById(target)?.focus()
+  }, [errors.interval, isEndDateError])
 
   useEffect(() => {
     if (errors.cron) document.getElementById('cron-expression')?.focus()
@@ -98,73 +196,119 @@ function TriggerFormFields({
       {triggerType === TriggerTypeEnum.SCHEDULED && (
         <>
           <StackItem>
-            <FormGroup label="Schedule type" fieldId="schedule-type">
+            <FormGroup
+              label={<FormLabelWithHelp label="Schedule expression" helpText={SCHEDULE_EXPRESSION_HELP} />}
+              fieldId="schedule-expression"
+              isRequired
+            >
               <Controller
                 control={control}
                 name="scheduleType"
                 render={({ field }) => (
                   <FormSelect
-                    id="schedule-type"
-                    aria-label="Schedule type"
+                    id="schedule-expression"
+                    aria-label="Schedule expression"
                     value={field.value}
                     onChange={(_event, value) => field.onChange(value)}
                     isDisabled={isVersionView}
                   >
-                    <FormSelectOption value="interval" label="Interval" />
-                    <FormSelectOption value="cron" label="Cron" />
+                    <FormSelectOption value={ScheduleTypeEnum.INTERVAL} label="Visual schedule builder" />
+                    <FormSelectOption value={ScheduleTypeEnum.CRON} label="Custom cron expression" />
                   </FormSelect>
                 )}
               />
             </FormGroup>
           </StackItem>
 
-          {scheduleType === 'interval' && (
-            <StackItem>
-              <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+          {scheduleType === ScheduleTypeEnum.INTERVAL && (
+            <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+              <Stack hasGutter>
+                <StackItem>
+                  <Controller
+                    control={control}
+                    name="interval"
+                    render={({ field: intervalField }) => (
+                      <Controller
+                        control={control}
+                        name="timezone"
+                        render={({ field: tzField }) => (
+                          <ScheduleBuilderFields
+                            value={intervalField.value ?? ''}
+                            onChange={intervalField.onChange}
+                            timezone={tzField.value ?? 'UTC'}
+                            onTimezoneChange={tzField.onChange}
+                            required
+                            error={!!errors.interval && !isEndDateError}
+                            errorMessage={errors.interval?.message}
+                          />
+                        )}
+                      />
+                    )}
+                  />
+                </StackItem>
+
                 <Controller
                   control={control}
-                  name="interval"
+                  name="missedSchedulePolicy"
                   render={({ field }) => (
-                    <DateRangeCadencePicker
-                      value={field.value ?? ''}
+                    <MissedScheduleBehaviorField
+                      value={field.value ?? MissedSchedulePolicyEnum.SKIP}
                       onChange={field.onChange}
-                      required
-                      showTime
-                      error={!!errors.interval}
-                      errorMessage={errors.interval?.message}
+                      isDisabled={isVersionView}
                     />
                   )}
                 />
-              </fieldset>
-            </StackItem>
+              </Stack>
+            </fieldset>
           )}
 
-          {scheduleType === 'cron' && (
-            <StackItem>
-              <FormGroup label="Cron expression" fieldId="cron-expression" isRequired>
+          {scheduleType === ScheduleTypeEnum.CRON && (
+            <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+              <Stack hasGutter>
+                <StackItem>
+                  <FormGroup
+                    label={<FormLabelWithHelp label="Cron expression" helpText={CRON_EXPRESSION_HELP} />}
+                    fieldId="cron-expression"
+                    isRequired
+                  >
+                    <Controller
+                      control={control}
+                      name="cron"
+                      render={({ field }) => (
+                        <TextInput
+                          id="cron-expression"
+                          aria-label="Cron expression"
+                          value={field.value ?? ''}
+                          onChange={(_event, value) => field.onChange(value)}
+                          placeholder="0 9 * * 1"
+                          validated={errors.cron ? 'error' : 'default'}
+                        />
+                      )}
+                    />
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem variant={errors.cron ? 'error' : 'default'}>
+                          {errors.cron?.message ??
+                            'Format: [Minute] [Hour] [Day of the Month] [Month] [Day of the Week]'}
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  </FormGroup>
+                </StackItem>
+
                 <Controller
                   control={control}
-                  name="cron"
+                  name="missedSchedulePolicy"
                   render={({ field }) => (
-                    <TextInput
-                      id="cron-expression"
-                      aria-label="Cron expression"
-                      value={field.value ?? ''}
-                      onChange={(_event, value) => field.onChange(value)}
-                      placeholder="0 9 * * *"
-                      validated={errors.cron ? 'error' : 'default'}
+                    <MissedScheduleBehaviorField
+                      value={field.value ?? MissedSchedulePolicyEnum.SKIP}
+                      onChange={field.onChange}
+                      isDisabled={isVersionView}
                     />
                   )}
                 />
-                <FormHelperText>
-                  <HelperText>
-                    <HelperTextItem variant={errors.cron ? 'error' : 'default'}>
-                      {errors.cron?.message ?? 'Standard 5-field format: minute hour day-of-month month day-of-week'}
-                    </HelperTextItem>
-                  </HelperText>
-                </FormHelperText>
-              </FormGroup>
-            </StackItem>
+              </Stack>
+            </fieldset>
           )}
         </>
       )}
@@ -188,12 +332,21 @@ function TriggerFormFields({
 
 export function TriggerNodeForm(props: TriggerNodeFormProps) {
   const [defaultValues] = useState<TriggerFormData>(() => {
+    let defaultTimezone: string
+    try {
+      defaultTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    } catch {
+      defaultTimezone = 'UTC'
+    }
+
     const values: TriggerFormData = {
       name: '',
       triggerType: props.initialData?.triggerType ?? TriggerTypeEnum.MANUAL_TRIGGER,
-      scheduleType: 'interval',
+      scheduleType: ScheduleTypeEnum.INTERVAL,
       interval: '',
       cron: '',
+      timezone: defaultTimezone,
+      missedSchedulePolicy: MissedSchedulePolicyEnum.SKIP,
       inputSchema: '',
       webhookPath: '',
       ...props.initialData,
@@ -225,8 +378,10 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
       triggerType: data.triggerType,
       inputSchema: isManual || isWebhookStyle ? data.inputSchema : undefined,
       scheduleType: isScheduled ? data.scheduleType : undefined,
-      interval: isScheduled && data.scheduleType === 'interval' ? data.interval : undefined,
-      cron: isScheduled && data.scheduleType === 'cron' ? data.cron : undefined,
+      interval: isScheduled && data.scheduleType === ScheduleTypeEnum.INTERVAL ? data.interval : undefined,
+      cron: isScheduled && data.scheduleType === ScheduleTypeEnum.CRON ? data.cron : undefined,
+      timezone: isScheduled ? data.timezone : undefined,
+      missedSchedulePolicy: isScheduled ? data.missedSchedulePolicy : undefined,
       webhookPath: isWebhookStyle ? normalizeWebhookPath(data.webhookPath ?? '') : undefined,
     }
     props.onSubmit(cleanedData)

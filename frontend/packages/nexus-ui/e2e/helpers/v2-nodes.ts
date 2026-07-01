@@ -113,7 +113,10 @@ export async function addEdaTrigger(page: Page, name: string, webhookPath: strin
 export async function addScheduledTrigger(
   page: Page,
   name: string,
-  opts: { startDate: string; cadence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'annually' }
+  opts: {
+    startDate: string
+    frequency?: 'none' | 'minutely' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly'
+  }
 ) {
   await expect(page.getByRole('progressbar', { name: 'Loading' })).not.toBeVisible({ timeout: 15000 })
   await expect(page.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10000 })
@@ -121,20 +124,22 @@ export async function addScheduledTrigger(
 
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
 
-  // Schedule type defaults to "interval" — DateRangeCadencePicker is visible
-  await expect(page.getByTestId('date-range-cadence-picker')).toBeVisible({ timeout: 5_000 })
-  await page.getByLabel('Start date').fill(opts.startDate)
+  // Schedule expression defaults to "Visual schedule builder" — ScheduleBuilderFields is visible
+  await expect(page.getByTestId('schedule-builder-fields')).toBeVisible({ timeout: 5_000 })
+  await page.getByLabel('Start date', { exact: true }).fill(opts.startDate)
 
-  if (opts.cadence) {
-    const cadenceLabels: Record<string, string> = {
+  if (opts.frequency) {
+    const frequencyLabels: Record<string, string> = {
       none: 'Does not repeat',
+      minutely: 'Minutely',
+      hourly: 'Hourly',
       daily: 'Daily',
       weekly: 'Weekly',
       monthly: 'Monthly',
-      annually: 'Annually',
+      yearly: 'Yearly',
     }
-    await page.getByLabel('Cadence').click()
-    await page.getByRole('option', { name: cadenceLabels[opts.cadence] }).click()
+    await page.getByLabel('Frequency').click()
+    await page.getByRole('option', { name: frequencyLabels[opts.frequency] }).click()
   }
 
   await page.getByRole('button', { name: 'Create', exact: true }).click()

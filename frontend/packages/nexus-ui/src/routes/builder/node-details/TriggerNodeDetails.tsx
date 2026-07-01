@@ -1,4 +1,10 @@
-import { TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
+import {
+  type MissedSchedulePolicy,
+  type ScheduleType,
+  ScheduleTypeEnum,
+  TriggerTypeEnum,
+  WEBHOOK_TRIGGER_TYPES,
+} from '@ansible/nexus-contracts'
 import { useMemo, type ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'
@@ -53,31 +59,28 @@ function triggersEqual(a: Trigger, b: Trigger): boolean {
  * - Malformed recurring: R/2024-01-01T00:00:00Z/Pgarbage
  * - Non-ISO format: "every day", "1 hour"
  */
+const DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}T.+$/
+
+function hasReasonableValues(str: string): boolean {
+  const numbers = str.match(/\d+/g) ?? []
+  return numbers.every((n) => n.length <= 4)
+}
+
+function validateRecurringInterval(interval: string): boolean {
+  const parts = interval.split('/')
+  if (parts.length < 3 || parts.length > 4) return false
+  const [count, startDate, duration, endDate] = parts
+  if (!count.startsWith('R')) return false
+  if (!DATETIME_PATTERN.test(startDate)) return false
+  if (!duration.startsWith('P')) return false
+  if (!hasReasonableValues(count)) return false
+  if (endDate && !DATETIME_PATTERN.test(endDate)) return false
+  return validateISO8601Interval(duration)
+}
+
 function validateISO8601Interval(interval: string): boolean {
-  // SECURITY: Strict ISO 8601 duration validation to prevent invalid or malicious inputs
-  // Valid format: P[n]Y[n]M[n]W[n]DT[n]H[n]M[n]S (at least one component required)
-  // Examples: P1D (1 day), PT1H (1 hour), P1Y2M3DT4H5M6S (compound)
-  // Decimals only allowed for seconds: PT1.5S
-
-  // SECURITY: Limit numeric values to prevent integer overflow and unrealistic durations in backend
-  // Max 6 digits per component (allows up to 999,999 of any unit, still generous)
-  // Max 4 digits per component (e.g., P9999D ≈ 27 years, PT9999H ≈ 416 days)
-  const hasReasonableValues = (str: string): boolean => {
-    const numbers = str.match(/\d+/g) ?? []
-    return numbers.every((n) => n.length <= 4)
-  }
-
-  // Recurring interval: R[count]/datetime/duration
   if (interval.startsWith('R')) {
-    const parts = interval.split('/')
-    if (parts.length !== 3) return false
-    const [count, datetime, duration] = parts
-    if (!count.startsWith('R')) return false
-    if (!datetime.includes('T')) return false
-    if (!duration.startsWith('P')) return false
-    if (!hasReasonableValues(count)) return false
-    // Recursively validate the duration part (just the P... part)
-    return validateISO8601Interval(duration)
+    return validateRecurringInterval(interval)
   }
 
   // SECURITY: Strict structural validation - requires digits before designators
@@ -112,11 +115,11 @@ function serializeInputSchema(rawSchema: unknown): string | undefined {
 }
 
 function buildScheduledTrigger(data: TriggerFormData, triggerId: string, name: string): Trigger {
-  const scheduleType = (data.scheduleType ?? 'interval') as 'cron' | 'interval'
+  const scheduleType = (data.scheduleType ?? ScheduleTypeEnum.INTERVAL) as ScheduleType
   const scheduleValueMap: Record<string, string | undefined> = { interval: data.interval, cron: data.cron }
   const scheduleValue = scheduleValueMap[scheduleType]
 
-  if (scheduleType === 'interval' && scheduleValue && !validateISO8601Interval(scheduleValue)) {
+  if (scheduleType === ScheduleTypeEnum.INTERVAL && scheduleValue && !validateISO8601Interval(scheduleValue)) {
     throw new Error(
       `Invalid interval format: "${scheduleValue}". Expected ISO 8601 duration (e.g., PT1H, P1DT12H, PT1H30M) or recurring interval (e.g., R/2024-01-01T10:00:00Z/P1D).`
     )
@@ -129,6 +132,8 @@ function buildScheduledTrigger(data: TriggerFormData, triggerId: string, name: s
     parameters: {
       schedule_type: scheduleType,
       ...(scheduleValue && { [scheduleType]: scheduleValue }),
+      ...(data.timezone && { timezone: data.timezone }),
+      ...(data.missedSchedulePolicy && { missed_schedule_policy: data.missedSchedulePolicy }),
     },
   }
 }
@@ -192,12 +197,12 @@ function buildUpdatedTrigger(data: TriggerFormData, trigger: Trigger, name: stri
   throw new Error('Invalid trigger type')
 }
 
-type TriggerNodeDetailsProps = {
+type TriggerNodeDetailsProps = Readonly<{
   trigger: Trigger
   triggerIndex: number
   onClose: () => void
   onHeaderContentChange?: (content: ReactNode | null) => void
-}
+}>
 
 export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderContentChange }: TriggerNodeDetailsProps) {
   const { showError } = useAlerts()
@@ -215,22 +220,29 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
     }
 
     if (trigger.type === TriggerTypeEnum.SCHEDULED) {
-      const scheduleType = (trigger.parameters?.schedule_type as string) ?? 'interval'
-      if (scheduleType === 'interval') {
+      const scheduleType = (trigger.parameters?.schedule_type as string) ?? ScheduleTypeEnum.INTERVAL
+      const timezone = trigger.parameters?.timezone as string | undefined
+      const missedSchedulePolicy = trigger.parameters?.missed_schedule_policy as MissedSchedulePolicy | undefined
+
+      if (scheduleType === ScheduleTypeEnum.INTERVAL) {
         return {
           name: trigger.name,
           triggerType: TriggerTypeEnum.SCHEDULED,
-          scheduleType: 'interval',
+          scheduleType: ScheduleTypeEnum.INTERVAL,
           interval: trigger.parameters?.interval as string | undefined,
+          timezone,
+          missedSchedulePolicy,
         }
       }
 
-      if (scheduleType === 'cron') {
+      if (scheduleType === ScheduleTypeEnum.CRON) {
         return {
           name: trigger.name,
           triggerType: TriggerTypeEnum.SCHEDULED,
-          scheduleType: 'cron',
+          scheduleType: ScheduleTypeEnum.CRON,
           cron: trigger.parameters?.cron as string | undefined,
+          timezone,
+          missedSchedulePolicy,
         }
       }
     }
