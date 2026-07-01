@@ -23,7 +23,7 @@ env:
 
 jobs:
   changes:
-    name: Detect Changes
+    name: (Frontend) Detect Changes
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.check.outputs.code }}
@@ -64,7 +64,7 @@ jobs:
           fi
 
   checks:
-    name: Checks
+    name: (Frontend) Checks
     needs: changes
     if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
@@ -85,7 +85,7 @@ jobs:
         working-directory: frontend
 
   unit-tests:
-    name: Unit Tests
+    name: (Frontend) Unit Tests
     needs: changes
     if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
@@ -123,7 +123,7 @@ jobs:
           retention-days: 7
 
   coverage-report:
-    name: Coverage Report
+    name: (Frontend) Coverage Report
     needs: [changes, unit-tests]
     if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
@@ -172,7 +172,7 @@ jobs:
           retention-days: 7
 
   sonarcloud:
-    name: SonarCloud Analysis
+    name: (Frontend) SonarCloud Analysis
     needs: [changes, coverage-report]
     if: >-
       needs.changes.outputs.code == 'true'
@@ -229,7 +229,7 @@ jobs:
           projectBaseDir: frontend
 
   storybook-build:
-    name: Storybook Build
+    name: (Frontend) Storybook Build
     needs: changes
     if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
@@ -250,7 +250,7 @@ jobs:
         working-directory: frontend/packages/nexus-ui
 
   test-build:
-    name: Test Container Build
+    name: (Frontend) Test Container Build
     needs: changes
     if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
@@ -280,7 +280,7 @@ jobs:
           tags: nexus-mock-api:test
 
   e2e-gate:
-    name: E2E Gate
+    name: (Frontend) E2E Gate
     needs: changes
     # Non-gating while E2E suite stabilizes after bulk test fixes.
     # TODO: restore the real condition once E2E proves stable:
@@ -342,8 +342,8 @@ jobs:
   #
   # For doc-only PRs the `changes` job sets code=false, all CI jobs are skipped,
   # and this gate passes because `skipped` is accepted alongside `success`.
-  success:
-    name: Frontend Success
+  required-checks:
+    name: (Frontend) Required Checks
     runs-on: ubuntu-latest
     if: ${{ always() }}
     needs:
