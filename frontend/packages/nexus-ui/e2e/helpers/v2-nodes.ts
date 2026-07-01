@@ -172,10 +172,10 @@ export async function addHttpRequestNode(page: Page, name: string, url = 'https:
   await closeNodeEditorPanel(page)
 }
 
-/** Add an AI agent node (v2 type: "agentic"). */
+/** Add a Task Agent node (v2 type: "agentic"). */
 export async function addAgenticNode(page: Page, name: string, prompt = 'Analyze the data') {
   await openAddNodePanel(page)
-  await selectDirectNodeType(page, 'AI Agent')
+  await selectDirectNodeType(page, 'Task Agent')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByLabel('Prompt').fill(prompt)
   await page.getByRole('button', { name: 'Create', exact: true }).click()

@@ -65,7 +65,7 @@ describe('workflowToGraph', () => {
 
     it('extracts agentic activities', () => {
       const activities: Activity[] = [
-        { id: 'agentic-1', type: 'agentic', name: 'AI Agent', parameters: { prompt: 'Do something' } },
+        { id: 'agentic-1', type: 'agentic', name: 'Task Agent', parameters: { prompt: 'Do something' } },
       ]
       const tasks = extractTaskActivities(activities)
       expect(tasks).toHaveLength(1)

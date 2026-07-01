@@ -96,7 +96,7 @@ const aapWorkflowExecutorDisplay: ExecutorDisplayMetadata = { icon: AnsibleIcon,
 // Task executor metadata - different tasks have different icons
 export const executorMetadata: Record<string, ExecutorDisplayMetadata> = {
   script: { icon: RhUiCodeIcon, label: 'Script' },
-  agentic: { icon: RhUiRobotIcon, label: 'Agentic' },
+  agentic: { icon: RhUiRobotIcon, label: 'Task Agent' },
   http_request: { icon: RhUiPlugFillIcon, label: 'REST API' },
   aap_job_template: aapJobExecutorDisplay,
   aap_workflow_job_template: aapWorkflowExecutorDisplay,

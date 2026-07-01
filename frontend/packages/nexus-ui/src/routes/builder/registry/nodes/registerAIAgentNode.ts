@@ -9,23 +9,23 @@ import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
- * Register the AI Agent step type.
+ * Register the Task Agent step type.
  * Creates activities with agentic executor type for AI-powered task execution
  * via MCP (Model Context Protocol) servers.
  */
 export default function registerAIAgentNode() {
   NodeRegistry.register<AIAgentFormSubmitData>({
     id: RegistryNodeId.AGENT,
-    label: 'AI Agent',
+    label: 'Task Agent',
     icon: RhUiRobotIcon,
     category: 'action',
-    description: 'Execute tasks using AI agents',
+    description: 'Execute tasks using task agents',
     keywords: ['ai', 'agent', 'llm', 'gpt', 'intelligent', 'autonomous', 'mcp', 'claude', 'gemini'],
     order: 20,
     formComponent: AIAgentNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {
-        const baseName = getDefaultNodeBaseName({ nodeTypeId: RegistryNodeId.AGENT, label: 'AI Agent' })
+        const baseName = getDefaultNodeBaseName({ nodeTypeId: RegistryNodeId.AGENT, label: 'Task Agent' })
         const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
           createAgenticActivity({
             id,
@@ -52,7 +52,7 @@ export default function registerAIAgentNode() {
           onError('Invalid agent configuration. Please check your inputs.')
         }
       } catch (error) {
-        onError(error instanceof Error ? error.message : 'Failed to add AI agent')
+        onError(error instanceof Error ? error.message : 'Failed to add task agent')
       }
     },
   })

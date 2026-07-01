@@ -112,8 +112,8 @@
     },
     {
       "type": "agentic",
-      "name": "AI Agent",
-      "description": "Execute AI agent tasks with asynchronous completion",
+      "name": "Task Agent",
+      "description": "Execute task agent tasks with asynchronous completion",
       "labels": {
         "category": "executor"
       },

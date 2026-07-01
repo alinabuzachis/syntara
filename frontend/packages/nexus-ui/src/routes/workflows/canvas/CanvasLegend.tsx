@@ -67,7 +67,7 @@ const LEGEND_ROWS: ReadonlyArray<{
   registryId: string
 }> = [
   {
-    label: 'AI agent',
+    label: 'Task Agent',
     icon: RhUiRobotIcon,
     registryId: RegistryNodeId.AGENT,
   },

@@ -17,7 +17,7 @@ describe('CanvasLegend', () => {
     expect(screen.getByRole('heading', { name: 'Legend', level: 2 })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Steps', level: 3 })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Connectors', level: 3 })).toBeInTheDocument()
-    expect(screen.getByText('AI agent')).toBeInTheDocument()
+    expect(screen.getByText('Task Agent')).toBeInTheDocument()
     expect(screen.getByText('Action')).toBeInTheDocument()
     expect(screen.getByText('AAP execution')).toBeInTheDocument()
     expect(screen.getByText('Logic')).toBeInTheDocument()

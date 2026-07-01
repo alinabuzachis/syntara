@@ -118,7 +118,7 @@ describe('executorMetadata', () => {
 
     it('has metadata for agentic executor', () => {
       expect(executorMetadata.agentic).toBeDefined()
-      expect(executorMetadata.agentic.label).toBe('Agentic')
+      expect(executorMetadata.agentic.label).toBe('Task Agent')
       expect(executorMetadata.agentic.icon).toBeDefined()
     })
 

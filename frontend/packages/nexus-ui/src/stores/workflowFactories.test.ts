@@ -403,7 +403,7 @@ describe('workflowFactories', () => {
 
     describe('createAgenticActivity', () => {
       it('creates an agentic activity', () => {
-        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent' })
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'Task Agent' })
 
         expect(activity.type).toBe('agentic')
         expect(activity.id).toBe('agent-1')
@@ -413,7 +413,7 @@ describe('workflowFactories', () => {
       it('creates an agentic activity with ALL strategy', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           toolSelectionStrategy: 'ALL',
         })
 
@@ -424,7 +424,7 @@ describe('workflowFactories', () => {
       it('creates an agentic activity with SELECTED strategy and tool IDs', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           toolSelectionStrategy: 'SELECTED',
           toolSelections: ['tool1', 'tool2'],
         })
@@ -436,7 +436,7 @@ describe('workflowFactories', () => {
       it('creates an agentic activity with NONE strategy', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           toolSelectionStrategy: 'NONE',
         })
 
@@ -447,7 +447,7 @@ describe('workflowFactories', () => {
       it('creates an agentic activity with prompt', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           prompt: 'Do something',
         })
 
@@ -457,7 +457,7 @@ describe('workflowFactories', () => {
       it('creates an agentic activity with model', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           model: 'gpt-4',
         })
 
@@ -467,7 +467,7 @@ describe('workflowFactories', () => {
       it('creates an agentic activity with fileIds', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           fileIds: ['file-1', 'file-2'],
         })
 
@@ -475,7 +475,7 @@ describe('workflowFactories', () => {
       })
 
       it('does not include tool strategy when toolSelectionStrategy is undefined', () => {
-        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent' })
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'Task Agent' })
 
         expect(activity.parameters.tool_selections).toBeUndefined()
         expect(activity.parameters.tool_selection_strategy).toBeUndefined()
@@ -488,7 +488,7 @@ describe('workflowFactories', () => {
         ]
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           integrationConnections: connections,
         })
 
@@ -498,7 +498,7 @@ describe('workflowFactories', () => {
       it('does not include integration_connections when empty', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           integrationConnections: [],
         })
 
@@ -506,7 +506,7 @@ describe('workflowFactories', () => {
       })
 
       it('does not include integration_connections when undefined', () => {
-        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent' })
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'Task Agent' })
 
         expect(activity.parameters).not.toHaveProperty('integration_connections')
       })
@@ -514,7 +514,7 @@ describe('workflowFactories', () => {
       it('does not include inputs in v2', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           inputs: '{"key": "val"}',
         })
 
@@ -524,7 +524,7 @@ describe('workflowFactories', () => {
       it('includes settings when provided', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           settings: { timeout: 600, continue_on_failure: true },
         })
 
@@ -535,7 +535,7 @@ describe('workflowFactories', () => {
         const schema = { type: 'object', properties: { result: { type: 'string' } } }
         const activity = createAgenticActivity({
           id: 'agent-1',
-          name: 'AI Agent',
+          name: 'Task Agent',
           credentialId: 'cred-1',
           responseSchema: schema,
         })
@@ -545,7 +545,7 @@ describe('workflowFactories', () => {
       })
 
       it('does not include empty fileIds array', () => {
-        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent', fileIds: [] })
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'Task Agent', fileIds: [] })
 
         expect(activity.parameters.file_ids).toBeUndefined()
       })

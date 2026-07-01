@@ -1,11 +1,11 @@
 /**
- * E2E Tests: AI Agent Structured Output (JSON Schema)
+ * E2E Tests: Task Agent Structured Output (JSON Schema)
  *
- * Feature: AAP-58327 - Users can define a JSON Schema (response_schema) on AI Agent nodes
+ * Feature: AAP-58327 - Users can define a JSON Schema (response_schema) on Task Agent nodes
  * to force the LLM to produce structured output matching the schema.
  *
  * Critical paths covered:
- * - Schema editor renders on AI Agent node form
+ * - Schema editor renders on Task Agent node form
  * - Schema accepts valid JSON without errors
  * - Schema persists after save and reopen
  * - Empty schema is valid (optional field)
@@ -14,12 +14,12 @@ import { test, expect, toAppUrl } from './fixtures'
 import { addManualTrigger } from './helpers/v2-nodes'
 import { addNodePanel, fillCodeEditor } from './helpers/workflows'
 
-test.describe('AI Agent Structured Output', () => {
-  test('schema editor renders on AI Agent node', async ({ app }) => {
+test.describe('Task Agent Structured Output', () => {
+  test('schema editor renders on Task Agent node', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
     await addManualTrigger(app)
 
-    // Open AI Agent form via "Add connected step"
+    // Open Task Agent form via "Add connected step"
     const layoutButton = app.getByRole('button', { name: 'Layout' })
     await expect(layoutButton).toBeVisible()
     await layoutButton.click()
@@ -29,7 +29,7 @@ test.describe('AI Agent Structured Output', () => {
     await addBtn.click({ force: true })
 
     const panel = addNodePanel(app)
-    await panel.getByRole('button', { name: 'AI Agent' }).click()
+    await panel.getByRole('button', { name: 'Task Agent' }).click()
 
     // Verify Response schema section is visible
     await expect(app.getByText('Response schema')).toBeVisible()
@@ -53,7 +53,7 @@ test.describe('AI Agent Structured Output', () => {
     await addBtn.click({ force: true })
 
     const panel = addNodePanel(app)
-    await panel.getByRole('button', { name: 'AI Agent' }).click()
+    await panel.getByRole('button', { name: 'Task Agent' }).click()
 
     // Fill required fields
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('TestAgent')
@@ -78,7 +78,7 @@ test.describe('AI Agent Structured Output', () => {
     await expect(panel).not.toBeVisible()
   })
 
-  test('can add AI Agent with schema to workflow', async ({ app }) => {
+  test('can add Task Agent with schema to workflow', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
     await addManualTrigger(app)
 
@@ -89,7 +89,7 @@ test.describe('AI Agent Structured Output', () => {
     await addBtn.click({ force: true })
 
     const panel = addNodePanel(app)
-    await panel.getByRole('button', { name: 'AI Agent' }).click()
+    await panel.getByRole('button', { name: 'Task Agent' }).click()
 
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('SchemaAgent')
     await app.getByLabel('Prompt').fill('Generate report')
@@ -124,7 +124,7 @@ test.describe('AI Agent Structured Output', () => {
     await addBtn.click({ force: true })
 
     const panel = addNodePanel(app)
-    await panel.getByRole('button', { name: 'AI Agent' }).click()
+    await panel.getByRole('button', { name: 'Task Agent' }).click()
 
     // Fill required fields but leave schema empty
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('EmptySchemaAgent')

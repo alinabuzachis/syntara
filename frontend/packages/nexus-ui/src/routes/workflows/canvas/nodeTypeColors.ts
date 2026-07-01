@@ -7,7 +7,7 @@ import { detectTaskNodeType, DetectedExecutorType } from './nodes/common/detectT
 /**
  * PatternFly theme tokens for workflow step type indicators on the canvas (UX-aligned).
  * Used for the colored bar and icon on each node. Chosen to match UX spec:
- * Logic F89B78 → orange, AI agent 92C5F9 → blue, Action B6A6E9 → purple,
+ * Logic F89B78 → orange, Task agent 92C5F9 → blue, Action B6A6E9 → purple,
  * Approval 9AD8D8 → teal, AAP E0E0E0 → gray. Approved/Rejected use success/danger.
  */
 export const NODE_TYPE_COLORS = {

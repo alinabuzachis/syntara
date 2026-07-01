@@ -10,14 +10,14 @@ describe('NodeSemanticZoomBody', () => {
     render(
       <NodeSemanticZoomBody
         title="Analyze Data"
-        typeLabel="Agentic"
+        typeLabel="Task Agent"
         backgroundColor="rgb(100, 100, 200)"
         selected={false}
         hasDashedBorder={false}
       />
     )
 
-    const bar = screen.getByRole('group', { name: 'Analyze Data, Agentic' })
+    const bar = screen.getByRole('group', { name: 'Analyze Data, Task Agent' })
     expect(bar).toBeInTheDocument()
     expect(bar).toHaveAttribute('tabindex', '0')
   })

@@ -8,7 +8,7 @@
  * (snake_case). The credential selection was silently lost.
  *
  * Critical paths covered:
- * - AI Agent node: credential persists after save/reload
+ * - Task Agent node: credential persists after save/reload
  * - REST API node: credential persists after save/reload
  * - AAP node: credential persists after save/reload
  */
@@ -38,7 +38,7 @@ async function selectCredential(app: Page, credLabel: string, credName: string) 
 }
 
 test.describe('Credential Persistence', () => {
-  test('AI Agent node credential persists after save/reload', async ({ app }) => {
+  test('Task Agent node credential persists after save/reload', async ({ app }) => {
     const credName = buildUniqueName('e2e-persist-llm')
     const workflowName = buildUniqueName('e2e-persist-ai')
 
@@ -53,9 +53,9 @@ test.describe('Credential Persistence', () => {
 
       const credentialsLoaded = app.waitForResponse(isCredentialsResponse)
       const panel = await clickAddConnectedStep(app)
-      await panel.getByRole('button', { name: 'AI Agent' }).click()
+      await panel.getByRole('button', { name: 'Task Agent' }).click()
 
-      await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Test AI Agent')
+      await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Test Task Agent')
       await app.getByLabel('Prompt').fill('Analyze the data')
       await credentialsLoaded
 
@@ -69,7 +69,7 @@ test.describe('Credential Persistence', () => {
 
       // Set up response listener before the click to avoid race conditions
       const reloadedCredentialsLoaded = app.waitForResponse(isCredentialsResponse)
-      await app.getByText('Test AI Agent').click()
+      await app.getByText('Test Task Agent').click()
       await reloadedCredentialsLoaded.catch(() => {
         // Response may have already fired during openWorkflowInBuilder; ignore timeout
       })

@@ -57,9 +57,9 @@ export const approvals: Approval[] = [
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440001',
     approval_node_id: 'approval-activity-1',
-    name: 'AI Agent Decision',
+    name: 'Task Agent Decision',
     description:
-      'AI agent has recommended deploying version 2.1.0 to production. Review the security scan results and deployment plan before approving.',
+      'Task agent has recommended deploying version 2.1.0 to production. Review the security scan results and deployment plan before approving.',
     status: 'pending',
     timeout_at: mockDate.hoursFromNow22, // 22 hours from now
     next_step_approved: {
@@ -105,8 +105,8 @@ export const approvals: Approval[] = [
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440002',
     approval_node_id: 'approval-activity-2',
-    name: 'AI Agent Decision',
-    description: 'AI agent has recommended policy remediation actions. Review and approve to proceed.',
+    name: 'Task Agent Decision',
+    description: 'Task agent has recommended policy remediation actions. Review and approve to proceed.',
     status: 'approved',
     timeout_at: null,
     next_step_approved: {

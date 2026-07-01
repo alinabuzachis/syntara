@@ -49,7 +49,7 @@ describe('NodeComponent semantic zoom', () => {
       <NodeComponent
         nodeProps={baseNodeProps}
         topBarColor="var(--pf-t--global--color--nonstatus--blue--200)"
-        semanticZoomSummary={{ title: 'T', typeLabel: 'Agentic' }}
+        semanticZoomSummary={{ title: 'T', typeLabel: 'Task Agent' }}
       >
         <span>Detailed body</span>
       </NodeComponent>
@@ -65,14 +65,14 @@ describe('NodeComponent semantic zoom', () => {
       <NodeComponent
         nodeProps={baseNodeProps}
         topBarColor="var(--pf-t--global--color--nonstatus--blue--200)"
-        semanticZoomSummary={{ title: 'Analyze', typeLabel: 'Agentic' }}
+        semanticZoomSummary={{ title: 'Analyze', typeLabel: 'Task Agent' }}
       >
         <span>Detailed body</span>
       </NodeComponent>
     )
 
     expect(screen.queryByText('Detailed body')).not.toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Analyze, Agentic' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Analyze, Task Agent' })).toBeInTheDocument()
   })
 
   it('semantic zoom layout has no accessibility violations', async () => {
@@ -81,7 +81,7 @@ describe('NodeComponent semantic zoom', () => {
       <NodeComponent
         nodeProps={baseNodeProps}
         topBarColor="var(--pf-t--global--color--nonstatus--blue--200)"
-        semanticZoomSummary={{ title: 'Analyze', typeLabel: 'Agentic' }}
+        semanticZoomSummary={{ title: 'Analyze', typeLabel: 'Task Agent' }}
       >
         <span>Detailed body</span>
       </NodeComponent>

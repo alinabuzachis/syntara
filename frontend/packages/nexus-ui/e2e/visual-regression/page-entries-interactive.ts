@@ -283,8 +283,8 @@ export const builderInteractivePages: CanvasPageEntry[] = [
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
-      // simple-research agentic activity has no display name — card title is executor label "Agentic"
-      await openStepEditorFromCanvasTitle(page, 'Agentic')
+      // simple-research agentic activity has no display name — card title is executor label "Task Agent"
+      await openStepEditorFromCanvasTitle(page, 'Task Agent')
     },
   },
   {

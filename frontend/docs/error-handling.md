@@ -251,7 +251,7 @@ For consistent shape and client-side validation, forms can use **Zod** with **@h
 
 - **Integration form:** `packages/nexus-ui/src/routes/configuration/integrations/form/integrationFormSchema.ts` and `IntegrationForm.tsx` (imports `zodResolver` from `@hookform/resolvers/zod`).
 - **Step forms (builder):** Each has a schema file in `packages/nexus-ui/src/routes/builder/node-forms/` and uses `zodResolver(schema, undefined, { mode: 'sync' })` from `shared/formSchemaUtils.ts`:
-  - AI Agent (`aiAgentFormSchema.ts`), Approval (`approvalFormSchema.ts`), Action (`actionFormSchema.ts`), Loop (`loopFormSchema.ts`), AAP (`aapFormSchema.ts`), Condition (`conditionFormSchema.ts`), Converge (`convergeFormSchema.ts`), Trigger (`triggerFormSchema.ts`).
+  - Task Agent (`aiAgentFormSchema.ts`), Approval (`approvalFormSchema.ts`), Action (`actionFormSchema.ts`), Loop (`loopFormSchema.ts`), AAP (`aapFormSchema.ts`), Condition (`conditionFormSchema.ts`), Converge (`convergeFormSchema.ts`), Trigger (`triggerFormSchema.ts`).
 
 ### Direct Usage with getErrorMessage
 

@@ -63,7 +63,7 @@ describe('TaskActivityDetails', () => {
     const mockAgenticTask = {
       type: 'agentic',
       id: 'task-4',
-      name: 'AI Agent Task',
+      name: 'Incident Triage Agent',
       parameters: {
         model: 'claude-3-sonnet',
         prompt: 'Analyze the data and provide insights',
@@ -74,8 +74,8 @@ describe('TaskActivityDetails', () => {
 
     render(<TaskActivityDetails data={mockAgenticTask} />)
 
-    expect(screen.getByText('AI Agent Task')).toBeInTheDocument()
-    expect(screen.getByText('Agentic')).toBeInTheDocument()
+    expect(screen.getByText('Incident Triage Agent')).toBeInTheDocument()
+    expect(screen.getByText('Task Agent')).toBeInTheDocument()
     expect(screen.getByText('Model')).toBeInTheDocument()
     expect(screen.getByText('claude-3-sonnet')).toBeInTheDocument()
     expect(screen.getByText('Tools')).toBeInTheDocument()
@@ -156,7 +156,7 @@ describe('TaskActivityDetails', () => {
     const mockAgenticTaskWithModel = {
       type: 'agentic',
       id: 'task-9',
-      name: 'AI Agent with Model',
+      name: 'Task Agent with Model',
       parameters: {
         model: 'claude-3-opus',
         prompt: 'Analyze these files',
@@ -167,7 +167,7 @@ describe('TaskActivityDetails', () => {
 
     render(<TaskActivityDetails data={mockAgenticTaskWithModel} />)
 
-    expect(screen.getByText('AI Agent with Model')).toBeInTheDocument()
+    expect(screen.getByText('Task Agent with Model')).toBeInTheDocument()
     expect(screen.getByText('claude-3-opus')).toBeInTheDocument()
   })
 })

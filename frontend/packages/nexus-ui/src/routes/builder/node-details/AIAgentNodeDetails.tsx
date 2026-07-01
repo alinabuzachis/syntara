@@ -15,7 +15,7 @@ type AIAgentNodeDetailsProps = {
 }
 
 /**
- * Side panel for editing an AI agent **step** (agentic executor on the canvas).
+ * Side panel for editing a task agent **step** (agentic executor on the canvas).
  * Handles MCP server, tools, model, prompt, and files.
  */
 export function AIAgentNodeDetails({
@@ -89,7 +89,7 @@ export function AIAgentNodeDetails({
     } catch (error) {
       showError({
         title: 'Update failed',
-        description: error instanceof Error ? error.message : 'Failed to update AI agent step',
+        description: error instanceof Error ? error.message : 'Failed to update task agent step',
       })
     }
   }

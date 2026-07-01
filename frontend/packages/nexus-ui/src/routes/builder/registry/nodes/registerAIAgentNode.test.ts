@@ -25,15 +25,15 @@ describe('registerAIAgentNode', () => {
     NodeRegistry.unregister(RegistryNodeId.AGENT)
   })
 
-  it('registers the AI Agent step type in the NodeRegistry', () => {
+  it('registers the Task Agent step type in the NodeRegistry', () => {
     registerAIAgentNode()
 
     const registration = NodeRegistry.get(RegistryNodeId.AGENT)
     expect(registration).toBeDefined()
     expect(registration?.id).toBe(RegistryNodeId.AGENT)
-    expect(registration?.label).toBe('AI Agent')
+    expect(registration?.label).toBe('Task Agent')
     expect(registration?.category).toBe('action')
-    expect(registration?.description).toBe('Execute tasks using AI agents')
+    expect(registration?.description).toBe('Execute tasks using task agents')
   })
 
   it('registers with correct order', () => {
@@ -162,7 +162,7 @@ describe('registerAIAgentNode', () => {
       onError
     )
 
-    expect(onError).toHaveBeenCalledWith('Failed to add AI agent')
+    expect(onError).toHaveBeenCalledWith('Failed to add task agent')
     expect(onSuccess).not.toHaveBeenCalled()
   })
 })

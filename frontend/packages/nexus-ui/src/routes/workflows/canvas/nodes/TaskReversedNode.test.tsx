@@ -85,7 +85,7 @@ describe('TaskReversedNodeComponent', () => {
       render(<TaskReversedNodeComponent {...createNodeProps(agenticTask)} />)
 
       expect(screen.getByText('AI Task')).toBeInTheDocument()
-      expect(screen.getByText('Agentic')).toBeInTheDocument()
+      expect(screen.getByText('Task Agent')).toBeInTheDocument()
     })
 
     it('renders http_request executor', () => {

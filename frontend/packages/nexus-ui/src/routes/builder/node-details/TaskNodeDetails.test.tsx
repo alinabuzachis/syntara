@@ -341,7 +341,7 @@ describe('TaskNodeDetails Component', () => {
     const taskData = {
       type: 'agentic' as const,
       id: 'task-agent',
-      name: 'AI Agent Task',
+      name: 'Task Agent',
       parameters: {
         model: 'claude-3-sonnet',
         prompt: 'Analyze the data',
@@ -353,7 +353,7 @@ describe('TaskNodeDetails Component', () => {
 
     expect(screen.getByTestId('ai-agent-node-details')).toBeInTheDocument()
     expect(screen.getByTestId('agent-node-id')).toHaveTextContent('task-agent')
-    expect(screen.getByTestId('agent-task-name')).toHaveTextContent('AI Agent Task')
+    expect(screen.getByTestId('agent-task-name')).toHaveTextContent('Task Agent')
   })
 
   it('returns null for unsupported executor type', () => {
