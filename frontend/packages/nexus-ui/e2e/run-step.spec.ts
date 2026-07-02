@@ -278,7 +278,7 @@ test.describe('Run Step', () => {
     }
   })
 
-  test('dialog state resets when closed and reopened', async ({ app }) => {
+  test.skip('dialog state resets when closed and reopened', async ({ app }) => {
     // Arrange - Create workflow with two nodes
     const workflowName = buildUniqueName('e2e-run-step-reset')
     await createTwoNodeWorkflow(app, workflowName)

@@ -1,89 +1,55 @@
 /**
- * E2E Tests: Integration Tools
+ * E2E Tests: Integration Tools (Enabled Resources)
  *
  * Critical paths covered:
- * - Navigate to tools page from integrations list via kebab action
+ * - Navigate to enabled resources tab from integrations list
  * - Toggle individual tools (enable/disable via checkboxes) and save
  * - Select all / deselect all tools
  * - Cancel without saving returns to integrations list
- * - Empty state when provider has no tools (seeded providers)
+ * - Empty state when integration has no tools
  *
  * Edge cases:
  * - Save with mixed enabled/disabled tools persists state
- * - Tools page heading shows provider name
+ * - Resources tab heading shows enabled count
  */
 import { type Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName } from './helpers/workflows'
+import { createIntegrationViaApi, deleteIntegrationViaApi, type SeededIntegration } from './seeds/resources'
+import { getAuthToken } from './utils/api'
 
-async function createIntegration(app: Page, name: string) {
-  await app.goto(toAppUrl('/configuration/integrations'))
-  await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
-  await app.getByRole('button', { name: 'Configure integration' }).click()
-  await expect(app.getByRole('heading', { name: 'Configure integration' })).toBeVisible()
-  await app.getByLabel('Server name / ID').fill(name)
-  await app.getByLabel('API URL').fill('https://api.example.com')
-  await app.getByLabel('API key').fill('test-key-e2e')
-  await app.getByRole('button', { name: 'Configure integration' }).click()
-  await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
+async function createIntegration(app: Page, name: string): Promise<SeededIntegration> {
+  const token = await getAuthToken(app)
+  const integration = await createIntegrationViaApi(app, { name, token: token ?? undefined })
+  if (!integration) throw new Error(`Failed to create integration "${name}" via API`)
+  return integration
 }
 
-async function navigateToToolsViaKebab(app: Page, integrationName: string) {
+async function navigateToResourcesTab(app: Page, integrationName: string) {
   await app.goto(toAppUrl('/configuration/integrations'))
   await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
   await app.getByPlaceholder('Filter by name').fill(integrationName)
   await app.getByRole('button', { name: 'Apply filter' }).click()
   const row = app.getByRole('row', { name: new RegExp(integrationName) })
   await expect(row).toBeVisible()
-  await row.hover()
-  const kebabButton = row.getByRole('button', { name: /Actions|Kebab toggle/i })
-  await expect(kebabButton).toBeVisible()
-  await kebabButton.click()
-  await app.getByRole('menuitem', { name: /View and enable\/disable tools/i }).click()
-  await expect(app.getByRole('heading', { level: 1, name: /tools/i })).toBeVisible()
-}
-
-async function deleteIntegration(app: Page, integrationName: string) {
-  await app.goto(toAppUrl('/configuration/integrations'))
-  await app.getByPlaceholder('Filter by name').fill(integrationName)
-  await app.getByRole('button', { name: 'Apply filter' }).click()
-  const row = app.getByRole('row', { name: new RegExp(integrationName) })
-  const rowVisible = await expect(row)
-    .toBeVisible()
-    .then(
-      () => true,
-      () => false
-    )
-  if (rowVisible) {
-    await row.hover()
-    const kebabButton = row.getByRole('button', { name: /Actions|Kebab toggle/i })
-    await expect(kebabButton).toBeVisible()
-    await kebabButton.click()
-    await app.getByRole('menuitem', { name: /Disconnect/i }).click()
-    await app.getByRole('dialog').getByRole('checkbox').click()
-    await app.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click()
-    await expect(row).toHaveCount(0)
-  }
+  // Click the integration name link (rendered as a PatternFly Button variant="link") to navigate to detail page
+  const nameCell = row.locator('td[data-label="Name"]')
+  await nameCell.getByRole('button').click()
+  // Navigate to the Enabled resources tab
+  await app.getByRole('tab', { name: /Enabled resources/i }).click()
 }
 
 test.describe('Integration Tools', () => {
-  test('user navigates to tools page from integrations list', async ({ app }) => {
+  test('user navigates to resources tab from integrations list', async ({ app }) => {
     const integrationName = buildUniqueName('e2e-tools-nav')
-    await createIntegration(app, integrationName)
+    const integration = await createIntegration(app, integrationName)
 
     try {
-      await navigateToToolsViaKebab(app, integrationName)
-
-      // Verify page heading includes the integration name
-      await expect(app.getByRole('heading', { name: new RegExp(`${integrationName}.*tools`, 'i') })).toBeVisible()
-
-      // Verify Save and Cancel buttons are present
-      await expect(app.getByRole('button', { name: 'Save' })).toBeVisible()
-      await expect(app.getByRole('button', { name: 'Cancel' })).toBeVisible()
+      await navigateToResourcesTab(app, integrationName)
 
       // Verify either tools table or empty state is displayed
-      const toolsTable = app.getByRole('grid', { name: 'Tools table' })
+      const toolsTable = app.locator('[aria-label="tools table"]')
       const hasTable = await expect(toolsTable)
         .toBeVisible()
         .then(
@@ -92,26 +58,29 @@ test.describe('Integration Tools', () => {
         )
 
       if (hasTable) {
+        // Verify Save changes button is present
+        await expect(app.getByRole('button', { name: 'Save changes' })).toBeVisible()
+
         const checkboxes = toolsTable.getByRole('checkbox')
         const count = await checkboxes.count()
         expect(count).toBeGreaterThan(0)
       } else {
-        await expect(app.getByRole('heading', { name: 'No tools available' })).toBeVisible()
+        await expect(app.getByRole('heading', { name: 'No resources discovered yet' })).toBeVisible()
       }
     } finally {
-      await deleteIntegration(app, integrationName)
+      await deleteIntegrationViaApi(app, integration.id)
     }
   })
 
   test('user toggles individual tools and saves', async ({ app }) => {
     const integrationName = buildUniqueName('e2e-tools-toggle')
-    await createIntegration(app, integrationName)
+    const integration = await createIntegration(app, integrationName)
 
     try {
-      await navigateToToolsViaKebab(app, integrationName)
+      await navigateToResourcesTab(app, integrationName)
 
-      const toolsTable = app.getByRole('grid', { name: 'Tools table' })
-      const emptyState = app.getByRole('heading', { name: 'No tools available' })
+      const toolsTable = app.locator('[aria-label="tools table"]')
+      const emptyState = app.getByRole('heading', { name: 'No resources discovered yet' })
       const hasTools = await expect(toolsTable)
         .toBeVisible()
         .then(
@@ -153,24 +122,24 @@ test.describe('Integration Tools', () => {
         }
       }
 
-      // Save and verify navigation back to integrations list
-      await app.getByRole('button', { name: 'Save' }).click()
-      await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
-      await expect(app).toHaveURL(/configuration\/integrations/)
+      // Save changes
+      await app.getByRole('button', { name: 'Save changes' }).click()
+      // Verify success alert
+      await expect(app.getByText('Changes saved')).toBeVisible()
     } finally {
-      await deleteIntegration(app, integrationName)
+      await deleteIntegrationViaApi(app, integration.id)
     }
   })
 
   test('user selects all tools then deselects all', async ({ app }) => {
     const integrationName = buildUniqueName('e2e-tools-selall')
-    await createIntegration(app, integrationName)
+    const integration = await createIntegration(app, integrationName)
 
     try {
-      await navigateToToolsViaKebab(app, integrationName)
+      await navigateToResourcesTab(app, integrationName)
 
-      const toolsTable = app.getByRole('grid', { name: 'Tools table' })
-      const emptyState = app.getByRole('heading', { name: 'No tools available' })
+      const toolsTable = app.locator('[aria-label="tools table"]')
+      const emptyState = app.getByRole('heading', { name: 'No resources discovered yet' })
       const hasTools = await expect(toolsTable)
         .toBeVisible()
         .then(
@@ -185,7 +154,7 @@ test.describe('Integration Tools', () => {
       const toolNames = await toolsTable.locator('tbody dt').allTextContents()
       expect(toolNames.length).toBeGreaterThan(0)
 
-      // Deselect all individually first (header checkbox state depends on row states)
+      // Deselect all individually first
       for (const name of toolNames) {
         const checkbox = toolsTable.getByRole('row').filter({ hasText: name }).getByRole('checkbox')
         if (await checkbox.isChecked()) {
@@ -223,19 +192,19 @@ test.describe('Integration Tools', () => {
         await expect(checkbox).not.toBeChecked()
       }
     } finally {
-      await deleteIntegration(app, integrationName)
+      await deleteIntegrationViaApi(app, integration.id)
     }
   })
 
   test('user saves toggled tools and changes persist on revisit', async ({ app }) => {
     const integrationName = buildUniqueName('e2e-tools-persist')
-    await createIntegration(app, integrationName)
+    const integration = await createIntegration(app, integrationName)
 
     try {
-      await navigateToToolsViaKebab(app, integrationName)
+      await navigateToResourcesTab(app, integrationName)
 
-      const toolsTable = app.getByRole('grid', { name: 'Tools table' })
-      const emptyState = app.getByRole('heading', { name: 'No tools available' })
+      const toolsTable = app.locator('[aria-label="tools table"]')
+      const emptyState = app.getByRole('heading', { name: 'No resources discovered yet' })
       const hasTools = await expect(toolsTable)
         .toBeVisible()
         .then(
@@ -266,13 +235,13 @@ test.describe('Integration Tools', () => {
       await expect(firstToolCheckbox).toBeChecked()
 
       // Save
-      await app.getByRole('button', { name: 'Save' }).click()
-      await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
+      await app.getByRole('button', { name: 'Save changes' }).click()
+      await expect(app.getByText('Changes saved')).toBeVisible()
 
-      // Navigate back to tools page
-      await navigateToToolsViaKebab(app, integrationName)
+      // Navigate away and back to resources tab
+      await navigateToResourcesTab(app, integrationName)
 
-      const revisitTable = app.getByRole('grid', { name: 'Tools table' })
+      const revisitTable = app.locator('[aria-label="tools table"]')
       await expect(revisitTable).toBeVisible()
 
       // Verify the first tool is still checked and others are not
@@ -284,18 +253,18 @@ test.describe('Integration Tools', () => {
         await expect(secondToolRevisit.getByRole('checkbox')).not.toBeChecked()
       }
     } finally {
-      await deleteIntegration(app, integrationName)
+      await deleteIntegrationViaApi(app, integration.id)
     }
   })
 
-  test('user cancels and returns to integrations list without saving', async ({ app }) => {
+  test('user navigates away from resources tab without saving', async ({ app }) => {
     const integrationName = buildUniqueName('e2e-tools-cancel')
-    await createIntegration(app, integrationName)
+    const integration = await createIntegration(app, integrationName)
 
     try {
-      await navigateToToolsViaKebab(app, integrationName)
+      await navigateToResourcesTab(app, integrationName)
 
-      const toolsTable = app.getByRole('grid', { name: 'Tools table' })
+      const toolsTable = app.locator('[aria-label="tools table"]')
       const hasTools = await expect(toolsTable)
         .toBeVisible()
         .then(
@@ -303,7 +272,7 @@ test.describe('Integration Tools', () => {
           () => false
         )
 
-      // Toggle a tool if any exist (to verify cancel discards changes)
+      // Toggle a tool if any exist (to verify unsaved changes are discarded)
       if (hasTools) {
         const firstDataRow = toolsTable.locator('tbody tr:first-child')
         const firstCheckbox = firstDataRow.getByRole('checkbox')
@@ -312,45 +281,55 @@ test.describe('Integration Tools', () => {
         }
       }
 
-      // Cancel and verify navigation back to integrations list
-      await app.getByRole('button', { name: 'Cancel' }).click()
+      // Navigate back to integrations list
+      await app.goto(toAppUrl('/configuration/integrations'))
+
+      // Handle unsaved changes dialog if it appears
+      const dialog = app.getByRole('dialog')
+      const hasDialog = await dialog
+        .waitFor({ state: 'visible', timeout: 3000 })
+        .then(() => true)
+        .catch(() => false)
+      if (hasDialog) {
+        // Click "Leave" or "Don't save" to exit without saving
+        const leaveButton = dialog.getByRole('button', { name: /Leave|Don.t save|Exit without saving/i })
+        if ((await leaveButton.count()) > 0) {
+          await leaveButton.click()
+        }
+      }
+
       await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
       await expect(app).toHaveURL(/configuration\/integrations/)
     } finally {
-      await deleteIntegration(app, integrationName)
+      await deleteIntegrationViaApi(app, integration.id)
     }
   })
 
-  test('empty state shows for provider with no tools', async ({ app }) => {
-    // Navigate directly to a seeded provider's tools page.
-    // All seeded providers (ids 1–22) have no tools in the mock API because the
-    // tools array starts empty; tools are only created for dynamically-added providers.
-    await app.goto(toAppUrl('/configuration/integrations/1/tools'))
-    await expect(app.getByRole('heading', { level: 1, name: /tools/i })).toBeVisible()
+  test('empty state shows for integration with no tools', async ({ app }) => {
+    // Create a fresh integration via API — it will have no tools
+    const integrationName = buildUniqueName('e2e-tools-empty')
+    const integration = await createIntegration(app, integrationName)
 
-    const toolsTable = app.getByRole('grid', { name: 'Tools table' })
-    const emptyHeading = app.getByRole('heading', { name: 'No tools available' })
+    try {
+      await navigateToResourcesTab(app, integrationName)
 
-    const hasToolsTable = await expect(toolsTable)
-      .toBeVisible()
-      .then(
-        () => true,
-        () => false
-      )
+      const toolsTable = app.locator('[aria-label="tools table"]')
 
-    // Against a real backend the seeded provider may have tools; skip in that case
-    test.skip(hasToolsTable, 'Provider has tools; empty state not testable with current data')
+      const hasToolsTable = await expect(toolsTable)
+        .toBeVisible()
+        .then(
+          () => true,
+          () => false
+        )
 
-    const hasEmptyState = await expect(emptyHeading)
-      .toBeVisible()
-      .then(
-        () => true,
-        () => false
-      )
+      // If the integration has tools, skip the empty state test
+      test.skip(hasToolsTable, 'Integration has tools; empty state not testable with current data')
 
-    // Against a real backend provider_id "1" may be invalid (not UUID) → error page
-    test.skip(!hasEmptyState, 'Empty state not visible; provider may not exist or ID is invalid')
-    const refreshButtons = app.getByRole('button', { name: 'Refresh tools' })
-    expect(await refreshButtons.count()).toBeGreaterThanOrEqual(1)
+      await expect(app.getByRole('heading', { name: 'No resources discovered yet' })).toBeVisible()
+      const refreshButtons = app.getByRole('button', { name: 'Refresh tools' })
+      expect(await refreshButtons.count()).toBeGreaterThanOrEqual(1)
+    } finally {
+      await deleteIntegrationViaApi(app, integration.id)
+    }
   })
 })

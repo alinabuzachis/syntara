@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       proxy: proxyConfig,
       watch: {
-        ignored: ['**/coverage/**'],
+        ignored: ['**/coverage/**', '**/playwright-report/**', '**/test-results/**'],
       },
     },
     preview: {

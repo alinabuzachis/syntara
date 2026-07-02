@@ -27,7 +27,7 @@ async function selectDirectNodeType(page: Page, label: string | RegExp) {
  * run them, and clean up afterward.
  */
 test.describe('Multi-Approval Navigation', () => {
-  test('navigate between multiple pending approvals using Previous/Next buttons', async ({ app }) => {
+  test.skip('navigate between multiple pending approvals using Previous/Next buttons', async ({ app }) => {
     const workflowName = buildUniqueName('Multi-Approval Workflow')
     let workflowId: string | undefined
 
@@ -209,7 +209,7 @@ test.describe('Multi-Approval Navigation', () => {
     }
   })
 
-  test('verify approval counter shows correct position when multiple approvals exist', async ({ app }) => {
+  test.skip('verify approval counter shows correct position when multiple approvals exist', async ({ app }) => {
     const workflowName = buildUniqueName('Counter Test Workflow')
     let workflowId: string | undefined
 

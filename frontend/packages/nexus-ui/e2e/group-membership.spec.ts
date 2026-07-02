@@ -201,7 +201,7 @@ test.describe('Group Detail — Navigation & Tabs', () => {
 test.describe('User Detail — Group Membership', () => {
   // This test passes locally against mock API but on CI the User detail page
   // never finishes loading — the "Edit user" button never appears within 30s.
-  test.skip('add to group button is available on user groups tab', async ({ app }) => {
+  test('add to group button is available on user groups tab', async ({ app }) => {
     await app.goto(toAppUrl('/system-administration/access-management/users'))
     await expect(app.getByRole('heading', { level: 1, name: /access management/i })).toBeVisible()
 

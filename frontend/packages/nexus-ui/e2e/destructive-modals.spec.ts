@@ -8,6 +8,7 @@ import {
   type SeededRoleAssignment,
   type SeededUser,
 } from './seeds/iam'
+import { createIntegrationViaApi, deleteIntegrationViaApi, type SeededIntegration } from './seeds/resources'
 import { ensureProject, getAuthToken } from './utils/api'
 
 test.describe('destructive modal UX compliance (AAP-72897)', () => {
@@ -46,20 +47,17 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
     await page.close()
   })
 
-  test('disconnect integration modal matches UX spec', async ({ app }) => {
-    const integrationName = buildUniqueName('e2e-disconnect-modal')
-    await app.goto(toAppUrl('/configuration/integrations'))
-    await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
+  test('delete integration modal matches UX spec', async ({ app }) => {
+    const integrationName = buildUniqueName('e2e-delete-modal')
+    let seededIntegration: SeededIntegration | null = null
 
     try {
-      // Navigate directly: the integrations list always renders a toolbar button AND
-      // an empty-state button when no integrations exist, so clicking by name would
-      // hit two elements and fail Playwright strict mode.
-      await app.goto(toAppUrl('/configuration/integrations/configure'))
-      await app.getByLabel('Server name / ID').fill(integrationName)
-      await app.getByLabel('API URL').fill('https://api.example.com')
-      await app.getByLabel('API key').fill('test-key')
-      await app.getByRole('button', { name: 'Configure integration' }).click()
+      // Create integration via API
+      const token = await getAuthToken(app)
+      seededIntegration = await createIntegrationViaApi(app, { name: integrationName, token: token ?? undefined })
+      expect(seededIntegration).not.toBeNull()
+
+      await app.goto(toAppUrl('/configuration/integrations'))
       await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
 
       // Filter to find it
@@ -68,40 +66,39 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
       const row = app.getByRole('row', { name: new RegExp(integrationName) })
       await expect(row).toBeVisible({ timeout: 30000 })
 
-      // Open the kebab menu and click disconnect
+      // Open the kebab menu and click Delete integration
       await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
-      await app.getByRole('menuitem', { name: /Disconnect/i }).click()
+      await app.getByRole('menuitem', { name: /Delete integration/i }).click()
 
       // Verify the modal matches the UX spec
       const modal = app.getByRole('dialog')
       await expect(modal).toBeVisible()
 
-      // Title should be "Disconnect integration?" with question mark
-      await expect(modal.getByText('Disconnect integration?')).toBeVisible()
+      // Title should be "Delete integration?" with question mark
+      await expect(modal.getByText('Delete integration?')).toBeVisible()
 
       // Body should use the spec format with bold resource name
       await expect(modal.getByText(new RegExp(integrationName))).toBeVisible()
-      await expect(modal.getByText(/will be disconnected/)).toBeVisible()
       await expect(modal.getByText(/cannot be undone/)).toBeVisible()
 
-      // Disconnect button should be disabled before checkbox is checked
-      const disconnectButton = modal.getByRole('button', { name: 'Disconnect' })
-      await expect(disconnectButton).toBeDisabled()
+      // Delete button should be disabled before checkbox is checked
+      const deleteButton = modal.getByRole('button', { name: 'Delete' })
+      await expect(deleteButton).toBeDisabled()
 
       // Checkbox should be present with the acknowledgement text
       const checkbox = modal.getByRole('checkbox')
       await expect(checkbox).toBeVisible()
       await expect(checkbox).not.toBeChecked()
-      await expect(modal.getByText(/I understand this integration will be permanently disconnected/)).toBeVisible()
+      await expect(modal.getByText(/I understand this integration.*will be permanently deleted/)).toBeVisible()
 
-      // After checking the checkbox, disconnect button should be enabled
+      // After checking the checkbox, delete button should be enabled
       await checkbox.click()
       await expect(checkbox).toBeChecked()
-      await expect(disconnectButton).toBeEnabled()
+      await expect(deleteButton).toBeEnabled()
 
       // Unchecking should disable the button again
       await checkbox.click()
-      await expect(disconnectButton).toBeDisabled()
+      await expect(deleteButton).toBeDisabled()
 
       // Cancel button should use link variant and close the modal
       const cancelButton = modal.getByRole('button', { name: 'Cancel' })
@@ -109,24 +106,8 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
       await cancelButton.click()
       await expect(modal).not.toBeVisible()
     } finally {
-      // Cleanup - disconnect the integration if it exists
-      await app.goto(toAppUrl('/configuration/integrations'))
-      await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
-      const filterInput = app.getByPlaceholder('Filter by name')
-      const hasFilterBar = await filterInput
-        .waitFor({ state: 'visible', timeout: 10000 })
-        .then(() => true)
-        .catch(() => false)
-      if (hasFilterBar) {
-        await filterInput.fill(integrationName)
-        await app.getByRole('button', { name: 'Apply filter' }).click()
-        const row = app.getByRole('row', { name: new RegExp(integrationName) })
-        if ((await row.count()) > 0) {
-          await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
-          await app.getByRole('menuitem', { name: /Disconnect/i }).click()
-          await app.getByRole('dialog').getByRole('checkbox').click()
-          await app.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click()
-        }
+      if (seededIntegration) {
+        await deleteIntegrationViaApi(app, seededIntegration.id)
       }
     }
   })

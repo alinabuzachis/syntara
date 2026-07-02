@@ -153,6 +153,9 @@ test.describe('Permission gating — Access Management tabs', () => {
     'Token Revocation',
   ] as const
 
+  /** Auditors do not have query:authz permission, so Check access is hidden. */
+  const AUDITOR_AM_TABS = ALL_AM_TABS.filter((tab) => tab !== 'Check access')
+
   test('admin sees all AM tabs', async ({ app }) => {
     await app.goto(toAppUrl(`${AM_URL}/users`))
     await expect(app.getByRole('heading', { name: 'Access Management' })).toBeVisible()
@@ -162,13 +165,16 @@ test.describe('Permission gating — Access Management tabs', () => {
     }
   })
 
-  test('auditor sees all AM tabs', async ({ auditorApp }) => {
+  test('auditor sees all AM tabs except Check access', async ({ auditorApp }) => {
     await auditorApp.goto(toAppUrl(`${AM_URL}/users`))
     await expect(auditorApp.getByRole('heading', { name: 'Access Management' })).toBeVisible()
 
-    for (const tab of ALL_AM_TABS) {
+    for (const tab of AUDITOR_AM_TABS) {
       await expect(auditorApp.getByRole('tab', { name: tab })).toBeVisible()
     }
+
+    // Auditor lacks query:authz permission, so Check access tab is hidden
+    await expect(auditorApp.getByRole('tab', { name: 'Check access' })).not.toBeVisible()
   })
 
   test('user sees Users, Groups, Policies, Roles, Check access — not Projects, Assignments, or Token Revocation', async ({
@@ -444,7 +450,7 @@ test.describe('Permission gating — Workflow actions', () => {
 // ── Action gating — Project actions on Workflows page ────────────────────
 
 test.describe('Permission gating — Project actions', () => {
-  test('viewer: project kebab menu in all projects view has disabled actions', async ({ app, viewerApp }) => {
+  test('viewer: project kebab menu in all projects view is not visible', async ({ app, viewerApp }) => {
     // Create project and workflow so it appears in all projects view
     const projectName = buildUniqueName('e2e-viewer-proj')
     const workflowName = buildUniqueName('e2e-viewer-wf')
@@ -476,23 +482,17 @@ test.describe('Permission gating — Project actions', () => {
 
       // Navigate to All projects view as viewer
       await viewerApp.goto(toAppUrl('/workflows'))
-      const projectSelector = viewerApp.getByPlaceholder(/All projects|Select a project/)
+      const projectSelector = viewerApp.getByRole('textbox', { name: 'Project' })
       await projectSelector.click()
       await viewerApp.getByRole('option', { name: 'All projects' }).click()
 
-      // Find project row and open kebab
-      const projectRow = viewerApp.getByRole('row').filter({ hasText: projectName })
+      // Find project row — viewer sees project ID instead of name in group headers
+      const projectRow = viewerApp.getByRole('row').filter({ hasText: new RegExp(`${projectName}|${project.id}`) })
       await expect(projectRow).toBeVisible({ timeout: 15_000 })
-      const projectKebab = projectRow.getByRole('button', { name: /Actions for.*project/i })
-      await expect(projectKebab).toBeVisible()
-      await projectKebab.click()
 
-      // Verify all actions are disabled
-      await expect(viewerApp.getByRole('menuitem', { name: /Edit project/i })).toHaveAttribute('aria-disabled', 'true')
-      await expect(viewerApp.getByRole('menuitem', { name: /Delete project/i })).toHaveAttribute(
-        'aria-disabled',
-        'true'
-      )
+      // Viewer has no project write permissions — kebab is completely hidden
+      const projectKebab = projectRow.getByRole('button', { name: /Actions for.*project/i })
+      await expect(projectKebab).not.toBeVisible()
 
       // Clean up
       await apiRequest(app, 'delete', `/workflows/${workflow.id}`)
@@ -519,7 +519,7 @@ test.describe('Permission gating — Project actions', () => {
     }
   })
 
-  test('auditor: project kebab menu in all projects view has disabled actions', async ({ app, auditorApp }) => {
+  test('auditor: project kebab menu in all projects view is not visible', async ({ app, auditorApp }) => {
     // Create project and workflow so it appears in all projects view
     const projectName = buildUniqueName('e2e-auditor-proj')
     const workflowName = buildUniqueName('e2e-auditor-wf')
@@ -551,23 +551,17 @@ test.describe('Permission gating — Project actions', () => {
 
       // Navigate to All projects view as auditor
       await auditorApp.goto(toAppUrl('/workflows'))
-      const projectSelector = auditorApp.getByPlaceholder(/All projects|Select a project/)
+      const projectSelector = auditorApp.getByRole('textbox', { name: 'Project' })
       await projectSelector.click()
       await auditorApp.getByRole('option', { name: 'All projects' }).click()
 
-      // Find project row and open kebab
-      const projectRow = auditorApp.getByRole('row').filter({ hasText: projectName })
+      // Find project row — auditor sees project ID instead of name in group headers
+      const projectRow = auditorApp.getByRole('row').filter({ hasText: new RegExp(`${projectName}|${project.id}`) })
       await expect(projectRow).toBeVisible({ timeout: 15_000 })
-      const projectKebab = projectRow.getByRole('button', { name: /Actions for.*project/i })
-      await expect(projectKebab).toBeVisible()
-      await projectKebab.click()
 
-      // Verify all actions are disabled
-      await expect(auditorApp.getByRole('menuitem', { name: /Edit project/i })).toHaveAttribute('aria-disabled', 'true')
-      await expect(auditorApp.getByRole('menuitem', { name: /Delete project/i })).toHaveAttribute(
-        'aria-disabled',
-        'true'
-      )
+      // Auditor has no project write permissions — kebab is completely hidden
+      const projectKebab = projectRow.getByRole('button', { name: /Actions for.*project/i })
+      await expect(projectKebab).not.toBeVisible()
 
       // Clean up
       await apiRequest(app, 'delete', `/workflows/${workflow.id}`)
@@ -594,10 +588,7 @@ test.describe('Permission gating — Project actions', () => {
     }
   })
 
-  test('viewer: project kebab menu in page header (selected project) has disabled actions', async ({
-    app,
-    viewerApp,
-  }) => {
+  test('viewer: project kebab menu in page header (selected project) is not visible', async ({ app, viewerApp }) => {
     const projectName = buildUniqueName('e2e-viewer-header-proj')
     const workflowName = buildUniqueName('e2e-viewer-header-wf')
 
@@ -626,23 +617,14 @@ test.describe('Permission gating — Project actions', () => {
       if (!createWorkflowResp.ok()) throw new Error('Workflow creation failed')
       const workflow = (await createWorkflowResp.json()) as { id: string }
 
-      // Navigate to workflows page and select the project as viewer
+      // Viewer cannot select individual projects — dropdown only shows "All projects"
       await viewerApp.goto(toAppUrl('/workflows'))
-      const projectSelector = viewerApp.getByPlaceholder(/All projects|Select a project/)
+      const projectSelector = viewerApp.getByRole('textbox', { name: 'Project' })
       await projectSelector.click()
-      await viewerApp.getByRole('option', { name: projectName }).click()
-
-      // Find and click project kebab in page header
-      const headerKebab = viewerApp.getByRole('button', { name: 'Project actions' })
-      await expect(headerKebab).toBeVisible()
-      await headerKebab.click()
-
-      // Verify all actions are disabled
-      await expect(viewerApp.getByRole('menuitem', { name: /Edit project/i })).toHaveAttribute('aria-disabled', 'true')
-      await expect(viewerApp.getByRole('menuitem', { name: /Delete project/i })).toHaveAttribute(
-        'aria-disabled',
-        'true'
-      )
+      await expect(viewerApp.getByRole('option', { name: 'All projects' })).toBeVisible()
+      await expect(viewerApp.getByRole('option', { name: projectName })).not.toBeVisible()
+      await expect(viewerApp.getByRole('option', { name: project.id })).not.toBeVisible()
+      await viewerApp.keyboard.press('Escape')
 
       // Clean up
       await apiRequest(app, 'delete', `/workflows/${workflow.id}`)

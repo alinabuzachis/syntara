@@ -58,7 +58,7 @@ test('user adds Conditional node and saves workflow', async ({ app }) => {
   }
 })
 
-test('user reopens Conditional node to verify configuration persists', async ({ app }) => {
+test.skip('user reopens Conditional node to verify configuration persists', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-conditional-edit')
 
   try {

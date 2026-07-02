@@ -28,15 +28,16 @@ export async function createIntegrationViaApi(
     const token = options.token ?? (await getAuthToken(page))
     if (!token) return null
 
-    const resp = await apiRequest(page, 'post', '/tool_manager/tool_providers', {
+    const resp = await apiRequest(page, 'post', '/integrations', {
       token,
       data: {
         name: options.name,
+        integration_type: 'mcp_server',
         configuration: {
-          provider_type: 'mcp',
+          integration_type: 'mcp_server',
           base_url: `https://${options.name}.example.com/api`,
-          api_key: 'e2e-test-key',
         },
+        scope: 'global',
       },
     })
     if (!resp.ok()) return null
@@ -52,7 +53,7 @@ export async function deleteIntegrationViaApi(page: Page, integrationId: string)
   try {
     const token = await getAuthToken(page)
     if (token) {
-      await apiRequest(page, 'delete', `/tool_manager/tool_providers/${integrationId}`, { token })
+      await apiRequest(page, 'delete', `/integrations/${integrationId}`, { token })
     }
   } catch {
     // Best-effort cleanup

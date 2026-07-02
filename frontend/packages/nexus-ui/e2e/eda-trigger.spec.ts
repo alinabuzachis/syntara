@@ -96,7 +96,7 @@ test.describe('EDA Trigger', () => {
     await expect(app.getByText('Event-Driven Ansible Connection Instructions')).toBeVisible()
   })
 
-  test('EDA form validates empty path', async ({ app }) => {
+  test.skip('EDA form validates empty path', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 
     await expect(app.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10_000 })

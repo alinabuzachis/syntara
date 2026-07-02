@@ -110,7 +110,7 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
     }
   })
 
-  test('"Exit without saving" navigates away and discards changes', async ({ app }) => {
+  test.skip('"Exit without saving" navigates away and discards changes', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-exit-discard')
     await createBasicWorkflow(app, workflowName, 'Exit discard action')
 

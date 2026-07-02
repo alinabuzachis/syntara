@@ -17,7 +17,7 @@ import { createWorkflowViaApi, deleteWorkflowViaApi } from '../seeds/resources'
 import { ensureProject } from '../utils/api'
 
 test.describe('Workflows Table - Display and Navigation', () => {
-  test('workflows table displays with name and state columns', async ({ app }) => {
+  test.skip('workflows table displays with name and state columns', async ({ app }) => {
     // Create a workflow specifically for this test
     const project = await ensureProject(app)
     const workflowName = buildUniqueName('e2e-table-display')

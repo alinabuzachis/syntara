@@ -13,6 +13,7 @@
 import { type Page } from '@playwright/test'
 
 import { expect, toAppUrl } from '../fixtures'
+import { apiRequest, ensureProject } from '../utils/api'
 
 import { addNodePanel, buildUniqueName, closeNodeEditorPanel, fillCodeEditor } from './workflows'
 
@@ -46,6 +47,13 @@ export async function openAddNodePanel(page: Page) {
   const layoutButton = page.getByRole('button', { name: 'Layout' })
   if ((await layoutButton.count()) > 0) {
     await layoutButton.click()
+  }
+
+  // Fit the view so all nodes and edge buttons are visible in the viewport
+  const fitViewButton = page.getByRole('button', { name: 'Fit view' })
+  if ((await fitViewButton.count()) > 0) {
+    await fitViewButton.click()
+    await page.waitForTimeout(500)
   }
 
   const addBtn = page.getByRole('button', { name: 'Add connected step' })
@@ -172,11 +180,60 @@ export async function addHttpRequestNode(page: Page, name: string, url = 'https:
   await closeNodeEditorPanel(page)
 }
 
+/**
+ * Ensure an LLM Provider credential exists via the API.
+ * Returns the credential name for selection in the UI dropdown.
+ */
+export async function ensureLlmCredential(page: Page): Promise<string> {
+  const project = await ensureProject(page)
+  if (!project) throw new Error('Could not ensure project for credential creation')
+
+  const credName = 'e2e-llm-provider'
+
+  // Check if it already exists
+  const listResp = await apiRequest(page, 'get', `/credentials?name=${encodeURIComponent(credName)}`)
+  if (listResp.ok()) {
+    const body = (await listResp.json()) as { resources?: Array<{ id: string; name: string }> }
+    if (body.resources?.length) return credName
+  }
+
+  // Find LLM Provider credential type
+  const typesResp = await apiRequest(page, 'get', '/credential_types')
+  if (!typesResp.ok()) throw new Error('Could not list credential types')
+  const types = (await typesResp.json()) as { resources?: Array<{ id: string; name: string }> }
+  const llmType = types.resources?.find((t) => t.name === 'LLM Provider')
+  if (!llmType) throw new Error('LLM Provider credential type not found')
+
+  // Create the credential
+  const createResp = await apiRequest(page, 'post', '/credentials', {
+    data: {
+      name: credName,
+      credential_type_id: llmType.id,
+      project_id: project.id,
+      inputs: { provider: 'anthropic', api_key: 'sk-ant-e2e-test-key' },
+    },
+  })
+  if (!createResp.ok()) throw new Error('Could not create LLM credential')
+  return credName
+}
+
+/** Select the LLM credential in the Task Agent form dropdown. */
+export async function selectLlmCredential(page: Page, credName: string) {
+  const credToggle = page.getByRole('button', { name: 'LLM provider credential', exact: true })
+  await expect(credToggle).toBeEnabled({ timeout: 10_000 })
+  await credToggle.click()
+  const credOption = page.getByRole('option', { name: credName })
+  await expect(credOption).toBeVisible({ timeout: 10_000 })
+  await credOption.click()
+}
+
 /** Add a Task Agent node (v2 type: "agentic"). */
 export async function addAgenticNode(page: Page, name: string, prompt = 'Analyze the data') {
+  const credName = await ensureLlmCredential(page)
   await openAddNodePanel(page)
   await selectDirectNodeType(page, 'Task Agent')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+  await selectLlmCredential(page, credName)
   await page.getByLabel('Prompt').fill(prompt)
   await page.getByRole('button', { name: 'Create', exact: true }).click()
   await closeNodeEditorPanel(page)
@@ -479,16 +536,16 @@ export async function addConvergeNodeWithTimeout(
 
   // Fill wait_duration units — DurationInput is always visible in Parameters tab
   if (timeoutConfig.seconds !== undefined) {
-    await page.getByLabel(/Second\(s\)/i).fill(String(timeoutConfig.seconds))
+    await page.getByLabel(/Seconds/i).fill(String(timeoutConfig.seconds))
   }
   if (timeoutConfig.minutes !== undefined) {
-    await page.getByLabel(/Minute\(s\)/i).fill(String(timeoutConfig.minutes))
+    await page.getByLabel(/Minutes/i).fill(String(timeoutConfig.minutes))
   }
   if (timeoutConfig.hours !== undefined) {
-    await page.getByLabel(/Hour\(s\)/i).fill(String(timeoutConfig.hours))
+    await page.getByLabel(/Hours/i).fill(String(timeoutConfig.hours))
   }
   if (timeoutConfig.days !== undefined) {
-    await page.getByLabel(/Day\(s\)/i).fill(String(timeoutConfig.days))
+    await page.getByLabel(/Days/i).fill(String(timeoutConfig.days))
   }
 
   await page.getByRole('button', { name: 'Create', exact: true }).click()

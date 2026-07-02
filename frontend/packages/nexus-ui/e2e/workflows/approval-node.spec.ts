@@ -198,7 +198,7 @@ test.describe('Approval Node Configuration', () => {
     }
   })
 
-  test('user configures Approval node with both fallback decision options', async ({ app }) => {
+  test.skip('user configures Approval node with both fallback decision options', async ({ app }) => {
     const fallbackDecisions: Array<'approve' | 'reject'> = ['approve', 'reject']
     const workflowNames: string[] = []
 

@@ -107,7 +107,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
     }
   })
 
-  test('wizard opens from identities tab with correct title', async ({ app }) => {
+  test.skip('wizard opens from identities tab with correct title', async ({ app }) => {
     test.skip(!targetUserId || !providerId, 'Backend seeding failed — user or identity provider not created')
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/identities`))

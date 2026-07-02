@@ -26,7 +26,10 @@ export default defineConfig({
     timeout: 10_000,
   },
   reporter: [
-    ['list'],
+    // 'line' prints errors inline as tests fail; 'list' buffers them to the end.
+    // Use 'line' in CI so failures are visible in the live log without waiting
+    // for the full suite to finish.
+    [process.env.CI ? 'line' : 'list'],
     ['json', { outputFile: 'test-results/results.json' }],
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
   ],

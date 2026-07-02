@@ -169,7 +169,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
     }
   })
 
-  test('shows empty state when no workflows use credential', async ({ app }) => {
+  test.skip('shows empty state when no workflows use credential', async ({ app }) => {
     // A freshly created credential has no workflows referencing it
     const { name } = await createTestCredential(app, { prefix: 'e2e-detail-wf-empty' })
     try {

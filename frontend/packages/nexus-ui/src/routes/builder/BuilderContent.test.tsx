@@ -39,6 +39,7 @@ vi.mock('../../client', () => ({
 vi.mock('../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => ({
     selectedProject: { id: 'project-1', name: 'Test Project' },
+    stableProjectId: 'project-1',
     isAllProjects: false,
     projects: [{ id: 'project-1', name: 'Test Project' }],
     ProjectSelector: null,
@@ -67,6 +68,7 @@ vi.mock('../../app/useUnsavedChanges', () => ({
 vi.mock('../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => ({
     selectedProject: { id: 'project-1', name: 'Test Project' },
+    stableProjectId: 'project-1',
     isAllProjects: false,
     projects: [{ id: 'project-1', name: 'Test Project' }],
     ProjectSelector: null,

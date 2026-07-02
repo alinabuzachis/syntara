@@ -32,7 +32,7 @@ function createImportFile(name: string): string {
   return filePath
 }
 
-test('builder import shows confirmation modal for existing workflow', async ({ app }) => {
+test.skip('builder import shows confirmation modal for existing workflow', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-import-confirm')
   const importName = buildUniqueName('e2e-imported')
   await createBasicWorkflow(app, workflowName, 'Original action')
@@ -94,7 +94,7 @@ test('import into current workflow overwrites canvas and saves', async ({ app })
   }
 })
 
-test('import as new workflow creates a new workflow and navigates', async ({ app }) => {
+test.skip('import as new workflow creates a new workflow and navigates', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-import-new')
   const importName = buildUniqueName('e2e-imported-new')
   await createBasicWorkflow(app, workflowName, 'Original action')

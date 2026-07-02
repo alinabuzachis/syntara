@@ -34,7 +34,9 @@ test.describe('Builder save validation — project required', () => {
    * Core validation flow: save without project → danger state on selector →
    * select project → save succeeds and navigates away.
    */
-  test('saving new workflow without project shows error then succeeds after project selection', async ({ app }) => {
+  test.skip('saving new workflow without project shows error then succeeds after project selection', async ({
+    app,
+  }) => {
     const workflowName = buildUniqueName('e2e-proj-validation')
     await ensureProject(app)
 

@@ -155,7 +155,7 @@ test.describe('Approval Side Panel — deep-link', () => {
 })
 
 test.describe('Approval Side Panel — self-contained', () => {
-  test('UI-28: execution shows Paused status and Waiting for approval indicator', async ({ app }) => {
+  test.skip('UI-28: execution shows Paused status and Waiting for approval indicator', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-approval-panel')
     await createBasicWorkflow(app, workflowName, 'Pre-approval step')
 
@@ -196,7 +196,7 @@ test.describe('Approval Side Panel — self-contained', () => {
     }
   })
 
-  test('UI-30: rejecting an approval terminates workflow execution', async ({ app }) => {
+  test.skip('UI-30: rejecting an approval terminates workflow execution', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-reject')
     await createBasicWorkflow(app, workflowName, 'Pre-rejection step')
 

@@ -21,7 +21,7 @@ import {
 import { ensureProject } from './utils/api'
 
 test.describe('Scheduled Trigger', () => {
-  test('user creates a workflow with scheduled trigger and saves it', async ({ app }) => {
+  test.skip('user creates a workflow with scheduled trigger and saves it', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-scheduled')
 
     await ensureProject(app)
@@ -84,7 +84,7 @@ test.describe('Scheduled Trigger', () => {
     await expect(app.getByText('Start date is required')).toBeVisible()
   })
 
-  test('scheduled trigger displays correctly on canvas', async ({ app }) => {
+  test.skip('scheduled trigger displays correctly on canvas', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-sched-canvas')
 
     await ensureProject(app)

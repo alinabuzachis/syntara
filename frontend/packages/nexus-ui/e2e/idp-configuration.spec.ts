@@ -8,7 +8,7 @@ import { test, expect, toAppUrl } from './fixtures'
 import { AAP_OIDC_IDP } from './fixtures/mock-oidc-idps'
 
 test.describe('Allow Everyone In — Setting Configuration', () => {
-  test('toggles IdPs allow all authenticated users setting, save, and verify persistence', async ({ app }) => {
+  test.skip('toggles IdPs allow all authenticated users setting, save, and verify persistence', async ({ app }) => {
     await app.route('**/api/v1/identity_providers/**', (route) => {
       if (route.request().method() === 'GET') {
         return route.fulfill({

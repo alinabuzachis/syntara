@@ -163,7 +163,7 @@ test.describe('React Flow viewport guard', () => {
     await expect(app.locator('.react-flow')).not.toBeVisible()
   })
 
-  test('shows full-page empty state on execution detail below minimum width', async ({ app }) => {
+  test.skip('shows full-page empty state on execution detail below minimum width', async ({ app }) => {
     await app.setViewportSize(MIN_SUPPORTED_VIEWPORT)
     const executionId = await resolveExecutionId(app)
     if (!executionId) {

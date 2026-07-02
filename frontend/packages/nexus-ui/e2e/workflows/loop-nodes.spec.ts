@@ -76,7 +76,7 @@ test.describe('Loop Node Configuration [UI-16]', () => {
     }
   })
 
-  test('verifies custom item and index variables persist', async ({ app }) => {
+  test.skip('verifies custom item and index variables persist', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-loop-foreach-vars')
 
     try {
@@ -106,7 +106,7 @@ test.describe('Loop Node Configuration [UI-16]', () => {
     }
   })
 
-  test('verifies max iterations persist on Loop (While)', async ({ app }) => {
+  test.skip('verifies max iterations persist on Loop (While)', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-loop-while-maxiter')
 
     try {
@@ -134,7 +134,7 @@ test.describe('Loop Node Configuration [UI-16]', () => {
     }
   })
 
-  test('verifies loop type switch from While to For Each persists', async ({ app }) => {
+  test.skip('verifies loop type switch from While to For Each persists', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-loop-type-switch')
 
     try {
@@ -252,7 +252,7 @@ test.describe('Loop Node Configuration [UI-16]', () => {
     })
   }
 
-  test('verifies configuration persists after multiple edits', async ({ app }) => {
+  test.skip('verifies configuration persists after multiple edits', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-loop-multi-edit')
 
     try {

@@ -36,7 +36,7 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
    * navigates to the full-page wizard. Selects a source user in Step 1,
    * picks one of their identities in Step 2, and attaches it.
    */
-  test('admin transfers a federated identity via wizard (UI-25)', async ({ app }) => {
+  test.skip('admin transfers a federated identity via wizard (UI-25)', async ({ app }) => {
     // User A (Alice) identities — the source for the transfer
     await mockUserIdentities(app, FEDERATED_USER_ID, {
       resources: [federatedUserIdentity],

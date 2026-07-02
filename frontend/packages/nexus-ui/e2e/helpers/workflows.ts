@@ -73,10 +73,29 @@ export async function clickAddConnectedStep(page: Page) {
 }
 
 export async function closeNodeEditorPanel(page: Page) {
+  // The node editor cancel button has different aria-labels depending on mode:
+  //   edit mode  → "Cancel without saving"
+  //   add mode   → "Cancel step creation"
+  //   read-only  → "Close"
+  // Try each in order.
+  const cancelEditButton = page.getByRole('button', { name: 'Cancel without saving' })
+  if ((await cancelEditButton.count()) > 0) {
+    await expect(cancelEditButton).toBeVisible()
+    await cancelEditButton.click()
+    await expect(cancelEditButton).toHaveCount(0, { timeout: 10000 })
+    return
+  }
+  const cancelAddButton = page.getByRole('button', { name: 'Cancel step creation' })
+  if ((await cancelAddButton.count()) > 0) {
+    await expect(cancelAddButton).toBeVisible()
+    await cancelAddButton.click()
+    await expect(cancelAddButton).toHaveCount(0, { timeout: 10000 })
+    return
+  }
   const closeButton = page.getByRole('button', { name: 'Close' })
   if ((await closeButton.count()) > 0) {
-    await expect(closeButton.first()).toBeVisible({ timeout: 5000 })
-    await closeButton.first().click()
+    await expect(closeButton).toBeVisible()
+    await closeButton.click()
     await expect(closeButton).toHaveCount(0, { timeout: 10000 })
   }
 }
@@ -140,7 +159,7 @@ export async function fillCodeEditor(
     }
 
     const monacoSurface = target.locator('.monaco-editor').first()
-    await expect(monacoSurface).toBeVisible({ timeout: 5000 })
+    await expect(monacoSurface).toBeVisible()
     await monacoSurface.click({ force: true })
     const usedMonacoApi = await page.evaluate((text) => {
       const w = window as unknown as Record<string, unknown>
@@ -165,9 +184,7 @@ export async function fillCodeEditor(
       return false
     }, value)
     if (!usedMonacoApi) {
-      await expect(monacoSurface.locator('.view-lines')).toContainText(value.slice(0, 20), {
-        timeout: 5000,
-      })
+      await expect(monacoSurface.locator('.view-lines')).toContainText(value.slice(0, 20))
     }
   }
 
@@ -221,6 +238,12 @@ export async function selectFirstProject(page: Page) {
   // Retry until a real project option appears — API-loaded options arrive after
   // static ones ("All projects", "Create project") on slower CI backends.
   await clickFirstRealProjectOption(page)
+
+  // Wait for the "Select a project" placeholder to disappear before returning.
+  // Use not.toBeVisible (not not.toHaveAttribute) because the element may be
+  // removed from the DOM entirely after selection, which causes toHaveAttribute
+  // to throw "element(s) not found".
+  await expect(page.getByPlaceholder('Select a project')).not.toBeVisible()
 }
 
 /**
@@ -230,8 +253,11 @@ export async function selectFirstProject(page: Page) {
  */
 export async function selectProjectIfRequired(page: Page, projectName?: string) {
   const projectInput = page.getByPlaceholder(/Select a project/)
+  // Use a short timeout — if the project is already selected ("default" shows
+  // in the toggle with no "Select a project" placeholder), the element will
+  // never appear and a 15s wait burns most of the test budget unnecessarily.
   const needsSelection = await projectInput
-    .waitFor({ state: 'visible', timeout: 5_000 })
+    .waitFor({ state: 'visible', timeout: 2_000 })
     .then(() => true)
     .catch(() => false)
   if (!needsSelection) return
@@ -276,13 +302,18 @@ async function trySelectRealProject(page: Page): Promise<boolean> {
       const count = await options.count()
       for (let i = 0; i < count; i++) {
         const text = await options.nth(i).textContent()
-        if (text && !text.includes('All projects') && !text.includes('Create project')) {
+        if (
+          text &&
+          !text.includes('All projects') &&
+          !text.includes('Create project') &&
+          !text.toLowerCase().includes('built-in')
+        ) {
           await options.nth(i).click()
           return
         }
       }
       throw new Error('No real project options yet')
-    }).toPass({ timeout: 5_000 })
+    }).toPass({ timeout: 15_000 })
     return true
   } catch {
     return false
@@ -304,7 +335,7 @@ async function createProjectViaDropdown(page: Page) {
   await dialog.getByRole('textbox', { name: 'Project name' }).fill('default')
   await dialog.getByRole('button', { name: 'Create project' }).click()
 
-  // Wait for dialog to close (project created) or for a success toast
+  // Wait for dialog to close (project created)
   await expect(dialog).not.toBeVisible({ timeout: 15_000 })
 }
 
@@ -357,7 +388,7 @@ export async function deleteProject(page: Page, projectName: string) {
     await projectSelector.click()
     const option = page.getByRole('option', { name: projectName, exact: true })
     const optionExists = await expect(option)
-      .toBeVisible({ timeout: 5000 })
+      .toBeVisible()
       .then(() => true)
       .catch(() => false)
 
@@ -368,7 +399,7 @@ export async function deleteProject(page: Page, projectName: string) {
     // Click project kebab menu in page header
     const headerKebab = page.getByRole('button', { name: 'Project actions' })
     const kebabVisible = await expect(headerKebab)
-      .toBeVisible({ timeout: 5000 })
+      .toBeVisible()
       .then(() => true)
       .catch(() => false)
 
@@ -379,7 +410,7 @@ export async function deleteProject(page: Page, projectName: string) {
 
     // Confirm deletion
     const deleteDialog = page.getByRole('dialog', { name: /Delete project/i })
-    await expect(deleteDialog).toBeVisible({ timeout: 5000 })
+    await expect(deleteDialog).toBeVisible()
     await deleteDialog.getByRole('checkbox', { name: /I understand/i }).check()
     await deleteDialog.getByRole('button', { name: 'Delete' }).click()
 
@@ -438,10 +469,12 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
 
   // Select project (required on real backend), then name and save
   await selectProjectIfRequired(page)
+
   await page.getByPlaceholder('Workflow name').fill(workflowName)
   await page.getByRole('button', { name: 'Save' }).click()
 
-  await expect(page).toHaveURL(/workflow-builder\/.+/)
+  // Must navigate away from /new — .+ alone would match "new" and give a false pass
+  await expect(page).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 }
 
 /**
@@ -465,7 +498,7 @@ export async function saveWorkflow(page: Page, workflowName: string) {
   await selectProjectIfRequired(page)
   await page.getByPlaceholder('Workflow name').fill(workflowName)
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page).toHaveURL(/workflow-builder\/.+/)
+  await expect(page).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 }
 
 /**
@@ -489,7 +522,7 @@ export async function createWorkflowWithTrigger(page: Page, workflowName: string
   await nameInput.clear()
   await nameInput.fill(workflowName)
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page).toHaveURL(/workflow-builder\/.+/, { timeout: 15000 })
+  await expect(page).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 
   await expect(page.getByText('Manual trigger')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Layout' })).toBeVisible()
@@ -563,36 +596,31 @@ export async function addScriptNode(page: Page, name: string, code: string) {
  * Useful for testing manual edge creation.
  */
 export async function addScriptNodeUnconnected(page: Page, name: string, code: string) {
-  // Click "Add step" button (not "Add connected step")
-  const addStepBtn = page.getByRole('button', { name: 'Add step' }).first()
-  await addStepBtn.click()
-
+  // Wait for any existing panel to close and network to settle
   const panel = addNodePanel(page)
+  await expect(panel).toHaveCount(0, { timeout: 10000 })
+  await waitForUIReady(page)
+  await page.waitForLoadState('networkidle')
 
-  const actionBtn = panel.getByRole('button', { name: 'Action', exact: true })
-  await expect(actionBtn).toBeVisible({ timeout: 10000 })
-  await expect(actionBtn).toBeEnabled({ timeout: 5000 })
-  await actionBtn.click()
-
-  // Wait for panel to transition to action types
+  // Retry the entire "Add step" → Action → Script → fill name sequence,
+  // because the panel can remount mid-flow when React re-renders the canvas.
   await expect(async () => {
+    // Re-click "Add step" each retry in case the panel closed or was never opened
+    const addStepBtn = page.getByRole('button', { name: 'Add step' })
+    await expect(addStepBtn).toBeVisible()
+    await addStepBtn.click()
+
+    await expect(panel).toBeVisible()
+    const actionBtn = panel.getByRole('button', { name: 'Action', exact: true })
+    await expect(actionBtn).toBeVisible()
+    await actionBtn.click()
     const scriptBtn = panel.getByRole('button', { name: 'Script', exact: true })
     await expect(scriptBtn).toBeVisible()
-    await expect(scriptBtn).toBeEnabled()
-  }).toPass({ timeout: 15000, intervals: [500, 1000] })
-
-  const scriptBtn = panel.getByRole('button', { name: 'Script', exact: true })
-  await scriptBtn.click()
-
-  // Wait for form to load and be stable
-  await expect(async () => {
+    await scriptBtn.click()
     const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
     await expect(nameInput).toBeVisible()
-    await expect(nameInput).toBeEditable()
-  }).toPass({ timeout: 20000, intervals: [500, 1000] })
-
-  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
-  await nameInput.fill(name)
+    await nameInput.fill(name)
+  }).toPass({ timeout: 30000, intervals: [2000, 3000] })
 
   // Wait for form to be fully loaded before filling code editor
   await waitForUIReady(page)

@@ -60,7 +60,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const { showSuccess, showError } = useAlerts()
   const workflowProjectId = isNew ? undefined : (workflow as { project_id?: string })?.project_id
   const [saveAttemptedWithoutProject, setSaveAttemptedWithoutProject] = useState(false)
-  const { selectedProject, ProjectSelector } = useProjectSelector({
+  const { selectedProject, stableProjectId, ProjectSelector } = useProjectSelector({
     requireProject: isNew,
     initialProjectId: workflowProjectId ?? undefined,
     hasValidationError: saveAttemptedWithoutProject,
@@ -169,7 +169,7 @@ export function BuilderContent(props: BuilderContentProps) {
     workflowDescription,
     workflowId,
     isNew,
-    selectedProject: selectedProject?.id ? { id: selectedProject.id } : null,
+    selectedProject: stableProjectId ? { id: stableProjectId } : null,
     workflowsListResources: workflowsListQuery.data?.resources,
     queryClient,
     setLocation,
@@ -318,7 +318,7 @@ export function BuilderContent(props: BuilderContentProps) {
     lastRunStepNodeIdRef,
     pendingImport,
     setPendingImport,
-    selectedProject: selectedProject?.id ? { id: selectedProject.id } : null,
+    selectedProject: stableProjectId ? { id: stableProjectId } : null,
     createWorkflow: typedCreateWorkflow,
     setLocation,
     pinnedMockDataForDialog,

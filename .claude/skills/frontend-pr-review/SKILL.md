@@ -262,10 +262,8 @@ Generate a markdown summary file that explains:
 Run these project commands:
 
 ```bash
+npm run check                         # Static analysis (tsc, lint, format, knip)
 npm test                              # All tests
-npm run format:check                  # Formatting
-npm run lint                          # Linting
-npm run tsc                           # Type check
 ```
 
 Then ask the user to confirm manually:
@@ -300,10 +298,8 @@ When reviewing your own implementation before committing, verify these gates pas
 
 ### Quality Gates (All Must Pass)
 
-1. Zero TypeScript errors (`npm run tsc`)
+1. `npm run check` passes (tsc, lint, format, knip)
 2. All tests pass (`npm test`), new tests written for new features
-3. No ESLint warnings or errors (`npm run lint`)
-4. Prettier formatting applied (`npm run format:check`)
 5. WCAG 2.1 AA accessibility standards met
 6. UI verified in browser for all states (loaded, empty, error, success)
 7. Zero `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, or `// TODO` in new code

@@ -13,7 +13,7 @@
  * - AAP node: credential persists after save/reload
  */
 
-import type { Page } from '@playwright/test'
+import { type Page } from '@playwright/test'
 
 import { test, expect } from './fixtures'
 import { createCredentialOfTypeViaUI, deleteCredentialByName, isCredentialsResponse } from './helpers/credentials'
