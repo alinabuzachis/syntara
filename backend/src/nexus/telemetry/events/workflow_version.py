@@ -1,7 +1,8 @@
 """Workflow version telemetry event models.
 
-Emitted when workflow versions are created or restored, enabling tracking of
-workflow evolution frequency, patterns, and rollback rates.
+Emitted when workflow versions are created, restored, published, unpublished,
+or exported, enabling tracking of workflow evolution frequency, publishing
+patterns, rollback rates, and export adoption.
 """
 
 from __future__ import annotations
@@ -37,3 +38,31 @@ class WorkflowVersionRestoredEvent(BaseTelemetryEvent):
     workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
     restored_from_version: int = Field(ge=1, description="Source version restored from")
     new_version: int = Field(ge=1, description="New draft version created by restore")
+
+
+class WorkflowVersionPublishedEvent(BaseTelemetryEvent):
+    """Telemetry event emitted when a workflow version is published."""
+
+    workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
+    version: int = Field(ge=1, description="Version number published")
+    workflow_name: str = Field(description="Human-readable workflow name")
+    project_id: str | None = Field(default=None, description="Project identifier")
+    error_type: str | None = Field(default=None, description="Error type if operation failed")
+
+
+class WorkflowVersionUnpublishedEvent(BaseTelemetryEvent):
+    """Telemetry event emitted when a workflow is unpublished."""
+
+    workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
+    version: int = Field(ge=1, description="Version number that was unpublished")
+    workflow_name: str = Field(description="Human-readable workflow name")
+    project_id: str | None = Field(default=None, description="Project identifier")
+    error_type: str | None = Field(default=None, description="Error type if operation failed")
+
+
+class WorkflowVersionExportedEvent(BaseTelemetryEvent):
+    """Telemetry event emitted when a workflow version is exported."""
+
+    workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
+    version: int = Field(ge=1, description="Version number exported")
+    workflow_name: str = Field(description="Human-readable workflow name")

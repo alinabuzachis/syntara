@@ -51,6 +51,7 @@ Both systems follow the fire-and-forget principle: observability code MUST NEVER
 **Events collected:**
 - Workflow execution (start, completion with status/duration/error)
 - Activity execution (type, status, duration, error type)
+- Workflow version operations (created, restored, published, unpublished, exported)
 - API calls (endpoint, method, status, response time, payload size)
 
 **Configuration:**
