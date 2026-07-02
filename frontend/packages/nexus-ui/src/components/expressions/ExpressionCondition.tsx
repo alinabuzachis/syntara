@@ -207,6 +207,8 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
                 onOpenChange={setIsOperatorOpen}
                 toggle={operatorToggle}
                 selected={condition.operator}
+                maxMenuHeight="40vh"
+                isScrollable
               >
                 <SelectList aria-label="Comparison operator">
                   {OPERATOR_GROUPS.map((opGroup) => (
