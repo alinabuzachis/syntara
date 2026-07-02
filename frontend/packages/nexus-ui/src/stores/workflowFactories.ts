@@ -523,6 +523,8 @@ export function createLoopActivity(
       parameters: {
         type: 'for_each',
         items: config.items ?? '',
+        ...(config.itemVariable && { itemVariable: config.itemVariable }),
+        ...(config.indexVariable && { indexVariable: config.indexVariable }),
         ...(maxIterations !== undefined && { max_iterations: maxIterations }),
       },
       ...(settings && { settings }),
