@@ -11,6 +11,13 @@ import { buildWorkflowDefinition } from '../utils/workflowDefinitionBuilder'
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from '../utils/workflowNaming'
 
 type CreateWorkflowBody = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
+/**
+ * Create payload extensions the backend accepts; OpenAPI `CreateWorkflowRequest` may omit fields.
+ * Keep create as one round-trip (labels + project) — avoid POST-then-PATCH partial failure.
+ */
+type CreateWorkflowBodyExtended = CreateWorkflowBody & {
+  labels?: Record<string, string>
+}
 type PatchWorkflowBody =
   WorkflowAPI.paths['/workflows/{workflow_id}']['patch']['requestBody']['content']['application/json']
 
@@ -39,7 +46,7 @@ export type UseBuilderSaveWorkflowParams = {
   onForceSaveSuccess?: (originalError: unknown) => void
   markClean: () => void
   createWorkflow: (
-    args: { body: CreateWorkflowBody },
+    args: { body: CreateWorkflowBodyExtended },
     opts?: {
       onSuccess?: (data: { id?: string }) => void | Promise<void>
       onError?: (error: unknown) => void
@@ -59,7 +66,7 @@ export type UseBuilderSaveWorkflowParams = {
 
 function promisifyCreate(
   createWorkflow: UseBuilderSaveWorkflowParams['createWorkflow'],
-  payload: CreateWorkflowBody
+  payload: CreateWorkflowBodyExtended
 ): Promise<{ data?: { id?: string }; error?: unknown }> {
   return new Promise((resolve) => {
     createWorkflow(
@@ -92,7 +99,7 @@ async function handleForceSaveRetry(options: {
   willPatchExisting: boolean
   workflowId: string | null
   patchPayload: PatchWorkflowBody
-  createPayload: CreateWorkflowBody
+  createPayload: CreateWorkflowBodyExtended
 }): Promise<{ success: boolean; createdId?: string; retryError?: unknown }> {
   try {
     if (options.willPatchExisting && options.workflowId) {
@@ -128,7 +135,7 @@ async function processSaveResult(
     workflowId: string | null
     isNew: boolean
     nameToSave: string
-    createPayload: CreateWorkflowBody
+    createPayload: CreateWorkflowBodyExtended
     patchPayload: PatchWorkflowBody
     showError: (options: AlertMessage) => void
     showSuccess: (options: AlertMessage) => void
@@ -235,7 +242,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
     }
 
     workflowDef.name = nameToSave
-    const createPayload: CreateWorkflowBody = {
+    const createPayload: CreateWorkflowBodyExtended = {
       name: nameToSave,
       description: workflowDescription,
       workflow_definition: workflowDef as unknown as CreateWorkflowBody['workflow_definition'],

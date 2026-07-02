@@ -119,7 +119,7 @@ describe('RunStepDialog', () => {
 
       // Assert
       expect(screen.getByRole('heading', { name: 'Set mock data for Test Script' })).toBeInTheDocument()
-      expect(screen.getByTestId('code-textarea')).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /mock json output data/i })).toBeInTheDocument()
     })
 
     it('closes dialog when Cancel is clicked', async () => {
@@ -161,14 +161,14 @@ describe('RunStepDialog', () => {
 
       // Assert
       expect(screen.getByRole('heading', { name: 'Set mock data for Test Script' })).toBeInTheDocument()
-      expect(screen.getByTestId('code-textarea')).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /mock json output data/i })).toBeInTheDocument()
       expect(screen.getByText(/Provide mock output data for the previous step/)).toBeInTheDocument()
     })
 
     it('allows entering JSON in the textarea', async () => {
       // Arrange
       const { user } = await openMockEditor()
-      const textarea = screen.getByTestId('code-textarea')
+      const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
 
       // Act
       await user.clear(textarea)
@@ -182,7 +182,7 @@ describe('RunStepDialog', () => {
     it('validates JSON and shows error for invalid input', async () => {
       // Arrange
       const { user } = await openMockEditor()
-      const textarea = screen.getByTestId('code-textarea')
+      const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
 
       // Act
       await user.clear(textarea)
@@ -200,7 +200,7 @@ describe('RunStepDialog', () => {
       const onClose = vi.fn()
       render(<RunStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
-      const textarea = screen.getByTestId('code-textarea')
+      const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
 
       // Act
       await user.clear(textarea)
@@ -286,7 +286,7 @@ describe('RunStepDialog', () => {
 
       // Act 1 — Enter JSON
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
-      const textarea = screen.getByTestId('code-textarea')
+      const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
       await user.click(textarea)
       await user.paste('{"test": "data"}')
 
@@ -301,7 +301,7 @@ describe('RunStepDialog', () => {
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
       // Assert
-      const newTextarea = screen.getByTestId('code-textarea')
+      const newTextarea = screen.getByRole('textbox', { name: /mock json output data/i })
       expect(newTextarea).toHaveValue('')
     })
   })
@@ -471,7 +471,7 @@ describe('RunStepDialog', () => {
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
         // Act
-        const textarea = screen.getByTestId('code-textarea')
+        const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
         const mockConvergeData = JSON.stringify(
           {
             branch_a_output: { status: 'complete', data: 'A result' },
@@ -571,7 +571,7 @@ describe('RunStepDialog', () => {
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
         // Act
-        const textarea = screen.getByTestId('code-textarea')
+        const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
         const mockLoopState = JSON.stringify(
           {
             items: ['test_item_1', 'test_item_2'],
@@ -672,7 +672,7 @@ describe('RunStepDialog', () => {
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
         // Act
-        const textarea = screen.getByTestId('code-textarea')
+        const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
         const complexMockData = JSON.stringify(
           {
             start_output: { data: 'initial' },
@@ -783,7 +783,7 @@ describe('RunStepDialog', () => {
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { result: true }
-          const textarea = screen.getByTestId('code-textarea')
+          const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
           await user.clear(textarea)
           await user.paste(JSON.stringify(mockData))
 
@@ -830,7 +830,7 @@ describe('RunStepDialog', () => {
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { items: ['a', 'b'] }
-          const textarea = screen.getByTestId('code-textarea')
+          const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
           await user.clear(textarea)
           await user.paste(JSON.stringify(mockData))
 
@@ -877,7 +877,7 @@ describe('RunStepDialog', () => {
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { approved: true }
-          const textarea = screen.getByTestId('code-textarea')
+          const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
           await user.clear(textarea)
           await user.paste(JSON.stringify(mockData))
 
@@ -926,7 +926,7 @@ describe('RunStepDialog', () => {
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { hostname: 'server1' }
-          const textarea = screen.getByTestId('code-textarea')
+          const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
           await user.clear(textarea)
           await user.paste(JSON.stringify(mockData))
 
@@ -987,7 +987,7 @@ describe('RunStepDialog', () => {
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { result: true, items: ['a'], hostname: 'server1' }
-          const textarea = screen.getByTestId('code-textarea')
+          const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
           await user.clear(textarea)
           await user.paste(JSON.stringify(mockData))
 
@@ -1062,7 +1062,7 @@ describe('RunStepDialog', () => {
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { status: 'test' }
-          const textarea = screen.getByTestId('code-textarea')
+          const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
           await user.clear(textarea)
           await user.paste(JSON.stringify(mockData))
 
@@ -1123,7 +1123,7 @@ describe('RunStepDialog', () => {
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { result: true }
-          const textarea = screen.getByTestId('code-textarea')
+          const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
           await user.clear(textarea)
           await user.paste(JSON.stringify(mockData))
 
@@ -1146,6 +1146,267 @@ describe('RunStepDialog', () => {
             },
           })
         })
+      })
+    })
+  })
+
+  describe('error handling and state guards', () => {
+    describe('Error + Retry flow', () => {
+      it('shows Retry button after API error and resets state on click', async () => {
+        // Arrange
+        const user = userEvent.setup()
+        mockPost.mockResolvedValueOnce({
+          data: null,
+          error: { detail: 'Workflow not found' },
+        })
+        render(<RunStepDialog {...defaultProps} />, { wrapper })
+
+        // Act 1 — trigger error
+        await user.click(screen.getByRole('button', { name: 'Run all previous steps' }))
+
+        // Assert — error state visible
+        await waitFor(() => {
+          expect(screen.getByText('Failed to start execution')).toBeInTheDocument()
+          expect(screen.getByText('Workflow not found')).toBeInTheDocument()
+        })
+        expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+
+        // Act 2 — click Retry
+        mockPost.mockResolvedValueOnce({
+          data: { id: 'execution_123' },
+          error: null,
+        })
+        await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+        // Assert — state reset to idle, primary buttons visible again
+        expect(screen.getByRole('button', { name: 'Run all previous steps' })).toBeInTheDocument()
+        expect(screen.queryByText('Failed to start execution')).not.toBeInTheDocument()
+      })
+    })
+
+    describe('Button disabled states during running', () => {
+      it('disables both primary action buttons when runState is running', async () => {
+        // Arrange
+        const user = userEvent.setup()
+        mockPost.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              setTimeout(() => resolve({ data: { id: 'execution_123' }, error: null }), 1000)
+            })
+        )
+        render(<RunStepDialog {...defaultProps} />, { wrapper })
+
+        // Act
+        await user.click(screen.getByRole('button', { name: 'Run all previous steps' }))
+
+        // Assert — both buttons disabled during execution
+        await waitFor(() => {
+          const runButton = screen.getByRole('button', { name: /Running/ })
+          expect(runButton).toBeDisabled()
+          const mockDataButton = screen.getByRole('button', { name: 'Set mock data' })
+          expect(mockDataButton).toBeDisabled()
+        })
+      })
+    })
+
+    describe('Cancel disabled during execution', () => {
+      it('disables Cancel button when runState is running', async () => {
+        // Arrange
+        const user = userEvent.setup()
+        mockPost.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              setTimeout(() => resolve({ data: { id: 'execution_123' }, error: null }), 1000)
+            })
+        )
+        render(<RunStepDialog {...defaultProps} />, { wrapper })
+
+        // Act
+        await user.click(screen.getByRole('button', { name: 'Run all previous steps' }))
+
+        // Assert
+        await waitFor(() => {
+          const cancelButton = screen.getByRole('button', { name: 'Cancel' })
+          expect(cancelButton).toBeDisabled()
+        })
+      })
+    })
+
+    describe('Success alert and auto-close flow', () => {
+      it('shows success alert and disables Run button during success state (mock editor)', async () => {
+        // Arrange
+        const user = userEvent.setup()
+        render(<RunStepDialog {...defaultProps} />, { wrapper })
+        await user.click(screen.getByRole('button', { name: 'Set mock data' }))
+        const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
+        await user.clear(textarea)
+        await user.click(textarea)
+        await user.paste('{"test": "data"}')
+
+        // Act
+        await user.click(screen.getByRole('button', { name: 'Run' }))
+
+        // Assert — success alert appears and Run button is disabled
+        await waitFor(() => {
+          expect(screen.getByText('Execution started successfully')).toBeInTheDocument()
+          const runButton = screen.getByRole('button', { name: 'Run' })
+          expect(runButton).toBeDisabled()
+        })
+      })
+    })
+
+    describe('Error state in MockEditorView', () => {
+      it('shows error alert and Retry button in mock editor view', async () => {
+        // Arrange
+        const user = userEvent.setup()
+        mockPost.mockResolvedValueOnce({
+          data: null,
+          error: { detail: 'Mock data validation failed' },
+        })
+        render(<RunStepDialog {...defaultProps} />, { wrapper })
+
+        // Act 1 — open mock editor
+        await user.click(screen.getByRole('button', { name: 'Set mock data' }))
+        const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
+        await user.clear(textarea)
+        await user.click(textarea)
+        await user.paste('{"test": "data"}')
+
+        // Act 2 — trigger run
+        await user.click(screen.getByRole('button', { name: 'Run' }))
+
+        // Assert — error state visible in mock editor view
+        await waitFor(() => {
+          expect(screen.getByText('Failed to start execution')).toBeInTheDocument()
+          expect(screen.getByText('Mock data validation failed')).toBeInTheDocument()
+        })
+        expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+      })
+    })
+
+    describe('getInitialMockJson multi-predecessor keying', () => {
+      it('returns keyed object format when multiple predecessors exist', async () => {
+        // Arrange
+        const pinnedMockData = {
+          pred_1: { output: 'first' },
+          pred_2: { output: 'second' },
+          pred_3: { output: 'third' },
+        }
+        const predecessors = [
+          { id: 'pred_1', name: 'First' },
+          { id: 'pred_2', name: 'Second' },
+          { id: 'pred_3', name: 'Third' },
+        ]
+        const user = userEvent.setup()
+        render(<RunStepDialog {...defaultProps} predecessors={predecessors} pinnedMockData={pinnedMockData} />, {
+          wrapper,
+        })
+
+        // Act — click to open mock editor which initializes from pinnedMockData
+        await user.click(screen.getByRole('button', { name: 'Use mock data' }))
+
+        // Assert — verify keyed format in textarea
+        const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
+        const expected = {
+          pred_1: { output: 'first' },
+          pred_2: { output: 'second' },
+          pred_3: { output: 'third' },
+        }
+        expect(textarea).toHaveValue(JSON.stringify(expected, null, 2))
+      })
+    })
+
+    describe('buildControlData for non-control-flow types', () => {
+      it('omits control field for script node predecessors in API call', async () => {
+        // Arrange
+        const scriptProps = {
+          ...defaultProps,
+          predecessors: [
+            {
+              id: 'script_1',
+              name: 'Script Task',
+              type: 'script',
+              portTowardTarget: 'output',
+            },
+          ],
+        }
+        const user = userEvent.setup()
+        render(<RunStepDialog {...scriptProps} />, { wrapper })
+        await user.click(screen.getByRole('button', { name: 'Set mock data' }))
+        const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
+        await user.clear(textarea)
+        await user.click(textarea)
+        await user.paste('{"stdout": "test"}')
+
+        // Act
+        await user.click(screen.getByRole('button', { name: 'Run' }))
+
+        // Assert — no control field in API call for script type
+        await waitFor(
+          () => {
+            expect(mockPost).toHaveBeenCalledWith('/workflows/{workflow_id}/test', {
+              params: { path: { workflow_id: 'wf_123' } },
+              body: {
+                target_node_id: 'activity_1',
+                pre_resolved_nodes: {
+                  script_1: {
+                    output: { stdout: 'test' },
+                    // No control field
+                  },
+                },
+                trigger_inputs: {},
+                execute_target: true,
+              },
+            })
+          },
+          { timeout: 2000 }
+        )
+      })
+
+      it('omits control field for HTTP node predecessors in API call', async () => {
+        // Arrange
+        const httpProps = {
+          ...defaultProps,
+          predecessors: [
+            {
+              id: 'http_1',
+              name: 'HTTP Request',
+              type: 'http',
+              portTowardTarget: 'response',
+            },
+          ],
+        }
+        const user = userEvent.setup()
+        render(<RunStepDialog {...httpProps} />, { wrapper })
+        await user.click(screen.getByRole('button', { name: 'Set mock data' }))
+        const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
+        await user.clear(textarea)
+        await user.click(textarea)
+        await user.paste('{"status": 200}')
+
+        // Act
+        await user.click(screen.getByRole('button', { name: 'Run' }))
+
+        // Assert — no control field in API call for HTTP type
+        await waitFor(
+          () => {
+            expect(mockPost).toHaveBeenCalledWith('/workflows/{workflow_id}/test', {
+              params: { path: { workflow_id: 'wf_123' } },
+              body: {
+                target_node_id: 'activity_1',
+                pre_resolved_nodes: {
+                  http_1: {
+                    output: { status: 200 },
+                    // No control field
+                  },
+                },
+                trigger_inputs: {},
+                execute_target: true,
+              },
+            })
+          },
+          { timeout: 2000 }
+        )
       })
     })
   })
