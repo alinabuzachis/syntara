@@ -12,6 +12,7 @@ from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+    from ..models.initial_model_selection import InitialModelSelection
     from ..models.initial_tool_selection import InitialToolSelection
     from ..models.integration_create_labels import IntegrationCreateLabels
     from ..models.llm_provider_configuration import LLMProviderConfiguration
@@ -37,6 +38,8 @@ class IntegrationCreate:
         labels (IntegrationCreateLabels | Unset): Key-value labels
         discovered_tools (list[InitialToolSelection] | None | Unset): Tools discovered during setup with
             enabled/disabled selections
+        discovered_models (list[InitialModelSelection] | None | Unset): Models discovered during setup with
+            enabled/disabled selections
     """
 
     name: str
@@ -48,6 +51,7 @@ class IntegrationCreate:
     scope: IntegrationScope | Unset = UNSET
     labels: IntegrationCreateLabels | Unset = UNSET
     discovered_tools: list[InitialToolSelection] | None | Unset = UNSET
+    discovered_models: list[InitialModelSelection] | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.llm_provider_configuration import LLMProviderConfiguration
@@ -101,6 +105,18 @@ class IntegrationCreate:
         else:
             discovered_tools = self.discovered_tools
 
+        discovered_models: list[dict[str, Any]] | None | Unset
+        if isinstance(self.discovered_models, Unset):
+            discovered_models = UNSET
+        elif isinstance(self.discovered_models, list):
+            discovered_models = []
+            for discovered_models_type_0_item_data in self.discovered_models:
+                discovered_models_type_0_item = discovered_models_type_0_item_data.to_dict()
+                discovered_models.append(discovered_models_type_0_item)
+
+        else:
+            discovered_models = self.discovered_models
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -122,12 +138,15 @@ class IntegrationCreate:
             field_dict["labels"] = labels
         if discovered_tools is not UNSET:
             field_dict["discovered_tools"] = discovered_tools
+        if discovered_models is not UNSET:
+            field_dict["discovered_models"] = discovered_models
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+        from ..models.initial_model_selection import InitialModelSelection
         from ..models.initial_tool_selection import InitialToolSelection
         from ..models.integration_create_labels import IntegrationCreateLabels
         from ..models.llm_provider_configuration import LLMProviderConfiguration
@@ -229,6 +248,28 @@ class IntegrationCreate:
 
         discovered_tools = _parse_discovered_tools(d.pop("discovered_tools", UNSET))
 
+        def _parse_discovered_models(data: object) -> list[InitialModelSelection] | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                discovered_models_type_0 = []
+                _discovered_models_type_0 = data
+                for discovered_models_type_0_item_data in _discovered_models_type_0:
+                    discovered_models_type_0_item = InitialModelSelection.from_dict(discovered_models_type_0_item_data)
+
+                    discovered_models_type_0.append(discovered_models_type_0_item)
+
+                return discovered_models_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(list[InitialModelSelection] | None | Unset, data)
+
+        discovered_models = _parse_discovered_models(d.pop("discovered_models", UNSET))
+
         integration_create = cls(
             name=name,
             integration_type=integration_type,
@@ -239,6 +280,7 @@ class IntegrationCreate:
             scope=scope,
             labels=labels,
             discovered_tools=discovered_tools,
+            discovered_models=discovered_models,
         )
 
         return integration_create

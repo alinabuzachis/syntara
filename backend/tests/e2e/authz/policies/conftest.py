@@ -448,6 +448,9 @@ E2E_COVERAGE_EXEMPT: set[str] = {
     # Tool management — covered by integration authz tests (test_tools_authz.py)
     "tool:read:any",
     "tool:update:any",
+    # LLM model management — follows same pattern as tool authz
+    "llm_model:read:any",
+    "llm_model:update:any",
     # Integration management — CRUD follows same authz path as credentials
     "integration:create:any",
     "integration:read:any",

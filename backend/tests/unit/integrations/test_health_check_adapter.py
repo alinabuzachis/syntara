@@ -17,7 +17,7 @@ from nexus.integrations.adapters.protocol import (
     DiscoveredTool,
     DiscoverResult,
     HealthCheckErrorType,
-    IntegrationHealthCheckAdapter,
+    IntegrationAdapter,
     ValidateResult,
 )
 from nexus.integrations.exceptions import AdapterNotRegisteredError
@@ -130,20 +130,20 @@ class NotAnAdapter:
 # ---------------------------------------------------------------------------
 
 
-class TestIntegrationHealthCheckAdapterProtocol:
-    """Tests for IntegrationHealthCheckAdapter protocol conformance."""
+class TestIntegrationAdapterProtocol:
+    """Tests for IntegrationAdapter protocol conformance."""
 
     def test_conforming_class_is_instance(self) -> None:
-        adapter = StubLLMAdapter(LLMProviderConfiguration(base_url="https://api.openai.com"))
-        assert isinstance(adapter, IntegrationHealthCheckAdapter)
+        adapter = StubLLMAdapter(LLMProviderConfiguration(base_url="https://api.openai.com", provider_hint="openai"))
+        assert isinstance(adapter, IntegrationAdapter)
 
     def test_non_conforming_class_is_not_instance(self) -> None:
         obj = NotAnAdapter()
-        assert not isinstance(obj, IntegrationHealthCheckAdapter)
+        assert not isinstance(obj, IntegrationAdapter)
 
     def test_stub_mcp_adapter_is_instance(self) -> None:
         adapter = StubMCPAdapter(MCPServerConfiguration(base_url="http://localhost:8080"))
-        assert isinstance(adapter, IntegrationHealthCheckAdapter)
+        assert isinstance(adapter, IntegrationAdapter)
 
 
 # ---------------------------------------------------------------------------
@@ -200,13 +200,7 @@ class TestDiscoverResult:
     def test_result_with_discovered_models(self) -> None:
         models = [
             DiscoveredLLMModel(id="gpt-4", name="GPT-4"),
-            DiscoveredLLMModel(
-                id="gpt-4o",
-                name="GPT-4o",
-                description="Optimized GPT-4",
-                input_token_price_cents_per_million=250,
-                output_token_price_cents_per_million=1000,
-            ),
+            DiscoveredLLMModel(id="gpt-4o", name="GPT-4o", description="Optimized GPT-4"),
         ]
         result = DiscoverResult(
             success=True,
@@ -216,7 +210,7 @@ class TestDiscoverResult:
         assert result.discovered_models is not None
         assert len(result.discovered_models) == 2
         assert result.discovered_models[0].id == "gpt-4"
-        assert result.discovered_models[1].input_token_price_cents_per_million == 250
+        assert result.discovered_models[1].description == "Optimized GPT-4"
 
     def test_error_result(self) -> None:
         result = DiscoverResult(
@@ -236,6 +230,7 @@ class TestHealthCheckErrorType:
     def test_enum_values(self) -> None:
         assert HealthCheckErrorType.AUTH_FAILURE.value == "auth_failure"
         assert HealthCheckErrorType.CONNECTION_ERROR.value == "connection_error"
+        assert HealthCheckErrorType.RATE_LIMIT.value == "rate_limit"
         assert HealthCheckErrorType.SSL_ERROR.value == "ssl_error"
         assert HealthCheckErrorType.TIMEOUT.value == "timeout"
 
@@ -248,20 +243,14 @@ class TestDiscoveredLLMModel:
         assert model.id == "gpt-4"
         assert model.name == "GPT-4"
         assert model.description is None
-        assert model.input_token_price_cents_per_million is None
-        assert model.output_token_price_cents_per_million is None
 
     def test_all_fields(self) -> None:
         model = DiscoveredLLMModel(
             id="claude-4",
             name="Claude 4",
             description="Anthropic Claude 4",
-            input_token_price_cents_per_million=300,
-            output_token_price_cents_per_million=1500,
         )
         assert model.description == "Anthropic Claude 4"
-        assert model.input_token_price_cents_per_million == 300
-        assert model.output_token_price_cents_per_million == 1500
 
 
 # ---------------------------------------------------------------------------
@@ -283,15 +272,15 @@ class TestAdapterFactory:
             lambda c: StubLLMAdapter(c),
         )
 
-        config = LLMProviderConfiguration(base_url="https://api.openai.com")
+        config = LLMProviderConfiguration(base_url="https://api.openai.com", provider_hint="openai")
         adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
 
         assert isinstance(adapter, StubLLMAdapter)
-        assert isinstance(adapter, IntegrationHealthCheckAdapter)
+        assert isinstance(adapter, IntegrationAdapter)
         assert adapter.config == config
 
     def ***REMOVED***(self) -> None:
-        config = LLMProviderConfiguration(base_url="https://api.openai.com")
+        config = LLMProviderConfiguration(base_url="https://api.openai.com", provider_hint="openai")
 
         with pytest.raises(AdapterNotRegisteredError, match="No health check adapter registered"):
             create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
@@ -318,7 +307,7 @@ class TestAdapterFactory:
             lambda c: StubMCPAdapter(c),
         )
 
-        llm_config = LLMProviderConfiguration(base_url="https://api.openai.com")
+        llm_config = LLMProviderConfiguration(base_url="https://api.openai.com", provider_hint="openai")
         mcp_config = MCPServerConfiguration(base_url="http://localhost:8080")
 
         llm_adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, llm_config)
@@ -371,7 +360,7 @@ class TestFullAdapterPattern:
             lambda c: StubFailingAdapter(c),
         )
 
-        config = LLMProviderConfiguration(base_url="https://api.openai.com")
+        config = LLMProviderConfiguration(base_url="https://api.openai.com", provider_hint="openai")
         adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
 
         result = await adapter.discover(
@@ -391,7 +380,7 @@ class TestFullAdapterPattern:
             lambda c: StubLLMAdapter(c),
         )
 
-        config = LLMProviderConfiguration(base_url="https://api.openai.com")
+        config = LLMProviderConfiguration(base_url="https://api.openai.com", provider_hint="openai")
         adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
 
         result = await adapter.validate(

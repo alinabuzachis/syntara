@@ -17,11 +17,15 @@ T = TypeVar("T", bound="RefreshResult")
 class RefreshResult:
     """Result returned by POST /integrations/{id}/refresh.
 
-    Attributes:
-        tools_synced_count (int): Number of new tool records created
-        tools_updated_count (int): Number of existing tool records updated
-        tools_disabled_count (int): Number of tool records disabled (no longer on server)
-        refreshed_at (datetime.datetime | None | Unset): Timestamp when the refresh completed
+    Field names use ``tools_*`` for both MCP and LLM refreshes. For MCP
+    servers, ``tools_disabled_count`` reflects tools soft-disabled as MISSING.
+    For LLM providers, it reflects models hard-deleted from the database.
+
+        Attributes:
+            tools_synced_count (int): Number of new resource records created
+            tools_updated_count (int): Number of existing resource records updated
+            tools_disabled_count (int): Number of resource records removed or disabled
+            refreshed_at (datetime.datetime | None | Unset): Timestamp when the refresh completed
     """
 
     tools_synced_count: int

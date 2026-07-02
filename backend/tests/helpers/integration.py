@@ -56,6 +56,7 @@ class IntegrationFactory:
             configuration = LLMProviderConfiguration(
                 integration_type="llm_provider",
                 base_url=base_url,
+                provider_hint="openai",
             )
         elif integration_type == IntegrationType.AAP_GATEWAY:
             configuration = AAPGatewayConfiguration(

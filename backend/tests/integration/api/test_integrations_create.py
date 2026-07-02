@@ -25,6 +25,7 @@ def _llm_payload(name: str | None = None) -> dict[str, object]:
         "configuration": {
             "integration_type": "llm_provider",
             "base_url": "http://localhost:11434",
+            "provider_hint": "custom",
         },
     }
 
@@ -159,6 +160,7 @@ class TestIntegrationsCreate:
             "configuration": {
                 "integration_type": "llm_provider",
                 "base_url": "http://localhost:11434",
+                "provider_hint": "custom",
             },
         }
         response = await auth_client.post(BASE_URL, json=payload)

@@ -77,6 +77,28 @@ class AdapterNotRegisteredError(IntegrationError):
         super().__init__(f"No health check adapter registered for integration type '{integration_type}'")
 
 
+@fastapi_exception(handler="nexus.integrations.error_handlers.llm_model_not_found_handler")
+class LLMModelNotFoundError(IntegrationError):
+    """Exception raised when an LLM model is not found."""
+
+    def __init__(self, model_id: UUID) -> None:
+        """Initialize exception with model ID."""
+        self.model_id = model_id
+        super().__init__(f"LLM model {model_id} not found")
+
+
+@fastapi_exception(handler="nexus.integrations.error_handlers.integration_type_mismatch_handler")
+class IntegrationTypeMismatchError(IntegrationError):
+    """Raised when an endpoint is called on an integration of the wrong type."""
+
+    def __init__(self, integration_id: UUID, expected_type: str, actual_type: str) -> None:
+        """Initialize exception with integration ID and types."""
+        self.integration_id = integration_id
+        self.expected_type = expected_type
+        self.actual_type = actual_type
+        super().__init__(f"Integration {integration_id} is type {actual_type} — this endpoint requires {expected_type}")
+
+
 @fastapi_exception(handler="nexus.integrations.error_handlers.integration_refresh_not_supported_handler")
 class IntegrationRefreshNotSupportedError(IntegrationError):
     """Raised when refresh is not supported for this integration type."""

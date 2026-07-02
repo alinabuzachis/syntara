@@ -68,14 +68,14 @@ class TestCreateIntegration:
             configuration={
                 "integration_type": "llm_provider",
                 "base_url": "http://localhost:11434",
-                "provider_hint": "ollama",
+                "provider_hint": "custom",
             },
         )
         result = await integration_service.create_integration(data)
 
         assert result.integration_type == IntegrationType.LLM_PROVIDER
         assert result.configuration.base_url == "http://localhost:11434"  # type: ignore[union-attr]
-        assert result.configuration.provider_hint == "ollama"  # type: ignore[union-attr]
+        assert result.configuration.provider_hint == "custom"  # type: ignore[union-attr]
 
     @pytest.mark.asyncio
     async def test_create_aap_gateway(
@@ -237,7 +237,11 @@ class TestListIntegrations:
             IntegrationCreate(
                 name="LLM One",
                 integration_type=IntegrationType.LLM_PROVIDER,
-                configuration={"integration_type": "llm_provider", "base_url": "http://localhost:11434"},
+                configuration={
+                    "integration_type": "llm_provider",
+                    "base_url": "http://localhost:11434",
+                    "provider_hint": "custom",
+                },
             )
         )
 
@@ -359,7 +363,11 @@ class TestPatchIntegration:
     ) -> None:
         created = await integration_service.create_integration(_mcp_create())
         patch = IntegrationPatch(
-            configuration={"integration_type": "llm_provider", "base_url": "https://api.openai.com"},
+            configuration={
+                "integration_type": "llm_provider",
+                "base_url": "https://api.openai.com",
+                "provider_hint": "openai",
+            },
         )
 
         with pytest.raises(ValueError, match="does not match integration type"):

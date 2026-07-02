@@ -6,12 +6,23 @@ connecting to a specific integration type. Sensitive fields (API keys,
 tokens, passwords) are stored in the linked Credential, not here.
 """
 
-from typing import Annotated, ClassVar, Literal
+from enum import StrEnum
+from typing import Annotated, ClassVar, Literal, Self
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from sqlmodel import SQLModel
 
 from nexus.core.lib.url_validation import validate_endpoint_url, validate_host_url
+
+
+class LLMProviderHint(StrEnum):
+    """LLM provider backend type."""
+
+    RED_HAT_AI = "red_hat_ai"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    CUSTOM = "custom"
 
 
 def _validate_http_url(v: str) -> str:
@@ -39,24 +50,37 @@ class MCPServerConfigurationInput(SQLModel):
 
 
 class LLMProviderConfiguration(SQLModel):
-    """Configuration for LLM provider integrations (OpenAI-compatible endpoints)."""
+    """Configuration for LLM provider integrations."""
 
     integration_type: Literal["llm_provider"] = "llm_provider"
 
-    base_url: str = Field(description="Base URL for the LLM provider API", json_schema_extra={"format": "uri"})
+    provider_hint: LLMProviderHint = Field(
+        description="LLM provider backend type",
+    )
 
-    provider_hint: str | None = Field(
+    base_url: str | None = Field(
         default=None,
-        description="Hint indicating the LLM provider backend (e.g. openai, azure, ollama)",
+        description="Base URL for the LLM provider API. Required for red_hat_ai and custom providers.",
+        json_schema_extra={"format": "uri"},
     )
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
 
     @field_validator("base_url")
     @classmethod
-    def validate_base_url(cls, v: str) -> str:
+    def validate_base_url(cls, v: str | None) -> str | None:
         """Validate and normalize URL to prevent SSRF."""
-        return _validate_http_url(v)
+        if v is None:
+            return None
+        return _validate_http_endpoint_url(v)
+
+    @model_validator(mode="after")
+    def validate_base_url_required_for_provider(self) -> Self:
+        """Require base_url for providers that have no default endpoint."""
+        if self.provider_hint in (LLMProviderHint.RED_HAT_AI, LLMProviderHint.CUSTOM) and not self.base_url:
+            msg = f"base_url is required for {self.provider_hint} provider"
+            raise ValueError(msg)
+        return self
 
 
 class AAPGatewayConfiguration(SQLModel):

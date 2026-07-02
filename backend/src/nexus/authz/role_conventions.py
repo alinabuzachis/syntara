@@ -96,6 +96,9 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     # tools
     PolicyInfo("tool", "read", roles=("admin", "auditor", "user")),
     PolicyInfo("tool", "update", roles=("admin",)),
+    # llm models
+    PolicyInfo("llm_model", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("llm_model", "update", roles=("admin",)),
     # integrations
     PolicyInfo("integration", "read", roles=("admin", "auditor", "user")),
     PolicyInfo("integration", "create", roles=("admin",)),

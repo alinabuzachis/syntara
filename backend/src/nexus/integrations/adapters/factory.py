@@ -14,7 +14,7 @@ from nexus.integrations.exceptions import AdapterNotRegisteredError
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus.integrations.adapters.protocol import IntegrationHealthCheckAdapter
+    from nexus.integrations.adapters.protocol import IntegrationAdapter
     from nexus.integrations.models.integration import IntegrationType
     from nexus.integrations.models.integration_configuration import (
         IntegrationConfigurationTypes,
@@ -22,13 +22,13 @@ if TYPE_CHECKING:
 
 _ADAPTER_REGISTRY: dict[
     str,
-    Callable[[Any], IntegrationHealthCheckAdapter],
+    Callable[[Any], IntegrationAdapter],
 ] = {}
 
 
 def register_health_check_adapter(
     integration_type: IntegrationType,
-    constructor: Callable[[Any], IntegrationHealthCheckAdapter],
+    constructor: Callable[[Any], IntegrationAdapter],
 ) -> None:
     """Register a health check adapter constructor for an integration type.
 
@@ -44,7 +44,7 @@ def register_health_check_adapter(
 def create_health_check_adapter(
     integration_type: IntegrationType,
     configuration: IntegrationConfigurationTypes,
-) -> IntegrationHealthCheckAdapter:
+) -> IntegrationAdapter:
     """Create a health check adapter for the given integration type.
 
     The factory looks up the registered constructor and calls it with the

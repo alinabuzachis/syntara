@@ -26,20 +26,7 @@ from nexus.integrations.models.integration import (
 )
 from nexus.integrations.services.integration_service import IntegrationService
 from nexus.tool_manager.models.tool import Tool
-
-
-@pytest.fixture
-def integration_service(test_db_session: AsyncSession, test_user: User) -> IntegrationService:
-    """IntegrationService with a real DB session (no secret service by default)."""
-    return IntegrationService(test_db_session, test_user)
-
-
-def _mcp_create(name: str = "My MCP Server") -> IntegrationCreate:
-    return IntegrationCreate(
-        name=name,
-        integration_type=IntegrationType.MCP_SERVER,
-        configuration={"integration_type": "mcp_server", "base_url": "https://mcp.example.com"},
-    )
+from tests.unit.integrations.conftest import make_mcp_create
 
 
 def _make_discovered_tool(name: str, description: str = "") -> DiscoveredTool:
@@ -52,7 +39,7 @@ async def mcp_integration(
     integration_service: IntegrationService,
 ) -> dict[str, Any]:
     """Create an mcp_server integration and return its id."""
-    result = await integration_service.create_integration(_mcp_create("Refresh Target"))
+    result = await integration_service.create_integration(make_mcp_create("Refresh Target"))
     await test_db_session.flush()
     return {"integration_id": result.id}
 
@@ -67,7 +54,7 @@ class TestCreateIntegration:
         integration_service: IntegrationService,
     ) -> None:
         """Creating an MCP integration does NOT create tools — they are created on first refresh."""
-        result = await integration_service.create_integration(_mcp_create("MCP Auto"))
+        result = await integration_service.create_integration(make_mcp_create("MCP Auto"))
         await test_db_session.flush()
 
         # No tools created yet (they are created on first refresh)
@@ -88,7 +75,11 @@ class TestCreateIntegration:
         data = IntegrationCreate(
             name="LLM Provider",
             integration_type=IntegrationType.LLM_PROVIDER,
-            configuration={"integration_type": "llm_provider", "base_url": "https://llm.example.com"},
+            configuration={
+                "integration_type": "llm_provider",
+                "base_url": "https://llm.example.com",
+                "provider_hint": "custom",
+            },
         )
         result = await integration_service.create_integration(data)
         await test_db_session.flush()
@@ -106,7 +97,7 @@ class TestDeleteIntegrationCascadesToTools:
         integration_service: IntegrationService,
         test_user: User,
     ) -> None:
-        created = await integration_service.create_integration(_mcp_create("To Delete"))
+        created = await integration_service.create_integration(make_mcp_create("To Delete"))
         await test_db_session.flush()
         integration_id = created.id
 
@@ -153,7 +144,11 @@ class TestDeleteIntegrationCascadesToTools:
         data = IntegrationCreate(
             name="No Tools",
             integration_type=IntegrationType.LLM_PROVIDER,
-            configuration={"integration_type": "llm_provider", "base_url": "https://llm.example.com"},
+            configuration={
+                "integration_type": "llm_provider",
+                "base_url": "https://llm.example.com",
+                "provider_hint": "custom",
+            },
         )
         created = await integration_service.create_integration(data)
         await test_db_session.flush()
@@ -350,7 +345,7 @@ class TestRefreshIntegrationResources:
     ) -> None:
         """Namespaced tool names use integration.name as the prefix."""
         service = IntegrationService(test_db_session, test_user)
-        created = await service.create_integration(_mcp_create("My Integration"))
+        created = await service.create_integration(make_mcp_create("My Integration"))
         await test_db_session.flush()
         integration_id = created.id
 
@@ -382,22 +377,25 @@ class TestRefreshIntegrationResources:
         assert tools[0].namespaced_name == "My Integration::my_tool"
 
     @pytest.mark.asyncio
-    async def test_non_mcp_integration_raises(
+    async def test_aap_gateway_refresh_raises(
         self,
         test_db_session: AsyncSession,
         test_user: User,
     ) -> None:
-        """refresh_resources raises for non-MCP integration types."""
+        """refresh_resources raises for unsupported integration types (aap_gateway)."""
         from nexus.integrations.exceptions import IntegrationRefreshNotSupportedError
 
         service = IntegrationService(test_db_session, test_user)
         data = IntegrationCreate(
-            name="LLM No Refresh",
-            integration_type=IntegrationType.LLM_PROVIDER,
-            configuration={"integration_type": "llm_provider", "base_url": "https://llm.example.com"},
+            name="Gateway No Refresh",
+            integration_type=IntegrationType.AAP_GATEWAY,
+            configuration={
+                "integration_type": "aap_gateway",
+                "gateway_url": "https://gateway.example.com",
+            },
         )
         created = await service.create_integration(data)
         await test_db_session.flush()
 
-        with pytest.raises(IntegrationRefreshNotSupportedError, match="llm_provider"):
+        with pytest.raises(IntegrationRefreshNotSupportedError, match="aap_gateway"):
             await service.refresh_resources(created.id)

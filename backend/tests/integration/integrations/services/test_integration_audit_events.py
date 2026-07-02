@@ -235,7 +235,7 @@ class TestIntegrationServiceAuditEvents:
         with (
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
             patch(
-                "nexus.integrations.adapters.mcp_server.MCPServerHealthCheck.validate",
+                "nexus.integrations.adapters.mcp_server.MCPServerAdapter.validate",
                 new=AsyncMock(return_value=success_result),
             ),
             patch(
@@ -274,7 +274,7 @@ class TestIntegrationServiceAuditEvents:
         with (
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
             patch(
-                "nexus.integrations.adapters.mcp_server.MCPServerHealthCheck.validate",
+                "nexus.integrations.adapters.mcp_server.MCPServerAdapter.validate",
                 new=AsyncMock(return_value=fail_result),
             ),
             patch(

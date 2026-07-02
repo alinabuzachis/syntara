@@ -26,7 +26,7 @@ from nexus.tool_manager.models.tool import Tool
 
 BASE_URL = "/api/v1/integrations"
 
-MCP_DISCOVER_PATCH = "nexus.integrations.adapters.mcp_server.MCPServerHealthCheck.discover"
+MCP_DISCOVER_PATCH = "nexus.integrations.adapters.mcp_server.MCPServerAdapter.discover"
 
 
 def _fake_discovered_tool(name: str, *, with_params: bool = False) -> DiscoveredTool:
@@ -50,18 +50,18 @@ class TestIntegrationRefreshContract:
         response = await auth_client.post(f"{BASE_URL}/not-a-uuid/refresh")
         assert response.status_code == 422
 
-    async def test_refresh_non_mcp_returns_422(
+    async def test_refresh_unsupported_type_returns_422(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User
     ) -> None:
-        """Refreshing an LLM integration type returns 422."""
+        """Refreshing an AAP gateway integration type returns 422."""
         service = IntegrationService(test_db_session, test_user)
         created = await service.create_integration(
             IntegrationCreate(
-                name=f"llm-refresh-{uuid4().hex[:8]}",
-                integration_type=IntegrationType.LLM_PROVIDER,
+                name=f"aap-refresh-{uuid4().hex[:8]}",
+                integration_type=IntegrationType.AAP_GATEWAY,
                 configuration={
-                    "integration_type": "llm_provider",
-                    "base_url": "http://localhost:11434",
+                    "integration_type": "aap_gateway",
+                    "gateway_url": "https://gateway.example.com",
                 },
             )
         )

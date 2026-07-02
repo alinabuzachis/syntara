@@ -95,3 +95,35 @@ class IntegrationsApi:
     async def async_refresh_resources(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("refresh_resources")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def list_models(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_integration_models")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_list_models(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_integration_models")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def get_model(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_integration_model")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_get_model(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_integration_model")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def update_model(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_integration_model")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_update_model(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_integration_model")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def bulk_update_models(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("bulk_update_integration_models")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_bulk_update_models(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("bulk_update_integration_models")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)

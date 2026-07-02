@@ -14,7 +14,7 @@ import pytest
 from httpx import AsyncClient, HTTPStatusError
 from langchain_core.tools import tool
 
-from nexus.integrations.adapters.mcp_server import MCPServerHealthCheck
+from nexus.integrations.adapters.mcp_server import MCPServerAdapter
 from nexus.integrations.adapters.protocol import ValidateResult
 from nexus.tool_manager.lib.providers.mcp import MCPProvider
 from tests.helpers.invocations import wait_for_invocation_execution
@@ -54,7 +54,7 @@ def patch_mcp_provider() -> Generator[None, None, None]:
     """
 
     async def patched_validate(
-        self: MCPServerHealthCheck,
+        self: MCPServerAdapter,
         resolved_credential: dict[str, Any],
         timeout_seconds: int,
     ) -> ValidateResult:
@@ -63,7 +63,7 @@ def patch_mcp_provider() -> Generator[None, None, None]:
 
         return ValidateResult(success=True, checked_at=datetime.now(UTC))
 
-    with patch.object(MCPServerHealthCheck, "validate", patched_validate):
+    with patch.object(MCPServerAdapter, "validate", patched_validate):
         yield
 
 

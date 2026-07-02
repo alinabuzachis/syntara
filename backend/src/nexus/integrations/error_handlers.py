@@ -17,6 +17,8 @@ if TYPE_CHECKING:
         IntegrationNameConflictError,
         IntegrationNotFoundError,
         IntegrationRefreshNotSupportedError,
+        IntegrationTypeMismatchError,
+        LLMModelNotFoundError,
     )
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -100,6 +102,42 @@ def integration_credential_type_mismatch_handler(
         title="Invalid Credential Type",
         detail=exc.message,
         code="INTEGRATION_CREDENTIAL_TYPE_MISMATCH",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def llm_model_not_found_handler(request: Request, exc: "LLMModelNotFoundError") -> JSONResponse:
+    """Handle LLMModelNotFoundError with RFC 9457 format."""
+    logger.warning("LLM model not found", model_id=str(exc.model_id))
+    return create_problem_details_response(
+        status_code=status.HTTP_404_NOT_FOUND,
+        problem_type=PROBLEM_TYPES["resource_not_found"],
+        title="LLM Model Not Found",
+        detail=exc.message,
+        code="LLM_MODEL_NOT_FOUND",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def integration_type_mismatch_handler(
+    request: Request,
+    exc: "IntegrationTypeMismatchError",
+) -> JSONResponse:
+    """Handle IntegrationTypeMismatchError with RFC 9457 format."""
+    logger.warning(
+        "Integration type mismatch",
+        integration_id=str(exc.integration_id),
+        expected_type=exc.expected_type,
+        actual_type=exc.actual_type,
+    )
+    return create_problem_details_response(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Integration Type Mismatch",
+        detail=exc.message,
+        code="INTEGRATION_TYPE_MISMATCH",
         retryable=False,
         instance=str(request.url),
     )

@@ -27,13 +27,13 @@ class TestIntegrationConfigurationModels:
         assert config.base_url == "http://localhost:8080"
 
     def test_llm_provider_configuration(self) -> None:
-        config = LLMProviderConfiguration(base_url="http://localhost:11434")
+        config = LLMProviderConfiguration(base_url="http://localhost:11434", provider_hint="custom")
         assert config.integration_type == "llm_provider"
-        assert config.provider_hint is None
+        assert config.provider_hint == "custom"
 
     def test_llm_provider_configuration_with_hint(self) -> None:
-        config = LLMProviderConfiguration(base_url="http://localhost:11434", provider_hint="ollama")
-        assert config.provider_hint == "ollama"
+        config = LLMProviderConfiguration(base_url="http://localhost:11434", provider_hint="red_hat_ai")
+        assert config.provider_hint == "red_hat_ai"
 
     def test_aap_gateway_configuration(self) -> None:
         config = AAPGatewayConfiguration(gateway_url="https://gateway.example.com")
@@ -50,7 +50,7 @@ class TestIntegrationConfigurationModels:
 
     def test_llm_provider_rejects_extra_fields(self) -> None:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-            LLMProviderConfiguration(base_url="http://localhost:11434", extra_field="val")
+            LLMProviderConfiguration(base_url="http://localhost:11434", provider_hint="custom", extra_field="val")
 
     def test_aap_gateway_rejects_extra_fields(self) -> None:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
@@ -72,13 +72,13 @@ class TestURLValidation:
         with pytest.raises(ValidationError, match="scheme must be"):
             MCPServerConfiguration(base_url="localhost:8080")
 
-    def test_llm_provider_rejects_url_with_path(self) -> None:
-        with pytest.raises(ValidationError, match="must not contain a path"):
-            LLMProviderConfiguration(base_url="http://localhost:11434/v1/chat")
+    def test_llm_provider_allows_url_with_path(self) -> None:
+        config = LLMProviderConfiguration(base_url="http://localhost:11434/v1", provider_hint="custom")
+        assert config.base_url == "http://localhost:11434/v1"
 
     def test_llm_provider_rejects_ftp_scheme(self) -> None:
         with pytest.raises(ValidationError, match="scheme must be"):
-            LLMProviderConfiguration(base_url="ftp://example.com")
+            LLMProviderConfiguration(base_url="ftp://example.com", provider_hint="custom")
 
     def test_aap_gateway_rejects_http(self) -> None:
         with pytest.raises(ValidationError, match="scheme must be"):
@@ -119,7 +119,11 @@ class TestIntegrationCreate:
         data = IntegrationCreate(
             name="My LLM",
             integration_type=IntegrationType.LLM_PROVIDER,
-            configuration={"integration_type": "llm_provider", "base_url": "http://localhost:11434"},
+            configuration={
+                "integration_type": "llm_provider",
+                "base_url": "http://localhost:11434",
+                "provider_hint": "custom",
+            },
         )
         assert data.integration_type == IntegrationType.LLM_PROVIDER
 

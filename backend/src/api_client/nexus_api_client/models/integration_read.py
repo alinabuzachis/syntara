@@ -58,6 +58,8 @@ class IntegrationRead:
         refresh_error (None | str | Unset):
         total_tool_count (int | Unset): Total number of tools linked to this integration Default: 0.
         enabled_tool_count (int | Unset): Number of enabled tools linked to this integration Default: 0.
+        total_model_count (int | Unset): Total number of models linked to this integration Default: 0.
+        enabled_model_count (int | Unset): Number of enabled models linked to this integration Default: 0.
     """
 
     created_by: UUID
@@ -83,6 +85,8 @@ class IntegrationRead:
     refresh_error: None | str | Unset = UNSET
     total_tool_count: int | Unset = 0
     enabled_tool_count: int | Unset = 0
+    total_model_count: int | Unset = 0
+    enabled_model_count: int | Unset = 0
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.llm_provider_configuration import LLMProviderConfiguration
@@ -206,6 +210,10 @@ class IntegrationRead:
 
         enabled_tool_count = self.enabled_tool_count
 
+        total_model_count = self.total_model_count
+
+        enabled_model_count = self.enabled_model_count
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -254,6 +262,10 @@ class IntegrationRead:
             field_dict["total_tool_count"] = total_tool_count
         if enabled_tool_count is not UNSET:
             field_dict["enabled_tool_count"] = enabled_tool_count
+        if total_model_count is not UNSET:
+            field_dict["total_model_count"] = total_model_count
+        if enabled_model_count is not UNSET:
+            field_dict["enabled_model_count"] = enabled_model_count
 
         return field_dict
 
@@ -492,6 +504,10 @@ class IntegrationRead:
 
         enabled_tool_count = d.pop("enabled_tool_count", UNSET)
 
+        total_model_count = d.pop("total_model_count", UNSET)
+
+        enabled_model_count = d.pop("enabled_model_count", UNSET)
+
         integration_read = cls(
             created_by=created_by,
             name=name,
@@ -516,6 +532,8 @@ class IntegrationRead:
             refresh_error=refresh_error,
             total_tool_count=total_tool_count,
             enabled_tool_count=enabled_tool_count,
+            total_model_count=total_model_count,
+            enabled_model_count=enabled_model_count,
         )
 
         return integration_read

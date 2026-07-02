@@ -17,13 +17,11 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from nexus.tool_manager.models.tool import ToolParameter
 
 import httpx
 import structlog
-from httpx import HTTPStatusError, codes
+from httpx import HTTPStatusError
 
 from nexus.core.utils.exceptions import extract_all_exceptions
 from nexus.integrations.adapters.factory import register_health_check_adapter
@@ -33,6 +31,7 @@ from nexus.integrations.adapters.protocol import (
     DiscoverResult,
     HealthCheckErrorType,
     ValidateResult,
+    classify_http_error,
 )
 from nexus.integrations.models.integration import IntegrationType
 from nexus.integrations.models.integration_configuration import MCPServerConfigurationInput  # noqa: TC001
@@ -46,7 +45,7 @@ logger = structlog.stdlib.get_logger(__name__)
 _MCP_CREDENTIAL_KEY = "bearer_token"
 
 
-class MCPServerHealthCheck:
+class MCPServerAdapter:
     """Adapter for MCP server integrations implementing validate() and discover()."""
 
     def __init__(self, config: MCPServerConfigurationInput) -> None:
@@ -124,7 +123,7 @@ class MCPServerHealthCheck:
         except* HTTPStatusError as eg:
             success = False
             errors = extract_all_exceptions(eg)
-            error_type, error_msg = _classify_http_error(errors)
+            error_type, error_msg = classify_http_error(errors)
             logger.warning(
                 "MCP discover HTTP error",
                 base_url=self._config.base_url,
@@ -200,28 +199,7 @@ def _tool_to_discovered(tool: object) -> DiscoveredTool:
     return DiscoveredTool(name=name, description=description, parameters=params)
 
 
-def _classify_http_error(
-    errors: Sequence[BaseException],
-) -> tuple[HealthCheckErrorType, str]:
-    """Classify HTTP status errors into auth vs. connection failures."""
-    for error in errors:
-        if isinstance(error, HTTPStatusError):
-            if error.response.status_code in (codes.UNAUTHORIZED, codes.FORBIDDEN):
-                return (
-                    HealthCheckErrorType.AUTH_FAILURE,
-                    f"Authentication failed: HTTP {error.response.status_code}",
-                )
-            return (
-                HealthCheckErrorType.CONNECTION_ERROR,
-                f"HTTP error: {error.response.status_code}",
-            )
-    return (
-        HealthCheckErrorType.CONNECTION_ERROR,
-        f"HTTP error: {errors[0]}",
-    )
-
-
 register_health_check_adapter(
     IntegrationType.MCP_SERVER,
-    lambda c: MCPServerHealthCheck(cast("MCPServerConfigurationInput", c)),
+    lambda c: MCPServerAdapter(cast("MCPServerConfigurationInput", c)),
 )

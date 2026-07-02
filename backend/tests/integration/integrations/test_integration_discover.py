@@ -19,7 +19,7 @@ from nexus.integrations.adapters.protocol import DiscoveredTool, DiscoveredToolP
 
 BASE_URL = "/api/v1/integrations"
 
-MCP_DISCOVER_PATCH = "nexus.integrations.adapters.mcp_server.MCPServerHealthCheck.discover"
+MCP_DISCOVER_PATCH = "nexus.integrations.adapters.mcp_server.MCPServerAdapter.discover"
 
 
 def _fake_discovered_tool(name: str, *, with_params: bool = False) -> DiscoveredTool:
@@ -71,6 +71,7 @@ class TestIntegrationDiscoverContract:
                 "configuration": {
                     "integration_type": "llm_provider",
                     "base_url": "http://localhost:11434",
+                    "provider_hint": "custom",
                 },
                 "credential_id": str(uuid4()),
             },

@@ -83,11 +83,11 @@ The adapter receives `resolved.extra_vars` — a dict with semantic field names 
 
 ### Adapter Protocol
 
-Each integration type implements the `IntegrationHealthCheckAdapter` protocol. The adapter receives its typed configuration via the constructor. The Protocol defines two methods:
+Each integration type implements the `IntegrationAdapter` protocol. The adapter receives its typed configuration via the constructor. The Protocol defines two methods:
 
 ```python
 @runtime_checkable
-class IntegrationHealthCheckAdapter(Protocol):
+class IntegrationAdapter(Protocol):
     async def validate(
         self,
         resolved_credential: dict[str, Any],
@@ -142,7 +142,7 @@ A module-level registry maps `IntegrationType` to adapter constructors. Each ada
 ```python
 register_health_check_adapter(
     IntegrationType.MCP_SERVER,
-    lambda c: MCPServerHealthCheck(cast("MCPServerConfiguration", c)),
+    lambda c: MCPServerAdapter(cast("MCPServerConfiguration", c)),
 )
 ```
 
@@ -213,7 +213,7 @@ To add support for a new integration type:
    - Add both to the `IntegrationConfigurationInputTypes` and `IntegrationConfigurationTypes` unions
 
 2. **Adapter** (`integrations/adapters/{type_name}.py`):
-   - Implement a class satisfying `IntegrationHealthCheckAdapter` protocol
+   - Implement a class satisfying `IntegrationAdapter` protocol
    - Constructor takes the typed configuration (e.g., `{Type}Configuration`)
    - `validate()` must handle all exceptions internally and always return a `ValidateResult`
    - `discover()` must handle all exceptions internally and always return a `DiscoverResult`
@@ -252,6 +252,89 @@ Called by `refresh_integration_resources()` with the `DiscoverResult` from `adap
 
 Returns `(synced_count, updated_count, disabled_count)` used to populate `RefreshResult`.
 
+
+---
+
+## Adding a New LLM Provider
+
+To add support for a new LLM provider (e.g., a new API like Mistral or Cohere):
+
+### 1. Add the provider hint
+
+Add a new value to `LLMProviderHint` in `models/integration_configuration.py`:
+
+```python
+class LLMProviderHint(StrEnum):
+    RED_HAT_AI = "red_hat_ai"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    CUSTOM = "custom"
+    NEW_PROVIDER = "new_provider"  # add here
+```
+
+If the provider has a fixed base URL, update the `validate_base_url_required_for_provider` validator to allow `base_url=None` for it (only `red_hat_ai` and `custom` require a user-provided URL).
+
+### 2. Create the provider class
+
+Create a new file in `adapters/providers/` (e.g., `new_provider.py`) implementing `LLMProviderBase`:
+
+```python
+class NewProvider(LLMProviderBase):
+    @property
+    def default_base_url(self) -> str:
+        return "https://api.newprovider.com"
+
+    @property
+    def models_endpoint(self) -> str:
+        return "/v1/models"
+
+    def resolve_api_key(self, resolved_credential: dict[str, Any]) -> str | None:
+        return resolved_credential.get("llm_api_key")
+
+    def build_models_url(self, base_url: str) -> str:
+        return f"{base_url.rstrip('/')}{self.models_endpoint}"
+
+    def build_headers(self, api_key: str) -> dict[str, str]:
+        return {"Authorization": f"Bearer {api_key}"}
+
+    def parse_models_response(self, json_data: dict[str, Any]) -> list[DiscoveredLLMModel]:
+        return [
+            DiscoveredLLMModel(id=m.get("id", ""), name=m.get("id", ""))
+            for m in json_data.get("data", [])
+        ]
+```
+
+Key decisions per provider:
+- **Auth**: Bearer header, custom header (like Anthropic's `x-api-key`), or query param
+- **URL**: Fixed or user-provided base URL
+- **Response format**: How the provider's JSON maps to `DiscoveredLLMModel`
+
+### 3. Register in the adapter
+
+Add the provider to `_get_provider()` in `adapters/llm_provider.py`:
+
+```python
+if hint == LLMProviderHint.NEW_PROVIDER:
+    return NewProvider()
+```
+
+Export it from `adapters/providers/__init__.py`.
+
+### 4. Create an Alembic migration
+
+If existing integrations might have the old `provider_hint` values, add a data migration to normalize them (see `b3f4a7c9d012_typed_provider_hint.py` for the pattern).
+
+### 5. Add tests
+
+- **Provider unit tests** in `tests/unit/integrations/adapters/providers/test_new_provider.py` — URL construction, headers, response parsing, `resolve_api_key`
+- **Adapter tests** in `tests/unit/integrations/test_llm_provider_health_check.py` — validate/discover success for the new provider hint
+- **Integration tests** — the existing tests in `tests/integration/integrations/test_llm_provider_integration.py` exercise the full stack and apply to all providers
+
+### 6. Update OpenAPI spec
+
+Update `schemas/integrations/openapi.yaml` to add the new enum value to `LLMProviderHint`, then run `make api-spec-bundle` and `make gen-contracts`.
+
 ### Current Limitations
 
 - **Tool `namespaced_name` goes stale on rename.** Tool records store `namespaced_name` as `"{integration_name}::{tool_short_name}"`. If the integration is renamed, existing tool records retain the old prefix. The `ToolSynchronizer` matches by `namespaced_name`, so renamed integrations cause all tools to appear MISSING and get disabled until records are corrected. Tracked in AAP-79781. Mitigation: match on `(integration_id, short_name)` instead of the full namespaced string, or update `namespaced_name` on rename/refresh.
@@ -267,15 +350,23 @@ Returns `(synced_count, updated_count, disabled_count)` used to populate `Refres
 src/nexus/integrations/
 ├── adapters/
 │   ├── __init__.py              # Public exports
-│   ├── protocol.py              # Protocol, ValidateResult, DiscoverResult, DiscoveredTool, DiscoveredToolParameter
+│   ├── protocol.py              # Protocol, result types, classify_http_error()
 │   ├── factory.py               # Registry + create_health_check_adapter()
-│   └── mcp_server.py            # MCP adapter implementation + registration
+│   ├── mcp_server.py            # MCP adapter implementation + registration
+│   ├── llm_provider.py          # LLM adapter implementation + registration
+│   └── providers/               # LLM provider-specific implementations
+│       ├── base.py              # LLMProviderBase abstract class
+│       ├── openai_compatible.py # OpenAI, Red Hat AI, Custom (Bearer auth)
+│       ├── anthropic.py         # Anthropic (x-api-key + anthropic-version)
+│       └── google.py            # Google Gemini (x-goog-api-key header)
 ├── models/
-│   ├── integration.py           # Integration model, IntegrationCreate/Read/Patch, RefreshResult schemas
-│   └── integration_configuration.py  # Config types (Input + full with discovery fields)
+│   ├── integration.py           # Integration model, IntegrationCreate/Read/Patch, RefreshResult
+│   ├── integration_configuration.py  # Config types, LLMProviderHint enum
+│   └── llm_model.py             # LLMModel table, LLMModelRead/Update/BulkUpdate schemas
 ├── services/
-│   └── integration_service.py   # discover(), validate_integration(), refresh_integration_resources(), _sync_mcp_tools()
-├── router.py                    # POST /integrations/discover, /{id}/validate, /{id}/refresh endpoints
-├── exceptions.py                # IntegrationCredentialRequiredError, IntegrationRefreshNotSupportedError, etc.
+│   ├── integration_service.py   # CRUD, validate, discover, refresh, _sync_mcp_tools, _sync_llm_models
+│   └── llm_model_service.py     # LLMModelService — list, get, update, bulk_update
+├── router.py                    # Integration + model endpoints
+├── exceptions.py                # IntegrationCredentialRequiredError, etc.
 └── error_handlers.py            # RFC 9457 error responses
 ```

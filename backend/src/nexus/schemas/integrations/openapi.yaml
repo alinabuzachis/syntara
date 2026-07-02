@@ -463,6 +463,212 @@ paths:
       security:
         - bearerAuth: []
 
+  /integrations/{integration_id}/models:
+    get:
+      summary: List Integration Models
+      description: List LLM models for an integration with filtering, sorting, and pagination.
+      operationId: list_integration_models
+      x-app-permission:
+        resource: llm_model
+        action: read
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                pattern: "^-?[a-z][a-z0-9_]*$"
+              - type: "null"
+            description: "Sort parameter (e.g., 'name', '-created_at')"
+            title: Sort
+          description: "Sort parameter (e.g., 'name', '-created_at')"
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LLMModelListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+      tags:
+        - Integrations
+
+  /integrations/{integration_id}/models/{model_id}:
+    get:
+      summary: Get Integration Model
+      description: Get an LLM model by ID.
+      operationId: get_integration_model
+      x-app-permission:
+        resource: llm_model
+        action: read
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+        - name: model_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Model Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LLMModelRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+      tags:
+        - Integrations
+    patch:
+      summary: Update Integration Model
+      description: Update an LLM model (enable/disable).
+      operationId: update_integration_model
+      x-app-permission:
+        resource: llm_model
+        action: update
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+        - name: model_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Model Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LLMModelUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LLMModelRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+      tags:
+        - Integrations
+
+  /integrations/{integration_id}/models/bulk_update:
+    patch:
+      summary: Bulk Update Integration Models
+      description: Bulk enable/disable LLM models.
+      operationId: bulk_update_integration_models
+      x-app-permission:
+        resource: llm_model
+        action: update
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LLMModelBulkUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LLMModelBulkUpdateResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+      tags:
+        - Integrations
+
 components:
   schemas:
     IntegrationType:
@@ -572,6 +778,15 @@ components:
             - type: "null"
           title: Discovered Tools
           description: Tools discovered during setup with enabled/disabled selections
+        discovered_models:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/InitialModelSelection'
+              maxItems: 200
+            - type: "null"
+          title: Discovered Models
+          description: Models discovered during setup with enabled/disabled selections
       required:
         - name
         - integration_type
@@ -613,6 +828,44 @@ components:
       required:
         - name
       title: InitialToolSelection
+      type: object
+
+    InitialModelSelection:
+      description: A model from the discover step with the user's enabled/disabled choice.
+      properties:
+        model_id:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Model Id
+          description: Provider model identifier from discover
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+          description: Human-readable display name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: "null"
+          title: Description
+          description: Model description
+        enabled:
+          type: boolean
+          title: Enabled
+          description: Whether the user enabled this model
+          default: true
+        is_default:
+          type: boolean
+          title: Is Default
+          description: Whether this is the default model
+          default: false
+      required:
+        - model_id
+        - name
+      title: InitialModelSelection
       type: object
 
     IntegrationPatch:
@@ -815,6 +1068,16 @@ components:
               default: 0
               title: Enabled Tool Count
               description: Number of enabled tools linked to this integration
+            total_model_count:
+              type: integer
+              default: 0
+              title: Total Model Count
+              description: Total number of models linked to this integration
+            enabled_model_count:
+              type: integer
+              default: 0
+              title: Enabled Model Count
+              description: Number of enabled models linked to this integration
 
     MCPServerConfigurationInput:
       description: Admin-provided fields for MCP server integrations (used by create/patch).
@@ -835,8 +1098,19 @@ components:
       title: MCPServerConfigurationInput
       type: object
 
+    LLMProviderHint:
+      type: string
+      title: LLMProviderHint
+      description: LLM provider backend type.
+      enum:
+        - red_hat_ai
+        - openai
+        - anthropic
+        - gemini
+        - custom
+
     LLMProviderConfiguration:
-      description: Configuration for LLM provider integrations (OpenAI-compatible endpoints).
+      description: Configuration for LLM provider integrations.
       additionalProperties: false
       properties:
         integration_type:
@@ -844,19 +1118,18 @@ components:
           const: llm_provider
           default: llm_provider
           title: Integration Type
-        base_url:
-          type: string
-          format: uri
-          title: Base Url
-          description: Base URL for the LLM provider API
         provider_hint:
+          $ref: '#/components/schemas/LLMProviderHint'
+          description: LLM provider backend type
+        base_url:
           anyOf:
             - type: string
-            - type: "null"
-          title: Provider Hint
-          description: Hint indicating the LLM provider backend (e.g. openai, azure, ollama)
+            - type: 'null'
+          format: uri
+          title: Base Url
+          description: Base URL for the LLM provider API. Required for red_hat_ai and custom providers.
       required:
-        - base_url
+        - provider_hint
       title: LLMProviderConfiguration
       type: object
 
@@ -885,7 +1158,7 @@ components:
       type: object
 
     DiscoveredLLMModel:
-      description: A model discovered from an LLM provider during health check.
+      description: A model discovered from an LLM provider.
       properties:
         id:
           type: string
@@ -898,16 +1171,6 @@ components:
             - type: string
             - type: "null"
           title: Description
-        input_token_price_cents_per_million:
-          anyOf:
-            - type: integer
-            - type: "null"
-          title: Input Token Price Cents Per Million
-        output_token_price_cents_per_million:
-          anyOf:
-            - type: integer
-            - type: "null"
-          title: Output Token Price Cents Per Million
       required:
         - id
         - name
@@ -970,6 +1233,7 @@ components:
       enum:
         - auth_failure
         - connection_error
+        - rate_limit
         - ssl_error
         - timeout
       title: HealthCheckErrorType
@@ -1055,20 +1319,25 @@ components:
       description: Status of the last resource-refresh operation for an integration.
 
     RefreshResult:
-      description: Result returned by POST /integrations/{id}/refresh.
+      description: |-
+        Result returned by POST /integrations/{id}/refresh.
+
+        Field names use ``tools_*`` for both MCP and LLM refreshes. For MCP
+        servers, ``tools_disabled_count`` reflects tools soft-disabled as MISSING.
+        For LLM providers, it reflects models hard-deleted from the database.
       properties:
         tools_synced_count:
           type: integer
           title: Tools Synced Count
-          description: Number of new tool records created
+          description: Number of new resource records created
         tools_updated_count:
           type: integer
           title: Tools Updated Count
-          description: Number of existing tool records updated
+          description: Number of existing resource records updated
         tools_disabled_count:
           type: integer
           title: Tools Disabled Count
-          description: Number of tool records disabled (no longer on server)
+          description: Number of resource records removed or disabled
         refreshed_at:
           anyOf:
             - type: string
@@ -1082,6 +1351,131 @@ components:
         - tools_disabled_count
       title: RefreshResult
       type: object
+
+    LLMModelListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/LLMModelRead'
+              description: Array of resources in current page
+              title: Resources
+      title: LLMModelListResponse
+      description: Paginated response for LLM models.
+
+    LLMModelRead:
+      type: object
+      title: LLMModelRead
+      description: Schema for LLM model API responses.
+      required:
+        - id
+        - integration_id
+        - model_id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        integration_id:
+          type: string
+          format: uuid
+          title: Integration Id
+        model_id:
+          type: string
+          title: Model Id
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Description
+        enabled:
+          type: boolean
+          default: true
+          title: Enabled
+        is_default:
+          type: boolean
+          default: false
+          title: Is Default
+        last_refreshed_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Refreshed At
+        created_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Created At
+        updated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Updated At
+
+    LLMModelUpdate:
+      type: object
+      title: LLMModelUpdate
+      description: Schema for updating an LLM model (enable/disable, set as default).
+      properties:
+        enabled:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Enabled
+        is_default:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Is Default
+
+    LLMModelBulkUpdate:
+      type: object
+      title: LLMModelBulkUpdate
+      description: Schema for bulk-updating LLM models.
+      required:
+        - model_ids
+        - enabled
+      properties:
+        model_ids:
+          type: array
+          title: Model Ids
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+          description: Model IDs to update (max 50)
+        enabled:
+          type: boolean
+          title: Enabled
+          description: New enabled state
+    LLMModelBulkUpdateResponse:
+      type: object
+      title: LLMModelBulkUpdateResponse
+      description: Response for bulk LLM model update.
+      required:
+        - updated_count
+        - skipped_count
+      properties:
+        updated_count:
+          type: integer
+          title: Updated Count
+          description: Number of models updated
+        skipped_count:
+          type: integer
+          title: Skipped Count
+          description: Number of model IDs not found in integration
 
   securitySchemes:
     bearerAuth:

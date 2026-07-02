@@ -618,13 +618,16 @@ class TestRefreshIntegrationResources:
         assert integration.refresh_error == "Connection refused"
 
     @pytest.mark.asyncio
-    async def test_refresh_non_mcp_raises(
+    async def test_refresh_unsupported_type_raises(
         self, test_db_session: AsyncSession, integration_service: IntegrationService, test_user: User
     ) -> None:
         integration = Integration(
-            name="LLM Provider",
-            integration_type=IntegrationType.LLM_PROVIDER,
-            configuration={"integration_type": "llm_provider", "base_url": "https://api.openai.com"},
+            name="AAP Gateway",
+            integration_type=IntegrationType.AAP_GATEWAY,
+            configuration={
+                "integration_type": "aap_gateway",
+                "gateway_url": "https://gateway.example.com",
+            },
             created_by=test_user.id,
             updated_by=test_user.id,
         )

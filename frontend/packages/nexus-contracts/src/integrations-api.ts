@@ -149,6 +149,70 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/integrations/{integration_id}/models': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Integration Models
+     * @description List LLM models for an integration with filtering, sorting, and pagination.
+     */
+    get: operations['list_integration_models']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integration_id}/models/{model_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Integration Model
+     * @description Get an LLM model by ID.
+     */
+    get: operations['get_integration_model']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Update Integration Model
+     * @description Update an LLM model (enable/disable).
+     */
+    patch: operations['update_integration_model']
+    trace?: never
+  }
+  '/integrations/{integration_id}/models/bulk_update': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Bulk Update Integration Models
+     * @description Bulk enable/disable LLM models.
+     */
+    patch: operations['bulk_update_integration_models']
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -235,6 +299,11 @@ export interface components {
        * @description Tools discovered during setup with enabled/disabled selections
        */
       discovered_tools?: components['schemas']['InitialToolSelection'][] | null
+      /**
+       * Discovered Models
+       * @description Models discovered during setup with enabled/disabled selections
+       */
+      discovered_models?: components['schemas']['InitialModelSelection'][] | null
     }
     /**
      * InitialToolSelection
@@ -266,6 +335,39 @@ export interface components {
             [key: string]: unknown
           }[]
         | null
+    }
+    /**
+     * InitialModelSelection
+     * @description A model from the discover step with the user's enabled/disabled choice.
+     */
+    InitialModelSelection: {
+      /**
+       * Model Id
+       * @description Provider model identifier from discover
+       */
+      model_id: string
+      /**
+       * Name
+       * @description Human-readable display name
+       */
+      name: string
+      /**
+       * Description
+       * @description Model description
+       */
+      description?: string | null
+      /**
+       * Enabled
+       * @description Whether the user enabled this model
+       * @default true
+       */
+      enabled?: boolean
+      /**
+       * Is Default
+       * @description Whether this is the default model
+       * @default false
+       */
+      is_default?: boolean
     }
     /**
      * IntegrationPatch
@@ -399,6 +501,18 @@ export interface components {
        * @default 0
        */
       enabled_tool_count?: number
+      /**
+       * Total Model Count
+       * @description Total number of models linked to this integration
+       * @default 0
+       */
+      total_model_count?: number
+      /**
+       * Enabled Model Count
+       * @description Number of enabled models linked to this integration
+       * @default 0
+       */
+      enabled_model_count?: number
     }
     /**
      * MCPServerConfigurationInput
@@ -418,8 +532,14 @@ export interface components {
       base_url: string
     }
     /**
+     * LLMProviderHint
+     * @description LLM provider backend type.
+     * @enum {string}
+     */
+    LLMProviderHint: 'red_hat_ai' | 'openai' | 'anthropic' | 'gemini' | 'custom'
+    /**
      * LLMProviderConfiguration
-     * @description Configuration for LLM provider integrations (OpenAI-compatible endpoints).
+     * @description Configuration for LLM provider integrations.
      */
     LLMProviderConfiguration: {
       /**
@@ -427,17 +547,14 @@ export interface components {
        * @enum {string}
        */
       integration_type: 'llm_provider'
+      /** @description LLM provider backend type */
+      provider_hint: components['schemas']['LLMProviderHint']
       /**
        * Base Url
        * Format: uri
-       * @description Base URL for the LLM provider API
+       * @description Base URL for the LLM provider API. Required for red_hat_ai and custom providers.
        */
-      base_url: string
-      /**
-       * Provider Hint
-       * @description Hint indicating the LLM provider backend (e.g. openai, azure, ollama)
-       */
-      provider_hint?: string | null
+      base_url?: string | null
     }
     /**
      * AAPGatewayConfiguration
@@ -464,7 +581,7 @@ export interface components {
     }
     /**
      * DiscoveredLLMModel
-     * @description A model discovered from an LLM provider during health check.
+     * @description A model discovered from an LLM provider.
      */
     DiscoveredLLMModel: {
       /** Id */
@@ -473,10 +590,6 @@ export interface components {
       name: string
       /** Description */
       description?: string | null
-      /** Input Token Price Cents Per Million */
-      input_token_price_cents_per_million?: number | null
-      /** Output Token Price Cents Per Million */
-      output_token_price_cents_per_million?: number | null
     }
     /**
      * DiscoveredToolParameter
@@ -521,7 +634,7 @@ export interface components {
      * @description Classification of health check failures.
      * @enum {string}
      */
-    HealthCheckErrorType: 'auth_failure' | 'connection_error' | 'ssl_error' | 'timeout'
+    HealthCheckErrorType: 'auth_failure' | 'connection_error' | 'rate_limit' | 'ssl_error' | 'timeout'
     /**
      * ValidateResult
      * @description Result of a lightweight connectivity ping (validate endpoint).
@@ -572,21 +685,25 @@ export interface components {
     /**
      * RefreshResult
      * @description Result returned by POST /integrations/{id}/refresh.
+     *
+     *     Field names use ``tools_*`` for both MCP and LLM refreshes. For MCP
+     *     servers, ``tools_disabled_count`` reflects tools soft-disabled as MISSING.
+     *     For LLM providers, it reflects models hard-deleted from the database.
      */
     RefreshResult: {
       /**
        * Tools Synced Count
-       * @description Number of new tool records created
+       * @description Number of new resource records created
        */
       tools_synced_count: number
       /**
        * Tools Updated Count
-       * @description Number of existing tool records updated
+       * @description Number of existing resource records updated
        */
       tools_updated_count: number
       /**
        * Tools Disabled Count
-       * @description Number of tool records disabled (no longer on server)
+       * @description Number of resource records removed or disabled
        */
       tools_disabled_count: number
       /**
@@ -594,6 +711,97 @@ export interface components {
        * @description Timestamp when the refresh completed
        */
       refreshed_at?: string | null
+    }
+    /**
+     * LLMModelListResponse
+     * @description Paginated response for LLM models.
+     */
+    LLMModelListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['LLMModelRead'][]
+    }
+    /**
+     * LLMModelRead
+     * @description Schema for LLM model API responses.
+     */
+    LLMModelRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Integration Id
+       * Format: uuid
+       */
+      integration_id: string
+      /** Model Id */
+      model_id: string
+      /** Name */
+      name: string
+      /** Description */
+      description?: string | null
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled?: boolean
+      /**
+       * Is Default
+       * @default false
+       */
+      is_default?: boolean
+      /** Last Refreshed At */
+      last_refreshed_at?: string | null
+      /** Created At */
+      created_at?: string | null
+      /** Updated At */
+      updated_at?: string | null
+    }
+    /**
+     * LLMModelUpdate
+     * @description Schema for updating an LLM model (enable/disable, set as default).
+     */
+    LLMModelUpdate: {
+      /** Enabled */
+      enabled?: boolean | null
+      /** Is Default */
+      is_default?: boolean | null
+    }
+    /**
+     * LLMModelBulkUpdate
+     * @description Schema for bulk-updating LLM models.
+     */
+    LLMModelBulkUpdate: {
+      /**
+       * Model Ids
+       * @description Model IDs to update (max 50)
+       */
+      model_ids: string[]
+      /**
+       * Enabled
+       * @description New enabled state
+       */
+      enabled: boolean
+    }
+    /**
+     * LLMModelBulkUpdateResponse
+     * @description Response for bulk LLM model update.
+     */
+    LLMModelBulkUpdateResponse: {
+      /**
+       * Updated Count
+       * @description Number of models updated
+       */
+      updated_count: number
+      /**
+       * Skipped Count
+       * @description Number of model IDs not found in integration
+       */
+      skipped_count: number
     }
     /**
      * Paginated Response Base
@@ -1207,6 +1415,141 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['RefreshResult']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_integration_models: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: string | null
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+      }
+      header?: never
+      path: {
+        integration_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LLMModelListResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_integration_model: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integration_id: string
+        model_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LLMModelRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  update_integration_model: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integration_id: string
+        model_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LLMModelUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LLMModelRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  bulk_update_integration_models: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integration_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LLMModelBulkUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LLMModelBulkUpdateResponse']
         }
       }
       400: components['responses']['BadRequestError']

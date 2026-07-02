@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence  # noqa: TC003 — runtime import for classify_http_error
 from datetime import datetime  # noqa: TC003 — runtime import required by SQLModel field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from typing import Any
 
+from httpx import HTTPStatusError, codes
 from sqlmodel import SQLModel
 
 
@@ -17,18 +19,17 @@ class HealthCheckErrorType(StrEnum):
 
     AUTH_FAILURE = "auth_failure"
     CONNECTION_ERROR = "connection_error"
+    RATE_LIMIT = "rate_limit"
     SSL_ERROR = "ssl_error"
     TIMEOUT = "timeout"
 
 
 class DiscoveredLLMModel(SQLModel):
-    """A model discovered from an LLM provider during health check."""
+    """A model discovered from an LLM provider."""
 
     id: str
     name: str
     description: str | None = None
-    input_token_price_cents_per_million: int | None = None
-    output_token_price_cents_per_million: int | None = None
 
 
 class DiscoveredToolParameter(SQLModel):
@@ -79,8 +80,39 @@ class DiscoverResult(SQLModel):
     discovered_models: list[DiscoveredLLMModel] | None = None
 
 
+def classify_http_error(
+    errors: Sequence[BaseException],
+) -> tuple[HealthCheckErrorType, str]:
+    """Classify HTTP status errors into auth vs. connection failures.
+
+    Shared by all adapter implementations. Iterates errors and returns
+    AUTH_FAILURE for 401/403, CONNECTION_ERROR for other HTTP statuses.
+    """
+    for error in errors:
+        if isinstance(error, HTTPStatusError):
+            status = error.response.status_code
+            if status in (codes.UNAUTHORIZED, codes.FORBIDDEN):
+                return (
+                    HealthCheckErrorType.AUTH_FAILURE,
+                    f"Authentication failed: HTTP {status}",
+                )
+            if status == codes.TOO_MANY_REQUESTS:
+                return (
+                    HealthCheckErrorType.RATE_LIMIT,
+                    f"Rate limit exceeded: HTTP {status}",
+                )
+            return (
+                HealthCheckErrorType.CONNECTION_ERROR,
+                f"HTTP error: {status}",
+            )
+    return (
+        HealthCheckErrorType.CONNECTION_ERROR,
+        f"Request failed: {type(errors[0]).__name__}",
+    )
+
+
 @runtime_checkable
-class IntegrationHealthCheckAdapter(Protocol):
+class IntegrationAdapter(Protocol):
     """Protocol for integration adapters.
 
     Each integration type (LLM, MCP, AAP Gateway) implements this protocol.

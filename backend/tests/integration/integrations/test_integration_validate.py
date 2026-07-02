@@ -23,7 +23,7 @@ from nexus.integrations.services.integration_service import IntegrationService
 
 BASE_URL = "/api/v1/integrations"
 
-MCP_VALIDATE_PATCH = "nexus.integrations.adapters.mcp_server.MCPServerHealthCheck.validate"
+MCP_VALIDATE_PATCH = "nexus.integrations.adapters.mcp_server.MCPServerAdapter.validate"
 
 
 @pytest.mark.asyncio

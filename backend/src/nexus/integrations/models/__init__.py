@@ -1,6 +1,7 @@
 """Integration domain models."""
 
 from nexus.integrations.models.integration import (
+    InitialModelSelection,
     Integration,
     IntegrationCreate,
     IntegrationListResponse,
@@ -21,13 +22,22 @@ from nexus.integrations.models.integration_configuration import (
     IntegrationConfigurationInputTypes,
     IntegrationConfigurationTypes,
     LLMProviderConfiguration,
+    LLMProviderHint,
     MCPServerConfiguration,
     MCPServerConfigurationInput,
+)
+from nexus.integrations.models.llm_model import (
+    LLMModel,
+    LLMModelBulkUpdate,
+    LLMModelListResponse,
+    LLMModelRead,
+    LLMModelUpdate,
 )
 from nexus.integrations.models.query_params import IntegrationListParams
 
 __all__ = [
     "AAPGatewayConfiguration",
+    "InitialModelSelection",
     "Integration",
     "IntegrationConfiguration",
     "IntegrationConfigurationInputTypes",
@@ -44,7 +54,13 @@ __all__ = [
     "IntegrationStatusPatch",
     "IntegrationSystemUpdate",
     "IntegrationType",
+    "LLMModel",
+    "LLMModelBulkUpdate",
+    "LLMModelListResponse",
+    "LLMModelRead",
+    "LLMModelUpdate",
     "LLMProviderConfiguration",
+    "LLMProviderHint",
     "MCPServerConfiguration",
     "MCPServerConfigurationInput",
     "RefreshResult",

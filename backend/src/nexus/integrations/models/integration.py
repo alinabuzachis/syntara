@@ -232,6 +232,28 @@ class InitialToolSelection(SQLModel):
     )
 
 
+class InitialModelSelection(SQLModel):
+    """A model from the discover step with the user's enabled/disabled choice."""
+
+    model_id: str = Field(
+        min_length=1,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        description="Provider model identifier from discover",
+    )
+    name: str = Field(
+        min_length=1,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        description="Human-readable display name",
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=FieldLimits.DESCRIPTION_MAX_LENGTH,
+        description="Model description",
+    )
+    enabled: bool = Field(default=True, description="Whether the user enabled this model")
+    is_default: bool = Field(default=False, description="Whether this is the default model")
+
+
 class IntegrationCreate(SQLModel):
     """Schema for creating a new integration."""
 
@@ -276,6 +298,12 @@ class IntegrationCreate(SQLModel):
         description="Tools discovered during setup with enabled/disabled selections",
     )
 
+    discovered_models: list[InitialModelSelection] | None = Field(
+        default=None,
+        max_length=200,
+        description="Models discovered during setup with enabled/disabled selections",
+    )
+
     @model_validator(mode="after")
     def validate_type_matches_configuration(self) -> "IntegrationCreate":
         """Ensure integration_type and configuration.integration_type agree."""
@@ -292,6 +320,18 @@ class IntegrationCreate(SQLModel):
             names = [t.name for t in self.discovered_tools]
             if len(names) != len(set(names)):
                 msg = "discovered_tools contains duplicate tool names"
+                raise ValueError(msg)
+        if self.discovered_models:
+            if self.integration_type != IntegrationType.LLM_PROVIDER:
+                msg = "discovered_models is only supported for llm_provider integrations"
+                raise ValueError(msg)
+            model_ids = [m.model_id for m in self.discovered_models]
+            if len(model_ids) != len(set(model_ids)):
+                msg = "discovered_models contains duplicate model IDs"
+                raise ValueError(msg)
+            default_count = sum(1 for m in self.discovered_models if m.is_default)
+            if default_count > 1:
+                msg = "discovered_models contains multiple default models; at most one is allowed"
                 raise ValueError(msg)
         return self
 
@@ -314,6 +354,8 @@ class IntegrationRead(Resource):
     refresh_error: str | None = None
     total_tool_count: int = Field(default=0, description="Total number of tools linked to this integration")
     enabled_tool_count: int = Field(default=0, description="Number of enabled tools linked to this integration")
+    total_model_count: int = Field(default=0, description="Total number of models linked to this integration")
+    enabled_model_count: int = Field(default=0, description="Number of enabled models linked to this integration")
 
 
 class IntegrationPatch(SQLModel):
@@ -413,9 +455,14 @@ class IntegrationListResponse(ResourcesResponse[IntegrationRead]):
 
 
 class RefreshResult(SQLModel):
-    """Result returned by POST /integrations/{id}/refresh."""
+    """Result returned by POST /integrations/{id}/refresh.
 
-    tools_synced_count: int = Field(description="Number of new tool records created")
-    tools_updated_count: int = Field(description="Number of existing tool records updated")
-    tools_disabled_count: int = Field(description="Number of tool records disabled (no longer on server)")
+    Field names use ``tools_*`` for both MCP and LLM refreshes. For MCP
+    servers, ``tools_disabled_count`` reflects tools soft-disabled as MISSING.
+    For LLM providers, it reflects models hard-deleted from the database.
+    """
+
+    tools_synced_count: int = Field(description="Number of new resource records created")
+    tools_updated_count: int = Field(description="Number of existing resource records updated")
+    tools_disabled_count: int = Field(description="Number of resource records removed or disabled")
     refreshed_at: datetime | None = Field(default=None, description="Timestamp when the refresh completed")

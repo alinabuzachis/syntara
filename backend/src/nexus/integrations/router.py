@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+import nexus.integrations.adapters.llm_provider
 import nexus.integrations.adapters.mcp_server  # noqa: F401 — register MCP adapter
 from nexus.audit.decorators import audit
 from nexus.audit.models.audit_event import EventCategory
@@ -17,6 +18,7 @@ from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
 from nexus.core.services.secret_service import create_secret_service
 from nexus.integrations.adapters.protocol import DiscoverResult, ValidateResult
+from nexus.integrations.exceptions import IntegrationNotFoundError, IntegrationTypeMismatchError
 from nexus.integrations.models import (
     IntegrationCreate,
     IntegrationListParams,
@@ -25,8 +27,17 @@ from nexus.integrations.models import (
     IntegrationRead,
     IntegrationStatusPatch,
 )
-from nexus.integrations.models.integration import IntegrationTestConnection, RefreshResult
+from nexus.integrations.models.integration import Integration, IntegrationTestConnection, IntegrationType, RefreshResult
+from nexus.integrations.models.llm_model import (
+    LLMModelBulkUpdate,
+    LLMModelBulkUpdateResponse,
+    LLMModelListParams,
+    LLMModelListResponse,
+    LLMModelRead,
+    LLMModelUpdate,
+)
 from nexus.integrations.services.integration_service import IntegrationService
+from nexus.integrations.services.llm_model_service import LLMModelService
 
 router = NexusRouter(tags=["Integrations"])
 
@@ -41,6 +52,8 @@ _perm_delete = PermissionChecker("integration", "delete")
 _perm_discover = PermissionChecker("integration", "discover")
 _perm_validate = PermissionChecker("integration", "validate")
 _perm_refresh = PermissionChecker("integration", "refresh")
+_perm_model_read = PermissionChecker("llm_model", "read")
+_perm_model_update = PermissionChecker("llm_model", "update")
 
 
 # ============================================================================
@@ -210,3 +223,99 @@ async def refresh_resources(
     on the integration. Only supported for mcp_server integration types.
     """
     return await service.refresh_resources(integration_id)
+
+
+# ============================================================================
+# Integration Model Endpoints
+# ============================================================================
+
+
+def get_llm_model_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> LLMModelService:
+    """Dependency provider for LLMModelService."""
+    return LLMModelService(db, current_user)
+
+
+async def _require_llm_provider(
+    integration_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    """Verify the integration exists and is an LLM provider."""
+    integration = await db.get(Integration, integration_id)
+    if not integration or integration.deleted_at is not None:
+        raise IntegrationNotFoundError(integration_id)
+    if integration.integration_type != IntegrationType.LLM_PROVIDER:
+        raise IntegrationTypeMismatchError(
+            integration_id,
+            expected_type=IntegrationType.LLM_PROVIDER.value,
+            actual_type=integration.integration_type.value,
+        )
+
+
+@router.get(
+    "/integrations/{integration_id}/models",
+    dependencies=[Depends(_perm_model_read), Depends(_require_llm_provider)],
+    operation_id="list_integration_models",
+)
+async def list_integration_models(
+    integration_id: UUID,
+    request: Request,
+    service: Annotated[LLMModelService, Depends(get_llm_model_service)],
+    params: Annotated[LLMModelListParams, Query()],
+) -> LLMModelListResponse:
+    """List LLM models for an integration with filtering, sorting, and pagination."""
+    query_items = [*request.query_params.items(), ("integration_id", str(integration_id))]
+    return await service.list_models(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=query_items,
+        include_total=params.include_total,
+    )
+
+
+@router.patch(
+    "/integrations/{integration_id}/models/bulk_update",
+    dependencies=[Depends(_perm_model_update), Depends(_require_llm_provider)],
+    operation_id="bulk_update_integration_models",
+)
+@audit(EventCategory.USER_ACTION, event_action="model_bulk_update")
+async def bulk_update_integration_models(
+    integration_id: UUID,
+    data: LLMModelBulkUpdate,
+    service: Annotated[LLMModelService, Depends(get_llm_model_service)],
+) -> LLMModelBulkUpdateResponse:
+    """Bulk enable/disable LLM models."""
+    return await service.bulk_update_models(integration_id, data.model_ids, enabled=data.enabled)
+
+
+@router.get(
+    "/integrations/{integration_id}/models/{model_id}",
+    dependencies=[Depends(_perm_model_read), Depends(_require_llm_provider)],
+    operation_id="get_integration_model",
+)
+async def get_integration_model(
+    integration_id: UUID,
+    model_id: UUID,
+    service: Annotated[LLMModelService, Depends(get_llm_model_service)],
+) -> LLMModelRead:
+    """Get an LLM model by ID."""
+    return await service.get_model_detail(integration_id, model_id)
+
+
+@router.patch(
+    "/integrations/{integration_id}/models/{model_id}",
+    dependencies=[Depends(_perm_model_update), Depends(_require_llm_provider)],
+    operation_id="update_integration_model",
+)
+@audit(EventCategory.USER_ACTION, event_action="model_update", capture_args={"model_id"})
+async def update_integration_model(
+    integration_id: UUID,
+    model_id: UUID,
+    data: LLMModelUpdate,
+    service: Annotated[LLMModelService, Depends(get_llm_model_service)],
+) -> LLMModelRead:
+    """Update an LLM model (enable/disable)."""
+    return await service.update_model(integration_id, model_id, data)

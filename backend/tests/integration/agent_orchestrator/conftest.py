@@ -86,12 +86,13 @@ async def _ao_test_client(
     session_app.dependency_overrides[get_db] = override_get_db
     session_app.dependency_overrides[get_temporal_execution_service] = override_temporal
 
-    async with AsyncClient(
-        transport=ASGITransport(app=session_app),
-        base_url="http://test",
-        headers={"Authorization": f"Bearer {access_token}"},
-    ) as client:
-        yield client
+    with patch("nexus.auth.dependencies._check_global_revocation", new_callable=AsyncMock):
+        async with AsyncClient(
+            transport=ASGITransport(app=session_app),
+            base_url="http://test",
+            headers={"Authorization": f"Bearer {access_token}"},
+        ) as client:
+            yield client
 
     session_app.dependency_overrides.pop(get_db, None)
     session_app.dependency_overrides.pop(get_temporal_execution_service, None)

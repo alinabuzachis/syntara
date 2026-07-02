@@ -29,6 +29,7 @@ from nexus_api_client.models.integration_create import IntegrationCreate
 from nexus_api_client.models.integration_patch import IntegrationPatch
 from nexus_api_client.models.integration_type import IntegrationType
 from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
+from nexus_api_client.models.llm_provider_hint import LLMProviderHint
 from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
 
 from tests.e2e.conftest import unique_name
@@ -50,7 +51,7 @@ def _llm_create(name: str | None = None) -> IntegrationCreate:
         integration_type=IntegrationType.LLM_PROVIDER,
         configuration=LLMProviderConfiguration(
             base_url="https://api.openai.com",
-            provider_hint="openai",
+            provider_hint=LLMProviderHint.OPENAI,
         ),
     )
 
@@ -197,7 +198,9 @@ class TestPatchIntegration:
         resp = nexus_api.integrations.update(
             integration_id=UUID(created["id"]),
             body=IntegrationPatch(
-                configuration=LLMProviderConfiguration(base_url="https://api.openai.com"),
+                configuration=LLMProviderConfiguration(
+                    base_url="https://api.openai.com", provider_hint=LLMProviderHint.OPENAI
+                ),
             ),
         )
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
