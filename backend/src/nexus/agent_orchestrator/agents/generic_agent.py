@@ -24,6 +24,7 @@ from nexus.agent_orchestrator.audit.llm_interaction import (
 from nexus.agent_orchestrator.exceptions import EmptyLLMResponseError
 from nexus.agent_orchestrator.models import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.agent_orchestrator.utils.keyword_association import annotate_tools_with_relevance
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.utils.retry import retry_with_backoff
 from nexus.metrics.dependencies import get_metrics_recorder
@@ -145,8 +146,14 @@ class GenericAgent(BaseAgent):
         activity_id = metadata.get("activity_id")
         activity_name = metadata.get("activity_name")
 
+        # Annotate tools with keyword relevance hints before binding
+        # Use original_prompt (raw user input) — the enhanced prompt includes
+        # context sections that dilute keyword scores.
+        prompt = state.get("original_prompt", "")
+        annotated_tools = annotate_tools_with_relevance(prompt, self.available_tools)
+
         # Query LLM via LangChain (async)
-        llm_with_tools = self.llm.bind_tools(self.available_tools)
+        llm_with_tools = self.llm.bind_tools(annotated_tools)
         messages: list[AnyMessage] = [
             SystemMessage(
                 content="You are an information assistant for the Nexus automation system. "
