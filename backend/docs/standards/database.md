@@ -22,6 +22,19 @@ engine = create_async_engine(
 
 All pool parameters except `pool_pre_ping` and `pool_recycle` are configurable via `DatabaseSettings` in `src/nexus/core/config/base.py`.
 
+### PostgreSQL Server `max_connections`
+
+The default PostgreSQL `max_connections=100` is insufficient for production deployments. Each backend or worker replica can open up to `pool_size + max_overflow` connections (default: 30), and the Temporal server maintains its own connection pool (~30 connections). The total across all replicas exceeds 100 at moderate scale.
+
+Recommended minimums based on connection budget analysis:
+
+| Deployment size | Temporal Server | Workers | Backend replicas | Estimated total PG connections | Recommended `max_connections` |
+|-----------------|-----------------|---------|------------------|-------------------------------|-------------------------------|
+| Default (1/2/2) | 1 | 2 | 2 | 75–115 | 200 |
+| Large (1/4/2) | 1 | 4 | 2 | 95–155 | 300 |
+
+Set `max_connections` with headroom above the estimated total to account for maintenance connections and monitoring tools. The memory overhead is ~5–10 MB per connection slot.
+
 ### Session Lifecycle
 
 Use the `get_db()` dependency for **all** database access in endpoints and services:
