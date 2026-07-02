@@ -179,19 +179,19 @@ async def get_user_group_ids(db: AsyncSession, user_id: UUID) -> list[UUID]:
 
 async def resolve_effective_policies(
     db: AsyncSession,
-    user_id: UUID,
+    principal_id: UUID,
 ) -> list[dict[str, Any]]:
-    """Resolve all effective policies for a user.
+    """Resolve all effective policies for a principal (user or service account).
 
     Resolution order:
-    1. Global: user → groups (including "authenticated") → roles → policies
-    2. Global: user → direct role assignments → policies
-    3. Project-scoped: user + group assignments with project_id set → policies
+    1. Global: principal → groups (including "authenticated") → roles → policies
+    2. Global: principal → direct role assignments → policies
+    3. Project-scoped: principal + group assignments with project_id set → policies
     """
     seen: set[str] = set()
     result: list[dict[str, Any]] = []
 
-    group_ids = await get_user_group_ids(db, user_id)
+    group_ids = await get_user_group_ids(db, principal_id)
 
     global_group_role_names: list[str] = []
     project_role_names: dict[UUID, list[str]] = {}
@@ -211,14 +211,16 @@ async def resolve_effective_policies(
 
     await _resolve_roles_to_policies(db, global_group_role_names, seen, result)
 
-    user_assignments = await db.exec(
+    direct_assignments = await db.exec(
         select(RoleAssignment).where(
-            RoleAssignment.principal_type == RolePrincipalType.USER,
-            RoleAssignment.principal_id == user_id,
+            RoleAssignment.principal_type.in_(  # type: ignore[attr-defined]
+                [RolePrincipalType.USER, RolePrincipalType.SERVICE_ACCOUNT]
+            ),
+            RoleAssignment.principal_id == principal_id,
         )
     )
     direct_global_role_names: list[str] = []
-    for ua in user_assignments.all():
+    for ua in direct_assignments.all():
         if ua.project_id is None:
             direct_global_role_names.append(ua.role_name)
         else:

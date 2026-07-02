@@ -27,6 +27,7 @@ from nexus.authz.resolver import (
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
+from nexus.service_accounts.models.service_account import ServiceAccount
 
 
 @pytest.fixture
@@ -453,3 +454,55 @@ async def test_resolve_user_groups_empty_when_no_groups(
     groups = await resolve_user_groups(seeded_db, orphan.id)
     group_names = {g["name"] for g in groups}
     assert "authenticated" in group_names
+
+
+# ============================================================================
+# resolve_effective_policies — service account
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_resolve_effective_policies_service_account_direct_role(seeded_db: AsyncSession, test_user: User) -> None:
+    """Service account gets policies from direct role assignment."""
+    project = Project(name="sa-resolver-proj", labels={})
+    seeded_db.add(project)
+    await seeded_db.flush()
+
+    sa = ServiceAccount(
+        id=uuid4(),
+        name=f"sa-{uuid4().hex[:8]}",
+        client_id=f"nx_sa_{uuid4().hex[:16]}",
+        hashed_secret="$argon2id$v=19$m=65536,t=3,p=4$test",  # noqa: S106
+        project_id=project.id,
+        created_by=test_user.id,
+    )
+    seeded_db.add(sa)
+    await seeded_db.flush()
+
+    policy = Policy(
+        name="sa:direct:any",
+        statements=[{"name": "sa:direct:any", "effect": "allow", "actions": ["sa-action"], "scope": "any"}],
+        is_builtin=False,
+        labels={},
+    )
+    seeded_db.add(policy)
+    await seeded_db.flush()
+
+    role = Role(name="sa-direct-role", is_builtin=False, policy_names=["sa:direct:any"], labels={})
+    seeded_db.add(role)
+    await seeded_db.flush()
+
+    assignment = RoleAssignment(
+        principal_type=RolePrincipalType.SERVICE_ACCOUNT,
+        principal_id=sa.id,
+        role_name="sa-direct-role",
+        project_id=project.id,
+    )
+    seeded_db.add(assignment)
+    await seeded_db.commit()
+
+    policies = await resolve_effective_policies(seeded_db, sa.id)
+    names = {p["name"] for p in policies}
+    assert "sa:direct:any" in names
+    proj_policies = [p for p in policies if p.get("project") == "sa-resolver-proj"]
+    assert len(proj_policies) >= 1

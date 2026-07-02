@@ -1,11 +1,11 @@
 """Unit tests for RoleAssignmentService.
 
 Tests cover:
-- Assign: user/group, global/project-scoped, duplicate rejection, validation
+- Assign: user/group/service_account, global/project-scoped, duplicate rejection, validation
 - Get: existing and non-existent assignments
 - List: filters, visibility restrictions, include_total, default sort
 - Revoke: existing and non-existent assignments
-- Visibility: admin, own user/group, project-admin, cross-project
+- Visibility: admin, own user/group/service_account, project-admin, cross-project
 """
 
 from uuid import UUID, uuid4
@@ -21,6 +21,7 @@ from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.models.group import Group
+from nexus.service_accounts.models.service_account import ServiceAccount
 
 
 @pytest.fixture
@@ -850,3 +851,131 @@ async def test_list_sort_by_principal_name_global_order(seeded_db: AsyncSession,
 
     assert all_names == sorted(all_names), f"Global sort broken: {all_names}"
     assert len(all_names) == len(set(all_names)) or len(all_names) >= 3
+
+
+# ============================================================================
+# Service account support
+# ============================================================================
+
+
+async def _create_service_account(
+    session: AsyncSession,
+    project: Project,
+    created_by: UUID,
+    name: str | None = None,
+) -> ServiceAccount:
+    """Create a service account for testing."""
+    sa = ServiceAccount(
+        id=uuid4(),
+        name=name or f"sa-{uuid4().hex[:8]}",
+        client_id=f"nx_sa_{uuid4().hex[:16]}",
+        hashed_secret="$argon2id$v=19$m=65536,t=3,p=4$test",  # noqa: S106
+        project_id=project.id,
+        created_by=created_by,
+    )
+    session.add(sa)
+    await session.flush()
+    return sa
+
+
+@pytest.mark.asyncio
+async def test_assign_service_account_role_project_scoped(seeded_db: AsyncSession, test_user: User) -> None:
+    """Assign a project role to a service account."""
+    project = await _create_project(seeded_db, name="sa-project")
+    sa = await _create_service_account(seeded_db, project, created_by=test_user.id)
+    svc = RoleAssignmentService(seeded_db, test_user)
+    result = await svc.assign(
+        principal_type=RolePrincipalType.SERVICE_ACCOUNT,
+        principal_id=sa.id,
+        role_name="project-user",
+        project_id=project.id,
+    )
+    assert result["principal_type"] == "service_account"
+    assert result["principal_id"] == sa.id
+    assert result["role_name"] == "project-user"
+    assert result["project_id"] == project.id
+    assert result["principal_name"] == sa.name
+
+
+@pytest.mark.asyncio
+async def test_assign_nonexistent_service_account(seeded_db: AsyncSession, test_user: User) -> None:
+    """Assigning to a nonexistent service account raises SafeValueError."""
+    svc = RoleAssignmentService(seeded_db, test_user)
+    with pytest.raises(SafeValueError, match=r"Service account .* not found"):
+        await svc.assign(
+            principal_type=RolePrincipalType.SERVICE_ACCOUNT,
+            principal_id=uuid4(),
+            role_name="user",
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_service_account_assignment(seeded_db: AsyncSession, test_user: User) -> None:
+    """Get resolves service account principal_name via _query_one."""
+    project = await _create_project(seeded_db, name="sa-get-project")
+    sa = await _create_service_account(seeded_db, project, created_by=test_user.id, name="my-sa")
+    svc = RoleAssignmentService(seeded_db, test_user)
+    created = await svc.assign(
+        principal_type=RolePrincipalType.SERVICE_ACCOUNT,
+        principal_id=sa.id,
+        role_name="project-user",
+        project_id=project.id,
+    )
+    fetched = await svc.get(created["id"])
+    assert fetched["principal_name"] == "my-sa"
+    assert fetched["principal_type"] == "service_account"
+
+
+@pytest.mark.asyncio
+async def test_list_includes_service_account_assignments(seeded_db: AsyncSession, test_user: User) -> None:
+    """List returns service account assignments with resolved principal_name."""
+    project = await _create_project(seeded_db, name="sa-list-project")
+    sa = await _create_service_account(seeded_db, project, created_by=test_user.id, name="list-sa")
+    svc = RoleAssignmentService(seeded_db, test_user)
+    await svc.assign(
+        principal_type=RolePrincipalType.SERVICE_ACCOUNT,
+        principal_id=sa.id,
+        role_name="project-user",
+        project_id=project.id,
+    )
+    result = await svc.list(principal_type="service_account")
+    assert len(result["resources"]) >= 1
+    sa_resources = [r for r in result["resources"] if r["principal_id"] == sa.id]
+    assert len(sa_resources) == 1
+    assert sa_resources[0]["principal_name"] == "list-sa"
+
+
+@pytest.mark.asyncio
+async def test_list_restrict_user_id_sees_own_service_account(seeded_db: AsyncSession, test_user: User) -> None:
+    """Restricting by restrict_user_id returns SA assignments when principal_id matches."""
+    project = await _create_project(seeded_db, name="sa-visibility-project")
+    sa = await _create_service_account(seeded_db, project, created_by=test_user.id)
+    svc = RoleAssignmentService(seeded_db, test_user)
+    await svc.assign(
+        principal_type=RolePrincipalType.SERVICE_ACCOUNT,
+        principal_id=sa.id,
+        role_name="project-user",
+        project_id=project.id,
+    )
+    result = await svc.list(restrict_user_id=sa.id)
+    sa_resources = [r for r in result["resources"] if r["principal_id"] == sa.id]
+    assert len(sa_resources) >= 1
+
+
+@pytest.mark.asyncio
+async def test_is_visible_own_service_account_assignment(seeded_db: AsyncSession, test_user: User) -> None:
+    """Service account can see its own assignment via is_visible."""
+    sa_id = uuid4()
+    svc = RoleAssignmentService(seeded_db, test_user)
+    assignment = {
+        "principal_type": "service_account",
+        "principal_id": sa_id,
+        "project_id": None,
+    }
+    assert svc.is_visible(
+        assignment,
+        all_projects=False,
+        user_id=sa_id,
+        group_ids=[],
+        allowed_project_ids=[],
+    )

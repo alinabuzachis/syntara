@@ -31,6 +31,7 @@ from nexus.core.utils.cursor import (
     encode_cursor,
     serialize_sort_value,
 )
+from nexus.service_accounts.models.service_account import ServiceAccount
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -192,38 +193,17 @@ class RoleAssignmentService:
         Visibility is controlled by restrict_user_id / restrict_group_ids /
         allowed_project_ids.  When all are None the caller sees everything.
         """
-        principal_name_col = case(
-            (RoleAssignment.principal_type == RolePrincipalType.USER, User.username),  # type: ignore[arg-type]
-            else_=Group.name,
-        ).label("principal_name")
-
-        base = (
-            select(
-                RoleAssignment,
-                principal_name_col,
-                Project.name.label("project_name"),  # type: ignore[attr-defined]
-            )
-            .outerjoin(
-                User,
-                (RoleAssignment.principal_type == RolePrincipalType.USER)
-                & (RoleAssignment.principal_id == User.id)
-                & (User.deleted_at.is_(None)),  # type: ignore[union-attr]
-            )
-            .outerjoin(
-                Group,
-                (RoleAssignment.principal_type == RolePrincipalType.GROUP)
-                & (RoleAssignment.principal_id == Group.id)
-                & (Group.deleted_at.is_(None)),  # type: ignore[union-attr]
-            )
-            .outerjoin(Project, RoleAssignment.project_id == Project.id)  # type: ignore[arg-type]
-        )
+        principal_name_col = self._principal_name_col()
+        base = self._base_assignment_query()
 
         # Visibility filter
         if restrict_user_id is not None or restrict_group_ids is not None or allowed_project_ids is not None:
             visibility_clauses: builtins.list[Any] = []
             if restrict_user_id is not None:
                 visibility_clauses.append(
-                    (RoleAssignment.principal_type == RolePrincipalType.USER)
+                    RoleAssignment.principal_type.in_(  # type: ignore[attr-defined]
+                        [RolePrincipalType.USER, RolePrincipalType.SERVICE_ACCOUNT]
+                    )
                     & (RoleAssignment.principal_id == restrict_user_id)
                 )
             if restrict_group_ids:
@@ -262,7 +242,7 @@ class RoleAssignmentService:
         if sort_field == "principal_name":
             sort_col = principal_name_col
         elif sort_field == "project_name":
-            sort_col = Project.name  # type: ignore[assignment]
+            sort_col = Project.name
         else:
             sort_col = getattr(RoleAssignment, sort_field)
 
@@ -373,7 +353,8 @@ class RoleAssignmentService:
         a_principal_type = assignment["principal_type"]
         a_principal_id = assignment["principal_id"]
         a_project_id = assignment.get("project_id")
-        if a_principal_type == RolePrincipalType.USER.value and a_principal_id == user_id:
+        _direct_types = {RolePrincipalType.USER.value, RolePrincipalType.SERVICE_ACCOUNT.value}
+        if a_principal_type in _direct_types and a_principal_id == user_id:
             return True
         if a_principal_type == RolePrincipalType.GROUP.value and a_principal_id in group_ids:
             return True
@@ -383,17 +364,27 @@ class RoleAssignmentService:
     # Private helpers
     # ------------------------------------------------------------------
 
-    async def _query_one(self, assignment_id: UUID) -> dict[str, Any] | None:
-        """Fetch a single assignment with resolved names."""
-        principal_name_col = case(
+    @staticmethod
+    def _principal_name_col() -> Any:  # noqa: ANN401
+        """CASE expression that resolves a principal's display name from joined tables."""
+        return case(
             (RoleAssignment.principal_type == RolePrincipalType.USER, User.username),  # type: ignore[arg-type]
-            else_=Group.name,
+            (RoleAssignment.principal_type == RolePrincipalType.GROUP, Group.name),  # type: ignore[arg-type]
+            (RoleAssignment.principal_type == RolePrincipalType.SERVICE_ACCOUNT, ServiceAccount.name),  # type: ignore[arg-type]
+            else_=None,
         ).label("principal_name")
 
-        stmt = (
+    @staticmethod
+    def _base_assignment_query() -> Any:  # noqa: ANN401
+        """Build the base SELECT with principal name resolution and outerjoins.
+
+        Returns a Select with columns (RoleAssignment, principal_name, project_name).
+        Used by both ``list()`` and ``_query_one()`` to avoid duplication.
+        """
+        return (
             select(
                 RoleAssignment,
-                principal_name_col,
+                RoleAssignmentService._principal_name_col(),
                 Project.name.label("project_name"),  # type: ignore[attr-defined]
             )
             .outerjoin(
@@ -408,9 +399,18 @@ class RoleAssignmentService:
                 & (RoleAssignment.principal_id == Group.id)
                 & (Group.deleted_at.is_(None)),  # type: ignore[union-attr]
             )
+            .outerjoin(
+                ServiceAccount,
+                (RoleAssignment.principal_type == RolePrincipalType.SERVICE_ACCOUNT)
+                & (RoleAssignment.principal_id == ServiceAccount.id)
+                & (ServiceAccount.deleted_at.is_(None)),  # type: ignore[union-attr]
+            )
             .outerjoin(Project, RoleAssignment.project_id == Project.id)  # type: ignore[arg-type]
-            .where(RoleAssignment.id == assignment_id)
         )
+
+    async def _query_one(self, assignment_id: UUID) -> dict[str, Any] | None:
+        """Fetch a single assignment with resolved names."""
+        stmt = self._base_assignment_query().where(RoleAssignment.id == assignment_id)
         result = await self.session.exec(stmt)
         row = result.first()
         if not row:
@@ -421,16 +421,25 @@ class RoleAssignmentService:
     async def _validate_principal(self, principal_type: RolePrincipalType, principal_id: UUID) -> str:
         """Validate the principal exists and return its name."""
         if principal_type == RolePrincipalType.USER:
-            user = await self.session.get(User, principal_id)
-            if not user:
+            entity = await self.session.get(User, principal_id)
+            if not entity:
                 msg = f"User {principal_id} not found"
                 raise SafeValueError(msg)
-            return user.username
-        group = await self.session.get(Group, principal_id)
-        if not group:
-            msg = f"Group {principal_id} not found"
-            raise SafeValueError(msg)
-        return group.name
+            return entity.username
+        if principal_type == RolePrincipalType.GROUP:
+            group = await self.session.get(Group, principal_id)
+            if not group:
+                msg = f"Group {principal_id} not found"
+                raise SafeValueError(msg)
+            return group.name
+        if principal_type == RolePrincipalType.SERVICE_ACCOUNT:
+            sa = await self.session.get(ServiceAccount, principal_id)
+            if not sa:
+                msg = f"Service account {principal_id} not found"
+                raise SafeValueError(msg)
+            return sa.name
+        msg = f"Unsupported principal type: {principal_type}"  # type: ignore[unreachable]
+        raise SafeValueError(msg)
 
     async def _enrich_with_role_info(self, resources: builtins.list[dict[str, Any]]) -> None:
         """Batch-resolve role_description and role_policies for a list of assignment dicts."""
