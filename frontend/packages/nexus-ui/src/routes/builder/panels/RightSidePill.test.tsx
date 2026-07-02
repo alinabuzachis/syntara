@@ -1,17 +1,29 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { Node } from '@xyflow/react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { FlowNodeType } from '../../../constants/nodeTypes'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 import { RightSidePill } from './RightSidePill'
+
+// Helper to create mock nodes
+function createMockNode(type: string, data?: Partial<NodeType['data']>): Node<NodeType['data']> {
+  return {
+    id: 'test-node-1',
+    type,
+    position: { x: 0, y: 0 },
+    data: data ?? ({ name: 'Test Node' } as NodeType['data']),
+  }
+}
 
 describe('RightSidePill', () => {
   describe('when onAddStep is not provided', () => {
     it('renders nothing', () => {
-      const { container } = render(<RightSidePill nodeFlowType={FlowNodeType.TASK} />)
+      const { container } = render(<RightSidePill node={createMockNode(FlowNodeType.TASK)} />)
       expect(container).toBeEmptyDOMElement()
     })
   })
@@ -21,7 +33,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.TASK} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.TASK)} onAddStep={onAddStep} />)
 
       const button = screen.getByRole('button', { name: 'Add step' })
       expect(button).toBeInTheDocument()
@@ -31,11 +43,11 @@ describe('RightSidePill', () => {
       expect(onAddStep).toHaveBeenCalledTimes(1)
     })
 
-    it('renders a plain button when nodeFlowType is undefined', async () => {
+    it('renders a plain button when node is undefined', async () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill onAddStep={onAddStep} />)
+      render(<RightSidePill node={undefined} onAddStep={onAddStep} />)
 
       const button = screen.getByRole('button', { name: 'Add step' })
       expect(button).toBeInTheDocument()
@@ -48,7 +60,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType="unknown-node-type" onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode('unknown-node-type')} onAddStep={onAddStep} />)
 
       const button = screen.getByRole('button', { name: 'Add step' })
       expect(button).toBeInTheDocument()
@@ -63,7 +75,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.CONDITION} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.CONDITION)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       expect(toggle).toBeInTheDocument()
@@ -78,7 +90,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.CONDITION} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.CONDITION)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.click(toggle)
@@ -94,7 +106,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.CONDITION} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.CONDITION)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.click(toggle)
@@ -110,7 +122,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.CONDITION} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.CONDITION)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.click(toggle)
@@ -132,7 +144,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.APPROVAL} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.APPROVAL)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.click(toggle)
@@ -145,7 +157,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.APPROVAL} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.APPROVAL)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.click(toggle)
@@ -160,7 +172,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.APPROVAL} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.APPROVAL)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.click(toggle)
@@ -177,7 +189,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.LOOP} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.LOOP)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.click(toggle)
@@ -190,7 +202,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.LOOP} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.LOOP)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.click(toggle)
@@ -205,7 +217,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.LOOP} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.LOOP)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.click(toggle)
@@ -217,11 +229,152 @@ describe('RightSidePill', () => {
     })
   })
 
+  describe('branching nodes - switch', () => {
+    it('renders dropdown with case paths and fallback for switch node', async () => {
+      const onAddStep = vi.fn()
+      const user = userEvent.setup()
+
+      const switchNode = createMockNode(FlowNodeType.SWITCH, {
+        type: 'switch',
+        parameters: {
+          cases: [
+            { label: 'Path A', port: 'case_0' },
+            { label: 'Path B', port: 'case_1' },
+          ],
+        },
+      })
+
+      render(<RightSidePill node={switchNode} onAddStep={onAddStep} />)
+
+      const toggle = screen.getByRole('button', { name: 'Add step…' })
+      await user.click(toggle)
+
+      expect(screen.getByText('On Path A')).toBeInTheDocument()
+      expect(screen.getByText('On Path B')).toBeInTheDocument()
+      expect(screen.getByText('Fallback')).toBeInTheDocument()
+    })
+
+    it('generates default labels for unlabeled switch cases', async () => {
+      const onAddStep = vi.fn()
+      const user = userEvent.setup()
+
+      const switchNode = createMockNode(FlowNodeType.SWITCH, {
+        type: 'switch',
+        parameters: {
+          cases: [{ port: 'case_0' }, { port: 'case_1' }, { port: 'case_2' }],
+        },
+      })
+
+      render(<RightSidePill node={switchNode} onAddStep={onAddStep} />)
+
+      const toggle = screen.getByRole('button', { name: 'Add step…' })
+      await user.click(toggle)
+
+      expect(screen.getByText('On Path 1')).toBeInTheDocument()
+      expect(screen.getByText('On Path 2')).toBeInTheDocument()
+      expect(screen.getByText('On Path 3')).toBeInTheDocument()
+      expect(screen.getByText('Fallback')).toBeInTheDocument()
+    })
+
+    it('calls onAddStep with case port when a case path is selected', async () => {
+      const onAddStep = vi.fn()
+      const user = userEvent.setup()
+
+      const switchNode = createMockNode(FlowNodeType.SWITCH, {
+        type: 'switch',
+        parameters: {
+          cases: [
+            { label: 'Success', port: 'case_success' },
+            { label: 'Error', port: 'case_error' },
+          ],
+        },
+      })
+
+      render(<RightSidePill node={switchNode} onAddStep={onAddStep} />)
+
+      const toggle = screen.getByRole('button', { name: 'Add step…' })
+      await user.click(toggle)
+
+      const successOption = screen.getByText('On Success')
+      await user.click(successOption)
+
+      expect(onAddStep).toHaveBeenCalledWith('case_success')
+      expect(onAddStep).toHaveBeenCalledTimes(1)
+    })
+
+    it('calls onAddStep with default handle when fallback is selected', async () => {
+      const onAddStep = vi.fn()
+      const user = userEvent.setup()
+
+      const switchNode = createMockNode(FlowNodeType.SWITCH, {
+        type: 'switch',
+        parameters: {
+          cases: [{ label: 'Case 1', port: 'case_0' }],
+        },
+      })
+
+      render(<RightSidePill node={switchNode} onAddStep={onAddStep} />)
+
+      const toggle = screen.getByRole('button', { name: 'Add step…' })
+      await user.click(toggle)
+
+      const fallbackOption = screen.getByText('Fallback')
+      await user.click(fallbackOption)
+
+      expect(onAddStep).toHaveBeenCalledWith(EdgeHandleEnum.DEFAULT)
+      expect(onAddStep).toHaveBeenCalledTimes(1)
+    })
+
+    it('uses custom default_port when configured', async () => {
+      const onAddStep = vi.fn()
+      const user = userEvent.setup()
+
+      const switchNode = createMockNode(FlowNodeType.SWITCH, {
+        type: 'switch',
+        parameters: {
+          cases: [{ label: 'Case 1', port: 'case_0' }],
+          default_port: 'custom_default',
+        },
+      })
+
+      render(<RightSidePill node={switchNode} onAddStep={onAddStep} />)
+
+      const toggle = screen.getByRole('button', { name: 'Add step…' })
+      await user.click(toggle)
+
+      const fallbackOption = screen.getByText('Fallback')
+      await user.click(fallbackOption)
+
+      expect(onAddStep).toHaveBeenCalledWith('custom_default')
+    })
+
+    it('handles empty cases array gracefully', async () => {
+      const onAddStep = vi.fn()
+      const user = userEvent.setup()
+
+      const switchNode = createMockNode(FlowNodeType.SWITCH, {
+        type: 'switch',
+        parameters: {
+          cases: [],
+        },
+      })
+
+      render(<RightSidePill node={switchNode} onAddStep={onAddStep} />)
+
+      const toggle = screen.getByRole('button', { name: 'Add step…' })
+      await user.click(toggle)
+
+      // Should only show fallback option
+      expect(screen.getByText('Fallback')).toBeInTheDocument()
+      expect(screen.queryByText(/^On Path/)).not.toBeInTheDocument()
+    })
+  })
+
   describe('accessibility', () => {
     it('has no accessibility violations for non-branching node', async () => {
       const onAddStep = vi.fn()
 
-      const { container } = render(<RightSidePill nodeFlowType={FlowNodeType.TASK} onAddStep={onAddStep} />)
+      const { container } = render(<RightSidePill node={createMockNode(FlowNodeType.TASK)} onAddStep={onAddStep} />)
 
       expect(await axe(container)).toHaveNoViolations()
     })
@@ -229,7 +382,9 @@ describe('RightSidePill', () => {
     it('has no accessibility violations for branching node', async () => {
       const onAddStep = vi.fn()
 
-      const { container } = render(<RightSidePill nodeFlowType={FlowNodeType.CONDITION} onAddStep={onAddStep} />)
+      const { container } = render(
+        <RightSidePill node={createMockNode(FlowNodeType.CONDITION)} onAddStep={onAddStep} />
+      )
 
       expect(await axe(container)).toHaveNoViolations()
     })
@@ -238,7 +393,9 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      const { container } = render(<RightSidePill nodeFlowType={FlowNodeType.CONDITION} onAddStep={onAddStep} />)
+      const { container } = render(
+        <RightSidePill node={createMockNode(FlowNodeType.CONDITION)} onAddStep={onAddStep} />
+      )
 
       await user.click(screen.getByRole('button', { name: 'Add step…' }))
 
@@ -248,7 +405,7 @@ describe('RightSidePill', () => {
     it('has accessible label on non-branching button', () => {
       const onAddStep = vi.fn()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.TASK} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.TASK)} onAddStep={onAddStep} />)
 
       const button = screen.getByRole('button', { name: 'Add step' })
       expect(button).toHaveAccessibleName('Add step')
@@ -257,7 +414,7 @@ describe('RightSidePill', () => {
     it('has accessible label on branching dropdown toggle', () => {
       const onAddStep = vi.fn()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.CONDITION} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.CONDITION)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       expect(toggle).toHaveAccessibleName('Add step…')
@@ -267,7 +424,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.TASK} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.TASK)} onAddStep={onAddStep} />)
 
       const button = screen.getByRole('button', { name: 'Add step' })
       await user.hover(button)
@@ -279,7 +436,7 @@ describe('RightSidePill', () => {
       const onAddStep = vi.fn()
       const user = userEvent.setup()
 
-      render(<RightSidePill nodeFlowType={FlowNodeType.CONDITION} onAddStep={onAddStep} />)
+      render(<RightSidePill node={createMockNode(FlowNodeType.CONDITION)} onAddStep={onAddStep} />)
 
       const toggle = screen.getByRole('button', { name: 'Add step…' })
       await user.hover(toggle)

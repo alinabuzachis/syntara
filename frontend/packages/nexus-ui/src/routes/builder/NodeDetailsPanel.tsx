@@ -467,7 +467,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       docLink={props.docLink}
       showInputPanel={showInputPanel}
       nodeId={node?.id}
-      nodeFlowType={node?.type}
+      node={node}
       executionId={executionId}
       workflowId={workflowId}
       onClose={onClose}

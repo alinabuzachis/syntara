@@ -1,6 +1,8 @@
 import { Flex, FlexItem, Panel, PanelMain, PanelMainBody } from '@patternfly/react-core'
+import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { WorkflowMetadata } from '../types/workflowMetadata'
 
 import { useAdjacentNodes } from './hooks/useAdjacentNodes'
@@ -13,7 +15,7 @@ type NodeEditorPanelBodyProps = {
   showInputPanel: boolean
   showNavigation: boolean
   nodeId?: string
-  nodeFlowType?: string
+  node?: Node<NodeType['data']>
   sourceNodeId?: string | null
   inputData: Record<string, Record<string, unknown>> | null
   outputData: Record<string, unknown> | null
@@ -28,7 +30,7 @@ export function NodeEditorPanelBody({
   showInputPanel,
   showNavigation,
   nodeId,
-  nodeFlowType,
+  node,
   sourceNodeId,
   inputData,
   outputData,
@@ -141,7 +143,7 @@ export function NodeEditorPanelBody({
             )}
             {showAddStepPill && (
               <FlexItem>
-                <RightSidePill nodeFlowType={nodeFlowType} onAddStep={onAddStep} />
+                <RightSidePill node={node} onAddStep={onAddStep} />
               </FlexItem>
             )}
           </Flex>

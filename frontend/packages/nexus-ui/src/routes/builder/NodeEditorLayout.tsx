@@ -1,8 +1,10 @@
 import { Alert, Button, Flex, FlexItem, Stack, StackItem, Tooltip } from '@patternfly/react-core'
 import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
+import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 
 import { NxPanel } from '../../components/layout/NxPanel'
+import type { NodeType } from '../workflows/canvas/nodes/NodeType'
 
 import { NodeFormTabBarProvider } from './node-forms/shared/NodeFormTabBarContext'
 import { useNodeExecutionData } from './panels/hooks/useNodeExecutionData'
@@ -43,7 +45,7 @@ type NodeEditorLayoutProps = {
   docLink?: string
   showInputPanel: boolean
   nodeId?: string
-  nodeFlowType?: string
+  node?: Node<NodeType['data']>
   executionId?: string | null
   workflowId?: string | null
   onClose?: () => void
@@ -67,7 +69,7 @@ export function NodeEditorLayout({
   docLink,
   showInputPanel,
   nodeId,
-  nodeFlowType,
+  node,
   executionId,
   workflowId,
   onClose,
@@ -197,7 +199,7 @@ export function NodeEditorLayout({
             showInputPanel={showInputPanel}
             showNavigation={showNavigation}
             nodeId={nodeId}
-            nodeFlowType={nodeFlowType}
+            node={node}
             sourceNodeId={sourceNodeId}
             inputData={inputData}
             outputData={outputData}

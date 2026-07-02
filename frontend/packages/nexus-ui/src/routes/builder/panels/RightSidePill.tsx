@@ -1,10 +1,13 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type SwitchActivity, type SwitchConfig } from '@ansible/nexus-contracts'
 import { Button, Dropdown, DropdownItem, DropdownList, Icon, MenuToggle, Tooltip } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
-import { useCallback, useState, type Ref } from 'react'
+import type { Node } from '@xyflow/react'
+import { useCallback, useMemo, useState, type Ref } from 'react'
 
 import { FlowNodeType } from '../../../constants/nodeTypes'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
+import { buildSwitchCasePort } from '../utils/switchCaseHelpers'
 
 import styles from './RightSidePill.module.css'
 
@@ -32,8 +35,73 @@ const BRANCHING_HANDLES: Record<string, BranchHandle[]> = {
   ],
 }
 
+/**
+ * Sanitizes a string for safe display by truncating to a maximum length.
+ * Defense-in-depth measure to prevent UI issues from malformed data.
+ */
+function sanitizeLabel(label: string | undefined, maxLength = 100): string {
+  if (!label || typeof label !== 'string') return ''
+  return label.slice(0, maxLength)
+}
+
+/**
+ * Validates that a port value is a safe string identifier.
+ * Defense-in-depth measure to prevent injection of unexpected characters.
+ */
+function isValidPort(port: unknown): port is string {
+  return typeof port === 'string' && port.length > 0 && port.length <= 100 && /^[\w-]+$/.test(port)
+}
+
+/**
+ * Builds branch handles for a switch node based on its case configuration.
+ * Returns an array of handles with dynamic path labels from the switch cases,
+ * plus a fallback/default handle if configured.
+ *
+ * Includes runtime validation as defense-in-depth:
+ * - Validates node type before type assertion
+ * - Sanitizes user-controlled label text
+ * - Validates port identifiers
+ * - Guards against malformed arrays
+ */
+function buildSwitchBranchHandles(node: Node<NodeType['data']> | undefined): BranchHandle[] | undefined {
+  if (node?.type !== FlowNodeType.SWITCH) return undefined
+
+  // Runtime validation before type assertions
+  const nodeData = node.data
+  if (!nodeData || typeof nodeData !== 'object') return undefined
+
+  const switchData = nodeData as SwitchActivity
+  if (switchData.type !== 'switch') return undefined
+
+  const config = (switchData.parameters ?? { cases: [] }) as SwitchConfig
+  const cases = config.cases ?? []
+
+  // Guard against malformed or excessively large arrays (DoS prevention)
+  if (!Array.isArray(cases) || cases.length > 50) {
+    return undefined
+  }
+
+  const caseHandles = cases.map((c, i) => {
+    // Validate and sanitize port identifier
+    const port = c.port && isValidPort(c.port) ? c.port : buildSwitchCasePort(i)
+
+    // Sanitize user-controlled label text
+    const sanitizedLabel = sanitizeLabel(c.label)
+    const label = sanitizedLabel ? `On ${sanitizedLabel}` : `On Path ${i + 1}`
+
+    return { handle: port, label }
+  })
+
+  // Add fallback/default handle
+  const defaultPort =
+    config.default_port && isValidPort(config.default_port) ? config.default_port : EdgeHandleEnum.DEFAULT
+  const fallbackHandle = [{ handle: defaultPort, label: 'Fallback' }]
+
+  return [...caseHandles, ...fallbackHandle]
+}
+
 type RightSidePillProps = {
-  nodeFlowType?: string
+  node?: Node<NodeType['data']>
   onAddStep?: (handle?: string) => void
 }
 
@@ -90,7 +158,14 @@ function BranchingAddStep({ handles, onAddStep }: Readonly<BranchingAddStepProps
   )
 
   return (
-    <Dropdown isOpen={isOpen} onOpenChange={setIsOpen} popperProps={{ placement: 'bottom-end' }} toggle={renderToggle}>
+    <Dropdown
+      isOpen={isOpen}
+      onOpenChange={setIsOpen}
+      isScrollable
+      maxMenuHeight="300px"
+      popperProps={{ placement: 'bottom-end' }}
+      toggle={renderToggle}
+    >
       <DropdownList>
         {handles.map((item) => (
           <DropdownItem key={item.handle} onClick={() => handleSelect(item.handle)}>
@@ -125,14 +200,18 @@ function NonBranchingAddStep({ onAddStep }: Readonly<NonBranchingAddStepProps>) 
   )
 }
 
-export function RightSidePill({ nodeFlowType, onAddStep }: Readonly<RightSidePillProps>) {
+export function RightSidePill({ node, onAddStep }: Readonly<RightSidePillProps>) {
+  const switchHandles = useMemo(() => buildSwitchBranchHandles(node), [node])
+
   if (!onAddStep) {
     return null
   }
 
-  const branchHandles = nodeFlowType && nodeFlowType in BRANCHING_HANDLES ? BRANCHING_HANDLES[nodeFlowType] : undefined
+  const nodeFlowType = node?.type
+  const branchHandles =
+    switchHandles ?? (nodeFlowType && nodeFlowType in BRANCHING_HANDLES ? BRANCHING_HANDLES[nodeFlowType] : undefined)
 
-  if (branchHandles && branchHandles.length > 0) {
+  if (branchHandles?.length) {
     return <BranchingAddStep handles={branchHandles} onAddStep={onAddStep} />
   }
 
