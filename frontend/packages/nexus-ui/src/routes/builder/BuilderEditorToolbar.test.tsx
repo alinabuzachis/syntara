@@ -11,6 +11,17 @@ const mockHandleImportFile = vi.fn()
 let mockIsVerifying = false
 let mockValidationErrorCount = 0
 
+vi.mock('../../stores/useWorkflowStore', () => ({
+  useWorkflowStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      currentWorkflow: {
+        workflow: {
+          activities: [{ id: 'n1', type: 'script', name: 'Step', parameters: {} }],
+        },
+      },
+    }),
+}))
+
 vi.mock('./useWorkflowImportExport', () => ({
   useWorkflowImportExport: () => ({
     importFileRef: { current: null },

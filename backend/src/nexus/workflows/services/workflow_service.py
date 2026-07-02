@@ -46,7 +46,12 @@ from nexus.workflows.exceptions import (
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
-from nexus.workflows.models.validation_finding import ValidationResult
+from nexus.workflows.models.validation_finding import (
+    ValidationCategory,
+    ValidationFinding,
+    ValidationResult,
+    ValidationSeverity,
+)
 from nexus.workflows.models.workflow_definition import WorkflowDefinition
 from nexus.workflows.models.workflow_version import WorkflowVersionStatus
 from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
@@ -866,6 +871,19 @@ class WorkflowService(BaseService):
 
         definition = workflow_definition or target_version.workflow_definition
         result = workflow_validator.collect_findings(definition)
+        # Publish-only gate: empty nodes are allowed on save (canvas-first) but not publish.
+        # Lives here rather than in the validator so collect_findings stays save-safe.
+        if len(definition.get("nodes", [])) == 0:
+            result = ValidationResult.from_findings(
+                [
+                    *result.findings,
+                    ValidationFinding(
+                        severity=ValidationSeverity.error,
+                        category=ValidationCategory.missing_field,
+                        message="Workflow must have at least one step",
+                    ),
+                ]
+            )
         if result.error_count > 0 or result.warning_count > 0:
             raise WorkflowPublishValidationError(result)
 

@@ -56,10 +56,14 @@ describe('useWorkflowVerification', () => {
     currentWorkflow: {
       name: 'Test',
       description: 'desc',
-      workflow: { activities: [] },
-      triggers: [],
+      workflow: {
+        activities: [
+          { type: 'script', id: 'n1', name: 'Step 1', parameters: { language: 'python', code: 'print(1)' } },
+        ],
+      },
+      triggers: [{ type: 'manual_trigger', id: 't1' }],
     },
-    edges: [],
+    edges: [{ id: 'e1', source: 't1', target: 'n1', sourceHandle: 'source', targetHandle: 'target' }],
     nodePositions: {},
     _positionsUserModified: false,
   }
@@ -290,10 +294,16 @@ describe('useWorkflowVerification', () => {
     act(() => result.current.handleVerify())
 
     await waitFor(() => {
-      expect(mockBuildDefinition).toHaveBeenCalledWith('Test', 'desc', [], [], {
-        edges: [],
-        nodePositions: positions,
-      })
+      expect(mockBuildDefinition).toHaveBeenCalledWith(
+        'Test',
+        'desc',
+        workflowState.currentWorkflow.workflow.activities,
+        workflowState.currentWorkflow.triggers,
+        {
+          edges: workflowState.edges,
+          nodePositions: positions,
+        }
+      )
     })
   })
 

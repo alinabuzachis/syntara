@@ -8,6 +8,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 
 import type { BuilderAction, ValidationError, ValidationSeverity } from './builderReducer'
 import { validateWorkflow } from './utils/validation'
+import { validateMinimumWorkflow } from './utils/validation/rules/validateMinimumWorkflow'
 import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 
 type ValidationResultError = { message: string; node_id?: string | null }
@@ -195,17 +196,19 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
       dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
 
       const frontendResult = validateWorkflow(activities, edges, { triggers })
-      if (!frontendResult.valid) {
+      const minimumErrors = validateMinimumWorkflow(activities, edges, triggers)
+      const allErrors = [...frontendResult.errors, ...minimumErrors]
+      if (allErrors.length > 0) {
         const nameMap = new Map(activities.map((a) => [a.id, a.name ?? a.id]))
         dispatch({
           type: 'SET_VALIDATION_ERRORS',
-          payload: frontendResult.errors.map((e) => ({
+          payload: allErrors.map((e) => ({
             message: e.message,
             nodeId: e.nodeId ?? null,
             nodeName: e.nodeId ? nameMap.get(e.nodeId) : undefined,
           })),
         })
-        useWorkflowStore.getState().setValidationErrorCount(frontendResult.errors.length)
+        useWorkflowStore.getState().setValidationErrorCount(allErrors.length)
         return
       }
 

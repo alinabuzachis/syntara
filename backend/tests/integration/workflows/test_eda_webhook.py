@@ -74,8 +74,10 @@ async def eda_workflow(test_db_session: AsyncSession, test_user: User, test_proj
                 },
             }
         ],
-        "nodes": [],
-        "edges": [],
+        "nodes": [
+            {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "pass"}},
+        ],
+        "edges": [{"from": "eda_trigger_1", "to": "n1"}],
     }
 
     service = WorkflowService(test_db_session, test_user)
@@ -119,8 +121,10 @@ async def eda_workflow_with_schema(test_db_session: AsyncSession, test_user: Use
                 },
             }
         ],
-        "nodes": [],
-        "edges": [],
+        "nodes": [
+            {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "pass"}},
+        ],
+        "edges": [{"from": "eda_trigger_validated", "to": "n1"}],
     }
 
     service = WorkflowService(test_db_session, test_user)
@@ -413,8 +417,10 @@ class TestCrossTypePathIsolation:
                 "triggers": [
                     {"id": "wh_1", "type": "webhook_trigger", "parameters": {"webhook_path": shared_path}},
                 ],
-                "nodes": [],
-                "edges": [],
+                "nodes": [
+                    {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "pass"}},
+                ],
+                "edges": [{"from": "wh_1", "to": "n1"}],
             },
             project_id=test_project_id,
         )
@@ -431,8 +437,10 @@ class TestCrossTypePathIsolation:
                 "triggers": [
                     {"id": "eda_1", "type": "eda_trigger", "parameters": {"webhook_path": shared_path}},
                 ],
-                "nodes": [],
-                "edges": [],
+                "nodes": [
+                    {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "pass"}},
+                ],
+                "edges": [{"from": "eda_1", "to": "n1"}],
             },
             project_id=test_project_id,
         )
@@ -514,8 +522,10 @@ class TestCrossTypePathIsolation:
                 "triggers": [
                     {"id": "wh_1", "type": "webhook_trigger", "parameters": {"webhook_path": "eda"}},
                 ],
-                "nodes": [],
-                "edges": [],
+                "nodes": [
+                    {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "pass"}},
+                ],
+                "edges": [{"from": "wh_1", "to": "n1"}],
             },
             project_id=test_project_id,
         )
@@ -532,8 +542,10 @@ class TestCrossTypePathIsolation:
                 "triggers": [
                     {"id": "eda_1", "type": "eda_trigger", "parameters": {"webhook_path": "my-trigger"}},
                 ],
-                "nodes": [],
-                "edges": [],
+                "nodes": [
+                    {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "pass"}},
+                ],
+                "edges": [{"from": "eda_1", "to": "n1"}],
             },
             project_id=test_project_id,
         )

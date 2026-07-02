@@ -1,5 +1,5 @@
 import { test, expect, toAppUrl } from './fixtures'
-import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
+import { buildUniqueName, createBasicWorkflow, createWorkflowWithTrigger, deleteWorkflow } from './helpers/workflows'
 
 test.describe('Workflow publish/unpublish', () => {
   test('new workflow shows Draft badge after save', async ({ app }) => {
@@ -126,6 +126,21 @@ test.describe('Workflow publish/unpublish', () => {
 
       // Unpublish should NOT be available for an unpublished workflow
       await expect(app.getByRole('menuitem', { name: /Unpublish workflow/i })).toHaveCount(0)
+    } finally {
+      await deleteWorkflow(app, workflowName)
+    }
+  })
+
+  test('publish button is disabled for workflow with no steps', async ({ app }) => {
+    test.setTimeout(90_000)
+    const workflowName = buildUniqueName('e2e-empty-publish')
+
+    try {
+      await createWorkflowWithTrigger(app, workflowName)
+
+      const publishBtn = app.getByRole('button', { name: /Publish workflow/i })
+      await expect(publishBtn).toBeVisible()
+      await expect(publishBtn).toHaveAttribute('aria-disabled', 'true')
     } finally {
       await deleteWorkflow(app, workflowName)
     }

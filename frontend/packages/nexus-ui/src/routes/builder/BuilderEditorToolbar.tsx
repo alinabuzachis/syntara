@@ -25,6 +25,7 @@ import {
 import { useCallback, useState, type Dispatch, type Ref } from 'react'
 
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
+import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
 import toolbarStyles from './BuilderEditorToolbar.module.css'
 import type { BuilderAction } from './builderReducer'
@@ -378,6 +379,8 @@ export function BuilderEditorToolbar({
       onPendingImport,
     })
 
+  const hasNoSteps = useWorkflowStore((s) => (s.currentWorkflow?.workflow?.activities?.length ?? 0) === 0)
+
   const showAddStep = !hasNoWorkflowNodes
   const showWorkflowActions = !isNew && !!workflow?.id
 
@@ -462,6 +465,7 @@ export function BuilderEditorToolbar({
           <Divider orientation={{ default: 'vertical' }} />
           <PublishWorkflowButton
             canEdit={builderPermissions.canEdit}
+            hasNoSteps={hasNoSteps}
             validationErrorCount={validationErrorCount}
             isVerifying={isVerifying}
             editTooltip={builderPermissions.tooltips.publish}

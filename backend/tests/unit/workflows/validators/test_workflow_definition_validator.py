@@ -638,6 +638,19 @@ class TestCollectFindings:
         cycle_findings = [f for f in result.findings if f.category == ValidationCategory.cycle_detected]
         assert len(cycle_findings) == 1
 
+    def test_empty_nodes_allowed_for_save(self, validator: WorkflowValidator) -> None:
+        """Empty nodes are allowed by the validator (canvas-first save). Publish blocks separately."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "empty-nodes",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [],
+            "edges": [],
+        }
+        result = validator.collect_findings(definition)
+        empty_findings = [f for f in result.findings if "at least one step" in f.message]
+        assert len(empty_findings) == 0
+
     def test_json_serialization_shape(self, validator: WorkflowValidator) -> None:
         definition: dict[str, Any] = {
             "schema_version": "2.0.0",

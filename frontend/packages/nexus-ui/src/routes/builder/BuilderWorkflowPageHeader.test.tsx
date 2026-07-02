@@ -8,13 +8,16 @@ import { BuilderWorkflowPageHeader, type BuilderWorkflowPageHeaderProps } from '
 
 const mockWorkflowStoreState = vi.hoisted(() => ({
   isDirty: false,
-}))
-
-vi.mock('../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: {
-    getState: () => mockWorkflowStoreState,
+  currentWorkflow: {
+    workflow: { activities: [{ id: 'n1', type: 'script', name: 'Step', parameters: {} }] },
   },
 }))
+
+vi.mock('../../stores/useWorkflowStore', () => {
+  const store = (selector: (state: Record<string, unknown>) => unknown) => selector(mockWorkflowStoreState)
+  store.getState = () => mockWorkflowStoreState
+  return { useWorkflowStore: store }
+})
 
 vi.mock('./useWorkflowImportExport', () => ({
   useWorkflowImportExport: () => ({
