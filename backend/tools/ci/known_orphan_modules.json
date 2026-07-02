@@ -24,6 +24,7 @@
     "nexus/files/validators.py": "Imported via package (from nexus.files import validators) in file_manager.py",
     "nexus/audit/models/audit_event_record.py": "Postgres audit event DB model — orphaned by AAP-78344 (export module removed); will be deleted with audit DB retirement in sibling tasks",
     "nexus/workflows/workflow_engine/activities/*_activity.py": "Temporal activities — discovered and registered at runtime by Temporal worker, not via direct imports",
-    "nexus/integrations/lib/credential_resolver.py": "Statically imported by integration_service.py and invocation_executor.py; pyan3 does not trace through session-factory closures into background tasks"
+    "nexus/integrations/lib/credential_resolver.py": "Statically imported by integration_service.py and invocation_executor.py; pyan3 does not trace through session-factory closures into background tasks",
+    "nexus/core/tls/protocol.py": "Loaded by uvicorn via --http string import at runtime, not via Python import"
   }
 }

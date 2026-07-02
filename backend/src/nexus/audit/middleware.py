@@ -38,6 +38,7 @@ from nexus.audit.events.http_request import HTTPRequestEvent
 from nexus.audit.utils import escalate_actor_type_from_jwt
 from nexus.core.auth.jwt_utils import extract_actor_claims
 from nexus.core.lib.sanitization import strip_control_chars
+from nexus.core.models.principal import PrincipalType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -140,26 +141,28 @@ class AuditMiddleware:
         return normalized[:_MAX_PATH_LENGTH]
 
     def _extract_user(self, scope: Scope) -> AuditActorContext:
-        """Extract actor information from JWT token without signature verification.
+        """Extract actor information from client cert or JWT token.
 
-        Performs unverified JWT decode to extract actor_id (sub) and actor_username
-        (preferred_username) claims for audit logging. This avoids the crypto overhead
-        of signature verification since:
-        1. The middleware doesn't gate access (the endpoint does)
-        2. If the token is forged, the endpoint will reject it with 401
-        3. The audit log still captures the failed attempt
-
-        This eliminates double-authentication overhead (middleware + endpoint) and
-        removes coupling to TokenService/User/get_current_user.
+        Checks for mTLS client certificate authentication first (set by
+        ClientCertAuthMiddleware in scope state), then falls back to
+        unverified JWT decode for audit logging.
 
         Args:
             scope: ASGI connection scope.
 
         Returns:
-            AuditActorContext with actor_id and actor_username from JWT claims,
-            or empty context if token is missing or malformed.
+            AuditActorContext with actor identity, or empty context if
+            neither cert nor token is present.
 
         """
+        state = scope.get("state", {})
+        if state.get("is_cert_authenticated") and state.get("cert_cn"):
+            return AuditActorContext(
+                actor_id=None,
+                actor_username=strip_control_chars(state["cert_cn"]),
+                actor_type=PrincipalType.SERVICE,
+            )
+
         # Extract Authorization header from ASGI scope
         authorization_header: str | None = None
         for header_name, header_value in scope.get("headers", []):

@@ -17,7 +17,7 @@ Usage:
 
 import threading
 from typing import Annotated
-from uuid import UUID
+from uuid import NAMESPACE_DNS, UUID, uuid5
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -175,12 +175,30 @@ def _user_from_payload(payload: TokenPayload) -> User:
     )
 
 
+def _service_user_from_cert(cert_cn: str) -> User:
+    """Build a synthetic User for a cert-authenticated internal service."""
+    return User(
+        # Deterministic UUID per CN so each service has a distinct identity
+        # for audit trails and ownership. uuid5 with NAMESPACE_DNS is
+        # collision-safe and reproducible across restarts.
+        id=uuid5(NAMESPACE_DNS, f"service:{cert_cn}"),
+        username=cert_cn,
+        email=f"{cert_cn}@internal",
+        first_name=cert_cn,
+        is_enabled=True,
+    )
+
+
 async def get_current_user(
-    request: Request,  # noqa: ARG001
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
 ) -> User:
-    """Get the current authenticated user from JWT token claims.
+    """Get the current authenticated user from JWT token claims or client cert.
+
+    First checks for a valid JWT Bearer token. If absent, falls back to
+    mTLS client certificate authentication (set by
+    :class:`~nexus.auth.cert_middleware.ClientCertAuthMiddleware`).
 
     The ``User`` object is constructed entirely from the validated access-token
     claims -- no database round-trip is performed.  Permission or role changes
@@ -206,6 +224,8 @@ async def get_current_user(
 
     """
     if not credentials:
+        if getattr(request.state, "is_cert_authenticated", False):
+            return _service_user_from_cert(request.state.cert_cn)
         raise AuthenticationRequiredError
 
     # Validate token

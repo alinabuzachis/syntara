@@ -25,6 +25,7 @@ from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.audit.lifecycle import start_audit_subsystems, stop_audit_subsystems
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.registration import discover_and_register_all_handlers
+from nexus.auth.cert_middleware import ClientCertAuthMiddleware
 from nexus.auth.middleware import StaleTokenMiddleware
 from nexus.auth.session.cleanup import get_session_cleanup_worker
 from nexus.authz.exceptions import (  # noqa: F401
@@ -310,14 +311,15 @@ app.add_middleware(
 # Register stale token rejection middleware.
 app.add_middleware(StaleTokenMiddleware)
 
-# Register metrics middleware (outermost = first to execute).
-# Records REQUEST_DURATION and ERROR metrics.
+# Register metrics middleware.
 app.add_middleware(MetricsMiddleware, recorder=get_metrics_recorder())
 
 # Register audit middleware.
-# Added after metrics so it executes as the outermost HTTP middleware.
-# Logs request completion (with status code) as audit events.
 app.add_middleware(AuditMiddleware, fastapi_app=app)
+
+# Register mTLS client certificate authentication middleware (outermost).
+# Must be outermost to access the raw uvicorn transport for cert extraction.
+app.add_middleware(ClientCertAuthMiddleware)
 
 # RFC 9457 compliant error handlers
 # Import exception modules so @fastapi_exception decorators populate the registry
@@ -481,6 +483,7 @@ def main() -> None:
         # Client cert enforcement on non-health routes is handled by auth middleware.
         uvicorn_kwargs["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
         uvicorn_kwargs["ssl_context_factory"] = _ssl_context_factory
+        uvicorn_kwargs["http"] = "nexus.core.tls.protocol:TLSAutoProtocol"
 
     uvicorn.run(**uvicorn_kwargs)
 

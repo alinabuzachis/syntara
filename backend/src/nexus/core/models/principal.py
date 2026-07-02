@@ -42,6 +42,7 @@ class PrincipalType(StrEnum):
 
     USER = "user"
     SERVICE_ACCOUNT = "service_account"
+    SERVICE = "service"
     SYSTEM = "system"
     # Not implemented yet. Possible future type:
     #   - DELETED_USER: sentinel for hard-deleted users, so created_by/updated_by

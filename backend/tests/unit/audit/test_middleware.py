@@ -411,6 +411,58 @@ class TestAuditMiddlewareUserContext:
         assert isinstance(events[0].structured_data, AuditContextData)
 
     @pytest.mark.asyncio
+    async def test_cert_authenticated_service_actor(self) -> None:
+        """Cert-authenticated request logs actor_type=service with cert CN."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(path="/api/v1/workflows")
+        scope["state"] = {"is_cert_authenticated": True, "cert_cn": "worker.ao.svc"}
+
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].actor_id is None
+        assert events[0].actor_type == "service"
+        assert events[0].actor_username == "worker.ao.svc"
+
+    @pytest.mark.asyncio
+    async def test_cert_cn_control_chars_sanitized(self) -> None:
+        """Control characters in cert CN are stripped before audit logging."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(path="/api/v1/workflows")
+        scope["state"] = {"is_cert_authenticated": True, "cert_cn": "worker\r\n.ao.svc"}
+
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].actor_username == "worker.ao.svc"
+
+    @pytest.mark.asyncio
+    async def test_cert_cn_without_flag_not_trusted(self) -> None:
+        """cert_cn in state without is_cert_authenticated=True is not trusted."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(path="/api/v1/workflows")
+        scope["state"] = {"is_cert_authenticated": False, "cert_cn": "spoofed.svc"}
+
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].actor_id is None
+        assert events[0].actor_type is None
+        assert events[0].actor_username is None
+
+    @pytest.mark.asyncio
     async def test_no_user_logs_without_authentication(self) -> None:
         """Requests without authentication have no actor identity."""
         app = _make_app(status_code=200)

@@ -1221,6 +1221,19 @@ class S2STLSSettings(BaseSettings):
         description="Path to this service's private key",
     )
 
+    s2s_tls_cn_allowlist: list[str] | None = Field(
+        default=None,
+        description="Allowed client certificate Common Names. "
+        "When set, only certificates with a CN in this list are accepted. "
+        "When None, any CA-signed certificate is accepted.",
+    )
+
+    s2s_tls_crl_path: str | None = Field(
+        default=None,
+        description="Path to a PEM-encoded Certificate Revocation List (CRL). "
+        "When set, certificates whose serial number appears in the CRL are rejected.",
+    )
+
     @model_validator(mode="after")
     def _validate_s2s_tls_fields(self) -> Self:
         if not self.s2s_tls_enabled:
@@ -1233,6 +1246,9 @@ class S2STLSSettings(BaseSettings):
             ],
             context="S2S TLS",
         )
+        if self.s2s_tls_crl_path is not None and not Path(self.s2s_tls_crl_path).is_file():
+            msg = f"S2S TLS CRL file not found: {self.s2s_tls_crl_path}"
+            raise ValueError(msg)
         return self
 
 

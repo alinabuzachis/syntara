@@ -126,6 +126,7 @@ class TestGetCurrentUser:
         """Should raise AuthenticationRequiredError when credentials are None."""
         request = MagicMock()
         request.headers = {}
+        request.state.is_cert_authenticated = False
 
         with pytest.raises(AuthenticationRequiredError):
             await get_current_user(request, db=AsyncMock(), credentials=None)

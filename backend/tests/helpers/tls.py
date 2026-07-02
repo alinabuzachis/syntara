@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
 
@@ -161,3 +162,33 @@ def generate_service_cert(
         )
     )
     return cert_path, key_path
+
+
+def generate_crl(
+    certs_dir: Path,
+    ca_key: rsa.RSAPrivateKey,
+    ca_cert: x509.Certificate,
+    revoked_certs: Sequence[x509.Certificate] | None = None,
+) -> Path:
+    """Generate a PEM-encoded CRL signed by *ca_key*/*ca_cert*.
+
+    Each certificate in *revoked_certs* is added as a revoked entry.
+    Returns the path to the written CRL file.
+    """
+    builder = (
+        x509.CertificateRevocationListBuilder()
+        .issuer_name(ca_cert.subject)
+        .last_update(datetime.now(UTC))
+        .next_update(datetime.now(UTC) + timedelta(days=1))
+    )
+    for cert in revoked_certs or ():
+        builder = builder.add_revoked_certificate(
+            x509.RevokedCertificateBuilder()
+            .serial_number(cert.serial_number)
+            .revocation_date(datetime.now(UTC))
+            .build()
+        )
+    crl = builder.sign(ca_key, hashes.SHA256())
+    crl_path = certs_dir / "crl.pem"
+    crl_path.write_bytes(crl.public_bytes(serialization.Encoding.PEM))
+    return crl_path
