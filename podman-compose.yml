@@ -106,7 +106,7 @@ services:
         condition: service_healthy
 
   moto:
-    image: motoserver/moto:latest
+    image: docker.io/motoserver/moto:latest
     restart: unless-stopped
     ports:
       - ${APP_MOTO_PORT:-5555}:5000
