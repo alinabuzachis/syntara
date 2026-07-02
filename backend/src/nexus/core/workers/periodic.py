@@ -63,7 +63,7 @@ async def _try_advisory_xact_lock(session: AsyncSession, lock_key: int) -> bool:
     return bool(result.scalar())
 
 
-def _derive_lock_key(name: str) -> int:
+def derive_lock_key(name: str) -> int:
     """Derive a deterministic 64-bit integer lock key from a worker name.
 
     Args:
@@ -131,7 +131,7 @@ class PeriodicWorker:
         self._cleanup_callback = cleanup_callback
         self._coordinate = coordinate
         self._task: asyncio.Task[None] | None = None
-        self._lock_key = _derive_lock_key(name)
+        self._lock_key = derive_lock_key(name)
 
     def start(self) -> None:
         """Start the background periodic task.
