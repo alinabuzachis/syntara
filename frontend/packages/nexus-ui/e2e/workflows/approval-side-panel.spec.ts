@@ -160,7 +160,7 @@ test.describe('Approval Side Panel — self-contained', () => {
     await createBasicWorkflow(app, workflowName, 'Pre-approval step')
 
     const builderUrl = app.url()
-    const workflowId = builderUrl.match(/workflow-builder\/([^/?]+)/)?.[1]
+    const workflowId = builderUrl.match(/workflow-builder\/([a-f0-9-]{36})/)?.[1]
 
     try {
       await addApprovalNodeWithBranch(app, 'Review Gate')
@@ -201,7 +201,7 @@ test.describe('Approval Side Panel — self-contained', () => {
     await createBasicWorkflow(app, workflowName, 'Pre-rejection step')
 
     const builderUrl = app.url()
-    const workflowId = builderUrl.match(/workflow-builder\/([^/?]+)/)?.[1]
+    const workflowId = builderUrl.match(/workflow-builder\/([a-f0-9-]{36})/)?.[1]
 
     try {
       await addApprovalNodeWithBranch(app, 'Rejection Gate')

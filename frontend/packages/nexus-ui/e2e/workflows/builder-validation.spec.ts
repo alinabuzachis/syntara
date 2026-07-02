@@ -13,7 +13,7 @@ test.describe('UI-31: Workflow Verification — Pre-Execution Validation', () =>
 
     // Create a workflow with just a trigger (saves successfully, gives us a workflow ID)
     await createWorkflowWithTrigger(app, workflowName)
-    const workflowId = app.url().match(/workflow-builder\/([^/?]+)/)?.[1]
+    const workflowId = app.url().match(/workflow-builder\/([a-f0-9-]{36})/)?.[1]
 
     try {
       // Add a script node that is NOT connected to anything (dangling/orphaned)
