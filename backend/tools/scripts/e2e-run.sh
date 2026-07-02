@@ -92,6 +92,7 @@ echo "✅ API server is ready"
 
 echo "🔧 Creating system user..."
 uv run python tools/create_system_user.py
+APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run python tools/set_admin_password.py < .secrets/admin-password
 
 SEGMENT_SERVER_URL="http://localhost:9999" \
 APP_BASE_URL="${APP_BASE_URL:-https://localhost:8000}" \
