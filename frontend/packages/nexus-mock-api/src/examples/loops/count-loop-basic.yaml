@@ -1,5 +1,5 @@
 ---
-schema_version: "2.0.0"
+schema_version: '2.0.0'
 name: count-loop-basic-test
 description: Test count loop with fixed number of iterations
 triggers:

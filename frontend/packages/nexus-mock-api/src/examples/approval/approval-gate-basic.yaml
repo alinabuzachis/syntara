@@ -1,5 +1,5 @@
 ---
-schema_version: "2.0.0"
+schema_version: '2.0.0'
 name: approval-gate-basic-test
 description: Workflow with an approval gate before deployment
 triggers:
@@ -23,7 +23,7 @@ nodes:
     approval:
       approvers:
         - admin
-      prompt: "Please approve the deployment to production"
+      prompt: 'Please approve the deployment to production'
       timeout: 86400
 
   - id: deploy

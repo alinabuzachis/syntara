@@ -1,5 +1,5 @@
 ---
-schema_version: "2.0.0"
+schema_version: '2.0.0'
 name: join-sequential-test
 description: Test join after sequential activities complete
 triggers:

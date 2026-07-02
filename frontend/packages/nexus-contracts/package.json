@@ -33,7 +33,8 @@
     "gen:local:roles": "openapi-typescript ../../../backend/src/nexus/schemas/authz/role.openapi.yaml --output ./src/roles-api.ts --default-non-nullable false",
     "gen:local:policies": "openapi-typescript ../../../backend/src/nexus/schemas/authz/policy.openapi.yaml --output ./src/policies-api.ts --default-non-nullable false",
     "gen:local:role-assignments": "openapi-typescript ../../../backend/src/nexus/schemas/authz/role_assignment.openapi.yaml --output ./src/role-assignments-api.ts --default-non-nullable false",
-    "sync-examples": "cp -r ../../../backend/tests/integration/workflows/examples ../nexus-mock-api/src"
+    "sync-examples": "cp -r ../../../backend/tests/integration/workflows/examples ../nexus-mock-api/src",
+    "lint": "eslint src/"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0"

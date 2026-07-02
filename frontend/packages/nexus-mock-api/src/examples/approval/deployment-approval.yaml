@@ -1,5 +1,5 @@
 ---
-schema_version: "2.0.0"
+schema_version: '2.0.0'
 name: deployment-approval
 description: Demonstrates an approval gate before deploying to production
 
@@ -15,7 +15,7 @@ inputs:
   version:
     type: string
     description: Application version to deploy
-    default: "3.2.0"
+    default: '3.2.0'
 
 nodes:
   - id: staging_tests
@@ -41,7 +41,7 @@ nodes:
     parameters:
       approvers:
         - ops-team@example.com
-      prompt: "Review the staging test results and approve deployment of v${inputs.version} to ${inputs.environment}."
+      prompt: 'Review the staging test results and approve deployment of v${inputs.version} to ${inputs.environment}.'
       fallback_decision: reject
       decision_window: 86400
 

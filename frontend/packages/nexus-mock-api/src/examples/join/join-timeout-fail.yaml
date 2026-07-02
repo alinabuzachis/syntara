@@ -1,5 +1,5 @@
 ---
-schema_version: "2.0.0"
+schema_version: '2.0.0'
 name: join-timeout-fail-test
 description: Test join with timeout that fails when timeout is reached
 triggers:
