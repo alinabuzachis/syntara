@@ -8,6 +8,7 @@ Run with:
 
 from __future__ import annotations
 
+import json
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -17,6 +18,8 @@ from nexus_api_client.models.publish_version_request import PublishVersionReques
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from nexus_api_client.models.workflow_update import WorkflowUpdate
+
+from tests.e2e.conftest import unique_name
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -418,3 +421,35 @@ class TestPublishWithUnsavedChanges:
         assert v1_resp.parsed is not None
         v1_node_ids = [n["id"] for n in v1_resp.parsed.workflow_definition["nodes"]]
         assert v1_node_ids == ["step1"]
+
+
+class TestWorkflowVersionExport:
+    """E2E test for exporting a version of workflow as a portable JSON definition."""
+
+    def test_export_workflow_version_as_json(
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
+    ) -> None:
+        """Exporting a workflow as a portable JSON definition."""
+        workflow_defn = _simple_definition()
+
+        workflow_data = WorkflowCreate(
+            name=unique_name("e2e-export-workflow"),
+            description="E2E test workflow",
+            workflow_definition=workflow_defn,
+            project_id=first_project_id,
+        )
+
+        created_wf = workflow_factory(workflow_data)
+        assert created_wf.id is not None
+        wf_id = created_wf.id
+
+        exported_wf = nexus_api.workflows.export_version(workflow_id=wf_id, version=created_wf.current_version)
+        assert exported_wf.status_code == HTTPStatus.OK
+        assert exported_wf.content is not None
+        exported = json.loads(exported_wf.content)
+        assert exported["schema_version"] == workflow_defn.schema_version
+        assert exported["name"] == workflow_defn.name
+        assert exported["description"] == workflow_defn.description
