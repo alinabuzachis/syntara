@@ -6,7 +6,7 @@ import { ReactFlowProvider } from '@xyflow/react'
 import type { ComponentProps, ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { approvalsClient, executionsClient, workflowClient } from '../../client'
+import { approvalsClient, executionsClient, workflowClient, workflowFetchClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 import { ColorSchemeProvider } from '../../providers/theme/ColorSchemeProvider'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
@@ -23,6 +23,10 @@ vi.mock('../../client', () => ({
   workflowClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
+  },
+  workflowFetchClient: {
+    GET: vi.fn().mockResolvedValue({ data: { current_version: 1, version: { version: 1 } }, error: null }),
+    POST: vi.fn().mockResolvedValue({ data: { id: 'new-workflow-id' }, error: null }),
   },
   executionsClient: {
     useQuery: vi.fn(),
@@ -286,6 +290,17 @@ describe('BuilderContent', () => {
 
     vi.mocked(workflowClient.useMutation).mockReturnValue(createMockMutation())
     vi.mocked(executionsClient.useMutation).mockReturnValue(createMockMutation())
+
+    vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+      data: { current_version: 1, version: { version: 1 } } as WorkflowWithVersion,
+      error: undefined,
+      response: new Response(),
+    })
+    vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+      data: { id: 'new-workflow-id' },
+      error: undefined,
+      response: new Response(),
+    })
   })
 
   afterEach(() => {
@@ -3114,6 +3129,204 @@ describe('BuilderContent', () => {
       await clickKebabItem('Version history')
       await waitFor(() => {
         expect(screen.queryByText('Version History')).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Version Conflict Resolution', () => {
+    const conflictWorkflow = {
+      ...mockWorkflow,
+      current_version: 3,
+      project_id: 'project-1',
+      version: {
+        ...mockWorkflow.version,
+        version: 3,
+      },
+    } as unknown as WorkflowWithVersion
+
+    function setupConflictOnSave() {
+      const mockUpdateMutate = vi.fn((_params: unknown, callbacks?: MutationCallbacks) => {
+        callbacks?.onError?.(
+          {
+            code: 'WORKFLOW_VERSION_CONFLICT',
+            current_version: 5,
+            expected_version: 3,
+            created_by_username: 'alice',
+            created_at: '2026-06-25T12:00:00Z',
+          },
+          _params,
+          undefined
+        )
+      })
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
+        if (method === 'patch') {
+          return createMockMutation(mockUpdateMutate)
+        }
+        return createMockMutation()
+      })
+
+      return mockUpdateMutate
+    }
+
+    async function triggerConflictDialog() {
+      setupConflictOnSave()
+      await renderBuilder({ workflow: conflictWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /save/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: /conflict/i })).toBeInTheDocument()
+      })
+
+      return user
+    }
+
+    it('shows conflict dialog when save returns WORKFLOW_VERSION_CONFLICT', async () => {
+      await triggerConflictDialog()
+
+      expect(screen.getByText(/Version 5 was saved by alice/)).toBeInTheDocument()
+      expect(screen.getByText(/Your changes are based on version 3/)).toBeInTheDocument()
+    })
+
+    it('"Save as newest version" retries save with conflict version', async () => {
+      const mockUpdateMutate = setupConflictOnSave()
+      await renderBuilder({ workflow: conflictWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /save/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: /conflict/i })).toBeInTheDocument()
+      })
+
+      // Now make the retry succeed
+      mockUpdateMutate.mockImplementation((_params: unknown, callbacks?: MutationCallbacks) => {
+        callbacks?.onSuccess?.({ id: 'workflow-1', current_version: 6 }, _params, undefined)
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Save as newest version' }))
+
+      await waitFor(() => {
+        expect(mockUpdateMutate).toHaveBeenCalledTimes(2)
+      })
+
+      // Dialog should close after successful save
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: /conflict/i })).not.toBeInTheDocument()
+      })
+    })
+
+    it('"Save as newest version" closes dialog when retry save fails', async () => {
+      setupConflictOnSave()
+      await renderBuilder({ workflow: conflictWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /save/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: /conflict/i })).toBeInTheDocument()
+      })
+
+      // Retry will also fail (non-conflict error) — the mock still returns conflict
+      // but handleSaveWorkflow resolves false, so dialog should close
+      await user.click(screen.getByRole('button', { name: 'Save as newest version' }))
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: /conflict/i })).not.toBeInTheDocument()
+      })
+    })
+
+    it('"Create duplicate workflow" creates a copy and navigates', async () => {
+      const user = await triggerConflictDialog()
+
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+        data: { id: 'duplicated-wf-id', current_version: 1 },
+        error: undefined,
+        response: new Response(),
+      })
+
+      await user.click(screen.getByRole('button', { name: /create duplicate/i }))
+
+      await waitFor(() => {
+        expect(workflowFetchClient.POST).toHaveBeenCalledWith(
+          '/workflows',
+          expect.objectContaining({
+            body: expect.objectContaining({
+              name: 'Test Workflow (Copy)',
+            }) as unknown,
+          })
+        )
+      })
+
+      await waitFor(() => {
+        expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/duplicated-wf-id')
+      })
+    })
+
+    it('"Create duplicate workflow" shows error when POST fails', async () => {
+      const user = await triggerConflictDialog()
+
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+        data: undefined,
+        error: { detail: 'Server error' },
+        response: new Response(null, { status: 500 }),
+      })
+
+      await user.click(screen.getByRole('button', { name: /create duplicate/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
+      })
+    })
+
+    it('"Refresh to latest" reloads the page', async () => {
+      const reloadMock = vi.fn()
+      Object.defineProperty(window, 'location', {
+        value: { ...window.location, reload: reloadMock },
+        writable: true,
+      })
+
+      const user = await triggerConflictDialog()
+      await user.click(screen.getByRole('button', { name: /refresh to latest/i }))
+
+      await waitFor(() => {
+        expect(reloadMock).toHaveBeenCalled()
+      })
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: /conflict/i })).not.toBeInTheDocument()
+      })
+    })
+
+    it('"Create duplicate workflow" handles missing workflowId gracefully', async () => {
+      setupConflictOnSave()
+      await renderBuilder({ workflow: conflictWorkflow, isNew: false, workflowId: null })
+
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /save/i }))
+
+      // Save should fail because workflowId is null (goes to create path),
+      // but no conflict dialog will appear since it's a create
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: /conflict/i })).not.toBeInTheDocument()
       })
     })
   })

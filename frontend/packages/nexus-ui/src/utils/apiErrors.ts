@@ -710,3 +710,31 @@ export function isRetryableValidationError(error: unknown): boolean {
   const code = getErrorCode(error)
   return code === 'WORKFLOW_DEFINITION_INVALID' || code === 'WORKFLOW_DEFINITION_WARNINGS'
 }
+
+/**
+ * Detects if an error is a workflow version conflict (HTTP 409 with WORKFLOW_VERSION_CONFLICT code).
+ *
+ * Used by save and publish flows to detect when another user has saved a newer version
+ * of the workflow while the current user was editing.
+ *
+ * @param error - The error object to check
+ * @returns true if the error represents a workflow version conflict
+ */
+export function isWorkflowVersionConflictError(error: unknown): error is Record<string, unknown> {
+  return getErrorCode(error) === 'WORKFLOW_VERSION_CONFLICT'
+}
+
+function getErrorBody(error: Record<string, unknown>): Record<string, unknown> {
+  if (error.cause && typeof error.cause === 'object') return error.cause as Record<string, unknown>
+  return error
+}
+
+export function extractVersionConflictInfo(error: Record<string, unknown>) {
+  const body = getErrorBody(error)
+  return {
+    currentVersion: (body.current_version as number) ?? 0,
+    expectedVersion: (body.expected_version as number) ?? 0,
+    createdByUsername: (body.created_by_username as string) ?? 'another user',
+    createdAt: (body.created_at as string) ?? '',
+  }
+}

@@ -31,6 +31,7 @@ from nexus.workflows.exceptions import (
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
     WorkflowPublishValidationError,
+    WorkflowVersionConflictError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
@@ -2324,3 +2325,143 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
         service = WorkflowService(test_db_session, test_user)
         _, restored = await service.restore_workflow_version(workflow.id, version=1)
         assert restored.version == 3
+
+
+class TestWorkflowVersionConflictDetection(TestWorkflowServiceBase):
+    """Test optimistic concurrency control via expected_version."""
+
+    @pytest.mark.asyncio
+    async def test_update_with_stale_expected_version_raises_conflict(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        """When expected_version < current_version, update should return 409."""
+        service = WorkflowService(test_db_session, test_user)
+
+        workflow = self._create_test_workflow(
+            name=f"conflict-{uuid4().hex[:6]}", current_version=3, created_by=test_user.id
+        )
+        test_db_session.add(workflow)
+
+        version = self._create_test_workflow_version(workflow_id=workflow.id, version=3, created_by=test_user.id)
+        test_db_session.add(version)
+        await test_db_session.commit()
+
+        with pytest.raises(WorkflowVersionConflictError) as exc_info:
+            await service.update_workflow(
+                workflow.id,
+                name="should-fail",
+                expected_version=1,
+            )
+
+        assert exc_info.value.current_version == 3
+        assert exc_info.value.expected_version == 1
+        assert exc_info.value.created_by_username == test_user.username
+
+    @pytest.mark.asyncio
+    async def test_update_with_matching_expected_version_succeeds(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        """When expected_version == current_version, update should proceed."""
+        service = WorkflowService(test_db_session, test_user)
+
+        workflow = self._create_test_workflow(
+            name=f"match-{uuid4().hex[:6]}", current_version=1, created_by=test_user.id
+        )
+        test_db_session.add(workflow)
+
+        version = self._create_test_workflow_version(workflow_id=workflow.id, version=1, created_by=test_user.id)
+        test_db_session.add(version)
+        await test_db_session.commit()
+
+        result_workflow, _ = await service.update_workflow(
+            workflow.id,
+            name="should-succeed",
+            expected_version=1,
+        )
+        assert result_workflow.name == "should-succeed"
+
+    @pytest.mark.asyncio
+    async def test_update_without_expected_version_skips_check(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        """When expected_version is omitted, no conflict check happens."""
+        service = WorkflowService(test_db_session, test_user)
+
+        workflow = self._create_test_workflow(
+            name=f"nocheck-{uuid4().hex[:6]}", current_version=5, created_by=test_user.id
+        )
+        test_db_session.add(workflow)
+
+        version = self._create_test_workflow_version(workflow_id=workflow.id, version=5, created_by=test_user.id)
+        test_db_session.add(version)
+        await test_db_session.commit()
+
+        result_workflow, _ = await service.update_workflow(
+            workflow.id,
+            name="should-succeed-no-check",
+        )
+        assert result_workflow.name == "should-succeed-no-check"
+
+    @pytest.mark.asyncio
+    async def test_publish_with_stale_expected_version_raises_conflict(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        """When expected_version < current_version, publish should return 409."""
+        service = WorkflowService(test_db_session, test_user)
+
+        workflow = self._create_test_workflow(
+            name=f"pub-conflict-{uuid4().hex[:6]}",
+            current_version=3,
+            created_by=test_user.id,
+            is_enabled=False,
+        )
+        workflow.published_version = None
+        test_db_session.add(workflow)
+
+        version = self._create_test_workflow_version(workflow_id=workflow.id, version=3, created_by=test_user.id)
+        test_db_session.add(version)
+        await test_db_session.commit()
+
+        with pytest.raises(WorkflowVersionConflictError) as exc_info:
+            await service.publish_workflow_version(
+                workflow.id,
+                version=3,
+                expected_version=1,
+            )
+
+        assert exc_info.value.current_version == 3
+        assert exc_info.value.expected_version == 1
+
+    @pytest.mark.asyncio
+    async def test_publish_without_expected_version_skips_check(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        """When expected_version is omitted on publish, no conflict check happens."""
+        service = WorkflowService(test_db_session, test_user)
+
+        workflow = self._create_test_workflow(
+            name=f"pub-nocheck-{uuid4().hex[:6]}",
+            current_version=3,
+            created_by=test_user.id,
+            is_enabled=False,
+        )
+        workflow.published_version = None
+        test_db_session.add(workflow)
+
+        version = self._create_test_workflow_version(workflow_id=workflow.id, version=3, created_by=test_user.id)
+        test_db_session.add(version)
+        await test_db_session.commit()
+
+        mock_wh_svc = MagicMock()
+        mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
+        with (
+            patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc),
+            patch("nexus.workflows.services.workflow_service.ScheduledTriggerService") as mock_sched,
+        ):
+            mock_sched.return_value.sync_scheduled_triggers = AsyncMock()
+            result_workflow, result_version = await service.publish_workflow_version(
+                workflow.id,
+                version=3,
+            )
+            assert result_workflow.published_version is not None
+            assert result_version.status == WorkflowVersionStatus.PUBLISHED

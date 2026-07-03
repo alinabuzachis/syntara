@@ -195,6 +195,10 @@ class PublishVersionRequest(SQLModel):
     workflow_definition: WorkflowDefinition | dict[str, Any] | None = Field(
         None, description="Optional workflow definition to publish directly (skips separate save step)"
     )
+    expected_version: int | None = Field(
+        None,
+        description="Version the client was editing. If the server's current_version is higher, returns 409 Conflict.",
+    )
 
 
 # Rebuild models to resolve forward references

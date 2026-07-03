@@ -2,6 +2,7 @@ import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import type { ReactFlowInstance } from '@xyflow/react'
 import { useCallback, type Dispatch } from 'react'
 
+import { workflowFetchClient } from '../../../client'
 import type { AlertMessage } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
@@ -11,8 +12,30 @@ import type { BuilderAction } from '../builderReducer'
 import { DEFAULT_MAX_WAIT_SECONDS, fetchMaxWaitDuration } from '../node-forms/useMaxWaitDuration'
 import { validateWorkflow } from '../utils/validation'
 import { validateMinimumWorkflow } from '../utils/validation/rules/validateMinimumWorkflow'
+import type { ConflictInfo } from '../VersionConflictDialog'
 
 type ShowAlert = (options: AlertMessage) => void
+
+async function checkVersionConflictBeforeRun(
+  workflowId: string,
+  loadedVersion: number,
+  onRunConflict: (info: ConflictInfo) => void
+): Promise<boolean> {
+  const { data: latest } = await workflowFetchClient.GET('/workflows/{workflow_id}', {
+    params: { path: { workflow_id: workflowId } },
+  })
+  const serverVersion = latest?.current_version ?? latest?.version?.version
+  if (serverVersion != null && serverVersion > loadedVersion) {
+    onRunConflict({
+      currentVersion: serverVersion,
+      expectedVersion: loadedVersion,
+      createdByUsername: 'another user',
+      createdAt: latest?.updated_at ?? '',
+    })
+    return true
+  }
+  return false
+}
 
 type ExecuteWorkflowMutate = (
   variables: { body: { workflow_id: string; input_data?: Record<string, unknown>; trigger_node_id?: string | null } },
@@ -43,8 +66,10 @@ export type UseBuilderToolbarHandlersOptions = {
   showSuccess: ShowAlert
   showError: ShowAlert
   setLocation: (to: string) => void
-  handleSaveWorkflow: () => Promise<boolean>
+  handleSaveWorkflow: (options?: { expectedVersionOverride?: number }) => Promise<boolean>
   currentWorkflow: WorkflowDefinition | null
+  loadedVersion: number | null
+  onRunConflict?: (info: ConflictInfo) => void
 }
 
 /**
@@ -65,10 +90,24 @@ export function useBuilderToolbarHandlers({
   setLocation,
   handleSaveWorkflow,
   currentWorkflow,
+  loadedVersion,
+  onRunConflict,
 }: UseBuilderToolbarHandlersOptions) {
   const handleRunWorkflow = useCallback(
-    async (inputData?: Record<string, unknown>, triggerNodeId?: string) => {
+    async (
+      inputData?: Record<string, unknown>,
+      triggerNodeId?: string,
+      runOptions?: { skipPreflightCheck?: boolean }
+    ) => {
       if (!workflow?.id) return
+
+      if (loadedVersion != null && !runOptions?.skipPreflightCheck && onRunConflict) {
+        const hasConflict = await checkVersionConflictBeforeRun(workflow.id, loadedVersion, onRunConflict)
+        if (hasConflict) {
+          dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+          return
+        }
+      }
 
       // Save workflow first if there are unsaved changes (always save, even if validation fails)
       const isDirty = useWorkflowStore.getState().isDirty
@@ -148,7 +187,18 @@ export function useBuilderToolbarHandlers({
         }
       )
     },
-    [workflow, workflowName, executeWorkflow, handleSaveWorkflow, showError, dispatch, currentWorkflow, setLocation]
+    [
+      workflow,
+      workflowName,
+      executeWorkflow,
+      handleSaveWorkflow,
+      showError,
+      dispatch,
+      currentWorkflow,
+      setLocation,
+      loadedVersion,
+      onRunConflict,
+    ]
   )
 
   const handleDeleteWorkflow = useCallback(() => {

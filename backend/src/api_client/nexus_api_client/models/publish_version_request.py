@@ -25,11 +25,14 @@ class PublishVersionRequest:
         change_description (None | str | Unset): Description of changes in this version
         workflow_definition (None | PublishVersionRequestWorkflowDefinitionType1 | Unset | WorkflowDefinition): Optional
             workflow definition to publish directly (skips separate save step)
+        expected_version (int | None | Unset): Version the client was editing. If the server's current_version is
+            higher, returns 409 Conflict.
     """
 
     publish_name: None | str | Unset = UNSET
     change_description: None | str | Unset = UNSET
     workflow_definition: None | PublishVersionRequestWorkflowDefinitionType1 | Unset | WorkflowDefinition = UNSET
+    expected_version: int | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,6 +63,12 @@ class PublishVersionRequest:
         else:
             workflow_definition = self.workflow_definition
 
+        expected_version: int | None | Unset
+        if isinstance(self.expected_version, Unset):
+            expected_version = UNSET
+        else:
+            expected_version = self.expected_version
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
@@ -69,6 +78,8 @@ class PublishVersionRequest:
             field_dict["change_description"] = change_description
         if workflow_definition is not UNSET:
             field_dict["workflow_definition"] = workflow_definition
+        if expected_version is not UNSET:
+            field_dict["expected_version"] = expected_version
 
         return field_dict
 
@@ -126,10 +137,20 @@ class PublishVersionRequest:
 
         workflow_definition = _parse_workflow_definition(d.pop("workflow_definition", UNSET))
 
+        def _parse_expected_version(data: object) -> int | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(int | None | Unset, data)
+
+        expected_version = _parse_expected_version(d.pop("expected_version", UNSET))
+
         publish_version_request = cls(
             publish_name=publish_name,
             change_description=change_description,
             workflow_definition=workflow_definition,
+            expected_version=expected_version,
         )
 
         publish_version_request.additional_properties = d

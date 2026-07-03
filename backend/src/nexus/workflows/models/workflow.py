@@ -208,6 +208,10 @@ class WorkflowUpdate(SQLModel):
         None, description="New workflow definition (auto-creates version)"
     )
     change_description: str | None = Field(None, description="Description of changes for version history")
+    expected_version: int | None = Field(
+        None,
+        description="Version the client was editing. If the server's current_version is higher, returns 409 Conflict.",
+    )
 
 
 class WorkflowRead(WorkflowBase):

@@ -8,6 +8,8 @@ import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { BuilderAction } from '../builderReducer'
 import { useBuilderImportHandlers, type UseBuilderImportHandlersParams } from '../hooks/useBuilderImportHandlers'
 import type { PendingImportData } from '../useWorkflowImportExport'
+import type { ConflictAction, ConflictInfo } from '../VersionConflictDialog'
+import { VersionConflictDialog } from '../VersionConflictDialog'
 
 import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import type { RunStepDialogData, RunStepExecutionCreatedOptions } from './RunStepDialog'
@@ -49,6 +51,16 @@ type BuilderDialogsProps = Readonly<{
   runStepDialog: DialogState<RunStepDialogData>
   onRunStepExecutionCreated?: (executionId: string, options: RunStepExecutionCreatedOptions) => void
   pinnedMockData?: Record<string, Record<string, unknown>>
+  conflictDialogProps?: {
+    isOpen: boolean
+    onClose: () => void
+    conflictAction: ConflictAction
+    conflictInfo?: ConflictInfo | null
+    onSaveAsNewest: (action: ConflictAction) => void
+    onDuplicate: (action: ConflictAction) => void
+    onRefreshToLatest: () => void
+    isLoading: boolean
+  }
 }>
 
 type UseRunConfirmStateParams = {
@@ -137,6 +149,7 @@ export function BuilderDialogs({
   runStepDialog,
   onRunStepExecutionCreated,
   pinnedMockData,
+  conflictDialogProps,
 }: BuilderDialogsProps) {
   const isDirty = useWorkflowStore((state) => state.isDirty)
   const markDirty = useWorkflowStore((state) => state.markDirty)
@@ -243,6 +256,7 @@ export function BuilderDialogs({
         isDirty={isDirty}
         isPending={false}
       />
+      {conflictDialogProps && <VersionConflictDialog {...conflictDialogProps} />}
     </>
   )
 }

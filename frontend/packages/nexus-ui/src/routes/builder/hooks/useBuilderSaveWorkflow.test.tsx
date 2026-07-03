@@ -47,6 +47,7 @@ function buildParams(overrides: Partial<UseBuilderSaveWorkflowParams> = {}): Use
     showSuccess: vi.fn(),
     showError: vi.fn(),
     markClean: vi.fn(),
+    expectedVersion: null,
     createWorkflow: vi.fn(),
     updateWorkflow: vi.fn(),
     ...overrides,
@@ -94,7 +95,7 @@ describe('useBuilderSaveWorkflow', () => {
 
   it('updates existing workflow with patch payload', async () => {
     const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.())
+      detachPromise(args[1]?.onSuccess?.({}))
     }) as MockedFunction<UpdateWorkflow>
     const markClean = vi.fn()
     const showSuccess = vi.fn()
@@ -182,7 +183,7 @@ describe('useBuilderSaveWorkflow', () => {
   it('does not call create when update path is used', async () => {
     const createWorkflow = vi.fn() as MockedFunction<CreateWorkflow>
     const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.())
+      detachPromise(args[1]?.onSuccess?.({}))
     }) as MockedFunction<UpdateWorkflow>
     const { result } = renderHook(() =>
       useBuilderSaveWorkflow(
@@ -361,5 +362,74 @@ describe('useBuilderSaveWorkflow', () => {
       await expect(savePromise).resolves.toBe(true)
       expect(onForceSaveSuccess).toHaveBeenCalledWith(retryableError)
     })
+  })
+})
+
+describe('version conflict detection', () => {
+  it('calls onConflict when server returns WORKFLOW_VERSION_CONFLICT', async () => {
+    const onConflict = vi.fn()
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      args[1]?.onError?.({
+        code: 'WORKFLOW_VERSION_CONFLICT',
+        current_version: 5,
+        expected_version: 3,
+        created_by_username: 'alice',
+        created_at: '2026-01-01',
+      })
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(
+        buildParams({ updateWorkflow, onConflict, expectedVersion: 3, workflowId: 'wf-1', isNew: false })
+      )
+    )
+
+    await expect(result.current()).resolves.toBe(false)
+    expect(onConflict).toHaveBeenCalledOnce()
+    expect(onConflict).toHaveBeenCalledWith(
+      expect.objectContaining({ currentVersion: 5, expectedVersion: 3, createdByUsername: 'alice' })
+    )
+  })
+
+  it('sends expected_version in patch body when provided', async () => {
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(args[1]?.onSuccess?.({}))
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(buildParams({ updateWorkflow, expectedVersion: 7, workflowId: 'wf-1', isNew: false }))
+    )
+
+    await expect(result.current()).resolves.toBe(true)
+    const [{ body }] = updateWorkflow.mock.calls[0]
+    expect(body.expected_version).toBe(7)
+  })
+
+  it('uses expectedVersionOverride instead of loadedVersion when provided', async () => {
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(args[1]?.onSuccess?.({}))
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(buildParams({ updateWorkflow, expectedVersion: 7, workflowId: 'wf-1', isNew: false }))
+    )
+
+    await expect(result.current({ expectedVersionOverride: 10 })).resolves.toBe(true)
+    const [{ body }] = updateWorkflow.mock.calls[0]
+    expect(body.expected_version).toBe(10)
+  })
+
+  it('calls onVersionUpdated with new version after successful save', async () => {
+    const onVersionUpdated = vi.fn()
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(args[1]?.onSuccess?.({ current_version: 8 }))
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(buildParams({ updateWorkflow, onVersionUpdated, workflowId: 'wf-1', isNew: false }))
+    )
+
+    await expect(result.current()).resolves.toBe(true)
+    expect(onVersionUpdated).toHaveBeenCalledWith(8)
   })
 })

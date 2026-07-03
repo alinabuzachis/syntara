@@ -8,6 +8,13 @@ import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import type { UseBuilderToolbarHandlersOptions } from './useBuilderToolbarHandlers'
 import { useBuilderToolbarHandlers } from './useBuilderToolbarHandlers'
 
+const mockWorkflowFetchClientGET = vi.fn()
+
+vi.mock('../../../client', () => ({
+  workflowFetchClient: { GET: (...args: unknown[]): unknown => mockWorkflowFetchClientGET(...args) },
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../node-forms/useMaxWaitDuration', () => ({
   DEFAULT_MAX_WAIT_SECONDS: 2_592_000,
   fetchMaxWaitDuration: () => Promise.resolve(2_592_000),
@@ -62,6 +69,7 @@ function buildOptions(overrides: Partial<UseBuilderToolbarHandlersOptions> = {})
     setLocation: vi.fn(),
     handleSaveWorkflow: vi.fn().mockResolvedValue(true),
     currentWorkflow: minimalWorkflow(),
+    loadedVersion: null,
     ...overrides,
   }
 }
@@ -652,6 +660,81 @@ describe('useBuilderToolbarHandlers', () => {
     await result.current.handleRunWorkflow()
 
     expect(executeWorkflow).toHaveBeenCalled()
+  })
+
+  describe('pre-flight version conflict check', () => {
+    it('calls onRunConflict when server has a newer version', async () => {
+      const onRunConflict = vi.fn()
+      const executeWorkflow = vi.fn() as MockedFunction<ExecuteWorkflow>
+      const dispatch = vi.fn()
+
+      mockWorkflowFetchClientGET.mockResolvedValue({
+        data: { current_version: 5, updated_at: '2026-06-25T12:00:00Z' },
+      })
+
+      const { result } = renderHook(() =>
+        useBuilderToolbarHandlers(buildOptions({ executeWorkflow, dispatch, loadedVersion: 3, onRunConflict }))
+      )
+
+      await result.current.handleRunWorkflow()
+
+      expect(onRunConflict).toHaveBeenCalledWith(expect.objectContaining({ currentVersion: 5, expectedVersion: 3 }))
+      expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
+      expect(executeWorkflow).not.toHaveBeenCalled()
+    })
+
+    it('proceeds with run when server version matches loaded version', async () => {
+      const onRunConflict = vi.fn()
+      const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
+        args[1]?.onSuccess?.({ id: 'exec-1' })
+      }) as MockedFunction<ExecuteWorkflow>
+
+      mockWorkflowFetchClientGET.mockResolvedValue({
+        data: { current_version: 3, updated_at: '2026-06-25T12:00:00Z' },
+      })
+
+      const { result } = renderHook(() =>
+        useBuilderToolbarHandlers(buildOptions({ executeWorkflow, loadedVersion: 3, onRunConflict }))
+      )
+
+      await result.current.handleRunWorkflow()
+
+      expect(onRunConflict).not.toHaveBeenCalled()
+      expect(executeWorkflow).toHaveBeenCalled()
+    })
+
+    it('skips pre-flight check when skipPreflightCheck is true', async () => {
+      const onRunConflict = vi.fn()
+      const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
+        args[1]?.onSuccess?.({ id: 'exec-1' })
+      }) as MockedFunction<ExecuteWorkflow>
+
+      const { result } = renderHook(() =>
+        useBuilderToolbarHandlers(buildOptions({ executeWorkflow, loadedVersion: 3, onRunConflict }))
+      )
+
+      await result.current.handleRunWorkflow(undefined, undefined, { skipPreflightCheck: true })
+
+      expect(mockWorkflowFetchClientGET).not.toHaveBeenCalled()
+      expect(onRunConflict).not.toHaveBeenCalled()
+      expect(executeWorkflow).toHaveBeenCalled()
+    })
+
+    it('skips pre-flight check when loadedVersion is null', async () => {
+      const onRunConflict = vi.fn()
+      const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
+        args[1]?.onSuccess?.({ id: 'exec-1' })
+      }) as MockedFunction<ExecuteWorkflow>
+
+      const { result } = renderHook(() =>
+        useBuilderToolbarHandlers(buildOptions({ executeWorkflow, loadedVersion: null, onRunConflict }))
+      )
+
+      await result.current.handleRunWorkflow()
+
+      expect(mockWorkflowFetchClientGET).not.toHaveBeenCalled()
+      expect(executeWorkflow).toHaveBeenCalled()
+    })
   })
 
   it('handleDeleteWorkflow shows error and dispatches SET_DELETE_DIALOG on failure', () => {

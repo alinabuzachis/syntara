@@ -319,6 +319,7 @@ async def update_workflow(
         else None,
         change_description=request.change_description,
         force_save=force_save,
+        expected_version=request.expected_version,
     )
 
     return _build_workflow_with_version_response(workflow, current_version)
@@ -482,6 +483,7 @@ async def publish_workflow_version(
         workflow_definition=_definition_to_dict(request.workflow_definition)
         if request.workflow_definition is not None
         else None,
+        expected_version=request.expected_version,
     )
     return _build_workflow_with_version_response(workflow, published_version)
 

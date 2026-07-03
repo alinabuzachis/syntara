@@ -78,6 +78,31 @@ type MockVersionRecord = {
   deleted_by: null
 }
 
+/** Creates a 409 WORKFLOW_VERSION_CONFLICT response for save/publish mock handlers. */
+function workflowVersionConflictResponse(
+  workflowId: string,
+  currentVersion: number,
+  expectedVersion: number,
+  instance: string,
+  updatedAt: string
+) {
+  return HttpResponse.json(
+    {
+      type: 'https://api.nexus.com/errors/resource-conflict',
+      title: 'Version Conflict',
+      detail: 'A newer version of this workflow has been saved by another user',
+      code: 'WORKFLOW_VERSION_CONFLICT',
+      retryable: false,
+      instance,
+      current_version: currentVersion,
+      expected_version: expectedVersion,
+      created_by_username: 'demo',
+      created_at: updatedAt,
+    },
+    { status: 409 }
+  )
+}
+
 const workflowVersionStore = new Map<string, MockVersionRecord[]>()
 
 function getOrCreateVersionStore(workflowId: string, workflow: WorkflowWithVersion): MockVersionRecord[] {
@@ -682,9 +707,20 @@ export const handlers = [
       )
     }
 
-    const body = (await request.request.json()) as UpdateWorkflowBody
+    const body = (await request.request.json()) as UpdateWorkflowBody & { expected_version?: number | null }
     const now = new Date().toISOString()
     const currentVersionNum = workflow.version?.version ?? workflow.current_version ?? 1
+
+    if (body.expected_version != null && body.expected_version < currentVersionNum) {
+      return workflowVersionConflictResponse(
+        String(workflowId),
+        currentVersionNum,
+        body.expected_version,
+        `/api/v1/workflows/${String(workflowId)}`,
+        workflow.updated_at ?? now
+      )
+    }
+
     const nextVersion = currentVersionNum + 1
 
     const versions = getOrCreateVersionStore(String(workflowId), workflow)
@@ -808,7 +844,23 @@ export const handlers = [
         { status: 404 }
       )
     }
-    const body = (await request.request.json()) as { publish_name?: string | null; change_description?: string | null }
+    const body = (await request.request.json()) as {
+      publish_name?: string | null
+      change_description?: string | null
+      expected_version?: number | null
+    }
+
+    const currentVersionNum = workflow.version?.version ?? workflow.current_version ?? 1
+    if (body.expected_version != null && body.expected_version < currentVersionNum) {
+      return workflowVersionConflictResponse(
+        String(workflowId),
+        currentVersionNum,
+        body.expected_version,
+        `/api/v1/workflows/${String(workflowId)}/versions/${String(request.params.version)}/publish`,
+        workflow.updated_at ?? new Date().toISOString()
+      )
+    }
+
     const version = parseInt(String(request.params.version), 10)
     if (isNaN(version) || version < 1) {
       return HttpResponse.json(

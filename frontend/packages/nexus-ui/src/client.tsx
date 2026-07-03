@@ -97,7 +97,7 @@ workflowFetchClient.use(authMiddleware)
 export { workflowFetchClient }
 export const workflowClient = createClient(workflowFetchClient)
 
-const executionsFetchClient = createFetchClient<ExecutionsAPI.paths>({ baseUrl: '/api/v1/' })
+export const executionsFetchClient = createFetchClient<ExecutionsAPI.paths>({ baseUrl: '/api/v1/' })
 executionsFetchClient.use(authMiddleware)
 export const executionsClient = createClient(executionsFetchClient)
 

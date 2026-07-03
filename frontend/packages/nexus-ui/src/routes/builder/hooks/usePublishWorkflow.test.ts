@@ -297,6 +297,107 @@ describe('usePublishWorkflow', () => {
   })
 })
 
+describe('usePublishWorkflow — version conflict detection', () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  })
+
+  it('calls onConflict when publish returns WORKFLOW_VERSION_CONFLICT', () => {
+    const onConflict = vi.fn()
+    mockPublishMutate.mockImplementation((_params: unknown, callbacks?: { onError?: (error: unknown) => void }) => {
+      callbacks?.onError?.({
+        code: 'WORKFLOW_VERSION_CONFLICT',
+        current_version: 5,
+        expected_version: 3,
+        created_by_username: 'alice',
+        created_at: '2026-01-01',
+      })
+    })
+
+    const { result } = renderHook(
+      () => usePublishWorkflow('wf-123', 3, undefined, undefined, { expectedVersion: 3, onConflict }),
+      { wrapper: makeWrapper(queryClient) }
+    )
+
+    act(() => {
+      result.current.publish('v1.0')
+    })
+
+    expect(onConflict).toHaveBeenCalledOnce()
+    expect(onConflict).toHaveBeenCalledWith(
+      expect.objectContaining({ currentVersion: 5, expectedVersion: 3, createdByUsername: 'alice' })
+    )
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('shows error instead of calling onConflict for non-conflict errors', () => {
+    const onConflict = vi.fn()
+    mockPublishMutate.mockImplementation((_params: unknown, callbacks?: { onError?: (error: unknown) => void }) => {
+      callbacks?.onError?.(new Error('Network error'))
+    })
+
+    const { result } = renderHook(
+      () => usePublishWorkflow('wf-123', 3, undefined, undefined, { expectedVersion: 3, onConflict }),
+      { wrapper: makeWrapper(queryClient) }
+    )
+
+    act(() => {
+      result.current.publish('v1.0')
+    })
+
+    expect(onConflict).not.toHaveBeenCalled()
+    expect(mockShowError).toHaveBeenCalledWith({
+      title: 'Failed to publish workflow',
+      description: 'Network error',
+    })
+  })
+
+  it('sends expected_version in publish body when provided', () => {
+    const { result } = renderHook(() => usePublishWorkflow('wf-123', 3, undefined, undefined, { expectedVersion: 7 }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.publish('v1.0')
+    })
+
+    const publishCall = mockPublishMutate.mock.calls[0] as unknown[]
+    const requestArg = publishCall[0] as { body: Record<string, unknown> }
+    expect(requestArg.body).toHaveProperty('expected_version', 7)
+  })
+
+  it('does not send expected_version when not provided', () => {
+    const { result } = renderHook(() => usePublishWorkflow('wf-123', 3), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.publish('v1.0')
+    })
+
+    const publishCall = mockPublishMutate.mock.calls[0] as unknown[]
+    const requestArg = publishCall[0] as { body: Record<string, unknown> }
+    expect(requestArg.body).not.toHaveProperty('expected_version')
+  })
+
+  it('uses expectedVersionOverride from callOptions over hook-level expectedVersion', () => {
+    const { result } = renderHook(() => usePublishWorkflow('wf-123', 3, undefined, undefined, { expectedVersion: 7 }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.publish('v1.0', undefined, undefined, { expectedVersionOverride: 10 })
+    })
+
+    const publishCall = mockPublishMutate.mock.calls[0] as unknown[]
+    const requestArg = publishCall[0] as { body: Record<string, unknown> }
+    expect(requestArg.body).toHaveProperty('expected_version', 10)
+  })
+})
+
 describe('useUnpublishWorkflow', () => {
   let queryClient: QueryClient
 

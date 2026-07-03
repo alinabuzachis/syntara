@@ -4,6 +4,7 @@ This module contains all custom exceptions used across workflow services,
 following DRY principle by centralizing exception definitions.
 """
 
+from datetime import datetime
 from uuid import UUID
 
 from nexus.core.exception_registry import fastapi_exception
@@ -194,6 +195,27 @@ class BuiltinWorkflowMissingError(WorkflowError):
         """Initialize exception with workflow name."""
         self.workflow_name = workflow_name
         super().__init__(f"Required built-in workflow '{workflow_name}' is missing")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_version_conflict_handler")
+class WorkflowVersionConflictError(WorkflowError):
+    """Raised when a save or publish conflicts with a newer version."""
+
+    def __init__(
+        self,
+        workflow_id: UUID,
+        current_version: int,
+        expected_version: int,
+        created_by_username: str,
+        created_at: datetime,
+    ) -> None:
+        """Initialize with conflict metadata."""
+        self.workflow_id = workflow_id
+        self.current_version = current_version
+        self.expected_version = expected_version
+        self.created_by_username = created_by_username
+        self.created_at = created_at
+        super().__init__(f"Workflow {workflow_id} has version {current_version} but client expected {expected_version}")
 
 
 class WebhookTriggerError(WorkflowError):

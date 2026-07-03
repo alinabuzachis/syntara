@@ -12,6 +12,7 @@ import {
   isRetryableValidationError,
   isServiceUnavailableError,
   isValidationError,
+  isWorkflowVersionConflictError,
   sanitizeUserFacingErrorText,
 } from './apiErrors'
 
@@ -431,6 +432,41 @@ describe('apiErrors', () => {
       expect(isRetryableValidationError(null)).toBe(false)
       expect(isRetryableValidationError({})).toBe(false)
       expect(isRetryableValidationError({ status: 409 })).toBe(false)
+    })
+  })
+
+  describe('isWorkflowVersionConflictError', () => {
+    it('returns true for WORKFLOW_VERSION_CONFLICT code', () => {
+      expect(
+        isWorkflowVersionConflictError({
+          code: 'WORKFLOW_VERSION_CONFLICT',
+          current_version: 5,
+          expected_version: 3,
+        })
+      ).toBe(true)
+    })
+
+    it('returns false for other conflict codes', () => {
+      expect(isWorkflowVersionConflictError({ code: 'WORKFLOW_NAME_CONFLICT' })).toBe(false)
+    })
+
+    it('returns false for non-object values', () => {
+      expect(isWorkflowVersionConflictError(null)).toBe(false)
+      expect(isWorkflowVersionConflictError(undefined)).toBe(false)
+      expect(isWorkflowVersionConflictError('string')).toBe(false)
+    })
+
+    it('narrows the type to Record<string, unknown>', () => {
+      const error: unknown = {
+        code: 'WORKFLOW_VERSION_CONFLICT',
+        current_version: 5,
+        expected_version: 3,
+        created_by_username: 'alice',
+      }
+      if (isWorkflowVersionConflictError(error)) {
+        expect(error.current_version).toBe(5)
+        expect(error.created_by_username).toBe('alice')
+      }
     })
   })
 })

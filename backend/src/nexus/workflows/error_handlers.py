@@ -33,6 +33,7 @@ if TYPE_CHECKING:
         WorkflowNotPublishedError,
         WorkflowPublishValidationError,
         WorkflowValidationError,
+        WorkflowVersionConflictError,
         WorkflowVersionNotFoundError,
     )
 
@@ -197,6 +198,32 @@ def workflow_name_conflict_handler(request: Request, exc: "WorkflowNameConflictE
         code="WORKFLOW_NAME_CONFLICT",
         retryable=False,
         instance=str(request.url),
+    )
+
+
+def workflow_version_conflict_handler(request: Request, exc: "WorkflowVersionConflictError") -> JSONResponse:
+    """Handle WorkflowVersionConflictError with RFC 9457 format and conflict metadata."""
+    logger.warning(
+        "Workflow version conflict",
+        workflow_id=str(exc.workflow_id),
+        current_version=exc.current_version,
+        expected_version=exc.expected_version,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={
+            "type": PROBLEM_TYPES["resource_conflict"],
+            "title": "Version Conflict",
+            "detail": "A newer version of this workflow has been saved by another user",
+            "code": "WORKFLOW_VERSION_CONFLICT",
+            "retryable": False,
+            "instance": str(request.url),
+            "current_version": exc.current_version,
+            "expected_version": exc.expected_version,
+            "created_by_username": exc.created_by_username,
+            "created_at": exc.created_at.isoformat(),
+        },
+        media_type="application/problem+json",
     )
 
 

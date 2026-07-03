@@ -43,6 +43,7 @@ from nexus.workflows.exceptions import (
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
     WorkflowPublishValidationError,
+    WorkflowVersionConflictError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
@@ -509,6 +510,39 @@ class WorkflowService(BaseService):
 
         return workflow
 
+    async def _check_expected_version(self, workflow: Workflow, expected_version: int | None) -> None:
+        """Raise WorkflowVersionConflictError if the workflow has advanced past expected_version."""
+        if expected_version is None or expected_version >= workflow.current_version:
+            return
+
+        username = "unknown"
+        created_at = workflow.updated_at or datetime.now(UTC)
+
+        result = await self.session.exec(
+            select(WorkflowVersion, User)
+            .outerjoin(User, WorkflowVersion.created_by == User.id)  # type: ignore[arg-type]
+            .filter(
+                WorkflowVersion.workflow_id == workflow.id,  # type: ignore[arg-type]
+                WorkflowVersion.version == workflow.current_version,  # type: ignore[arg-type]
+                WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+        )
+        row = result.one_or_none()
+
+        if row:
+            current_ver, user = row
+            created_at = current_ver.created_at or created_at
+            if user:
+                username = user.username
+
+        raise WorkflowVersionConflictError(
+            workflow_id=workflow.id,
+            current_version=workflow.current_version,
+            expected_version=expected_version,
+            created_by_username=username,
+            created_at=created_at,
+        )
+
     async def _demote_published_version(
         self, workflow_id: UUID, version: int, operation: str
     ) -> WorkflowVersion | None:
@@ -741,6 +775,7 @@ class WorkflowService(BaseService):
         workflow_definition: dict[str, Any] | None = None,
         change_description: str | None = None,
         force_save: bool = False,
+        expected_version: int | None = None,
     ) -> tuple[Workflow, WorkflowVersion]:
         """Update workflow metadata and/or create new version.
 
@@ -752,6 +787,7 @@ class WorkflowService(BaseService):
             workflow_definition: New V2 workflow definition as dict (optional, creates version)
             change_description: Description of changes (for version history)
             force_save: When True, bypass validation errors and warnings
+            expected_version: Version the client was editing (optimistic concurrency)
 
         Returns:
             Tuple of (updated workflow, current version)
@@ -761,6 +797,7 @@ class WorkflowService(BaseService):
             WorkflowDefinitionInvalidError: If definition has errors and force_save is False
             WorkflowDefinitionWarningsError: If definition has only warnings and force_save is False
             WorkflowNameConflictError: If new name conflicts
+            WorkflowVersionConflictError: If expected_version is stale
             ValueError: If name is empty
 
         """
@@ -768,6 +805,8 @@ class WorkflowService(BaseService):
 
         if workflow.is_builtin:
             raise BuiltinWorkflowModifyError(workflow.name)
+
+        await self._check_expected_version(workflow, expected_version)
 
         # Update metadata fields
         if any([name is not None, description is not None, labels is not None]):
@@ -852,6 +891,7 @@ class WorkflowService(BaseService):
         publish_name: str | None = None,
         change_description: str | None = None,
         workflow_definition: dict[str, Any] | None = None,
+        expected_version: int | None = None,
     ) -> tuple[Workflow, WorkflowVersion]:
         """Publish a workflow version by creating a new published copy.
 
@@ -864,6 +904,8 @@ class WorkflowService(BaseService):
 
         if workflow.is_builtin:
             raise BuiltinWorkflowModifyError(workflow.name)
+
+        await self._check_expected_version(workflow, expected_version)
 
         target_version = await self._get_version_or_none(workflow_id, version)
         if not target_version:

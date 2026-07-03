@@ -5,9 +5,10 @@ import { useCallback } from 'react'
 import { workflowClient } from '../../../client'
 import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
-import { getErrorMessage } from '../../../utils/apiErrors'
+import { extractVersionConflictInfo, getErrorMessage, isWorkflowVersionConflictError } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { buildWorkflowDefinition } from '../utils/workflowDefinitionBuilder'
+import type { ConflictInfo } from '../VersionConflictDialog'
 
 function isWorkflowQuery(query: Query): boolean {
   return (
@@ -15,11 +16,33 @@ function isWorkflowQuery(query: Query): boolean {
   )
 }
 
+function getDirtyWorkflowDefinition(
+  workflowName: string | undefined,
+  workflowDescription: string | undefined
+): Record<string, unknown> | undefined {
+  const { currentWorkflow, isDirty, edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
+  if (!isDirty || !currentWorkflow) return undefined
+  const wf = currentWorkflow.workflow as { name?: string; description?: string } | undefined
+  return buildWorkflowDefinition(
+    workflowName || String(wf?.name ?? ''),
+    workflowDescription || String(wf?.description ?? ''),
+    currentWorkflow.workflow.activities ?? [],
+    currentWorkflow.triggers ?? [],
+    { edges, nodePositions: _positionsUserModified ? nodePositions : {} }
+  ) as unknown as Record<string, unknown>
+}
+
+type UsePublishWorkflowOptions = {
+  expectedVersion?: number | null
+  onConflict?: (info: ConflictInfo) => void
+}
+
 export function usePublishWorkflow(
   workflowId: string | null,
   currentVersion: number | undefined,
   workflowName?: string,
-  workflowDescription?: string
+  workflowDescription?: string,
+  options?: UsePublishWorkflowOptions
 ) {
   const queryClient = useQueryClient()
   const { showSuccess, showError } = useAlerts()
@@ -30,29 +53,25 @@ export function usePublishWorkflow(
   )
 
   const publish = useCallback(
-    (publishName?: string, description?: string, onSettled?: () => void) => {
-      if (!workflowId || currentVersion == null) return
+    (
+      publishName?: string,
+      description?: string,
+      onSettled?: () => void,
+      callOptions?: { expectedVersionOverride?: number; versionOverride?: number }
+    ) => {
+      const versionToPublish = callOptions?.versionOverride ?? currentVersion
+      if (!workflowId || versionToPublish == null) return
 
-      let workflowDefinition: Record<string, unknown> | undefined
-      const { currentWorkflow, isDirty, edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
-      const wf = currentWorkflow?.workflow as { name?: string; description?: string } | undefined
-      if (isDirty && currentWorkflow) {
-        workflowDefinition = buildWorkflowDefinition(
-          workflowName || String(wf?.name ?? ''),
-          workflowDescription || String(wf?.description ?? ''),
-          currentWorkflow.workflow.activities ?? [],
-          currentWorkflow.triggers ?? [],
-          { edges, nodePositions: _positionsUserModified ? nodePositions : {} }
-        ) as unknown as Record<string, unknown>
-      }
-
+      const workflowDefinition = getDirtyWorkflowDefinition(workflowName, workflowDescription)
+      const expectedVersion = callOptions?.expectedVersionOverride ?? options?.expectedVersion
       publishMutation(
         {
-          params: { path: { workflow_id: workflowId, version: currentVersion } },
+          params: { path: { workflow_id: workflowId, version: versionToPublish } },
           body: {
             publish_name: publishName ?? null,
             change_description: description ?? null,
             ...(workflowDefinition ? { workflow_definition: workflowDefinition } : {}),
+            ...(expectedVersion != null ? { expected_version: expectedVersion } : {}),
           } as { publish_name: string | null; change_description: string | null },
         },
         {
@@ -62,6 +81,10 @@ export function usePublishWorkflow(
             detachPromise(queryClient.invalidateQueries({ predicate: isWorkflowQuery }))
           },
           onError: (error: unknown) => {
+            if (isWorkflowVersionConflictError(error) && options?.onConflict) {
+              options.onConflict(extractVersionConflictInfo(error))
+              return
+            }
             showError({ title: 'Failed to publish workflow', description: getErrorMessage(error) })
           },
           onSettled,
@@ -73,6 +96,7 @@ export function usePublishWorkflow(
       currentVersion,
       workflowName,
       workflowDescription,
+      options,
       publishMutation,
       queryClient,
       showSuccess,

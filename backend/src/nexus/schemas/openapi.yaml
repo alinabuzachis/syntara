@@ -32618,6 +32618,12 @@ components:
             - type: 'null'
           title: Workflow Definition
           description: Optional workflow definition to publish directly (skips separate save step)
+        expected_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Expected Version
+          description: Version the client was editing. If the server's current_version is higher, returns 409 Conflict.
     WorkflowVersionListResponse:
       type: object
       title: WorkflowVersionListResponse
@@ -32749,6 +32755,12 @@ components:
             - type: 'null'
           title: Change Description
           description: Description of changes for version history
+        expected_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Expected Version
+          description: Version the client was editing. If the server's current_version is higher, returns 409 Conflict.
     PreResolvedNodeOutput:
       type: object
       title: PreResolvedNodeOutput

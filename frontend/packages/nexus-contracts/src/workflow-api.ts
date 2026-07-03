@@ -521,6 +521,11 @@ export interface components {
             [key: string]: unknown
           }
         | null
+      /**
+       * Expected Version
+       * @description Version the client was editing. If the server's current_version is higher, returns 409 Conflict.
+       */
+      expected_version?: number | null
     }
     /**
      * WorkflowVersionListResponse
@@ -676,6 +681,11 @@ export interface components {
        * @description Description of changes for version history
        */
       change_description?: string | null
+      /**
+       * Expected Version
+       * @description Version the client was editing. If the server's current_version is higher, returns 409 Conflict.
+       */
+      expected_version?: number | null
     }
     /**
      * TestExecutionCreate

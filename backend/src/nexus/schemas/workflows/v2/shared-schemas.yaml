@@ -647,6 +647,14 @@ components:
             - type: "null"
           title: Change Description
           description: Description of changes for version history
+        expected_version:
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Expected Version
+          description: >-
+            Version the client was editing. If the server's current_version is
+            higher, returns 409 Conflict.
 
     ExecutionCreate:
       type: object

@@ -34,6 +34,8 @@ class WorkflowUpdate:
             workflow_definition (None | Unset | WorkflowDefinition | WorkflowUpdateWorkflowDefinitionType1): New workflow
                 definition (auto-creates version)
             change_description (None | str | Unset): Description of changes for version history
+            expected_version (int | None | Unset): Version the client was editing. If the server's current_version is
+                higher, returns 409 Conflict.
     """
 
     name: None | str | Unset = UNSET
@@ -41,6 +43,7 @@ class WorkflowUpdate:
     labels: None | Unset | WorkflowUpdateLabelsType0 = UNSET
     workflow_definition: None | Unset | WorkflowDefinition | WorkflowUpdateWorkflowDefinitionType1 = UNSET
     change_description: None | str | Unset = UNSET
+    expected_version: int | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -84,6 +87,12 @@ class WorkflowUpdate:
         else:
             change_description = self.change_description
 
+        expected_version: int | None | Unset
+        if isinstance(self.expected_version, Unset):
+            expected_version = UNSET
+        else:
+            expected_version = self.expected_version
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
@@ -97,6 +106,8 @@ class WorkflowUpdate:
             field_dict["workflow_definition"] = workflow_definition
         if change_description is not UNSET:
             field_dict["change_description"] = change_description
+        if expected_version is not UNSET:
+            field_dict["expected_version"] = expected_version
 
         return field_dict
 
@@ -179,12 +190,22 @@ class WorkflowUpdate:
 
         change_description = _parse_change_description(d.pop("change_description", UNSET))
 
+        def _parse_expected_version(data: object) -> int | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(int | None | Unset, data)
+
+        expected_version = _parse_expected_version(d.pop("expected_version", UNSET))
+
         workflow_update = cls(
             name=name,
             description=description,
             labels=labels,
             workflow_definition=workflow_definition,
             change_description=change_description,
+            expected_version=expected_version,
         )
 
         workflow_update.additional_properties = d

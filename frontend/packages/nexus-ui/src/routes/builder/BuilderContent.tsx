@@ -28,6 +28,7 @@ import { ExecutionDetailsPanelWrapper } from './components/ExecutionDetailsPanel
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
 import { VersionHistorySidePanel } from './components/VersionHistorySidePanel'
 import { useBuilderApproval } from './hooks/useBuilderApproval'
+import { useBuilderConflict } from './hooks/useBuilderConflict'
 import { useBuilderContentQueries } from './hooks/useBuilderContentQueries'
 import { useBuilderDerivedUiFlags } from './hooks/useBuilderDerivedUiFlags'
 import { useBuilderDialogProps } from './hooks/useBuilderDialogProps'
@@ -35,6 +36,7 @@ import { useBuilderFlowInteractionHandlers } from './hooks/useBuilderFlowInterac
 import { useBuilderLiveRunPanel } from './hooks/useBuilderLiveRunPanel'
 import { useBuilderSaveWorkflow, type UseBuilderSaveWorkflowParams } from './hooks/useBuilderSaveWorkflow'
 import { useBuilderToolbarHandlers } from './hooks/useBuilderToolbarHandlers'
+import { useBuilderValidation } from './hooks/useBuilderValidation'
 import { useBuilderVersionPanel } from './hooks/useBuilderVersionPanel'
 import { useBuilderWindowEffects } from './hooks/useBuilderWindowEffects'
 import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle'
@@ -47,7 +49,6 @@ import { useWorkflowMetadata } from './hooks/useWorkflowMetadata'
 import { NodeActionsContext } from './NodeActionsContext'
 import type { BuilderContentProps } from './types/builderContent'
 import { useBuilderPermissions } from './useBuilderPermissions'
-import { extractValidationErrors, useWorkflowVerification } from './useWorkflowVerification'
 import { createAddStepHandler } from './utils/panelActions'
 import { ValidationBanner } from './ValidationBanner'
 import { VersionInfoCard } from './VersionInfoCard'
@@ -58,11 +59,10 @@ export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId, executionCopy, initialViewVersion } = props
   const setLocation = useNavigate()
   const { showSuccess, showError } = useAlerts()
-  const workflowProjectId = isNew ? undefined : (workflow as { project_id?: string })?.project_id
   const [saveAttemptedWithoutProject, setSaveAttemptedWithoutProject] = useState(false)
   const { selectedProject, stableProjectId, ProjectSelector } = useProjectSelector({
     requireProject: isNew,
-    initialProjectId: workflowProjectId ?? undefined,
+    initialProjectId: isNew ? undefined : (workflow?.project_id ?? undefined),
     hasValidationError: saveAttemptedWithoutProject,
     onProjectSelect: () => setSaveAttemptedWithoutProject(false),
   })
@@ -147,11 +147,12 @@ export function BuilderContent(props: BuilderContentProps) {
     loadWorkflowWithEdges,
   })
   useExecutionCopyToEditor({ executionCopy, dispatch, markDirty, showSuccess })
-  const { handleVerifySilent } = useWorkflowVerification({ dispatch })
-  const hasValidationIssues = workflow?.has_validation_issues
-  useEffect(() => {
-    if (hasValidationIssues && !isNew && currentWorkflow) handleVerifySilent()
-  }, [hasValidationIssues, isNew, currentWorkflow, handleVerifySilent])
+  const { handleForceSaveSuccess } = useBuilderValidation({
+    dispatch,
+    hasValidationIssues: workflow?.has_validation_issues,
+    isNew,
+    currentWorkflow,
+  })
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
     'patch',
@@ -159,9 +160,23 @@ export function BuilderContent(props: BuilderContentProps) {
   )
   const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
-  const typedCreateWorkflow = createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow']
   const workflowMetadata = useWorkflowMetadata(workflow)
   const currentVersion = workflow?.current_version ?? workflow?.version?.version
+
+  const { loadedVersion, handleConflict, onVersionUpdated, setActions, conflictDialogProps } = useBuilderConflict({
+    workflowId,
+    workflowName,
+    workflowDescription,
+    workflowProjectId: workflow?.project_id,
+    selectedProjectId: stableProjectId,
+    currentWorkflow,
+    currentVersion,
+    isNew,
+    setLocation,
+    showError,
+    markClean,
+  })
+
   const { unpublish: onUnpublish } = useUnpublishWorkflow(workflowId)
   const handleSaveWorkflow = useBuilderSaveWorkflow({
     currentWorkflow,
@@ -176,24 +191,20 @@ export function BuilderContent(props: BuilderContentProps) {
     showSuccess,
     showError,
     onMissingProjectForCreate: () => setSaveAttemptedWithoutProject(true),
-    onForceSaveSuccess: (originalError: unknown) => {
-      const issues = extractValidationErrors(originalError as Record<string, unknown>)
-      if (issues) {
-        dispatch({ type: 'SET_VALIDATION_ERRORS', payload: issues })
-        useWorkflowStore.getState().setValidationErrorCount(issues.length)
-      } else {
-        handleVerifySilent()
-      }
-    },
+    onForceSaveSuccess: handleForceSaveSuccess,
     markClean,
-    createWorkflow: typedCreateWorkflow,
+    expectedVersion: loadedVersion,
+    onConflict: handleConflict('save'),
+    onVersionUpdated,
+    createWorkflow: createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow'],
     updateWorkflow,
   })
   const { publish: onPublish, isPublishing } = usePublishWorkflow(
     workflowId,
     currentVersion,
     workflowName,
-    workflowDescription
+    workflowDescription,
+    { expectedVersion: loadedVersion, onConflict: handleConflict('publish') }
   )
 
   const mostRecentExecution = mostRecentExecutionQuery.data
@@ -220,11 +231,6 @@ export function BuilderContent(props: BuilderContentProps) {
     handleSaveWorkflow,
     isTerminalStatus
   )
-  useEffect(() => {
-    registerSaveHandler(handleSaveWorkflow)
-    return () => unregisterSaveHandler()
-  }, [handleSaveWorkflow, registerSaveHandler, unregisterSaveHandler])
-
   const [pendingImport, setPendingImport] = useState<import('./useWorkflowImportExport').PendingImportData | null>(null)
   const {
     handleRunWorkflow,
@@ -247,7 +253,14 @@ export function BuilderContent(props: BuilderContentProps) {
     setLocation,
     handleSaveWorkflow,
     currentWorkflow,
+    loadedVersion,
+    onRunConflict: handleConflict('run'),
   })
+  useEffect(() => {
+    registerSaveHandler(handleSaveWorkflow)
+    setActions({ handleSaveWorkflow, onPublish, handleRunWorkflow })
+    return () => unregisterSaveHandler()
+  }, [handleSaveWorkflow, onPublish, handleRunWorkflow, registerSaveHandler, unregisterSaveHandler, setActions])
 
   const versionPanel = useBuilderVersionPanel({
     workflowId,
@@ -280,7 +293,6 @@ export function BuilderContent(props: BuilderContentProps) {
   })
   const handleNavigateToNode = useNodePanelNavigation(reactFlowInstance, dispatch)
   const handleAddStepFromPanel = useMemo(() => createAddStepHandler(dispatch), [dispatch])
-  /* Re-renders when React Flow node count changes (execution-view sequencing); see useBuilderWindowEffects */
   useBuilderWindowEffects(nodesInitialized, reactFlowInstance)
   const {
     pendingApproval,
@@ -319,7 +331,7 @@ export function BuilderContent(props: BuilderContentProps) {
     pendingImport,
     setPendingImport,
     selectedProject: stableProjectId ? { id: stableProjectId } : null,
-    createWorkflow: typedCreateWorkflow,
+    createWorkflow: createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow'],
     setLocation,
     pinnedMockDataForDialog,
   })
@@ -507,7 +519,7 @@ export function BuilderContent(props: BuilderContentProps) {
               </Stack>
             </NxReactFlowViewportGuard>
 
-            <BuilderDialogs {...dialogProps} />
+            <BuilderDialogs {...dialogProps} conflictDialogProps={conflictDialogProps} />
           </NxPage>
         </VersionViewProvider>
       </NodeExpandedAllContext.Provider>

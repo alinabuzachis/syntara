@@ -5,10 +5,39 @@ import { useCallback } from 'react'
 import type { AlertMessage } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
-import { getErrorMessage, isRetryableValidationError } from '../../../utils/apiErrors'
+import {
+  extractVersionConflictInfo,
+  getErrorMessage,
+  isRetryableValidationError,
+  isWorkflowVersionConflictError,
+} from '../../../utils/apiErrors'
 import { forceCreateWorkflow, forceUpdateWorkflow } from '../../../utils/workflowForceSave'
 import { buildWorkflowDefinition } from '../utils/workflowDefinitionBuilder'
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from '../utils/workflowNaming'
+import type { ConflictInfo } from '../VersionConflictDialog'
+
+function buildSavePayloads(opts: {
+  nameToSave: string
+  workflowDescription: string
+  workflowDef: Record<string, unknown>
+  selectedProjectId: string
+  expectedVersion: number | null | undefined
+}) {
+  const { nameToSave, workflowDescription, workflowDef, selectedProjectId, expectedVersion } = opts
+  const createPayload: CreateWorkflowBodyExtended = {
+    name: nameToSave,
+    description: workflowDescription,
+    workflow_definition: workflowDef as unknown as CreateWorkflowBody['workflow_definition'],
+    project_id: selectedProjectId,
+  }
+  const patchPayload: PatchWorkflowBody = {
+    name: nameToSave,
+    description: workflowDescription,
+    workflow_definition: workflowDef as unknown as PatchWorkflowBody['workflow_definition'],
+    ...(expectedVersion != null ? { expected_version: expectedVersion } : {}),
+  }
+  return { createPayload, patchPayload }
+}
 
 type CreateWorkflowBody = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
 /**
@@ -45,6 +74,9 @@ export type UseBuilderSaveWorkflowParams = {
   /** Called after a successful force_save. Receives the original validation error so the caller can extract and display node-level findings. */
   onForceSaveSuccess?: (originalError: unknown) => void
   markClean: () => void
+  expectedVersion: number | null
+  onConflict?: (info: ConflictInfo) => void
+  onVersionUpdated?: (newVersion: number) => void
   createWorkflow: (
     args: { body: CreateWorkflowBodyExtended },
     opts?: {
@@ -58,7 +90,7 @@ export type UseBuilderSaveWorkflowParams = {
       body: PatchWorkflowBody
     },
     opts?: {
-      onSuccess?: () => void | Promise<void>
+      onSuccess?: (data: unknown) => void | Promise<void>
       onError?: (error: unknown) => void
     }
   ) => void
@@ -83,12 +115,12 @@ function promisifyUpdate(
   updateWorkflow: UseBuilderSaveWorkflowParams['updateWorkflow'],
   workflowId: string,
   payload: PatchWorkflowBody
-): Promise<{ error?: unknown }> {
+): Promise<{ data?: { id?: string }; error?: unknown }> {
   return new Promise((resolve) => {
     updateWorkflow(
       { params: { path: { workflow_id: workflowId } }, body: payload },
       {
-        onSuccess: () => resolve({}),
+        onSuccess: (data) => resolve({ data: data as { id?: string } }),
         onError: (error) => resolve({ error }),
       }
     )
@@ -143,6 +175,7 @@ async function processSaveResult(
     queryClient: QueryClient
     setLocation: (to: string) => void
     onForceSaveSuccess?: (originalError: unknown) => void
+    onVersionUpdated?: (newVersion: number) => void
   }
 ): Promise<boolean> {
   if (saveResult.error && isRetryableValidationError(saveResult.error)) {
@@ -178,10 +211,14 @@ async function processSaveResult(
     ctx.showSuccess({ title: 'Workflow created', description: `${ctx.nameToSave} has been saved.` })
   }
   await completeSave(ctx.queryClient, ctx.markClean, ctx.isNew ? saveResult.data?.id : undefined, ctx.setLocation)
+  const newVersion = (saveResult as { data?: { current_version?: number } }).data?.current_version
+  if (ctx.willPatchExisting && newVersion != null) ctx.onVersionUpdated?.(newVersion)
   return true
 }
 
-export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): () => Promise<boolean> {
+export function useBuilderSaveWorkflow(
+  params: UseBuilderSaveWorkflowParams
+): (options?: { expectedVersionOverride?: number }) => Promise<boolean> {
   const {
     currentWorkflow,
     workflowName,
@@ -197,6 +234,9 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
     onMissingProjectForCreate,
     onForceSaveSuccess,
     markClean,
+    expectedVersion,
+    onConflict,
+    onVersionUpdated,
     createWorkflow,
     updateWorkflow,
   } = params
@@ -212,83 +252,82 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
     })
   }, [currentWorkflow, workflowName, workflowDescription])
 
-  return useCallback(async (): Promise<boolean> => {
-    if (!currentWorkflow) {
-      showError({ title: 'Save failed', description: 'No workflow to save' })
-      return false
-    }
+  return useCallback(
+    async (options?: { expectedVersionOverride?: number }): Promise<boolean> => {
+      const effectiveExpectedVersion = options?.expectedVersionOverride ?? expectedVersion
+      const willPatchExisting = Boolean(workflowId && !isNew)
+      if (!currentWorkflow) {
+        showError({ title: 'Save failed', description: 'No workflow to save' })
+        return false
+      }
+      if (!willPatchExisting && !selectedProject?.id) {
+        showError({ title: 'Project required', description: 'Select a project to save this workflow.' })
+        if (onMissingProjectForCreate) onMissingProjectForCreate()
+        return false
+      }
 
-    const willPatchExisting = Boolean(workflowId && !isNew)
-    if (!willPatchExisting && !selectedProject?.id) {
-      showError({ title: 'Project required', description: 'Select a project to save this workflow.' })
-      onMissingProjectForCreate?.()
-      return false
-    }
+      const nameToSave =
+        isNew && workflowName === DEFAULT_WORKFLOW_NAME && workflowsListResources
+          ? getNextDefaultWorkflowName(workflowsListResources)
+          : workflowName
 
-    let nameToSave = workflowName
-    if (isNew && workflowName === DEFAULT_WORKFLOW_NAME && workflowsListResources) {
-      nameToSave = getNextDefaultWorkflowName(workflowsListResources)
-    }
-
-    let workflowDef
-    try {
-      workflowDef = getWorkflowDefinition()
-    } catch (error) {
-      showError({
-        title: 'Build failed',
-        description: `Failed to build workflow definition. Check condition/loop expressions for syntax errors: ${getErrorMessage(error)}`,
+      const workflowDef = getWorkflowDefinition()
+      workflowDef.name = nameToSave
+      const { createPayload, patchPayload } = buildSavePayloads({
+        nameToSave,
+        workflowDescription,
+        workflowDef,
+        selectedProjectId: selectedProject!.id,
+        expectedVersion: effectiveExpectedVersion,
       })
-      return false
-    }
 
-    workflowDef.name = nameToSave
-    const createPayload: CreateWorkflowBodyExtended = {
-      name: nameToSave,
-      description: workflowDescription,
-      workflow_definition: workflowDef as unknown as CreateWorkflowBody['workflow_definition'],
-      project_id: selectedProject!.id,
-    }
-    const patchPayload: PatchWorkflowBody = {
-      name: nameToSave,
-      description: workflowDescription,
-      workflow_definition: workflowDef as unknown as PatchWorkflowBody['workflow_definition'],
-    }
+      const saveResult = willPatchExisting
+        ? await promisifyUpdate(updateWorkflow, workflowId!, patchPayload)
+        : await promisifyCreate(createWorkflow, createPayload)
 
-    const saveResult = willPatchExisting
-      ? await promisifyUpdate(updateWorkflow, workflowId!, patchPayload)
-      : await promisifyCreate(createWorkflow, createPayload)
+      // Check for version conflict before attempting force-save retry
+      if (saveResult.error && isWorkflowVersionConflictError(saveResult.error) && onConflict) {
+        onConflict(extractVersionConflictInfo(saveResult.error))
+        return false
+      }
 
-    return processSaveResult(saveResult, {
-      willPatchExisting,
+      return processSaveResult(saveResult, {
+        willPatchExisting,
+        workflowId,
+        isNew,
+        nameToSave,
+        createPayload,
+        patchPayload,
+        showError,
+        showSuccess,
+        markClean,
+        queryClient,
+        setLocation,
+        onForceSaveSuccess,
+        onVersionUpdated,
+      })
+    },
+    [
+      currentWorkflow,
+      workflowName,
+      workflowDescription,
+      getWorkflowDefinition,
       workflowId,
       isNew,
-      nameToSave,
-      createPayload,
-      patchPayload,
-      showError,
+      selectedProject,
+      workflowsListResources,
+      updateWorkflow,
+      createWorkflow,
       showSuccess,
-      markClean,
-      queryClient,
-      setLocation,
+      showError,
+      onMissingProjectForCreate,
       onForceSaveSuccess,
-    })
-  }, [
-    currentWorkflow,
-    workflowName,
-    workflowDescription,
-    getWorkflowDefinition,
-    workflowId,
-    isNew,
-    selectedProject,
-    workflowsListResources,
-    updateWorkflow,
-    createWorkflow,
-    showSuccess,
-    showError,
-    onMissingProjectForCreate,
-    onForceSaveSuccess,
-    setLocation,
-    queryClient,
-    markClean,
-  ])
+      expectedVersion,
+      onConflict,
+      onVersionUpdated,
+      setLocation,
+      queryClient,
+      markClean,
+    ]
+  )
 }
