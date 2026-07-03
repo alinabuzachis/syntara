@@ -13,8 +13,6 @@ import {
   buildExpressionModeActivity,
   buildWorkflowExpressionModeActivity,
   hasExpressionValue,
-  validateJobTemplateId,
-  validateWorkflowTemplateId,
 } from '../../utils/aapHelpers'
 import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
 import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
@@ -81,14 +79,13 @@ export default function registerAAPNode() {
               addActivity(activity)
               onSuccess(activityId)
             } else {
-              const job_template_id = validateJobTemplateId(jobData.job_template_id)
               const config = buildAAPConfig(jobData)
               const baseName = getDefaultNodeBaseName({
                 nodeTypeId: RegistryNodeId.AAP_JOB_TEMPLATE,
                 label: 'AAP Job Template',
               })
               const { activityId, activity } = buildNamedActivity(baseName, jobData.name, (id, name) =>
-                createAAPJobTemplateActivity(id, name, job_template_id, config)
+                createAAPJobTemplateActivity(id, name, jobData.job_template_id, config)
               )
               addActivity(activity)
               onSuccess(activityId)
@@ -110,14 +107,13 @@ export default function registerAAPNode() {
               addActivity(activity)
               onSuccess(activityId)
             } else {
-              const workflow_job_template_id = validateWorkflowTemplateId(workflowData.workflow_job_template_id)
               const config = buildAAPWorkflowTemplateConfig(workflowData)
               const baseName = getDefaultNodeBaseName({
                 nodeTypeId: RegistryNodeId.AAP_WORKFLOW_TEMPLATE,
                 label: 'AAP Workflow Template',
               })
               const { activityId, activity } = buildNamedActivity(baseName, workflowData.name, (id, name) =>
-                createAAPWorkflowTemplateActivity(id, name, workflow_job_template_id, config)
+                createAAPWorkflowTemplateActivity(id, name, workflowData.workflow_job_template_id, config)
               )
               addActivity(activity)
               onSuccess(activityId)

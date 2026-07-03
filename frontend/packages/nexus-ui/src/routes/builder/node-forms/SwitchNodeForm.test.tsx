@@ -129,18 +129,17 @@ describe('SwitchNodeForm', () => {
   })
 
   describe('Validation', () => {
-    it('shows condition required error when submitting with empty conditions', async () => {
+    it('submits form with empty conditions (permissive schema)', async () => {
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
 
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(screen.getAllByText('Condition is required').length).toBeGreaterThan(0)
+        expect(mockOnSubmit).toHaveBeenCalled()
       })
-      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
-    it('shows condition required error when submitting with empty condition', async () => {
+    it('submits form with empty condition in case (permissive schema)', async () => {
       const initialData: Partial<SwitchFormData> = {
         cases: [{ caseId: 'c1', label: 'Path 1', condition: '' }],
       }
@@ -149,26 +148,25 @@ describe('SwitchNodeForm', () => {
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(screen.getAllByText('Condition is required').length).toBeGreaterThan(0)
+        expect(mockOnSubmit).toHaveBeenCalled()
       })
-      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
-    it('disables collapse button when path has validation errors', async () => {
+    it('allows collapsing paths when conditions are empty (permissive schema)', async () => {
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
 
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(screen.getAllByText('Condition is required').length).toBeGreaterThan(0)
+        expect(mockOnSubmit).toHaveBeenCalled()
       })
 
       const collapseButtons = screen.getAllByRole('button', { name: /path \d+/i })
       const pathToggle = collapseButtons.find((btn) => btn.getAttribute('aria-expanded') === 'true')
-      expect(pathToggle).toHaveAttribute('aria-disabled', 'true')
+      expect(pathToggle).not.toHaveAttribute('aria-disabled', 'true')
     })
 
-    it('auto-expands collapsed path when it has validation errors', async () => {
+    it('keeps collapsed paths collapsed when submitting with empty conditions (permissive schema)', async () => {
       const user = userEvent.setup()
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
 
@@ -178,7 +176,7 @@ describe('SwitchNodeForm', () => {
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(screen.getAllByText('Condition is required').length).toBeGreaterThan(0)
+        expect(mockOnSubmit).toHaveBeenCalled()
       })
     })
   })

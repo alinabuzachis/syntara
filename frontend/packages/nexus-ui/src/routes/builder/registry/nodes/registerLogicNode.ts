@@ -37,7 +37,7 @@ function dispatchLogicSubmit({
   onError: (msg: string) => void
 }) {
   if (data.logicType === ActivityTypeEnum.CONDITION) {
-    if (submitConditionLogic(activityId, name, data, onError)) onSuccess(activityId)
+    if (submitConditionLogic(activityId, name, data)) onSuccess(activityId)
     return
   }
   if (data.logicType === ActivityTypeEnum.LOOP) {
@@ -45,11 +45,11 @@ function dispatchLogicSubmit({
     return
   }
   if (data.logicType === ActivityTypeEnum.CONVERGE) {
-    if (submitConvergeLogic(activityId, name, data, onError)) onSuccess(activityId)
+    if (submitConvergeLogic(activityId, name, data)) onSuccess(activityId)
     return
   }
   if (data.logicType === ActivityTypeEnum.SWITCH) {
-    if (submitSwitchLogic(activityId, name, data, onError)) onSuccess(activityId)
+    if (submitSwitchLogic(activityId, name, data)) onSuccess(activityId)
     return
   }
   if (data.logicType === ActivityTypeEnum.WAIT) {

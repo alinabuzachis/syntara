@@ -38,19 +38,15 @@ export default function registerAIAgentNode() {
                 : undefined,
             prompt: data.prompt || undefined,
             model: data.model || undefined,
-            fileIds: data.fileIds.length > 0 ? data.fileIds : undefined,
+            fileIds: data.fileIds?.length > 0 ? data.fileIds : undefined,
             credentialId: data.credential_id ?? undefined,
             responseSchema: data.parsedResponseSchema,
             settings: data.settings,
           })
         )
 
-        if (activity) {
-          useWorkflowStore.getState().addActivity(activity)
-          onSuccess(activityId)
-        } else {
-          onError('Invalid agent configuration. Please check your inputs.')
-        }
+        useWorkflowStore.getState().addActivity(activity)
+        onSuccess(activityId)
       } catch (error) {
         onError(error instanceof Error ? error.message : 'Failed to add task agent')
       }

@@ -9,12 +9,12 @@ import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
 export const aiAgentFormSchema = z
   .object({
     name: z.string(),
-    model: z.string(),
-    prompt: z.string().min(1, 'Prompt is required'),
-    tool_selection_strategy: z.enum(['ALL', 'NONE', 'SELECTED']),
-    tool_selections: z.array(z.string()),
-    integration_connections: z.array(z.object({ integration_id: z.string(), credential_id: z.string() })),
-    credential_id: z.string().min(1, 'LLM provider credential is required'),
+    model: z.string().optional(),
+    prompt: z.string().optional(),
+    tool_selection_strategy: z.enum(['ALL', 'NONE', 'SELECTED']).optional(),
+    tool_selections: z.array(z.string()).optional(),
+    integration_connections: z.array(z.object({ integration_id: z.string(), credential_id: z.string() })).optional(),
+    credential_id: z.string().optional(),
     responseSchema: z.string().optional(),
     settings: nodeSettingsSchema.optional(),
   })

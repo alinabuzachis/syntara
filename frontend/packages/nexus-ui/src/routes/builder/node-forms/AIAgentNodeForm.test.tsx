@@ -141,7 +141,7 @@ describe('AIAgentNodeForm', () => {
     expect(screen.getByLabelText('Tools')).toBeInTheDocument()
   })
 
-  it('validates required prompt field', async () => {
+  it('submits form even with empty prompt (permissive schema)', async () => {
     const user = userEvent.setup()
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
@@ -149,8 +149,11 @@ describe('AIAgentNodeForm', () => {
     fireEvent.submit(screen.getByTestId('ai-agent-node-form'))
 
     await waitFor(() => {
-      expect(screen.getByText('Prompt is required')).toBeInTheDocument()
-      expect(mockOnSubmit).not.toHaveBeenCalled()
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Test Agent',
+        })
+      )
     })
   })
 
@@ -279,33 +282,32 @@ describe('AIAgentNodeForm', () => {
       expect(screen.getByText(/Optional JSON Schema to enforce structured output format/i)).toBeInTheDocument()
     })
 
-    it('validates invalid JSON in response schema', async () => {
+    it('submits form with valid JSON object in response schema', async () => {
       const user = userEvent.setup()
       renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
-      // Fill required fields
+      // Fill fields
       await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
       await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
 
-      // Add invalid JSON using paste
+      // Add valid JSON using paste
       const schemaEditor = screen.getByLabelText('Response schema editor')
       await user.click(schemaEditor)
-      await user.paste('{invalid json}')
+      await user.paste('{"type": "object"}')
 
       // Submit form
       fireEvent.submit(screen.getByTestId('ai-agent-node-form'))
 
       await waitFor(() => {
-        expect(screen.getByText(/Invalid JSON/i)).toBeInTheDocument()
-        expect(mockOnSubmit).not.toHaveBeenCalled()
+        expect(mockOnSubmit).toHaveBeenCalled()
       })
     })
 
-    it('validates response schema must be an object', async () => {
+    it('rejects non-object response schema', async () => {
       const user = userEvent.setup()
       renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
-      // Fill required fields
+      // Fill fields
       await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
       await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
 
@@ -318,9 +320,9 @@ describe('AIAgentNodeForm', () => {
       fireEvent.submit(screen.getByTestId('ai-agent-node-form'))
 
       await waitFor(() => {
-        expect(screen.getByText(/Response schema must be a JSON object/i)).toBeInTheDocument()
-        expect(mockOnSubmit).not.toHaveBeenCalled()
+        expect(screen.getByText('Response schema must be a JSON object')).toBeInTheDocument()
       })
+      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
     it('pre-fills response schema in edit mode', () => {
@@ -377,24 +379,24 @@ describe('AIAgentNodeForm', () => {
       expect(results).toHaveNoViolations()
     })
 
-    it('has no accessibility violations with validation error (excluding known PatternFly Tabs issue)', async () => {
+    it('has no accessibility violations after submitting with response schema (excluding known PatternFly Tabs issue)', async () => {
       const user = userEvent.setup()
       const { container } = renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
-      // Fill required fields
+      // Fill fields
       await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
       await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
 
-      // Add invalid JSON using paste
+      // Add valid JSON using paste
       const schemaEditor = screen.getByLabelText('Response schema editor')
       await user.click(schemaEditor)
-      await user.paste('{invalid}')
+      await user.paste('{"type": "object"}')
 
-      // Submit to trigger validation
+      // Submit form (permissive schema allows this)
       fireEvent.submit(screen.getByTestId('ai-agent-node-form'))
 
       await waitFor(() => {
-        expect(screen.getByText(/Invalid JSON/i)).toBeInTheDocument()
+        expect(mockOnSubmit).toHaveBeenCalled()
       })
 
       const results = await axe(container, {

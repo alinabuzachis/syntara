@@ -37,35 +37,21 @@ describe('convergeFormSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects strategy any without required path count', () => {
+  it('accepts strategy any without required path count (permissive)', () => {
     const result = convergeFormSchema.safeParse({
       name: 'Converge',
       strategy: 'any',
     })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(
-        result.error.issues.some(
-          (i) => i.message === 'Required path count is required' && i.path?.includes('requiredPathCount')
-        )
-      ).toBe(true)
-    }
+    expect(result.success).toBe(true)
   })
 
-  it('rejects strategy any with required path count less than 1', () => {
+  it('rejects strategy any with required path count of 0 (field-level validation)', () => {
     const result = convergeFormSchema.safeParse({
       name: 'Converge',
       strategy: 'any',
       requiredPathCount: 0,
     })
     expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(
-        result.error.issues.some(
-          (i) => i.message === 'Required path count is required' && i.path?.includes('requiredPathCount')
-        )
-      ).toBe(true)
-    }
   })
 
   it('rejects negative requiredPathCount', () => {

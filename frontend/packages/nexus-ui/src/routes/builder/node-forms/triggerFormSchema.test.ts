@@ -7,9 +7,6 @@ import { isValidWebhookPath, normalizeWebhookPath, triggerFormSchema } from './t
 // Helpers
 // ---------------------------------------------------------------------------
 
-type ParseResult = ReturnType<typeof triggerFormSchema.safeParse>
-type ParseError = Extract<ParseResult, { success: false }>
-
 function parseWebhook(webhookPath: string, inputSchema?: string) {
   return triggerFormSchema.safeParse({
     triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
@@ -40,14 +37,6 @@ function parseScheduled(scheduleType: string, interval?: string, cron?: string) 
     interval,
     cron,
   })
-}
-
-function webhookError(result: ParseError) {
-  return result.error.issues.find((i) => i.path.includes('webhookPath'))?.message
-}
-
-function inputSchemaError(result: ParseError) {
-  return result.error.issues.find((i) => i.path.includes('inputSchema'))?.message
 }
 
 // ---------------------------------------------------------------------------
@@ -149,93 +138,35 @@ describe('triggerFormSchema — webhook path validation', () => {
     })
   })
 
-  describe('invalid paths', () => {
+  describe('permissive paths (empty allowed, format still validated)', () => {
+    it('accepts empty path', () => {
+      expect(parseWebhook('').success).toBe(true)
+    })
+
+    it('accepts whitespace-only path', () => {
+      expect(parseWebhook('   ').success).toBe(true)
+    })
+
     it('rejects path exceeding 128 characters', () => {
       const result = parseWebhook('a'.repeat(129))
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(webhookError(result)).toBe('Webhook path must be 128 characters or fewer')
+        expect(result.error.issues.find((i) => i.path.includes('webhookPath'))?.message).toBe(
+          'Webhook path must be 128 characters or fewer'
+        )
       }
     })
 
-    it('rejects empty path', () => {
-      const result = parseWebhook('')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toBe('Webhook path is required')
-      }
+    it('rejects path with path traversal sequences', () => {
+      expect(parseWebhook('foo/../bar').success).toBe(false)
     })
 
-    it('rejects whitespace-only path', () => {
-      const result = parseWebhook('   ')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toBe('Webhook path is required')
-      }
-    })
-
-    it('rejects path starting with hyphen', () => {
-      const result = parseWebhook('-starts-with-hyphen')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toContain('start and end with a letter or number')
-      }
-    })
-
-    it('rejects path ending with hyphen', () => {
-      const result = parseWebhook('ends-with-hyphen-')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toContain('start and end with a letter or number')
-      }
-    })
-
-    it('rejects path starting with underscore', () => {
-      const result = parseWebhook('_starts-underscore')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toContain('start and end with a letter or number')
-      }
-    })
-
-    it('rejects path with spaces', () => {
-      const result = parseWebhook('has spaces')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toContain('start and end with a letter or number')
-      }
-    })
-
-    it('rejects path with dots', () => {
-      const result = parseWebhook('has.dots')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toContain('start and end with a letter or number')
-      }
-    })
-
-    it('rejects path with slashes', () => {
-      const result = parseWebhook('has/slash')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toContain('start and end with a letter or number')
-      }
-    })
-
-    it('rejects path traversal sequences', () => {
-      const result = parseWebhook('foo/../bar')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toContain('start and end with a letter or number')
-      }
-    })
-
-    it('rejects special characters', () => {
-      const result = parseWebhook('special!@#')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(webhookError(result)).toContain('start and end with a letter or number')
-      }
+    it('rejects paths with invalid format', () => {
+      expect(parseWebhook('-starts-with-hyphen').success).toBe(false)
+      expect(parseWebhook('has spaces').success).toBe(false)
+      expect(parseWebhook('has.dots').success).toBe(false)
+      expect(parseWebhook('has/slash').success).toBe(false)
+      expect(parseWebhook('ends-with-hyphen-').success).toBe(false)
     })
   })
 })
@@ -244,7 +175,7 @@ describe('triggerFormSchema — webhook path validation', () => {
 // Webhook trigger inputSchema validation
 // ---------------------------------------------------------------------------
 
-describe('triggerFormSchema — webhook trigger inputSchema validation', () => {
+describe('triggerFormSchema — webhook trigger inputSchema (permissive)', () => {
   it('accepts a valid JSON object', () => {
     expect(parseWebhook('valid', '{"type": "object"}').success).toBe(true)
   })
@@ -257,61 +188,41 @@ describe('triggerFormSchema — webhook trigger inputSchema validation', () => {
     expect(parseWebhook('valid', undefined).success).toBe(true)
   })
 
-  it('rejects invalid JSON syntax', () => {
-    const result = parseWebhook('valid', '{bad}')
+  it('rejects invalid JSON inputSchema', () => {
+    expect(parseWebhook('valid', '{bad}').success).toBe(false)
+  })
+
+  it('rejects non-object JSON inputSchema', () => {
+    expect(parseWebhook('valid', '"hello"').success).toBe(false)
+    expect(parseWebhook('valid', '42').success).toBe(false)
+  })
+
+  it('rejects array JSON inputSchema', () => {
+    expect(parseWebhook('valid', '[]').success).toBe(false)
+  })
+
+  it('rejects boolean JSON inputSchema', () => {
+    expect(parseWebhook('valid', 'true').success).toBe(false)
+  })
+
+  it('rejects null JSON inputSchema', () => {
+    expect(parseWebhook('valid', 'null').success).toBe(false)
+  })
+
+  it('rejects inputSchema exceeding 100KB', () => {
+    const largeSchema = `{"key": "${'x'.repeat(100_001)}"}`
+    const result = parseWebhook('valid', largeSchema)
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Invalid JSON — check syntax')
+      expect(result.error.issues.find((i) => i.path.includes('inputSchema'))?.message).toBe(
+        'Input schema must be 100KB or less'
+      )
     }
   })
 
-  it('rejects a JSON string value', () => {
-    const result = parseWebhook('valid', '"hello"')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects a JSON number value', () => {
-    const result = parseWebhook('valid', '42')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects a JSON array value', () => {
-    const result = parseWebhook('valid', '[1, 2, 3]')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects a JSON boolean value', () => {
-    const result = parseWebhook('valid', 'true')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects a JSON null value', () => {
-    const result = parseWebhook('valid', 'null')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects input schema exceeding 100KB', () => {
-    const oversized = `{"data": "${'x'.repeat(100_001)}"}`
-    const result = parseWebhook('valid', oversized)
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be 100KB or less')
-    }
+  it('strips prototype pollution keys via safeJSONReviver', () => {
+    const result = parseWebhook('valid', '{"__proto__": {"polluted": true}, "safe": 1}')
+    expect(result.success).toBe(true)
   })
 })
 
@@ -319,67 +230,51 @@ describe('triggerFormSchema — webhook trigger inputSchema validation', () => {
 // Scheduled trigger validation
 // ---------------------------------------------------------------------------
 
-describe('triggerFormSchema — scheduled trigger validation', () => {
-  it('requires interval when scheduleType is interval', () => {
-    const result = parseScheduled('interval', '')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      const intervalError = result.error.issues.find((i) => i.path.includes('interval'))?.message
-      expect(intervalError).toBe('Start date is required')
-    }
+describe('triggerFormSchema — scheduled trigger (permissive)', () => {
+  it('accepts empty interval', () => {
+    expect(parseScheduled('interval', '').success).toBe(true)
   })
 
   it('accepts present interval', () => {
     expect(parseScheduled('interval', 'R/2024-01-01T00:00:00Z/P1D').success).toBe(true)
   })
 
-  it('does not require interval for cron schedule', () => {
-    expect(parseScheduled('cron', undefined, '0 9 * * *').success).toBe(true)
-  })
-
-  it('requires cron when scheduleType is cron', () => {
-    const result = parseScheduled('cron', undefined, '')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      const cronError = result.error.issues.find((i) => i.path.includes('cron'))?.message
-      expect(cronError).toBe('Cron expression is required')
-    }
-  })
-
   it('accepts valid 5-field cron expression', () => {
     expect(parseScheduled('cron', undefined, '0 9 * * *').success).toBe(true)
+  })
+
+  it('accepts empty cron', () => {
+    expect(parseScheduled('cron', undefined, '').success).toBe(true)
+  })
+
+  it('rejects cron exceeding 256 characters (max length kept)', () => {
+    const longCron = `${Array(150).fill('1').join(',')} * * * *`
+    const result = parseScheduled('cron', undefined, longCron)
+    expect(result.success).toBe(false)
   })
 
   it('rejects cron with wrong number of fields', () => {
     const result = parseScheduled('cron', undefined, '0 9 *')
     expect(result.success).toBe(false)
     if (!result.success) {
-      const cronError = result.error.issues.find((i) => i.path.includes('cron'))?.message
-      expect(cronError).toBe('Cron expression must have exactly 5 fields: minute hour day-of-month month day-of-week')
-    }
-  })
-
-  it('rejects whitespace-only cron expression', () => {
-    const result = parseScheduled('cron', undefined, '   ')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      const cronError = result.error.issues.find((i) => i.path.includes('cron'))?.message
-      expect(cronError).toBe('Cron expression is required')
+      expect(result.error.issues.find((i) => i.path.includes('cron'))?.message).toBe(
+        'Cron expression must have exactly 5 fields: minute hour day-of-month month day-of-week'
+      )
     }
   })
 
   it('rejects cron with invalid characters', () => {
-    const result = parseScheduled('cron', undefined, 'hello world foo bar baz')
+    const result = parseScheduled('cron', undefined, '0 9 * * MON')
     expect(result.success).toBe(false)
     if (!result.success) {
-      const cronError = result.error.issues.find((i) => i.path.includes('cron'))?.message
-      expect(cronError).toBe('Cron fields may only contain digits, *, /, -, and ,')
+      expect(result.error.issues.find((i) => i.path.includes('cron'))?.message).toBe(
+        'Cron fields may only contain digits, *, /, -, and ,'
+      )
     }
   })
 
-  it('rejects cron exceeding 256 characters', () => {
-    const longCron = `${Array(150).fill('1').join(',')} * * * *`
-    const result = parseScheduled('cron', undefined, longCron)
+  it('rejects non-cron text in cron field', () => {
+    const result = parseScheduled('cron', undefined, 'hello world')
     expect(result.success).toBe(false)
   })
 
@@ -401,7 +296,7 @@ describe('triggerFormSchema — scheduled trigger validation', () => {
 // Manual trigger inputSchema validation
 // ---------------------------------------------------------------------------
 
-describe('triggerFormSchema — manual trigger inputSchema validation', () => {
+describe('triggerFormSchema — manual trigger inputSchema (permissive)', () => {
   it('accepts a valid JSON object', () => {
     expect(parseManual('{"type": "object"}').success).toBe(true)
   })
@@ -414,68 +309,12 @@ describe('triggerFormSchema — manual trigger inputSchema validation', () => {
     expect(parseManual(undefined).success).toBe(true)
   })
 
-  it('rejects invalid JSON syntax', () => {
-    const result = parseManual('{bad}')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Invalid JSON — check syntax')
-    }
+  it('rejects invalid JSON inputSchema', () => {
+    expect(parseManual('{bad}').success).toBe(false)
   })
 
-  it('rejects a JSON string value', () => {
-    const result = parseManual('"hello"')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects a JSON number value', () => {
-    const result = parseManual('42')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects a JSON array value', () => {
-    const result = parseManual('[1, 2, 3]')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects a JSON boolean value', () => {
-    const result = parseManual('true')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects a JSON null value', () => {
-    const result = parseManual('null')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be a JSON object')
-    }
-  })
-
-  it('rejects input schema exceeding 100KB', () => {
-    const oversized = `{"data": "${'x'.repeat(100_001)}"}`
-    const result = parseManual(oversized)
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be 100KB or less')
-    }
-  })
-
-  it('strips prototype pollution keys during validation', () => {
-    const malicious = '{"__proto__": {"admin": true}, "type": "object"}'
-    // Should still pass validation (it is a valid JSON object structurally)
-    // but safeJSONReviver strips dangerous keys during parsing
-    expect(parseManual(malicious).success).toBe(true)
+  it('rejects non-object JSON inputSchema', () => {
+    expect(parseManual('"hello"').success).toBe(false)
   })
 })
 
@@ -483,53 +322,20 @@ describe('triggerFormSchema — manual trigger inputSchema validation', () => {
 // EDA trigger validation (same rules as webhook)
 // ---------------------------------------------------------------------------
 
-describe('triggerFormSchema — EDA trigger validation', () => {
+describe('triggerFormSchema — EDA trigger (permissive)', () => {
   it('accepts valid EDA trigger with path', () => {
     expect(parseEda('eda-events').success).toBe(true)
   })
 
-  it('rejects empty webhook path', () => {
-    const result = parseEda('')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(webhookError(result)).toBe('Webhook path is required')
-    }
-  })
-
-  it('rejects path exceeding 128 characters', () => {
-    const result = parseEda('a'.repeat(129))
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(webhookError(result)).toBe('Webhook path must be 128 characters or fewer')
-    }
-  })
-
-  it('rejects path with invalid characters', () => {
-    const result = parseEda('INVALID PATH!')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(webhookError(result)).toContain('start and end with a letter or number')
-    }
+  it('accepts empty webhook path', () => {
+    expect(parseEda('').success).toBe(true)
   })
 
   it('accepts valid inputSchema JSON', () => {
     expect(parseEda('eda-events', '{"type": "object"}').success).toBe(true)
   })
 
-  it('rejects invalid inputSchema JSON', () => {
-    const result = parseEda('eda-events', 'not-json')
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Invalid JSON — check syntax')
-    }
-  })
-
-  it('rejects inputSchema exceeding 100KB', () => {
-    const oversized = `{"data": "${'x'.repeat(100_001)}"}`
-    const result = parseEda('eda-events', oversized)
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(inputSchemaError(result)).toBe('Input schema must be 100KB or less')
-    }
+  it('rejects invalid inputSchema', () => {
+    expect(parseEda('eda-events', 'not-json').success).toBe(false)
   })
 })

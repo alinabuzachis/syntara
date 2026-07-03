@@ -133,7 +133,12 @@ describe('registerActionNode', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
-  it('onSubmit calls onError when script is missing required fields', () => {
+  it('creates activity even when script is missing required fields', () => {
+    const mockAddActivity = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addActivity: mockAddActivity,
+    } as never)
+
     registerActionNode()
     const registration = NodeRegistry.get(RegistryNodeId.ACTION)
     const onSuccess = vi.fn()
@@ -150,11 +155,17 @@ describe('registerActionNode', () => {
       onError
     )
 
-    expect(onError).toHaveBeenCalledWith('Invalid action configuration. Please check your inputs.')
-    expect(onSuccess).not.toHaveBeenCalled()
+    expect(mockAddActivity).toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledWith(expect.any(String))
+    expect(onError).not.toHaveBeenCalled()
   })
 
-  it('onSubmit calls onError when API is missing required fields', () => {
+  it('creates activity even when API is missing required fields', () => {
+    const mockAddActivity = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addActivity: mockAddActivity,
+    } as never)
+
     registerActionNode()
     const registration = NodeRegistry.get(RegistryNodeId.ACTION)
     const onSuccess = vi.fn()
@@ -171,8 +182,9 @@ describe('registerActionNode', () => {
       onError
     )
 
-    expect(onError).toHaveBeenCalledWith('Invalid action configuration. Please check your inputs.')
-    expect(onSuccess).not.toHaveBeenCalled()
+    expect(mockAddActivity).toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledWith(expect.any(String))
+    expect(onError).not.toHaveBeenCalled()
   })
 
   it('onSubmit handles thrown errors and calls onError', () => {

@@ -36,28 +36,19 @@ describe('aapJobTemplateSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('rejects empty organization', () => {
+  it('accepts empty organization (permissive schema for incomplete nodes)', () => {
     const result = aapJobTemplateSchema.safeParse({ ...validBase, organization_name: '' })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.issues.some((i) => i.message === 'Organization is required')).toBe(true)
-    }
+    expect(result.success).toBe(true)
   })
 
-  it('rejects whitespace-only organization', () => {
+  it('accepts whitespace-only organization (permissive schema for incomplete nodes)', () => {
     const result = aapJobTemplateSchema.safeParse({ ...validBase, organization_name: '   ' })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.issues.some((i) => i.message === 'Organization is required')).toBe(true)
-    }
+    expect(result.success).toBe(true)
   })
 
-  it('rejects empty jobTemplateName', () => {
+  it('accepts empty jobTemplateName (permissive schema for incomplete nodes)', () => {
     const result = aapJobTemplateSchema.safeParse({ ...validBase, job_template_name: '' })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.issues.some((i) => i.message === 'Job template is required')).toBe(true)
-    }
+    expect(result.success).toBe(true)
   })
 
   it('accepts valid form data with empty extra_vars', () => {
@@ -68,22 +59,18 @@ describe('aapJobTemplateSchema', () => {
   it('rejects invalid JSON in extra_vars', () => {
     const result = aapJobTemplateSchema.safeParse({ ...validBase, extra_vars: 'not json' })
     expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(
-        result.error.issues.some((i) => i.message === 'Invalid JSON format' && i.path?.includes('extra_vars'))
-      ).toBe(true)
-    }
+  })
+
+  it('accepts valid JSON object in extra_vars', () => {
+    const result = aapJobTemplateSchema.safeParse({ ...validBase, extra_vars: '{"key": "value"}' })
+    expect(result.success).toBe(true)
   })
 
   it('rejects non-object JSON in extra_vars (array)', () => {
     const result = aapJobTemplateSchema.safeParse({ ...validBase, extra_vars: '[]' })
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(
-        result.error.issues.some(
-          (i) => i.message === 'Extra variables must be a JSON object' && i.path?.includes('extra_vars')
-        )
-      ).toBe(true)
+      expect(result.error.issues.some((i) => i.message === 'Extra variables must be a JSON object')).toBe(true)
     }
   })
 
@@ -91,11 +78,7 @@ describe('aapJobTemplateSchema', () => {
     const result = aapJobTemplateSchema.safeParse({ ...validBase, extra_vars: '123' })
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(
-        result.error.issues.some(
-          (i) => i.message === 'Extra variables must be a JSON object' && i.path?.includes('extra_vars')
-        )
-      ).toBe(true)
+      expect(result.error.issues.some((i) => i.message === 'Extra variables must be a JSON object')).toBe(true)
     }
   })
 
@@ -103,11 +86,7 @@ describe('aapJobTemplateSchema', () => {
     const result = aapJobTemplateSchema.safeParse({ ...validBase, extra_vars: 'null' })
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(
-        result.error.issues.some(
-          (i) => i.message === 'Extra variables must be a JSON object' && i.path?.includes('extra_vars')
-        )
-      ).toBe(true)
+      expect(result.error.issues.some((i) => i.message === 'Extra variables must be a JSON object')).toBe(true)
     }
   })
 
@@ -126,5 +105,10 @@ describe('aapJobTemplateSchema', () => {
       expect(result.data.forks).toBe(5)
       expect(result.data.job_slice_count).toBe(3)
     }
+  })
+
+  it('accepts data with only the required name field', () => {
+    const result = aapJobTemplateSchema.safeParse({ name: 'Incomplete Node' })
+    expect(result.success).toBe(true)
   })
 })

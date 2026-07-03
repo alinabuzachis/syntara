@@ -12,7 +12,7 @@ const httpMethodSchema = z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 const scriptActionSchema = z.object({
   executor: z.literal(ExecutorTypeEnum.SCRIPT),
   name: z.string(),
-  code: z.string().trim().min(1, 'Script is required'),
+  code: z.string().optional(),
   language: z.string().optional(),
   method: httpMethodSchema.optional(),
   url: z.string().optional(),
@@ -30,7 +30,7 @@ const apiActionSchema = z.object({
   code: z.string().optional(),
   language: z.string().optional(),
   method: httpMethodSchema.optional(),
-  url: z.string().trim().min(1, 'URL is required'),
+  url: z.string().optional(),
   authentication: z.string().optional(), // backward compat — old workflows may have this
   headers: z.string().optional(),
   body: z.string().optional(),

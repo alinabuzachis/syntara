@@ -53,17 +53,7 @@ export default function registerActionNode() {
             label: data.executor === ExecutorTypeEnum.HTTP_REQUEST ? 'REST API' : 'Script',
           })
           const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) => {
-            if (data.executor === ExecutorTypeEnum.SCRIPT && data.language && data.code) {
-              return createScriptActivity({
-                id: id,
-                name: name,
-                language: data.language,
-                code: data.code,
-                credentialId: data.credential_id,
-                settings: data.settings,
-              })
-            }
-            if (data.executor === ExecutorTypeEnum.HTTP_REQUEST && data.method && data.url) {
+            if (data.executor === ExecutorTypeEnum.HTTP_REQUEST) {
               return createApiActivity({
                 id,
                 name,
@@ -76,15 +66,18 @@ export default function registerActionNode() {
                 credentialId: data.credential_id,
               })
             }
-            return null
+            return createScriptActivity({
+              id,
+              name,
+              language: data.language,
+              code: data.code,
+              credentialId: data.credential_id,
+              settings: data.settings,
+            })
           })
 
-          if (activity) {
-            useWorkflowStore.getState().addActivity(activity)
-            onSuccess(activityId)
-          } else {
-            onError('Invalid action configuration. Please check your inputs.')
-          }
+          useWorkflowStore.getState().addActivity(activity)
+          onSuccess(activityId)
         } catch (error) {
           onError(error instanceof Error ? error.message : 'Failed to add action')
         }

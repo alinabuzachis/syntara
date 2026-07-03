@@ -76,7 +76,10 @@ export function AIAgentNodeDetails({
         name: data.name,
         toolSelectionStrategy: data.tool_selection_strategy,
         toolSelections: data.tool_selections,
-        integrationConnections: data.integration_connections.length > 0 ? data.integration_connections : undefined,
+        integrationConnections:
+          data.integration_connections && data.integration_connections.length > 0
+            ? data.integration_connections
+            : undefined,
         prompt: data.prompt ?? undefined,
         model: data.model ?? undefined,
         fileIds: data.fileIds.length > 0 ? data.fileIds : undefined,

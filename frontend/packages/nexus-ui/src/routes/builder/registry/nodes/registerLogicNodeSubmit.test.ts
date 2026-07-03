@@ -121,34 +121,27 @@ describe('registerLogicNodeSubmit', () => {
   })
 
   describe('submitConditionLogic', () => {
-    it('returns false and calls onError when condition missing', () => {
-      const onError = vi.fn()
-      expect(
-        submitConditionLogic('id', 'n', { logicType: ActivityTypeEnum.CONDITION, name: 'x' } as never, onError)
-      ).toBe(false)
-      expect(onError).toHaveBeenCalledWith('Conditional expression is required')
-      expect(mockAddActivity).not.toHaveBeenCalled()
+    it('returns true and adds activity when condition missing', () => {
+      expect(submitConditionLogic('id', 'n', { logicType: ActivityTypeEnum.CONDITION, name: 'x' } as never)).toBe(true)
+      expect(mockAddActivity).toHaveBeenCalled()
     })
 
     it('returns true and adds activity when condition present', () => {
-      const onError = vi.fn()
       expect(
-        submitConditionLogic(
-          'cid',
-          'Cond',
-          { logicType: ActivityTypeEnum.CONDITION, name: 'x', condition: 'true' } as never,
-          onError
-        )
+        submitConditionLogic('cid', 'Cond', {
+          logicType: ActivityTypeEnum.CONDITION,
+          name: 'x',
+          condition: 'true',
+        } as never)
       ).toBe(true)
       expect(mockAddActivity).toHaveBeenCalled()
-      expect(onError).not.toHaveBeenCalled()
     })
   })
 
   describe('submitLoopLogic', () => {
-    it('returns false when loop type is invalid', () => {
-      const onError = vi.fn()
+    it('rejects invalid loop type', () => {
       const onSuccess = vi.fn()
+      const onError = vi.fn()
       expect(
         submitLoopLogic({
           activityId: 'l1',
@@ -160,42 +153,41 @@ describe('registerLogicNodeSubmit', () => {
         })
       ).toBe(false)
       expect(onError).toHaveBeenCalledWith('Loop type must be forEach or while')
-      expect(onSuccess).not.toHaveBeenCalled()
+      expect(mockBatchAddActivitiesAndEdges).not.toHaveBeenCalled()
     })
 
-    it('returns false when forEach missing items', () => {
-      const onError = vi.fn()
+    it('creates forEach loop even without items', () => {
+      const onSuccess = vi.fn()
       expect(
         submitLoopLogic({
           activityId: 'l1',
           name: 'L',
           data: { logicType: ActivityTypeEnum.LOOP, name: 'L', type: 'forEach' } as never,
           generateId: () => 'x',
-          onSuccess: vi.fn(),
-          onError,
+          onSuccess,
+          onError: vi.fn(),
         })
-      ).toBe(false)
-      expect(onError).toHaveBeenCalledWith('Items expression is required for forEach loop')
+      ).toBe(true)
+      expect(mockBatchAddActivitiesAndEdges).toHaveBeenCalled()
     })
 
-    it('returns false when while missing condition', () => {
-      const onError = vi.fn()
+    it('creates while loop even without condition', () => {
+      const onSuccess = vi.fn()
       expect(
         submitLoopLogic({
           activityId: 'l1',
           name: 'L',
           data: { logicType: ActivityTypeEnum.LOOP, name: 'L', type: 'while' } as never,
           generateId: () => 'x',
-          onSuccess: vi.fn(),
-          onError,
+          onSuccess,
+          onError: vi.fn(),
         })
-      ).toBe(false)
-      expect(onError).toHaveBeenCalledWith('Conditional expression is required for while loop')
+      ).toBe(true)
+      expect(mockBatchAddActivitiesAndEdges).toHaveBeenCalled()
     })
 
     it('returns true and batches activities for valid forEach loop', () => {
       const onSuccess = vi.fn()
-      const onError = vi.fn()
       expect(
         submitLoopLogic({
           activityId: 'loop-1',
@@ -208,17 +200,15 @@ describe('registerLogicNodeSubmit', () => {
           } as never,
           generateId: () => 'abc',
           onSuccess,
-          onError,
+          onError: vi.fn(),
         })
       ).toBe(true)
       expect(mockBatchAddActivitiesAndEdges).toHaveBeenCalled()
       expect(onSuccess).toHaveBeenCalledWith('loop-1')
-      expect(onError).not.toHaveBeenCalled()
     })
 
     it('returns true for valid while loop', () => {
       const onSuccess = vi.fn()
-      const onError = vi.fn()
       expect(
         submitLoopLogic({
           activityId: 'loop-2',
@@ -231,7 +221,7 @@ describe('registerLogicNodeSubmit', () => {
           } as never,
           generateId: () => 'xyz',
           onSuccess,
-          onError,
+          onError: vi.fn(),
         })
       ).toBe(true)
       expect(mockBatchAddActivitiesAndEdges).toHaveBeenCalled()
@@ -240,100 +230,69 @@ describe('registerLogicNodeSubmit', () => {
   })
 
   describe('submitConvergeLogic', () => {
-    it('returns false when strategy missing', () => {
-      const onError = vi.fn()
-      expect(
-        submitConvergeLogic('c1', 'C', { logicType: ActivityTypeEnum.CONVERGE, name: 'C' } as never, onError)
-      ).toBe(false)
-      expect(onError).toHaveBeenCalledWith('Continue when criteria is required')
+    it('creates activity even when strategy missing', () => {
+      expect(submitConvergeLogic('c1', 'C', { logicType: ActivityTypeEnum.CONVERGE, name: 'C' } as never)).toBe(true)
+      expect(mockAddActivity).toHaveBeenCalled()
     })
 
-    it('returns false for strategy any with invalid requiredPathCount', () => {
-      const onError = vi.fn()
+    it('creates activity for strategy any even with zero requiredPathCount', () => {
       expect(
-        submitConvergeLogic(
-          'c1',
-          'C',
-          {
-            logicType: ActivityTypeEnum.CONVERGE,
-            name: 'C',
-            strategy: 'any',
-            requiredPathCount: 0,
-          } as never,
-          onError
-        )
-      ).toBe(false)
-      expect(onError).toHaveBeenCalledWith(
-        'Required path count must be at least 1 when using "Any branches reach this step"'
-      )
+        submitConvergeLogic('c1', 'C', {
+          logicType: ActivityTypeEnum.CONVERGE,
+          name: 'C',
+          strategy: 'any',
+          requiredPathCount: 0,
+        } as never)
+      ).toBe(true)
+      expect(mockAddActivity).toHaveBeenCalled()
     })
 
     it('returns true and adds activity for strategy all', () => {
-      const onError = vi.fn()
       expect(
-        submitConvergeLogic(
-          'c1',
-          'Join',
-          { logicType: ActivityTypeEnum.CONVERGE, name: 'Join', strategy: 'all' } as never,
-          onError
-        )
+        submitConvergeLogic('c1', 'Join', {
+          logicType: ActivityTypeEnum.CONVERGE,
+          name: 'Join',
+          strategy: 'all',
+        } as never)
       ).toBe(true)
       expect(mockAddActivity).toHaveBeenCalled()
-      expect(onError).not.toHaveBeenCalled()
     })
 
     it('returns true for strategy any with required fields', () => {
-      const onError = vi.fn()
       expect(
-        submitConvergeLogic(
-          'c2',
-          'Any join',
-          {
-            logicType: ActivityTypeEnum.CONVERGE,
-            name: 'Any join',
-            strategy: 'any',
-            requiredPathCount: 2,
-            timeout: 60,
-            onTimeout: 'fail',
-          } as never,
-          onError
-        )
+        submitConvergeLogic('c2', 'Any join', {
+          logicType: ActivityTypeEnum.CONVERGE,
+          name: 'Any join',
+          strategy: 'any',
+          requiredPathCount: 2,
+          timeout: 60,
+          onTimeout: 'fail',
+        } as never)
       ).toBe(true)
       expect(mockAddActivity).toHaveBeenCalled()
-      expect(onError).not.toHaveBeenCalled()
     })
   })
 
   describe('submitSwitchLogic', () => {
-    it('returns false when cases are missing', () => {
-      const onError = vi.fn()
-      expect(submitSwitchLogic('s1', 'S', { logicType: ActivityTypeEnum.SWITCH, name: 'S' } as never, onError)).toBe(
-        false
-      )
-      expect(onError).toHaveBeenCalledWith('At least one path is required')
+    it('creates activity when cases are missing', () => {
+      expect(submitSwitchLogic('s1', 'S', { logicType: ActivityTypeEnum.SWITCH, name: 'S' } as never)).toBe(true)
+      expect(mockAddActivity).toHaveBeenCalled()
     })
 
-    it('returns false when cases array is empty', () => {
-      const onError = vi.fn()
-      expect(
-        submitSwitchLogic('s1', 'S', { logicType: ActivityTypeEnum.SWITCH, name: 'S', cases: [] } as never, onError)
-      ).toBe(false)
-      expect(onError).toHaveBeenCalledWith('At least one path is required')
+    it('creates activity when cases array is empty', () => {
+      expect(submitSwitchLogic('s1', 'S', { logicType: ActivityTypeEnum.SWITCH, name: 'S', cases: [] } as never)).toBe(
+        true
+      )
+      expect(mockAddActivity).toHaveBeenCalled()
     })
 
     it('returns true and adds activity for valid cases', () => {
-      const onError = vi.fn()
       expect(
-        submitSwitchLogic(
-          's1',
-          'Route',
-          {
-            logicType: ActivityTypeEnum.SWITCH,
-            name: 'Route',
-            cases: [{ caseId: 'c1', condition: '${status} == "approved"' }],
-          } as never,
-          onError
-        )
+        submitSwitchLogic('s1', 'Route', {
+          logicType: ActivityTypeEnum.SWITCH,
+          name: 'Route',
+          cases: [{ caseId: 'c1', condition: '${status} == "approved"' }],
+        } as never)
       ).toBe(true)
       expect(mockAddActivity).toHaveBeenCalled()
       const activity = mockAddActivity.mock.calls[0][0] as {
@@ -342,25 +301,18 @@ describe('registerLogicNodeSubmit', () => {
       expect(activity.cases[0].condition).toBe('${status} == "approved"')
       expect(activity.cases[0].port).toBe('case_0')
       expect(activity.cases[0].label).toBe('Path 1')
-      expect(onError).not.toHaveBeenCalled()
     })
 
     it('returns true for multiple cases with different conditions', () => {
-      const onError = vi.fn()
       expect(
-        submitSwitchLogic(
-          's2',
-          'Multi Route',
-          {
-            logicType: ActivityTypeEnum.SWITCH,
-            name: 'Multi Route',
-            cases: [
-              { caseId: 'c1', condition: '${priority} > 7' },
-              { caseId: 'c2', condition: 'not(${status} == "rejected")' },
-            ],
-          } as never,
-          onError
-        )
+        submitSwitchLogic('s2', 'Multi Route', {
+          logicType: ActivityTypeEnum.SWITCH,
+          name: 'Multi Route',
+          cases: [
+            { caseId: 'c1', condition: '${priority} > 7' },
+            { caseId: 'c2', condition: 'not(${status} == "rejected")' },
+          ],
+        } as never)
       ).toBe(true)
       expect(mockAddActivity).toHaveBeenCalled()
       const activity = mockAddActivity.mock.calls[0][0] as {
@@ -369,31 +321,23 @@ describe('registerLogicNodeSubmit', () => {
       expect(activity.cases).toHaveLength(2)
       expect(activity.cases[0].port).toBe('case_0')
       expect(activity.cases[1].port).toBe('case_1')
-      expect(onError).not.toHaveBeenCalled()
     })
 
     it('serializes conditions with labels using custom path names', () => {
-      const onError = vi.fn()
-      submitSwitchLogic(
-        's3',
-        'Named Paths',
-        {
-          logicType: ActivityTypeEnum.SWITCH,
-          name: 'Named Paths',
-          cases: [
-            { caseId: 'c1', label: 'High Priority', condition: '${priority} > 7' },
-            { caseId: 'c2', label: 'Low Priority', condition: '${priority} < 3' },
-          ],
-        } as never,
-        onError
-      )
+      submitSwitchLogic('s3', 'Named Paths', {
+        logicType: ActivityTypeEnum.SWITCH,
+        name: 'Named Paths',
+        cases: [
+          { caseId: 'c1', label: 'High Priority', condition: '${priority} > 7' },
+          { caseId: 'c2', label: 'Low Priority', condition: '${priority} < 3' },
+        ],
+      } as never)
       expect(mockAddActivity).toHaveBeenCalled()
       const activity = mockAddActivity.mock.calls[0][0] as {
         cases: Array<{ port: string; label: string; condition: string }>
       }
       expect(activity.cases[0].label).toBe('High Priority')
       expect(activity.cases[1].label).toBe('Low Priority')
-      expect(onError).not.toHaveBeenCalled()
     })
   })
 

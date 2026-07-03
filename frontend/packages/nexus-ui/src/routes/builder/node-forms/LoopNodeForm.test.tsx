@@ -55,7 +55,7 @@ describe('LoopNodeForm', () => {
   })
 
   describe('forEach Submission', () => {
-    it('shows "Items expression is required" when submitting forEach with empty items', async () => {
+    it('submits forEach form even with empty items (permissive schema)', async () => {
       const user = userEvent.setup()
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'forEach' }} />)
 
@@ -63,9 +63,13 @@ describe('LoopNodeForm', () => {
       fireEvent.submit(screen.getByTestId('loop-node-form'))
 
       await waitFor(() => {
-        expect(screen.getByText('Items expression is required')).toBeInTheDocument()
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'Test Loop',
+            type: 'forEach',
+          })
+        )
       })
-      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
   })
 

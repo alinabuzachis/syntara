@@ -136,7 +136,12 @@ describe('registerAAPNode', () => {
     expect(mockAddActivity).toHaveBeenCalled()
   })
 
-  it('onSubmit calls onError when job_template_id is invalid', () => {
+  it('creates activity even when job_template_id is undefined', () => {
+    const mockAddActivity = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addActivity: mockAddActivity,
+    } as never)
+
     registerAAPNode()
     const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
     const onSuccess = vi.fn()
@@ -146,16 +151,22 @@ describe('registerAAPNode', () => {
       name: 'Test AAP Job',
       organization_name: 'Default',
       job_template_name: 'Deploy App',
-      job_template_id: undefined, // Invalid
+      job_template_id: undefined,
     }
 
     registration?.onSubmit(formData, onSuccess, onError, RegistryNodeId.AAP_JOB_TEMPLATE)
 
-    expect(onError).toHaveBeenCalledWith(expect.any(String))
-    expect(onSuccess).not.toHaveBeenCalled()
+    expect(mockAddActivity).toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledWith(expect.any(String))
+    expect(onError).not.toHaveBeenCalled()
   })
 
-  it('onSubmit calls onError when workflow_job_template_id is invalid', () => {
+  it('creates activity even when workflow_job_template_id is undefined', () => {
+    const mockAddActivity = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addActivity: mockAddActivity,
+    } as never)
+
     registerAAPNode()
     const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
     const onSuccess = vi.fn()
@@ -165,13 +176,14 @@ describe('registerAAPNode', () => {
       name: 'Test AAP Workflow',
       organization_name: 'Default',
       workflow_job_template_name: 'Deploy Workflow',
-      workflow_job_template_id: undefined, // Invalid
+      workflow_job_template_id: undefined,
     }
 
     registration?.onSubmit(formData, onSuccess, onError, RegistryNodeId.AAP_WORKFLOW_TEMPLATE)
 
-    expect(onError).toHaveBeenCalledWith(expect.any(String))
-    expect(onSuccess).not.toHaveBeenCalled()
+    expect(mockAddActivity).toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledWith(expect.any(String))
+    expect(onError).not.toHaveBeenCalled()
   })
 
   it('onSubmit calls onError when subtypeId is missing', () => {

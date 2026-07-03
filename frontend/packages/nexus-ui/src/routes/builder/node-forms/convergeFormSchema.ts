@@ -16,30 +16,13 @@ const positiveWholeNumber = optionalNumber
  */
 const convergeFormSchemaBase = z.object({
   name: z.string(),
-  strategy: z.enum(['all', 'any']),
+  strategy: z.enum(['all', 'any']).optional(),
   requiredPathCount: positiveWholeNumber,
   wait_duration: z.number().int().positive().optional(),
   settings: nodeSettingsSchema.optional(),
 })
 
-export const convergeFormSchema = convergeFormSchemaBase.superRefine((data, ctx) => {
-  if (!data.strategy || String(data.strategy).trim() === '') {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Continue when criteria is required',
-      path: ['strategy'],
-    })
-  }
-  if (data.strategy === 'any') {
-    if (data.requiredPathCount == null || data.requiredPathCount < 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Required path count is required',
-        path: ['requiredPathCount'],
-      })
-    }
-  }
-})
+export const convergeFormSchema = convergeFormSchemaBase
 
 export type ConvergeFormData = z.infer<typeof convergeFormSchemaBase>
 export type ConvergeStrategy = ConvergeFormData['strategy']

@@ -37,23 +37,32 @@ describe('switchFormSchema', () => {
     })
   })
 
-  describe('validation errors', () => {
-    it('rejects empty cases array', () => {
+  describe('permissive validation', () => {
+    it('accepts empty cases array', () => {
       const result = switchFormSchema.safeParse({
         name: 'My Switch',
         cases: [],
       })
 
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
     })
 
-    it('rejects case with empty condition', () => {
+    it('accepts case with empty condition', () => {
       const result = switchFormSchema.safeParse({
         name: 'My Switch',
         cases: [{ caseId: 'test-id', condition: '' }],
       })
 
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
+    })
+
+    it('accepts case with no condition', () => {
+      const result = switchFormSchema.safeParse({
+        name: 'My Switch',
+        cases: [{ caseId: 'test-id' }],
+      })
+
+      expect(result.success).toBe(true)
     })
   })
 })

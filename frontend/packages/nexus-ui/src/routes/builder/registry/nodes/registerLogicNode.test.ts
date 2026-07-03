@@ -100,13 +100,15 @@ describe('registerLogicNode', () => {
   })
 
   describe('Converge', () => {
-    it('calls onError when strategy is missing', () => {
+    it('creates activity even when strategy is missing', () => {
       const onSuccess = vi.fn()
       const onError = vi.fn()
       getHandler()({ logicType: 'converge', name: 'Test' }, onSuccess, onError)
 
-      expect(onError).toHaveBeenCalledWith('Continue when criteria is required')
-      expect(onSuccess).not.toHaveBeenCalled()
+      expect(mockCreateConvergeActivity).toHaveBeenCalled()
+      expect(mockAddActivity).toHaveBeenCalled()
+      expect(onSuccess).toHaveBeenCalledWith(expect.stringMatching(/^logic_\d+_[a-z0-9]+$/))
+      expect(onError).not.toHaveBeenCalled()
     })
 
     it('calls createConvergeActivity and onSuccess for valid strategy all', () => {
@@ -148,7 +150,7 @@ describe('registerLogicNode', () => {
       expect(onSuccess).toHaveBeenCalled()
     })
 
-    it('calls onError when strategy any is missing requiredPathCount', () => {
+    it('creates activity even when strategy any is missing requiredPathCount', () => {
       const onSuccess = vi.fn()
       const onError = vi.fn()
       getHandler()(
@@ -161,10 +163,15 @@ describe('registerLogicNode', () => {
         onError
       )
 
-      expect(onError).toHaveBeenCalledWith(
-        'Required path count must be at least 1 when using "Any branches reach this step"'
+      expect(mockCreateConvergeActivity).toHaveBeenCalledWith(
+        expect.any(String),
+        'Join Any',
+        expect.objectContaining({ strategy: 'any' }),
+        undefined
       )
-      expect(onSuccess).not.toHaveBeenCalled()
+      expect(mockAddActivity).toHaveBeenCalled()
+      expect(onSuccess).toHaveBeenCalledWith(expect.stringMatching(/^logic_\d+_[a-z0-9]+$/))
+      expect(onError).not.toHaveBeenCalled()
     })
 
     it('calls createConvergeActivity and onSuccess for strategy any with all required fields', () => {
@@ -197,13 +204,15 @@ describe('registerLogicNode', () => {
   })
 
   describe('Condition', () => {
-    it('calls onError when condition is missing', () => {
+    it('creates activity even when condition is missing', () => {
       const onSuccess = vi.fn()
       const onError = vi.fn()
       getHandler()({ logicType: 'condition', name: 'Check' }, onSuccess, onError)
 
-      expect(onError).toHaveBeenCalledWith('Conditional expression is required')
-      expect(onSuccess).not.toHaveBeenCalled()
+      expect(mockCreateConditionActivity).toHaveBeenCalled()
+      expect(mockAddActivity).toHaveBeenCalled()
+      expect(onSuccess).toHaveBeenCalledWith(expect.stringMatching(/^logic_\d+_[a-z0-9]+$/))
+      expect(onError).not.toHaveBeenCalled()
     })
 
     it('calls createConditionActivity and onSuccess for valid condition', () => {
@@ -223,22 +232,24 @@ describe('registerLogicNode', () => {
   })
 
   describe('Loop', () => {
-    it('calls onError when forEach is missing items', () => {
+    it('creates activity even when forEach is missing items', () => {
       const onSuccess = vi.fn()
       const onError = vi.fn()
       getHandler()({ logicType: 'loop', type: 'forEach', name: 'Loop' }, onSuccess, onError)
 
-      expect(onError).toHaveBeenCalledWith('Items expression is required for forEach loop')
-      expect(onSuccess).not.toHaveBeenCalled()
+      expect(mockBatchAddActivitiesAndEdges).toHaveBeenCalled()
+      expect(onSuccess).toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
     })
 
-    it('calls onError when while is missing condition', () => {
+    it('creates activity even when while is missing condition', () => {
       const onSuccess = vi.fn()
       const onError = vi.fn()
       getHandler()({ logicType: 'loop', type: 'while', name: 'While Loop' }, onSuccess, onError)
 
-      expect(onError).toHaveBeenCalledWith('Conditional expression is required for while loop')
-      expect(onSuccess).not.toHaveBeenCalled()
+      expect(mockBatchAddActivitiesAndEdges).toHaveBeenCalled()
+      expect(onSuccess).toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
     })
   })
 

@@ -29,7 +29,7 @@ export type LogicFormData = {
   cases?: Array<{
     caseId: string
     label?: string
-    condition: string
+    condition?: string
   }>
   // Converge fields
   strategy?: 'all' | 'any'

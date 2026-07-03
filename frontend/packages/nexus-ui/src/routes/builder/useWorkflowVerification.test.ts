@@ -585,3 +585,131 @@ describe('extractValidationErrors', () => {
     ])
   })
 })
+
+describe('verification of incomplete nodes', () => {
+  function renderVerificationHook() {
+    return renderHook(() => useWorkflowVerification({ dispatch: mockDispatch }))
+  }
+
+  const workflowWithNodes = {
+    currentWorkflow: {
+      name: 'Test',
+      description: 'desc',
+      workflow: {
+        activities: [
+          { id: 'script-1', name: 'Empty Script', type: 'script', parameters: {} },
+          { id: 'script-2', name: 'Empty Script2', type: 'script', parameters: {} },
+        ],
+      },
+      triggers: [{ id: 'trigger-1', type: 'manual_trigger', parameters: {} }],
+    },
+    edges: [
+      { id: 'e1', source: 'trigger-1', target: 'script-1' },
+      { id: 'e2', source: 'script-1', target: 'script-2' },
+    ],
+    nodePositions: {},
+    _positionsUserModified: false,
+  }
+
+  it('dispatches per-node errors for multiple incomplete nodes', async () => {
+    mockGetState.mockReturnValue(workflowWithNodes)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockPost.mockResolvedValue({
+      data: {
+        valid: false,
+        errors: [
+          { message: 'Node configuration is incomplete', node_id: 'script-1' },
+          { message: 'Node configuration is incomplete', node_id: 'script-2' },
+        ],
+        warnings: [],
+      },
+      error: undefined,
+      response: { ok: true },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerify())
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'SET_VALIDATION_ERRORS',
+        payload: [
+          {
+            message: 'Node configuration is incomplete',
+            nodeId: 'script-1',
+            nodeName: 'Empty Script',
+            severity: 'error',
+          },
+          {
+            message: 'Node configuration is incomplete',
+            nodeId: 'script-2',
+            nodeName: 'Empty Script2',
+            severity: 'error',
+          },
+        ],
+      })
+      expect(mockSetValidationErrorCount).toHaveBeenCalledWith(2)
+    })
+  })
+
+  it('dispatches errors and warnings separately for incomplete nodes', async () => {
+    mockGetState.mockReturnValue(workflowWithNodes)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockPost.mockResolvedValue({
+      data: {
+        valid: false,
+        errors: [{ message: 'Missing required field: code', node_id: 'script-1' }],
+        warnings: [{ message: 'Script has no error handling', node_id: 'script-2' }],
+      },
+      error: undefined,
+      response: { ok: true },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerify())
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'SET_VALIDATION_ERRORS',
+        payload: [
+          { message: 'Missing required field: code', nodeId: 'script-1', nodeName: 'Empty Script', severity: 'error' },
+          {
+            message: 'Script has no error handling',
+            nodeId: 'script-2',
+            nodeName: 'Empty Script2',
+            severity: 'warning',
+          },
+        ],
+      })
+      expect(mockSetValidationErrorCount).toHaveBeenCalledWith(2)
+    })
+  })
+
+  it('sets validationErrorCount to total number of issues from backend', async () => {
+    mockGetState.mockReturnValue(workflowWithNodes)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockPost.mockResolvedValue({
+      data: {
+        valid: false,
+        errors: [
+          { message: 'Error 1', node_id: 'script-1' },
+          { message: 'Error 2', node_id: 'script-2' },
+          { message: 'Global error', node_id: null },
+        ],
+        warnings: [],
+      },
+      error: undefined,
+      response: { ok: true },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerify())
+
+    await waitFor(() => {
+      expect(mockSetValidationErrorCount).toHaveBeenCalledWith(3)
+    })
+  })
+})

@@ -147,7 +147,7 @@ export function BuilderContent(props: BuilderContentProps) {
     loadWorkflowWithEdges,
   })
   useExecutionCopyToEditor({ executionCopy, dispatch, markDirty, showSuccess })
-  const { handleForceSaveSuccess } = useBuilderValidation({
+  const { handleForceSaveSuccess, handleVerifySilent } = useBuilderValidation({
     dispatch,
     hasValidationIssues: workflow?.has_validation_issues,
     isNew,
@@ -513,6 +513,7 @@ export function BuilderContent(props: BuilderContentProps) {
                       projectId={(workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id}
                       workflowMetadata={workflowMetadata}
                       onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
+                      onNodeAdded={handleVerifySilent}
                     />
                   </Flex>
                 </StackItem>

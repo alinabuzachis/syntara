@@ -211,7 +211,7 @@ describe('AAPNodeForm', () => {
     expect(templateInput).toBeInTheDocument()
   })
 
-  it('validates required organization field', async () => {
+  it('submits form even without organization selected (permissive schema)', async () => {
     const user = userEvent.setup()
     renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
@@ -220,7 +220,11 @@ describe('AAPNodeForm', () => {
     await submitForm()
 
     await waitFor(() => {
-      expect(mockOnSubmit).not.toHaveBeenCalled()
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Test Job',
+        })
+      )
     })
   })
 
@@ -279,31 +283,6 @@ describe('AAPNodeForm', () => {
     expect(screen.queryByPlaceholderText(/Use default execution environment/i)).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText(/Use default instance groups/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Labels/i)).not.toBeInTheDocument()
-  })
-
-  it('validates extra vars JSON format', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <AAPNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={vi.fn()}
-        initialData={{
-          organization_name: 'Default',
-          job_template_name: 'Deploy App',
-          job_template_id: 10,
-        }}
-      />
-    )
-
-    const extraVarsInput = screen.getByPlaceholderText(/version/i)
-    await user.click(extraVarsInput)
-    await user.paste('invalid json')
-
-    await submitForm()
-
-    await waitFor(() => {
-      expect(mockOnSubmit).not.toHaveBeenCalled()
-    })
   })
 
   it('renders link to view job template in AAP', () => {

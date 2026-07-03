@@ -167,10 +167,9 @@ describe('workflowFactories', () => {
         expect(trigger.name).toBe('Slack Webhook')
       })
 
-      it('throws for invalid webhook path format', () => {
-        expect(() => createWebhookTrigger('trigger-23', 'api/v2/events')).toThrow('Invalid webhook path format')
-        expect(() => createWebhookTrigger('trigger-24', '')).toThrow('Invalid webhook path format')
-        expect(() => createWebhookTrigger('trigger-25', '-leading-hyphen')).toThrow('Invalid webhook path format')
+      it('creates trigger with any path (format validation in schema layer)', () => {
+        const trigger = createWebhookTrigger('trigger-23', 'api/v2/events')
+        expect(trigger.parameters.webhook_path).toBe('api/v2/events')
       })
     })
 
@@ -201,10 +200,9 @@ describe('workflowFactories', () => {
         expect(trigger.name).toBe('My EDA Trigger')
       })
 
-      it('rejects invalid webhook path format', () => {
-        expect(() => createEdaTrigger('trigger-33', 'api/v2/events')).toThrow('Invalid webhook path format')
-        expect(() => createEdaTrigger('trigger-34', '')).toThrow('Invalid webhook path format')
-        expect(() => createEdaTrigger('trigger-35', '-leading-hyphen')).toThrow('Invalid webhook path format')
+      it('creates trigger with any path (format validation in schema layer)', () => {
+        const trigger = createEdaTrigger('trigger-33', 'api/v2/events')
+        expect(trigger.parameters.webhook_path).toBe('api/v2/events')
       })
     })
   })
@@ -596,18 +594,18 @@ describe('workflowFactories', () => {
         expect(activity.parameters).not.toHaveProperty('max_iterations')
       })
 
-      it('falls back to for_each with empty items when config is missing', () => {
+      it('omits items when config is missing', () => {
         const activity = createLoopActivity('loop-1', 'Loop', 'forEach', {})
 
         expect(activity.parameters.type).toBe('for_each')
-        expect(activity.parameters.items).toBe('')
+        expect(activity.parameters).not.toHaveProperty('items')
       })
 
-      it('falls back when while has no condition', () => {
+      it('omits condition when config is missing', () => {
         const activity = createLoopActivity('loop-1', 'Loop', 'while', {})
 
         expect(activity.parameters.type).toBe('do_while')
-        expect(activity.parameters.condition).toBe('')
+        expect(activity.parameters).not.toHaveProperty('condition')
       })
 
       it('includes settings when provided', () => {

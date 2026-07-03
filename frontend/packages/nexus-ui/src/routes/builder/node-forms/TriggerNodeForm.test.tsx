@@ -91,7 +91,7 @@ describe('TriggerNodeForm Component', () => {
   })
 
   describe('Manual Trigger — inputSchema validation', () => {
-    it('shows validation error for invalid JSON in input schema', async () => {
+    it('rejects invalid JSON in input schema', async () => {
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
@@ -107,7 +107,7 @@ describe('TriggerNodeForm Component', () => {
       expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
-    it('shows validation error when input schema is not a JSON object', async () => {
+    it('rejects input schema that is not a JSON object', async () => {
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
@@ -329,7 +329,7 @@ describe('TriggerNodeForm Component', () => {
       })
     })
 
-    it('shows validation error for empty webhook path', async () => {
+    it('submits form with empty webhook path (permissive schema)', async () => {
       const user = userEvent.setup()
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
@@ -339,12 +339,11 @@ describe('TriggerNodeForm Component', () => {
       await submitTriggerForm()
 
       await waitFor(() => {
-        expect(screen.getByText('Webhook path is required')).toBeInTheDocument()
+        expect(mockOnSubmit).toHaveBeenCalled()
       })
-      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
-    it('shows validation error for invalid webhook path characters', async () => {
+    it('rejects invalid webhook path characters', async () => {
       const user = userEvent.setup()
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
@@ -452,7 +451,7 @@ describe('TriggerNodeForm Component', () => {
       })
     })
 
-    it('shows validation error for empty webhook path', async () => {
+    it('submits form with empty webhook path (permissive schema)', async () => {
       const user = userEvent.setup()
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
@@ -462,9 +461,8 @@ describe('TriggerNodeForm Component', () => {
       await submitTriggerForm()
 
       await waitFor(() => {
-        expect(screen.getByText('Webhook path is required')).toBeInTheDocument()
+        expect(mockOnSubmit).toHaveBeenCalled()
       })
-      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
     it('renders with initial EDA trigger data', () => {

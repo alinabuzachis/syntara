@@ -70,7 +70,7 @@ describe('ActionNodeForm', () => {
     expect(screen.queryByLabelText(/HTTP Method/i)).not.toBeInTheDocument()
   })
 
-  it('shows "Script is required" when submitting with empty script', async () => {
+  it('submits form even with empty script (permissive schema)', async () => {
     const user = userEvent.setup()
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
@@ -78,8 +78,12 @@ describe('ActionNodeForm', () => {
     fireEvent.submit(screen.getByTestId('action-node-form'))
 
     await waitFor(() => {
-      expect(screen.getByText('Script is required')).toBeInTheDocument()
-      expect(mockOnSubmit).not.toHaveBeenCalled()
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Test Script',
+          executor: 'script',
+        })
+      )
     })
   })
 

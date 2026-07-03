@@ -7,12 +7,7 @@ import type * as ExecutionsAPI from '@ansible/nexus-contracts/src/executions-api
 import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
 import type * as WorkflowAPI from '@ansible/nexus-contracts/src/workflow-api.js'
 import type { Approval, Tool, WorkflowWithVersion, WorkflowsResponse } from '@ansible/nexus-contracts'
-import {
-  ExecutionStatusEnum,
-  IntegrationStatusEnum,
-  IntegrationTypeEnum,
-  WorkflowVersionStatusEnum,
-} from '@ansible/nexus-contracts'
+import { ExecutionStatusEnum, WorkflowVersionStatusEnum } from '@ansible/nexus-contracts'
 import { credentials, credentialTypes, credentialWorkflows } from './resources/credentials'
 import { integrations } from './resources/integrations'
 import { workflows } from './resources/workflows'
@@ -177,13 +172,6 @@ function randomIntBelow(max: number): number {
     val = buf[0]!
   } while (val >= limit)
   return val % max
-}
-
-/** Inclusive min, exclusive max (same as Node `randomInt(min, max)`). */
-function randomIntRange(min: number, maxExclusive: number): number {
-  const span = maxExclusive - min
-  if (span <= 1) return min
-  return min + randomIntBelow(span)
 }
 
 function base64EncodeJson(payload: unknown): string {
@@ -622,7 +610,7 @@ export const handlers = [
   http.post('/api/v1/workflows/validate', async (req) => {
     const body = (await req.request.json()) as {
       workflow_definition?: {
-        nodes?: Array<{ id?: string }>
+        nodes?: Array<{ id?: string; type?: string; parameters?: Record<string, unknown> }>
         edges?: unknown[]
         triggers?: unknown[]
       }
@@ -655,10 +643,15 @@ export const handlers = [
       })
     }
 
-    // Flag the first node as having an invalid configuration to exercise per-node error badges
+    // Flag every node that has incomplete/empty configuration
     const nodes = definition.nodes ?? []
-    if (nodes.length > 0 && nodes[0].id) {
-      errors.push({ message: 'Node configuration is incomplete', node_id: nodes[0].id })
+    for (const node of nodes) {
+      if (!node.id) continue
+      const params = node.parameters ?? {}
+      const hasContent = Object.values(params).some((v) => v !== undefined && v !== null && v !== '')
+      if (!hasContent) {
+        errors.push({ message: 'Node configuration is incomplete', node_id: node.id })
+      }
     }
 
     if (errors.length > 0) {

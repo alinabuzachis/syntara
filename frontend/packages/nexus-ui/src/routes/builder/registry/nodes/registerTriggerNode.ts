@@ -78,10 +78,10 @@ export default function registerTriggerNode() {
               const inputSchema = parseJsonSchema(data.inputSchema)
               return createManualTrigger(triggerId, undefined, name, inputSchema)
             }
-            if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType) {
+            if (data.triggerType === TriggerTypeEnum.SCHEDULED) {
               return createScheduledTrigger(
                 triggerId,
-                data.scheduleType as ScheduleType,
+                (data.scheduleType as ScheduleType) ?? 'interval',
                 {
                   cron: data.cron,
                   timezone: data.timezone,
@@ -91,24 +91,17 @@ export default function registerTriggerNode() {
                 name
               )
             }
-            if (WEBHOOK_TRIGGER_TYPES.has(data.triggerType) && data.webhookPath) {
+            if (WEBHOOK_TRIGGER_TYPES.has(data.triggerType)) {
               const inputSchema = parseJsonSchema(data.inputSchema)
-              if (data.inputSchema?.trim() && !inputSchema) {
-                throw new Error('Invalid JSON schema — check syntax')
-              }
               const factory =
                 data.triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER ? createWebhookTrigger : createEdaTrigger
-              return factory(triggerId, normalizeWebhookPath(data.webhookPath), inputSchema, name)
+              return factory(triggerId, normalizeWebhookPath(data.webhookPath ?? ''), inputSchema, name)
             }
-            return null
+            return createManualTrigger(triggerId, undefined, name)
           })
 
-          if (trigger) {
-            useWorkflowStore.getState().addTrigger(trigger)
-            onSuccess()
-          } else {
-            onError('Invalid trigger configuration. Please check your inputs.')
-          }
+          useWorkflowStore.getState().addTrigger(trigger)
+          onSuccess()
         } catch (error) {
           onError(error instanceof Error ? error.message : 'Failed to add trigger')
         }

@@ -297,6 +297,7 @@ type NodeDetailsPanelProps = {
   workflowMetadata?: WorkflowMetadata
   onRunStep?: () => void
   readOnly?: boolean
+  onNodeAdded?: () => void
 }
 
 function createAddStepHandler(
@@ -324,6 +325,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     onAddStep,
     onRunStep,
     readOnly,
+    onNodeAdded,
   } = props
   const { showError } = useAlerts()
   // Use typed selector for optimized subscription
@@ -420,6 +422,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
             }
 
             onClose()
+            onNodeAdded?.()
           },
           (error: string) => {
             showError({ title: 'Add step failed', description: error })

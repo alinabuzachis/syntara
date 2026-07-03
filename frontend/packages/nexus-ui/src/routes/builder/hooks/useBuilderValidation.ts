@@ -38,5 +38,5 @@ export function useBuilderValidation({
     [dispatch, handleVerifySilent]
   )
 
-  return { handleForceSaveSuccess }
+  return { handleForceSaveSuccess, handleVerifySilent }
 }

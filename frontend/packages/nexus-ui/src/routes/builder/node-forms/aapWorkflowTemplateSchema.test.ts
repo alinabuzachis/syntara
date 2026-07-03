@@ -67,26 +67,24 @@ describe('aapWorkflowTemplateSchema', () => {
     }
   })
 
-  it('requires organization_name when workflow_job_template_name is provided without ID', () => {
-    const invalidData = {
+  it('accepts missing organization_name (permissive schema for incomplete nodes)', () => {
+    const data = {
       name: 'Deploy Workflow',
       workflow_job_template_name: 'Deploy Application',
-      // Missing organization_name
     }
 
-    const result = aapWorkflowTemplateSchema.safeParse(invalidData)
-    expect(result.success).toBe(false)
+    const result = aapWorkflowTemplateSchema.safeParse(data)
+    expect(result.success).toBe(true)
   })
 
-  it('requires workflow_job_template_name or workflow_job_template_id', () => {
-    const invalidData = {
+  it('accepts missing workflow_job_template fields (permissive schema for incomplete nodes)', () => {
+    const data = {
       name: 'Deploy Workflow',
       organization_name: 'Engineering',
-      // Missing both workflow_job_template_name and workflow_job_template_id
     }
 
-    const result = aapWorkflowTemplateSchema.safeParse(invalidData)
-    expect(result.success).toBe(false)
+    const result = aapWorkflowTemplateSchema.safeParse(data)
+    expect(result.success).toBe(true)
   })
 
   it('accepts empty string for optional fields', () => {
@@ -164,5 +162,39 @@ describe('aapWorkflowTemplateSchema', () => {
       expect(result.data.inventory_id).toBe(42)
       expect(result.data.inventory_name).toBe('Production Inventory')
     }
+  })
+
+  it('rejects invalid JSON in extra_vars', () => {
+    const result = aapWorkflowTemplateSchema.safeParse({ name: 'Test', extra_vars: 'not json' })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects non-object JSON in extra_vars (array)', () => {
+    const result = aapWorkflowTemplateSchema.safeParse({ name: 'Test', extra_vars: '[]' })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.message === 'Extra variables must be a JSON object')).toBe(true)
+    }
+  })
+
+  it('rejects non-object JSON in extra_vars (number)', () => {
+    const result = aapWorkflowTemplateSchema.safeParse({ name: 'Test', extra_vars: '123' })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.message === 'Extra variables must be a JSON object')).toBe(true)
+    }
+  })
+
+  it('rejects non-object JSON in extra_vars (null)', () => {
+    const result = aapWorkflowTemplateSchema.safeParse({ name: 'Test', extra_vars: 'null' })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.message === 'Extra variables must be a JSON object')).toBe(true)
+    }
+  })
+
+  it('accepts data with only the required name field', () => {
+    const result = aapWorkflowTemplateSchema.safeParse({ name: 'Incomplete Node' })
+    expect(result.success).toBe(true)
   })
 })

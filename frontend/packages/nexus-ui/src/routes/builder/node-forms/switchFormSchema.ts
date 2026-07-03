@@ -5,14 +5,14 @@ import type { Expression } from '../../../utils/expressions/types'
 const switchCaseSchema = z.object({
   caseId: z.string(),
   label: z.string().optional(),
-  condition: z.string().min(1, 'Condition is required'),
+  condition: z.string().optional(),
   expressionTree: z.custom<Expression>().optional(),
   editorMode: z.enum(['visual', 'raw']).optional(),
 })
 
 export const switchFormSchema = z.object({
   name: z.string(),
-  cases: z.array(switchCaseSchema).min(1, 'At least one path is required'),
+  cases: z.array(switchCaseSchema),
 })
 
 export type SwitchFormData = z.infer<typeof switchFormSchema>

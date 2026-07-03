@@ -8,7 +8,6 @@ import {
 } from '@ansible/nexus-contracts'
 
 import { safeJSONReviver } from '../utils/jsonSafeParse'
-import { isValidWebhookPath } from '../utils/webhookPath'
 
 import type { ActivityWithMetadata } from './workflowStoreTypes'
 
@@ -26,6 +25,16 @@ import type { ActivityWithMetadata } from './workflowStoreTypes'
 //   - Triggers have id and parameters fields
 //   - No nested child arrays (then/else/do/onApproved/onRejected)
 // ============================================================================
+
+/** Copy non-empty values from source to target. Skips undefined, null, empty strings, and non-finite numbers. */
+function copyDefinedValues(source: Record<string, unknown>, target: Record<string, unknown>) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value === undefined || value === null) continue
+    if (typeof value === 'number' && !Number.isFinite(value)) continue
+    if (typeof value === 'string' && value === '') continue
+    target[key] = value
+  }
+}
 
 // ============================================================================
 // Trigger Factory Functions
@@ -109,9 +118,6 @@ function createWebhookStyleTrigger(
   name: string,
   inputSchema?: Record<string, unknown>
 ): Activity {
-  if (!isValidWebhookPath(webhookPath)) {
-    throw new Error('Invalid webhook path format')
-  }
   return {
     id,
     type,
@@ -160,8 +166,8 @@ export function createEdaTrigger(
 export type CreateScriptActivityOptions = {
   id: string
   name: string
-  language: string
-  code: string
+  language?: string
+  code?: string
   credentialId?: string
   settings?: NodeSettings
 }
@@ -176,8 +182,8 @@ export function createScriptActivity(options: CreateScriptActivityOptions): Acti
     type: ActivityTypeEnum.SCRIPT,
     name,
     parameters: {
-      language,
-      code,
+      ...(language !== undefined && { language }),
+      ...(code !== undefined && { code }),
       ...(credentialId && { credential_id: credentialId }),
     },
     ...(settings && { settings }),
@@ -187,8 +193,8 @@ export function createScriptActivity(options: CreateScriptActivityOptions): Acti
 export type CreateApiActivityOptions = {
   id: string
   name: string
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  url: string
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  url?: string
   headers?: string
   body?: string
   inputs?: string
@@ -202,7 +208,10 @@ export type CreateApiActivityOptions = {
  */
 export function createApiActivity(options: CreateApiActivityOptions): Activity {
   const { id, name, method, url, headers, body, authentication, credentialId, settings } = options
-  const config: Record<string, unknown> = { method, url }
+  const config: Record<string, unknown> = {
+    ...(method !== undefined && { method }),
+    ...(url !== undefined && { url }),
+  }
 
   if (headers) {
     try {
@@ -359,11 +368,13 @@ const aapConfigMapping: [keyof AAPJobTemplateConfig, string, 'truthy' | 'defined
 export function createAAPJobTemplateActivity(
   id: string,
   name: string,
-  jobTemplateId: number,
+  jobTemplateId?: number,
   config?: AAPJobTemplateConfig,
   settings?: NodeSettings
 ): Activity {
-  const activityConfig: Record<string, unknown> = { job_template_id: jobTemplateId }
+  const activityConfig: Record<string, unknown> = {
+    ...(jobTemplateId !== undefined && { job_template_id: jobTemplateId }),
+  }
 
   if (config) {
     for (const [srcKey, destKey, predicate] of aapConfigMapping) {
@@ -413,25 +424,16 @@ export type AAPWorkflowTemplateConfig = {
 export function createAAPWorkflowTemplateActivity(
   id: string,
   name: string,
-  workflowTemplateId: number,
+  workflowTemplateId?: number,
   config?: AAPWorkflowTemplateConfig,
   settings?: NodeSettings
 ): Activity {
-  const activityConfig: Record<string, unknown> = { workflow_job_template_id: workflowTemplateId }
+  const activityConfig: Record<string, unknown> = {
+    ...(workflowTemplateId !== undefined && { workflow_job_template_id: workflowTemplateId }),
+  }
 
-  // Config already uses snake_case field names matching the API contract
-  // Filter out undefined/null/empty/invalid values while copying
   if (config) {
-    for (const [key, value] of Object.entries(config)) {
-      // Skip undefined/null
-      if (value === undefined || value === null) continue
-      // For numbers: skip NaN and Infinity, but allow 0
-      if (typeof value === 'number' && !Number.isFinite(value)) continue
-      // For strings: skip empty strings (truthy predicate)
-      if (typeof value === 'string' && value === '') continue
-      // For all other types (including 0, false, arrays, objects): include
-      activityConfig[key] = value
-    }
+    copyDefinedValues(config, activityConfig)
   }
 
   return {
@@ -485,13 +487,13 @@ export function createApprovalActivity(options: CreateApprovalActivityOptions): 
 /**
  * Create a condition node (v2).
  */
-export function createConditionActivity(id: string, name: string, condition: string): Activity {
+export function createConditionActivity(id: string, name: string, condition?: string): Activity {
   return {
     id,
     type: ActivityTypeEnum.CONDITION,
     name,
     parameters: {
-      condition,
+      ...(condition !== undefined && { condition }),
     },
   }
 }
@@ -522,7 +524,7 @@ export function createLoopActivity(
       name,
       parameters: {
         type: 'for_each',
-        items: config.items ?? '',
+        ...(config.items !== undefined && { items: config.items }),
         ...(config.itemVariable && { itemVariable: config.itemVariable }),
         ...(config.indexVariable && { indexVariable: config.indexVariable }),
         ...(maxIterations !== undefined && { max_iterations: maxIterations }),
@@ -537,7 +539,7 @@ export function createLoopActivity(
     name,
     parameters: {
       type: 'do_while',
-      condition: config.condition ?? '',
+      ...(config.condition !== undefined && { condition: config.condition }),
       ...(maxIterations !== undefined && { max_iterations: maxIterations }),
     },
     ...(settings && { settings }),
@@ -576,14 +578,14 @@ export function createConvergeActivity(
 export function createSwitchActivity(
   id: string,
   name: string,
-  cases: Array<{ port: string; label: string; condition: string }>
+  cases?: Array<{ port: string; label: string; condition?: string }>
 ): Activity {
   return {
     id,
     type: ActivityTypeEnum.SWITCH,
     name,
     parameters: {
-      cases,
+      cases: cases ?? [],
       default_port: EdgeHandleEnum.DEFAULT,
     },
   }

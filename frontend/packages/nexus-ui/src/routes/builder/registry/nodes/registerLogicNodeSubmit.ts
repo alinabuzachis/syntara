@@ -44,16 +44,7 @@ export function buildLogicStepName(data: LogicFormData): string {
   return name
 }
 
-export function submitConditionLogic(
-  activityId: string,
-  name: string,
-  data: LogicFormData,
-  onError: (msg: string) => void
-): boolean {
-  if (!data.condition) {
-    onError('Conditional expression is required')
-    return false
-  }
+export function submitConditionLogic(activityId: string, name: string, data: LogicFormData): boolean {
   const activity = createConditionActivity(activityId, name, data.condition)
   useWorkflowStore.getState().addActivity(activity)
   return true
@@ -71,15 +62,6 @@ export function submitLoopLogic(options: {
   const loopType = data.type === 'forEach' || data.type === 'while' ? data.type : undefined
   if (!loopType) {
     onError('Loop type must be forEach or while')
-    return false
-  }
-
-  if (loopType === 'forEach' && !data.items) {
-    onError('Items expression is required for forEach loop')
-    return false
-  }
-  if (loopType === 'while' && !data.condition) {
-    onError('Conditional expression is required for while loop')
     return false
   }
 
@@ -127,23 +109,7 @@ export function submitLoopLogic(options: {
   return true
 }
 
-export function submitConvergeLogic(
-  activityId: string,
-  name: string,
-  data: LogicFormData,
-  onError: (msg: string) => void
-): boolean {
-  if (!data.strategy) {
-    onError('Continue when criteria is required')
-    return false
-  }
-  if (data.strategy === 'any') {
-    if (data.requiredPathCount === undefined || data.requiredPathCount < 1) {
-      onError('Required path count must be at least 1 when using "Any branches reach this step"')
-      return false
-    }
-  }
-
+export function submitConvergeLogic(activityId: string, name: string, data: LogicFormData): boolean {
   const activity = createConvergeActivity(
     activityId,
     name,
@@ -159,18 +125,8 @@ export function submitConvergeLogic(
   return true
 }
 
-export function submitSwitchLogic(
-  activityId: string,
-  name: string,
-  data: LogicFormData,
-  onError: (msg: string) => void
-): boolean {
-  if (!data.cases || data.cases.length === 0) {
-    onError('At least one path is required')
-    return false
-  }
-
-  const cases = data.cases.map((c, i) => ({
+export function submitSwitchLogic(activityId: string, name: string, data: LogicFormData): boolean {
+  const cases = (data.cases ?? []).map((c, i) => ({
     port: buildSwitchCasePort(i),
     label: c.label || `Path ${i + 1}`,
     condition: c.condition,

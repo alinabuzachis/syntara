@@ -175,7 +175,12 @@ describe('registerTriggerNode', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
-  it('onSubmit calls onError when trigger configuration is invalid', () => {
+  it('creates a manual trigger when trigger type is unknown', () => {
+    const mockAddTrigger = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addTrigger: mockAddTrigger,
+    } as never)
+
     registerTriggerNode()
     const registration = NodeRegistry.get(RegistryNodeId.TRIGGER)
     const onSuccess = vi.fn()
@@ -183,8 +188,9 @@ describe('registerTriggerNode', () => {
 
     registration?.onSubmit({ name: 'Bad', triggerType: 'unknown_type' as never }, onSuccess, onError)
 
-    expect(onError).toHaveBeenCalledWith('Invalid trigger configuration. Please check your inputs.')
-    expect(onSuccess).not.toHaveBeenCalled()
+    expect(mockAddTrigger).toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
   })
 
   it('onSubmit handles thrown errors and calls onError', () => {

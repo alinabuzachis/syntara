@@ -184,7 +184,7 @@ describe('AAPWorkflowTemplateForm', () => {
     expect(templateInput).toBeInTheDocument()
   })
 
-  it('validates required organization field', async () => {
+  it('submits form even without organization selected (permissive schema)', async () => {
     const user = userEvent.setup()
     renderWithHeader(<AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
@@ -193,7 +193,11 @@ describe('AAPWorkflowTemplateForm', () => {
     await submitForm()
 
     await waitFor(() => {
-      expect(mockOnSubmit).not.toHaveBeenCalled()
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Test Workflow',
+        })
+      )
     })
   })
 
@@ -251,31 +255,6 @@ describe('AAPWorkflowTemplateForm', () => {
     // Fields disabled in defaultWorkflowTemplateDetail should NOT be visible
     expect(screen.queryByPlaceholderText(/Use default inventory/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Labels/i)).not.toBeInTheDocument()
-  })
-
-  it('validates extra vars JSON format', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <AAPWorkflowTemplateForm
-        onSubmit={mockOnSubmit}
-        onCancel={vi.fn()}
-        initialData={{
-          organization_name: 'Default',
-          workflow_job_template_name: 'Deploy Workflow',
-          workflow_job_template_id: 20,
-        }}
-      />
-    )
-
-    const extraVarsInput = screen.getByPlaceholderText(/version/i)
-    await user.click(extraVarsInput)
-    await user.paste('invalid json')
-
-    await submitForm()
-
-    await waitFor(() => {
-      expect(mockOnSubmit).not.toHaveBeenCalled()
-    })
   })
 
   it('renders form with all prompt-on-launch initial values', () => {
