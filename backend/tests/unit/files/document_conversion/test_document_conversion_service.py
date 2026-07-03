@@ -375,10 +375,11 @@ class TestDocumentConversionServiceStorageIntegration:
     async def test_store_converted_file_uses_correct_retriever(self, conversion_helper: ConversionTestHelper) -> None:
         """Test that _store_converted_file uses FileManager.get_retriever."""
         file_metadata = create_file_metadata(filename="store_test.pdf", status=FileStatus.CONVERTING)
+        expected_key = f"nexus-{file_metadata.id}-content.md"
         conversion_result = create_success_result("# Converted Content\n\nThis is the markdown version.", 1000)
 
         mock_retriever = AsyncMock()
-        mock_retriever.save_file.return_value = "/output/store_test.md"
+        mock_retriever.save_file.return_value = expected_key
         conversion_helper.mock_file_manager.get_retriever.return_value = mock_retriever
 
         output_filename, output_path = await conversion_helper.service._store_converted_file(
@@ -389,9 +390,9 @@ class TestDocumentConversionServiceStorageIntegration:
 
         assert conversion_result.converted_content is not None
         mock_retriever.save_file.assert_called_once_with(
-            conversion_result.converted_content.encode("utf-8"), "store_test.md"
+            conversion_result.converted_content.encode("utf-8"), expected_key
         )
-        assert output_path == "/output/store_test.md"
+        assert output_path == expected_key
         assert output_filename == "store_test.md"
 
     @pytest.mark.asyncio
