@@ -7,6 +7,7 @@ from uuid import uuid4
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 from nexus.workflows.audit.websocket_connection import (
     WebSocketConnectionAction,
     WebSocketConnectionEvent,
@@ -15,6 +16,7 @@ from nexus.workflows.audit.websocket_connection import (
 
 EXECUTION_ID = uuid4()
 WORKFLOW_ID = uuid4()
+USER_ID = uuid4()
 WORKFLOW_NAME = "Deploy to Production"
 
 
@@ -33,6 +35,9 @@ class TestWebSocketConnectionHandler:
             client_ip="192.168.1.1:54321",
             connection_id="conn-abc",
             replay="0",
+            user_id=USER_ID,
+            username="admin",
+            actor_type=PrincipalType.USER,
         )
         result = WebSocketConnectionHandler().handle(event)
 
@@ -46,6 +51,9 @@ class TestWebSocketConnectionHandler:
         assert result.workflow_id == WORKFLOW_ID
         assert result.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
         assert result.resource_name == WORKFLOW_NAME
+        assert result.actor_id == USER_ID
+        assert result.actor_type == PrincipalType.USER
+        assert result.actor_username == "admin"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "websocket-connection"
         assert result.structured_data.action == "connected"
@@ -109,6 +117,21 @@ class TestWebSocketConnectionHandler:
         assert result.event_action == "websocket_connected"
         assert not hasattr(result.structured_data, "replay") or result.structured_data.replay is None
         assert not hasattr(result.structured_data, "duration_ms") or result.structured_data.duration_ms is None
+
+    def test_actor_fields_absent_when_user_not_provided(self) -> None:
+        event = WebSocketConnectionEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=WORKFLOW_ID,
+            workflow_name=WORKFLOW_NAME,
+            action=WebSocketConnectionAction.CONNECTED,
+            client_ip="192.168.1.1:54321",
+            connection_id="conn-anon",
+        )
+        result = WebSocketConnectionHandler().handle(event)
+
+        assert result.actor_id is None
+        assert result.actor_type is None
+        assert result.actor_username is None
 
     def test_event_message_fallback_when_workflow_unknown(self) -> None:
         event = WebSocketConnectionEvent(

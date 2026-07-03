@@ -15,6 +15,7 @@ from nexus.workflows.services.execution_streaming_service import ExecutionStream
 
 EXECUTION_ID = uuid4()
 WORKFLOW_ID = uuid4()
+USER_ID = uuid4()
 WORKFLOW_NAME = "Deploy to Production"
 
 
@@ -49,6 +50,8 @@ class TestExecutionStreamingAudit:
             execution_id=EXECUTION_ID,
             replay="0",
             connection_id="conn-1",
+            user_id=USER_ID,
+            username="admin",
         )
 
         assert mock_dispatcher.dispatch.call_count == 2
@@ -62,6 +65,8 @@ class TestExecutionStreamingAudit:
         assert connected_event.client_ip == "10.0.0.1"
         assert connected_event.connection_id == "conn-1"
         assert connected_event.replay == "0"
+        assert connected_event.user_id == USER_ID
+        assert connected_event.username == "admin"
 
         disconnected_event = mock_dispatcher.dispatch.call_args_list[1][0][0]
         assert isinstance(disconnected_event, WebSocketConnectionEvent)
@@ -72,6 +77,8 @@ class TestExecutionStreamingAudit:
         assert disconnected_event.duration_ms >= 0
         assert disconnected_event.close_reason == "normal_close"
         assert disconnected_event.error_type is None
+        assert disconnected_event.user_id == USER_ID
+        assert disconnected_event.username == "admin"
 
         call_kwargs = service.websocket_handler.stream_events_to_websocket.call_args[1]
         assert call_kwargs["execution_status"] == "running"

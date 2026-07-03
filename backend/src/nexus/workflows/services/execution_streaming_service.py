@@ -19,6 +19,7 @@ from starlette.websockets import WebSocket
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.models.error import ErrorData
+from nexus.core.models.principal import PrincipalType
 from nexus.core.websocket.base_handler import BaseWebSocketStreamingHandler
 from nexus.core.websocket.close_codes import POLICY_VIOLATION
 from nexus.core.websocket.exceptions import EventsExpiredError, StreamingValidationError
@@ -257,6 +258,9 @@ class ExecutionStreamingService:
         execution_id: UUID,
         replay: str | None = None,
         connection_id: str | None = None,
+        user_id: UUID | None = None,
+        username: str | None = None,
+        actor_type: PrincipalType | None = None,
     ) -> None:
         """Stream events from Redis to WebSocket client.
 
@@ -268,6 +272,9 @@ class ExecutionStreamingService:
                    - "0": Replay from beginning (includes initial snapshot)
                    - event_id: Replay from specific Redis stream ID
             connection_id: Connection identifier for logging
+            user_id: Authenticated user ID (from WebSocket auth)
+            username: Authenticated username (from WebSocket auth)
+            actor_type: Principal type of the authenticated actor
 
         """
         stream_id = get_execution_stream_id(execution_id)
@@ -314,13 +321,13 @@ class ExecutionStreamingService:
                 close_reason=close_reason,
                 error_type=error_type,
                 replay=replay,
+                user_id=user_id,
+                username=username,
+                actor_type=actor_type,
             )
 
         start_ns = time.monotonic_ns()
 
-        # TODO(AAP-79017): WebSocket endpoints are unauthenticated — audit  # noqa: TD003
-        # dispatch fires without actor identity.  Revisit after AAP-79017
-        # adds WebSocket authentication (tracked by AAP-79607).
         AuditEventDispatcher.dispatch(_ws_event(action=WebSocketConnectionAction.CONNECTED))
 
         try:

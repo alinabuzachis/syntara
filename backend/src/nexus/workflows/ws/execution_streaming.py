@@ -9,6 +9,7 @@ import structlog
 from fastapi import WebSocket
 from pydantic import ValidationError
 
+from nexus.core.models.principal import PrincipalType
 from nexus.core.websocket.close_codes import UNSUPPORTED_DATA
 from nexus.workflows.models.query_params import ExecutionStreamingQueryParams
 from nexus.workflows.services.execution_streaming_service import get_execution_streaming_service
@@ -16,7 +17,13 @@ from nexus.workflows.services.execution_streaming_service import get_execution_s
 logger = structlog.stdlib.get_logger(__name__)
 
 
-async def on_connect_executions(websocket: WebSocket, connection_id: str) -> None:
+async def on_connect_executions(
+    websocket: WebSocket,
+    connection_id: str,
+    user_id: UUID | None = None,
+    username: str | None = None,
+    actor_type: PrincipalType | None = None,
+) -> None:
     """WebSocket connection handler for execution activity streaming.
 
     Thin proxy that delegates to ExecutionStreamingService for actual streaming logic.
@@ -24,6 +31,9 @@ async def on_connect_executions(websocket: WebSocket, connection_id: str) -> Non
     Args:
         websocket: The WebSocket connection
         connection_id: Unique connection identifier
+        user_id: Authenticated user ID (from WebSocket auth)
+        username: Authenticated username (from WebSocket auth)
+        actor_type: Principal type of the authenticated actor
 
     """
     # Extract execution_id from WebSocket path
@@ -60,4 +70,7 @@ async def on_connect_executions(websocket: WebSocket, connection_id: str) -> Non
         execution_id=execution_id,
         replay=replay,
         connection_id=connection_id,
+        user_id=user_id,
+        username=username,
+        actor_type=actor_type,
     )

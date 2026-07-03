@@ -732,6 +732,31 @@ def _handler_accepts_connection_id(handler_func: Callable[..., Any] | None) -> b
     return "connection_id" in handler_sig.parameters or "_connection_id" in handler_sig.parameters
 
 
+def _on_connect_accepts_user(on_connect_func: Callable[..., Any] | None) -> bool:
+    """Check if on_connect function accepts user_id and username parameters.
+
+    Args:
+        on_connect_func: The on_connect function or None
+
+    Returns:
+        True if the function accepts both user_id and username parameters
+
+    """
+    if on_connect_func is None:
+        return False
+    sig = inspect.signature(on_connect_func)
+    has_user_id = "user_id" in sig.parameters
+    has_username = "username" in sig.parameters
+    if has_user_id != has_username:
+        logger.warning(
+            "on_connect handler declares only one of user_id/username — both required for user propagation",
+            handler=on_connect_func.__qualname__,
+            has_user_id=has_user_id,
+            has_username=has_username,
+        )
+    return has_user_id and has_username
+
+
 def _validate_channel_and_get_request_type(
     spec: dict[str, Any],
     channel_name: str,
@@ -1077,7 +1102,7 @@ async def _run_bidirectional_message_loop(
             break
 
 
-def create_websocket_endpoint(  # noqa: PLR0915
+def create_websocket_endpoint(  # noqa: PLR0915, C901
     channel_name: str, spec: dict[str, Any], component_name: str
 ) -> Callable[[WebSocket], Any]:
     """Create a WebSocket endpoint handler for a channel.
@@ -1129,6 +1154,7 @@ def create_websocket_endpoint(  # noqa: PLR0915
     # Get on_connect function
     on_connect_func_name = f"on_connect_{normalized_channel_name}"
     on_connect_func = getattr(handler_module, on_connect_func_name, None)
+    on_connect_wants_user = _on_connect_accepts_user(on_connect_func)
 
     connection_manager = get_connection_manager()
     lifecycle_manager = get_connection_lifecycle_manager()
@@ -1209,7 +1235,13 @@ def create_websocket_endpoint(  # noqa: PLR0915
         # Start background task if on_connect handler exists
         background_task: asyncio.Task[None] | None = None
         if on_connect_func is not None and callable(on_connect_func):
-            background_task = asyncio.create_task(on_connect_func(websocket, connection_id_str))
+            if on_connect_wants_user:
+                user_kwargs: dict[str, Any] = {"user_id": user.id, "username": user.username}
+                if "actor_type" in inspect.signature(on_connect_func).parameters:
+                    user_kwargs["actor_type"] = user.__principal_type__
+                background_task = asyncio.create_task(on_connect_func(websocket, connection_id_str, **user_kwargs))
+            else:
+                background_task = asyncio.create_task(on_connect_func(websocket, connection_id_str))
             logger.debug(
                 "Started background task for channel, connection",
                 channel=channel_name,

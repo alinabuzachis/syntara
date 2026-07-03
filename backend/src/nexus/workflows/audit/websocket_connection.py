@@ -2,9 +2,8 @@
 
 Fired by ExecutionStreamingService when a WebSocket client connects to or
 disconnects from an execution event stream.  Captures connection metadata
-(client IP, execution ID, duration, close reason) for audit trail.
-
-Actor identity is empty until AAP-79017 introduces WebSocket authentication.
+(client IP, execution ID, duration, close reason) and actor identity for
+audit trail.
 """
 
 from __future__ import annotations
@@ -24,6 +23,8 @@ from nexus.audit.models.structured_data import AuditContextData
 
 if TYPE_CHECKING:
     from uuid import UUID
+
+    from nexus.core.models.principal import PrincipalType
 
 
 class WebSocketConnectionAction(StrEnum):
@@ -48,6 +49,9 @@ class WebSocketConnectionEvent:
     close_reason: str | None = field(default=None)
     error_type: str | None = field(default=None)
     replay: str | None = field(default=None)
+    user_id: UUID | None = field(default=None)
+    username: str | None = field(default=None)
+    actor_type: PrincipalType | None = field(default=None)
 
 
 class WebSocketConnectionHandler(AuditEventHandler[WebSocketConnectionEvent]):
@@ -87,4 +91,7 @@ class WebSocketConnectionHandler(AuditEventHandler[WebSocketConnectionEvent]):
             workflow_id=event.workflow_id,
             resource_urn=resource_urn,
             resource_name=event.workflow_name,
+            actor_id=event.user_id,
+            actor_type=event.actor_type if event.actor_type else None,
+            actor_username=event.username,
         )

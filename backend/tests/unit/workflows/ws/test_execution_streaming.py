@@ -72,6 +72,9 @@ class TestOnConnectExecutions:
             execution_id=execution_id,
             replay="1234567890-5",
             connection_id="test-conn-1",
+            user_id=None,
+            username=None,
+            actor_type=None,
         )
         # Connection should NOT be closed for valid params
         mock_websocket.close.assert_not_called()
@@ -97,6 +100,9 @@ class TestOnConnectExecutions:
             execution_id=execution_id,
             replay=None,  # No replay
             connection_id="test-conn-1",
+            user_id=None,
+            username=None,
+            actor_type=None,
         )
 
     async def test_replay_zero_from_beginning(
