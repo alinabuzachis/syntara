@@ -92,7 +92,21 @@ echo "✅ API server is ready"
 
 echo "🔧 Creating system user..."
 uv run python tools/create_system_user.py
-APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run python tools/set_admin_password.py < .secrets/admin-password
+uv run python tools/set_admin_password.py < .secrets/admin-password
+API="https://localhost:8000/api/v1"
+
+# Get admin session token
+ADMIN_TOKEN=$(curl -sf --cacert .secrets/certs/ca.pem "$API/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"username\": \"admin\", \"password\": \"$(cat .secrets/admin-password)\"}" | python3 -c "
+import sys, json
+print(json.load(sys.stdin)['access_token'])
+")
+
+curl -sf --cacert .secrets/certs/ca.pem -X PATCH "$API/settings/metrics.perf_test_mode" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"value": true}'
 
 SEGMENT_SERVER_URL="http://localhost:9999" \
 APP_BASE_URL="${APP_BASE_URL:-https://localhost:8000}" \
