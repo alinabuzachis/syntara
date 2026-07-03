@@ -667,7 +667,7 @@ reachability: ## Verify all standards docs are reachable from CLAUDE.md
 .PHONY: sync-requirements
 sync-requirements: ## Check/sync requirements.txt with uv.lock
 	@echo "🔍 Syncing requirements.txt with uv.lock..."
-	uv export --frozen --python=3.12 --no-dev --no-editable --no-emit-workspace --output-file requirements.txt
+	uv export --frozen --python=3.12 --no-dev --no-editable --no-emit-package pywin32 --no-emit-package colorama --no-emit-workspace --output-file requirements.txt
 	@echo "✅ requirements.txt is in sync"
 
 .PHONY: format

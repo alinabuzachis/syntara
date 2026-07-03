@@ -184,7 +184,6 @@ def _register_all() -> None:
     from nexus.authz.seed import seed_groups_project_admin  # noqa: PLC0415
     from nexus.credentials.lib.preseed import preseed_credential_types  # noqa: PLC0415
     from nexus.settings.seeder import seed_settings_with_session  # noqa: PLC0415
-    from nexus.workflows.seed import seed_sample_workflows  # noqa: PLC0415
     from nexus.workflows.seed_builtin import seed_builtin_workflows  # noqa: PLC0415
 
     _register(
@@ -221,15 +220,6 @@ def _register_all() -> None:
             func=seed_builtin_workflows,
             depends_on=("authz",),
             description="Seed built-in workflows (document conversion, invocation execution)",
-        )
-    )
-    _register(
-        SeederRegistration(
-            name="sample_workflows",
-            func=seed_sample_workflows,
-            depends_on=("authz",),
-            optional=True,
-            description="Load sample workflow YAML files (dev only)",
         )
     )
 

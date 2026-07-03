@@ -177,12 +177,13 @@ repos:
         pass_filenames: false
 
   # =========================================================================
-  # YAML formatting (all YAML files except Tekton)
+  # YAML formatting (all YAML files except Tekton and rpms.lock.yaml)
   # =========================================================================
   - repo: https://github.com/google/yamlfmt
     rev: b5ca1890231d5e1e5181fef75a1be609d1e25029 # v0.21.0
     hooks:
       - id: yamlfmt
+        exclude: ^backend/rpms\.lock\.yaml$
         args:
           - --formatter
           - include_document_start=true,retain_line_breaks=true,scan_folded_as_literal=true

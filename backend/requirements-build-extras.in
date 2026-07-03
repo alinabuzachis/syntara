@@ -1,0 +1,14 @@
+# Extra build dependencies that pybuild-deps cannot discover automatically.
+# These are appended to requirements-build.txt by generate-requirements-build.sh.
+#
+# ninja is intentionally excluded: the rust-builder base image already provides
+# /usr/bin/ninja via the ninja-build RPM.  The pip "ninja" package compiles from
+# source and fetches googletest over the network, which breaks hermetic builds.
+# swig is intentionally excluded: the builder image installs the swig RPM via dnf.
+# The pip "swig" package compiles SWIG from source and fetches bison/pcre2 over the
+# network, which breaks hermetic builds.  pymupdf uses the system binary via
+# PYMUPDF_SETUP_SWIG in the Containerfile.
+# libclang is needed by pymupdf at build time (build-system.requires).
+# pybuild-deps misses it because pymupdf is a runtime dep, not a build dep.
+libclang>=16.0
+patchelf>=0.11.0

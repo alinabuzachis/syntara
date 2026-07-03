@@ -1,9 +1,7 @@
 ---
 contentOrigin:
   repofiles:
-    - giturl: https://github.com/syntara-orchestration/syntara.git
-      gitref: main
-      file: repositories/ubi-9.repo
+    - repositories/ubi-9.repo
 packages:
   - name: python3.12
   - name: python3.12-pip

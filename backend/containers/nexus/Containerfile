@@ -1,37 +1,50 @@
-# Stage 1: Builder - uses python-312 image where Python is pre-installed
-FROM registry.access.redhat.com/ubi9/python-312:latest@sha256:e95978812895b9abb2bdc109b501078da2a47c8dbb9fa23758af40ed50ab6023 AS builder
+FROM registry.redhat.io/ansible-automation-platform/uv-builder-rhel9:latest@sha256:bdd64fcb4597cfb665c15c4b4841ded098baa26dce1f544b4dbd17a575b8984a AS builder
 
-# Switch to root to install dependencies
-USER root
+USER 0
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
+ENV PYTHON=python3.12 \
+    PYO3_PYTHON=python3.12 \
+    UV_LOCK_TIMEOUT=1800 \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_USE_PEP517=1 \
     PYTHONPATH=/opt/app-root/src/src
 
-# Install uv for fast dependency management
-RUN pip install --no-cache-dir uv
-
-# Set working directory
 WORKDIR /opt/app-root/src
 
 # Copy dependency files first (for layer caching)
-COPY pyproject.toml uv.lock LICENSE README.md alembic.ini requirements.txt ./
-
-# Install dependencies using uv (excluding dev dependencies)
-RUN if [ -n "${PIP_FIND_LINKS}" ]; then \
-        uv venv && \
-        uv pip install --no-index --find-links "${PIP_FIND_LINKS}" \
-            -r requirements.txt; \
-    else \
-        uv sync --frozen --no-dev; \
-    fi
+COPY pyproject.toml uv.lock LICENSE README.md alembic.ini ./
+COPY tools/ci/sanitize_pyproject_for_hermetic.py /usr/local/bin/sanitize_pyproject_for_hermetic.py
 
 # Copy application code (excluding ./tools)
 COPY src/ ./src/
-COPY samples/ ./samples/
+
+# Hermetic Konflux builds: use uv against Hermeto-prefetched sdists.
+# cachi2.env injects PIP_FIND_LINKS/PIP_NO_INDEX; we map that flat directory to
+# uv with --find-links/--no-index and run fully offline.
+# Lock metadata is refreshed in-build against the mounted cache because the
+# Hermeto prefetch directory is generated dynamically per build.
+# MuPDF source is taken from Hermeto generic artifacts and extracted locally so
+# PyMuPDF never tries to download it from mupdf.com during offline builds.
+# requirements-build.txt still matters for prefetch completeness even though uv
+# performs the actual isolated build/install steps.
+# Local (non-hermetic) builds fall through to normal uv sync.
+# hadolint ignore=SC2086
+RUN if [ -n "${PIP_FIND_LINKS:-}" ]; then \
+        # --- Hermetic build (Konflux / cachi2) ---
+        # uv lock resolves from pyproject metadata, so strip optional/integration
+        # sections from pyproject in-container before refreshing the lock.
+        python3.12 /usr/local/bin/sanitize_pyproject_for_hermetic.py pyproject.toml && \
+        UV_FIND_LINKS="${PIP_FIND_LINKS}" \
+        uv lock --offline --no-index --find-links "${PIP_FIND_LINKS}" && \
+        UV_FIND_LINKS="${PIP_FIND_LINKS}" \
+        uv sync --frozen --no-dev --no-editable --no-index --find-links "${PIP_FIND_LINKS}" --offline --no-binary; \
+    else \
+        # --- Local (non-hermetic) build ---
+        uv sync --frozen --no-dev; \
+    fi
 
 # Stage 2: Runtime - minimal image with Python and app copied from builder
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:83006d535923fcf1345067873524a3980316f51794f01d8655be55d6e9387183
@@ -54,8 +67,9 @@ RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 # Copy license file for Red Hat certification (HasLicense check)
 COPY LICENSE /licenses/LICENSE
 
-# Copy application, venv, and uv from builder
+# Copy application and venv from builder
 COPY --from=builder /opt/app-root/ /opt/app-root/
+COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

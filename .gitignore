@@ -102,6 +102,7 @@ data/uploads/
 CLAUDE.local.md
 AGENTS.local.md
 .gemini/
+worktrees/
 
 # Playwright MCP
 .playwright-mcp/

@@ -1,0 +1,6 @@
+# Constraints passed to pybuild-deps compile alongside requirements.txt.
+#
+# meson 1.9.1+ publishes wheel-only on PyPI; hermetic source builds need sdists.
+# Without this pin, pybuild-deps resolves meson==1.11.1 and fails with:
+#   "PyPI doesn't have the source code for package meson==1.11.1"
+meson==1.9.0
