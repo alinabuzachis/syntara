@@ -235,9 +235,12 @@ describe('GroupsTab Component', () => {
     it('renders sortable column headers', () => {
       render(<GroupsTab />, { wrapper })
 
-      // Name and Created/Updated are sortable; Description is NOT sortable
+      // Name, Created, and Updated are sortable; Description is NOT sortable
       const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
       expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
+
+      const descriptionHeader = screen.getByRole('columnheader', { name: /Description/i })
+      expect(within(descriptionHeader).queryByRole('button')).not.toBeInTheDocument()
 
       const createdHeader = screen.getByRole('columnheader', { name: /Created/i })
       expect(within(createdHeader).getByRole('button')).toBeInTheDocument()
@@ -246,19 +249,17 @@ describe('GroupsTab Component', () => {
       expect(within(updatedHeader).getByRole('button')).toBeInTheDocument()
     })
 
-    it('sorts by Name ascending by default', () => {
+    it('sends sort=name parameter to API by default', () => {
       render(<GroupsTab />, { wrapper })
 
-      // Server-side sorting: data is rendered in the order returned by the mock
-      const table = screen.getByRole('grid', { name: 'Groups table' })
-      const rows = within(table).getAllByRole('row')
-      // rows[0] is the header row
-      expect(within(rows[1]).getByText('Admins')).toBeInTheDocument()
-      expect(within(rows[2]).getByText('Developers')).toBeInTheDocument()
-      expect(within(rows[3]).getByText('Viewers')).toBeInTheDocument()
+      // Verify API was called with default sort parameter
+      const lastCall = vi.mocked(usersClient.useQuery).mock.calls.at(-1)
+      expect(lastCall).toBeDefined()
+      const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
+      expect(queryParams).toMatchObject({ sort: 'name' })
     })
 
-    it('sorts by Name descending when toggling sort direction', async () => {
+    it('sends sort=-name parameter when toggling to descending', async () => {
       const user = userEvent.setup()
       render(<GroupsTab />, { wrapper })
 
@@ -266,15 +267,17 @@ describe('GroupsTab Component', () => {
       const sortButton = within(nameHeader).getByRole('button')
       await user.click(sortButton)
 
-      // Client-side sorting: verify the table re-renders with sorted data
-      const table = screen.getByRole('grid', { name: 'Groups table' })
-      const rows = within(table).getAllByRole('row')
-      // After toggling, data should be reversed (descending)
-      expect(within(rows[1]).getByText('Viewers')).toBeInTheDocument()
-      expect(within(rows[3]).getByText('Admins')).toBeInTheDocument()
+      // Verify API was called with descending sort parameter
+      await waitFor(() => {
+        const lastCall = vi.mocked(usersClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toMatchObject({ sort: '-name' })
+      })
     })
 
-    it('sorts by Created column ascending', async () => {
+    it('sends sort=created_at parameter when sorting by Created', async () => {
       const user = userEvent.setup()
       render(<GroupsTab />, { wrapper })
 
@@ -282,10 +285,32 @@ describe('GroupsTab Component', () => {
       const sortButton = within(createdHeader).getByRole('button')
       await user.click(sortButton)
 
-      // Client-side sorting: verify sort button is clickable and data still renders
-      const table = screen.getByRole('grid', { name: 'Groups table' })
-      const rows = within(table).getAllByRole('row')
-      expect(rows.length).toBeGreaterThan(1)
+      // Verify API was called with created_at sort parameter
+      await waitFor(() => {
+        const lastCall = vi.mocked(usersClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toMatchObject({ sort: 'created_at' })
+      })
+    })
+
+    it('sends sort=updated_at parameter when sorting by Updated', async () => {
+      const user = userEvent.setup()
+      render(<GroupsTab />, { wrapper })
+
+      const updatedHeader = screen.getByRole('columnheader', { name: /Updated/i })
+      const sortButton = within(updatedHeader).getByRole('button')
+      await user.click(sortButton)
+
+      // Verify API was called with updated_at sort parameter
+      await waitFor(() => {
+        const lastCall = vi.mocked(usersClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toMatchObject({ sort: 'updated_at' })
+      })
     })
   })
 

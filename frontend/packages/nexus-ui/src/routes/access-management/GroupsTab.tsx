@@ -24,6 +24,12 @@ import { getGroupDescriptionFilterDefinition, getGroupNameFilterDefinition } fro
 import { GroupFormModal } from './GroupFormModal'
 import { useGroupPermissions } from './useGroupPermissions'
 
+const SORT_FIELDS: Record<number, string> = {
+  0: 'name',
+  3: 'created_at',
+  4: 'updated_at',
+}
+
 export function GroupsTab() {
   const permissions = useGroupPermissions()
   const deleteDialog = useDialogState<Group>()
@@ -45,9 +51,20 @@ export function GroupsTab() {
     []
   )
 
+  const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
+    initialDirection: 'asc',
+    onSortChange: resetPagination,
+  })
+
+  const finalQueryParams = useMemo(() => {
+    const field = SORT_FIELDS[activeSortIndex] ?? 'name'
+    const sort = sortDirection === 'desc' ? `-${field}` : field
+    return { ...queryParams, sort }
+  }, [queryParams, activeSortIndex, sortDirection])
+
   const query = usersClient.useQuery('get', '/groups', {
     params: {
-      query: queryParams,
+      query: finalQueryParams,
     },
   })
 
@@ -55,26 +72,6 @@ export function GroupsTab() {
   const groups = data?.resources ?? []
 
   useCursorReset(groups.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
-
-  const { activeSortIndex, getSortParams, sortData } = useTableSort({
-    initialSortIndex: 0,
-    initialDirection: 'asc',
-  })
-
-  const results = sortData(groups, (group) => {
-    switch (activeSortIndex) {
-      case 0:
-        return group.name ?? ''
-      case 1:
-        return group.description
-      case 3:
-        return group.created_at ? new Date(group.created_at).getTime() : undefined
-      case 4:
-        return group.updated_at ? new Date(group.updated_at).getTime() : undefined
-      default:
-        return group.name ?? ''
-    }
-  })
 
   const { mutate: deleteGroup } = usersClient.useMutation('delete', '/groups/{group_id}')
 
@@ -98,7 +95,7 @@ export function GroupsTab() {
         isFetching={query.isFetching}
         error={query.error}
         onRetry={() => detachPromise(query.refetch())}
-        isEmpty={results.length === 0}
+        isEmpty={groups.length === 0}
         hasActiveFilters={hasActiveFilters}
         onClearAllFilters={handleClearAllFilters}
         noDataState={
@@ -110,7 +107,7 @@ export function GroupsTab() {
           />
         }
         toolbar={
-          results.length > 0 || hasActiveFilters ? (
+          groups.length > 0 || hasActiveFilters ? (
             <NxListPanelToolbar
               filters={filters}
               filterDefinitions={filterFieldDefinitions}
@@ -141,7 +138,7 @@ export function GroupsTab() {
               <Thead>
                 <Tr>
                   <Th sort={getSortParams(0)}>Name</Th>
-                  <Th sort={getSortParams(1)}>Description</Th>
+                  <Th>Description</Th>
                   <Th>Members</Th>
                   <Th sort={getSortParams(3)}>Created</Th>
                   <Th sort={getSortParams(4)}>Updated</Th>
@@ -149,7 +146,7 @@ export function GroupsTab() {
                 </Tr>
               </Thead>
               <Tbody>
-                {results.map((group) => (
+                {groups.map((group) => (
                   <Tr key={group.id}>
                     <Td dataLabel="Name">
                       <Button
