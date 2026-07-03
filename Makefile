@@ -89,6 +89,37 @@ admin-password: ## Sync bootstrap admin password from .secrets/admin-password in
 gen-contracts: ## Regenerate TypeScript types from backend OpenAPI specs
 	cd frontend/packages/nexus-contracts && npm run gen:local
 
+# --- Standards checks (removed from pre-commit, run in CI) ---
+
+run-standards-checks-frontend: ## Run frontend standards checks (contract generation)
+	cd frontend/packages/nexus-contracts && npm run gen:ts
+	@git diff --exit-code frontend/packages/nexus-contracts/src/ || { \
+		echo "Generated contracts have uncommitted changes. Commit them."; \
+		exit 1; \
+	}
+
+run-standards-checks-backend: ## Run backend standards checks (API specs, code quality)
+	$(MAKE) -C backend api-spec-validation
+	$(MAKE) -C backend api-spec-bundle
+	@git diff --exit-code backend/src/nexus/schemas/openapi.yaml || { \
+		echo "Bundled OpenAPI spec has uncommitted changes. Commit them."; \
+		exit 1; \
+	}
+	$(MAKE) -C backend api-spec-drift
+	$(MAKE) -C backend generate-api-client
+	@git diff --exit-code backend/src/nexus/api_client/ || { \
+		echo "Generated API client has uncommitted changes. Commit them."; \
+		exit 1; \
+	}
+	$(MAKE) -C backend check-api-paths
+	$(MAKE) -C backend check-dead-code
+	$(MAKE) -C backend check-cycles
+	$(MAKE) -C backend check-orphans
+	$(MAKE) -C backend check-openapi-breaking-pre-commit
+	$(MAKE) -C backend verify-test-structure
+
+run-standards-checks-all: run-standards-checks-frontend run-standards-checks-backend ## Run all standards checks (frontend + backend)
+
 # --- Upstream sync (transition period) ---
 
 sync: ## Pull latest changes from upstream nexus and nexus-ui repos

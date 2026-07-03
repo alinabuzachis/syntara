@@ -63,6 +63,34 @@ jobs:
             echo "contracts=false" >> "$GITHUB_OUTPUT"
           fi
 
+  gen-contracts:
+    name: (Frontend) Generate Contracts
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Generate TypeScript contracts from OpenAPI specs
+        run: npm run gen:ts
+        working-directory: frontend/packages/nexus-contracts
+
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --exit-code -- frontend/packages/nexus-contracts/src/ 2>/dev/null; then
+            echo "::error::Generated contracts have uncommitted changes. Run 'make gen-contracts' locally and commit the changes."
+            exit 1
+          fi
+
   checks:
     name: (Frontend) Checks
     needs: changes
@@ -348,6 +376,7 @@ jobs:
     if: ${{ always() }}
     needs:
       - changes
+      - gen-contracts
       - checks
       - unit-tests
       - coverage-report
@@ -363,8 +392,9 @@ jobs:
           fi
 
           ok="success|skipped"
-          for job in checks unit-tests coverage-report storybook-build test-build e2e-gate; do
+          for job in gen-contracts checks unit-tests coverage-report storybook-build test-build e2e-gate; do
             case "$job" in
+              gen-contracts)    result="${{ needs.gen-contracts.result }}" ;;
               checks)           result="${{ needs.checks.result }}" ;;
               unit-tests)       result="${{ needs.unit-tests.result }}" ;;
               coverage-report)  result="${{ needs.coverage-report.result }}" ;;

@@ -7,8 +7,6 @@ ci:
   autofix_prs: true
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  # gen-contracts requires npm deps; covered by check-contract-drift.yml in CI
-  skip: [gen-contracts]
   submodules: false
 
 exclude: ^\.tekton/
@@ -67,77 +65,6 @@ repos:
         pass_filenames: false
         files: ^backend/(uv\.lock|pyproject\.toml|requirements\.txt)$
 
-      - id: backend-api-spec-validation
-        name: 'backend: validate openapi sub-spec syntax'
-        entry: make -C backend api-spec-validation
-        language: system
-        pass_filenames: false
-        files: ^backend/.*\.(yaml|yml|py)$
-
-      - id: backend-api-spec-bundle
-        name: 'backend: bundle openapi sub-specs'
-        entry: make -C backend api-spec-bundle
-        language: system
-        pass_filenames: false
-        files: ^backend/.*\.(yaml|yml|py)$
-
-      - id: backend-api-spec-drift
-        name: 'backend: check openapi spec matches implementation'
-        entry: make -C backend api-spec-drift
-        verbose: true
-        language: system
-        pass_filenames: false
-        files: ^backend/.*\.py$
-
-      - id: backend-generate-api-client
-        name: 'backend: generate python api client'
-        entry: make -C backend generate-api-client
-        language: system
-        pass_filenames: false
-        files: ^backend/.*\.(yaml|yml|py)$
-
-      - id: backend-check-api-paths
-        name: 'backend: check API paths use snake_case'
-        entry: make -C backend check-api-paths
-        language: system
-        pass_filenames: false
-        files: ^backend/.*\.py$
-
-      - id: backend-check-dead-code
-        name: 'backend: check for dead code (vulture)'
-        entry: make -C backend check-dead-code
-        language: system
-        pass_filenames: false
-        files: ^backend/.*\.py$
-
-      - id: backend-check-cycles
-        name: 'backend: check for import cycles (pyan3)'
-        entry: make -C backend check-cycles
-        language: system
-        pass_filenames: false
-        files: ^backend/.*\.py$
-
-      - id: backend-check-orphans
-        name: 'backend: check for orphan modules'
-        entry: make -C backend check-orphans
-        language: system
-        pass_filenames: false
-        files: ^backend/.*\.py$
-
-      - id: backend-check-openapi-breaking
-        name: 'backend: check openapi breaking changes against devel'
-        entry: make -C backend check-openapi-breaking-pre-commit
-        language: system
-        pass_filenames: false
-        files: ^backend/src/nexus/schemas/openapi\.yaml$
-
-      - id: backend-verify-test-structure
-        name: 'backend: verify test structure matches source'
-        entry: make -C backend verify-test-structure
-        language: system
-        pass_filenames: false
-        files: ^backend/(tests/|src/nexus/)
-
   # =========================================================================
   # Frontend hooks (Node.js — scoped to frontend/)
   # =========================================================================
@@ -168,13 +95,6 @@ repos:
         language: system
         pass_filenames: false
         files: ^frontend/.*\.(ts|tsx)$
-
-      - id: gen-contracts
-        name: Regenerate Frontend Contracts
-        files: ^backend/src/nexus/schemas/
-        entry: npm --prefix frontend/packages/nexus-contracts run gen:ts
-        language: system
-        pass_filenames: false
 
   # =========================================================================
   # YAML formatting (all YAML files except Tekton and rpms.lock.yaml)

@@ -21,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.check.outputs.backend }}
+      backend_py: ${{ steps.check.outputs.backend_py }}
+      backend_yaml: ${{ steps.check.outputs.backend_yaml }}
+      backend_schema: ${{ steps.check.outputs.backend_schema }}
     steps:
       - id: check
         env:
@@ -31,6 +34,9 @@ jobs:
           # For push/merge_group events, always run backend checks
           if [[ "${{ github.event_name }}" != "pull_request" ]]; then
             echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "backend_py=true" >> "$GITHUB_OUTPUT"
+            echo "backend_yaml=true" >> "$GITHUB_OUTPUT"
+            echo "backend_schema=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -38,14 +44,280 @@ jobs:
           if [ -z "$FILES" ]; then
             echo "::warning::No files from API, running all CI as fallback"
             echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "backend_py=true" >> "$GITHUB_OUTPUT"
+            echo "backend_yaml=true" >> "$GITHUB_OUTPUT"
+            echo "backend_schema=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          # Detect overall backend changes (for jobs that need any backend change)
           if echo "$FILES" | grep -qE '^(backend/|\.github/)'; then
             echo "backend=true" >> "$GITHUB_OUTPUT"
           else
             echo "backend=false" >> "$GITHUB_OUTPUT"
           fi
+
+          # Detect Python file changes
+          if echo "$FILES" | grep -qE '^backend/.*\.py$'; then
+            echo "backend_py=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_py=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Detect YAML file changes
+          if echo "$FILES" | grep -qE '^backend/.*\.(yaml|yml)$'; then
+            echo "backend_yaml=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_yaml=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Detect schema changes
+          if echo "$FILES" | grep -qE '^backend/src/nexus/schemas/'; then
+            echo "backend_schema=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_schema=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  api-spec-validation:
+    name: (Backend) API Spec Validation
+    needs: changes
+    if: needs.changes.outputs.backend_py == 'true' || needs.changes.outputs.backend_yaml == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Validate OpenAPI sub-spec syntax
+        run: make api-spec-validation
+        working-directory: backend
+
+  api-spec-bundle:
+    name: (Backend) API Spec Bundle
+    needs: changes
+    if: needs.changes.outputs.backend_py == 'true' || needs.changes.outputs.backend_yaml == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Bundle OpenAPI sub-specs
+        run: make api-spec-bundle
+        working-directory: backend
+
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --exit-code -- backend/src/nexus/schemas/openapi.yaml 2>/dev/null; then
+            echo "::error::Bundled OpenAPI spec has uncommitted changes. Run 'make -C backend api-spec-bundle' locally and commit the changes."
+            exit 1
+          fi
+
+  api-spec-drift:
+    name: (Backend) API Spec Drift
+    needs: changes
+    if: needs.changes.outputs.backend_py == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Check OpenAPI spec matches implementation
+        run: make api-spec-drift
+        working-directory: backend
+
+  generate-api-client:
+    name: (Backend) Generate API Client
+    needs: changes
+    if: needs.changes.outputs.backend_py == 'true' || needs.changes.outputs.backend_yaml == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Generate Python API client
+        run: make generate-api-client
+        working-directory: backend
+
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --exit-code -- backend/src/nexus/api_client/ 2>/dev/null; then
+            echo "::error::Generated API client has uncommitted changes. Run 'make -C backend generate-api-client' locally and commit the changes."
+            exit 1
+          fi
+
+  check-api-paths:
+    name: (Backend) Check API Paths
+    needs: changes
+    if: needs.changes.outputs.backend_py == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Check API paths use snake_case
+        run: make check-api-paths
+        working-directory: backend
+
+  check-dead-code:
+    name: (Backend) Check Dead Code
+    needs: changes
+    if: needs.changes.outputs.backend_py == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Check for dead code (vulture)
+        run: make check-dead-code
+        working-directory: backend
+
+  check-cycles:
+    name: (Backend) Check Import Cycles
+    needs: changes
+    if: needs.changes.outputs.backend_py == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Check for import cycles (pyan3)
+        run: make check-cycles
+        working-directory: backend
+
+  check-orphans:
+    name: (Backend) Check Orphan Modules
+    needs: changes
+    if: needs.changes.outputs.backend_py == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Check for orphan modules
+        run: make check-orphans
+        working-directory: backend
+
+  check-openapi-breaking:
+    name: (Backend) Check OpenAPI Breaking Changes
+    needs: changes
+    if: needs.changes.outputs.backend_schema == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Fetch devel branch for OpenAPI comparison
+        run: git fetch origin devel
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Check OpenAPI breaking changes against devel
+        run: make check-openapi-breaking-pre-commit
+        working-directory: backend
+        env:
+          OPENAPI_PR_BODY: ${{ github.event.pull_request.body }}
+
+  verify-test-structure:
+    name: (Backend) Verify Test Structure
+    needs: changes
+    if: needs.changes.outputs.backend_py == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
+
+      - name: Install dependencies
+        run: make install
+        working-directory: backend
+
+      - name: Verify test structure matches source
+        run: make verify-test-structure
+        working-directory: backend
 
   pre-commit:
     name: (Backend) pre-commit
@@ -55,11 +327,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          fetch-depth: 0
-
-      - name: Fetch devel branch for OpenAPI comparison
-        run: git fetch origin devel
 
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -82,8 +349,7 @@ jobs:
       - name: Run pre-commit
         run: uv run --project backend pre-commit run --all-files
         env:
-          SKIP: frontend-prettier,frontend-eslint,frontend-tsc,gen-contracts
-          OPENAPI_PR_BODY: ${{ github.event.pull_request.body }}
+          SKIP: frontend-prettier,frontend-eslint,frontend-tsc
 
   mypy:
     name: (Backend) mypy
@@ -607,6 +873,16 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - changes
+      - api-spec-validation
+      - api-spec-bundle
+      - api-spec-drift
+      - generate-api-client
+      - check-api-paths
+      - check-dead-code
+      - check-cycles
+      - check-orphans
+      - check-openapi-breaking
+      - verify-test-structure
       - pre-commit
       - mypy
       - test-unit
@@ -632,15 +908,25 @@ jobs:
 
           # Check all other required jobs
           ok="success|skipped"
-          for job in pre-commit mypy test-unit test-cli test-integration test-compose e2e-gate; do
+          for job in api-spec-validation api-spec-bundle api-spec-drift generate-api-client check-api-paths check-dead-code check-cycles check-orphans check-openapi-breaking verify-test-structure pre-commit mypy test-unit test-cli test-integration test-compose e2e-gate; do
             case "$job" in
-              pre-commit)       result="${{ needs.pre-commit.result }}" ;;
-              mypy)             result="${{ needs.mypy.result }}" ;;
-              test-unit)        result="${{ needs.test-unit.result }}" ;;
-              test-cli)         result="${{ needs.test-cli.result }}" ;;
-              test-integration) result="${{ needs.test-integration.result }}" ;;
-              test-compose)     result="${{ needs.test-compose.result }}" ;;
-              e2e-gate)         result="${{ needs.e2e-gate.result }}" ;;
+              api-spec-validation)   result="${{ needs.api-spec-validation.result }}" ;;
+              api-spec-bundle)       result="${{ needs.api-spec-bundle.result }}" ;;
+              api-spec-drift)        result="${{ needs.api-spec-drift.result }}" ;;
+              generate-api-client)   result="${{ needs.generate-api-client.result }}" ;;
+              check-api-paths)       result="${{ needs.check-api-paths.result }}" ;;
+              check-dead-code)       result="${{ needs.check-dead-code.result }}" ;;
+              check-cycles)          result="${{ needs.check-cycles.result }}" ;;
+              check-orphans)         result="${{ needs.check-orphans.result }}" ;;
+              check-openapi-breaking) result="${{ needs.check-openapi-breaking.result }}" ;;
+              verify-test-structure) result="${{ needs.verify-test-structure.result }}" ;;
+              pre-commit)            result="${{ needs.pre-commit.result }}" ;;
+              mypy)                  result="${{ needs.mypy.result }}" ;;
+              test-unit)             result="${{ needs.test-unit.result }}" ;;
+              test-cli)              result="${{ needs.test-cli.result }}" ;;
+              test-integration)      result="${{ needs.test-integration.result }}" ;;
+              test-compose)          result="${{ needs.test-compose.result }}" ;;
+              e2e-gate)              result="${{ needs.e2e-gate.result }}" ;;
             esac
             echo "$job: $result"
             if [[ ! "$result" =~ ^($ok)$ ]]; then
