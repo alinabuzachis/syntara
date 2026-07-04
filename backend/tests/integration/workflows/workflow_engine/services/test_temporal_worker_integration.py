@@ -376,7 +376,7 @@ class TestWorkerSignalHandling:
 
         with (
             patch("nexus.workflows.worker.start_worker", side_effect=mock_start_worker),
-            patch("nexus.workflows.worker.stop_worker", side_effect=mock_stop_worker),
+            patch("nexus.workflows.worker_lifecycle.stop_worker", side_effect=mock_stop_worker),
         ):
             # Run main() in a background task
             main_task = asyncio.create_task(main())

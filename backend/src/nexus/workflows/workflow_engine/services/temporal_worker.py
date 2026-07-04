@@ -6,25 +6,27 @@ The worker connects to the Temporal server and processes tasks from configured q
 
 import asyncio
 import types
+from collections.abc import Callable
 from functools import lru_cache
+from typing import Any
 
 import structlog
 from temporalio.client import Client
 from temporalio.converter import DataConverter
 from temporalio.worker import Worker
 
-from nexus.audit.registration import discover_and_register_all_handlers
 from nexus.core.config.base import get_encryption_key, get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.lib.encryption import key_from_string
 from nexus.core.tls.temporal import build_temporal_tls_config
 from nexus.telemetry.client import flush_telemetry, initialize_telemetry
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
-from nexus.workflows.workflow_engine.activities import ACTIVITY_REGISTRY
+from nexus.workflows.workflow_engine.activities.registry import ACTIVITY_REGISTRY
 from nexus.workflows.workflow_engine.codecs.credential_codec import CredentialPayloadCodec
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.interceptors.credential_output_interceptor import CredentialOutputInterceptor
 from nexus.workflows.workflow_engine.interceptors.monitoring_interceptor import MonitoringWorkflowInterceptor
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.scheduled_launcher import ScheduledExecutionLauncher, ScheduledWorkflowLauncher
 from nexus.workflows.workflow_engine.services.activity_sync_registry import set_activity_sync_service
 from nexus.workflows.workflow_engine.services.activity_sync_service import ActivitySyncService
@@ -40,6 +42,7 @@ class TemporalWorkerService:
         temporal_address: str,
         namespace: str,
         task_queue: str,
+        activity_registry: dict[ActivityName, Callable[..., Any]] = ACTIVITY_REGISTRY,
     ) -> None:
         """Initialize Temporal worker service.
 
@@ -51,10 +54,13 @@ class TemporalWorkerService:
             temporal_address: Temporal server address (host:port)
             namespace: Temporal namespace to use
             task_queue: Task queue name for this worker
+            activity_registry: Activity registry to use. Defaults to the full ACTIVITY_REGISTRY.
+                Pass BACKGROUND_ACTIVITY_REGISTRY for the background queue worker.
 
         """
         self.temporal_address = temporal_address
         self.namespace = namespace
+        self._activity_registry = activity_registry
         self.task_queue = task_queue
         self.client: Client | None = None
         self.worker: Worker | None = None
@@ -109,22 +115,18 @@ class TemporalWorkerService:
             # Initialize telemetry (reads installation ID from database)
             await initialize_telemetry()
 
-            # Register audit/telemetry event handlers so dispatched domain
-            # events (e.g. NodeExecutedEvent) reach their handlers.
-            discover_and_register_all_handlers()
-
-            # Create scheduled execution launcher (class-based activity with dependencies)
             scheduled_launcher = ScheduledExecutionLauncher(
                 session_factory=AsyncSessionLocal,
                 task_queue=self.task_queue,
             )
+            activities: list[Callable[..., Any]] = [*self._activity_registry.values(), scheduled_launcher.run]
 
             # Create worker with workflows, activities, and interceptors
             self.worker = Worker(
                 self.client,
                 task_queue=self.task_queue,
                 workflows=[NexusWorkflow, ScheduledWorkflowLauncher],
-                activities=[*list(ACTIVITY_REGISTRY.values()), scheduled_launcher.run],
+                activities=activities,
                 interceptors=[MonitoringWorkflowInterceptor(), CredentialOutputInterceptor()],
             )
 
@@ -231,6 +233,7 @@ async def start_worker(
     temporal_address: str | None = None,
     namespace: str | None = None,
     task_queue: str | None = None,
+    activity_registry: dict[ActivityName, Callable[..., Any]] = ACTIVITY_REGISTRY,
 ) -> TemporalWorkerService:
     """Start the global Temporal worker service.
 
@@ -240,6 +243,8 @@ async def start_worker(
         temporal_address: Temporal server address (default from settings)
         namespace: Temporal namespace (default from settings)
         task_queue: Task queue name (default from settings)
+        activity_registry: Activity registry to use (defaults to full ACTIVITY_REGISTRY).
+            Pass BACKGROUND_ACTIVITY_REGISTRY for the background queue worker.
 
     Returns:
         TemporalWorkerService instance
@@ -260,6 +265,7 @@ async def start_worker(
         temporal_address=temporal_address or settings.temporal_address,
         namespace=namespace or settings.temporal_namespace,
         task_queue=task_queue or settings.task_queue,
+        activity_registry=activity_registry,
     )
 
     await worker_service.start()

@@ -355,6 +355,7 @@ class ExecutionService(BaseService):
                     trigger_node_id=trigger_node_id,
                     workflow_metadata=workflow_metadata,
                     execution_id=pre_generated_execution_id,
+                    is_builtin=workflow.is_builtin,
                 )
             temporal_workflow_id = temporal_result.temporal_workflow_id
             execution_id = UUID(temporal_result.execution_id)

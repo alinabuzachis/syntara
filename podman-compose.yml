@@ -172,6 +172,7 @@ services:
       - APP_S2S_TLS_CA_CERT_PATH=/run/secrets/s2s-ca.pem
       - APP_S2S_TLS_CERT_PATH=/run/secrets/s2s-cert.crt
       - APP_S2S_TLS_KEY_PATH=/run/secrets/s2s-cert.key
+      - APP_BACKGROUND_TASK_QUEUE=nexus-background-queue
     volumes:
       - ./backend/src:/opt/app-root/src/src:z
       - nexus_audit_exports:/data/audit-exports:z
@@ -276,6 +277,71 @@ services:
         condition: service_healthy
     healthcheck:
       test: [CMD-SHELL, 'cat /proc/[0-9]*/cmdline 2>/dev/null | grep -qa nexus.workflows.worker']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  temporal-background-worker:
+    image: ${APP_IMAGE:-localhost/nexus:latest}
+    restart: unless-stopped
+    command: [sh, -c, uv run python -m nexus.workflows.background_worker]
+    extra_hosts:
+      - "nexus:host-gateway"
+    environment:
+      - APP_DB_HOST=database
+      - APP_DB_PORT=5432
+      - APP_DB_USER=${APP_DB_USER:-admin}
+      - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
+      - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
+
+      - APP_SERVER_SCHEME=${APP_SERVER_SCHEME:-https}
+      - APP_SERVER_HOST=${APP_SERVER_HOST:-0.0.0.0}
+      - APP_SERVER_PORT=${APP_SERVER_PORT:-8000}
+      - APP_TEMPORAL_ADDRESS=temporal:7233
+      - APP_TEMPORAL_NAMESPACE=default
+      - APP_BACKGROUND_TASK_QUEUE=nexus-background-queue
+      - APP_ENV_FILE_PATH=${APP_ENV_FILE_PATH:-.env}
+      - APP_FALLBACK_LOG_LEVEL=${APP_FALLBACK_LOG_LEVEL:-INFO}
+      - APP_CACHE_HOST=redis
+      - APP_CACHE_PASSWORD=${APP_CACHE_PASSWORD:-cache}
+      - APP_SEGMENT_WRITE_KEY=${APP_SEGMENT_WRITE_KEY}
+      - APP_SEGMENT_ENDPOINT=${APP_SEGMENT_ENDPOINT:-http://mock-segment:9999}
+      - APP_ENTITLEMENT_ID=${APP_ENTITLEMENT_ID}
+      - APP_CONTAINER_IMAGE_VERSION=${APP_CONTAINER_IMAGE_VERSION:-dev}
+      - APP_S3_ENDPOINT_URL=http://moto:5000
+      - APP_S3_BUCKET_NAME=${APP_S3_BUCKET_NAME:-nexus-files}
+      - APP_S3_REGION=${APP_S3_REGION:-us-east-1}
+      - APP_S3_ACCESS_KEY_ID=${APP_S3_ACCESS_KEY_ID:-testing}
+      - APP_S3_SECRET_ACCESS_KEY=${APP_S3_SECRET_ACCESS_KEY:-testing}
+      - APP_S3_VERIFY_SSL=false
+      - APP_S3_USE_PATH_STYLE=true
+      - APP_S2S_TLS_ENABLED=${APP_S2S_TLS_ENABLED:-true}
+      - APP_S2S_TLS_CA_CERT_PATH=/run/secrets/s2s-ca.pem
+      - APP_S2S_TLS_CERT_PATH=/run/secrets/s2s-cert.crt
+      - APP_S2S_TLS_KEY_PATH=/run/secrets/s2s-cert.key
+      - APP_JWT_PRIVATE_KEY_PATH=/run/secrets/jwt-primary.pem
+      - APP_JWT_BACKUP_KEYS=[{"key_id":"nexus-backup","key_path":"/run/secrets/jwt-backup.pem"}]
+      - APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key
+    volumes:
+      - ./backend/src:/opt/app-root/src/src:z
+      - ./backend/.secrets/jwt-primary.pem:/run/secrets/jwt-primary.pem:ro,z
+      - ./backend/.secrets/jwt-backup.pem:/run/secrets/jwt-backup.pem:ro,z
+      - ./backend/.secrets/encryption-key:/run/secrets/encryption-key:ro,z
+      - ./backend/.secrets/certs/ca.pem:/run/secrets/s2s-ca.pem:ro,z
+      - ./backend/.secrets/certs/worker.crt:/run/secrets/s2s-cert.crt:ro,z
+      - ./backend/.secrets/certs/worker.key:/run/secrets/s2s-cert.key:ro,z
+    depends_on:
+      database:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      moto:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'cat /proc/[0-9]*/cmdline 2>/dev/null | grep -qa nexus.workflows.background_worker']
       interval: 30s
       timeout: 10s
       retries: 3

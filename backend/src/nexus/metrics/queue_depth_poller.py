@@ -122,7 +122,7 @@ def get_queue_depth_poller() -> PeriodicWorker:
     targeted independently by Prometheus queries and HPA rules.
     """
     settings = get_settings()
-    task_queues = list(dict.fromkeys([settings.task_queue, settings.background_task_queue]))
+    task_queues = list(dict.fromkeys(q for q in [settings.task_queue, settings.background_task_queue] if q is not None))
     return PeriodicWorker(
         name="temporal-queue-depth-poller",
         interval_seconds=_POLL_INTERVAL_SECONDS,

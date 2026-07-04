@@ -570,7 +570,7 @@ jobs:
           APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS: '["host.containers.internal"]'
         run: |
           # Start core services + mock-segment (exclude nexus-ui which is private)
-          uvx podman-compose -p nexus-ci --profile telemetry-e2e up --build -d database temporal nexus temporal-worker mcp-server opa mock-segment
+          uvx podman-compose -p nexus-ci --profile telemetry-e2e up --build -d database temporal nexus temporal-worker temporal-background-worker mcp-server opa mock-segment
 
       - name: Verify services are healthy
         timeout-minutes: 5
@@ -584,6 +584,7 @@ jobs:
             nexus-ci_database_1 \
             nexus-ci_temporal_1 \
             nexus-ci_nexus_1 \
+            nexus-ci_temporal-background-worker_1 \
             nexus-ci_mcp-server_1 \
             nexus-ci_opa_1 \
             nexus-ci_mock-segment_1
@@ -627,7 +628,7 @@ jobs:
         if: failure()
         run: |
           echo "=== Compose logs ==="
-          uvx podman-compose -p nexus-ci --profile telemetry-e2e logs database temporal nexus temporal-worker mcp-server opa mock-segment
+          uvx podman-compose -p nexus-ci --profile telemetry-e2e logs database temporal nexus temporal-worker temporal-background-worker mcp-server opa mock-segment
 
       - name: Cleanup
         if: always()

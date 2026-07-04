@@ -491,6 +491,89 @@ class TestCreateTemporalExecutionService:
             )
 
 
+class TestBuiltinWorkflowRouting:
+    """Test queue routing for built-in vs user workflows."""
+
+    def _get_task_queue_from_call(self, mock_client: Mock) -> str:
+        call_kwargs = mock_client.start_workflow.call_args
+        return str(call_kwargs.kwargs.get("task_queue") or call_kwargs[1].get("task_queue"))
+
+    @pytest.mark.asyncio
+    async def test_builtin_workflow_routes_to_background_queue_when_configured(
+        self,
+        valid_workflow_dict: dict[str, Any],
+    ) -> None:
+        """is_builtin=True routes to background_task_queue when it is set."""
+        mock_client = Mock()
+        mock_handle = Mock()
+        mock_handle.first_execution_run_id = "run-bg"
+        mock_client.start_workflow = AsyncMock(return_value=mock_handle)
+
+        service = TemporalExecutionService(
+            temporal_client=mock_client,
+            task_queue="nexus-workflow-queue",
+            background_task_queue="nexus-background-queue",
+        )
+
+        await service.start_workflow(
+            workflow_def=valid_workflow_dict,
+            workflow_name="builtin-workflow",
+            is_builtin=True,
+        )
+
+        assert self._get_task_queue_from_call(mock_client) == "nexus-background-queue"
+
+    @pytest.mark.asyncio
+    async def test_builtin_workflow_falls_back_to_main_queue_when_background_not_configured(
+        self,
+        valid_workflow_dict: dict[str, Any],
+    ) -> None:
+        """is_builtin=True falls back to task_queue when background_task_queue is None."""
+        mock_client = Mock()
+        mock_handle = Mock()
+        mock_handle.first_execution_run_id = "run-main"
+        mock_client.start_workflow = AsyncMock(return_value=mock_handle)
+
+        service = TemporalExecutionService(
+            temporal_client=mock_client,
+            task_queue="nexus-workflow-queue",
+            background_task_queue=None,
+        )
+
+        await service.start_workflow(
+            workflow_def=valid_workflow_dict,
+            workflow_name="builtin-workflow",
+            is_builtin=True,
+        )
+
+        assert self._get_task_queue_from_call(mock_client) == "nexus-workflow-queue"
+
+    @pytest.mark.asyncio
+    async def test_user_workflow_always_routes_to_main_queue(
+        self,
+        valid_workflow_dict: dict[str, Any],
+    ) -> None:
+        """is_builtin=False always uses task_queue regardless of background_task_queue."""
+        mock_client = Mock()
+        mock_handle = Mock()
+        mock_handle.first_execution_run_id = "run-user"
+        mock_client.start_workflow = AsyncMock(return_value=mock_handle)
+
+        service = TemporalExecutionService(
+            temporal_client=mock_client,
+            task_queue="nexus-workflow-queue",
+            background_task_queue="nexus-background-queue",
+        )
+
+        await service.start_workflow(
+            workflow_def=valid_workflow_dict,
+            workflow_name="user-workflow",
+            is_builtin=False,
+        )
+
+        assert self._get_task_queue_from_call(mock_client) == "nexus-workflow-queue"
+
+
 class TestWorkflowDataConversion:
     """Test workflow definition data conversion."""
 

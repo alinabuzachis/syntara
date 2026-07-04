@@ -1157,9 +1157,13 @@ class TemporalSettings(BaseSettings):
         description="Temporal task queue name for workflow routing",
     )
 
-    background_task_queue: str = Field(
-        default="nexus-background-queue",
-        description="Temporal task queue name for builtin/background workflow executions",
+    background_task_queue: str | None = Field(
+        default=None,
+        description=(
+            "Temporal task queue name for builtin/background workflow executions. "
+            "When None (default), built-in workflows fall back to the main task_queue. "
+            "Set APP_BACKGROUND_TASK_QUEUE to activate dedicated background worker routing."
+        ),
     )
 
     system_user_id: UUID = Field(

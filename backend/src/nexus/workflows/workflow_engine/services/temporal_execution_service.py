@@ -38,6 +38,7 @@ class TemporalExecutionService:
         self,
         temporal_client: Client,
         task_queue: str,
+        background_task_queue: str | None = None,
     ) -> None:
         """Initialize temporal execution service.
 
@@ -47,11 +48,15 @@ class TemporalExecutionService:
 
         Args:
             temporal_client: Temporal client for workflow operations
-            task_queue: Task queue name for workflow execution
+            task_queue: Task queue name for user workflow execution
+            background_task_queue: Task queue name for builtin workflow execution.
+                When None (default), built-in workflows route to the main task_queue instead,
+                preserving pre-background-worker behavior. Set to activate dedicated routing.
 
         """
         self.temporal_client = temporal_client
         self.task_queue = task_queue
+        self.background_task_queue = background_task_queue
 
     async def _extract_failure_message(self, handle: WorkflowHandle[Any, Any]) -> str | None:
         """Extract failure message from workflow history using optimized filtered query.
@@ -95,6 +100,7 @@ class TemporalExecutionService:
         include_node_results: bool = False,
         workflow_metadata: dict[str, Any] | None = None,
         execution_id: str | None = None,
+        is_builtin: bool = False,
     ) -> WorkflowStartResponse:
         """Start a V2 workflow from dict definition.
 
@@ -110,6 +116,9 @@ class TemporalExecutionService:
             include_node_results: Include node results in workflow response (for test executions)
             workflow_metadata: Optional workflow/execution metadata for expression resolution
             execution_id: Optional pre-generated execution ID (auto-generated if not provided)
+            is_builtin: When True, routes the workflow to the background task queue instead of
+                the user workflow queue. Built-in workflows (Document Conversion, Agent
+                Execution) run on a dedicated deployment to prevent worker starvation.
 
         Returns:
             WorkflowStartResponse containing:
@@ -191,7 +200,9 @@ class TemporalExecutionService:
                         workflow_metadata,
                     ],
                     id=temporal_workflow_id,
-                    task_queue=self.task_queue,
+                    task_queue=self.background_task_queue
+                    if (is_builtin and self.background_task_queue is not None)
+                    else self.task_queue,
                 )
 
             logger.info(
@@ -447,4 +458,4 @@ async def create_temporal_execution_service(
     )
     # TODO: Handle how TemporalExecutionService is dispatched/deployed  # noqa: TD002, TD003
     # via containerization. This will be addressed in a future Containerization & Deployment ticket.
-    return TemporalExecutionService(client, task_queue)
+    return TemporalExecutionService(client, task_queue, background_task_queue=settings.background_task_queue)

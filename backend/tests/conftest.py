@@ -847,7 +847,10 @@ def _override_temporal(
     from nexus.workflows.executions_router import get_temporal_execution_service
     from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
-    _svc = TemporalExecutionService(temporal_env.client, "test-workflow-queue")
+    # background_task_queue set to the same queue so builtin workflows (is_builtin=True)
+    # also run on the single test worker instead of routing to nexus-background-queue
+    # which has no poller in the integration test environment.
+    _svc = TemporalExecutionService(temporal_env.client, "test-workflow-queue", "test-workflow-queue")
     session_app.dependency_overrides[get_temporal_execution_service] = lambda: _svc
 
 
