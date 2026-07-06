@@ -25,7 +25,7 @@ class GoogleProvider(LLMProviderBase):
     @property
     def default_base_url(self) -> str:
         """Default base URL."""
-        return "https://generativelanguage.googleapis.com"
+        return "https://generativelanguage.googleapis.com/v1"
 
     def build_headers(self, api_key: str) -> dict[str, str]:
         """Build Google API key header."""

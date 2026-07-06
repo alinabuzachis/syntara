@@ -38,7 +38,7 @@ class LLMProviderBase(ABC):
     @property
     def models_endpoint(self) -> str:
         """Path appended to base_url to list models. Override for non-OpenAI layouts."""
-        return "/v1/models"
+        return "/models"
 
     def resolve_api_key(self, resolved_credential: dict[str, Any]) -> str | None:
         """Extract API key from credential extra_vars. Override for non-standard key names."""

@@ -29,7 +29,7 @@ class TestLLMProviderBaseDefaults:
 
     def test_models_endpoint(self) -> None:
         provider = _ConcreteProvider()
-        assert provider.models_endpoint == "/v1/models"
+        assert provider.models_endpoint == "/models"
 
     def test_resolve_api_key(self) -> None:
         provider = _ConcreteProvider()
@@ -41,11 +41,11 @@ class TestLLMProviderBaseDefaults:
 
     def test_build_models_url(self) -> None:
         provider = _ConcreteProvider()
-        assert provider.build_models_url("https://api.example.com") == "https://api.example.com/v1/models"
+        assert provider.build_models_url("https://api.example.com/v1") == "https://api.example.com/v1/models"
 
     def test_build_models_url_strips_trailing_slash(self) -> None:
         provider = _ConcreteProvider()
-        assert provider.build_models_url("https://api.example.com/") == "https://api.example.com/v1/models"
+        assert provider.build_models_url("https://api.example.com/v1/") == "https://api.example.com/v1/models"
 
     def test_next_page_params_returns_none(self) -> None:
         provider = _ConcreteProvider()

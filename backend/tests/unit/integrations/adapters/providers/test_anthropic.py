@@ -8,7 +8,7 @@ class TestAnthropicProvider:
 
     def test_default_base_url(self) -> None:
         provider = AnthropicProvider()
-        assert provider.default_base_url == "https://api.anthropic.com"
+        assert provider.default_base_url == "https://api.anthropic.com/v1"
 
     def test_build_headers_uses_x_api_key(self) -> None:
         """Anthropic uses x-api-key header, not Bearer."""

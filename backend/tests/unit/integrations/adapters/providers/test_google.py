@@ -8,7 +8,7 @@ class TestGoogleProvider:
 
     def test_default_base_url(self) -> None:
         provider = GoogleProvider()
-        assert provider.default_base_url == "https://generativelanguage.googleapis.com"
+        assert provider.default_base_url == "https://generativelanguage.googleapis.com/v1"
 
     def test_build_headers_uses_x_goog_api_key(self) -> None:
         """Google uses x-goog-api-key header for auth."""

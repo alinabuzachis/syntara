@@ -12,7 +12,7 @@ class OpenAICompatibleProvider(LLMProviderBase):
     """Provider for OpenAI-compatible APIs (OpenAI, Red Hat AI, Custom/vLLM/LiteLLM).
 
     Auth: ``Authorization: Bearer {api_key}``
-    Models endpoint: ``GET {base_url}/v1/models``
+    Models endpoint: ``GET {base_url}/models``
     Response format::
 
         { "data": [{ "id": "gpt-4o", "object": "model", "created": 1686935002, "owned_by": "openai" }] }
@@ -20,7 +20,7 @@ class OpenAICompatibleProvider(LLMProviderBase):
     Only ``id`` is used; OpenAI does not return display names or descriptions.
     """
 
-    def __init__(self, *, default_url: str | None = "https://api.openai.com") -> None:
+    def __init__(self, *, default_url: str | None = "https://api.openai.com/v1") -> None:
         """Initialize with optional default URL.
 
         Args:

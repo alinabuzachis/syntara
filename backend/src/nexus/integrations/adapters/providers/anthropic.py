@@ -26,7 +26,7 @@ class AnthropicProvider(LLMProviderBase):
     @property
     def default_base_url(self) -> str:
         """Default base URL."""
-        return "https://api.anthropic.com"
+        return "https://api.anthropic.com/v1"
 
     def build_headers(self, api_key: str) -> dict[str, str]:
         """Build Anthropic-specific auth headers."""

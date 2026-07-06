@@ -9,7 +9,7 @@ class TestOpenAICompatibleProvider:
     def test_default_base_url(self) -> None:
         """Default provider uses api.openai.com."""
         provider = OpenAICompatibleProvider()
-        assert provider.default_base_url == "https://api.openai.com"
+        assert provider.default_base_url == "https://api.openai.com/v1"
 
     def test_custom_default_url(self) -> None:
         """Red Hat AI / Custom providers have no default URL."""
