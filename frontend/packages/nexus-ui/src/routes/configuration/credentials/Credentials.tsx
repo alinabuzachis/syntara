@@ -35,6 +35,12 @@ import { useCredentialPermissions } from './useCredentialPermissions'
 import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
 
+const SORT_FIELDS: Record<number, string> = {
+  0: 'name',
+  3: 'created_at',
+  4: 'updated_at',
+}
+
 function buildCredentialRowActions(
   credential: Credential,
   permissions: ReturnType<typeof useCredentialPermissions>,
@@ -98,10 +104,23 @@ export default function Credentials() {
   } = useDeleteCredentialState()
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(() => [getCredentialNameFilterDefinition()], [])
 
+  // Sorting - default to newest first (column 3 = created_at, descending)
+  const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
+    initialSortIndex: 3,
+    initialDirection: 'desc',
+    onSortChange: resetPagination,
+  })
+
+  const finalQueryParams = useMemo(() => {
+    const field = SORT_FIELDS[activeSortIndex] ?? 'created_at'
+    const sort = sortDirection === 'desc' ? `-${field}` : field
+    return { ...queryParams, sort }
+  }, [queryParams, activeSortIndex, sortDirection])
+
   // Fetch credentials
-  const query = credentialsClient.useQuery('get', '/credentials', { params: { query: queryParams } })
+  const query = credentialsClient.useQuery('get', '/credentials', { params: { query: finalQueryParams } })
   // Cast to extended type - backend returns workflow_count but contract doesn't declare it
-  const credentials = (query.data?.resources ?? []) as CredentialExtended[]
+  const credentials = useMemo(() => (query.data?.resources ?? []) as CredentialExtended[], [query.data?.resources])
 
   useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
@@ -115,37 +134,12 @@ export default function Credentials() {
     return map
   }, [typesQuery.data])
 
-  // Sorting
-  const { activeSortIndex, getSortParams, sortData } = useTableSort({
-    initialSortIndex: 0,
-    initialDirection: 'asc',
-  })
-
-  const results = sortData(credentials, (cred) => {
-    switch (activeSortIndex) {
-      case 0:
-        return cred.name ?? ''
-      case 1:
-        return typeMap.get(cred.credential_type_id)?.name ?? ''
-      case 2:
-        return cred.workflow_count ?? 0
-      case 3:
-        return cred.created_at ?? ''
-      case 4:
-        return cred.updated_at ?? ''
-      case 5:
-        return cred.enabled ? 1 : 0
-      default:
-        return cred.name ?? ''
-    }
-  })
-
   // Expandable row state
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   const expandableCredentialIds = useMemo(
-    () => results.filter((c) => Boolean(c.description?.trim())).map((c) => c.id!),
-    [results]
+    () => credentials.filter((c) => Boolean(c.description?.trim())).map((c) => c.id!),
+    [credentials]
   )
 
   const areAllExpanded = useMemo(
@@ -179,7 +173,7 @@ export default function Credentials() {
   const groupedCredentials = useMemo(() => {
     if (!isAllProjects) return null
     const groups = new Map<string, { project: (typeof projects)[number] | null; credentials: CredentialExtended[] }>()
-    for (const credential of results) {
+    for (const credential of credentials) {
       const projectId = credential.project_id ?? 'unknown'
       if (!groups.has(projectId)) {
         groups.set(projectId, {
@@ -190,7 +184,7 @@ export default function Credentials() {
       groups.get(projectId)!.credentials.push(credential)
     }
     return groups
-  }, [results, projects, isAllProjects])
+  }, [credentials, projects, isAllProjects])
 
   const toggleProjectCollapsed = (projectId: string) => {
     setCollapsedProjects((prev) => {
@@ -308,7 +302,7 @@ export default function Credentials() {
         docLink={credentialsDocLink}
         projectSelector={ProjectSelector}
         toolbar={
-          results.length > 0 || hasActiveFilters ? (
+          credentials.length > 0 || hasActiveFilters ? (
             <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
               <Button
                 variant="primary"
@@ -322,7 +316,7 @@ export default function Credentials() {
         }
       />
 
-      {results.length === 0 && !hasActiveFilters ? (
+      {credentials.length === 0 && !hasActiveFilters ? (
         <NxPageBody>
           <NxPanel isFullHeight>
             <CredentialEmptyState
@@ -343,7 +337,7 @@ export default function Credentials() {
                 />
               </StackItem>
 
-              {results.length === 0 ? (
+              {credentials.length === 0 ? (
                 <NxPageBody isCentered>
                   <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </NxPageBody>
@@ -364,11 +358,11 @@ export default function Credentials() {
                         aria-label="Row expansion"
                       />
                       <Th sort={getSortParams(0)}>Name</Th>
-                      <Th sort={getSortParams(1)}>Type</Th>
-                      <Th sort={getSortParams(2)}>Workflows</Th>
+                      <Th>Type</Th>
+                      <Th>Workflows</Th>
                       <Th sort={getSortParams(3)}>Created</Th>
                       <Th sort={getSortParams(4)}>Last modified</Th>
-                      <Th sort={getSortParams(5)}>State</Th>
+                      <Th>State</Th>
                       <Th screenReaderText="Actions" />
                     </Tr>
                   </Thead>
@@ -386,7 +380,7 @@ export default function Credentials() {
                     />
                   ) : (
                     <FlatCredentialsTableBody
-                      credentials={results}
+                      credentials={credentials}
                       typeMap={typeMap}
                       expandedRows={expandedRows}
                       onToggleRow={handleToggleRow}

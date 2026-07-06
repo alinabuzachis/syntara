@@ -301,7 +301,8 @@ describe('Credentials', () => {
     render(<Credentials />, { wrapper })
 
     const switches = screen.getAllByRole('switch', { name: 'Enabled' })
-    await user.click(switches[2])
+    // After sorting by -created_at, the disabled credential "Staging SSH" is at index 1
+    await user.click(switches[1])
 
     expect(mockMutate).toHaveBeenCalled()
   })
@@ -426,7 +427,8 @@ describe('Credentials', () => {
     render(<Credentials />, { wrapper })
 
     const switches = screen.getAllByRole('switch', { name: 'Enabled' })
-    await user.click(switches[2]) // disabled credential
+    // After sorting by -created_at, the disabled credential "Staging SSH" is at index 1
+    await user.click(switches[1])
 
     expect(mockMutate).toHaveBeenCalled()
     expect(screen.queryByText('Disable credential?')).not.toBeInTheDocument()
@@ -441,7 +443,8 @@ describe('Credentials', () => {
     render(<Credentials />, { wrapper })
 
     const switches = screen.getAllByRole('switch', { name: 'Enabled' })
-    await user.click(switches[2])
+    // After sorting by -created_at, the disabled credential "Staging SSH" is at index 1
+    await user.click(switches[1])
 
     expect(mockMutate).toHaveBeenCalled()
   })
