@@ -47,6 +47,40 @@ describe('mergeNodesPreservingPositions', () => {
     expect((placeholder as { position: { x: number; y: number } }).position).toEqual({ x: 100, y: 100 })
   })
 
+  it('preserves __validationError flag from existing nodes', () => {
+    const prevNodes = [
+      {
+        id: 'node-1',
+        data: { __validationError: true, name: 'A' },
+        position: { x: 10, y: 20 },
+        measured: { width: 50 },
+      },
+      { id: 'node-2', data: { name: 'B' }, position: { x: 30, y: 40 }, measured: { width: 50 } },
+    ] as never[]
+    const initialNodes = [
+      { id: 'node-1', data: { name: 'A updated' } },
+      { id: 'node-2', data: { name: 'B' } },
+    ] as never[]
+
+    const result = mergeNodesPreservingPositions(prevNodes, initialNodes)
+
+    const node1 = result.find((n) => (n as { id: string }).id === 'node-1')
+    const node2 = result.find((n) => (n as { id: string }).id === 'node-2')
+    expect((node1 as { data: Record<string, unknown> }).data.__validationError).toBe(true)
+    expect((node1 as { data: Record<string, unknown> }).data.name).toBe('A updated')
+    expect((node2 as { data: Record<string, unknown> }).data.__validationError).toBeUndefined()
+  })
+
+  it('does not add __validationError when existing node does not have it', () => {
+    const prevNodes = [{ id: 'node-1', data: { name: 'A' }, position: { x: 10, y: 20 } }] as never[]
+    const initialNodes = [{ id: 'node-1', data: { name: 'A updated' } }] as never[]
+
+    const result = mergeNodesPreservingPositions(prevNodes, initialNodes)
+
+    const node1 = result.find((n) => (n as { id: string }).id === 'node-1')
+    expect((node1 as { data: Record<string, unknown> }).data.__validationError).toBeUndefined()
+  })
+
   it('returns initialNodes as-is when prevNodes is empty', () => {
     const prevNodes: never[] = []
     const initialNodes = [

@@ -14,7 +14,15 @@ export function mergeNodesPreservingPositions(prevNodes: NodeType[], initialNode
   const updatedNodes = initialNodes.map((newNode) => {
     const existingNode = prevNodeMap.get(newNode.id)
     if (existingNode) {
-      return { ...newNode, position: existingNode.position, measured: existingNode.measured }
+      const existingData = existingNode.data as Record<string, unknown> | undefined
+      const merged = { ...newNode, position: existingNode.position, measured: existingNode.measured }
+      if (existingData?.__validationError === true) {
+        return {
+          ...merged,
+          data: { ...(merged.data as Record<string, unknown>), __validationError: true },
+        } as unknown as NodeType
+      }
+      return merged
     }
     return newNode
   })
