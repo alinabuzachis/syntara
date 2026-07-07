@@ -701,6 +701,49 @@ def nexus_api_admin_group_id(nexus_api: NexusApiRegistry) -> UUID:
     return cast("UUID", admins_group_id[0])
 
 
+def _wait_for_mcp_refresh(
+    nexus_api: NexusApiRegistry,
+    integration_id: str,
+    *,
+    timeout: float = 30.0,
+    interval: float = 0.5,
+    max_attempts: int = 3,
+) -> str:
+    """Poll until MCP integration refresh succeeds, retrying on error.
+
+    Refresh uses the container DNS name (e.g. http://mcp-server:8765/mcp)
+    which goes through podman-compose networking. The FastMCP
+    streamable-http transport has a known race condition that causes
+    intermittent timeouts, especially on resource-constrained CI runners.
+    Retry the refresh call up to *max_attempts* times to tolerate this.
+    """
+    for attempt in range(1, max_attempts + 1):
+        nexus_api.integrations.refresh_resources(integration_id=UUID(integration_id))
+
+        deadline = time.monotonic() + timeout
+        while True:
+            integration = nexus_api.integrations.get(integration_id=UUID(integration_id)).assert_and_get()
+            if integration.refresh_status == IntegrationRefreshStatus.AVAILABLE:
+                return integration_id
+            if integration.refresh_status == IntegrationRefreshStatus.ERROR:
+                if attempt < max_attempts:
+                    break  # retry the refresh call
+                pytest.fail(
+                    f"MCP integration {integration_id} refresh failed after "
+                    f"{max_attempts} attempts (last status: {integration.refresh_status})"
+                )
+            if time.monotonic() >= deadline:
+                pytest.fail(
+                    f"MCP integration {integration_id} refresh did not complete within {timeout}s "
+                    f"(last status: {integration.refresh_status})"
+                )
+            time.sleep(interval)
+
+    # Unreachable — the loop always returns or calls pytest.fail — but keeps
+    # ruff RET503 happy.
+    pytest.fail(f"MCP integration {integration_id} refresh failed after {max_attempts} attempts")
+
+
 @pytest.fixture(scope="session")
 def mcp_integration_id(nexus_api: NexusApiRegistry) -> str:
     """Return the ID of the shared MCP server Integration used by E2E tests.
@@ -755,20 +798,7 @@ def mcp_integration_id(nexus_api: NexusApiRegistry) -> str:
             )
         time.sleep(_interval)
 
-    nexus_api.integrations.refresh_resources(integration_id=UUID(integration_id))
-
-    # Wait for refresh to complete
-    deadline = time.monotonic() + _timeout
-    while True:
-        integration = nexus_api.integrations.get(integration_id=UUID(integration_id)).assert_and_get()
-        if integration.refresh_status == IntegrationRefreshStatus.AVAILABLE:
-            return integration_id
-        if time.monotonic() >= deadline:
-            pytest.fail(
-                f"MCP integration {integration_id} refresh did not complete within {_timeout}s "
-                f"(last status: {integration.refresh_status})"
-            )
-        time.sleep(_interval)
+    return _wait_for_mcp_refresh(nexus_api, integration_id, timeout=_timeout, interval=_interval)
 
 
 @pytest.fixture(scope="session")
