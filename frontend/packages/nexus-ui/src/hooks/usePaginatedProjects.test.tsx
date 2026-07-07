@@ -133,6 +133,32 @@ describe('usePaginatedProjects', () => {
       expect(result.current.debouncedFilter).toBe('beta')
     })
 
+    it('sends name[contains] query parameter for substring matching (AAP-81636)', () => {
+      vi.useFakeTimers()
+      renderHook(() => usePaginatedProjects(), { wrapper })
+
+      const initialCall = vi.mocked(accessClient.useQuery).mock.calls[0] as unknown[]
+      const initialQuery = (initialCall[2] as { params: { query: Record<string, unknown> } }).params.query
+      expect(initialQuery).not.toHaveProperty('name[contains]')
+      expect(initialQuery).not.toHaveProperty('name')
+
+      vi.mocked(accessClient.useQuery).mockClear()
+
+      const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
+
+      act(() => {
+        result.current.updateFilter('alph')
+      })
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      const filterCall = vi.mocked(accessClient.useQuery).mock.lastCall as unknown[]
+      const filterQuery = (filterCall[2] as { params: { query: Record<string, unknown> } }).params.query
+      expect(filterQuery).toHaveProperty('name[contains]', 'alph')
+      expect(filterQuery).not.toHaveProperty('name')
+    })
+
     it('sets isInitialPage to false once debouncedFilter is set', () => {
       vi.useFakeTimers()
       const { result } = renderHook(() => usePaginatedProjects(), { wrapper })

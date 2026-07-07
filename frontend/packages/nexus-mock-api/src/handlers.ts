@@ -2957,7 +2957,7 @@ export const handlers = [
 
   http.get('/api/v1/projects', ({ request }) => {
     const url = new URL(request.url)
-    const name = url.searchParams.get('name')
+    const nameContains = url.searchParams.get('name[contains]')
     const isDefault = url.searchParams.get('is_default')
     const isBuiltin = url.searchParams.get('is_builtin')
     const cursor = url.searchParams.get('cursor')
@@ -2967,8 +2967,8 @@ export const handlers = [
 
     let resources = mockProjects
 
-    if (name) {
-      const term = name.toLowerCase()
+    if (nameContains) {
+      const term = nameContains.toLowerCase()
       resources = resources.filter((p) => p.name.toLowerCase().includes(term))
     }
 
