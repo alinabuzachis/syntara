@@ -1,4 +1,4 @@
-import { createRoute } from '@tanstack/react-router'
+import { createRoute, redirect } from '@tanstack/react-router'
 
 import {
   CredentialDetail,
@@ -17,6 +17,11 @@ const credentialsSearch = listSearchParams.catch({})
 const integrationsSearch = listSearchParams.catch({})
 
 export const configurationRoutes = [
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/configuration',
+    beforeLoad: () => redirect({ to: '/configuration/integrations', replace: true }),
+  }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: '/configuration/integrations',
