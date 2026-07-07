@@ -5,8 +5,11 @@
     "41898282+github-actions[bot]@users.noreply.github.com"
   ],
   "automerge": true,
-  "pip_requirements": {
-    "enabled": false
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"],
+    "rangeStrategy": "bump",
+    "schedule": ["at any time"]
   },
   "packageRules": [
     {
@@ -14,14 +17,21 @@
       "groupName": "python dependencies",
       "matchFileNames": ["backend/**"],
       "schedule": ["before 6am"],
-      "rangeStrategy": "in-range-only"
+      "rangeStrategy": "bump"
+    },
+    {
+      "matchManagers": ["pip_requirements"],
+      "groupName": "python dependencies",
+      "matchFileNames": ["backend/**"],
+      "schedule": ["before 6am"],
+      "enabled": true
     },
     {
       "matchManagers": ["npm"],
       "groupName": "npm dependencies",
       "matchFileNames": ["frontend/**"],
       "schedule": ["before 6am on Monday"],
-      "rangeStrategy": "in-range-only"
+      "rangeStrategy": "bump"
     },
     {
       "matchPackageNames": ["quay.io/aap-ci/*"],
