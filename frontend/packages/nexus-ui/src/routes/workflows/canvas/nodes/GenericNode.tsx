@@ -24,7 +24,7 @@ export type GenericNode = { type: typeof FlowNodeType.GENERIC } & Node<TaskActiv
 export function GenericNodeComponent(props: NodeProps<GenericNode>) {
   const metadata = getActivityMetadata(props.data)
   const customMessage = metadata?.__customMessage
-  const displayMessage = (typeof customMessage === 'string' ? customMessage : undefined) ?? 'Select a step type'
+  const displayMessage = (typeof customMessage === 'string' ? customMessage : undefined) ?? 'Select a node type'
 
   const showTitle = !customMessage
 

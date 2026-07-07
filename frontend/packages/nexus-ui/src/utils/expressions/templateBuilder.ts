@@ -14,7 +14,7 @@ const SAFE_FIELD_SEGMENT = /^[a-zA-Z0-9_ \-[\]]+$/
 
 function validateNodeId(nodeId: string): string {
   if (!SAFE_NODE_ID.test(nodeId)) {
-    throw new Error('Invalid step ID: contains disallowed characters')
+    throw new Error('Invalid node ID: contains disallowed characters')
   }
   return nodeId
 }

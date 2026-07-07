@@ -113,7 +113,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
   const isShowingSubtypeList = !!selectedNode?.subtypes?.length
 
   const panelTitle =
-    isShowingSubtypeList && selectedNode ? (selectedNode.selectionTitle ?? 'Select a step') : 'Add step'
+    isShowingSubtypeList && selectedNode ? (selectedNode.selectionTitle ?? 'Select a node') : 'Add step'
 
   return (
     <NxPanel

@@ -52,10 +52,10 @@ describe('GenericNodeComponent', () => {
   })
 
   describe('Rendering', () => {
-    it('renders default message "Select a step type"', () => {
+    it('renders default message "Select a node type"', () => {
       render(<GenericNodeComponent {...createNodeProps(baseGenericNode)} />)
 
-      expect(screen.getByText('Select a step type')).toBeInTheDocument()
+      expect(screen.getByText('Select a node type')).toBeInTheDocument()
     })
 
     it('renders "Click to configure" title by default', () => {
@@ -120,7 +120,7 @@ describe('GenericNodeComponent', () => {
       render(<GenericNodeComponent {...createNodeProps(nodeWithReverseHandles)} />)
 
       // Should render without crashing
-      expect(screen.getByText('Select a step type')).toBeInTheDocument()
+      expect(screen.getByText('Select a node type')).toBeInTheDocument()
     })
   })
 
@@ -136,7 +136,7 @@ describe('GenericNodeComponent', () => {
       render(<GenericNodeComponent {...createNodeProps(nodeWithExecution)} />)
 
       // Should render without crashing
-      expect(screen.getByText('Select a step type')).toBeInTheDocument()
+      expect(screen.getByText('Select a node type')).toBeInTheDocument()
     })
   })
 
@@ -145,7 +145,7 @@ describe('GenericNodeComponent', () => {
       render(<GenericNodeComponent {...createNodeProps(baseGenericNode)} />)
 
       expect(screen.getByTestId('generic-flow-node')).toBeInTheDocument()
-      expect(screen.getByText('Select a step type')).toBeInTheDocument()
+      expect(screen.getByText('Select a node type')).toBeInTheDocument()
     })
 
     it('renders with dashed border styling', () => {
@@ -163,7 +163,7 @@ describe('GenericNodeComponent', () => {
 
       render(<GenericNodeComponent {...props} />)
 
-      expect(screen.getByText('Select a step type')).toBeInTheDocument()
+      expect(screen.getByText('Select a node type')).toBeInTheDocument()
     })
   })
 
@@ -176,7 +176,7 @@ describe('GenericNodeComponent', () => {
 
       render(<GenericNodeComponent {...createNodeProps(nodeWithEmptyMetadata)} />)
 
-      expect(screen.getByText('Select a step type')).toBeInTheDocument()
+      expect(screen.getByText('Select a node type')).toBeInTheDocument()
       expect(screen.getByText('Click to configure')).toBeInTheDocument()
     })
   })

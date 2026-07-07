@@ -36,9 +36,9 @@ describe('validateNoGenericNodes', () => {
       id: 'generic-node-generic-1',
       severity: 'error',
       rule: 'no-generic-nodes',
-      message: 'Placeholder step "Placeholder" must be configured before saving',
+      message: 'Placeholder node "Placeholder" must be configured before saving',
       nodeId: 'generic-1',
-      suggestion: 'Click on the placeholder step to select a step type and configure it',
+      suggestion: 'Click on the placeholder node to select a node type and configure it',
     })
   })
 
@@ -55,7 +55,7 @@ describe('validateNoGenericNodes', () => {
 
     const errors = validateNoGenericNodes(activities)
     expect(errors).toHaveLength(1)
-    expect(errors[0].message).toBe('Placeholder step "Untitled" must be configured before saving')
+    expect(errors[0].message).toBe('Placeholder node "Untitled" must be configured before saving')
   })
 
   it('returns multiple errors for multiple generic nodes', () => {

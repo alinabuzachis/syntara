@@ -68,11 +68,11 @@ describe('buildExpression', () => {
   })
 
   it('rejects nodeId containing dots to prevent ambiguous paths', () => {
-    expect(() => buildExpression({ nodeId: 'a.b', fieldPath: ['c'] })).toThrow('Invalid step ID')
+    expect(() => buildExpression({ nodeId: 'a.b', fieldPath: ['c'] })).toThrow('Invalid node ID')
   })
 
   it('rejects nodeId containing spaces', () => {
-    expect(() => buildExpression({ nodeId: 'my node', fieldPath: ['field'] })).toThrow('Invalid step ID')
+    expect(() => buildExpression({ nodeId: 'my node', fieldPath: ['field'] })).toThrow('Invalid node ID')
   })
 
   it('rejects field path segments containing dots', () => {

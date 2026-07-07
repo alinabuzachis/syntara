@@ -35,9 +35,9 @@ export function validateNoGenericNodes(activities: Activity[]): ValidationError[
       id: `generic-node-${activity.id}`,
       severity: 'error',
       rule: 'no-generic-nodes',
-      message: `Placeholder step "${activity.name || 'Untitled'}" must be configured before saving`,
+      message: `Placeholder node "${activity.name || 'Untitled'}" must be configured before saving`,
       nodeId: activity.id,
-      suggestion: 'Click on the placeholder step to select a step type and configure it',
+      suggestion: 'Click on the placeholder node to select a node type and configure it',
     })
   }
 

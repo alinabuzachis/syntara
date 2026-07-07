@@ -34,7 +34,7 @@ test.describe('Multi-Approval Navigation', () => {
     try {
       // Step 1: Create a workflow with 3 PARALLEL approval nodes from the trigger
       await app.goto(toAppUrl('/workflow-builder/new'))
-      await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible({ timeout: 10_000 })
+      await expect(app.getByRole('heading', { name: 'Select a trigger node' })).toBeVisible({ timeout: 10_000 })
 
       // Add Manual Trigger
       await addManualTrigger(app, 'Start Multi-Approval Flow')
