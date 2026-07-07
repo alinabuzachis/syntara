@@ -32,7 +32,7 @@ describe('useFileStorageStatus', () => {
     vi.restoreAllMocks()
   })
 
-  it('returns isConfigured true when file_storage is "ok"', async () => {
+  it('returns isConfigured true and status "ok" when file_storage is "ok"', async () => {
     mockFetchResponse({ status: 'ok', checks: { file_storage: 'ok' } })
 
     const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
@@ -42,45 +42,26 @@ describe('useFileStorageStatus', () => {
     })
 
     expect(result.current.isConfigured).toBe(true)
+    expect(result.current.status).toBe('ok')
     expect(result.current.isError).toBe(false)
     expect(global.fetch).toHaveBeenCalledWith('/health')
   })
 
-  it('returns isConfigured true when file_storage is "degraded"', async () => {
-    mockFetchResponse({ status: 'degraded', checks: { file_storage: 'degraded' } })
+  it.each(['degraded', 'error', 'unconfigured'] as const)(
+    'returns isConfigured false and status "%s" when file_storage is "%s"',
+    async (status) => {
+      mockFetchResponse({ status, checks: { file_storage: status } })
 
-    const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
+      const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
 
-    expect(result.current.isConfigured).toBe(true)
-  })
-
-  it('returns isConfigured true when file_storage is "error"', async () => {
-    mockFetchResponse({ status: 'error', checks: { file_storage: 'error' } })
-
-    const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(result.current.isConfigured).toBe(true)
-  })
-
-  it('returns isConfigured false when file_storage is "unconfigured"', async () => {
-    mockFetchResponse({ status: 'ok', checks: { file_storage: 'unconfigured' } })
-
-    const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(result.current.isConfigured).toBe(false)
-  })
+      expect(result.current.isConfigured).toBe(false)
+      expect(result.current.status).toBe(status)
+    }
+  )
 
   it('defaults to isConfigured true and isLoading true while in flight', () => {
     vi.mocked(global.fetch).mockReturnValue(new Promise(() => {}))
@@ -89,6 +70,7 @@ describe('useFileStorageStatus', () => {
 
     expect(result.current.isConfigured).toBe(true)
     expect(result.current.isLoading).toBe(true)
+    expect(result.current.status).toBeUndefined()
   })
 
   it('defaults to isConfigured true when fetch fails', async () => {
@@ -105,6 +87,7 @@ describe('useFileStorageStatus', () => {
 
     expect(result.current.isConfigured).toBe(true)
     expect(result.current.isError).toBe(true)
+    expect(result.current.status).toBeUndefined()
   })
 
   it('defaults to isConfigured true when response is not ok', async () => {
@@ -121,6 +104,7 @@ describe('useFileStorageStatus', () => {
 
     expect(result.current.isConfigured).toBe(true)
     expect(result.current.isError).toBe(true)
+    expect(result.current.status).toBeUndefined()
   })
 
   it('defaults to isConfigured true when response has unexpected shape', async () => {
@@ -137,5 +121,6 @@ describe('useFileStorageStatus', () => {
 
     expect(result.current.isConfigured).toBe(true)
     expect(result.current.isError).toBe(true)
+    expect(result.current.status).toBeUndefined()
   })
 })

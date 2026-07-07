@@ -23,8 +23,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:  # noqa: D103
-    op.drop_index(op.f("ix_file_metadata_retention_expires_at"), table_name="file_metadata")
-    op.drop_index(op.f("ix_file_metadata_storage_backend"), table_name="file_metadata")
+    # if_exists=True: handles dev DBs that had this migration applied before 1ca21f73e381
+    # (add_index_on_file_metadata_retention_expires_at) was merged into the ancestor chain.
+    op.drop_index(op.f("ix_file_metadata_retention_expires_at"), table_name="file_metadata", if_exists=True)
+    op.drop_index(op.f("ix_file_metadata_storage_backend"), table_name="file_metadata", if_exists=True)
+    # No if_exists guard needed: af63ce50dceb (which adds these columns) is a proper ancestor
+    # of this migration through the merge chain, so columns are guaranteed to exist.
     op.drop_column("file_metadata", "retention_expires_at")
     op.drop_column("file_metadata", "storage_backend")
 

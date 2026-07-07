@@ -186,6 +186,13 @@ class FileStorageSettings(BaseSettings):
         ge=1,
     )
 
+    @field_validator("s3_endpoint_url", "s3_ca_bundle", mode="before")
+    @classmethod
+    def _empty_s3_string_to_none(cls, v: str | None) -> str | None:
+        if v is not None and v.strip() == "":
+            return None
+        return v
+
 
 # =============================================================================
 # API Validation Configuration

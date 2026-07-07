@@ -12,7 +12,11 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useLocation } from '../../../hooks/routing/useLocation'
 import { useNavigate } from '../../../hooks/routing/useNavigate'
-import { FILE_STORAGE_UNCONFIGURED_MESSAGE, useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
+import {
+  FILE_STORAGE_UNAVAILABLE_MESSAGE,
+  FILE_STORAGE_UNCONFIGURED_MESSAGE,
+  useFileStorageStatus,
+} from '../../../hooks/useFileStorageStatus'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
@@ -27,9 +31,10 @@ import { useSettingsPermissions } from './useSettingsPermissions'
 const basePath = AppRoute.SystemAdministration.Settings
 
 function FileStorageAlert() {
-  const { isConfigured } = useFileStorageStatus()
+  const { isConfigured, status } = useFileStorageStatus()
   if (isConfigured) return null
-  return <Alert variant="warning" isInline title={FILE_STORAGE_UNCONFIGURED_MESSAGE} />
+  const message = status === 'unconfigured' ? FILE_STORAGE_UNCONFIGURED_MESSAGE : FILE_STORAGE_UNAVAILABLE_MESSAGE
+  return <Alert variant="warning" isInline title={message} />
 }
 
 export default function Settings() {

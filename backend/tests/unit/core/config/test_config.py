@@ -692,3 +692,21 @@ class TestFileStorageSettings:
         assert settings.s3_secret_access_key is not None
         assert settings.s3_secret_access_key.get_secret_value() == "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
         assert settings.s3_use_path_style is False
+
+    def test_s3_endpoint_url_empty_string_treated_as_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that empty string APP_S3_ENDPOINT_URL is treated as None."""
+        monkeypatch.setenv("APP_S3_ENDPOINT_URL", "")
+        settings = Settings()
+        assert settings.s3_endpoint_url is None
+
+    def test_s3_endpoint_url_whitespace_treated_as_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that whitespace-only APP_S3_ENDPOINT_URL is treated as None."""
+        monkeypatch.setenv("APP_S3_ENDPOINT_URL", "  ")
+        settings = Settings()
+        assert settings.s3_endpoint_url is None
+
+    def test_s3_ca_bundle_empty_string_treated_as_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that empty string APP_S3_CA_BUNDLE is treated as None."""
+        monkeypatch.setenv("APP_S3_CA_BUNDLE", "")
+        settings = Settings()
+        assert settings.s3_ca_bundle is None

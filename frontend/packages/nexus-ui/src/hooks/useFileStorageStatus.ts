@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-type HealthCheckStatus = 'ok' | 'degraded' | 'unconfigured' | 'error'
+export type HealthCheckStatus = 'ok' | 'degraded' | 'unconfigured' | 'error'
 
 type HealthzResponse = {
   status: string
@@ -14,6 +14,7 @@ type UseFileStorageStatusResult = {
   isConfigured: boolean
   isLoading: boolean
   isError: boolean
+  status: HealthCheckStatus | undefined
 }
 
 function isHealthzResponse(data: unknown): data is HealthzResponse {
@@ -41,13 +42,24 @@ export function useFileStorageStatus(): UseFileStorageStatusResult {
       }
       return json
     },
-    select: (res) => res.checks.file_storage !== 'unconfigured',
     staleTime: FIVE_MINUTES_MS,
     retry: 1,
   })
 
-  return { isConfigured: query.data ?? true, isLoading: query.isLoading, isError: query.isError }
+  const fileStorageStatus = query.data?.checks.file_storage
+  // Fail-open: undefined (network error, loading, malformed response) defaults to configured
+  const isConfigured = fileStorageStatus === 'ok' || fileStorageStatus === undefined
+
+  return {
+    isConfigured,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    status: fileStorageStatus,
+  }
 }
 
 export const FILE_STORAGE_UNCONFIGURED_MESSAGE =
   'File uploads are disabled. Contact your platform administrator to configure S3 storage.'
+
+export const FILE_STORAGE_UNAVAILABLE_MESSAGE =
+  'File uploads are temporarily unavailable. S3 storage is experiencing issues.'

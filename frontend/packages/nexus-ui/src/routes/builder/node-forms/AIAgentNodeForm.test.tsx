@@ -41,7 +41,9 @@ vi.mock('../../../hooks/useFileUploadWithProgress', () => ({
 
 vi.mock('../../../hooks/useFileStorageStatus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../hooks/useFileStorageStatus')>()),
-  useFileStorageStatus: vi.fn().mockReturnValue({ isConfigured: true, isLoading: false, isError: false }),
+  useFileStorageStatus: vi
+    .fn()
+    .mockReturnValue({ isConfigured: true, isLoading: false, isError: false, status: 'ok' as const }),
 }))
 
 // Mock FileUpload component to expose file selection handler
@@ -50,12 +52,16 @@ vi.mock('../components/file-upload', () => ({
     onFilesSelected,
     onFileRemove,
     files = [],
+    disabled,
+    disabledTooltip,
   }: {
     onFilesSelected: (files: File[]) => void
     onFileRemove: (id: string) => void
     files?: Array<{ id: string; file: File; status: string }>
+    disabled?: boolean
+    disabledTooltip?: string
   }) => (
-    <div data-testid="file-upload">
+    <div data-testid="file-upload" data-disabled={disabled} data-disabled-tooltip={disabledTooltip}>
       <button
         data-testid="upload-files"
         onClick={() => {
@@ -120,7 +126,12 @@ describe('AIAgentNodeForm', () => {
       isPending: false,
     } as never)
     vi.mocked(useAllProjects).mockReturnValue({ projects: [], isLoading: false, error: null, refetch: vi.fn() })
-    vi.mocked(useFileStorageStatus).mockReturnValue({ isConfigured: true, isLoading: false, isError: false })
+    vi.mocked(useFileStorageStatus).mockReturnValue({
+      isConfigured: true,
+      isLoading: false,
+      isError: false,
+      status: 'ok' as const,
+    })
     vi.mocked(useFileUploadWithProgress).mockReturnValue({
       uploadFiles: mockUploadFiles,
       progress: [],
@@ -561,6 +572,42 @@ describe('AIAgentNodeForm', () => {
           })
         )
       })
+    })
+  })
+
+  describe('file storage status', () => {
+    it('shows permanent tooltip when S3 is unconfigured', () => {
+      vi.mocked(useFileStorageStatus).mockReturnValue({
+        isConfigured: false,
+        isLoading: false,
+        isError: false,
+        status: 'unconfigured' as const,
+      })
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="test-project" />)
+
+      const fileUpload = screen.getByTestId('file-upload')
+      expect(fileUpload).toHaveAttribute('data-disabled', 'true')
+      expect(fileUpload).toHaveAttribute(
+        'data-disabled-tooltip',
+        'File uploads are disabled. Contact your platform administrator to configure S3 storage.'
+      )
+    })
+
+    it('shows transient tooltip when S3 is degraded', () => {
+      vi.mocked(useFileStorageStatus).mockReturnValue({
+        isConfigured: false,
+        isLoading: false,
+        isError: false,
+        status: 'degraded' as const,
+      })
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="test-project" />)
+
+      const fileUpload = screen.getByTestId('file-upload')
+      expect(fileUpload).toHaveAttribute('data-disabled', 'true')
+      expect(fileUpload).toHaveAttribute(
+        'data-disabled-tooltip',
+        'File uploads are temporarily unavailable. S3 storage is experiencing issues.'
+      )
     })
   })
 

@@ -54,7 +54,9 @@ vi.mock('./useSettingsPermissions', () => ({
 
 vi.mock('../../../hooks/useFileStorageStatus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../hooks/useFileStorageStatus')>()),
-  useFileStorageStatus: vi.fn().mockReturnValue({ isConfigured: true, isLoading: false, isError: false }),
+  useFileStorageStatus: vi
+    .fn()
+    .mockReturnValue({ isConfigured: true, isLoading: false, isError: false, status: 'ok' as const }),
 }))
 
 vi.mock('./useAllSettings', () => ({
@@ -149,7 +151,12 @@ describe('Settings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockLocation.value = '/system-administration/settings/context_manager'
-    vi.mocked(useFileStorageStatus).mockReturnValue({ isConfigured: true, isLoading: false, isError: false })
+    vi.mocked(useFileStorageStatus).mockReturnValue({
+      isConfigured: true,
+      isLoading: false,
+      isError: false,
+      status: 'ok' as const,
+    })
   })
 
   it('has no accessibility violations', async () => {
@@ -430,22 +437,61 @@ describe('Settings', () => {
   })
 
   describe('file storage status', () => {
-    it('shows warning banner when S3 is unconfigured', () => {
+    it('shows permanent warning banner when S3 is unconfigured', () => {
       mockQueries()
-      vi.mocked(useFileStorageStatus).mockReturnValue({ isConfigured: false, isLoading: false, isError: false })
+      vi.mocked(useFileStorageStatus).mockReturnValue({
+        isConfigured: false,
+        isLoading: false,
+        isError: false,
+        status: 'unconfigured' as const,
+      })
 
       render(<Settings />)
 
       expect(screen.getByText(/File uploads are disabled/)).toBeInTheDocument()
     })
 
+    it('shows transient warning banner when S3 is degraded', () => {
+      mockQueries()
+      vi.mocked(useFileStorageStatus).mockReturnValue({
+        isConfigured: false,
+        isLoading: false,
+        isError: false,
+        status: 'degraded' as const,
+      })
+
+      render(<Settings />)
+
+      expect(screen.getByText(/File uploads are temporarily unavailable/)).toBeInTheDocument()
+    })
+
+    it('shows transient warning banner when S3 has error', () => {
+      mockQueries()
+      vi.mocked(useFileStorageStatus).mockReturnValue({
+        isConfigured: false,
+        isLoading: false,
+        isError: false,
+        status: 'error' as const,
+      })
+
+      render(<Settings />)
+
+      expect(screen.getByText(/File uploads are temporarily unavailable/)).toBeInTheDocument()
+    })
+
     it('does not show warning banner when S3 is configured', () => {
       mockQueries()
-      vi.mocked(useFileStorageStatus).mockReturnValue({ isConfigured: true, isLoading: false, isError: false })
+      vi.mocked(useFileStorageStatus).mockReturnValue({
+        isConfigured: true,
+        isLoading: false,
+        isError: false,
+        status: 'ok' as const,
+      })
 
       render(<Settings />)
 
       expect(screen.queryByText(/File uploads are disabled/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/File uploads are temporarily unavailable/)).not.toBeInTheDocument()
     })
   })
 })

@@ -18,7 +18,11 @@ import type { Control, UseFormSetValue } from 'react-hook-form'
 import { Controller, FormProvider, useForm, useFormContext, useFormState, useWatch } from 'react-hook-form'
 
 import { integrationsClient, toolManagerClient } from '../../../client'
-import { FILE_STORAGE_UNCONFIGURED_MESSAGE, useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
+import {
+  FILE_STORAGE_UNAVAILABLE_MESSAGE,
+  FILE_STORAGE_UNCONFIGURED_MESSAGE,
+  useFileStorageStatus,
+} from '../../../hooks/useFileStorageStatus'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { detachPromise } from '../../../utils/detachPromise'
 import { generateUUID } from '../../../utils/generateUUID'
@@ -260,7 +264,7 @@ function AIAgentFormFields({
   if (!fileContext) throw new Error('AIAgentFormFields must be used within FileContext.Provider')
   const { isFilesError } = fileContext
   const { uploadedFiles, handleFilesSelected, handleFileRemove } = useFileUploadState(fileContext, projectId)
-  const { isConfigured: isFileStorageConfigured } = useFileStorageStatus()
+  const { isConfigured: isFileStorageConfigured, status: fileStorageStatus } = useFileStorageStatus()
 
   const nameField = useMemo(
     () => (
@@ -390,7 +394,11 @@ function AIAgentFormFields({
               acceptedMimeTypes={['.pdf', '.doc', '.docx', '.txt', '.md']}
               aria-label="Context file upload"
               disabled={!isFileStorageConfigured}
-              disabledTooltip={FILE_STORAGE_UNCONFIGURED_MESSAGE}
+              disabledTooltip={
+                fileStorageStatus === 'unconfigured'
+                  ? FILE_STORAGE_UNCONFIGURED_MESSAGE
+                  : FILE_STORAGE_UNAVAILABLE_MESSAGE
+              }
             />
           </fieldset>
         </FormGroup>
