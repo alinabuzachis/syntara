@@ -175,17 +175,14 @@ def build_resource_actions(app: FastAPI) -> dict[str, list[str]]:
     (via ``_set_registry``) and returned so the caller can also store it
     on ``app.state``.
     """
-    from fastapi.routing import APIRoute  # noqa: PLC0415
-
     from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter, VisibilityFilter  # noqa: PLC0415
     from nexus.authz.role_conventions import BUILTIN_POLICIES  # noqa: PLC0415
+    from nexus.core.router_discovery import iter_api_routes  # noqa: PLC0415
 
     pairs: set[tuple[str, str]] = set()
     project_eligible: set[str] = {"project"}
 
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
+    for route in iter_api_routes(app):
         for dep in _iter_route_deps(route):
             inner = _get_dep_instance(dep)
             if isinstance(inner, (PermissionChecker, ProjectScopeFilter, VisibilityFilter)):

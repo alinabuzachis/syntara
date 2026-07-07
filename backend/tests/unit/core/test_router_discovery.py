@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import APIRouter, FastAPI
-from fastapi.routing import APIRoute
 
 from nexus.core.router_discovery import (
     RouterInfo,
@@ -15,6 +14,7 @@ from nexus.core.router_discovery import (
     _extract_router_prefix_from_file_path,
     discover_and_register_routers,
     discover_routers,
+    iter_api_routes,
     register_routers,
 )
 
@@ -147,7 +147,7 @@ class TestRegisterRouters:
         register_routers(app, [router_info], prefix="/api/v1")
 
         # Verify the route was registered with the correct prefix
-        route_paths = [route.path for route in app.routes if isinstance(route, APIRoute)]
+        route_paths = [route.path for route in iter_api_routes(app)]
         assert "/api/v1/test" in route_paths
 
     def test_register_handles_exceptions(self) -> None:

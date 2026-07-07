@@ -24,9 +24,10 @@ Example:
 import importlib
 import os
 import tempfile
+from collections.abc import Iterator
 from importlib.resources import files
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from fastapi import APIRouter, FastAPI
@@ -478,6 +479,40 @@ def _build_schema_file_list(routers: list[RouterInfo]) -> list[str]:
                 continue
 
     return schema_files
+
+
+def iter_api_routes(app_or_router: Any) -> Iterator[Any]:  # noqa: ANN401
+    """Yield API route objects from a FastAPI app or router.
+
+    FastAPI >=0.135 wraps included routers in ``_IncludedRouter`` objects
+    instead of flattening them into ``app.routes``.  This helper walks
+    the tree recursively and yields ``_EffectiveRouteContext`` objects
+    (which expose ``.path``, ``.methods``, ``.endpoint``, ``.dependant``,
+    and ``.dependencies`` — the same attributes as ``APIRoute``).
+
+    For direct ``APIRoute`` entries (e.g. health-check routes added
+    without ``include_router``) the original ``APIRoute`` is yielded.
+    """
+    from fastapi.routing import APIRoute  # noqa: PLC0415
+
+    for route in app_or_router.routes:
+        if isinstance(route, APIRoute):
+            yield route
+        elif hasattr(route, "effective_candidates"):
+            for candidate in route.effective_candidates():
+                if hasattr(candidate, "methods") and hasattr(candidate, "path"):
+                    yield candidate
+                elif hasattr(candidate, "effective_candidates"):
+                    yield from _walk_included(candidate)
+
+
+def _walk_included(included: Any) -> Iterator[Any]:  # noqa: ANN401
+    """Recursively walk nested _IncludedRouter objects."""
+    for candidate in included.effective_candidates():
+        if hasattr(candidate, "methods") and hasattr(candidate, "path"):
+            yield candidate
+        elif hasattr(candidate, "effective_candidates"):
+            yield from _walk_included(candidate)
 
 
 __all__ = [

@@ -53,13 +53,10 @@ def _inject_permission_metadata(app: FastAPI, spec: dict[str, Any]) -> None:
     permission metadata derived from runtime code, enabling the drift
     checker to catch mismatches between code and hand-written sub-specs.
     """
-    from fastapi.routing import APIRoute
+    from nexus.core.router_discovery import iter_api_routes
 
     paths = spec.get("paths", {})
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
-
+    for route in iter_api_routes(app):
         permission = _extract_route_permission(route)
         if permission is None:
             permission = {"resource": None, "action": None}

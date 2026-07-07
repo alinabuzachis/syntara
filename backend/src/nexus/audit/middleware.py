@@ -106,11 +106,12 @@ class AuditMiddleware:
 
         # Pre-filter routes to only those containing context ID path params
         # This optimizes _resolve_context_ids from O(n) to O(m) where m << n
+        from nexus.core.router_discovery import iter_api_routes  # noqa: PLC0415
+
         self._context_routes = [
             route
-            for route in fastapi_app.router.routes
-            if hasattr(route, "path")
-            and any(param in route.path for param in ["{workflow_id}", "{execution_id}", "{activity_id}"])
+            for route in iter_api_routes(fastapi_app)
+            if any(param in route.path for param in ["{workflow_id}", "{execution_id}", "{activity_id}"])
         ]
 
     @staticmethod

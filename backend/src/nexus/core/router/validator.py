@@ -6,7 +6,6 @@ from typing import Any
 
 import structlog
 from fastapi import FastAPI
-from fastapi.routing import APIRoute
 
 from .loader import EndpointDefinition, OpenAPISchema
 
@@ -30,10 +29,10 @@ class ValidationError:
 class RouteInfo:
     """Information about a registered FastAPI route."""
 
-    def __init__(self, route: APIRoute) -> None:
-        """Initialize route info from FastAPI route object."""
+    def __init__(self, route: Any) -> None:  # noqa: ANN401
+        """Initialize route info from a FastAPI route or effective route context."""
         self.path = route.path
-        self.methods = route.methods
+        self.methods = route.methods or set()
         self.name = route.name
         self.endpoint = route.endpoint
 
@@ -96,7 +95,9 @@ class RouteValidator:
 
     def _extract_routes(self) -> list[RouteInfo]:
         """Extract all routes from FastAPI app."""
-        return [RouteInfo(route) for route in self.app.routes if isinstance(route, APIRoute)]
+        from nexus.core.router_discovery import iter_api_routes  # noqa: PLC0415
+
+        return [RouteInfo(route) for route in iter_api_routes(self.app)]
 
     def _validate_schema(self, schema: OpenAPISchema, routes: list[RouteInfo]) -> None:
         """Validate a single schema against registered routes."""

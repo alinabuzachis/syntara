@@ -22,13 +22,12 @@ from pathlib import Path
 import pytest
 import yaml
 from fastapi import FastAPI
-from fastapi.routing import APIRoute
 
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.auth.dependencies import get_current_user, get_token_payload
 from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter, VisibilityFilter
 from nexus.authz.resource_actions import _get_dep_instance, _iter_route_deps
-from nexus.core.router_discovery import discover_and_register_routers
+from nexus.core.router_discovery import discover_and_register_routers, iter_api_routes
 
 # ---------------------------------------------------------------------------
 # Classification helpers
@@ -38,7 +37,7 @@ _RBAC_TYPES = (PermissionChecker, ProjectScopeFilter, VisibilityFilter)
 _AUTHN_CALLABLES = (get_current_user, get_token_payload)
 
 
-def _has_rbac(route: APIRoute) -> bool:
+def _has_rbac(route: object) -> bool:
     """Return True if the route has an RBAC dependency."""
     for dep in _iter_route_deps(route):
         inner = _get_dep_instance(dep)
@@ -47,7 +46,7 @@ def _has_rbac(route: APIRoute) -> bool:
     return False
 
 
-def _has_authn(route: APIRoute) -> bool:
+def _has_authn(route: object) -> bool:
     """Return True if get_current_user/get_token_payload appears anywhere in the dep tree."""
     visited: set[int] = set()
 
@@ -149,12 +148,10 @@ def exclusions() -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
 # ---------------------------------------------------------------------------
 
 
-def _collect_api_routes(app: FastAPI) -> list[tuple[str, str, APIRoute]]:
+def _collect_api_routes(app: FastAPI) -> list[tuple[str, str, object]]:
     """Return ``(method, path, route)`` for all API routes."""
-    results: list[tuple[str, str, APIRoute]] = []
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
+    results: list[tuple[str, str, object]] = []
+    for route in iter_api_routes(app):
         if _is_infra(route.path):
             continue
         for method in sorted(route.methods or []):

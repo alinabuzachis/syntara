@@ -555,7 +555,7 @@ class TestBatchApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: 0: JSON decode error",
+            detail=("Validation failed: root: Input should be a valid dictionary or object to extract fields from"),
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )

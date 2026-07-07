@@ -7455,7 +7455,7 @@ paths:
             application/octet-stream:
               schema:
                 type: string
-                format: binary
+                contentMediaType: application/octet-stream
         '400':
           description: Bad Request
           content:
@@ -27078,7 +27078,7 @@ components:
           type: array
           items:
             type: string
-            format: binary
+            contentMediaType: application/octet-stream
           title: Files
           description: Files to upload (1-10 files, max 10MB each)
         project_id:
@@ -29291,7 +29291,7 @@ components:
         files:
           anyOf:
             - items:
-                format: binary
+                contentMediaType: application/octet-stream
                 type: string
               type: array
             - type: 'null'

@@ -18,6 +18,10 @@ import yaml
 # not derived from the FastAPI implementation; exclude them from the diff.
 _EXCLUDED_KEYS: frozenset[str] = frozenset({"tags"})
 
+# Operation-level extension keys authored in sub-specs but not emitted by
+# FastAPI's OpenAPI generator.  Stripping these avoids false-positive drift.
+_EXCLUDED_OPERATION_KEYS: frozenset[str] = frozenset({"x-app-permission"})
+
 # Fields where whitespace and backtick-style differences are normalized before comparison.
 # This avoids false positives from YAML block-scalar vs Python triple-quoted-string formatting.
 _TEXT_NORMALIZE_KEYS: frozenset[str] = frozenset({"description", "summary"})
@@ -70,7 +74,7 @@ def _normalize_for_display(obj: object) -> object:
     if isinstance(obj, dict):
         if _is_parameter_object(obj):
             obj = _strip_schema_description(obj)
-        return {k: _normalize_for_display(v) for k, v in obj.items()}
+        return {k: _normalize_for_display(v) for k, v in obj.items() if k not in _EXCLUDED_OPERATION_KEYS}
     if isinstance(obj, list):
         return [_normalize_for_display(item) for item in obj]
     return obj
@@ -84,6 +88,7 @@ def _normalize_for_comparison(obj: object) -> object:
         return {
             k: _normalize_text(v) if k in _TEXT_NORMALIZE_KEYS and isinstance(v, str) else _normalize_for_comparison(v)
             for k, v in obj.items()
+            if k not in _EXCLUDED_OPERATION_KEYS
         }
     if isinstance(obj, list):
         return [_normalize_for_comparison(item) for item in obj]

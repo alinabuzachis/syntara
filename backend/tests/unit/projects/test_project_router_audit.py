@@ -14,7 +14,7 @@ def _get_mutating_endpoints() -> list[tuple[str, str, str]]:
     for route in router.routes:
         if not isinstance(route, APIRoute):
             continue
-        for method in route.methods & MUTATING_METHODS:
+        for method in (route.methods or set()) & MUTATING_METHODS:
             endpoints.append((method, route.path, route.endpoint.__name__))
     return sorted(endpoints, key=lambda x: (x[1], x[0]))
 
@@ -27,6 +27,8 @@ def _get_mutating_endpoints() -> list[tuple[str, str, str]]:
 def test_mutating_endpoint_has_audit_decorator(method: str, path: str, fn_name: str) -> None:
     """Every POST/PATCH/PUT/DELETE endpoint must be wrapped by @audit."""
     route = next(
-        r for r in router.routes if isinstance(r, APIRoute) and r.endpoint.__name__ == fn_name and method in r.methods
+        r
+        for r in router.routes
+        if isinstance(r, APIRoute) and r.endpoint.__name__ == fn_name and method in (r.methods or set())
     )
     assert hasattr(route.endpoint, "__wrapped__"), f"{method} {path} ({fn_name}) is missing the @audit decorator"

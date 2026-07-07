@@ -62,9 +62,15 @@ class TestMultiModuleComponent:
         """Test that WebSocket endpoints are created for all channels."""
         _, app = example_app_server
 
-        # Check that routes were registered
-        routes = [route for route in app.routes if hasattr(route, "path")]
-        websocket_paths = {route.path for route in routes}
+        # Collect paths from top-level routes and included routers
+        websocket_paths: set[str] = set()
+        for route in app.routes:
+            if hasattr(route, "path"):
+                websocket_paths.add(route.path)
+            if hasattr(route, "original_router"):
+                for sub in route.original_router.routes:
+                    if hasattr(sub, "path"):
+                        websocket_paths.add(sub.path)
 
         assert "/ws/testcomp/v1/chat" in websocket_paths
         assert "/ws/testcomp/v1/coffee" in websocket_paths

@@ -284,7 +284,11 @@ async def get_files_metadata(
     responses={
         200: {
             "description": "File content as binary stream",
-            "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}},
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "contentMediaType": "application/octet-stream"},
+                },
+            },
         },
     },
 )

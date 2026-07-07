@@ -443,7 +443,7 @@ components:
         files:
           anyOf:
             - items:
-                format: binary
+                contentMediaType: application/octet-stream
                 type: string
               type: array
             - type: 'null'
