@@ -655,6 +655,13 @@ components:
           description: >-
             Version the client was editing. If the server's current_version is
             higher, returns 409 Conflict.
+        project_id:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: "null"
+          description: Project ID (immutable after creation; rejected if different from stored value)
+          title: Project Id
 
     ExecutionCreate:
       type: object

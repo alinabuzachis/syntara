@@ -6,6 +6,7 @@
  *   a danger state on the project selector (aria-invalid)
  * - Selecting a project then saving succeeds and navigates away from /new
  * - Save button is always clickable (never aria-disabled due to missing project)
+ * - Project selector is disabled when editing an existing workflow (AAP-79246)
  *
  * Note: Toast notifications are intentionally NOT asserted here — they are
  * tested in unit tests and are too ephemeral for reliable E2E assertions.
@@ -18,7 +19,7 @@ import { type Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName, selectProjectIfRequired } from './helpers/workflows'
-import { ensureProject } from './utils/api'
+import { createWorkflowViaApi, deleteWorkflowViaApi, ensureProject } from './utils/api'
 
 /** Returns true if the "Select a project" placeholder is currently visible */
 async function projectIsUnselected(app: Page) {
@@ -174,5 +175,27 @@ test.describe('Builder save validation — project required', () => {
 
     // Assert: project selector is in danger/invalid state
     await expect(app.locator('[aria-invalid="true"]')).toBeVisible()
+  })
+
+  /**
+   * AAP-79246: project_id is immutable after creation — the project selector
+   * must be disabled when editing an existing workflow.
+   */
+  test('project selector is disabled when editing an existing workflow', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-proj-immutable')
+    const workflowId = await createWorkflowViaApi(app, workflowName, [
+      { id: 'trigger', name: 'Manual trigger', type: 'manual_trigger', parameters: {} },
+    ])
+
+    try {
+      await app.goto(toAppUrl(`/workflow-builder/${workflowId}`))
+      await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName, { timeout: 15_000 })
+
+      const projectInput = app.getByRole('textbox', { name: 'Project' })
+      await expect(projectInput).toBeVisible()
+      await expect(projectInput).toBeDisabled()
+    } finally {
+      await deleteWorkflowViaApi(app, workflowId)
+    }
   })
 })

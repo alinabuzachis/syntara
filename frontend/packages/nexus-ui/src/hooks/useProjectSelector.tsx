@@ -73,6 +73,8 @@ type UseProjectSelectorOptions = {
    * any validation error state set by the caller (e.g. reset `saveAttemptedWithoutProject`).
    */
   onProjectSelect?: (project: ProjectRead | null) => void
+  /** When true, the selector is disabled (greyed out, not interactive). Use for edit mode where project_id is immutable. */
+  isDisabled?: boolean
 }
 
 type UseProjectSelectorResult = {
@@ -173,6 +175,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
     initialProjectId,
     hasValidationError = false,
     onProjectSelect: onUserProjectSelect,
+    isDisabled = false,
   } = options ?? {}
   const {
     selectedProjectId,
@@ -274,6 +277,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
 
   const ProjectSelector = (
     <ProjectSelectorDropdown
+      isDisabled={isDisabled}
       isOpen={isOpen}
       setIsOpen={setIsOpen}
       createDialogOpen={createDialogOpen}

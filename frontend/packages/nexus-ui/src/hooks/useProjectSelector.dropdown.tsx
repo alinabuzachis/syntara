@@ -145,6 +145,7 @@ function renderInputUtilities(isOpen: boolean, filterValue: string, isFilterFetc
 }
 
 export type ProjectSelectorDropdownProps = {
+  isDisabled?: boolean
   isOpen: boolean
   setIsOpen: Dispatch<SetStateAction<boolean>>
   createDialogOpen: boolean
@@ -180,6 +181,7 @@ export type ProjectSelectorDropdownProps = {
 
 export function ProjectSelectorDropdown(props: Readonly<ProjectSelectorDropdownProps>): ReactNode {
   const {
+    isDisabled,
     isOpen,
     setIsOpen,
     createDialogOpen,
@@ -235,12 +237,13 @@ export function ProjectSelectorDropdown(props: Readonly<ProjectSelectorDropdownP
               variant="typeahead"
               onClick={() => setIsOpen(!isOpen)}
               isExpanded={isOpen}
+              isDisabled={isDisabled}
               status={menuToggleStatus}
               style={{ minWidth: PROJECT_SELECTOR_WIDTH }}
               onMouseEnter={() => setIsToggleHovered(true)}
               onMouseLeave={() => setIsToggleHovered(false)}
             >
-              <TextInputGroup isPlain>
+              <TextInputGroup isPlain isDisabled={isDisabled}>
                 <InputGroupItem isPlain isBox={false}>
                   <Content className={PROJECT_TOGGLE_PREFIX_TEXT_CLASS} style={projectTogglePrefixLabelStyle}>
                     {projectSelectorUx.togglePrefixLabel}

@@ -686,6 +686,11 @@ export interface components {
        * @description Version the client was editing. If the server's current_version is higher, returns 409 Conflict.
        */
       expected_version?: number | null
+      /**
+       * Project Id
+       * @description Project ID (immutable after creation; rejected if different from stored value)
+       */
+      project_id?: string | null
     }
     /**
      * TestExecutionCreate

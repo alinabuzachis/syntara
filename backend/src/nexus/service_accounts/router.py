@@ -151,6 +151,7 @@ async def update_service_account(
     """Update a service account's name and/or description."""
     service_account = await service.update_service_account(
         service_account_id,
+        project_id=request.project_id,
         name=request.name,
         description=request.description,
     )

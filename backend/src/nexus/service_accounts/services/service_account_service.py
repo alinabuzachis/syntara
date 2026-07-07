@@ -10,6 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import AllowedProjectsResult
+from nexus.core.exceptions import assert_project_id_unchanged
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
@@ -135,6 +136,7 @@ class ServiceAccountService(BaseService):
         self,
         service_account_id: UUID,
         *,
+        project_id: UUID | None = None,
         name: str | None = None,
         description: str | None = None,
     ) -> ServiceAccount:
@@ -146,6 +148,8 @@ class ServiceAccountService(BaseService):
 
         """
         service_account = await self.get_service_account(service_account_id)
+
+        assert_project_id_unchanged(service_account.project_id, project_id)
 
         if name is not None:
             service_account.name = name

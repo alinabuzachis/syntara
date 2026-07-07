@@ -1896,6 +1896,13 @@ components:
             - type: 'null'
           title: Description
           description: Update the description
+        project_id:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: 'null'
+          description: Project ID (immutable after creation; rejected if different from stored value)
+          title: Project Id
       type: object
       title: ServiceAccountUpdate
       description: Schema for updating a service account (PATCH).

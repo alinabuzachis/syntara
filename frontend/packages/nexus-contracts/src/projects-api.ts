@@ -858,6 +858,11 @@ export interface components {
       } | null
       /** Name */
       name?: string | null
+      /**
+       * Project Id
+       * @description Project ID (immutable after creation; rejected if different from stored value)
+       */
+      project_id?: string | null
     }
     /**
      * CredentialListResponse

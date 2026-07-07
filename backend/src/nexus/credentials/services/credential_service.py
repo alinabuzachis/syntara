@@ -25,6 +25,7 @@ from sqlmodel.sql._expression_select_cls import SelectOfScalar
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.config.base import get_settings
+from nexus.core.exceptions import assert_project_id_unchanged
 from nexus.core.lib.encryption import ENCRYPTED_SENTINEL, EncryptionError
 from nexus.core.lib.sanitization import CONTROL_CHAR_MULTILINE_RE, CONTROL_CHAR_SINGLELINE_RE
 from nexus.core.lib.url_validation import validate_host_url
@@ -421,6 +422,9 @@ class CredentialService(BaseService):
     async def update_credential(self, credential_id: UUID, data: CredentialUpdate) -> CredentialRead:
         """Update a credential. $encrypted$ preserves existing encrypted values."""
         credential = await self._get_or_raise(credential_id)
+
+        assert_project_id_unchanged(credential.project_id, data.project_id)
+
         credential_type = await self._get_credential_type(credential.credential_type_id)
 
         enabled_changed = data.enabled is not None and data.enabled != credential.enabled

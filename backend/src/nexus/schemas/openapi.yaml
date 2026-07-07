@@ -26851,6 +26851,13 @@ components:
               type: string
             - type: 'null'
           title: Name
+        project_id:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: 'null'
+          description: Project ID (immutable after creation; rejected if different from stored value)
+          title: Project Id
       title: CredentialUpdate
       type: object
     CredentialRead:
@@ -29832,6 +29839,13 @@ components:
             - type: 'null'
           title: Description
           description: Update the description
+        project_id:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: 'null'
+          description: Project ID (immutable after creation; rejected if different from stored value)
+          title: Project Id
       type: object
       title: ServiceAccountUpdate
       description: Schema for updating a service account (PATCH).
@@ -32761,6 +32775,13 @@ components:
             - type: 'null'
           title: Expected Version
           description: Version the client was editing. If the server's current_version is higher, returns 409 Conflict.
+        project_id:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: 'null'
+          description: Project ID (immutable after creation; rejected if different from stored value)
+          title: Project Id
     PreResolvedNodeOutput:
       type: object
       title: PreResolvedNodeOutput

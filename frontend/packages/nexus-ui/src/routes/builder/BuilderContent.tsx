@@ -65,6 +65,7 @@ export function BuilderContent(props: BuilderContentProps) {
     initialProjectId: isNew ? undefined : (workflow?.project_id ?? undefined),
     hasValidationError: saveAttemptedWithoutProject,
     onProjectSelect: () => setSaveAttemptedWithoutProject(false),
+    isDisabled: !isNew,
   })
 
   const queryClient = useQueryClient()

@@ -144,6 +144,9 @@ class ProjectCredentialCreate(SQLModel):
 class CredentialUpdate(SQLModel):
     """Schema for partially updating a credential. $encrypted$ preserves existing values."""
 
+    project_id: UUID | None = Field(
+        default=None, description="Project ID (immutable after creation; rejected if different from stored value)"
+    )
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     inputs: dict[str, Any] | None = None

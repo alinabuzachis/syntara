@@ -218,6 +218,11 @@ export interface components {
       } | null
       /** Name */
       name?: string | null
+      /**
+       * Project Id
+       * @description Project ID (immutable after creation; rejected if different from stored value)
+       */
+      project_id?: string | null
     }
     /** @description Schema for credential API responses. Secret fields masked as $encrypted$. */
     CredentialRead: components['schemas']['UserOwnedResource'] &

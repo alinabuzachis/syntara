@@ -423,3 +423,46 @@ class TestRbacPermissionDeniedResponse:
         raw = str(body).lower()
         assert "policy" not in raw, "403 should not expose internal policy names"
         assert "role_assignment" not in raw, "403 should not expose role details"
+
+
+# ===================================================================
+# project_id immutability (AAP-79246)
+# ===================================================================
+
+
+class TestProjectIdImmutability:
+    """Verify project_id cannot be changed after creation."""
+
+    def test_update_credential_rejects_project_id_change(
+        self, nexus_api: NexusApiRegistry, first_project_id: UUID, create_credential: CredentialFactory
+    ) -> None:
+        """PATCH with a different project_id must return 422."""
+        from nexus_api_client.models.project_create import ProjectCreate
+
+        cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, name=unique_name("e2e-immut-cred"))
+
+        other_project = nexus_api.projects.create(
+            body=ProjectCreate(
+                name=unique_name("e2e-immut-dst-proj"),
+                description="Destination project for immutability test",
+            )
+        ).assert_and_get()
+
+        body = CredentialUpdate(description="attempt project move")
+        body["project_id"] = str(other_project.id)
+        response = nexus_api.credentials.update(credential_id=cred_id, body=body)
+        assert not response.is_success
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+    def test_update_credential_accepts_same_project_id(
+        self, nexus_api: NexusApiRegistry, first_project_id: UUID, create_credential: CredentialFactory
+    ) -> None:
+        """PATCH with the same project_id must succeed (no-op)."""
+        cred_id, *_ = create_credential(
+            api=nexus_api, project_id=first_project_id, name=unique_name("e2e-same-proj-cred")
+        )
+
+        body = CredentialUpdate(description="same project ok")
+        body["project_id"] = str(first_project_id)
+        updated = nexus_api.credentials.update(credential_id=cred_id, body=body).assert_and_get()
+        assert str(updated.project_id) == str(first_project_id)

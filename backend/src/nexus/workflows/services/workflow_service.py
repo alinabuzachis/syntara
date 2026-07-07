@@ -19,7 +19,7 @@ from temporalio.service import RPCError
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.authz.models import Project
-from nexus.core.exceptions import SafeValueError
+from nexus.core.exceptions import SafeValueError, assert_project_id_unchanged
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
@@ -772,6 +772,7 @@ class WorkflowService(BaseService):
         description: str | None = None,
         labels: dict[str, Any] | None = None,
         *,
+        project_id: UUID | None = None,
         workflow_definition: dict[str, Any] | None = None,
         change_description: str | None = None,
         force_save: bool = False,
@@ -784,6 +785,7 @@ class WorkflowService(BaseService):
             name: New name (optional)
             description: New description (optional)
             labels: New labels (optional)
+            project_id: Rejected if different from stored value (immutable after creation)
             workflow_definition: New V2 workflow definition as dict (optional, creates version)
             change_description: Description of changes (for version history)
             force_save: When True, bypass validation errors and warnings
@@ -802,6 +804,8 @@ class WorkflowService(BaseService):
 
         """
         workflow = await self._get_workflow_for_update(workflow_id)
+
+        assert_project_id_unchanged(workflow.project_id, project_id)
 
         if workflow.is_builtin:
             raise BuiltinWorkflowModifyError(workflow.name)

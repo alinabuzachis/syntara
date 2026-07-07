@@ -33,6 +33,10 @@ class ServiceAccountCreate(SQLModel):
 class ServiceAccountUpdate(SQLModel):
     """Schema for updating a service account (PATCH)."""
 
+    project_id: UUID | None = Field(
+        default=None,
+        description="Project ID (immutable after creation; rejected if different from stored value)",
+    )
     name: str | None = Field(
         default=None,
         min_length=1,

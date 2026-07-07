@@ -199,6 +199,9 @@ class WorkflowUpdate(SQLModel):
     where force_save can bypass all validation.
     """
 
+    project_id: UUID | None = Field(
+        None, description="Project ID (immutable after creation; rejected if different from stored value)"
+    )
     name: str | None = Field(None, min_length=1, max_length=255, description="Update workflow name")
     description: str | None = Field(
         None, max_length=FieldLimits.DESCRIPTION_MAX_LENGTH, description="Update workflow description"

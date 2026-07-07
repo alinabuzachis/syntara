@@ -314,6 +314,7 @@ async def update_workflow(
         name=request.name,
         description=request.description,
         labels=request.labels,
+        project_id=request.project_id,
         workflow_definition=_definition_to_dict(request.workflow_definition)
         if request.workflow_definition is not None
         else None,

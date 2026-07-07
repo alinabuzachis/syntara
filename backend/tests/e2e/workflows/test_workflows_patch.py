@@ -367,3 +367,80 @@ class TestWorkflowUpdate:
         ).assert_and_get()
 
         assert updated.project_id == project_id
+
+    def test_update_workflow_rejects_project_id_change(
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+    ) -> None:
+        """Test that PATCH rejects changing project_id with 422."""
+        project1 = nexus_api.projects.create(
+            body=ProjectCreate(
+                name=f"test-immut-src-{uuid4().hex[:8]}",
+                description="Source project",
+            )
+        ).assert_and_get()
+        project2 = nexus_api.projects.create(
+            body=ProjectCreate(
+                name=f"test-immut-dst-{uuid4().hex[:8]}",
+                description="Destination project",
+            )
+        ).assert_and_get()
+
+        workflow_name = unique_name("immutable-project-test")
+        workflow_def = WorkflowDefinition.from_dict(
+            create_minimal_workflow_definition(
+                name=workflow_name,
+                description="Workflow for immutability test",
+                activity_id="immut_activity",
+            )
+        )
+        workflow = workflow_factory(
+            WorkflowCreate(
+                name=workflow_name,
+                project_id=project1.id,
+                workflow_definition=workflow_def,
+            )
+        )
+
+        body = WorkflowUpdate(description="attempt project move")
+        body["project_id"] = str(project2.id)
+        response = nexus_api.workflows.update(
+            workflow_id=workflow.id,
+            body=body,
+        )
+        assert not response.is_success
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+    def test_update_workflow_accepts_same_project_id(
+        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+    ) -> None:
+        """Test that PATCH accepts the same project_id (no-op)."""
+        project = nexus_api.projects.create(
+            body=ProjectCreate(
+                name=f"test-same-proj-{uuid4().hex[:8]}",
+                description="Same project test",
+            )
+        ).assert_and_get()
+
+        workflow_name = unique_name("same-project-test")
+        workflow_def = WorkflowDefinition.from_dict(
+            create_minimal_workflow_definition(
+                name=workflow_name,
+                description="Workflow for same project test",
+                activity_id="same_proj_activity",
+            )
+        )
+        workflow = workflow_factory(
+            WorkflowCreate(
+                name=workflow_name,
+                project_id=project.id,
+                workflow_definition=workflow_def,
+            )
+        )
+
+        body = WorkflowUpdate(description="same project ok")
+        body["project_id"] = str(project.id)
+        updated = nexus_api.workflows.update(
+            workflow_id=workflow.id,
+            body=body,
+        ).assert_and_get()
+        assert updated.project_id == project.id

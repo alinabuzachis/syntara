@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -26,6 +27,7 @@ class CredentialUpdate:
         inputs (CredentialUpdateInputsType0 | None | Unset):
         labels (CredentialUpdateLabelsType0 | None | Unset):
         name (None | str | Unset):
+        project_id (None | Unset | UUID): Project ID (immutable after creation; rejected if different from stored value)
     """
 
     description: None | str | Unset = UNSET
@@ -33,6 +35,7 @@ class CredentialUpdate:
     inputs: CredentialUpdateInputsType0 | None | Unset = UNSET
     labels: CredentialUpdateLabelsType0 | None | Unset = UNSET
     name: None | str | Unset = UNSET
+    project_id: None | Unset | UUID = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -73,6 +76,14 @@ class CredentialUpdate:
         else:
             name = self.name
 
+        project_id: None | str | Unset
+        if isinstance(self.project_id, Unset):
+            project_id = UNSET
+        elif isinstance(self.project_id, UUID):
+            project_id = str(self.project_id)
+        else:
+            project_id = self.project_id
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
@@ -86,6 +97,8 @@ class CredentialUpdate:
             field_dict["labels"] = labels
         if name is not UNSET:
             field_dict["name"] = name
+        if project_id is not UNSET:
+            field_dict["project_id"] = project_id
 
         return field_dict
 
@@ -157,12 +170,30 @@ class CredentialUpdate:
 
         name = _parse_name(d.pop("name", UNSET))
 
+        def _parse_project_id(data: object) -> None | Unset | UUID:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                project_id_type_0 = UUID(data)
+
+                return project_id_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | UUID, data)
+
+        project_id = _parse_project_id(d.pop("project_id", UNSET))
+
         credential_update = cls(
             description=description,
             enabled=enabled,
             inputs=inputs,
             labels=labels,
             name=name,
+            project_id=project_id,
         )
 
         credential_update.additional_properties = d

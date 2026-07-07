@@ -4,7 +4,14 @@ This module contains the root exception hierarchy for all internal exceptions
 within the Nexus system. Exception boundaries stop at the FastAPI routers.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from nexus.core.exception_registry import fastapi_exception
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 
 class NexusError(Exception):
@@ -64,3 +71,10 @@ class SafeValueError(ValueError, NexusError):
 
         """
         super().__init__(message)
+
+
+def assert_project_id_unchanged(current: UUID | None, requested: UUID | None) -> None:
+    """Raise SafeValueError if a PATCH attempts to change project_id."""
+    if requested is not None and requested != current:
+        msg = "project_id is immutable after creation"
+        raise SafeValueError(msg)
