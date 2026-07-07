@@ -105,6 +105,7 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
                 *UserOwnedResource.__filterable_fields__,
                 *SoftDeletableResource.__filterable_fields__,
                 "workflow_id",
+                "workflow_version_id",
                 "project_id",
                 "status",
                 "mode",
@@ -376,7 +377,9 @@ class ActivityData(SQLModel):
 class ExecutionRead(SQLModel):
     """Schema for execution response (GET /executions/{id}).
 
-    Includes all fields from the database table model.
+    Includes database table fields plus computed fields (workflow_version,
+    workflow_version_publish_name, workflow_version_created_at) populated
+    by ExecutionsConvertResourceMixin from the related WorkflowVersion.
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
@@ -384,6 +387,15 @@ class ExecutionRead(SQLModel):
     id: UUID
     workflow_id: UUID
     workflow_version_id: UUID
+    workflow_version: int | None = Field(
+        default=None, description="Version number of the workflow version that was executed"
+    )
+    workflow_version_publish_name: str | None = Field(
+        default=None, description="Publish name of the executed version, if it was published with a name"
+    )
+    workflow_version_created_at: datetime | None = Field(
+        default=None, description="Timestamp when the executed version was created"
+    )
     project_id: UUID
     temporal_workflow_id: str
     status: ExecutionStatus

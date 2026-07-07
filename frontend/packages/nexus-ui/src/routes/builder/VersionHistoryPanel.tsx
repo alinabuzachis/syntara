@@ -31,7 +31,7 @@ import {
   RhUiPublishIcon,
   RhUiUndoIcon,
 } from '@patternfly/react-icons'
-import { useMemo, useState, type ReactNode, type Ref } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
 import { MultiSelectFilter } from '../../components/filters/MultiSelectFilter'
@@ -100,6 +100,7 @@ type VersionRowProps = Readonly<{
   onKebabClose: () => void
   canEdit?: boolean
   editTooltip?: string
+  scrollRef?: Ref<HTMLSpanElement>
 }>
 
 function VersionRow({
@@ -115,6 +116,7 @@ function VersionRow({
   onKebabClose,
   canEdit = true,
   editTooltip,
+  scrollRef,
 }: VersionRowProps) {
   const kebabAriaLabel = `Actions for version ${version.version}`
   let publishTooltip: { content: string } | undefined
@@ -134,6 +136,7 @@ function VersionRow({
 
   return (
     <SimpleListItem itemId={version.id} isActive={isSelected} onClick={onSelect}>
+      <span ref={scrollRef} />
       <Stack className={styles.versionRowStack}>
         <Flex
           justifyContent={{ default: 'justifyContentSpaceBetween' }}
@@ -268,6 +271,13 @@ export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
   const groups = useMemo(() => groupVersionsByDate(versions), [versions])
   const [openKebabVersionId, setOpenKebabVersionId] = useState<string | null>(null)
 
+  const selectedRef = useRef<HTMLSpanElement>(null)
+  const scrollToSelected = useCallback(() => {
+    const li = selectedRef.current?.closest('li')
+    li?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })
+  }, [])
+  useEffect(scrollToSelected, [selectedVersion, scrollToSelected])
+
   let listBody: ReactNode
   if (versions.length === 0 && statusFilter.length > 0) {
     listBody = <NxEmptyStateFilter clearAllFilters={() => onStatusFilterChange([])} />
@@ -289,24 +299,28 @@ export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
               </Content>
             }
           >
-            {items.flatMap((version) => [
-              <VersionRow
-                key={version.id}
-                version={version}
-                onSelect={() => onSelectVersion(version.version)}
-                onRestore={() => onRestoreVersion(version.version, version.created_at)}
-                onExport={() => onExportVersion(version.version)}
-                onOpenInNewWindow={() => onOpenInNewWindow(version.version)}
-                onPublish={() => onPublishVersion(version.version)}
-                isSelected={selectedVersion === version.version}
-                isKebabOpen={openKebabVersionId === version.id}
-                onKebabToggle={() => setOpenKebabVersionId(openKebabVersionId === version.id ? null : version.id)}
-                onKebabClose={() => setOpenKebabVersionId(null)}
-                canEdit={canEdit}
-                editTooltip={editTooltip}
-              />,
-              <Divider key={`${version.id}-divider`} component="li" />,
-            ])}
+            {items.flatMap((version) => {
+              const isActive = selectedVersion === version.version
+              return [
+                <VersionRow
+                  key={version.id}
+                  version={version}
+                  onSelect={() => onSelectVersion(version.version)}
+                  onRestore={() => onRestoreVersion(version.version, version.created_at)}
+                  onExport={() => onExportVersion(version.version)}
+                  onOpenInNewWindow={() => onOpenInNewWindow(version.version)}
+                  onPublish={() => onPublishVersion(version.version)}
+                  isSelected={isActive}
+                  isKebabOpen={openKebabVersionId === version.id}
+                  onKebabToggle={() => setOpenKebabVersionId(openKebabVersionId === version.id ? null : version.id)}
+                  onKebabClose={() => setOpenKebabVersionId(null)}
+                  canEdit={canEdit}
+                  editTooltip={editTooltip}
+                  scrollRef={isActive ? selectedRef : undefined}
+                />,
+                <Divider key={`${version.id}-divider`} component="li" />,
+              ]
+            })}
           </SimpleListGroup>
         ))}
       </SimpleList>

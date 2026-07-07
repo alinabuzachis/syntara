@@ -25,14 +25,16 @@ import {
   getExecutionWorkflowFilterDefinition,
   getExecutionStatusFilterDefinition,
   getExecutionCreatedAtFilterDefinition,
+  getExecutionVersionFilterFromExecutions,
 } from './executionFilters'
 import { FlatExecutionsTableBody, GroupedExecutionsTableBody } from './ExecutionsTableBody'
 import { getExecutionSortValue } from './getExecutionSortValue'
 
-function buildFilterFieldDefinitions(): FilterFieldDefinition[] {
+function buildFilterFieldDefinitions(executions: Execution[]): FilterFieldDefinition[] {
   return [
     getExecutionWorkflowFilterDefinition(),
     getExecutionStatusFilterDefinition(),
+    getExecutionVersionFilterFromExecutions(executions),
     getExecutionCreatedAtFilterDefinition(),
   ].filter((def): def is FilterFieldDefinition => def !== null)
 }
@@ -78,10 +80,10 @@ export default function Executions() {
 
   useCursorReset(executions.length, hasActiveFilters, cursor, executionsQuery.isFetching, resetPagination)
 
-  const filterFieldDefinitions = useMemo(() => buildFilterFieldDefinitions(), [])
+  const filterFieldDefinitions = useMemo(() => buildFilterFieldDefinitions(executions), [executions])
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({
-    initialSortIndex: 3, // Default sort by Created at
+    initialSortIndex: 4, // Default sort by Created at
     initialDirection: 'desc',
   })
 
@@ -180,8 +182,9 @@ export default function Executions() {
                         Run ID
                       </Th>
                       <Th sort={getSortParams(2)}>Status</Th>
-                      <Th sort={getSortParams(3)}>Created at</Th>
-                      <Th sort={getSortParams(4)}>Completed at</Th>
+                      <Th modifier="nowrap">Version</Th>
+                      <Th sort={getSortParams(4)}>Created at</Th>
+                      <Th sort={getSortParams(5)}>Completed at</Th>
                     </Tr>
                   </Thead>
                   {isAllProjects && groupedExecutions ? (

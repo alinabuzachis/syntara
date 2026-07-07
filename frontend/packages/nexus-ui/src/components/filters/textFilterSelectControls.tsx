@@ -16,6 +16,8 @@ import React, { useCallback, useMemo, useRef, useState } from 'react'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 
+import styles from './textFilterSelectControls.module.css'
+
 export const SEARCH_THRESHOLD = 10
 
 /**
@@ -171,7 +173,7 @@ function SelectFilterInputMenuToggle({
   toggleLabel,
 }: Readonly<SelectFilterInputMenuToggleProps>) {
   return (
-    <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)}>
+    <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)} className={styles.truncatedToggle}>
       {toggleLabel}
     </MenuToggle>
   )

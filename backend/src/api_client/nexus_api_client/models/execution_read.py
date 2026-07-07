@@ -29,7 +29,9 @@ T = TypeVar("T", bound="ExecutionRead")
 class ExecutionRead:
     """Schema for execution response (GET /executions/{id}).
 
-    Includes all fields from the database table model.
+    Includes database table fields plus computed fields (workflow_version,
+    workflow_version_publish_name, workflow_version_created_at) populated
+    by ExecutionsConvertResourceMixin from the related WorkflowVersion.
 
         Attributes:
             id (UUID):
@@ -45,6 +47,10 @@ class ExecutionRead:
             updated_by (None | UUID):
             input_data (ExecutionReadInputData):
             error_details (None | str):
+            workflow_version (int | None | Unset): Version number of the workflow version that was executed
+            workflow_version_publish_name (None | str | Unset): Publish name of the executed version, if it was published
+                with a name
+            workflow_version_created_at (datetime.datetime | None | Unset): Timestamp when the executed version was created
             trigger_node_id (None | str | Unset):
             mode (ExecutionMode | Unset): Execution mode for workflow runs.
             execution_metadata (ExecutionReadExecutionMetadataType0 | None | Unset):
@@ -71,6 +77,9 @@ class ExecutionRead:
     updated_by: None | UUID
     input_data: ExecutionReadInputData
     error_details: None | str
+    workflow_version: int | None | Unset = UNSET
+    workflow_version_publish_name: None | str | Unset = UNSET
+    workflow_version_created_at: datetime.datetime | None | Unset = UNSET
     trigger_node_id: None | str | Unset = UNSET
     mode: ExecutionMode | Unset = UNSET
     execution_metadata: ExecutionReadExecutionMetadataType0 | None | Unset = UNSET
@@ -120,6 +129,26 @@ class ExecutionRead:
 
         error_details: None | str
         error_details = self.error_details
+
+        workflow_version: int | None | Unset
+        if isinstance(self.workflow_version, Unset):
+            workflow_version = UNSET
+        else:
+            workflow_version = self.workflow_version
+
+        workflow_version_publish_name: None | str | Unset
+        if isinstance(self.workflow_version_publish_name, Unset):
+            workflow_version_publish_name = UNSET
+        else:
+            workflow_version_publish_name = self.workflow_version_publish_name
+
+        workflow_version_created_at: None | str | Unset
+        if isinstance(self.workflow_version_created_at, Unset):
+            workflow_version_created_at = UNSET
+        elif isinstance(self.workflow_version_created_at, datetime.datetime):
+            workflow_version_created_at = self.workflow_version_created_at.isoformat()
+        else:
+            workflow_version_created_at = self.workflow_version_created_at
 
         trigger_node_id: None | str | Unset
         if isinstance(self.trigger_node_id, Unset):
@@ -205,6 +234,12 @@ class ExecutionRead:
                 "error_details": error_details,
             }
         )
+        if workflow_version is not UNSET:
+            field_dict["workflow_version"] = workflow_version
+        if workflow_version_publish_name is not UNSET:
+            field_dict["workflow_version_publish_name"] = workflow_version_publish_name
+        if workflow_version_created_at is not UNSET:
+            field_dict["workflow_version_created_at"] = workflow_version_created_at
         if trigger_node_id is not UNSET:
             field_dict["trigger_node_id"] = trigger_node_id
         if mode is not UNSET:
@@ -292,6 +327,43 @@ class ExecutionRead:
             return cast(None | str, data)
 
         error_details = _parse_error_details(d.pop("error_details"))
+
+        def _parse_workflow_version(data: object) -> int | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(int | None | Unset, data)
+
+        workflow_version = _parse_workflow_version(d.pop("workflow_version", UNSET))
+
+        def _parse_workflow_version_publish_name(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        workflow_version_publish_name = _parse_workflow_version_publish_name(
+            d.pop("workflow_version_publish_name", UNSET)
+        )
+
+        def _parse_workflow_version_created_at(data: object) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                workflow_version_created_at_type_0 = isoparse(data)
+
+                return workflow_version_created_at_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        workflow_version_created_at = _parse_workflow_version_created_at(d.pop("workflow_version_created_at", UNSET))
 
         def _parse_trigger_node_id(data: object) -> None | str | Unset:
             if data is None:
@@ -429,6 +501,9 @@ class ExecutionRead:
             updated_by=updated_by,
             input_data=input_data,
             error_details=error_details,
+            workflow_version=workflow_version,
+            workflow_version_publish_name=workflow_version_publish_name,
+            workflow_version_created_at=workflow_version_created_at,
             trigger_node_id=trigger_node_id,
             mode=mode,
             execution_metadata=execution_metadata,

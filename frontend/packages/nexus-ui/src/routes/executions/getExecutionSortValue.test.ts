@@ -20,18 +20,22 @@ describe('getExecutionSortValue', () => {
       expect(getExecutionSortValue(mockExecution, 1, true)).toBe('exec-123')
     })
 
-    it('returns status for index 2', () => {
+    it('returns status for index 2 (Status column)', () => {
       expect(getExecutionSortValue(mockExecution, 2, true)).toBe('completed')
     })
 
-    it('returns created_at Date for index 3', () => {
-      const result = getExecutionSortValue(mockExecution, 3, true)
+    it('returns execution.id for index 3 (Version column, not sortable, falls to default)', () => {
+      expect(getExecutionSortValue(mockExecution, 3, true)).toBe('exec-123')
+    })
+
+    it('returns created_at Date for index 4', () => {
+      const result = getExecutionSortValue(mockExecution, 4, true)
       expect(result).toBeInstanceOf(Date)
       expect((result as Date).toISOString()).toBe('2026-02-27T10:00:00.000Z')
     })
 
-    it('returns completed_at Date for index 4', () => {
-      const result = getExecutionSortValue(mockExecution, 4, true)
+    it('returns completed_at Date for index 5', () => {
+      const result = getExecutionSortValue(mockExecution, 5, true)
       expect(result).toBeInstanceOf(Date)
       expect((result as Date).toISOString()).toBe('2026-02-27T11:00:00.000Z')
     })
@@ -50,14 +54,14 @@ describe('getExecutionSortValue', () => {
       expect(getExecutionSortValue(mockExecution, 1, false)).toBe('completed')
     })
 
-    it('maps index 2 to created_at (maps to actual index 3)', () => {
-      const result = getExecutionSortValue(mockExecution, 2, false)
+    it('maps index 3 to created_at (maps to actual index 4)', () => {
+      const result = getExecutionSortValue(mockExecution, 3, false)
       expect(result).toBeInstanceOf(Date)
       expect((result as Date).toISOString()).toBe('2026-02-27T10:00:00.000Z')
     })
 
-    it('maps index 3 to completed_at (maps to actual index 4)', () => {
-      const result = getExecutionSortValue(mockExecution, 3, false)
+    it('maps index 4 to completed_at (maps to actual index 5)', () => {
+      const result = getExecutionSortValue(mockExecution, 4, false)
       expect(result).toBeInstanceOf(Date)
       expect((result as Date).toISOString()).toBe('2026-02-27T11:00:00.000Z')
     })
@@ -70,7 +74,7 @@ describe('getExecutionSortValue', () => {
   describe('handles missing optional values gracefully', () => {
     it('returns null for missing completed_at', () => {
       const execWithoutCompletedAt = { ...mockExecution, completed_at: undefined }
-      expect(getExecutionSortValue(execWithoutCompletedAt, 4, true)).toBeNull()
+      expect(getExecutionSortValue(execWithoutCompletedAt, 5, true)).toBeNull()
     })
   })
 })

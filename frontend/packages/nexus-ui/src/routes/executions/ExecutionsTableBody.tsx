@@ -6,6 +6,7 @@ import { ProjectGroupHeaderRow } from '../../components/ProjectGroupHeaderRow'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { WorkflowName } from '../../components/WorkflowName'
+import { formatDateTime } from '../../utils/dateUtils'
 import { getDateField } from '../../utils/getDateField'
 import type { ProjectRead } from '../access/types'
 import { StatusLabel } from '../builder/ExecutionStatus'
@@ -15,6 +16,9 @@ type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 type Execution = {
   id: string
   workflow_id?: string
+  workflow_version?: number | null
+  workflow_version_publish_name?: string | null
+  workflow_version_created_at?: string | null
   status?: ExecutionStatus
   completed_at?: string | null
   [key: string]: unknown
@@ -44,6 +48,17 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
         </LinkCell>
       </Td>
       <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
+      <Td dataLabel="Version">
+        {execution.workflow_version != null && execution.workflow_id ? (
+          <LinkCell href={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}>
+            <Truncate
+              content={execution.workflow_version_publish_name ?? formatDateTime(execution.workflow_version_created_at)}
+            />
+          </LinkCell>
+        ) : (
+          '—'
+        )}
+      </Td>
       <Td dataLabel="Created at">
         <DateCell dateString={getDateField(execution, 'createdAt')} />
       </Td>
@@ -88,7 +103,7 @@ export function GroupedExecutionsTableBody({
             projectName={project?.name}
             itemCount={executions.length}
             isCollapsed={collapsedProjects.has(projectId)}
-            colSpan={5}
+            colSpan={6}
             onToggle={() => onToggleProject(projectId)}
           />
           {!collapsedProjects.has(projectId) &&

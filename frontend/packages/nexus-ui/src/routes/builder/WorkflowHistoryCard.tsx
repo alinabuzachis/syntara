@@ -15,18 +15,23 @@ import {
   StackItem,
   Title,
   TitleSizes,
+  Truncate,
 } from '@patternfly/react-core'
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
-import { useMemo, type CSSProperties, type ReactNode } from 'react'
+import React, { useMemo, type CSSProperties, type ReactNode } from 'react'
 
 import { FilterBar } from '../../components/filters/FilterBar'
 import pageMainSlotStyles from '../../components/layout/NxPage.module.css'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { Link } from '../../hooks/routing/Link'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
-import { formatElapsedTime } from '../../utils/dateUtils'
-import { getExecutionStatusFilterDefinition } from '../executions/executionFilters'
+import { formatDateTime, formatElapsedTime } from '../../utils/dateUtils'
+import {
+  getExecutionStatusFilterDefinition,
+  getExecutionVersionFilterFromExecutions,
+} from '../executions/executionFilters'
 import type { ExecutionMetadata } from '../workflows/stores/useExecutionStore'
 
 import { StatusLabel } from './ExecutionStatus'
@@ -86,6 +91,21 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
             {truncatedId && (
               <Content component={ContentVariants.small} style={{ margin: 0 }}>{`Run ID: ${truncatedId}`}</Content>
             )}
+            {execution.workflow_version != null && execution.workflow_id && (
+              <Content component={ContentVariants.small} style={{ margin: 0 }}>
+                {'Version: '}
+                <Link
+                  href={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                >
+                  <Truncate
+                    content={
+                      execution.workflow_version_publish_name ?? formatDateTime(execution.workflow_version_created_at)
+                    }
+                  />
+                </Link>
+              </Content>
+            )}
           </Stack>
         </FlexItem>
         <FlexItem style={{ flexShrink: 0 }}>
@@ -112,10 +132,16 @@ type WorkflowHistoryCardProps = {
   onFilterChange?: (filters: FilterConfig[]) => void
 }
 
-const HISTORY_FILTER_FIELDS: FilterFieldDefinition[] = [getExecutionStatusFilterDefinition()]
-
 export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
   const { executions, onClose, onExecutionSelect, selectedExecutionId, filters = [], onFilterChange } = props
+
+  const historyFilterFields = useMemo(
+    (): FilterFieldDefinition[] => [
+      getExecutionStatusFilterDefinition(),
+      getExecutionVersionFilterFromExecutions(executions),
+    ],
+    [executions]
+  )
 
   const groups = useMemo(() => groupExecutionsByDate(executions), [executions])
 
@@ -234,7 +260,7 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
           {onFilterChange && (
             <StackItem style={{ flexShrink: 0, minWidth: 0, overflow: 'hidden' }}>
               <FilterBar
-                fieldDefinitions={HISTORY_FILTER_FIELDS}
+                fieldDefinitions={historyFilterFields}
                 filters={filters}
                 onFilterChange={onFilterChange}
                 isCompact

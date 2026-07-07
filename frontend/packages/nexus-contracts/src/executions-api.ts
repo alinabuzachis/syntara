@@ -116,7 +116,9 @@ export interface components {
      * ExecutionRead
      * @description Schema for execution response (GET /executions/{id}).
      *
-     *     Includes all fields from the database table model.
+     *     Includes database table fields plus computed fields (workflow_version,
+     *     workflow_version_publish_name, workflow_version_created_at) populated
+     *     by ExecutionsConvertResourceMixin from the related WorkflowVersion.
      */
     ExecutionRead: {
       /**
@@ -134,6 +136,21 @@ export interface components {
        * Format: uuid
        */
       workflow_version_id: string
+      /**
+       * Workflow Version
+       * @description Version number of the workflow version that was executed
+       */
+      workflow_version?: number | null
+      /**
+       * Workflow Version Publish Name
+       * @description Publish name of the executed version, if it was published with a name
+       */
+      workflow_version_publish_name?: string | null
+      /**
+       * Workflow Version Created At
+       * @description Timestamp when the executed version was created
+       */
+      workflow_version_created_at?: string | null
       /**
        * Project Id
        * Format: uuid

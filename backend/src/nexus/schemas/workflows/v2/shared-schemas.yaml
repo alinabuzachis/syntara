@@ -229,7 +229,9 @@ components:
       description: |-
         Schema for execution response (GET /executions/{id}).
 
-        Includes all fields from the database table model.
+        Includes database table fields plus computed fields (workflow_version,
+        workflow_version_publish_name, workflow_version_created_at) populated
+        by ExecutionsConvertResourceMixin from the related WorkflowVersion.
       required:
         - id
         - workflow_id
@@ -257,6 +259,25 @@ components:
           type: string
           format: uuid
           title: Workflow Version Id
+        workflow_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Workflow Version
+          description: Version number of the workflow version that was executed
+        workflow_version_publish_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Workflow Version Publish Name
+          description: Publish name of the executed version, if it was published with a name
+        workflow_version_created_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Workflow Version Created At
+          description: Timestamp when the executed version was created
         project_id:
           type: string
           format: uuid

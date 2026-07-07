@@ -4,6 +4,7 @@ import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
 import { workflowFetchClient } from '../../client'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
+import { formatDateTime } from '../../utils/dateUtils'
 import { executionStatusDisplayLabels } from '../builder/executionStatusConstants'
 
 /**
@@ -97,6 +98,31 @@ export const getExecutionStatusFilterDefinition = (): FilterFieldDefinition => (
   options: EXECUTION_STATUS_OPTIONS,
   placeholder: 'Filter by status',
 })
+
+type ExecutionWithVersion = {
+  workflow_version_id?: string
+  workflow_version_publish_name?: string | null
+  workflow_version_created_at?: string | null
+}
+
+export function getExecutionVersionFilterFromExecutions(executions: ExecutionWithVersion[]): FilterFieldDefinition {
+  const seen = new Map<string, string>()
+  for (const exec of executions) {
+    const id = exec.workflow_version_id
+    if (id && !seen.has(id)) {
+      seen.set(id, exec.workflow_version_publish_name ?? formatDateTime(exec.workflow_version_created_at ?? ''))
+    }
+  }
+  const options = Array.from(seen.entries()).map(([value, label]) => ({ value, label }))
+  return {
+    key: 'workflow_version_id',
+    label: 'Version',
+    type: FilterTypeEnum.SELECT,
+    options,
+    getOptionLabel: (value: string) => seen.get(value),
+    placeholder: 'Filter by version',
+  }
+}
 
 /**
  * Returns filter definition for filtering executions by creation date range

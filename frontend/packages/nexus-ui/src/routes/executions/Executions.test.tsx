@@ -204,9 +204,41 @@ describe('Executions Component', () => {
 
     expect(screen.getByRole('columnheader', { name: /Run ID/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /^Workflow name$/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^Version$/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /^Status$/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Created at/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Completed at/i })).toBeInTheDocument()
+  })
+
+  it('displays version publish name when available', () => {
+    mockExecutionsQuery([
+      {
+        ...mockExecutions[0],
+        workflow_version: 3,
+        workflow_version_publish_name: 'prod release',
+        workflow_version_created_at: '2025-01-01T09:00:00Z',
+      },
+    ])
+
+    render(<Executions />)
+
+    expect(screen.getByText('prod release')).toBeInTheDocument()
+  })
+
+  it('displays version creation date when no publish name', () => {
+    mockExecutionsQuery([
+      {
+        ...mockExecutions[0],
+        workflow_version: 2,
+        workflow_version_publish_name: null,
+        workflow_version_created_at: '2025-06-15T14:30:00Z',
+      },
+    ])
+
+    render(<Executions />)
+
+    const versionCells = screen.getAllByRole('cell', { name: /Jun/ })
+    expect(versionCells.length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows loading state', () => {
@@ -256,9 +288,9 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Check for placeholder em-dash for null completed_at
-    const placeholder = screen.getByText('—')
-    expect(placeholder).toBeInTheDocument()
+    // Check for placeholder em-dashes (Version and Completed at columns)
+    const placeholders = screen.getAllByText('—')
+    expect(placeholders.length).toBeGreaterThanOrEqual(1)
   })
 
   it('applies workflow_id filter from URL parameter and passes to API', () => {

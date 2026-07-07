@@ -1069,11 +1069,17 @@ export const handlers = [
     }
 
     // Enrich executions with project_id from their workflow
-    const workflowProjectMap = new Map(workflows.map((w) => [w.id, w.project_id]))
-    const enriched = filtered.map((e) => ({
-      ...e,
-      project_id: e.workflow_id ? (workflowProjectMap.get(e.workflow_id) ?? null) : null,
-    }))
+    const workflowMap = new Map(workflows.map((w) => [w.id, w]))
+    const enriched = filtered.map((e) => {
+      const wf = e.workflow_id ? workflowMap.get(e.workflow_id) : undefined
+      return {
+        ...e,
+        project_id: wf?.project_id ?? null,
+        workflow_version: wf?.published_version ?? wf?.current_version ?? null,
+        workflow_version_publish_name: null,
+        workflow_version_created_at: e.created_at ?? null,
+      }
+    })
 
     const body = paginate(enriched, cursor, limit, includeTotal)
     return HttpResponse.json(body)

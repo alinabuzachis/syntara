@@ -13,6 +13,7 @@ import jsonschema
 import structlog
 from referencing.exceptions import Unresolvable
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import Select
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.exceptions import ApplicationError
@@ -21,7 +22,7 @@ from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
-from nexus.core.services.extensions import ConvertResourceMixin
+from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.emission import emit_completion_metrics
 from nexus.metrics.types import ComponentLabel, MetricType
@@ -58,6 +59,19 @@ logger = structlog.stdlib.get_logger(__name__)
 MAX_CALLBACK_ERROR_MSG_LENGTH = 500
 
 
+class ExecutionsEnrichQueryMixin(EnrichQueryMixin):
+    """Eager-load workflow_version relationship so list queries include the version number."""
+
+    def enrich(self, query: Select) -> Select:  # type: ignore[type-arg]
+        """Add selectinload for workflow_version to the query.
+
+        Only applies when the root entity is Execution (skips ActivityExecution queries).
+        """
+        if any(col.get("entity") is Execution for col in query.column_descriptions):
+            return query.options(selectinload(Execution.workflow_version))  # type: ignore[arg-type]
+        return query
+
+
 class ExecutionsConvertResourceMixin(ConvertResourceMixin):
     """Execution-specific resource conversion to ExecutionRead format."""
 
@@ -68,10 +82,17 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
 
     def convert_resource(self, resource: Execution) -> ExecutionRead:  # type: ignore[override]
         """Convert Execution to ExecutionRead format."""
+        wv = resource.workflow_version
+        version_number = getattr(wv, "version", None) if wv else None
+        publish_name = getattr(wv, "publish_name", None) if wv else None
+        version_created_at = getattr(wv, "created_at", None) if wv else None
         result = ExecutionRead(
             id=resource.id,
             workflow_id=resource.workflow_id,
             workflow_version_id=resource.workflow_version_id,
+            workflow_version=version_number,
+            workflow_version_publish_name=publish_name,
+            workflow_version_created_at=version_created_at,
             project_id=resource.project_id,
             temporal_workflow_id=resource.temporal_workflow_id,
             status=resource.status,
@@ -138,6 +159,7 @@ class ExecutionService(BaseService):
         super().__init__(
             session,
             user,
+            enrich_query_mixin=ExecutionsEnrichQueryMixin(),
             convert_resource_mixin=ExecutionsConvertResourceMixin(),
         )
         self.temporal_service = temporal_service
@@ -758,11 +780,8 @@ class ExecutionService(BaseService):
             .where(Execution.id == execution_id)
             .where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
             .options(selectinload(Execution.workflow))  # type: ignore[arg-type]
+            .options(selectinload(Execution.workflow_version))  # type: ignore[arg-type]
         )
-
-        # Eagerly load workflow_version if workflow_definition is requested
-        if include and ExecutionInclude.WORKFLOW_DEFINITION in include:
-            query = query.options(selectinload(Execution.workflow_version))  # type: ignore[arg-type]
 
         # Eagerly load activities if activities is requested
         if include and ExecutionInclude.ACTIVITIES in include:

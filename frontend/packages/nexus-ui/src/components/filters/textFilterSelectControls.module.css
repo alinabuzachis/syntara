@@ -1,0 +1,6 @@
+.truncatedToggle {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

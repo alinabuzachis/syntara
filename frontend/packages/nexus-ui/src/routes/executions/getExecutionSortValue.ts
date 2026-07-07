@@ -23,9 +23,9 @@ export function getExecutionSortValue(
       return execution.id ?? ''
     case 2:
       return execution.status ?? ''
-    case 3:
-      return getDateField(execution, 'createdAt') ? new Date(getDateField(execution, 'createdAt')!) : null
     case 4:
+      return getDateField(execution, 'createdAt') ? new Date(getDateField(execution, 'createdAt')!) : null
+    case 5:
       return execution.completed_at ? new Date(execution.completed_at) : null
     default:
       return execution.id ?? ''
