@@ -26,6 +26,7 @@ vi.mock('../../client', () => ({
     POST: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../access/accessClient', () => ({

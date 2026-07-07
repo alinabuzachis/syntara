@@ -54,6 +54,7 @@ vi.mock('../stores/useAuthStore', () => ({
 vi.mock('../client', () => ({
   authClient: { useQuery: vi.fn().mockReturnValue({ data: undefined }) },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 function renderDockedNav() {

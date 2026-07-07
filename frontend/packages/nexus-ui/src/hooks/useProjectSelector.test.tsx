@@ -17,6 +17,7 @@ const mockShowAlert = vi.fn()
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../providers/alerts', () => ({
@@ -48,6 +49,7 @@ const mockSetSelectedProjectName = vi.fn((name: string | null) => {
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../stores/useProjectStore', () => ({
@@ -63,6 +65,7 @@ vi.mock('../stores/useProjectStore', () => ({
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('./useFormMutationErrorHandler', () => ({
@@ -85,6 +88,7 @@ function makePaginatedData(projects: ProjectRead[], next: string | null = null):
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../routes/access/accessClient', () => ({

@@ -8,6 +8,7 @@ import { executionDetailHasTitleRowExtras, executionDetailPageHeading } from './
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
   executionsClient: {
     useMutation: vi.fn(() => ({
       mutate: vi.fn(),

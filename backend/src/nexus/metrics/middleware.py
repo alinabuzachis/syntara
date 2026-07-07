@@ -16,6 +16,7 @@ import structlog
 
 from nexus.api.constants import EXCLUDED_PATH_PREFIXES, EXCLUDED_PATHS
 from nexus.audit.emitter import request_id_context_var
+from nexus.metrics.interface_tag import detect_interface, interface_context_var
 from nexus.metrics.types import ComponentLabel, MetricType
 
 if TYPE_CHECKING:
@@ -84,10 +85,10 @@ class MetricsMiddleware:
     For every non-excluded HTTP request the middleware:
 
     1. Times the full request lifecycle.
-    2. Records a ``REQUEST_DURATION`` metric with endpoint, method, and
-       status labels.
+    2. Records a ``REQUEST_DURATION`` metric with endpoint, method, status, and
+       interface labels.
     3. For error responses (>= 400), records an ``ERROR`` metric with the
-       classified ``error_type``.
+       classified ``error_type`` and interface label.
     4. Injects the ``X-Request-Id`` response header when present.
 
     Args:
@@ -137,6 +138,9 @@ class MetricsMiddleware:
         status_code = 0
         start = time.perf_counter()
 
+        interface = detect_interface(scope)
+        interface_context_var.set(interface)
+
         # Read request_id from ContextVar (set by AuditMiddleware, the outermost middleware).
         request_id = request_id_context_var.get()
 
@@ -155,11 +159,11 @@ class MetricsMiddleware:
         except Exception:
             status_code = 500
             endpoint = _resolve_endpoint(scope, path)
-            self._record_metrics(endpoint, method, status_code, start)
+            self._record_metrics(endpoint, method, status_code, start, interface)
             raise
 
         endpoint = _resolve_endpoint(scope, path)
-        self._record_metrics(endpoint, method, status_code, start)
+        self._record_metrics(endpoint, method, status_code, start, interface)
 
     def _record_metrics(
         self,
@@ -167,6 +171,7 @@ class MetricsMiddleware:
         method: str,
         status_code: int,
         start: float,
+        interface: str,
     ) -> None:
         """Record request duration and error metrics.
 
@@ -175,6 +180,7 @@ class MetricsMiddleware:
             method: HTTP method.
             status_code: Response status code.
             start: ``time.perf_counter()`` at request start.
+            interface: Originating interface (``"api"`` or ``"ui"``).
 
         """
         duration_ms = (time.perf_counter() - start) * 1000
@@ -184,6 +190,7 @@ class MetricsMiddleware:
             "endpoint": path,
             "method": method,
             "status": status_str,
+            "interface": interface,
         }
 
         component = ComponentLabel.SYSTEM_WIDE
@@ -212,6 +219,7 @@ class MetricsMiddleware:
                         "error_type": error_type,
                         "endpoint": path,
                         "method": method,
+                        "interface": interface,
                     },
                 )
                 self._recorder.increment("errors")

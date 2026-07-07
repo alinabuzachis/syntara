@@ -24,6 +24,7 @@ vi.mock('../../client', () => ({
     useMutation: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 const mockSetLocation = vi.fn()

@@ -18,6 +18,7 @@ const { mockMutate } = vi.hoisted(() => ({
 
 vi.mock('../../client', () => ({
   authMiddleware: mockAuthMiddleware,
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('./useAllProjects', () => ({

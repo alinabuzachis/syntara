@@ -68,6 +68,7 @@ const EXECUTION = {
 vi.mock('../../client', () => ({
   executionsClient: { useQuery: vi.fn(() => EXECUTION) },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('./ExecutionStatus', () => ({

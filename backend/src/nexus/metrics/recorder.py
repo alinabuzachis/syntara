@@ -362,6 +362,7 @@ class MetricsRecorder:
         elif metric_type == MetricType.ERROR:
             p.errors_total.labels(
                 error_type=labels.get("error_type", "unknown"),
+                interface=labels.get("interface", "api"),
             ).inc()
 
         elif metric_type in {
@@ -400,8 +401,9 @@ class MetricsRecorder:
         if metric_type == MetricType.REQUEST_DURATION:
             endpoint = labels.get("endpoint", "unknown")
             status_label = labels.get("status", "unknown")
-            p.request_duration_seconds.labels(endpoint=endpoint).observe(value / 1000)
-            p.requests_total.labels(status=status_label, endpoint=endpoint).inc()
+            interface = labels.get("interface", "api")
+            p.request_duration_seconds.labels(endpoint=endpoint, interface=interface).observe(value / 1000)
+            p.requests_total.labels(status=status_label, endpoint=endpoint, interface=interface).inc()
 
         elif metric_type == MetricType.LLM_DURATION:
             p.llm_duration_seconds.labels(

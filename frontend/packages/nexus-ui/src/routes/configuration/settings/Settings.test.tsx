@@ -33,6 +33,7 @@ vi.mock('../../../client', () => ({
     useMutation: () => ({ mutate: mockMutate, isPending: false }),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../providers/alerts', () => ({

@@ -19,6 +19,7 @@ const mockSetValidationErrorCount = vi.fn()
 vi.mock('../../client', () => ({
   workflowFetchClient: { POST: (...args: unknown[]) => mockPost(...args) as Promise<unknown> },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../providers/alerts', () => ({

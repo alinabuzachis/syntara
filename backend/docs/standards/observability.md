@@ -352,13 +352,43 @@ app.add_middleware(MetricsMiddleware, recorder=metrics_recorder)
 ```
 
 **Automatic metrics:**
-- Request duration with endpoint template, method, status
-- Error classification (timeout, rate_limit, validation, internal)
+- Request duration with endpoint template, method, status, and **interface** (`api` or `ui`)
+- Error classification (timeout, rate_limit, validation, internal) with interface label
 - Request ID validation and `X-Request-Id` header echo
 
 **Excluded paths:**
 - `/metrics` (avoid self-instrumentation loops)
 - `/health` (high-volume, low-signal)
+
+### Interface Tagging (API vs UI)
+
+Every HTTP request is classified as originating from the **UI** or an **external API consumer** (CLI, CI/CD pipeline, script, MCP client). The detected value is stored in the `interface` label on `REQUEST_DURATION` and `ERROR` metrics, and propagated via a request-scoped `ContextVar` for downstream instrumentation.
+
+**Detection** (`src/nexus/metrics/interface_tag.py`):
+
+| Condition | Classification |
+|---|---|
+| `X-Nexus-Client: ui` header present (case-insensitive) | `ui` |
+| Header absent, empty, or any other value | `api` |
+
+**UI clients** send the header automatically:
+
+- Typed `openapi-fetch` clients in `nexus-ui` use `interfaceTagMiddleware` (sets `X-Nexus-Client: ui` on every request).
+- Pre-auth raw `fetch` call sites (login, CSRF, providers) use `nexusUiClientHeaders()` from `utils/nexusClientHeader.ts`.
+
+**External API consumers** should **omit** the header (default is `api`). Do not send `X-Nexus-Client: ui` unless the client is the Nexus UI.
+
+**Reading the interface downstream:**
+
+```python
+from nexus.metrics.interface_tag import interface_context_var
+
+interface = interface_context_var.get()  # "api" or "ui"
+```
+
+`MetricsMiddleware` sets this `ContextVar` at the start of each request, before routing and handler execution. Any middleware or instrumentation running inside the same async context can read it without explicit parameter passing.
+
+**Label cardinality:** The `interface` label has exactly two values (`api`, `ui`), so it adds no cardinality risk.
 
 ### Custom Middleware
 
@@ -554,6 +584,7 @@ When adding a new component:
 | `src/nexus/metrics/recorder.py` | `MetricsRecorder` central recording API |
 | `src/nexus/metrics/types.py` | `MetricType` enum, `COMPONENT_LABELS` |
 | `src/nexus/metrics/middleware.py` | `MetricsMiddleware` ASGI middleware |
+| `src/nexus/metrics/interface_tag.py` | API-vs-UI interface detection and `interface_context_var` |
 | `src/nexus/metrics/instrumentation.py` | `record_llm_call`, `LLMStreamTracker` |
 | `src/nexus/audit/dispatcher.py` | `AuditEventDispatcher` event routing |
 | `src/nexus/audit/handler.py` | `AuditEventHandler[T]` base class |

@@ -12,6 +12,7 @@ import { GroupMappingEditPanel, type GroupMappingEditPanelProps } from './GroupM
 
 vi.mock('../../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../access/accessClient', () => ({

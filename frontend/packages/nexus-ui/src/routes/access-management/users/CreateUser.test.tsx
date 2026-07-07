@@ -15,6 +15,7 @@ vi.mock('../../../client', () => ({
   },
   usersClient: { useQuery: vi.fn(), useMutation: vi.fn() },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../hooks/routing/useLocation', () => ({

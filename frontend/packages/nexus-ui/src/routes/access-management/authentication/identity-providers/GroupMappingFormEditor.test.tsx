@@ -24,6 +24,7 @@ vi.mock('../../../../client', () => ({
   },
   OIDC_AUTHORIZE_PATH: '/api/v1/auth/oidc/authorize',
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../../hooks/useMutationErrorHandler', () => ({

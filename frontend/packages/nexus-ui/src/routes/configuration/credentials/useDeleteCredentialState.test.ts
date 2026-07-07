@@ -15,6 +15,7 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 type MockQueryReturn = Pick<UseQueryResult, 'data' | 'error' | 'isPending' | 'isLoading'>

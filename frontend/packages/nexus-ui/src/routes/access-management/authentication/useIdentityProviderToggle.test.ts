@@ -13,6 +13,7 @@ vi.mock('../../../client', () => ({
     useMutation: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../hooks/useMutationErrorHandler', () => ({

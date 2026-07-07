@@ -16,6 +16,7 @@ vi.mock('../../../client', () => ({
     POST: mockPost,
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 // Mock Monaco editor since it doesn't work well in test environment

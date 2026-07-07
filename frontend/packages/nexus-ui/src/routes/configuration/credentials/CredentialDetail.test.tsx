@@ -74,6 +74,7 @@ vi.mock('../../../client', () => ({
   },
 
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../hooks/routing/useLocation', () => ({

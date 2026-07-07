@@ -78,9 +78,9 @@ class TestMetricOperations:
 
     def test_counter_increment(self, prom: NexusPrometheusMetrics) -> None:
         """Counters can be incremented."""
-        prom.requests_total.labels(status="success", endpoint="/api").inc()
-        prom.requests_total.labels(status="success", endpoint="/api").inc()
-        value = prom.requests_total.labels(status="success", endpoint="/api")._value.get()
+        prom.requests_total.labels(status="success", endpoint="/api", interface="api").inc()
+        prom.requests_total.labels(status="success", endpoint="/api", interface="api").inc()
+        value = prom.requests_total.labels(status="success", endpoint="/api", interface="api")._value.get()
         assert value == pytest.approx(2.0)
 
     def test_histogram_observe(self, prom: NexusPrometheusMetrics) -> None:
@@ -113,7 +113,7 @@ class TestPrometheusOutput:
 
     def test_generate_metrics_output(self, prom: NexusPrometheusMetrics) -> None:
         """generate_latest produces valid Prometheus text format."""
-        prom.requests_total.labels(status="success", endpoint="/api").inc(10)
+        prom.requests_total.labels(status="success", endpoint="/api", interface="api").inc(10)
         prom.cache_hits_total.inc(5)
         prom.active_workflows.set(3)
 
@@ -211,3 +211,45 @@ class TestToolInstruments:
         )._value.get()
         assert success == pytest.approx(1.0)
         assert error == pytest.approx(1.0)
+
+
+# =============================================================================
+# Interface label in Prometheus output (AAP-77419)
+# =============================================================================
+
+
+class TestInterfaceLabelInPrometheusOutput:
+    """Verify the interface label appears in scraped Prometheus output."""
+
+    def ***REMOVED***(self, prom: NexusPrometheusMetrics) -> None:
+        """nexus_request_duration_seconds samples include interface label."""
+        prom.request_duration_seconds.labels(endpoint="/api/v1/test", interface="ui").observe(0.1)
+
+        output = generate_latest(prom.registry).decode("utf-8")
+
+        assert 'interface="ui"' in output
+        assert "nexus_request_duration_seconds" in output
+
+    def test_requests_total_includes_interface(self, prom: NexusPrometheusMetrics) -> None:
+        """nexus_requests_total samples include interface label."""
+        prom.requests_total.labels(status="200", endpoint="/api/v1/test", interface="ui").inc()
+
+        output = generate_latest(prom.registry).decode("utf-8")
+
+        assert 'nexus_requests_total{endpoint="/api/v1/test",interface="ui",status="200"}' in output
+
+    def test_errors_total_includes_interface(self, prom: NexusPrometheusMetrics) -> None:
+        """nexus_errors_total samples include interface label."""
+        prom.errors_total.labels(error_type="internal", interface="ui").inc()
+
+        output = generate_latest(prom.registry).decode("utf-8")
+
+        assert 'nexus_errors_total{error_type="internal",interface="ui"}' in output
+
+    def test_interface_defaults_to_api(self, prom: NexusPrometheusMetrics) -> None:
+        """Metrics with interface=api appear correctly in output."""
+        prom.requests_total.labels(status="200", endpoint="/health", interface="api").inc()
+
+        output = generate_latest(prom.registry).decode("utf-8")
+
+        assert 'interface="api"' in output

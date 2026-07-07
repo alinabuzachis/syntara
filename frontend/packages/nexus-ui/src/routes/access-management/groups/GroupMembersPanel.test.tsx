@@ -15,6 +15,7 @@ import { GroupMembersPanel } from './GroupMembersPanel'
 vi.mock('../../../client', () => ({
   usersClient: { useQuery: vi.fn() },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../access/accessClient', () => ({

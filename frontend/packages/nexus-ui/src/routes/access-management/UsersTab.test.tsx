@@ -25,6 +25,7 @@ vi.mock('../../client', () => ({
     GET: vi.fn().mockResolvedValue({ data: { resources: [] } }),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../access/accessClient', () => ({

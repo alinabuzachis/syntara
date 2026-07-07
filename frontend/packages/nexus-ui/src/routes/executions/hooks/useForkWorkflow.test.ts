@@ -20,6 +20,7 @@ vi.mock('../../../client', () => ({
     }),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 const MOCK_DEFINITION: Record<string, unknown> = {

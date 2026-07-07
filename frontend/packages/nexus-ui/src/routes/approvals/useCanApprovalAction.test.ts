@@ -7,6 +7,7 @@ import { useCanApprovalAction } from './useCanApprovalAction'
 const mockPost = vi.fn()
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../access/accessClient', () => ({

@@ -22,6 +22,7 @@ const { mockAuthQuery } = vi.hoisted(() => ({
 
 vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
   authClient: { useQuery: mockAuthQuery },
 }))
 

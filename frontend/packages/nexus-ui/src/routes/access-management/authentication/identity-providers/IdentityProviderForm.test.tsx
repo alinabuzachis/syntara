@@ -21,6 +21,7 @@ function getMutationCallbacks(mockFn: ReturnType<typeof vi.fn>): MutationCallbac
 
 vi.mock('../../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
   identityProvidersClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),

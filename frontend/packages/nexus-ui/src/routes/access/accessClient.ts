@@ -16,7 +16,7 @@ import type {
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
-import { authMiddleware } from '../../client'
+import { authMiddleware, interfaceTagMiddleware } from '../../client'
 
 // Merge all RBAC-related path types into a single type.
 // Each spec covers distinct URL paths so there are no key collisions.
@@ -30,6 +30,7 @@ type AccessPaths = ProjectsAPI.paths &
   UsersAPI.paths
 
 export const accessFetchClient = createFetchClient<AccessPaths>({ baseUrl: '/api/v1/' })
+accessFetchClient.use(interfaceTagMiddleware)
 accessFetchClient.use(authMiddleware)
 export const accessClient = createClient(accessFetchClient)
 
@@ -37,4 +38,5 @@ export const accessClient = createClient(accessFetchClient)
 // Paths are determined at runtime, so responses are typed as `unknown`.
 type DynamicPaths = Record<string, { get: { responses: { 200: { content: { 'application/json': unknown } } } } }>
 export const dynamicFetchClient = createFetchClient<DynamicPaths>({ baseUrl: '/api/v1/' })
+dynamicFetchClient.use(interfaceTagMiddleware)
 dynamicFetchClient.use(authMiddleware)

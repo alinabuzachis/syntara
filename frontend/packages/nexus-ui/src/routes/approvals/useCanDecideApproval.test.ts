@@ -23,6 +23,7 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn().mockReturnValue({ data: undefined, isLoading: false, error: null }),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 function createWrapper() {

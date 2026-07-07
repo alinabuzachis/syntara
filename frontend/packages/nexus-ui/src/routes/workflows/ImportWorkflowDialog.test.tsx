@@ -24,6 +24,7 @@ vi.mock('../../hooks/routing/useNavigate', () => ({
 vi.mock('../../client', () => ({
   workflowFetchClient: { POST: (...args: unknown[]) => mockPost(...args) },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 const defaultProjects = [

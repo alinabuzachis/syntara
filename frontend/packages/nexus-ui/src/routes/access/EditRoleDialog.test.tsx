@@ -13,6 +13,7 @@ import type { RoleRead } from './types'
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('./accessClient', () => ({

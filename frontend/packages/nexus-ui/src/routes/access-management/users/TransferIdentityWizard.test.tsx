@@ -20,6 +20,7 @@ import { TransferIdentityWizard } from './TransferIdentityWizard'
 
 vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
   usersClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),

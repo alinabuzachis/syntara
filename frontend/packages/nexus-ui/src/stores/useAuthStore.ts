@@ -9,6 +9,7 @@
 import { create } from 'zustand'
 
 import { queryClient } from '../queryClient'
+import { nexusUiClientHeaders } from '../utils/nexusClientHeader'
 
 // ============================================================================
 // Types
@@ -110,7 +111,10 @@ type LogoutResponse = {
  * `window.location.href` so the browser sends first-party IdP cookies.
  */
 function buildAuthHeaders(accessToken: string | null, csrfToken: string | null): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...nexusUiClientHeaders(),
+  }
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`
   if (csrfToken) headers['X-CSRF-Token'] = csrfToken
   return headers
@@ -193,6 +197,7 @@ async function fetchCsrfToken(returnNullOn404 = false): Promise<string | null> {
   // eslint-disable-next-line nexus/no-raw-http-calls -- auth: CSRF token fetch before client is initialized
   const response = await fetch(AUTH_CSRF_TOKEN_URL, {
     method: 'POST',
+    headers: nexusUiClientHeaders(),
     credentials: 'include',
   })
 
@@ -207,7 +212,7 @@ async function postAuth(url: string, body?: object, extraHeaders?: Record<string
   // eslint-disable-next-line nexus/no-raw-http-calls -- auth: login/token exchange before client is initialized
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+    headers: { 'Content-Type': 'application/json', ...nexusUiClientHeaders(), ...extraHeaders },
     credentials: 'include', // ensure HttpOnly cookies are sent
     ...(body ? { body: JSON.stringify(body) } : {}),
   })

@@ -303,7 +303,7 @@ class TestRecorderPrometheus:
             1.0,
             labels={"error_type": "timeout"},
         )
-        sample_value = recorder.prometheus.errors_total.labels(error_type="timeout")._value.get()
+        sample_value = recorder.prometheus.errors_total.labels(error_type="timeout", interface="api")._value.get()
         assert sample_value == pytest.approx(1.0)
 
     def test_request_duration_updates_histogram(self, recorder: MetricsRecorder) -> None:
@@ -316,6 +316,7 @@ class TestRecorderPrometheus:
         )
         sample_value = recorder.prometheus.request_duration_seconds.labels(
             endpoint="/api/v1/chat",
+            interface="api",
         )._sum.get()
         assert sample_value == pytest.approx(0.25, rel=0.01)
 
@@ -330,6 +331,7 @@ class TestRecorderPrometheus:
         value = recorder.prometheus.requests_total.labels(
             status="200",
             endpoint="/api/v1/health",
+            interface="api",
         )._value.get()
         assert value == pytest.approx(1.0)
 

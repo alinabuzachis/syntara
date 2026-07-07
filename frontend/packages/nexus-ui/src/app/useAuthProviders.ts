@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+import { nexusUiClientHeaders } from '../utils/nexusClientHeader'
+
 export type AuthProvider = {
   id: string
   name: string
@@ -36,7 +38,10 @@ export function useAuthProviders(): UseAuthProvidersResult {
     const loadProviders = async () => {
       try {
         // eslint-disable-next-line nexus/no-raw-http-calls -- pre-auth: fetching providers before token middleware is available
-        const response = await fetch('/api/v1/auth/providers', { signal: controller.signal })
+        const response = await fetch('/api/v1/auth/providers', {
+          headers: nexusUiClientHeaders(),
+          signal: controller.signal,
+        })
         if (response.ok) {
           const data: unknown = await response.json()
           if (

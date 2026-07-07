@@ -36,6 +36,7 @@ vi.mock('../../../client', () => ({
     queryOptions: queryOptionsMock,
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 const refetchQueriesMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))

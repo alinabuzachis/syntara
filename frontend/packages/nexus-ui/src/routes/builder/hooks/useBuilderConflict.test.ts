@@ -21,6 +21,7 @@ vi.mock('../../../client', () => ({
     POST: (...args: unknown[]): unknown => mockExecutionsFetchClientPOST(...args),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 const mockGetState = vi.fn()

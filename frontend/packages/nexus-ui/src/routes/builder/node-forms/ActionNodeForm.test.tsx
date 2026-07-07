@@ -15,6 +15,7 @@ vi.mock('../../../client', () => ({
     useMutation: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../access/useAllProjects', () => ({

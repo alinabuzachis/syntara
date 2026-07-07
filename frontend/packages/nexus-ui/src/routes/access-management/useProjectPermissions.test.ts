@@ -18,6 +18,7 @@ vi.mock('../access/accessClient', () => ({
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 function createWrapper() {

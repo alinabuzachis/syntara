@@ -18,6 +18,23 @@ import createClient from 'openapi-react-query'
 
 import { useAuthStore } from './stores/useAuthStore'
 import { backendOrigin } from './utils/backendUrl'
+import { applyNexusUiClientHeader } from './utils/nexusClientHeader'
+
+// ============================================================================
+// Interface Tagging Middleware
+// ============================================================================
+
+/**
+ * openapi-fetch middleware that tags every request with `X-Nexus-Client: ui`
+ * so the backend can distinguish UI traffic from external API consumers
+ * (CLI, CI/CD, scripts) in metrics and telemetry.
+ */
+const interfaceTagMiddleware: Middleware = {
+  onRequest({ request }) {
+    applyNexusUiClientHeader(request.headers)
+    return request
+  },
+}
 
 // ============================================================================
 // Auth Middleware
@@ -86,45 +103,53 @@ const authMiddleware: Middleware = {
 }
 
 // Exported for testing
-export { authMiddleware }
+export { authMiddleware, interfaceTagMiddleware }
 
 // ============================================================================
 // API Clients
 // ============================================================================
 
 const workflowFetchClient = createFetchClient<WorkflowAPI.paths>({ baseUrl: '/api/v1/' })
+workflowFetchClient.use(interfaceTagMiddleware)
 workflowFetchClient.use(authMiddleware)
 export { workflowFetchClient }
 export const workflowClient = createClient(workflowFetchClient)
 
 export const executionsFetchClient = createFetchClient<ExecutionsAPI.paths>({ baseUrl: '/api/v1/' })
+executionsFetchClient.use(interfaceTagMiddleware)
 executionsFetchClient.use(authMiddleware)
 export const executionsClient = createClient(executionsFetchClient)
 
 export const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({ baseUrl: '/api/v1/' })
+toolManagerFetchClient.use(interfaceTagMiddleware)
 toolManagerFetchClient.use(authMiddleware)
 export const toolManagerClient = createClient(toolManagerFetchClient)
 
 const approvalsFetchClient = createFetchClient<ApprovalsAPI.paths>({ baseUrl: '/api/v1/' })
+approvalsFetchClient.use(interfaceTagMiddleware)
 approvalsFetchClient.use(authMiddleware)
 export const approvalsClient = createClient(approvalsFetchClient)
 
 const settingsFetchClient = createFetchClient<SettingsAPI.paths>({ baseUrl: '/api/v1/' })
+settingsFetchClient.use(interfaceTagMiddleware)
 settingsFetchClient.use(authMiddleware)
 export { settingsFetchClient }
 export const settingsClient = createClient(settingsFetchClient)
 
 const integrationsFetchClient = createFetchClient<IntegrationsAPI.paths>({ baseUrl: '/api/v1/' })
+integrationsFetchClient.use(interfaceTagMiddleware)
 integrationsFetchClient.use(authMiddleware)
 export const integrationsClient = createClient(integrationsFetchClient)
 
 const identityProvidersFetchClient = createFetchClient<IdentityProvidersAPI.paths>({
   baseUrl: '/api/v1',
 })
+identityProvidersFetchClient.use(interfaceTagMiddleware)
 identityProvidersFetchClient.use(authMiddleware)
 export const identityProvidersClient = createClient(identityProvidersFetchClient)
 
 export const authFetchClient = createFetchClient<AuthAPI.paths>({ baseUrl: '/api/v1' })
+authFetchClient.use(interfaceTagMiddleware)
 authFetchClient.use(authMiddleware)
 export const authClient = createClient(authFetchClient)
 
@@ -141,20 +166,25 @@ export const OIDC_AUTHORIZE_PATH = '/api/v1/auth/oidc/authorize'
 // All API calls should use the typed query/mutation clients (e.g., usersClient)
 // rather than the raw fetchClient to ensure type safety and proper error handling.
 const usersFetchClient = createFetchClient<UsersAPI.paths>({ baseUrl: '/api/v1' })
+usersFetchClient.use(interfaceTagMiddleware)
 usersFetchClient.use(authMiddleware)
 export const usersClient = createClient(usersFetchClient)
 
 const credentialsFetchClient = createFetchClient<CredentialsAPI.paths>({ baseUrl: '/api/v1/' })
+credentialsFetchClient.use(interfaceTagMiddleware)
 credentialsFetchClient.use(authMiddleware)
 export const credentialsClient = createClient(credentialsFetchClient)
 
 const aapFetchClient = createFetchClient<AAPAPI.paths>({ baseUrl: '/api/v1/' })
+aapFetchClient.use(interfaceTagMiddleware)
 aapFetchClient.use(authMiddleware)
 export const aapClient = createClient(aapFetchClient)
 
 const adminFetchClient = createFetchClient<AdminAPI.paths>({ baseUrl: '/api/v1/' })
+adminFetchClient.use(interfaceTagMiddleware)
 adminFetchClient.use(authMiddleware)
 export const adminClient = createClient(adminFetchClient)
 
 export const filesFetchClient = createFetchClient<FilesAPI.paths>({ baseUrl: '/api/v1/' })
+filesFetchClient.use(interfaceTagMiddleware)
 filesFetchClient.use(authMiddleware)

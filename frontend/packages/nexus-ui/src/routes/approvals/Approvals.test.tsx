@@ -14,6 +14,7 @@ import { useApprovalPermissions } from './useApprovalPermissions'
 // Mock the approvalsClient
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
   approvalsClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(() => ({

@@ -65,14 +65,14 @@ class NexusPrometheusMetrics:
         self.requests_total = Counter(
             "nexus_requests_total",
             "Total number of requests processed",
-            ["status", "endpoint"],
+            ["status", "endpoint", "interface"],
             registry=self.registry,
         )
 
         self.errors_total = Counter(
             "nexus_errors_total",
             "Total number of errors by type",
-            ["error_type"],
+            ["error_type", "interface"],
             registry=self.registry,
         )
 
@@ -106,7 +106,7 @@ class NexusPrometheusMetrics:
         self.request_duration_seconds = Histogram(
             "nexus_request_duration_seconds",
             "Request duration in seconds",
-            ["endpoint"],
+            ["endpoint", "interface"],
             buckets=LATENCY_BUCKETS_MEDIUM,
             registry=self.registry,
         )

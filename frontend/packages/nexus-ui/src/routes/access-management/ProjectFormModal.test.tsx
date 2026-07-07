@@ -14,6 +14,7 @@ import { PROJECT_NAME_HINT, PROJECT_NAME_VALIDATION_MESSAGE } from './projectFor
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../access/accessClient', () => ({

@@ -10,6 +10,7 @@ vi.mock('../../../client', () => ({
     GET: () => mockGet() as Promise<unknown>,
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 const mockUseQuery = vi.fn()

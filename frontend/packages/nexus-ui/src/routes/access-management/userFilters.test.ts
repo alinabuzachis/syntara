@@ -9,6 +9,7 @@ vi.mock('../../client', () => ({
     GET: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 // Import after mock so vi.mocked() works

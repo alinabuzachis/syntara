@@ -116,7 +116,7 @@ describe('useAuthStore', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(AUTH_LOGIN_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Nexus-Client': 'ui' },
         credentials: 'include',
         body: JSON.stringify({ username: 'admin', password: 'admin' }),
       })
@@ -129,7 +129,13 @@ describe('useAuthStore', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(2)
       expect(mockFetch.mock.calls[1][0]).toBe(AUTH_CSRF_TOKEN_URL)
-      expect(mockFetch.mock.calls[1][1]).toEqual(expect.objectContaining({ method: 'POST', credentials: 'include' }))
+      expect(mockFetch.mock.calls[1][1]).toEqual(
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'X-Nexus-Client': 'ui' },
+        })
+      )
     })
 
     it('sets error on login failure', async () => {
@@ -360,6 +366,7 @@ describe('useAuthStore', () => {
       const logoutInit = logoutCall[1] as RequestInit
       const headers = logoutInit.headers as Record<string, string>
       expect(headers['X-CSRF-Token']).toBe('test-csrf-token')
+      expect(headers['X-Nexus-Client']).toBe('ui')
     })
 
     it('posts to the logout endpoint with bearer token', async () => {

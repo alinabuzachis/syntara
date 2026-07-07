@@ -12,6 +12,7 @@ import type { IntegrationWithTools, ToolSelection } from './ToolsMultiSelect'
 vi.mock('../../../client', () => ({
   credentialsClient: { useQuery: vi.fn() },
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 const integrations: IntegrationWithTools[] = [

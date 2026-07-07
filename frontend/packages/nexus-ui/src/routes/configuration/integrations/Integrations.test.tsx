@@ -23,6 +23,7 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 // Mock useFilterState - will be configured per-test

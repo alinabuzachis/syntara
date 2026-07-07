@@ -36,6 +36,7 @@ vi.mock('../../../client', () => ({
     useMutation: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 function makeWrapper(queryClient: QueryClient) {

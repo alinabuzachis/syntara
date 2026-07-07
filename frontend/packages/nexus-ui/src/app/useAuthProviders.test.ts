@@ -36,7 +36,10 @@ describe('useAuthProviders', () => {
     expect(result.current.providers).toEqual(mockProviders)
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/v1/auth/providers',
-      expect.objectContaining({ signal: expect.any(AbortSignal) as AbortSignal })
+      expect.objectContaining({
+        headers: { 'X-Nexus-Client': 'ui' },
+        signal: expect.any(AbortSignal) as AbortSignal,
+      })
     )
   })
 

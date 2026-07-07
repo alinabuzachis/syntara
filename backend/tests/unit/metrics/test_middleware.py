@@ -16,6 +16,7 @@ import pytest
 from prometheus_client import CollectorRegistry
 
 from nexus.api.constants import EXCLUDED_PATHS
+from nexus.metrics.interface_tag import INTERFACE_API, INTERFACE_UI, interface_context_var
 from nexus.metrics.middleware import (
     MetricsMiddleware,
     classify_error_type,
@@ -38,13 +39,14 @@ def _make_scope(
     path: str = "/api/v1/workflows",
     method: str = "GET",
     scope_type: str = "http",
+    headers: list[tuple[bytes, bytes]] | None = None,
 ) -> dict[str, Any]:
     """Build a minimal ASGI scope dict."""
     return {
         "type": scope_type,
         "path": path,
         "method": method,
-        "headers": [],
+        "headers": headers or [],
     }
 
 
@@ -429,6 +431,7 @@ class TestMetricsMiddlewarePrometheus:
         value = recorder.prometheus.requests_total.labels(
             status="200",
             endpoint="/api/v1/test",
+            interface="api",
         )._value.get()
         assert value == pytest.approx(1.0)
 
@@ -442,6 +445,7 @@ class TestMetricsMiddlewarePrometheus:
 
         value = recorder.prometheus.errors_total.labels(
             error_type="internal",
+            interface="api",
         )._value.get()
         assert value == pytest.approx(1.0)
 
@@ -459,6 +463,7 @@ class TestMetricsMiddlewarePrometheus:
 
         sample_sum = recorder.prometheus.request_duration_seconds.labels(
             endpoint="/api/v1/test",
+            interface="api",
         )._sum.get()
         assert sample_sum > 0
 
@@ -647,3 +652,114 @@ class TestMetricsMiddlewareThreadSafety:
         error_rates = list(recorder.query(metric_types={MetricType.SYSTEM_ERROR_RATE}))
         for r in error_rates:
             assert 0.0 <= r.value <= 1.0, f"Error rate {r.value} out of bounds"
+
+
+# =============================================================================
+# MetricsMiddleware - interface tagging (AAP-77419)
+# =============================================================================
+
+
+class TestMetricsMiddlewareInterfaceTagging:
+    """Verify interface label (api/ui) is applied to all recorded metrics."""
+
+    @pytest.mark.asyncio
+    async def test_default_interface_is_api(self, recorder: MetricsRecorder) -> None:
+        """Requests without X-Nexus-Client header get interface=api."""
+        app = await _make_app(status_code=200)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
+        assert results[0].labels["interface"] == INTERFACE_API
+
+    @pytest.mark.asyncio
+    async def test_ui_header_sets_interface_ui(self, recorder: MetricsRecorder) -> None:
+        """Requests with X-Nexus-Client: ui get interface=ui."""
+        app = await _make_app(status_code=200)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+        await middleware(scope, AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
+        assert results[0].labels["interface"] == INTERFACE_UI
+
+    @pytest.mark.asyncio
+    async def test_interface_label_on_error_metrics(self, recorder: MetricsRecorder) -> None:
+        """Error metrics also carry the interface label."""
+        app = await _make_app(status_code=500)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+        await middleware(scope, AsyncMock(), AsyncMock())
+
+        errors = list(recorder.query(metric_types={MetricType.ERROR}))
+        assert len(errors) == 1
+        assert errors[0].labels["interface"] == INTERFACE_UI
+
+    @pytest.mark.asyncio
+    async def test_interface_context_var_set_for_downstream(self, recorder: MetricsRecorder) -> None:
+        """The interface ContextVar is set so downstream code can read it."""
+        captured_interface: str | None = None
+
+        async def capturing_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            nonlocal captured_interface
+            captured_interface = interface_context_var.get()
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = MetricsMiddleware(capturing_app, recorder=recorder)  # type: ignore[arg-type]
+        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+        await middleware(scope, AsyncMock(), AsyncMock())
+
+        assert captured_interface == INTERFACE_UI
+
+    @pytest.mark.asyncio
+    async def test_api_interface_context_var_for_no_header(self, recorder: MetricsRecorder) -> None:
+        """Without the header, ContextVar is set to 'api'."""
+        captured_interface: str | None = None
+
+        async def capturing_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            nonlocal captured_interface
+            captured_interface = interface_context_var.get()
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = MetricsMiddleware(capturing_app, recorder=recorder)  # type: ignore[arg-type]
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        assert captured_interface == INTERFACE_API
+
+    @pytest.mark.asyncio
+    async def test_interface_label_on_exception(self, recorder: MetricsRecorder) -> None:
+        """Interface label is recorded even when the app raises."""
+        msg = "boom"
+
+        async def raising_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            raise RuntimeError(msg)
+
+        middleware = MetricsMiddleware(raising_app, recorder=recorder)  # type: ignore[arg-type]
+        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+
+        with pytest.raises(RuntimeError, match=msg):
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
+        assert results[0].labels["interface"] == INTERFACE_UI
+
+    @pytest.mark.asyncio
+    async def test_existing_labels_preserved_with_interface(self, recorder: MetricsRecorder) -> None:
+        """All existing labels (endpoint, method, status) are still present alongside interface."""
+        app = await _make_app(status_code=201)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        scope = _make_scope(path="/api/v1/workflows", method="POST", headers=[(b"x-nexus-client", b"ui")])
+        await middleware(scope, AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
+        labels = results[0].labels
+        assert labels["endpoint"] == "/api/v1/workflows"
+        assert labels["method"] == "POST"
+        assert labels["status"] == "201"
+        assert labels["interface"] == INTERFACE_UI

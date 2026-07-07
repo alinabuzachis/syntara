@@ -13,6 +13,7 @@ const mockWorkflowFetchClientGET = vi.fn()
 vi.mock('../../../client', () => ({
   workflowFetchClient: { GET: (...args: unknown[]): unknown => mockWorkflowFetchClientGET(...args) },
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../node-forms/useMaxWaitDuration', () => ({

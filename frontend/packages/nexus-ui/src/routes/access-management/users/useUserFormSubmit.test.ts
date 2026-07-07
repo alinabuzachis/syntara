@@ -16,6 +16,7 @@ import { useUserFormSubmit } from './useUserFormSubmit'
 
 vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../access/accessClient', () => ({

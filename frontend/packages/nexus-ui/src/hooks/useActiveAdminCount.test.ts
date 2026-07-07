@@ -11,6 +11,7 @@ import { useActiveAdminCount } from './useActiveAdminCount'
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../routes/access/accessClient', () => ({
