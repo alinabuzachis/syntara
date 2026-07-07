@@ -27,10 +27,11 @@ from nexus_api_client.models import (
     WorkflowRead,
     WorkflowUpdate,
 )
+from nexus_api_client.models.approval_request_status import ApprovalRequestStatus
 from nexus_api_client.models.execution_status import ExecutionStatus
 
 from tests.e2e.conftest import unique_name
-from tests.e2e.helpers import create_and_run_workflow
+from tests.e2e.helpers import create_and_run_workflow, poll_for_pending_approval
 
 pytestmark = [pytest.mark.e2e]
 
@@ -447,101 +448,79 @@ class TestWorkflowExecution:
         )
         assert our_failed == expected_failed, f"Expected {expected_failed} failed executions, got {our_failed}"
 
-    def test_cancel_running_execution(
+    def test_cancel_execution_with_pending_approval(
         self,
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
-        """API 17: Cancel a running workflow execution.
+        """API 17: Cancel a running execution that has a pending approval request.
 
-        Objective: Verify that a running workflow execution can be cancelled.
+        Objective: Verify that cancelling a workflow execution also cancels
+        any pending approval requests created by that execution.
 
         Test Procedure:
-        1. Create a workflow with a long-running script node (5 minute sleep)
-        2. Execute the workflow
-        3. While the execution is running, POST /api/v1/executions/{execution_id}/cancel
-        4. Verify the execution status
+        1. Create a workflow: trigger → approval_gate → post_approval_script
+        2. Execute the workflow and wait for the approval request to appear
+        3. Cancel the execution while the approval is pending
+        4. Verify both the execution and the approval request are cancelled
 
         Expected Results:
-        - The cancel request returns a success response (202 Accepted)
+        - The cancel request returns 202 Accepted
         - The execution transitions to cancelled status
-        - The Temporal workflow is terminated
-        - Subsequent nodes are not executed
+        - The pending approval request transitions to cancelled status
+        - The downstream post-approval node is not executed
         """
-        workflow_name = unique_name("e2e-cancel-execution")
+        workflow_name = unique_name("e2e-cancel-approval")
 
-        # Step 1: Create workflow with a long-running script node (using sleep) and subsequent nodes
         workflow_data = WorkflowCreate(
             name=workflow_name,
-            description="Workflow for testing execution cancellation",
+            description="Workflow for testing cancel with pending approval",
             project_id=first_project_id,
             workflow_definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {
-                    "id": "sleep_node",
-                    "name": "Long Running Script",
-                    "type": "script",
-                    "parameters": {
-                        "language": "bash",
-                        "code": "echo 'Starting long sleep'; sleep 300; echo 'Sleep completed'",
-                    },
+                    "id": "approval_gate",
+                    "name": "Review Gate",
+                    "type": "approval",
+                    "parameters": {},
                 },
                 {
-                    "id": "after_sleep_node",
-                    "name": "Node After Sleep",
+                    "id": "post_approval_script",
+                    "name": "Post-Approval Step",
                     "type": "script",
-                    "parameters": {"language": "bash", "code": "echo 'This should not execute if cancelled'"},
+                    "parameters": {"language": "bash", "code": "echo 'approved path executed'"},
                 },
                 edges=[
-                    {"from": "trigger_manual", "to": "sleep_node"},
-                    {"from": "sleep_node", "to": "after_sleep_node"},
+                    {"from": "trigger_manual", "to": "approval_gate"},
+                    {"from": "approval_gate", "to": "post_approval_script", "from_port": "approved"},
                 ],
             ),
         )
         workflow = workflow_factory(workflow_data)
 
-        # Step 2: Execute the workflow
         execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+        execution_id = UUID(str(execution.id))
 
-        execution_id = execution.id
+        approval = poll_for_pending_approval(nexus_api, execution_id, timeout=30)
+        assert approval.status == ApprovalRequestStatus.PENDING
+        approval_id = UUID(str(approval.id))
 
-        # Wait a bit to ensure the execution has started and is in "running" state
-        time.sleep(3)
-
-        # Verify execution is running
-        execution_before_cancel = nexus_api.executions.get(
-            execution_id=UUID(str(execution_id)), include="activities"
-        ).assert_and_get()
-
-        # Execution should be in pending or running state (not completed yet)
-        status_str = str(execution_before_cancel.status)
-        assert status_str in ["pending", "running"], (
-            f"Execution should be pending or running before cancellation, got {status_str}"
-        )
-
-        # Step 3: Cancel the running execution
-        cancel_response = nexus_api.executions.cancel(execution_id=UUID(str(execution_id)))
-
-        # Expected Result 1: Cancel request returns success response (202 Accepted)
+        cancel_response = nexus_api.executions.cancel(execution_id=execution_id)
         assert cancel_response.status_code == HTTPStatus.ACCEPTED, (
-            f"Expected 202 Accepted for cancel request, got {cancel_response.status_code}: {cancel_response.content!r}"
+            f"Expected 202 Accepted, got {cancel_response.status_code}: {cancel_response.content!r}"
         )
 
-        # Step 4: Poll execution status to verify it transitions to cancelled
         max_polls = 20
         poll_interval = 1
         cancelled_execution = None
 
         for _ in range(max_polls):
             current_execution = nexus_api.executions.get(
-                execution_id=UUID(str(execution_id)), include="activities"
+                execution_id=execution_id, include="activities"
             ).assert_and_get()
 
-            current_status = str(current_execution.status)
-
-            # Expected Result 2: Execution transitions to cancelled status
-            if current_status == "cancelled":
+            if str(current_execution.status) == "cancelled":
                 cancelled_execution = current_execution
                 break
 
@@ -552,42 +531,22 @@ class TestWorkflowExecution:
             f"Last status: {current_execution.status!s}"
         )
 
-        assert str(cancelled_execution.status) == "cancelled", (
-            f"Execution status should be 'cancelled', got {cancelled_execution.status}"
+        # Verify the approval request was also cancelled
+        approval_after = nexus_api.approvals.get(approval_id=approval_id).assert_and_get()
+        assert approval_after.status == ApprovalRequestStatus.CANCELLED, (
+            f"Approval should be cancelled, got {approval_after.status}"
         )
 
-        # Expected Result 3: Verify Temporal workflow was terminated
         assert cancelled_execution.temporal_workflow_id is not None, "Execution should have Temporal workflow ID"
-
-        # Expected Result 4: Verify subsequent nodes were not executed
         assert cancelled_execution.activities is not None, "Cancelled execution should have activities"
 
-        # Get all activity IDs and statuses for verification
-        activity_ids = [activity.activity_id for activity in cancelled_execution.activities]
-        activity_statuses = {activity.activity_id: str(activity.status) for activity in cancelled_execution.activities}
+        activity_statuses = {a.activity_id: str(a.status) for a in cancelled_execution.activities}
 
-        # Expected activities: trigger_manual, sleep_node, and possibly after_sleep_node (but NOT completed)
-        # Workflow execution may create activity records for downstream nodes even if they don't execute
-        assert "trigger_manual" in activity_ids, "trigger_manual should be present"
-        assert "sleep_node" in activity_ids, "sleep_node should be present"
-
-        # Critical assertion: after_sleep_node should NOT have completed
-        if "after_sleep_node" in activity_ids:
-            assert activity_statuses["after_sleep_node"] != "completed", (
-                "after_sleep_node should NOT have completed after cancellation"
+        if "post_approval_script" in activity_statuses:
+            assert activity_statuses["post_approval_script"] != "completed", (
+                "post_approval_script should NOT have completed after cancellation"
             )
 
-        # Verify only the trigger completed (sleep_node was cancelled/failed, not completed)
-        completed_activity_ids = [
-            activity.activity_id for activity in cancelled_execution.activities if str(activity.status) == "completed"
-        ]
-        assert len(completed_activity_ids) == 1, (
-            f"Expected exactly 1 completed activity (trigger), "
-            f"got {len(completed_activity_ids)}: {completed_activity_ids}"
-        )
-        assert "trigger_manual" in completed_activity_ids, "Only trigger_manual should have completed"
-
-        # Verify cancellation metadata
         assert cancelled_execution.completed_at is not None, "Cancelled execution should have completed_at timestamp"
         assert cancelled_execution.created_at < cancelled_execution.completed_at, (
             "Completed time should be after created time"
