@@ -56,7 +56,7 @@ describe('WorkflowSidepanel', () => {
   it('renders close button', () => {
     render(<WorkflowSidepanel {...defaultProps} />)
 
-    const closeButton = screen.getByLabelText('Close')
+    const closeButton = screen.getByLabelText('Close workflow details')
     expect(closeButton).toBeInTheDocument()
   })
 
@@ -64,7 +64,7 @@ describe('WorkflowSidepanel', () => {
     const user = userEvent.setup()
     render(<WorkflowSidepanel {...defaultProps} />)
 
-    const closeButton = screen.getByLabelText('Close')
+    const closeButton = screen.getByLabelText('Close workflow details')
     await user.click(closeButton)
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)

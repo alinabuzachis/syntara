@@ -74,7 +74,7 @@ test.describe('Webhook Trigger', () => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 
     // Wait for trigger selection and select Webhook trigger
-    await expect(app.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByRole('heading', { name: /select a trigger node/i })).toBeVisible({ timeout: 10_000 })
     await app.getByRole('button', { name: 'Webhook trigger', exact: true }).click()
 
     // Type a path
@@ -90,24 +90,25 @@ test.describe('Webhook Trigger', () => {
     await expect(urlInput).not.toHaveValue(/github-push/)
   })
 
-  test('webhook form validates empty path', async ({ app }) => {
+  test('webhook form allows creation without path', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 
-    await expect(app.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByRole('heading', { name: /select a trigger node/i })).toBeVisible({ timeout: 10_000 })
     await app.getByRole('button', { name: 'Webhook trigger', exact: true }).click()
 
-    // The webhook path auto-generates a UUID on form init — clear it to test empty validation
+    // Clear the auto-generated path — trigger fields are optional by design
     await app.getByRole('textbox', { name: 'Webhook path' }).clear()
     await app.getByRole('button', { name: 'Create' }).click()
 
-    // Verify validation error
-    await expect(app.getByText('Webhook path is required')).toBeVisible()
+    // Trigger is created and appears on the canvas (form closes)
+    await expect(app.getByRole('button', { name: 'Create' })).not.toBeAttached({ timeout: 10_000 })
+    await expect(app.getByText('Webhook')).toBeVisible()
   })
 
   test('webhook form validates invalid path characters', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 
-    await expect(app.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByRole('heading', { name: /select a trigger node/i })).toBeVisible({ timeout: 10_000 })
     await app.getByRole('button', { name: 'Webhook trigger', exact: true }).click()
 
     // Enter invalid characters

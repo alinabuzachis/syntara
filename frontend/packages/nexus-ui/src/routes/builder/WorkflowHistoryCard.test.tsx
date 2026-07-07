@@ -71,13 +71,13 @@ describe('WorkflowHistoryCard', () => {
 
   it('renders close button', () => {
     render(<WorkflowHistoryCard {...defaultProps} />)
-    expect(screen.getByLabelText('Close')).toBeInTheDocument()
+    expect(screen.getByLabelText('Close run history')).toBeInTheDocument()
   })
 
   it('calls onClose when close button is clicked', async () => {
     const user = userEvent.setup()
     render(<WorkflowHistoryCard {...defaultProps} />)
-    await user.click(screen.getByLabelText('Close'))
+    await user.click(screen.getByLabelText('Close run history'))
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 

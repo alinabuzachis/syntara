@@ -58,7 +58,7 @@ export function AddNodePanelHeader({
         </FlexItem>
         {!hasNoWorkflowNodes && (
           <FlexItem>
-            <Button variant="plain" onClick={onClose} aria-label="Close">
+            <Button variant="plain" onClick={onClose} aria-label="Close add step panel">
               <Icon>
                 <RhUiCloseIcon />
               </Icon>

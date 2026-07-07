@@ -87,7 +87,7 @@ export function NodeEditorLayout({
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
   let closeAriaLabel = 'Cancel without saving'
-  if (readOnly) closeAriaLabel = 'Close'
+  if (readOnly) closeAriaLabel = 'Close node editor'
   else if (mode === 'add') closeAriaLabel = 'Cancel step creation'
 
   return (

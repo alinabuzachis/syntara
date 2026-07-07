@@ -48,7 +48,7 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
               </Flex>
             </FlexItem>
             <FlexItem>
-              <Button variant="plain" onClick={props.onClose} aria-label="Close">
+              <Button variant="plain" onClick={props.onClose} aria-label="Close workflow details">
                 <Icon>
                   <RhUiCloseIcon />
                 </Icon>

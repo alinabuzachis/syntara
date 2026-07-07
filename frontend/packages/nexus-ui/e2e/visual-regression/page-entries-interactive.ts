@@ -232,7 +232,7 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     },
     setup: async (page) => {
       await page.getByRole('button', { name: /Add Step/i }).click()
-      const panel = page.getByRole('region', { name: /add step|select a step/i })
+      const panel = page.getByRole('region', { name: /add step|select a node/i })
       await expect(panel).toBeVisible()
     },
   },

@@ -16,6 +16,7 @@ import {
   createWorkflowWithTrigger,
   addScriptNode,
   verifyNodeVisible,
+  triggerLayout,
 } from '../helpers/workflows'
 
 test('delete a middle node removes the node and its connected edges', async ({ app }) => {
@@ -32,7 +33,7 @@ test('delete a middle node removes the node and its connected edges', async ({ a
     await addScriptNode(app, 'Node C', 'print("C")')
 
     // Layout to position nodes
-    await app.getByRole('button', { name: 'Layout' }).click()
+    await triggerLayout(app)
 
     // Verify all nodes are visible
     await verifyNodeVisible(app, 'Manual trigger')
@@ -40,22 +41,21 @@ test('delete a middle node removes the node and its connected edges', async ({ a
     await verifyNodeVisible(app, 'Node B')
     await verifyNodeVisible(app, 'Node C')
 
-    // Count edges before deletion (should have 3: trigger→A, A→B, B→C)
-    // ReactFlow edges are SVG paths with no accessible roles -- CSS locator is unavoidable
-    const edgesBeforeDelete = app.locator('svg g.react-flow__edge')
-    // ReactFlow sets visibility:hidden on off-screen edges so toBeVisible() fails — use toBeAttached().
-    // Wrap count() in toPass() for auto-retry: count() is a snapshot and needs retry until DOM settles.
+    // ReactFlow edges have no ARIA role — CSS is the only way to count them.
+    // count() is a snapshot so wrap in toPass() to retry until the DOM settles.
+    const edges = app.locator('svg g.react-flow__edge')
     let initialEdgeCount = 0
     await expect(async () => {
-      initialEdgeCount = await edgesBeforeDelete.count()
+      initialEdgeCount = await edges.count()
       expect(initialEdgeCount).toBeGreaterThanOrEqual(3)
-    }).toPass({ timeout: 10000 })
+    }).toPass()
 
     // Delete Node B using its kebab menu
     const nodeB = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Node B' })
     await expect(nodeB).toBeVisible()
 
-    // Click the kebab menu button on Node B
+    // Hover first so the node is settled before interacting with it
+    await nodeB.hover()
     const kebabButton = nodeB.getByLabel('Step actions menu')
     await expect(kebabButton).toBeVisible()
     await kebabButton.click()
@@ -66,13 +66,13 @@ test('delete a middle node removes the node and its connected edges', async ({ a
     await deleteMenuItem.click()
 
     // Verify Node B is removed from canvas
-    await expect(nodeB).not.toBeVisible()
+    await expect(nodeB).not.toBeAttached()
 
-    // Verify edges connected to Node B are removed
-    // Should now have fewer edges (at least 2 edges removed: A→B and B→C)
-    const edgesAfterDelete = app.locator('svg g.react-flow__edge')
-    const finalEdgeCount = await edgesAfterDelete.count()
-    expect(finalEdgeCount).toBeLessThan(initialEdgeCount)
+    // Verify edges connected to Node B are removed.
+    await expect(async () => {
+      const finalEdgeCount = await edges.count()
+      expect(finalEdgeCount).toBeLessThan(initialEdgeCount)
+    }).toPass()
 
     // Verify Node A and Node C remain on the canvas
     await verifyNodeVisible(app, 'Manual trigger')
@@ -112,7 +112,7 @@ for (const { position, nodes, deleteNode, remainingNodes } of deletePositionCase
         await addScriptNode(app, nodeName, `print("${nodeName}")`)
       }
 
-      await app.getByRole('button', { name: 'Layout' }).click()
+      await triggerLayout(app)
 
       // Verify all nodes visible
       for (const nodeName of nodes) {
@@ -123,14 +123,16 @@ for (const { position, nodes, deleteNode, remainingNodes } of deletePositionCase
       const targetNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: deleteNode })
       await expect(targetNode).toBeVisible()
 
+      // Hover first so the node is settled before interacting with it
+      await targetNode.hover()
       const kebabButton = targetNode.getByLabel('Step actions menu')
       await expect(kebabButton).toBeVisible()
       await kebabButton.click()
 
       await app.getByRole('menuitem', { name: 'Delete' }).click()
 
-      // Verify deleted node is removed
-      await expect(targetNode).not.toBeVisible()
+      // Verify deleted node is removed from the DOM
+      await expect(targetNode).not.toBeAttached({ timeout: 10000 })
 
       // Verify remaining nodes are still visible
       await verifyNodeVisible(app, 'Manual trigger')

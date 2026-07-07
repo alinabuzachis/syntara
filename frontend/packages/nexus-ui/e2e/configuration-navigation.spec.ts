@@ -10,11 +10,13 @@ async function navigateViaConfigMenu(app: Page, itemName: string) {
 test.describe('Configuration Navigation & Tabs', () => {
   test('displays all Configuration sub-navigation tabs', async ({ app }) => {
     // Act - Open the Configuration flyout dropdown
-    await app.getByRole('button', { name: 'Configuration' }).click()
+    const configButton = app.getByRole('button', { name: 'Configuration', exact: true })
+    await expect(configButton).toBeVisible()
+    await configButton.click()
 
     // Assert - Configuration tabs are visible (Credential Types removed for GA)
-    await expect(app.getByRole('menuitem', { name: 'Integrations' })).toBeVisible()
-    await expect(app.getByRole('menuitem', { name: 'Credentials' })).toBeVisible()
+    await expect(app.getByRole('menuitem', { name: 'Integrations', exact: true })).toBeVisible()
+    await expect(app.getByRole('menuitem', { name: 'Credentials', exact: true })).toBeVisible()
   })
 
   test.skip('navigates to Credentials page from Configuration menu', async ({ app }) => {

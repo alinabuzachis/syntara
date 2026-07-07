@@ -62,7 +62,7 @@ test.describe('Scheduled Trigger', () => {
   test('schedule form shows visual builder fields', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 
-    await expect(app.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByRole('heading', { name: /select a trigger node/i })).toBeVisible({ timeout: 10_000 })
     await app.getByRole('button', { name: 'Schedule trigger', exact: true }).click()
 
     // ScheduleBuilderFields should be visible for the default "Visual schedule builder" expression
@@ -71,17 +71,18 @@ test.describe('Scheduled Trigger', () => {
     await expect(app.getByLabel('Frequency', { exact: true })).toBeVisible()
   })
 
-  test('schedule form validates empty start date', async ({ app }) => {
+  test('schedule form allows creation without start date', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 
-    await expect(app.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByRole('heading', { name: /select a trigger node/i })).toBeVisible({ timeout: 10_000 })
     await app.getByRole('button', { name: 'Schedule trigger', exact: true }).click()
 
-    // Leave start date empty, attempt to submit
+    // Leave start date empty, attempt to submit — trigger fields are optional by design
     await app.getByRole('button', { name: 'Create' }).click()
 
-    // Verify validation error
-    await expect(app.getByText('Start date is required')).toBeVisible()
+    // Trigger is created and appears on the canvas (form closes)
+    await expect(app.getByRole('button', { name: 'Create' })).not.toBeAttached({ timeout: 10_000 })
+    await expect(app.getByText('Scheduled trigger')).toBeVisible()
   })
 
   test.skip('scheduled trigger displays correctly on canvas', async ({ app }) => {

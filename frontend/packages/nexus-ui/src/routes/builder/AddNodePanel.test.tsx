@@ -107,7 +107,7 @@ describe('AddNodePanelHeader', () => {
       />
     )
 
-    expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Close add step panel/i })).toBeInTheDocument()
   })
 
   it('hides close button when hasNoWorkflowNodes', () => {
@@ -121,7 +121,7 @@ describe('AddNodePanelHeader', () => {
       />
     )
 
-    expect(screen.queryByRole('button', { name: /Close/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Close add step panel/i })).not.toBeInTheDocument()
   })
 
   it('calls onBack when back button is clicked', async () => {
@@ -153,7 +153,7 @@ describe('AddNodePanelHeader', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: /Close/i }))
+    await user.click(screen.getByRole('button', { name: /Close add step panel/i }))
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
@@ -173,7 +173,7 @@ describe('AddNodePanel Component', () => {
     render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} />)
 
     expect(screen.getByText('Add step')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Close add step panel/i })).toBeInTheDocument()
   })
 
   it('calls onSelectNode when a base node is selected', async () => {
@@ -218,7 +218,7 @@ describe('AddNodePanel Component', () => {
   it('hides close and back buttons when the canvas has no workflow steps yet', () => {
     render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} hasNoWorkflowNodes />)
 
-    expect(screen.queryByRole('button', { name: /Close/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Close add step panel/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Back/i })).not.toBeInTheDocument()
   })
 

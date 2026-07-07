@@ -310,10 +310,7 @@ jobs:
   e2e-gate:
     name: (Frontend) E2E Gate
     needs: changes
-    # Non-gating while E2E suite stabilizes after bulk test fixes.
-    # TODO: restore the real condition once E2E proves stable:
-    #   if: needs.changes.outputs.code == 'true' && github.event_name != 'push'
-    if: false
+    if: needs.changes.outputs.code == 'true' && github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

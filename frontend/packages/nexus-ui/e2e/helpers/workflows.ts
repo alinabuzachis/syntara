@@ -9,30 +9,40 @@ export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${ra
 
 export const addNodePanel = (page: Page) =>
   page.getByRole('region', {
-    name: /add step|select a step|select an action step|select a trigger step|select a logic step|select an aap execution step/i,
+    name: /add step|select a node|select an action node|select a trigger node|select a logic node|select an aap execution node/i,
   })
 
 /**
  * Wait for UI to be ready by ensuring no toast notifications or loading overlays are blocking interactions
  */
 export async function waitForUIReady(page: Page) {
-  // Wait for any toast notifications to disappear
-  const toasts = page.locator('.pf-v6-c-alert-group, .pf-v6-c-alert')
-  await toasts
+  // Wait for any active toast items to disappear. The AlertGroup container is always
+  // mounted even when empty — scope to items *inside* it so an empty group resolves
+  // immediately instead of timing out.
+  const toastItems = page.locator('.pf-v6-c-alert-group .pf-v6-c-alert')
+  await toastItems
     .first()
     .waitFor({ state: 'hidden', timeout: 5000 })
-    .catch(() => {
-      // No toasts present, that's fine
-    })
+    .catch(() => {})
 
   // Wait for loading states to clear
   const loadingStates = page.getByLabel('Loading')
   await loadingStates
     .first()
     .waitFor({ state: 'hidden', timeout: 10000 })
-    .catch(() => {
-      // No loading states, that's fine
-    })
+    .catch(() => {})
+}
+
+/**
+ * Click the "Reset layout" button to trigger an auto-layout of the canvas.
+ * Uses explicit `toBeVisible()` to ride out any layout animations still settling
+ * from a previous call (e.g. after addScriptNode).
+ */
+export async function triggerLayout(page: Page) {
+  const layoutButton = page.getByRole('button', { name: 'Reset layout', exact: true })
+  await expect(layoutButton).toBeVisible({ timeout: 10000 })
+  await layoutButton.click()
+  await waitForUIReady(page)
 }
 
 /**
@@ -43,7 +53,7 @@ export async function clickAddConnectedStep(page: Page) {
   // Wait for any toast notifications or loading states to clear
   await waitForUIReady(page)
 
-  const layoutButton = page.getByRole('button', { name: 'Layout' }).first()
+  const layoutButton = page.getByRole('button', { name: 'Reset layout', exact: true })
   await expect(layoutButton).toBeVisible({ timeout: 10000 })
   await layoutButton.click()
 
@@ -92,7 +102,7 @@ export async function closeNodeEditorPanel(page: Page) {
     await expect(cancelAddButton).toHaveCount(0, { timeout: 10000 })
     return
   }
-  const closeButton = page.getByRole('button', { name: 'Close' })
+  const closeButton = page.getByRole('button', { name: 'Close node editor', exact: true })
   if ((await closeButton.count()) > 0) {
     await expect(closeButton).toBeVisible()
     await closeButton.click()
@@ -525,7 +535,7 @@ export async function createWorkflowWithTrigger(page: Page, workflowName: string
   await expect(page).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 
   await expect(page.getByText('Manual trigger')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Layout' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Reset layout', exact: true })).toBeVisible()
 
   // Wait for canvas to be fully ready
   await waitForUIReady(page)
@@ -543,7 +553,7 @@ export async function addScriptNode(page: Page, name: string, code: string) {
   await actionBtn.click()
 
   // Wait for panel to transition and show action types
-  const actionHeading = panel.getByRole('heading', { name: /select an action step/i })
+  const actionHeading = panel.getByRole('heading', { name: /select an action node/i })
   await expect(actionHeading).toBeVisible({ timeout: 10000 })
 
   // Wait for panel re-render to complete before clicking Script

@@ -136,7 +136,7 @@ test.describe('Supported resolution (720p)', () => {
     }
 
     await expect(app.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(app.getByRole('button', { name: 'Run history' })).toBeVisible()
+    await expect(app.getByRole('button', { name: 'Run history', exact: true })).toBeVisible()
     await expect(reactFlowViewportEmptyState(app)).not.toBeVisible()
     await expect(app.locator('.react-flow')).toBeVisible()
   })
@@ -175,7 +175,7 @@ test.describe('React Flow viewport guard', () => {
     await app.goto(toAppUrl(executionDetailPath(executionId)))
     await expect(app.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
     await expect(reactFlowViewportEmptyState(app)).toBeVisible()
-    await expect(app.getByRole('button', { name: 'Run history' })).not.toBeVisible()
+    await expect(app.getByRole('button', { name: 'Run history', exact: true })).not.toBeVisible()
     await expect(app.locator('.react-flow')).not.toBeVisible()
   })
 

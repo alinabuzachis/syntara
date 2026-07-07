@@ -490,13 +490,13 @@ describe('BuilderContent', () => {
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
-      expect(screen.queryByRole('button', { name: /add step/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Add step' })).not.toBeInTheDocument()
     })
 
     it('opens Add step panel when Add Step button is clicked', async () => {
       const user = userEvent.setup()
       await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
-      const addNodeButton = screen.getByRole('button', { name: /add step/i })
+      const addNodeButton = screen.getByRole('button', { name: 'Add step' })
       await user.click(addNodeButton)
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
@@ -508,15 +508,13 @@ describe('BuilderContent', () => {
 
       // Open panel
       const user = userEvent.setup()
-      await user.click(screen.getByRole('button', { name: /add step/i }))
+      await user.click(screen.getByRole('button', { name: 'Add step' }))
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
 
-      // Find close button by aria-label "Close" in the panel
-      const closeButtons = screen.getAllByLabelText('Close')
-      // Click the first close button (panel close)
-      await user.click(closeButtons[0])
+      // Find close button by aria-label in the add step panel
+      await user.click(screen.getByLabelText('Close add step panel'))
 
       // Panel should close (tests CLOSE_ADD_NODE_PANEL reducer)
       await waitFor(() => {
@@ -530,10 +528,10 @@ describe('BuilderContent', () => {
 
       expect(screen.queryByRole('region', { name: 'Add step' })).not.toBeInTheDocument()
 
-      await user.click(screen.getByRole('button', { name: /add step/i }))
+      await user.click(screen.getByRole('button', { name: 'Add step' }))
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /add step/i })).toHaveAttribute('aria-pressed', 'true')
+        expect(screen.getByRole('button', { name: 'Add step' })).toHaveAttribute('aria-pressed', 'true')
       })
     })
   })
@@ -666,12 +664,8 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
       })
 
-      // Find the sidepanel's Close button - it's sibling to the "Workflow details" title
-      // (tests onClose callback - line 1163)
-      const closeButtons = screen.getAllByLabelText('Close')
-      // Click the first close button which belongs to the sidepanel (not a modal)
-      expect(closeButtons.length).toBeGreaterThan(0)
-      await user.click(closeButtons[0])
+      // Find the sidepanel's Close button (tests onClose callback - line 1163)
+      await user.click(screen.getByLabelText('Close workflow details'))
 
       // Sidepanel should close - the title should no longer be visible
       await waitFor(() => {
@@ -1081,8 +1075,7 @@ describe('BuilderContent', () => {
 
       // Find and click close button (tests onClose callback - line 1156)
       const user = userEvent.setup()
-      const closeButton = screen.getByLabelText('Close')
-      await user.click(closeButton)
+      await user.click(screen.getByLabelText('Close run history'))
 
       // Panel should close
       await waitFor(() => {
@@ -1596,7 +1589,7 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
 
       // First open add step panel
-      await user.click(screen.getByRole('button', { name: /add step/i }))
+      await user.click(screen.getByRole('button', { name: 'Add step' }))
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
@@ -1614,7 +1607,7 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
 
       // First open add step panel
-      await user.click(screen.getByRole('button', { name: /add step/i }))
+      await user.click(screen.getByRole('button', { name: 'Add step' }))
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
@@ -1635,7 +1628,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         // Details panel should be open
-        expect(screen.getAllByLabelText('Close').length).toBeGreaterThan(0)
+        expect(screen.getByLabelText('Close workflow details')).toBeInTheDocument()
       })
     })
 
@@ -1855,7 +1848,7 @@ describe('BuilderContent', () => {
 
       // Then open add step panel - should close details
       const user = userEvent.setup()
-      await user.click(screen.getByRole('button', { name: /add step/i }))
+      await user.click(screen.getByRole('button', { name: 'Add step' }))
 
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
@@ -1873,7 +1866,7 @@ describe('BuilderContent', () => {
 
       // Then open add step panel - should close history
       const user = userEvent.setup()
-      await user.click(screen.getByRole('button', { name: /add step/i }))
+      await user.click(screen.getByRole('button', { name: 'Add step' }))
 
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
@@ -2350,7 +2343,7 @@ describe('BuilderContent', () => {
 
       const user = userEvent.setup()
       // Open add step panel
-      const addNodeButton = screen.getByRole('button', { name: /add step/i })
+      const addNodeButton = screen.getByRole('button', { name: 'Add step' })
       await user.click(addNodeButton)
 
       await waitFor(() => {

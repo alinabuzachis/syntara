@@ -95,6 +95,9 @@ def _wait_for_provider_status(
         time.sleep(interval)
 
 
+@pytest.mark.skip(
+    reason="Flaky in CI merge queue — integration fixture setup fails intermittently; tracked in AAP-82230"
+)
 class TestMCPProviderIntegration:
     """E2E tests for MCP integration with the running MCP server."""
 

@@ -222,7 +222,7 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
                 </Stack>
               </FlexItem>
               <FlexItem>
-                <Button variant="plain" onClick={onClose} aria-label="Close">
+                <Button variant="plain" onClick={onClose} aria-label="Close run history">
                   <Icon>
                     <RhUiCloseIcon />
                   </Icon>
