@@ -7,13 +7,13 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 export const CREDENTIAL_TYPES_BY_INTEGRATION: Record<string, string[]> = {
   [IntegrationTypeEnum.MCP_SERVER]: ['HTTP Bearer Token'],
   [IntegrationTypeEnum.LLM_PROVIDER]: ['LLM Provider'],
-  [IntegrationTypeEnum.AAP_GATEWAY]: ['Ansible Automation Platform'],
+  [IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM]: ['Ansible Automation Platform'],
 }
 
 export const INTEGRATION_TYPE_LABELS: Record<string, string> = {
   [IntegrationTypeEnum.MCP_SERVER]: 'MCP Server',
   [IntegrationTypeEnum.LLM_PROVIDER]: 'LLM Provider',
-  [IntegrationTypeEnum.AAP_GATEWAY]: 'AAP Gateway',
+  [IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM]: 'Ansible Automation Platform',
 }
 
 export const getIntegrationNameFilterDefinition = (): FilterFieldDefinition => ({

@@ -66,7 +66,7 @@ logger = structlog.stdlib.get_logger(__name__)
 ALLOWED_CREDENTIAL_TYPES: dict[IntegrationType, frozenset[str]] = {
     IntegrationType.MCP_SERVER: frozenset({"HTTP Bearer Token"}),
     IntegrationType.LLM_PROVIDER: frozenset({"LLM Provider"}),
-    IntegrationType.AAP_GATEWAY: frozenset({"Ansible Automation Platform"}),
+    IntegrationType.ANSIBLE_AUTOMATION_PLATFORM: frozenset({"Ansible Automation Platform"}),
 }
 
 _REFRESHABLE_TYPES: frozenset[IntegrationType] = frozenset(

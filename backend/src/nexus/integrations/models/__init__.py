@@ -17,7 +17,7 @@ from nexus.integrations.models.integration import (
     RefreshResult,
 )
 from nexus.integrations.models.integration_configuration import (
-    AAPGatewayConfiguration,
+    AAPConfiguration,
     IntegrationConfiguration,
     IntegrationConfigurationInputTypes,
     IntegrationConfigurationTypes,
@@ -36,7 +36,7 @@ from nexus.integrations.models.llm_model import (
 from nexus.integrations.models.query_params import IntegrationListParams
 
 __all__ = [
-    "AAPGatewayConfiguration",
+    "AAPConfiguration",
     "InitialModelSelection",
     "Integration",
     "IntegrationConfiguration",

@@ -6,7 +6,7 @@ Technical documentation for the integrations feature in Nexus.
 
 ## Overview
 
-Integrations connect Nexus to external services — MCP servers (tool providers), LLM providers, and AAP Gateways. Each integration record stores connection configuration, a management credential reference, and system-managed discovery results.
+Integrations connect Nexus to external services — MCP servers (tool providers), LLM providers, and Ansible Automation Platform instances. Each integration record stores connection configuration, a management credential reference, and system-managed discovery results.
 
 Supported integration types:
 
@@ -14,7 +14,7 @@ Supported integration types:
 |------|--------------|---------------------|
 | `mcp_server` | `base_url` | Tools (name, description, parameters) |
 | `llm_provider` | `base_url`, `provider_hint` | Models (name, pricing) — planned |
-| `aap_gateway` | `gateway_url` | — planned |
+| `ansible_automation_platform` | `aap_url`, `insecure_skip_tls_verify` | None (connectivity check only) |
 
 ---
 
@@ -22,7 +22,7 @@ Supported integration types:
 
 Integration configuration has two kinds of fields:
 
-- **Admin-managed** — provided by the administrator when creating/editing (e.g., `base_url`, `provider_hint`, `gateway_url`)
+- **Admin-managed** — provided by the administrator when creating/editing (e.g., `base_url`, `provider_hint`, `aap_url`)
 - **System-managed** — populated by health checks (e.g., `discovered_tools`, `discovered_models`)
 
 These are separated using inheritance:
@@ -64,7 +64,7 @@ Each integration type requires a specific credential type. This is enforced at c
 |---|---|
 | `mcp_server` | HTTP Bearer Token |
 | `llm_provider` | LLM Provider |
-| `aap_gateway` | Ansible Automation Platform |
+| `ansible_automation_platform` | Ansible Automation Platform |
 
 The mapping is defined in `ALLOWED_CREDENTIAL_TYPES` in `integration_service.py`.
 
@@ -344,6 +344,40 @@ Update `schemas/integrations/openapi.yaml` to add the new enum value to `LLMProv
 
 ---
 
+## Ansible Automation Platform Adapter
+
+The AAP adapter (`integrations/adapters/aap.py`) validates connectivity and credential validity against an Ansible Automation Platform instance.
+
+**`validate()`** — Hits `GET {aap_url}/api/gateway/v1/me/` with an authenticated request. A 200 response confirms both endpoint reachability and credential validity in a single call. Returns structured errors for auth failures (401/403), timeouts, SSL verification failures, and connection errors.
+
+**`discover()`** — Delegates to `validate()` and returns `DiscoverResult(discovered_tools=None, discovered_models=None)`. Ansible Automation Platform has no discoverable resources at the integration level; AAP objects (job templates, inventories, organizations) are browsed at workflow-design time using the execution credential via the AAP proxy endpoints.
+
+### Design Decisions
+
+- **OAuth token with Basic Auth fallback.** The adapter uses `aap_oauth_token` (Bearer) if present, falling back to `aap_username` + `aap_password` (Basic Auth). OAuth token takes precedence. The Credential backend will eventually enforce mutual exclusivity.
+- **Single endpoint.** Using `/api/gateway/v1/me/` (not `/ping/`) because `/ping/` does not require authentication and cannot validate the management credential. The `/me/` endpoint is lightweight and requires valid credentials.
+- **TLS warning.** A `WARNING` level structured log is emitted on every validate call when `insecure_skip_tls_verify=True`, making the insecure state observable.
+
+### Credential Resolution
+
+The adapter receives the resolved `extra_vars` dict from `InjectorResolver.resolve()`. Authentication is resolved via `_resolve_auth()` with the following precedence:
+
+1. **OAuth token** — `aap_oauth_token` (mapped from the credential type's `oauth_token` input field via `{{oauth_token}}`). Sent as `Authorization: Bearer {token}`.
+2. **Basic Auth** — `aap_username` + `aap_password` (mapped from `{{username}}` and `{{password}}`). Used only when no OAuth token is present.
+
+### Error Classification
+
+| Condition | Error Type | Error Message |
+|-----------|-----------|---------------|
+| HTTP 401/403 | `AUTH_FAILURE` | "Authentication failed: HTTP {status}" |
+| HTTP 4xx/5xx (other) | `CONNECTION_ERROR` | "HTTP error: {status}" |
+| Timeout | `TIMEOUT` | "Connection timed out after {N}s" |
+| SSL/TLS failure | `SSL_ERROR` | "SSL/TLS verification failed" |
+| Connection refused/unreachable | `CONNECTION_ERROR` | "Unable to connect to Ansible Automation Platform" |
+| Any other exception | `CONNECTION_ERROR` | "Request failed unexpectedly" |
+
+---
+
 ## File Layout
 
 ```
@@ -359,6 +393,8 @@ src/nexus/integrations/
 │       ├── openai_compatible.py # OpenAI, Red Hat AI, Custom (Bearer auth)
 │       ├── anthropic.py         # Anthropic (x-api-key + anthropic-version)
 │       └── google.py            # Google Gemini (x-goog-api-key header)
+│   ├── aap.py                   # AAP adapter — validate via /api/gateway/v1/me/
+│   └── mcp_server.py            # MCP adapter — discover via MCPProvider.refresh_tools()
 ├── models/
 │   ├── integration.py           # Integration model, IntegrationCreate/Read/Patch, RefreshResult
 │   ├── integration_configuration.py  # Config types, LLMProviderHint enum

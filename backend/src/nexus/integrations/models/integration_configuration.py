@@ -83,12 +83,16 @@ class LLMProviderConfiguration(SQLModel):
         return self
 
 
-class AAPGatewayConfiguration(SQLModel):
-    """Configuration for Ansible Automation Platform Gateway integrations."""
+class AAPConfiguration(SQLModel):
+    """Configuration for Ansible Automation Platform integrations."""
 
-    integration_type: Literal["aap_gateway"] = "aap_gateway"
+    integration_type: Literal["ansible_automation_platform"] = "ansible_automation_platform"
 
-    gateway_url: str = Field(description="URL of the AAP Gateway", json_schema_extra={"format": "uri"})
+    aap_url: str = Field(
+        title="AAP URL",
+        description="URL of the Ansible Automation Platform",
+        json_schema_extra={"format": "uri"},
+    )
 
     insecure_skip_tls_verify: bool = Field(
         default=False,
@@ -97,15 +101,15 @@ class AAPGatewayConfiguration(SQLModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
 
-    @field_validator("gateway_url")
+    @field_validator("aap_url")
     @classmethod
-    def validate_gateway_url(cls, v: str) -> str:
+    def validate_aap_url(cls, v: str) -> str:
         """Validate and normalize URL to prevent SSRF."""
         return validate_host_url(v)
 
 
 # Configuration types (used by DB model, read schema, and create/patch)
-IntegrationConfigurationTypes = MCPServerConfigurationInput | LLMProviderConfiguration | AAPGatewayConfiguration
+IntegrationConfigurationTypes = MCPServerConfigurationInput | LLMProviderConfiguration | AAPConfiguration
 IntegrationConfiguration = Annotated[
     IntegrationConfigurationTypes,
     Field(discriminator="integration_type"),

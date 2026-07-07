@@ -622,11 +622,11 @@ class TestRefreshIntegrationResources:
         self, test_db_session: AsyncSession, integration_service: IntegrationService, test_user: User
     ) -> None:
         integration = Integration(
-            name="AAP Gateway",
-            integration_type=IntegrationType.AAP_GATEWAY,
+            name="Ansible Automation Platform",
+            integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
             configuration={
-                "integration_type": "aap_gateway",
-                "gateway_url": "https://gateway.example.com",
+                "integration_type": "ansible_automation_platform",
+                "aap_url": "https://gateway.example.com",
             },
             created_by=test_user.id,
             updated_by=test_user.id,

@@ -6,7 +6,7 @@ info:
     REST API for managing Integrations.
 
     Integrations are named, managed connections to external services -
-    MCP servers, LLM providers, and AAP gateways - that workflows use
+    MCP servers, LLM providers, and Ansible Automation Platform - that workflows use
     as building blocks.
 
     ## Key Features
@@ -676,7 +676,7 @@ components:
       enum:
         - mcp_server
         - llm_provider
-        - aap_gateway
+        - ansible_automation_platform
       title: IntegrationType
       description: Type of external integration.
 
@@ -738,13 +738,13 @@ components:
           oneOf:
             - $ref: '#/components/schemas/MCPServerConfigurationInput'
             - $ref: '#/components/schemas/LLMProviderConfiguration'
-            - $ref: '#/components/schemas/AAPGatewayConfiguration'
+            - $ref: '#/components/schemas/AAPConfiguration'
           title: Configuration
           description: Integration-specific configuration
           discriminator:
             propertyName: integration_type
             mapping:
-              aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
+              ansible_automation_platform: '#/components/schemas/AAPConfiguration'
               llm_provider: '#/components/schemas/LLMProviderConfiguration'
               mcp_server: '#/components/schemas/MCPServerConfigurationInput'
         management_credential_id:
@@ -892,11 +892,11 @@ components:
             - oneOf:
                 - $ref: '#/components/schemas/MCPServerConfigurationInput'
                 - $ref: '#/components/schemas/LLMProviderConfiguration'
-                - $ref: '#/components/schemas/AAPGatewayConfiguration'
+                - $ref: '#/components/schemas/AAPConfiguration'
               discriminator:
                 propertyName: integration_type
                 mapping:
-                  aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
+                  ansible_automation_platform: '#/components/schemas/AAPConfiguration'
                   llm_provider: '#/components/schemas/LLMProviderConfiguration'
                   mcp_server: '#/components/schemas/MCPServerConfigurationInput'
             - type: "null"
@@ -972,11 +972,11 @@ components:
             mapping:
               mcp_server: "#/components/schemas/MCPServerConfigurationInput"
               llm_provider: "#/components/schemas/LLMProviderConfiguration"
-              aap_gateway: "#/components/schemas/AAPGatewayConfiguration"
+              ansible_automation_platform: "#/components/schemas/AAPConfiguration"
           oneOf:
             - $ref: "#/components/schemas/MCPServerConfigurationInput"
             - $ref: "#/components/schemas/LLMProviderConfiguration"
-            - $ref: "#/components/schemas/AAPGatewayConfiguration"
+            - $ref: "#/components/schemas/AAPConfiguration"
           title: Configuration
         credential_id:
           type: string
@@ -1017,13 +1017,13 @@ components:
               oneOf:
                 - $ref: '#/components/schemas/MCPServerConfigurationInput'
                 - $ref: '#/components/schemas/LLMProviderConfiguration'
-                - $ref: '#/components/schemas/AAPGatewayConfiguration'
+                - $ref: '#/components/schemas/AAPConfiguration'
               title: Configuration
               description: Integration-specific configuration
               discriminator:
                 propertyName: integration_type
                 mapping:
-                  aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
+                  ansible_automation_platform: '#/components/schemas/AAPConfiguration'
                   llm_provider: '#/components/schemas/LLMProviderConfiguration'
                   mcp_server: '#/components/schemas/MCPServerConfigurationInput'
             last_validated_at:
@@ -1133,28 +1133,28 @@ components:
       title: LLMProviderConfiguration
       type: object
 
-    AAPGatewayConfiguration:
-      description: Configuration for Ansible Automation Platform Gateway integrations.
+    AAPConfiguration:
+      description: Configuration for Ansible Automation Platform integrations.
       additionalProperties: false
       properties:
         integration_type:
           type: string
-          const: aap_gateway
-          default: aap_gateway
+          const: ansible_automation_platform
+          default: ansible_automation_platform
           title: Integration Type
-        gateway_url:
+        aap_url:
           type: string
           format: uri
-          title: Gateway Url
-          description: URL of the AAP Gateway
+          title: AAP URL
+          description: URL of the Ansible Automation Platform
         insecure_skip_tls_verify:
           type: boolean
           title: Insecure Skip Tls Verify
           description: Disable TLS certificate verification. Insecure; do not enable in production.
           default: false
       required:
-        - gateway_url
-      title: AAPGatewayConfiguration
+        - aap_url
+      title: AAPConfiguration
       type: object
 
     DiscoveredLLMModel:

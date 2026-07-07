@@ -107,7 +107,7 @@ def classify_http_error(
             )
     return (
         HealthCheckErrorType.CONNECTION_ERROR,
-        f"Request failed: {type(errors[0]).__name__}",
+        f"Request failed: {type(errors[0]).__name__}" if errors else "HTTP error: unknown",
     )
 
 
@@ -115,7 +115,7 @@ def classify_http_error(
 class IntegrationAdapter(Protocol):
     """Protocol for integration adapters.
 
-    Each integration type (LLM, MCP, AAP Gateway) implements this protocol.
+    Each integration type (LLM, MCP, Ansible Automation Platform) implements this protocol.
     The adapter receives its typed configuration via the constructor; the
     validate and discover methods only take per-call parameters.
 

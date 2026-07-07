@@ -222,7 +222,7 @@ export interface components {
      * @description Type of external integration.
      * @enum {string}
      */
-    IntegrationType: 'mcp_server' | 'llm_provider' | 'aap_gateway'
+    IntegrationType: 'mcp_server' | 'llm_provider' | 'ansible_automation_platform'
     /**
      * IntegrationStatus
      * @description Validation status of an integration.
@@ -270,7 +270,7 @@ export interface components {
       configuration:
         | components['schemas']['MCPServerConfigurationInput']
         | components['schemas']['LLMProviderConfiguration']
-        | components['schemas']['AAPGatewayConfiguration']
+        | components['schemas']['AAPConfiguration']
       /**
        * Management Credential Id
        * @description Optional credential for admin operations
@@ -392,7 +392,7 @@ export interface components {
         | (
             | components['schemas']['MCPServerConfigurationInput']
             | components['schemas']['LLMProviderConfiguration']
-            | components['schemas']['AAPGatewayConfiguration']
+            | components['schemas']['AAPConfiguration']
           )
         | null
       /**
@@ -450,7 +450,7 @@ export interface components {
       configuration:
         | components['schemas']['MCPServerConfigurationInput']
         | components['schemas']['LLMProviderConfiguration']
-        | components['schemas']['AAPGatewayConfiguration']
+        | components['schemas']['AAPConfiguration']
       /**
        * Credential Id
        * Format: uuid
@@ -477,7 +477,7 @@ export interface components {
       configuration:
         | components['schemas']['MCPServerConfigurationInput']
         | components['schemas']['LLMProviderConfiguration']
-        | components['schemas']['AAPGatewayConfiguration']
+        | components['schemas']['AAPConfiguration']
       /** Last Validated At */
       last_validated_at?: string | null
       /** Management Credential Id */
@@ -557,21 +557,21 @@ export interface components {
       base_url?: string | null
     }
     /**
-     * AAPGatewayConfiguration
-     * @description Configuration for Ansible Automation Platform Gateway integrations.
+     * AAPConfiguration
+     * @description Configuration for Ansible Automation Platform integrations.
      */
-    AAPGatewayConfiguration: {
+    AAPConfiguration: {
       /**
        * @description discriminator enum property added by openapi-typescript
        * @enum {string}
        */
-      integration_type: 'aap_gateway'
+      integration_type: 'ansible_automation_platform'
       /**
-       * Gateway Url
+       * AAP URL
        * Format: uri
-       * @description URL of the AAP Gateway
+       * @description URL of the Ansible Automation Platform
        */
-      gateway_url: string
+      aap_url: string
       /**
        * Insecure Skip Tls Verify
        * @description Disable TLS certificate verification. Insecure; do not enable in production.

@@ -2,7 +2,7 @@
 
 This module contains the Integration model and associated schemas.
 An Integration represents an external service connection (MCP server,
-LLM provider, or AAP Gateway) that workflows can use.
+LLM provider, or Ansible Automation Platform) that workflows can use.
 """
 
 from datetime import datetime
@@ -33,7 +33,7 @@ class IntegrationType(StrEnum):
 
     MCP_SERVER = "mcp_server"
     LLM_PROVIDER = "llm_provider"
-    AAP_GATEWAY = "aap_gateway"
+    ANSIBLE_AUTOMATION_PLATFORM = "ansible_automation_platform"
 
 
 class IntegrationStatus(StrEnum):

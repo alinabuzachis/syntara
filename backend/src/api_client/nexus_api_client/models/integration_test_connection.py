@@ -9,7 +9,7 @@ from attrs import define as _attrs_define
 from ..models.integration_type import IntegrationType
 
 if TYPE_CHECKING:
-    from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+    from ..models.aap_configuration import AAPConfiguration
     from ..models.llm_provider_configuration import LLMProviderConfiguration
     from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
@@ -23,13 +23,13 @@ class IntegrationTestConnection:
 
     Attributes:
         integration_type (IntegrationType): Type of external integration.
-        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-
-            specific configuration
+        configuration (AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-specific
+            configuration
         credential_id (UUID): Credential to use for the connection test
     """
 
     integration_type: IntegrationType
-    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
+    configuration: AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
     credential_id: UUID
 
     def to_dict(self) -> dict[str, Any]:
@@ -62,7 +62,7 @@ class IntegrationTestConnection:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+        from ..models.aap_configuration import AAPConfiguration
         from ..models.llm_provider_configuration import LLMProviderConfiguration
         from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
@@ -71,7 +71,7 @@ class IntegrationTestConnection:
 
         def _parse_configuration(
             data: object,
-        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput:
+        ) -> AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
@@ -90,7 +90,7 @@ class IntegrationTestConnection:
                 pass
             if not isinstance(data, dict):
                 raise TypeError()
-            configuration_type_2 = AAPGatewayConfiguration.from_dict(data)
+            configuration_type_2 = AAPConfiguration.from_dict(data)
 
             return configuration_type_2
 

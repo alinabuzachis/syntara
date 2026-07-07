@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class IntegrationType(str, Enum):
-    AAP_GATEWAY = "aap_gateway"
+    ANSIBLE_AUTOMATION_PLATFORM = "ansible_automation_platform"
     LLM_PROVIDER = "llm_provider"
     MCP_SERVER = "mcp_server"
 

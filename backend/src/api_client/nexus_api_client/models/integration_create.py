@@ -11,7 +11,7 @@ from ..models.integration_type import IntegrationType
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+    from ..models.aap_configuration import AAPConfiguration
     from ..models.initial_model_selection import InitialModelSelection
     from ..models.initial_tool_selection import InitialToolSelection
     from ..models.integration_create_labels import IntegrationCreateLabels
@@ -29,8 +29,8 @@ class IntegrationCreate:
     Attributes:
         name (str): Human-readable name for the integration
         integration_type (IntegrationType): Type of external integration.
-        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-
-            specific configuration
+        configuration (AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-specific
+            configuration
         description (None | str | Unset): Detailed description of the integration
         management_credential_id (None | Unset | UUID): Optional credential for admin operations
         enabled (bool | Unset): Whether the integration is active Default: True.
@@ -44,7 +44,7 @@ class IntegrationCreate:
 
     name: str
     integration_type: IntegrationType
-    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
+    configuration: AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
     description: None | str | Unset = UNSET
     management_credential_id: None | Unset | UUID = UNSET
     enabled: bool | Unset = True
@@ -145,7 +145,7 @@ class IntegrationCreate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+        from ..models.aap_configuration import AAPConfiguration
         from ..models.initial_model_selection import InitialModelSelection
         from ..models.initial_tool_selection import InitialToolSelection
         from ..models.integration_create_labels import IntegrationCreateLabels
@@ -159,7 +159,7 @@ class IntegrationCreate:
 
         def _parse_configuration(
             data: object,
-        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput:
+        ) -> AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
@@ -178,7 +178,7 @@ class IntegrationCreate:
                 pass
             if not isinstance(data, dict):
                 raise TypeError()
-            configuration_type_2 = AAPGatewayConfiguration.from_dict(data)
+            configuration_type_2 = AAPConfiguration.from_dict(data)
 
             return configuration_type_2
 

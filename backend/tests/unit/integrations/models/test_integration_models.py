@@ -12,7 +12,7 @@ from nexus.integrations.models.integration import (
     IntegrationType,
 )
 from nexus.integrations.models.integration_configuration import (
-    AAPGatewayConfiguration,
+    AAPConfiguration,
     LLMProviderConfiguration,
     MCPServerConfiguration,
 )
@@ -35,13 +35,13 @@ class TestIntegrationConfigurationModels:
         config = LLMProviderConfiguration(base_url="http://localhost:11434", provider_hint="red_hat_ai")
         assert config.provider_hint == "red_hat_ai"
 
-    def test_aap_gateway_configuration(self) -> None:
-        config = AAPGatewayConfiguration(gateway_url="https://gateway.example.com")
-        assert config.integration_type == "aap_gateway"
+    def test_aap_configuration(self) -> None:
+        config = AAPConfiguration(aap_url="https://gateway.example.com")
+        assert config.integration_type == "ansible_automation_platform"
         assert config.insecure_skip_tls_verify is False
 
-    def test_aap_gateway_configuration_skip_tls_verify(self) -> None:
-        config = AAPGatewayConfiguration(gateway_url="https://gateway.example.com", insecure_skip_tls_verify=True)
+    def test_aap_configuration_skip_tls_verify(self) -> None:
+        config = AAPConfiguration(aap_url="https://gateway.example.com", insecure_skip_tls_verify=True)
         assert config.insecure_skip_tls_verify is True
 
     def test_mcp_server_rejects_extra_fields(self) -> None:
@@ -52,9 +52,9 @@ class TestIntegrationConfigurationModels:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             LLMProviderConfiguration(base_url="http://localhost:11434", provider_hint="custom", extra_field="val")
 
-    def test_aap_gateway_rejects_extra_fields(self) -> None:
+    def test_aap_rejects_extra_fields(self) -> None:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-            AAPGatewayConfiguration(gateway_url="https://gw.example.com", extra_field="val")
+            AAPConfiguration(aap_url="https://gw.example.com", extra_field="val")
 
 
 class TestURLValidation:
@@ -80,17 +80,17 @@ class TestURLValidation:
         with pytest.raises(ValidationError, match="scheme must be"):
             LLMProviderConfiguration(base_url="ftp://example.com", provider_hint="custom")
 
-    def test_aap_gateway_rejects_http(self) -> None:
+    def test_aap_rejects_http(self) -> None:
         with pytest.raises(ValidationError, match="scheme must be"):
-            AAPGatewayConfiguration(gateway_url="http://gateway.example.com")
+            AAPConfiguration(aap_url="http://gateway.example.com")
 
-    def test_aap_gateway_rejects_url_with_query(self) -> None:
+    def test_aap_rejects_url_with_query(self) -> None:
         with pytest.raises(ValidationError, match="must not contain a query"):
-            AAPGatewayConfiguration(gateway_url="https://gateway.example.com?token=abc")
+            AAPConfiguration(aap_url="https://gateway.example.com?token=abc")
 
-    def test_aap_gateway_accepts_https(self) -> None:
-        config = AAPGatewayConfiguration(gateway_url="https://gateway.example.com")
-        assert config.gateway_url == "https://gateway.example.com"
+    def test_aap_accepts_https(self) -> None:
+        config = AAPConfiguration(aap_url="https://gateway.example.com")
+        assert config.aap_url == "https://gateway.example.com"
 
     def test_mcp_server_accepts_http_and_https(self) -> None:
         http = MCPServerConfiguration(base_url="http://localhost:8080")
@@ -127,13 +127,13 @@ class TestIntegrationCreate:
         )
         assert data.integration_type == IntegrationType.LLM_PROVIDER
 
-    def test_valid_aap_gateway_create(self) -> None:
+    def test_valid_aap_create(self) -> None:
         data = IntegrationCreate(
             name="My Gateway",
-            integration_type=IntegrationType.AAP_GATEWAY,
-            configuration={"integration_type": "aap_gateway", "gateway_url": "https://gw.example.com"},
+            integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
+            configuration={"integration_type": "ansible_automation_platform", "aap_url": "https://gw.example.com"},
         )
-        assert data.integration_type == IntegrationType.AAP_GATEWAY
+        assert data.integration_type == IntegrationType.ANSIBLE_AUTOMATION_PLATFORM
 
     def test_missing_name_raises(self) -> None:
         with pytest.raises(ValidationError, match="Field required"):
@@ -226,7 +226,7 @@ class TestIntegrationEnums:
     def test_integration_type_values(self) -> None:
         assert IntegrationType.MCP_SERVER.value == "mcp_server"
         assert IntegrationType.LLM_PROVIDER.value == "llm_provider"
-        assert IntegrationType.AAP_GATEWAY.value == "aap_gateway"
+        assert IntegrationType.ANSIBLE_AUTOMATION_PLATFORM.value == "ansible_automation_platform"
 
     def test_integration_status_values(self) -> None:
         assert IntegrationStatus.UNKNOWN.value == "unknown"

@@ -78,22 +78,20 @@ class TestCreateIntegration:
         assert result.configuration.provider_hint == "custom"  # type: ignore[union-attr]
 
     @pytest.mark.asyncio
-    async def test_create_aap_gateway(
-        self, test_db_session: AsyncSession, integration_service: IntegrationService
-    ) -> None:
+    async def test_create_aap(self, test_db_session: AsyncSession, integration_service: IntegrationService) -> None:
         data = IntegrationCreate(
             name="Test Gateway",
-            integration_type=IntegrationType.AAP_GATEWAY,
+            integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
             configuration={
-                "integration_type": "aap_gateway",
-                "gateway_url": "https://gateway.example.com",
+                "integration_type": "ansible_automation_platform",
+                "aap_url": "https://gateway.example.com",
                 "insecure_skip_tls_verify": True,
             },
         )
         result = await integration_service.create_integration(data)
 
-        assert result.integration_type == IntegrationType.AAP_GATEWAY
-        assert result.configuration.gateway_url == "https://gateway.example.com"  # type: ignore[union-attr]
+        assert result.integration_type == IntegrationType.ANSIBLE_AUTOMATION_PLATFORM
+        assert result.configuration.aap_url == "https://gateway.example.com"  # type: ignore[union-attr]
         assert result.configuration.insecure_skip_tls_verify is True  # type: ignore[union-attr]
 
     @pytest.mark.asyncio

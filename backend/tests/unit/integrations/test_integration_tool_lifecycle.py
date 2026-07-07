@@ -377,25 +377,25 @@ class TestRefreshIntegrationResources:
         assert tools[0].namespaced_name == "My Integration::my_tool"
 
     @pytest.mark.asyncio
-    async def test_aap_gateway_refresh_raises(
+    async def test_aap_refresh_raises(
         self,
         test_db_session: AsyncSession,
         test_user: User,
     ) -> None:
-        """refresh_resources raises for unsupported integration types (aap_gateway)."""
+        """refresh_resources raises for unsupported integration types (ansible_automation_platform)."""
         from nexus.integrations.exceptions import IntegrationRefreshNotSupportedError
 
         service = IntegrationService(test_db_session, test_user)
         data = IntegrationCreate(
             name="Gateway No Refresh",
-            integration_type=IntegrationType.AAP_GATEWAY,
+            integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
             configuration={
-                "integration_type": "aap_gateway",
-                "gateway_url": "https://gateway.example.com",
+                "integration_type": "ansible_automation_platform",
+                "aap_url": "https://gateway.example.com",
             },
         )
         created = await service.create_integration(data)
         await test_db_session.flush()
 
-        with pytest.raises(IntegrationRefreshNotSupportedError, match="aap_gateway"):
+        with pytest.raises(IntegrationRefreshNotSupportedError, match="ansible_automation_platform"):
             await service.refresh_resources(created.id)

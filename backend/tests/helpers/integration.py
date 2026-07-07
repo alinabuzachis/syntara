@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.core.models import User
 from nexus.integrations.models.integration import Integration, IntegrationType
 from nexus.integrations.models.integration_configuration import (
-    AAPGatewayConfiguration,
+    AAPConfiguration,
     IntegrationConfigurationTypes,
     LLMProviderConfiguration,
     MCPServerConfiguration,
@@ -58,10 +58,10 @@ class IntegrationFactory:
                 base_url=base_url,
                 provider_hint="openai",
             )
-        elif integration_type == IntegrationType.AAP_GATEWAY:
-            configuration = AAPGatewayConfiguration(
-                integration_type="aap_gateway",
-                gateway_url=base_url,
+        elif integration_type == IntegrationType.ANSIBLE_AUTOMATION_PLATFORM:
+            configuration = AAPConfiguration(
+                integration_type="ansible_automation_platform",
+                aap_url=base_url,
             )
         else:
             assert_never(integration_type)

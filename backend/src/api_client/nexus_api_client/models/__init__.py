@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Any
 
 __all__ = (
+    "AAPConfiguration",
     "AAPCredential",
     "AAPExecutionEnvironment",
-    "AAPGatewayConfiguration",
     "AAPInstanceGroup",
     "AAPInventory",
     "AAPJobTemplate",

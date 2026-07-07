@@ -157,7 +157,7 @@ export type WorkflowVersionStatus = WorkflowAPI.components['schemas']['WorkflowV
 export const IntegrationTypeEnum = {
   MCP_SERVER: 'mcp_server',
   LLM_PROVIDER: 'llm_provider',
-  AAP_GATEWAY: 'aap_gateway',
+  ANSIBLE_AUTOMATION_PLATFORM: 'ansible_automation_platform',
 } as const
 
 /**

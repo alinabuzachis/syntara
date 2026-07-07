@@ -53,15 +53,15 @@ class TestIntegrationRefreshContract:
     async def test_refresh_unsupported_type_returns_422(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User
     ) -> None:
-        """Refreshing an AAP gateway integration type returns 422."""
+        """Refreshing an Ansible Automation Platform integration type returns 422."""
         service = IntegrationService(test_db_session, test_user)
         created = await service.create_integration(
             IntegrationCreate(
                 name=f"aap-refresh-{uuid4().hex[:8]}",
-                integration_type=IntegrationType.AAP_GATEWAY,
+                integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
                 configuration={
-                    "integration_type": "aap_gateway",
-                    "gateway_url": "https://gateway.example.com",
+                    "integration_type": "ansible_automation_platform",
+                    "aap_url": "https://gateway.example.com",
                 },
             )
         )

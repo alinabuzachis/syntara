@@ -33,10 +33,10 @@ def _llm_payload(name: str | None = None) -> dict[str, object]:
 def _aap_payload(name: str | None = None) -> dict[str, object]:
     return {
         "name": name or f"aap-{uuid4().hex[:8]}",
-        "integration_type": "aap_gateway",
+        "integration_type": "ansible_automation_platform",
         "configuration": {
-            "integration_type": "aap_gateway",
-            "gateway_url": "https://gw.example.com",
+            "integration_type": "ansible_automation_platform",
+            "aap_url": "https://gw.example.com",
         },
     }
 
@@ -63,12 +63,12 @@ class TestIntegrationsCreate:
         assert data["integration_type"] == "llm_provider"
         assert data["validation_status"] == "unknown"
 
-    async def test_create_aap_gateway_returns_201(self, auth_client: AsyncClient) -> None:
-        """Creating an aap_gateway integration returns 201."""
+    async def test_create_aap_returns_201(self, auth_client: AsyncClient) -> None:
+        """Creating an ansible_automation_platform integration returns 201."""
         response = await auth_client.post(BASE_URL, json=_aap_payload())
         assert response.status_code == 201
         data = response.json()
-        assert data["integration_type"] == "aap_gateway"
+        assert data["integration_type"] == "ansible_automation_platform"
         assert data["validation_status"] == "unknown"
 
     async def test_create_response_includes_required_fields(self, auth_client: AsyncClient) -> None:
@@ -166,14 +166,14 @@ class TestIntegrationsCreate:
         response = await auth_client.post(BASE_URL, json=payload)
         assert response.status_code == 422
 
-    async def test_create_aap_gateway_rejects_http(self, auth_client: AsyncClient) -> None:
-        """aap_gateway with http (non-https) gateway_url is rejected."""
+    async def test_create_aap_rejects_http(self, auth_client: AsyncClient) -> None:
+        """ansible_automation_platform with http (non-https) aap_url is rejected."""
         payload = {
             "name": f"aap-http-{uuid4().hex[:8]}",
-            "integration_type": "aap_gateway",
+            "integration_type": "ansible_automation_platform",
             "configuration": {
-                "integration_type": "aap_gateway",
-                "gateway_url": "http://gw.example.com",
+                "integration_type": "ansible_automation_platform",
+                "aap_url": "http://gw.example.com",
             },
         }
         response = await auth_client.post(BASE_URL, json=payload)

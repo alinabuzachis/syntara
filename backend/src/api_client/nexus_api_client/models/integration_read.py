@@ -15,7 +15,7 @@ from ..models.integration_type import IntegrationType
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+    from ..models.aap_configuration import AAPConfiguration
     from ..models.integration_read_labels import IntegrationReadLabels
     from ..models.llm_provider_configuration import LLMProviderConfiguration
     from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
@@ -32,8 +32,8 @@ class IntegrationRead:
         created_by (UUID): User (or automation) that created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
         name (str): Human-readable name for the resource Example: Authentication Service.
         integration_type (IntegrationType): Type of external integration.
-        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-
-            specific configuration
+        configuration (AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-specific
+            configuration
         id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
         created_at (datetime.datetime | Unset): Timestamp when resource was created Example: 2025-10-09T12:00:00Z.
         updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
@@ -65,7 +65,7 @@ class IntegrationRead:
     created_by: UUID
     name: str
     integration_type: IntegrationType
-    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
+    configuration: AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
     id: UUID | Unset = UNSET
     created_at: datetime.datetime | Unset = UNSET
     updated_at: datetime.datetime | Unset = UNSET
@@ -271,7 +271,7 @@ class IntegrationRead:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+        from ..models.aap_configuration import AAPConfiguration
         from ..models.integration_read_labels import IntegrationReadLabels
         from ..models.llm_provider_configuration import LLMProviderConfiguration
         from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
@@ -285,7 +285,7 @@ class IntegrationRead:
 
         def _parse_configuration(
             data: object,
-        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput:
+        ) -> AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
@@ -304,7 +304,7 @@ class IntegrationRead:
                 pass
             if not isinstance(data, dict):
                 raise TypeError()
-            configuration_type_2 = AAPGatewayConfiguration.from_dict(data)
+            configuration_type_2 = AAPConfiguration.from_dict(data)
 
             return configuration_type_2
 

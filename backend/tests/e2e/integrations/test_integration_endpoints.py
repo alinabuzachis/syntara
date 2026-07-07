@@ -1,7 +1,7 @@
 """E2E tests for integration API endpoints.
 
 Covers CRUD operations for all three integration types (MCP server,
-LLM provider, AAP gateway), filtering, pagination, and error cases.
+LLM provider, Ansible Automation Platform), filtering, pagination, and error cases.
 
 Run with:
     APP_BASE_URL=http://localhost:8000 make test-e2e
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
-from nexus_api_client.models.aap_gateway_configuration import AAPGatewayConfiguration
+from nexus_api_client.models.aap_configuration import AAPConfiguration
 from nexus_api_client.models.integration_create import IntegrationCreate
 from nexus_api_client.models.integration_patch import IntegrationPatch
 from nexus_api_client.models.integration_type import IntegrationType
@@ -59,9 +59,9 @@ def _llm_create(name: str | None = None) -> IntegrationCreate:
 def _aap_create(name: str | None = None) -> IntegrationCreate:
     return IntegrationCreate(
         name=name or unique_name("e2e-aap"),
-        integration_type=IntegrationType.AAP_GATEWAY,
-        configuration=AAPGatewayConfiguration(
-            gateway_url="https://gateway.example.com",
+        integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
+        configuration=AAPConfiguration(
+            aap_url="https://gateway.example.com",
             insecure_skip_tls_verify=False,
         ),
     )
@@ -83,9 +83,9 @@ class TestCreateIntegration:
         assert result["integration_type"] == "llm_provider"
         assert result["configuration"]["provider_hint"] == "openai"
 
-    def test_create_aap_gateway(self, integration_factory: Callable[..., dict[str, Any]]) -> None:
+    def test_create_aap(self, integration_factory: Callable[..., dict[str, Any]]) -> None:
         result = integration_factory(_aap_create())
-        assert result["integration_type"] == "aap_gateway"
+        assert result["integration_type"] == "ansible_automation_platform"
         assert result["configuration"]["insecure_skip_tls_verify"] is False
 
     def test_create_duplicate_name_returns_409(

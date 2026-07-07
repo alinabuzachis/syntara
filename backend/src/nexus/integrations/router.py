@@ -6,7 +6,8 @@ from uuid import UUID
 from fastapi import Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-import nexus.integrations.adapters.llm_provider
+import nexus.integrations.adapters.aap  # register AAP adapter
+import nexus.integrations.adapters.llm_provider  # register LLM provider adapter
 import nexus.integrations.adapters.mcp_server  # noqa: F401 — register MCP adapter
 from nexus.audit.decorators import audit
 from nexus.audit.models.audit_event import EventCategory
