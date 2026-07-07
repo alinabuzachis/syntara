@@ -28,14 +28,15 @@ class WorkflowFactory(Protocol):
         prefix: str | None = None,
         name: str | None = None,
         definition: dict[str, Any] | WorkflowDefinition | None = None,
+        *,
+        force_save: bool = False,
     ) -> tuple[UUID, str]: ...
 
 
 @pytest.fixture(scope="module")
 def create_workflow() -> Generator[WorkflowFactory, None, None]:
     """Create test workflow. Returns ``(workflow_id, workflow_name)``."""
-    created_workflow_id = None
-    test_api = None
+    created: list[tuple[UUID, NexusApiRegistry]] = []
 
     def _create_workflow(
         api: NexusApiRegistry,
@@ -43,6 +44,8 @@ def create_workflow() -> Generator[WorkflowFactory, None, None]:
         prefix: str | None = None,
         name: str | None = None,
         definition: dict[str, Any] | WorkflowDefinition | None = None,
+        *,
+        force_save: bool = False,
     ) -> tuple[UUID, str]:
         """Create a minimal test workflow. Returns ``(workflow_id, name)``."""
         prefx = prefix or "test"
@@ -56,18 +59,17 @@ def create_workflow() -> Generator[WorkflowFactory, None, None]:
                 workflow_definition=workflow_def,
                 project_id=project_id,
             ),
+            force_save=force_save,
         )
         wf = resp.assert_and_get()
-        nonlocal created_workflow_id, test_api
-        test_api = api
-        created_workflow_id = UUID(str(wf.id))
-        return created_workflow_id, str(wf.name)
+        wf_id = UUID(str(wf.id))
+        created.append((wf_id, api))
+        return wf_id, str(wf.name)
 
     yield _create_workflow
 
-    # delete user
-    if created_workflow_id is not None and test_api is not None:
+    for wf_id, api in created:
         try:
-            test_api.workflows.delete(workflow_id=created_workflow_id)
+            api.workflows.delete(workflow_id=wf_id)
         except Exception:
             pass  # Best effort cleanup

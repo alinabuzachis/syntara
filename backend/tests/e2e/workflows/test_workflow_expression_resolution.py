@@ -11,13 +11,19 @@ Test Plan Coverage:
 - API-18 (Expression Resolution - Node Output References): FULLY COVERED
   - Tests ${node_id.stdout_json.field} expressions in config.environment
   - Tests ${trigger_id.field} expressions referencing trigger node outputs
-- API-19 (Expression Resolution - System Variables): NOT COVERED
-  - ${inputs.*}, ${execution.id}, and ${workflow.vars.x} are NOT implemented
-  - The 'inputs' namespace does not exist in the expression resolver
+- API-19 (Expression Resolution - System Variables): PARTIALLY COVERED
+  - ${inputs.*}: NOT a named namespace. Use ${<trigger_node_id>.field} instead —
+    same data, different key. Covered by test_trigger_input_reference_resolution.
+  - ${execution.id}: Implemented but at a different path. The correct expression is
+    ${workflow_context.execution.id}. Covered by test_workflow_context_execution_id_resolves.
+  - ${workflow.vars.x}: NOT implemented — no namespace creation in the engine.
+- API-20 (Expression Resolution - Unresolvable Expression Error): FULLY COVERED
+  - Tests that referencing a nonexistent field fails the consuming node
+  - Tests that the error message identifies the unresolvable path
+  - Tests that continue_on_failure absorbs the resolution failure
 
 """
 
-from collections.abc import Callable
 from typing import Any
 from uuid import UUID
 
@@ -26,12 +32,13 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import (
     ExecutionCreate,
     ExecutionCreateInputData,
-    WorkflowCreate,
     WorkflowDefinition,
-    WorkflowRead,
 )
+from nexus_api_client.models.activity_status import ActivityStatus
+from nexus_api_client.models.execution_status import ExecutionStatus
 
 from tests.e2e.conftest import poll_execution_until_complete, unique_name
+from tests.fixtures.factories.workflow_factories import WorkflowFactory
 
 pytestmark = [pytest.mark.e2e]
 
@@ -59,7 +66,7 @@ class TestExpressionResolution:
     def test_node_output_reference_resolution(
         self,
         nexus_api: NexusApiRegistry,
-        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):
         """Test that ${node_id.field} expressions resolve to upstream node outputs.
@@ -84,11 +91,11 @@ class TestExpressionResolution:
         # Step 1: Create workflow with two connected nodes
         # Node A produces JSON output with a field "message"
         # Node B uses ${node_a.stdout_json.message} in config.environment to reference that field
-        workflow_data = WorkflowCreate(
-            name=workflow_name,
-            description="Workflow for testing expression resolution",
+        workflow_id, _ = create_workflow(
+            api=nexus_api,
             project_id=first_project_id,
-            workflow_definition=_workflow_definition_with_nodes(
+            name=workflow_name,
+            definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {
                     "id": "node_a",
@@ -117,17 +124,16 @@ class TestExpressionResolution:
                 ],
             ),
         )
-        workflow = workflow_factory(workflow_data)
 
         # Step 2: Execute the workflow
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
         execution_id = execution.id
 
         # Poll until execution completes
         final_execution = poll_execution_until_complete(nexus_api, execution_id)
 
         # Expected Result 1: Execution completes successfully
-        assert str(final_execution.status) == "completed", (
+        assert final_execution.status == ExecutionStatus.COMPLETED, (
             f"Execution should complete successfully, got: {final_execution.status}"
         )
 
@@ -144,7 +150,7 @@ class TestExpressionResolution:
         node_b_activity = activities_by_id["node_b"]
 
         # Expected Result 3: Node A produced output
-        assert str(node_a_activity.status) == "completed", "node_a should complete successfully"
+        assert node_a_activity.status == "completed", "node_a should complete successfully"
         assert node_a_activity.output_data is not None, "node_a should have output data"
 
         # Expected Result 4: Node A output contains expected fields
@@ -164,20 +170,18 @@ class TestExpressionResolution:
 
         # Expected Result 5: Node B executed successfully
         # If expression resolution worked, node_b would have received the resolved value
-        assert str(node_b_activity.status) == "completed", (
+        assert node_b_activity.status == ActivityStatus.COMPLETED, (
             f"node_b should complete successfully after expression resolution, got: {node_b_activity.status}"
         )
 
         # Expected Result 6: Node B's output should show it received the resolved value
         # The script prints "Received: <message>", which should contain the resolved value
+        assert node_b_activity.output_data is not None, "node_b should have output data"
         node_b_output = (
             node_b_activity.output_data
             if isinstance(node_b_activity.output_data, dict)
             else getattr(node_b_activity.output_data, "additional_properties", {})
         )
-
-        # Verify the resolved value actually arrived in node_b
-        assert node_b_output is not None, "node_b should have output data"
         node_b_stdout = node_b_output.get("stdout", "")
         assert "Hello from Node A" in node_b_stdout, (
             f"node_b should have received resolved value from node_a in stdout. "
@@ -187,7 +191,7 @@ class TestExpressionResolution:
     def test_multiple_expression_references(
         self,
         nexus_api: NexusApiRegistry,
-        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):
         """Test multiple ${...} expressions in a single node configuration.
@@ -205,11 +209,11 @@ class TestExpressionResolution:
         """
         workflow_name = unique_name("e2e-multi-expression")
 
-        workflow_data = WorkflowCreate(
-            name=workflow_name,
-            description="Workflow for testing multiple expression resolution",
+        workflow_id, _ = create_workflow(
+            api=nexus_api,
             project_id=first_project_id,
-            workflow_definition=_workflow_definition_with_nodes(
+            name=workflow_name,
+            definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {
                     "id": "node_a",
@@ -246,14 +250,13 @@ class TestExpressionResolution:
                 ],
             ),
         )
-        workflow = workflow_factory(workflow_data)
 
         # Execute workflow
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
         final_execution = poll_execution_until_complete(nexus_api, execution.id)
 
         # Verify execution completed
-        assert str(final_execution.status) == "completed", (
+        assert final_execution.status == ExecutionStatus.COMPLETED, (
             f"Execution should complete successfully, got: {final_execution.status}"
         )
 
@@ -266,10 +269,11 @@ class TestExpressionResolution:
         node_a = activities_by_id["node_a"]
         node_b = activities_by_id["node_b"]
 
-        assert str(node_a.status) == "completed", "node_a should complete"
-        assert str(node_b.status) == "completed", "node_b should complete after all expressions resolved"
+        assert node_a.status == "completed", "node_a should complete"
+        assert node_b.status == "completed", "node_b should complete after all expressions resolved"
 
         # Verify node_a produced the expected output structure
+        assert node_a.output_data is not None, "node_a should have output data"
         node_a_output = (
             node_a.output_data
             if isinstance(node_a.output_data, dict)
@@ -288,12 +292,12 @@ class TestExpressionResolution:
         assert stdout_json["role"] == "admin"
 
         # Verify node_b received all resolved values
+        assert node_b.output_data is not None, "node_b should have output data"
         node_b_output = (
             node_b.output_data
             if isinstance(node_b.output_data, dict)
             else getattr(node_b.output_data, "additional_properties", {})
         )
-        assert node_b_output is not None, "node_b should have output data"
         node_b_stdout = node_b_output.get("stdout", "")
 
         # Script prints "User: {name}, Team: {team}, Role: {role}"
@@ -310,16 +314,16 @@ class TestExpressionResolution:
     def test_trigger_input_reference_resolution(
         self,
         nexus_api: NexusApiRegistry,
-        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):
         """Test that ${trigger_node.field} expressions resolve trigger output values.
 
-        Test Plan: API-19 (NOT COVERED - system variables not implemented)
+        Test Plan: API-19 (PARTIALLY COVERED — trigger input path)
 
-        NOTE: API-19 expects ${inputs.*}, ${execution.id}, and ${workflow.vars.x} to be supported,
-        but these system variables are NOT implemented in the codebase. The 'inputs' namespace
-        does not exist in the expression resolver.
+        NOTE: API-19 specifies ${inputs.*} syntax, but that named namespace is not
+        implemented. Trigger input data is accessible via ${<trigger_node_id>.field}
+        instead — same data, different key. This test covers that working path.
 
         This test uses ${trigger_manual.*} instead, which references the trigger node's output.
         Trigger nodes receive input_data from ExecutionCreate and output it, making their outputs
@@ -340,11 +344,11 @@ class TestExpressionResolution:
         workflow_name = unique_name("e2e-trigger-inputs")
 
         # Create workflow where a script node references trigger inputs
-        workflow_data = WorkflowCreate(
-            name=workflow_name,
-            description="Workflow for testing trigger input resolution",
+        workflow_id, _ = create_workflow(
+            api=nexus_api,
             project_id=first_project_id,
-            workflow_definition=_workflow_definition_with_nodes(
+            name=workflow_name,
+            definition=_workflow_definition_with_nodes(
                 workflow_name,
                 {
                     "id": "process_input",
@@ -367,12 +371,11 @@ class TestExpressionResolution:
                 edges=[{"from": "trigger_manual", "to": "process_input"}],
             ),
         )
-        workflow = workflow_factory(workflow_data)
 
         # Execute workflow with trigger inputs
         execution = nexus_api.executions.create(
             body=ExecutionCreate(
-                workflow_id=workflow.id,
+                workflow_id=workflow_id,
                 input_data=ExecutionCreateInputData.from_dict({"username": "test-user", "action": "deploy"}),
             )
         ).assert_and_get()
@@ -381,7 +384,7 @@ class TestExpressionResolution:
         final_execution = poll_execution_until_complete(nexus_api, execution.id)
 
         # Verify execution completed
-        assert str(final_execution.status) == "completed", (
+        assert final_execution.status == ExecutionStatus.COMPLETED, (
             f"Execution should complete successfully, got: {final_execution.status}"
         )
 
@@ -391,13 +394,10 @@ class TestExpressionResolution:
         assert "process_input" in activities_by_id, "process_input activity should exist"
         process_activity = activities_by_id["process_input"]
 
-        assert str(process_activity.status) == "completed", (
-            "process_input should complete after trigger input resolution"
-        )
+        assert process_activity.status == "completed", "process_input should complete after trigger input resolution"
 
         # Verify the script executed with resolved values from trigger inputs
         assert process_activity.output_data is not None, "Activity should have output"
-
         process_output = (
             process_activity.output_data
             if isinstance(process_activity.output_data, dict)
@@ -413,4 +413,374 @@ class TestExpressionResolution:
         assert "deploy" in process_stdout, (
             f"process_input should have received resolved action from trigger inputs. "
             f"Expected 'deploy' in stdout, got: {process_stdout}"
+        )
+
+    def test_workflow_context_execution_id_resolves(
+        self,
+        nexus_api: NexusApiRegistry,
+        create_workflow: WorkflowFactory,
+        first_project_id: UUID,
+    ):
+        """${workflow_context.execution.id} resolves to the current execution's UUID.
+
+        Objective: Verify that the workflow_context.execution namespace is injected
+        before nodes run and that ${workflow_context.execution.id} resolves to the
+        actual execution ID recorded in the database.
+
+        The engine pre-generates the execution ID before starting the Temporal workflow
+        and injects it via the workflow_context namespace. This is the correct path for
+        API-19's ${execution.id} intent — the literal ${execution.id} syntax is not
+        implemented; ${workflow_context.execution.id} is.
+
+        Test Procedure:
+        1. Create a workflow with one script node that prints $EXEC_ID, where EXEC_ID
+           is set via ${workflow_context.execution.id} in config.environment.
+        2. Execute the workflow and capture the execution ID from the API response.
+        3. Poll to terminal.
+
+        Expected Results:
+        - Execution completes successfully.
+        - The node's stdout contains the execution UUID that was returned by the API,
+          confirming ${workflow_context.execution.id} resolved to the correct value.
+        """
+        workflow_name = unique_name("e2e-wf-ctx-exec-id")
+
+        workflow_id, _ = create_workflow(
+            api=nexus_api,
+            project_id=first_project_id,
+            name=workflow_name,
+            definition=_workflow_definition_with_nodes(
+                workflow_name,
+                {
+                    "id": "print_exec_id",
+                    "name": "Print Execution ID",
+                    "type": "script",
+                    "parameters": {
+                        "language": "bash",
+                        "code": 'echo "exec_id=$EXEC_ID"',
+                        "environment": {
+                            "EXEC_ID": "${workflow_context.execution.id}",
+                        },
+                    },
+                },
+                edges=[{"from": "trigger_manual", "to": "print_exec_id"}],
+            ),
+        )
+
+        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        execution_id = str(execution.id)
+        final = poll_execution_until_complete(nexus_api, execution.id)
+
+        assert final.status == ExecutionStatus.COMPLETED, (
+            f"Expected completed, got {final.status}: {final.error_details}"
+        )
+
+        activities = {a.activity_id: a for a in (final.activities or [])}
+        assert "print_exec_id" in activities, f"print_exec_id activity missing: {list(activities)}"
+
+        activity = activities["print_exec_id"]
+        assert activity.status == "completed", f"print_exec_id should complete, got: {activity.status}"
+
+        assert activity.output_data is not None, "print_exec_id should have output data"
+        output = (
+            activity.output_data
+            if isinstance(activity.output_data, dict)
+            else getattr(activity.output_data, "additional_properties", {})
+        )
+        stdout = output.get("stdout", "")
+        assert execution_id in stdout, (
+            f"${{workflow_context.execution.id}} should resolve to {execution_id!r}. Got stdout: {stdout!r}"
+        )
+
+
+class TestUnresolvableExpressionError:
+    """API-20: Unresolvable ${...} expressions fail the consuming node with a clear error.
+
+    Expression resolution runs synchronously before an activity executes. When a
+    referenced path (node, field, or nested key) does not exist at runtime, the engine
+    raises a KeyError with a message that names the missing path component. The node is
+    recorded as failed and — depending on continue_on_failure — either terminates the
+    workflow or allows it to proceed.
+    """
+
+    def test_unresolvable_field_reference_fails_execution(
+        self,
+        nexus_api: NexusApiRegistry,
+        create_workflow: WorkflowFactory,
+        first_project_id: UUID,
+    ):
+        """Referencing a nonexistent field on an upstream node terminates the workflow as FAILED.
+
+        Objective: Verify that a ${node_a.nonexistent_field} expression that cannot be
+        resolved at runtime causes the consuming node to fail and the execution to reach
+        FAILED status. The error recorded on the activity must identify the missing path.
+
+        Test Procedure:
+        1. Create a two-node workflow:
+           - node_a: bash script that outputs plain text (no stdout_json, so
+             nonexistent_field is guaranteed absent from its namespace entry).
+           - node_b: references ${node_a.nonexistent_field} in config.environment.
+             No continue_on_failure configured.
+        2. Execute the workflow.
+        3. Poll to terminal.
+
+        Expected Results:
+        - Execution status is FAILED (unhandled node failure propagates upward).
+        - node_b appears in activities with a non-completed status.
+        - node_b.error_details contains the unresolvable path identifier so the caller
+          can diagnose which expression failed.
+        """
+        workflow_name = unique_name("e2e-unresolvable-expr-fail")
+
+        workflow_id, _ = create_workflow(
+            api=nexus_api,
+            project_id=first_project_id,
+            name=workflow_name,
+            definition=_workflow_definition_with_nodes(
+                workflow_name,
+                {
+                    "id": "node_a",
+                    "name": "Producer",
+                    "type": "script",
+                    "parameters": {
+                        "language": "bash",
+                        "code": 'echo "plain text — no structured output"',
+                    },
+                },
+                {
+                    "id": "node_b",
+                    "name": "Consumer with bad ref",
+                    "type": "script",
+                    "parameters": {
+                        "language": "bash",
+                        "code": 'echo "value=$VALUE"',
+                        "environment": {
+                            "VALUE": "${node_a.nonexistent_field}",
+                        },
+                    },
+                },
+                edges=[
+                    {"from": "trigger_manual", "to": "node_a"},
+                    {"from": "node_a", "to": "node_b"},
+                ],
+            ),
+        )
+
+        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        final = poll_execution_until_complete(nexus_api, execution.id)
+
+        assert final.status == ExecutionStatus.FAILED, (
+            f"Expected FAILED when expression is unresolvable, got {final.status}: {final.error_details}"
+        )
+
+        activities = {a.activity_id: a for a in (final.activities or [])}
+        assert "node_b" in activities, (
+            f"node_b must appear in activities so the caller can inspect the failure: {list(activities)}"
+        )
+
+        node_b = activities["node_b"]
+        assert node_b.status != "completed", (
+            f"node_b must not complete when its expression is unresolvable, got: {node_b.status}"
+        )
+
+        # Error details must name the specific missing field so the caller can diagnose it.
+        assert node_b.error_details is not None, "node_b error_details must be set on a failed node"
+        assert "nonexistent_field" in node_b.error_details, (
+            f"error_details should identify the missing field name. Got: {node_b.error_details!r}"
+        )
+
+    def test_unresolvable_expression_with_continue_on_failure(
+        self,
+        nexus_api: NexusApiRegistry,
+        create_workflow: WorkflowFactory,
+        first_project_id: UUID,
+    ):
+        """Unresolvable expression with continue_on_failure fails the node but lets downstream proceed.
+
+        Objective: When a node that references an unresolvable expression has
+        continue_on_failure=true, the resolution failure is absorbed: the node is
+        marked failed, the engine continues routing through it, downstream nodes execute,
+        and the execution reaches COMPLETED_WITH_ERRORS rather than FAILED.
+
+        Test Procedure:
+        1. Create a three-node workflow:
+           - node_a: produces output.
+           - node_bad: references ${node_a.nonexistent_field}, has continue_on_failure=true.
+           - node_ok: script with no expressions; connected directly after node_bad.
+        2. Execute the workflow.
+        3. Poll to terminal.
+
+        Expected Results:
+        - Execution status is COMPLETED_WITH_ERRORS.
+        - node_bad is in activities with a non-completed status.
+        - node_bad.error_details names the missing field.
+        - node_ok completes — COF causes the engine to continue routing through node_bad
+          to its downstream nodes despite the failure.
+        """
+        workflow_name = unique_name("e2e-unresolvable-expr-cof")
+
+        workflow_id, _ = create_workflow(
+            api=nexus_api,
+            project_id=first_project_id,
+            name=workflow_name,
+            definition=_workflow_definition_with_nodes(
+                workflow_name,
+                {
+                    "id": "node_a",
+                    "name": "Producer",
+                    "type": "script",
+                    "parameters": {
+                        "language": "bash",
+                        "code": 'echo "plain text"',
+                    },
+                },
+                {
+                    "id": "node_bad",
+                    "name": "Bad Expression",
+                    "type": "script",
+                    "settings": {"continue_on_failure": True},
+                    "parameters": {
+                        "language": "bash",
+                        "code": 'echo "value=$VALUE"',
+                        "environment": {
+                            "VALUE": "${node_a.nonexistent_field}",
+                        },
+                    },
+                },
+                {
+                    "id": "node_ok",
+                    "name": "Independent Node",
+                    "type": "script",
+                    "parameters": {
+                        "language": "bash",
+                        "code": 'echo "independent step"',
+                    },
+                },
+                edges=[
+                    {"from": "trigger_manual", "to": "node_a"},
+                    {"from": "node_a", "to": "node_bad"},
+                    {"from": "node_bad", "to": "node_ok"},
+                ],
+            ),
+        )
+
+        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        final = poll_execution_until_complete(nexus_api, execution.id)
+
+        assert final.status == ExecutionStatus.COMPLETED_WITH_ERRORS, (
+            f"Expected COMPLETED_WITH_ERRORS when COF absorbs resolution failure, "
+            f"got {final.status}: {final.error_details}"
+        )
+
+        activities = {a.activity_id: a for a in (final.activities or [])}
+        assert "node_bad" in activities, f"node_bad must appear in activities: {list(activities)}"
+
+        node_bad = activities["node_bad"]
+        assert node_bad.status != "completed", (
+            f"node_bad must not complete when expression is unresolvable, got: {node_bad.status}"
+        )
+
+        assert node_bad.error_details is not None, "node_bad error_details must be set on a failed node"
+        assert "nonexistent_field" in node_bad.error_details, (
+            f"error_details should identify the missing field name. Got: {node_bad.error_details!r}"
+        )
+
+        # COF routes through the failed node — node_ok must complete.
+        assert "node_ok" in activities, (
+            f"node_ok must execute — COF continues routing through the failed node: {list(activities)}"
+        )
+        assert activities["node_ok"].status == "completed", (
+            f"node_ok should complete after COF absorbs node_bad's failure, got: {activities['node_ok'].status}"
+        )
+
+    def test_completely_nonexistent_node_namespace_fails_execution(
+        self,
+        nexus_api: NexusApiRegistry,
+        create_workflow: WorkflowFactory,
+        first_project_id: UUID,
+    ):
+        """Referencing a node that does not exist in the graph at all fails at runtime.
+
+        Objective: Verify the "namespace not found" error path — distinct from
+        "key not found in namespace". When ${ghost_node.output} is used and ghost_node
+        is not in the workflow graph, the resolver raises KeyError at runtime with a
+        message naming the missing namespace. The execution must reach FAILED status.
+
+        This test uses force_save=True to bypass creation-time expression validation,
+        which would otherwise reject the workflow. The force_save flag is intentional
+        here — it is the mechanism for testing runtime error handling when validation
+        is not the gatekeeper.
+
+        Test Procedure:
+        1. Create a workflow with force_save=True:
+           - node_a: runs successfully.
+           - node_b: references ${ghost_node.output} where ghost_node is absent from
+             the workflow's node list entirely.
+        2. Execute the workflow.
+        3. Poll to terminal.
+
+        Expected Results:
+        - Execution status is FAILED.
+        - node_b is in activities with a non-completed status.
+        - node_b.error_details names "ghost_node" as the unresolvable namespace.
+        """
+        workflow_name = unique_name("e2e-unresolvable-namespace")
+
+        workflow_def = _workflow_definition_with_nodes(
+            workflow_name,
+            {
+                "id": "node_a",
+                "name": "Producer",
+                "type": "script",
+                "parameters": {
+                    "language": "bash",
+                    "code": 'echo "hello"',
+                },
+            },
+            {
+                "id": "node_b",
+                "name": "Consumer with ghost namespace",
+                "type": "script",
+                "parameters": {
+                    "language": "bash",
+                    "code": 'echo "value=$VALUE"',
+                    "environment": {
+                        "VALUE": "${ghost_node.output}",
+                    },
+                },
+            },
+            edges=[
+                {"from": "trigger_manual", "to": "node_a"},
+                {"from": "node_a", "to": "node_b"},
+            ],
+        )
+
+        workflow_id, _ = create_workflow(
+            api=nexus_api,
+            project_id=first_project_id,
+            name=workflow_name,
+            definition=workflow_def,
+            force_save=True,
+        )
+
+        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        final = poll_execution_until_complete(nexus_api, execution.id)
+
+        assert final.status == ExecutionStatus.FAILED, (
+            f"Expected FAILED when namespace is nonexistent, got {final.status}: {final.error_details}"
+        )
+
+        activities = {a.activity_id: a for a in (final.activities or [])}
+        assert "node_b" in activities, (
+            f"node_b must appear in activities so the failure is inspectable: {list(activities)}"
+        )
+
+        node_b = activities["node_b"]
+        assert node_b.status != "completed", (
+            f"node_b must not complete when its namespace is unresolvable, got: {node_b.status}"
+        )
+
+        assert node_b.error_details is not None, "node_b error_details must be set on a failed node"
+        assert "ghost_node" in node_b.error_details, (
+            f"error_details should name the missing namespace 'ghost_node'. Got: {node_b.error_details!r}"
         )
