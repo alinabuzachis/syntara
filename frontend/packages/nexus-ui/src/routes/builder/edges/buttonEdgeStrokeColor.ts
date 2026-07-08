@@ -14,9 +14,6 @@ export const BUTTON_EDGE_DEFAULT_STROKE = DEFAULT_NEUTRAL_EDGE_STROKE
 /** Brighter neutral for selected / hovered / active default edges and arrow marker graphics. */
 export const CANVAS_EDGE_HIGHLIGHT_STROKE = 'var(--pf-t--global--color--nonstatus--gray--100)'
 
-/** Muted stroke for pending / dimmed default edges. */
-export const CANVAS_EDGE_MUTED_STROKE = 'var(--pf-t--global--color--nonstatus--gray--default)'
-
 /**
  * Stroke color for button stub edges from approval node handles.
  */

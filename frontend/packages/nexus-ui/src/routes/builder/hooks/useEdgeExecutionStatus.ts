@@ -15,6 +15,7 @@ type UseEdgeExecutionStatusOptions = {
   currentWorkflow: WorkflowDefinition | null
   activityStates: Map<string, ActivityState>
   setEdges: Dispatch<SetStateAction<EdgeType[]>>
+  isExecutionDetailView?: boolean
 }
 
 export function useEdgeExecutionStatus({
@@ -23,6 +24,7 @@ export function useEdgeExecutionStatus({
   currentWorkflow,
   activityStates,
   setEdges,
+  isExecutionDetailView = false,
 }: UseEdgeExecutionStatusOptions) {
   const prevExecutionStatusRef = useRef(effectiveExecutionStatus)
 
@@ -32,10 +34,11 @@ export function useEdgeExecutionStatus({
 
     const wasActive = prev !== null && !isTerminalState(prev)
     const isActive = effectiveExecutionStatus !== null && !isTerminalState(effectiveExecutionStatus)
+    const isTerminal = effectiveExecutionStatus !== null && isTerminalState(effectiveExecutionStatus)
 
     // Cleanup: clear edge statuses when execution becomes inactive (active → terminal/null transition).
-    // This includes: running → completed, running → failed, running → null, etc.
-    if (wasActive && !isActive && isInitialized) {
+    // Skip cleanup in execution detail view — preserve edge statuses for completed runs.
+    if (wasActive && !isActive && isInitialized && !isExecutionDetailView) {
       setEdges((edges) => {
         if (!edges.some((e) => e.data?.executionStatus != null)) return edges
         return edges.map((e) =>
@@ -45,8 +48,8 @@ export function useEdgeExecutionStatus({
       return
     }
 
-    // Enrichment: set edge statuses during active execution.
-    if (!isActive || !isInitialized) return
+    // Enrichment: set edge statuses during active execution or in execution detail view for completed runs.
+    if ((!isActive && !(isExecutionDetailView && isTerminal)) || !isInitialized) return
 
     const activities = currentWorkflow?.workflow.activities ?? []
     const triggers = currentWorkflow?.triggers ?? []
@@ -74,5 +77,5 @@ export function useEdgeExecutionStatus({
         return edge
       })
     )
-  }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, setEdges])
+  }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, setEdges, isExecutionDetailView])
 }

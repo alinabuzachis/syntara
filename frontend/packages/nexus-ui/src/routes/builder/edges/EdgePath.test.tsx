@@ -7,11 +7,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 
-import {
-  BUTTON_EDGE_DEFAULT_STROKE,
-  CANVAS_EDGE_HIGHLIGHT_STROKE,
-  CANVAS_EDGE_MUTED_STROKE,
-} from './buttonEdgeStrokeColor'
+import { BUTTON_EDGE_DEFAULT_STROKE, CANVAS_EDGE_HIGHLIGHT_STROKE } from './buttonEdgeStrokeColor'
 import { EDGE_INTERACTION_DROP_SHADOW } from './edgeInteractionStyles'
 import { EdgePath } from './EdgePath'
 
@@ -55,7 +51,7 @@ describe('EdgePath', () => {
       expect(style).toContain('stroke-dasharray: none')
     })
 
-    it('renders dashed dimmed edge for pending status', () => {
+    it('renders dashed edge for pending status', () => {
       render(
         <svg>
           <EdgePath
@@ -74,8 +70,8 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge.getAttribute('style')
-      expectStrokeVar(style ?? null, CANVAS_EDGE_MUTED_STROKE)
-      expect(style).toContain('stroke-opacity: 0.4')
+      expectStrokeVar(style ?? null, BUTTON_EDGE_DEFAULT_STROKE)
+      expect(style).toContain('stroke-opacity: 1')
       expect(style).toContain('stroke-dasharray: 5,5')
     })
 
@@ -307,8 +303,8 @@ describe('EdgePath', () => {
       const baseEdge = screen.getByTestId('base-edge')
       const style = baseEdge.getAttribute('style')
       // Execution status takes precedence
-      expectStrokeVar(style ?? null, CANVAS_EDGE_MUTED_STROKE) // pending
-      expect(style).toContain('stroke-opacity: 0.4')
+      expectStrokeVar(style ?? null, BUTTON_EDGE_DEFAULT_STROKE) // pending
+      expect(style).toContain('stroke-opacity: 1')
       expect(style).toContain('stroke-dasharray: 5,5')
       // But still applies active filter
       expect(style).toContain(`filter: ${EDGE_INTERACTION_DROP_SHADOW}`)

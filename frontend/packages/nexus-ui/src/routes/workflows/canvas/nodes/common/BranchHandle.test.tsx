@@ -1,5 +1,7 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import { useEdges } from '@xyflow/react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { BranchHandle, BranchHandles } from './BranchHandle'
 
@@ -11,19 +13,22 @@ vi.mock('@xyflow/react', () => ({
     position,
     isConnectable,
     style,
+    'aria-label': ariaLabel,
   }: {
     type: string
     id: string
     position: string
     isConnectable?: boolean
     style?: React.CSSProperties
+    'aria-label'?: string
   }) => (
-    <div
+    <button
       data-testid={`handle-${id}`}
       data-type={type}
       data-position={position}
       data-connectable={isConnectable}
       style={style}
+      aria-label={ariaLabel}
     />
   ),
   Position: {
@@ -32,6 +37,7 @@ vi.mock('@xyflow/react', () => ({
     Left: 'left',
     Right: 'right',
   },
+  useEdges: vi.fn(() => []),
 }))
 
 describe('BranchHandles', () => {
@@ -122,38 +128,6 @@ describe('BranchHandle', () => {
     expect(handle).toHaveAttribute('data-connectable', 'false')
   })
 
-  describe('styling', () => {
-    it('applies border styling', () => {
-      render(<BranchHandle id="styled">Styled</BranchHandle>)
-
-      const branchDiv = screen.getByTestId('branch-handle-styled')
-      expect(branchDiv).toHaveStyle({
-        position: 'relative',
-        backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
-      })
-    })
-
-    it('has rounded left corners', () => {
-      render(<BranchHandle id="rounded">Rounded</BranchHandle>)
-
-      const branchDiv = screen.getByTestId('branch-handle-rounded')
-      expect(branchDiv).toHaveStyle({
-        borderTopLeftRadius: '2rem',
-        borderBottomLeftRadius: '2rem',
-      })
-    })
-
-    it('uses flex display for alignment', () => {
-      render(<BranchHandle id="flex">Flex</BranchHandle>)
-
-      const branchDiv = screen.getByTestId('branch-handle-flex')
-      expect(branchDiv).toHaveStyle({
-        display: 'flex',
-        alignItems: 'center',
-      })
-    })
-  })
-
   describe('content variations', () => {
     it('renders "True" label for condition true branch', () => {
       render(<BranchHandle id="true">True</BranchHandle>)
@@ -186,33 +160,6 @@ describe('BranchHandle', () => {
     })
   })
 
-  describe('approval handle coloring', () => {
-    it('applies success styling when id is approved', () => {
-      render(<BranchHandle id="approved">Approved</BranchHandle>)
-
-      const wrapper = screen.getByTestId('branch-handle-approved')
-      expect(wrapper).toBeInTheDocument()
-      expect(wrapper.style.backgroundColor).toContain('var(--pf-t--global--color--status--success--default)')
-      expect(wrapper.style.color).toContain('status--on-success')
-    })
-
-    it('applies danger styling when id is rejected', () => {
-      render(<BranchHandle id="rejected">Rejected</BranchHandle>)
-
-      const wrapper = screen.getByTestId('branch-handle-rejected')
-      expect(wrapper).toBeInTheDocument()
-      expect(wrapper.style.backgroundColor).toContain('var(--pf-t--global--color--status--danger--default)')
-      expect(wrapper.style.color).toContain('status--on-danger')
-    })
-
-    it('does not apply approval styling for other handle ids', () => {
-      render(<BranchHandle id="true">True</BranchHandle>)
-
-      const wrapper = screen.getByTestId('branch-handle-true')
-      expect(wrapper.style.backgroundColor).toBe('var(--pf-t--global--background--color--secondary--default)')
-    })
-  })
-
   describe('complex children', () => {
     it('renders React elements as children', () => {
       render(
@@ -224,6 +171,101 @@ describe('BranchHandle', () => {
 
       expect(screen.getByTestId('icon')).toBeInTheDocument()
       expect(screen.getByText('Loop Back')).toBeInTheDocument()
+    })
+  })
+
+  describe('taken branch indicator', () => {
+    it('shows checkmark icon when branch is taken', () => {
+      vi.mocked(useEdges).mockReturnValue([
+        { id: 'e1', source: 'node-1', sourceHandle: 'true', target: 'node-2', data: { executionStatus: 'passed' } },
+      ])
+      render(
+        <BranchHandle id="true" nodeId="node-1" ariaLabel="True branch output">
+          True
+        </BranchHandle>
+      )
+
+      const handle = screen.getByTestId('branch-handle-true')
+      const icon = within(handle).queryByRole('img', { hidden: true })
+      expect(icon).toBeInTheDocument()
+    })
+
+    it('does not show checkmark when branch is not taken', () => {
+      vi.mocked(useEdges).mockReturnValue([
+        { id: 'e1', source: 'node-1', sourceHandle: 'false', target: 'node-2', data: { executionStatus: 'passed' } },
+      ])
+      render(
+        <BranchHandle id="true" nodeId="node-1" ariaLabel="True branch output">
+          True
+        </BranchHandle>
+      )
+
+      const handle = screen.getByTestId('branch-handle-true')
+      const icon = within(handle).queryByRole('img', { hidden: true })
+      expect(icon).not.toBeInTheDocument()
+    })
+
+    it('appends path taken to aria-label on handle when taken', () => {
+      vi.mocked(useEdges).mockReturnValue([
+        { id: 'e1', source: 'node-1', sourceHandle: 'true', target: 'node-2', data: { executionStatus: 'passed' } },
+      ])
+      render(
+        <BranchHandle id="true" nodeId="node-1" ariaLabel="True branch output">
+          True
+        </BranchHandle>
+      )
+
+      expect(screen.getByTestId('handle-true')).toHaveAttribute('aria-label', 'True branch output — path taken')
+    })
+
+    it('does not append path taken to aria-label when not taken', () => {
+      vi.mocked(useEdges).mockReturnValue([])
+      render(
+        <BranchHandle id="true" nodeId="node-1" ariaLabel="True branch output">
+          True
+        </BranchHandle>
+      )
+
+      expect(screen.getByTestId('handle-true')).toHaveAttribute('aria-label', 'True branch output')
+    })
+
+    it('applies taken class when branch is taken', () => {
+      vi.mocked(useEdges).mockReturnValue([
+        { id: 'e1', source: 'node-1', sourceHandle: 'true', target: 'node-2', data: { executionStatus: 'passed' } },
+      ])
+      render(
+        <BranchHandle id="true" nodeId="node-1">
+          True
+        </BranchHandle>
+      )
+
+      const handle = screen.getByTestId('branch-handle-true')
+      expect(handle.className).toContain('branchHandleTaken')
+    })
+  })
+
+  describe('accessibility', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = render(
+        <BranchHandle id="test" ariaLabel="Test branch output">
+          Test Label
+        </BranchHandle>
+      )
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations when taken', async () => {
+      vi.mocked(useEdges).mockReturnValue([
+        { id: 'e1', source: 'node-1', sourceHandle: 'test', target: 'node-2', data: { executionStatus: 'passed' } },
+      ])
+      const { container } = render(
+        <BranchHandle id="test" nodeId="node-1" ariaLabel="Test branch output">
+          Test
+        </BranchHandle>
+      )
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
     })
   })
 })

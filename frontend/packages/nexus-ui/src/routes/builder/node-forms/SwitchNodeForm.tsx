@@ -345,8 +345,17 @@ function SwitchFormFields({ onHeaderContentChange }: { onHeaderContentChange?: (
       )}
 
       <StackItem>
-        <Alert variant="info" isInline isPlain title="The workflow will run on the path that is the first match.">
-          <Content component="p">Reorder paths based on path run priority.</Content>
+        <Alert
+          variant="info"
+          isExpandable
+          isInline
+          title="Only one path runs per execution"
+          className={nodeFormStyles.compactAlert}
+        >
+          <Content component="p">
+            The workflow evaluates paths in order and follows the first match. All other paths are skipped. Drag to
+            reorder paths by evaluation priority.
+          </Content>
         </Alert>
       </StackItem>
 

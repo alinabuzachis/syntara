@@ -20,10 +20,10 @@ describe('SwitchNodeForm', () => {
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toBeInTheDocument()
     })
 
-    it('renders info banner about first match priority', () => {
+    it('renders info banner about single path execution', () => {
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByText(/The workflow will run on the path that is the first match/i)).toBeInTheDocument()
+      expect(screen.getByText(/Only one path runs per execution/i)).toBeInTheDocument()
     })
 
     it('renders two default empty paths', () => {

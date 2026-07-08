@@ -1,0 +1,29 @@
+.branchHandle {
+  position: relative;
+  padding: var(--pf-t--global--spacer--xs) var(--pf-t--global--spacer--md);
+  padding-right: 0;
+  background-color: var(--pf-t--global--background--color--secondary--default);
+  border-top: 2px solid var(--pf-t--global--border--color--default);
+  border-bottom: 2px solid var(--pf-t--global--border--color--default);
+  border-left: 2px solid var(--pf-t--global--border--color--default);
+  border-top-left-radius: 2rem;
+  border-bottom-left-radius: 2rem;
+  display: flex;
+  align-items: center;
+}
+
+.branchHandleTaken {
+  border-color: var(--pf-t--global--color--status--success--default);
+}
+
+.branchHandleContent {
+  padding-right: var(--pf-t--global--spacer--md);
+  display: flex;
+  align-items: center;
+  gap: var(--pf-t--global--spacer--xs);
+}
+
+.takenIcon {
+  color: var(--pf-t--global--icon--color--status--success--default);
+  font-size: var(--pf-t--global--icon--size--font--sm);
+}

@@ -96,11 +96,18 @@ export function SwitchNodeComponent(props: NodeProps<SwitchNode>) {
       <SwitchNodeDetails switchActivity={props.data} icon={iconNode} menuActions={menuActions}>
         <BranchHandles>
           {cases.map((c, i) => (
-            <BranchHandle key={c.port || buildSwitchCasePort(i)} id={c.port || buildSwitchCasePort(i)}>
+            <BranchHandle
+              key={c.port || buildSwitchCasePort(i)}
+              id={c.port || buildSwitchCasePort(i)}
+              nodeId={props.data.id}
+              ariaLabel={`${c.label || `Path ${i + 1}`} branch output`}
+            >
               <TruncatedPathLabel label={c.label || `Path ${i + 1}`} />
             </BranchHandle>
           ))}
-          <BranchHandle id={EdgeHandleEnum.DEFAULT}>Fallback</BranchHandle>
+          <BranchHandle id={EdgeHandleEnum.DEFAULT} nodeId={props.data.id} ariaLabel="Fallback branch output">
+            Fallback
+          </BranchHandle>
         </BranchHandles>
       </SwitchNodeDetails>
     </NodeComponent>

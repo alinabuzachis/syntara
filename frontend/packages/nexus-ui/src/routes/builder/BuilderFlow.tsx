@@ -541,6 +541,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     currentWorkflow,
     activityStates,
     setEdges,
+    isExecutionDetailView: isExecutionView,
   })
 
   const isValidConnection = useCallback(

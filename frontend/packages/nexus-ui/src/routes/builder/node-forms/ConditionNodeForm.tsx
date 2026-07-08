@@ -1,4 +1,13 @@
-import { FormGroup, FormHelperText, HelperText, HelperTextItem, Stack, StackItem } from '@patternfly/react-core'
+import {
+  Alert,
+  Content,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Stack,
+  StackItem,
+} from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
@@ -45,6 +54,21 @@ function ConditionFormFields({
   const parametersContent = (
     <Stack hasGutter>
       {!onHeaderContentChange && <ActivityNameField register={register} fieldId="condition-name" />}
+
+      <StackItem>
+        <Alert
+          variant="info"
+          isExpandable
+          isInline
+          title="Only one branch runs per execution"
+          className={nodeFormStyles.compactAlert}
+        >
+          <Content component="p">
+            The workflow follows the True branch when the expression matches, or the False branch otherwise. The other
+            branch and its downstream steps are skipped.
+          </Content>
+        </Alert>
+      </StackItem>
 
       <StackItem>
         <FormGroup

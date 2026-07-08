@@ -1,9 +1,24 @@
 import { Flex } from '@patternfly/react-core'
-import { Handle, Position } from '@xyflow/react'
-import type { CSSProperties } from 'react'
+import { RhUiCheckIcon } from '@patternfly/react-icons'
+import { Handle, Position, useEdges } from '@xyflow/react'
+import { useMemo } from 'react'
 
 import { getApprovalBranchHandleStyles } from './approvalBranchTokens'
+import styles from './BranchHandle.module.css'
 import { sourceHandleStyle } from './handleStyle'
+
+function useIsBranchTaken(nodeId: string | undefined, handleId: string): boolean {
+  const edges = useEdges()
+  return useMemo(() => {
+    if (!nodeId) return false
+    return edges.some((e) => e.source === nodeId && e.sourceHandle === handleId && e.data?.executionStatus === 'passed')
+  }, [edges, nodeId, handleId])
+}
+
+function getHandleAriaLabel(ariaLabel: string | undefined, isTaken: boolean): string | undefined {
+  if (!ariaLabel) return undefined
+  return isTaken ? `${ariaLabel} — path taken` : ariaLabel
+}
 
 export function BranchHandles(props: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -13,38 +28,45 @@ export function BranchHandles(props: Readonly<{ children: React.ReactNode }>) {
   )
 }
 
-export function BranchHandle(props: Readonly<{ children: React.ReactNode; id: string; isConnectable?: boolean }>) {
+export function BranchHandle(
+  props: Readonly<{
+    children: React.ReactNode
+    id: string
+    isConnectable?: boolean
+    nodeId?: string
+    ariaLabel?: string
+  }>
+) {
   const approvalStyles = getApprovalBranchHandleStyles(props.id)
-  const baseStyles: CSSProperties = {
-    position: 'relative',
-    padding: 'var(--pf-t--global--spacer--xs) var(--pf-t--global--spacer--md)',
-    paddingRight: 0,
-    backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
-    borderTop: '2px solid var(--pf-t--global--border--color--default)',
-    borderBottom: '2px solid var(--pf-t--global--border--color--default)',
-    borderLeft: '2px solid var(--pf-t--global--border--color--default)',
-    borderTopLeftRadius: '2rem',
-    borderBottomLeftRadius: '2rem',
-    display: 'flex',
-    alignItems: 'center',
-  }
+  const isTaken = useIsBranchTaken(props.nodeId, props.id)
+
+  const inlineStyles = approvalStyles
+    ? { ...approvalStyles, ...(isTaken ? { borderColor: undefined } : {}) }
+    : undefined
+
   return (
     <div
       data-testid={`branch-handle-${props.id}`}
-      style={{
-        ...baseStyles,
-        ...approvalStyles,
-      }}
+      className={`${styles.branchHandle} ${isTaken ? styles.branchHandleTaken : ''}`}
+      style={inlineStyles}
     >
-      <div style={{ paddingRight: 'var(--pf-t--global--spacer--md)' }}>{props.children}</div>
+      <div className={styles.branchHandleContent}>
+        {props.children}
+        {isTaken && <RhUiCheckIcon aria-hidden="true" className={styles.takenIcon} />}
+      </div>
       <Handle
         type="source"
         id={props.id}
         position={Position.Right}
         isConnectable={props.isConnectable}
+        aria-label={getHandleAriaLabel(props.ariaLabel, isTaken)}
         style={{
           ...sourceHandleStyle,
           pointerEvents: 'auto',
+          ...(isTaken && {
+            backgroundColor: 'var(--pf-t--global--color--status--success--default)',
+            borderColor: 'var(--pf-t--global--color--status--success--default)',
+          }),
         }}
       />
     </div>

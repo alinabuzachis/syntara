@@ -83,8 +83,12 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
           </FlexItem>
           <div style={{ paddingBottom: 'var(--pf-t--global--spacer--md)' }}>
             <BranchHandles>
-              <BranchHandle id="approved">Approved</BranchHandle>
-              <BranchHandle id="rejected">Rejected</BranchHandle>
+              <BranchHandle id="approved" nodeId={props.data.id} ariaLabel="Approved branch output">
+                Approved
+              </BranchHandle>
+              <BranchHandle id="rejected" nodeId={props.data.id} ariaLabel="Rejected branch output">
+                Rejected
+              </BranchHandle>
             </BranchHandles>
           </div>
         </Flex>

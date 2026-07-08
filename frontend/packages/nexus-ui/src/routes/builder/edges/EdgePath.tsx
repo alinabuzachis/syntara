@@ -5,11 +5,7 @@ import { useMemo } from 'react'
 
 import { useIsVersionView } from '../VersionViewContext'
 
-import {
-  BUTTON_EDGE_DEFAULT_STROKE,
-  CANVAS_EDGE_HIGHLIGHT_STROKE,
-  CANVAS_EDGE_MUTED_STROKE,
-} from './buttonEdgeStrokeColor'
+import { BUTTON_EDGE_DEFAULT_STROKE, CANVAS_EDGE_HIGHLIGHT_STROKE } from './buttonEdgeStrokeColor'
 import { EDGE_INTERACTION_DROP_SHADOW } from './edgeInteractionStyles'
 
 /** PatternFly tokens for approval branch edge stroke/marker */
@@ -56,14 +52,14 @@ export function EdgePath(props: EdgePathProps) {
       return {
         strokeColor: BUTTON_EDGE_DEFAULT_STROKE,
         strokeOpacity: 1,
-        strokeDasharray: 'none', // Solid line
+        strokeDasharray: 'none',
       }
     }
     if (data?.executionStatus === 'pending') {
       return {
-        strokeColor: CANVAS_EDGE_MUTED_STROKE,
-        strokeOpacity: 0.4,
-        strokeDasharray: '5,5', // Dashed line
+        strokeColor: BUTTON_EDGE_DEFAULT_STROKE,
+        strokeOpacity: 1,
+        strokeDasharray: '5,5',
       }
     }
 

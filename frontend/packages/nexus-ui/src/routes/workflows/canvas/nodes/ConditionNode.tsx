@@ -61,8 +61,12 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
     >
       <ConditionNodeDetails conditionActivity={props.data} icon={iconNode} menuActions={menuActions}>
         <BranchHandles>
-          <BranchHandle id="true">True</BranchHandle>
-          <BranchHandle id="false">False</BranchHandle>
+          <BranchHandle id="true" nodeId={props.data.id} ariaLabel="True branch output">
+            True
+          </BranchHandle>
+          <BranchHandle id="false" nodeId={props.data.id} ariaLabel="False branch output">
+            False
+          </BranchHandle>
         </BranchHandles>
       </ConditionNodeDetails>
     </NodeComponent>

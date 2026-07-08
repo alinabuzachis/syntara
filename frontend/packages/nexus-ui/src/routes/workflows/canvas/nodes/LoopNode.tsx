@@ -63,8 +63,12 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
         style={{ paddingBottom: 'var(--pf-t--global--spacer--md)' }}
       >
         <BranchHandles>
-          <BranchHandle id="done">Done</BranchHandle>
-          <BranchHandle id="loop">Loop</BranchHandle>
+          <BranchHandle id="done" nodeId={props.data.id} ariaLabel="Done branch output">
+            Done
+          </BranchHandle>
+          <BranchHandle id="loop" nodeId={props.data.id} ariaLabel="Loop branch output">
+            Loop
+          </BranchHandle>
         </BranchHandles>
       </Flex>
     </NodeComponent>
