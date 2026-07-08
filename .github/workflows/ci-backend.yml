@@ -869,6 +869,96 @@ jobs:
             }
             core.setFailed(`Timed out waiting for E2E statuses: ${required.join(', ')}`);
 
+  konflux-backend-gate:
+    name: (Backend) Konflux Gate
+    # Tekton PAC only fires on pull_request events (not merge_group or push).
+    if: github.event_name == 'pull_request'
+    permissions:
+      checks: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Wait for Konflux conforma check
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const sha = context.payload.pull_request.head.sha;
+            const timeout = 85 * 60 * 1000;
+            const startupWindow = 15 * 60 * 1000;
+            const interval = 30 * 1000;
+            const start = Date.now();
+            const pipelineCheckName = 'Red Hat Konflux kflux-prd-rh03 / Konflux kflux-prd-rh03 / ansible-automation-orchestrator-backend-devel-on-pull-request';
+            const conformaCheckName = 'conforma-on-pull-request-devel / ansible-automation-orchestrator-backend-devel';
+
+            // Phase 1: wait up to 15 minutes for the parent pipeline check to appear.
+            // If it never appears the Tekton CEL did not match (no backend/ changes) — skip.
+            console.log('Waiting for Konflux pipeline to start...');
+            while (true) {
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha,
+                check_name: pipelineCheckName,
+                per_page: 1,
+              });
+              if (data.check_runs.length > 0) {
+                console.log('Konflux pipeline started — waiting for conforma check...');
+                break;
+              }
+              const elapsed = Math.round((Date.now() - start) / 1000);
+              if (Date.now() - start > startupWindow) {
+                console.log(`Konflux pipeline never appeared after 15 minutes — Tekton CEL did not match, skipping`);
+                return;
+              }
+              console.log(`Waiting for pipeline to start... (${elapsed}s elapsed)`);
+              await new Promise(r => setTimeout(r, interval));
+            }
+
+            // Phase 2: pipeline fired — wait for conforma to pass, bailing early if
+            // the parent pipeline itself fails before conforma runs (e.g. build error).
+            while (Date.now() - start < timeout) {
+              const { data: parentData } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha,
+                check_name: pipelineCheckName,
+                per_page: 1,
+              });
+              const parentRun = parentData.check_runs[0];
+              if (parentRun?.status === 'completed' && !['success', 'neutral'].includes(parentRun.conclusion)) {
+                core.setFailed(`Konflux pipeline failed (${parentRun.conclusion}) before conforma ran: ${parentRun.html_url}`);
+                return;
+              }
+
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha,
+                check_name: conformaCheckName,
+                per_page: 100,
+              });
+
+              const runs = data.check_runs;
+              const completed = runs.filter(r => r.status === 'completed');
+              const succeeded = completed.filter(r => r.conclusion === 'success');
+              const failed = completed.filter(r => !['success', 'cancelled', 'skipped'].includes(r.conclusion));
+
+              if (failed.length > 0) {
+                core.setFailed(`${conformaCheckName} failed (${failed[0].conclusion}): ${failed[0].html_url}`);
+                return;
+              }
+              if (succeeded.length > 0) {
+                console.log(`${conformaCheckName} passed`);
+                return;
+              }
+
+              const elapsed = Math.round((Date.now() - start) / 1000);
+              const state = runs.length === 0 ? 'not started yet' : runs[runs.length - 1].status;
+              console.log(`${conformaCheckName}: ${state} (${elapsed}s elapsed)`);
+              await new Promise(r => setTimeout(r, interval));
+            }
+            core.setFailed(`Timed out after 85 minutes waiting for: ${conformaCheckName}`);
+
   required-checks:
     name: (Backend) Required Checks
     runs-on: ubuntu-latest
@@ -891,6 +981,7 @@ jobs:
       - test-integration
       - test-compose
       - e2e-gate
+      - konflux-backend-gate
     if: always()
     steps:
       - name: Check required jobs passed
@@ -909,7 +1000,7 @@ jobs:
 
           # Check all other required jobs
           ok="success|skipped"
-          for job in api-spec-validation api-spec-bundle api-spec-drift generate-api-client check-api-paths check-dead-code check-cycles check-orphans check-openapi-breaking verify-test-structure pre-commit mypy test-unit test-cli test-integration test-compose e2e-gate; do
+          for job in api-spec-validation api-spec-bundle api-spec-drift generate-api-client check-api-paths check-dead-code check-cycles check-orphans check-openapi-breaking verify-test-structure pre-commit mypy test-unit test-cli test-integration test-compose e2e-gate konflux-backend-gate; do
             case "$job" in
               api-spec-validation)   result="${{ needs.api-spec-validation.result }}" ;;
               api-spec-bundle)       result="${{ needs.api-spec-bundle.result }}" ;;
@@ -928,6 +1019,7 @@ jobs:
               test-integration)      result="${{ needs.test-integration.result }}" ;;
               test-compose)          result="${{ needs.test-compose.result }}" ;;
               e2e-gate)              result="${{ needs.e2e-gate.result }}" ;;
+              konflux-backend-gate)  result="${{ needs.konflux-backend-gate.result }}" ;;
             esac
             echo "$job: $result"
             if [[ ! "$result" =~ ^($ok)$ ]]; then
