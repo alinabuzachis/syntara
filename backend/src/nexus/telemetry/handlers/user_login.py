@@ -13,6 +13,7 @@ import structlog
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import AuditEvent
 from nexus.auth.audit.user_login import UserLoginEvent
+from nexus.core.config.base import get_settings
 from nexus.telemetry.client import get_telemetry_registry
 from nexus.telemetry.events.new_user import NewUserEvent
 from nexus.telemetry.events.user_login import UserLoginEvent as UserLoginTelemetryEvent
@@ -38,15 +39,16 @@ class UserLoginTelemetryHandler(AuditEventHandler[UserLoginEvent]):
 
             entitlement_id = registry.entitlement_id
 
-            registry.send_event(
-                UserLoginTelemetryEvent(
-                    user_id_hash=user_id_hash,
-                    amr=event.amr,
-                    idp=event.idp,
-                    entitlement_id=entitlement_id,
+            if get_settings().segment_high_volume_events_enabled:
+                registry.send_event(
+                    UserLoginTelemetryEvent(
+                        user_id_hash=user_id_hash,
+                        amr=event.amr,
+                        idp=event.idp,
+                        entitlement_id=entitlement_id,
+                    )
                 )
-            )
-            logger.debug("Emitted user_login telemetry", amr=event.amr, idp=event.idp)
+                logger.debug("Emitted user_login telemetry", amr=event.amr, idp=event.idp)
 
             if event.is_first_login:
                 registry.send_event(

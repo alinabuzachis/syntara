@@ -9,6 +9,9 @@ from nexus.audit.events.http_request import HTTPRequestEvent
 from nexus.telemetry.events.api_call import APICallEvent
 from nexus.telemetry.handlers.api_call import APICallTelemetryHandler
 
+_SETTINGS_PATH = "nexus.telemetry.handlers.api_call.get_settings"
+_REGISTRY_PATH = "nexus.telemetry.handlers.api_call.get_telemetry_registry"
+
 
 def _make_http_event(
     method: str = "GET",
@@ -34,6 +37,12 @@ def _make_registry_mock() -> MagicMock:
     return mock
 
 
+def _make_settings_mock(*, enabled: bool = True) -> MagicMock:
+    mock = MagicMock()
+    mock.segment_high_volume_events_enabled = enabled
+    return mock
+
+
 class TestAPICallTelemetryHandlerEmission:
     """Test that the handler emits api_call events."""
 
@@ -41,7 +50,10 @@ class TestAPICallTelemetryHandlerEmission:
         registry = _make_registry_mock()
         handler = APICallTelemetryHandler()
 
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
             result = handler.handle(_make_http_event())
 
         assert result is None
@@ -56,7 +68,10 @@ class TestAPICallTelemetryHandlerEmission:
         registry = _make_registry_mock()
         handler = APICallTelemetryHandler()
 
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
             handler.handle(_make_http_event(status_code=500))
 
         event = registry.send_event.call_args[0][0]
@@ -66,7 +81,10 @@ class TestAPICallTelemetryHandlerEmission:
         registry = _make_registry_mock()
         handler = APICallTelemetryHandler()
 
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
             handler.handle(_make_http_event(response_time_ms=123))
 
         event = registry.send_event.call_args[0][0]
@@ -76,7 +94,10 @@ class TestAPICallTelemetryHandlerEmission:
         registry = _make_registry_mock()
         handler = APICallTelemetryHandler()
 
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
             handler.handle(_make_http_event(method="POST", request_payload_size=1024))
 
         event = registry.send_event.call_args[0][0]
@@ -86,7 +107,10 @@ class TestAPICallTelemetryHandlerEmission:
         registry = _make_registry_mock()
         handler = APICallTelemetryHandler()
 
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
             handler.handle(_make_http_event())
 
         event = registry.send_event.call_args[0][0]
@@ -101,7 +125,10 @@ class TestAPICallTelemetryHandlerSkips:
         registry.is_initialized.return_value = False
         handler = APICallTelemetryHandler()
 
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
             result = handler.handle(_make_http_event())
 
         assert result is None
@@ -115,7 +142,10 @@ class TestAPICallTelemetryHandlerPrivacy:
         registry = _make_registry_mock()
         handler = APICallTelemetryHandler()
 
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
             handler.handle(_make_http_event())
 
         event = registry.send_event.call_args[0][0]
@@ -139,7 +169,10 @@ class TestAPICallTelemetryHandlerResilience:
         registry.send_event.side_effect = RuntimeError("Segment unavailable")
         handler = APICallTelemetryHandler()
 
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
             result = handler.handle(_make_http_event())
 
         assert result is None
@@ -150,10 +183,28 @@ class TestAPICallTelemetryHandlerResilience:
         handler = APICallTelemetryHandler()
 
         with (
-            patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=registry),
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
             patch("nexus.telemetry.handlers.api_call.logger") as mock_logger,
         ):
             handler.handle(_make_http_event())
             mock_logger.warning.assert_called_once()
             call_args = mock_logger.warning.call_args
             assert "analytics_event_failed" in call_args[0]
+
+
+class TestAPICallTelemetryHandlerDisabledByDefault:
+    """Test that high-volume api_call events are suppressed by default."""
+
+    def test_no_event_emitted_when_disabled(self) -> None:
+        registry = _make_registry_mock()
+        handler = APICallTelemetryHandler()
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=False)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
+            result = handler.handle(_make_http_event())
+
+        assert result is None
+        registry.send_event.assert_not_called()

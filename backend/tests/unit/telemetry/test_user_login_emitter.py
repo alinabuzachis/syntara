@@ -12,21 +12,39 @@ from nexus.telemetry.handlers.user_login import UserLoginTelemetryHandler
 
 TEST_SALT = "12345678-1234-5678-1234-567812345678"
 
+_SETTINGS_PATH = "nexus.telemetry.handlers.user_login.get_settings"
+_REGISTRY_PATH = "nexus.telemetry.handlers.user_login.get_telemetry_registry"
+
+
+def _make_settings_mock(*, enabled: bool = True) -> MagicMock:
+    mock = MagicMock()
+    mock.segment_high_volume_events_enabled = enabled
+    return mock
+
+
+def _make_registry_mock() -> MagicMock:
+    registry = MagicMock()
+    registry.is_initialized.return_value = True
+    registry.entitlement_id = ""
+    registry.installation_salt = TEST_SALT
+    return registry
+
 
 class TestUserLoginHandlerTelemetry:
     """Test that the handler emits Segment telemetry correctly."""
 
-    @patch("nexus.telemetry.handlers.user_login.get_telemetry_registry")
-    def test_emits_user_login_event(self, mock_get_registry: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = True
+    def test_emits_user_login_event(self) -> None:
+        registry = _make_registry_mock()
         registry.entitlement_id = "ent-123"
-        registry.installation_salt = TEST_SALT
-        mock_get_registry.return_value = registry
 
         user_id = uuid4()
         domain_event = UserLoginEvent(user_id=user_id, amr=[AMR.FEDERATED], idp="okta")
-        result = UserLoginTelemetryHandler().handle(domain_event)
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
+            result = UserLoginTelemetryHandler().handle(domain_event)
 
         assert result is None
         registry.send_event.assert_called_once()
@@ -38,17 +56,17 @@ class TestUserLoginHandlerTelemetry:
         assert event.idp == "okta"
         assert event.entitlement_id == "ent-123"
 
-    @patch("nexus.telemetry.handlers.user_login.get_telemetry_registry")
-    def test_first_login_emits_both_events(self, mock_get_registry: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = True
-        registry.entitlement_id = ""
-        registry.installation_salt = TEST_SALT
-        mock_get_registry.return_value = registry
+    def test_first_login_emits_both_events(self) -> None:
+        registry = _make_registry_mock()
 
         user_id = uuid4()
         domain_event = UserLoginEvent(user_id=user_id, amr=[AMR.PASSWORD], idp="local", is_first_login=True)
-        result = UserLoginTelemetryHandler().handle(domain_event)
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
+            result = UserLoginTelemetryHandler().handle(domain_event)
 
         assert result is None
         assert registry.send_event.call_count == 2
@@ -58,106 +76,147 @@ class TestUserLoginHandlerTelemetry:
         expected_hash = hmac.new(TEST_SALT.encode(), str(user_id).encode(), hashlib.sha256).hexdigest()
         assert events[1].user_id_hash == expected_hash
 
-    @patch("nexus.telemetry.handlers.user_login.get_telemetry_registry")
-    def test_non_first_login_does_not_emit_new_user(self, mock_get_registry: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = True
-        registry.entitlement_id = ""
-        registry.installation_salt = TEST_SALT
-        mock_get_registry.return_value = registry
+    def test_non_first_login_does_not_emit_new_user(self) -> None:
+        registry = _make_registry_mock()
 
         domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local", is_first_login=False)
-        UserLoginTelemetryHandler().handle(domain_event)
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
+            UserLoginTelemetryHandler().handle(domain_event)
 
         registry.send_event.assert_called_once()
         assert isinstance(registry.send_event.call_args[0][0], UserLoginTelemetryEvent)
 
-    @patch("nexus.telemetry.handlers.user_login.get_telemetry_registry")
-    def test_skips_when_not_initialized(self, mock_get_registry: MagicMock) -> None:
-        registry = MagicMock()
+    def test_skips_when_not_initialized(self) -> None:
+        registry = _make_registry_mock()
         registry.is_initialized.return_value = False
-        mock_get_registry.return_value = registry
 
         domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local")
-        result = UserLoginTelemetryHandler().handle(domain_event)
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
+            result = UserLoginTelemetryHandler().handle(domain_event)
 
         assert result is None
         registry.send_event.assert_not_called()
 
-    @patch("nexus.telemetry.handlers.user_login.get_telemetry_registry")
-    def test_does_not_raise_on_telemetry_error(self, mock_get_registry: MagicMock) -> None:
-        mock_get_registry.side_effect = RuntimeError("boom")
-
+    def test_does_not_raise_on_telemetry_error(self) -> None:
         domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local")
-        result = UserLoginTelemetryHandler().handle(domain_event)
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, side_effect=RuntimeError("boom")),
+        ):
+            result = UserLoginTelemetryHandler().handle(domain_event)
         assert result is None
 
-    @patch("nexus.telemetry.handlers.user_login.get_telemetry_registry")
-    def test_amr_fed(self, mock_get_registry: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = True
-        registry.entitlement_id = ""
-        registry.installation_salt = TEST_SALT
-        mock_get_registry.return_value = registry
+    def test_amr_fed(self) -> None:
+        registry = _make_registry_mock()
 
         domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.FEDERATED], idp="okta")
-        UserLoginTelemetryHandler().handle(domain_event)
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
+            UserLoginTelemetryHandler().handle(domain_event)
 
         event = registry.send_event.call_args[0][0]
         assert event.amr == ["fed"]
         assert event.idp == "okta"
 
-    @patch("nexus.telemetry.handlers.user_login.get_telemetry_registry")
-    def test_amr_pwd(self, mock_get_registry: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = True
-        registry.entitlement_id = ""
-        registry.installation_salt = TEST_SALT
-        mock_get_registry.return_value = registry
+    def test_amr_pwd(self) -> None:
+        registry = _make_registry_mock()
 
         domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local")
-        UserLoginTelemetryHandler().handle(domain_event)
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
+            UserLoginTelemetryHandler().handle(domain_event)
 
         event = registry.send_event.call_args[0][0]
         assert event.amr == ["pwd"]
         assert event.idp == "local"
 
-    @patch("nexus.telemetry.handlers.user_login.get_telemetry_registry")
-    def test_different_salts_produce_different_hashes(self, mock_get_registry: MagicMock) -> None:
+    def test_different_salts_produce_different_hashes(self) -> None:
         """Same user UUID with different installation salts must produce different hashes."""
         user_id = uuid4()
         hashes = []
         for salt in [TEST_SALT, str(uuid4())]:
-            registry = MagicMock()
-            registry.is_initialized.return_value = True
-            registry.entitlement_id = ""
+            registry = _make_registry_mock()
             registry.installation_salt = salt
-            mock_get_registry.return_value = registry
 
             domain_event = UserLoginEvent(user_id=user_id, amr=[AMR.PASSWORD], idp="local")
-            UserLoginTelemetryHandler().handle(domain_event)
+
+            with (
+                patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+                patch(_REGISTRY_PATH, return_value=registry),
+            ):
+                UserLoginTelemetryHandler().handle(domain_event)
 
             event = registry.send_event.call_args[0][0]
             hashes.append(event.user_id_hash)
 
         assert hashes[0] != hashes[1]
 
-    @patch("nexus.telemetry.handlers.user_login.get_telemetry_registry")
-    def test_same_salt_produces_consistent_hash(self, mock_get_registry: MagicMock) -> None:
+    def test_same_salt_produces_consistent_hash(self) -> None:
         """Same user UUID with same salt must produce the same hash."""
         user_id = uuid4()
         hashes = []
         for _ in range(2):
-            registry = MagicMock()
-            registry.is_initialized.return_value = True
-            registry.entitlement_id = ""
-            registry.installation_salt = TEST_SALT
-            mock_get_registry.return_value = registry
+            registry = _make_registry_mock()
 
             domain_event = UserLoginEvent(user_id=user_id, amr=[AMR.PASSWORD], idp="local")
-            UserLoginTelemetryHandler().handle(domain_event)
+
+            with (
+                patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+                patch(_REGISTRY_PATH, return_value=registry),
+            ):
+                UserLoginTelemetryHandler().handle(domain_event)
 
             event = registry.send_event.call_args[0][0]
             hashes.append(event.user_id_hash)
 
         assert hashes[0] == hashes[1]
+
+
+class TestUserLoginHandlerDisabledByDefault:
+    """Test that high-volume user_login events are suppressed by default."""
+
+    def test_no_user_login_event_when_disabled(self) -> None:
+        registry = _make_registry_mock()
+
+        domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local", is_first_login=False)
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=False)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
+            result = UserLoginTelemetryHandler().handle(domain_event)
+
+        assert result is None
+        registry.send_event.assert_not_called()
+
+    def test_new_user_event_still_emitted_when_disabled(self) -> None:
+        """new_user events must still fire on first login even when high-volume events are off."""
+        registry = _make_registry_mock()
+
+        domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local", is_first_login=True)
+
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=False)),
+            patch(_REGISTRY_PATH, return_value=registry),
+        ):
+            result = UserLoginTelemetryHandler().handle(domain_event)
+
+        assert result is None
+        registry.send_event.assert_called_once()
+        event = registry.send_event.call_args[0][0]
+        assert isinstance(event, NewUserEvent)

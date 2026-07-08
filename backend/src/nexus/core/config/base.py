@@ -1319,6 +1319,15 @@ class TelemetrySettings(BaseSettings):
         exclude=True,
     )
 
+    segment_high_volume_events_enabled: bool = Field(
+        default=False,
+        description=(
+            "Enable high-volume Segment events (api_call, user_login)."
+            " Disabled by default to reduce event volume at scale."
+        ),
+        exclude=True,
+    )
+
 
 # =============================================================================
 # Workflow Engine Configuration

@@ -13,6 +13,7 @@ import structlog
 
 from nexus.audit.events.http_request import HTTPRequestEvent
 from nexus.audit.handler import AuditEventHandler
+from nexus.core.config.base import get_settings
 from nexus.telemetry.client import get_telemetry_registry
 from nexus.telemetry.events.api_call import APICallEvent
 
@@ -28,6 +29,9 @@ class APICallTelemetryHandler(AuditEventHandler[HTTPRequestEvent]):
     def handle(self, event: HTTPRequestEvent) -> AuditEvent | None:
         """Emit telemetry (side-effect only, no AuditEvent produced)."""
         try:
+            if not get_settings().segment_high_volume_events_enabled:
+                return None
+
             registry = get_telemetry_registry()
             if not registry.is_initialized():
                 return None

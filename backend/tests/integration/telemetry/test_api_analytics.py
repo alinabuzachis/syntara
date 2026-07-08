@@ -21,11 +21,20 @@ from nexus.telemetry.handlers.api_call import APICallTelemetryHandler
 if TYPE_CHECKING:
     from nexus.telemetry.events.api_call import APICallEvent
 
+_SETTINGS_PATH = "nexus.telemetry.handlers.api_call.get_settings"
+_REGISTRY_PATH = "nexus.telemetry.handlers.api_call.get_telemetry_registry"
+
 
 def _make_registry_mock() -> MagicMock:
     mock = MagicMock()
     mock.is_initialized.return_value = True
     mock.entitlement_id = ""
+    return mock
+
+
+def _make_settings_mock(*, enabled: bool = True) -> MagicMock:
+    mock = MagicMock()
+    mock.segment_high_volume_events_enabled = enabled
     return mock
 
 
@@ -76,7 +85,10 @@ class TestEndToEndMiddleware:
     @pytest.mark.anyio
     async def test_get_request_emits_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.get("/api/v1/workflows")
 
@@ -93,7 +105,10 @@ class TestEndToEndMiddleware:
     @pytest.mark.anyio
     async def test_post_request_captures_payload_size(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/v1/invocations",
@@ -109,7 +124,10 @@ class TestEndToEndMiddleware:
     @pytest.mark.anyio
     async def test_event_contains_all_required_fields(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 await client.get("/api/v1/workflows")
 
@@ -130,7 +148,10 @@ class TestEndToEndMiddleware:
     async def test_resource_id_in_endpoint_path(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         workflow_id = "550e8400-e29b-41d4-a716-446655440000"
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 await client.get(f"/api/v1/workflows/{workflow_id}")
 
@@ -144,7 +165,10 @@ class TestExcludedPathsIntegration:
     @pytest.mark.anyio
     async def test_health_check_no_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.get("/health")
 
@@ -154,7 +178,10 @@ class TestExcludedPathsIntegration:
     @pytest.mark.anyio
     async def test_root_no_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.get("/")
 
@@ -164,7 +191,10 @@ class TestExcludedPathsIntegration:
     @pytest.mark.anyio
     async def test_docs_no_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 await client.get("/docs")
 
@@ -177,7 +207,10 @@ class TestUnmatchedRoutes:
     @pytest.mark.anyio
     async def test_404_generates_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.get("/api/v1/nonexistent")
 
@@ -195,7 +228,10 @@ class TestPrivacyIntegration:
     @pytest.mark.anyio
     async def test_sensitive_headers_not_in_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 await client.get(
                     "/api/v1/workflows",
@@ -211,7 +247,10 @@ class TestPrivacyIntegration:
     @pytest.mark.anyio
     async def test_query_params_not_in_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 await client.get("/api/v1/workflows?name=John&token=secret")
 
@@ -224,7 +263,10 @@ class TestPrivacyIntegration:
     @pytest.mark.anyio
     async def test_request_body_not_in_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 await client.post(
                     "/api/v1/invocations",
@@ -247,7 +289,10 @@ class TestErrorResilienceIntegration:
         mock_registry.send_event.side_effect = RuntimeError("Segment down")
 
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.get("/api/v1/workflows")
 
@@ -261,8 +306,28 @@ class TestErrorResilienceIntegration:
         mock_registry.send_event.side_effect = RuntimeError("Segment down")
 
         transport = ASGITransport(app=test_app)
-        with patch("nexus.telemetry.handlers.api_call.get_telemetry_registry", return_value=mock_registry):
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 for _ in range(5):
                     response = await client.get("/api/v1/workflows")
                     assert response.status_code == 200
+
+
+class TestHighVolumeEventsDisabled:
+    """Test that api_call events are suppressed when the flag is off."""
+
+    @pytest.mark.anyio
+    async def test_no_event_emitted_when_disabled(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
+        transport = ASGITransport(app=test_app)
+        with (
+            patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=False)),
+            patch(_REGISTRY_PATH, return_value=mock_registry),
+        ):
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.get("/api/v1/workflows")
+
+        assert response.status_code == 200
+        mock_registry.send_event.assert_not_called()
