@@ -1,5 +1,5 @@
 import { useReactFlow } from '@xyflow/react'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useDialogState } from '../../../hooks/useDialogState'
 import { useMockDataStore } from '../../../stores/useMockDataStore'
@@ -12,20 +12,24 @@ export function useRunStepDialog(handleSaveWorkflow: () => Promise<boolean>, isT
   const runStepDialog = useDialogState<RunStepDialogData>()
   const openRunStepDialog = runStepDialog.open
   const lastRunStepNodeIdRef = useRef<string | null>(null)
-  const pinnedMockDataForDialog = useMockDataStore((s) => {
-    const itemNodeId = runStepDialog.item?.nodeId
+
+  const itemNodeId = runStepDialog.item?.nodeId
+  const predecessors = runStepDialog.item?.predecessors
+
+  const inputMocks = useMockDataStore((s) => (itemNodeId ? s.pinnedData[itemNodeId]?.inputMocks : undefined))
+  const pinnedData = useMockDataStore((s) => s.pinnedData)
+
+  const pinnedMockDataForDialog = useMemo(() => {
     if (!itemNodeId) return undefined
-    const inputMocks = s.getInputMocks(itemNodeId) ?? {}
-    const predecessors = runStepDialog.item?.predecessors ?? []
-    const merged = { ...inputMocks }
-    for (const pred of predecessors) {
+    const merged: Record<string, Record<string, unknown>> = inputMocks ? { ...inputMocks } : {}
+    for (const pred of predecessors ?? []) {
       if (!merged[pred.id]) {
-        const outputMock = s.getOutputMock(pred.id)
+        const outputMock = pinnedData[pred.id]?.outputMock
         if (outputMock) merged[pred.id] = outputMock
       }
     }
     return Object.keys(merged).length > 0 ? merged : undefined
-  })
+  }, [itemNodeId, predecessors, inputMocks, pinnedData])
 
   const handleRunStep = useCallback(
     async (nodeId: string) => {
