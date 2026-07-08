@@ -443,9 +443,10 @@ async def test_what_can_i_shows_readable_project_names(
 
     app.dependency_overrides[get_current_user] = override
 
-    response = await base_client.post("/api/v1/authz/what_can_i")
+    # limit=100 to fetch all permissions in one page; pagination is tested separately in WI-5.
+    response = await base_client.post("/api/v1/authz/what_can_i", json={"limit": 100})
     assert response.status_code == 200
-    permissions = response.json()["permissions"]
+    permissions = response.json()["resources"]
 
     project_perms = [p for p in permissions if p["scope"] == "project" and p["project"] == "whatcan-proj"]
     assert len(project_perms) > 0

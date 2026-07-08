@@ -55,7 +55,7 @@ export interface paths {
     put?: never
     /**
      * List all permissions for the current user
-     * @description Resolves the current user's effective policies and returns them as a flat list of permission entries. No OPA call needed.
+     * @description Resolves the current user's effective policies and returns them as a paginated list of permission entries. No OPA call needed.
      */
     post: operations['what_can_i']
     delete?: never
@@ -304,12 +304,66 @@ export interface components {
       project?: string
     }
     /**
+     * WhatCanIRequest
+     * @description Request body for the What can I? endpoint.
+     */
+    WhatCanIRequest: {
+      /**
+       * Limit
+       * @description Maximum number of results per page
+       * @default 20
+       */
+      limit?: number
+      /**
+       * Cursor
+       * @description Pagination cursor from previous response
+       */
+      cursor?: string | null
+      /**
+       * Sort
+       * @description Sort parameter (e.g., 'name', '-created_at')
+       */
+      sort?: string | null
+      /**
+       * Include Total
+       * @description Include total count in response (expensive)
+       * @default false
+       */
+      include_total?: boolean
+    }
+    /**
      * WhatCanIResponse
-     * @description Response body for the What can I? endpoint.
+     * @description Paginated response body for the What can I? endpoint.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     WhatCanIResponse: {
-      /** Permissions */
-      permissions: components['schemas']['PermissionEntry'][]
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['PermissionEntry'][]
     }
     /**
      * Resource Actions Response
@@ -612,9 +666,13 @@ export interface operations {
       path?: never
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['WhatCanIRequest']
+      }
+    }
     responses: {
-      /** @description List of permission entries */
+      /** @description Paginated list of permission entries */
       200: {
         headers: {
           [name: string]: unknown

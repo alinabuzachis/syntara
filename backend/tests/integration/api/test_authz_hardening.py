@@ -185,9 +185,10 @@ class TestRoleBoundaries:
         await make_user_role(test_db_session, user)
         auth_as(user)
 
-        resp = await auth_client.post("/api/v1/authz/what_can_i")
+        # limit=100 to fetch all permissions in one page; pagination is tested separately in WI-5.
+        resp = await auth_client.post("/api/v1/authz/what_can_i", json={"limit": 100})
         assert resp.status_code == 200
-        permissions = resp.json()["permissions"]
+        permissions = resp.json()["resources"]
 
         # Filter to system-scoped (scope=any) allow permissions only
         system_perms = [p for p in permissions if p["effect"] == "allow" and p["scope"] == "any"]
@@ -226,9 +227,10 @@ class TestRoleBoundaries:
         await make_auditor(test_db_session, auditor)
         auth_as(auditor)
 
-        resp = await auth_client.post("/api/v1/authz/what_can_i")
+        # limit=100 to fetch all permissions in one page; pagination is tested separately in WI-5.
+        resp = await auth_client.post("/api/v1/authz/what_can_i", json={"limit": 100})
         assert resp.status_code == 200
-        permissions = resp.json()["permissions"]
+        permissions = resp.json()["resources"]
 
         # Filter to auditor-role-specific policies:
         # - scope=any (exclude project-scoped policies from authenticated group)
@@ -377,9 +379,10 @@ class TestGroupMembershipEdgeCases:
         lonely = await user_factory(username="lonely-sec28", email="lonely-sec28@test.com")
         auth_as(lonely)
 
-        resp = await auth_client.post("/api/v1/authz/what_can_i")
+        # limit=100 to fetch all permissions in one page; pagination is tested separately in WI-5.
+        resp = await auth_client.post("/api/v1/authz/what_can_i", json={"limit": 100})
         assert resp.status_code == 200
-        permissions = resp.json()["permissions"]
+        permissions = resp.json()["resources"]
 
         # Should have only the authenticated role policies (not user role)
         policy_names = {p["policy_name"] for p in permissions}

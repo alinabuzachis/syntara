@@ -59,6 +59,18 @@ vi.mock('../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => mockUseProjectSelector(),
 }))
 
+// Mock useApprovalDecideProjects to avoid QueryClientProvider dependency from useAllPermissions.
+// Stable references prevent infinite re-render loops in useMemo dependency chains.
+const EMPTY_PROJECT_NAMES = new Set<string>()
+vi.mock('./useApprovalDecideProjects', () => ({
+  useApprovalDecideProjects: vi.fn(() => ({
+    canDecideAllProjects: false,
+    canDecideProjectNames: EMPTY_PROJECT_NAMES,
+    isLoading: false,
+    error: null,
+  })),
+}))
+
 // Mock useApprovalPermissions
 vi.mock('./useApprovalPermissions', () => ({
   useApprovalPermissions: vi.fn(() => ({

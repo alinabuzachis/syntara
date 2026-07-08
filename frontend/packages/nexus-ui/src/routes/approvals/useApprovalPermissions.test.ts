@@ -5,19 +5,26 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockAuthMiddleware } from '../../test/mockAuthMiddleware'
-import { accessClient, accessFetchClient } from '../access/accessClient'
+import { accessFetchClient } from '../access/accessClient'
+import { useAllPermissions } from '../access/useAllPermissions'
 
 import { useApprovalPermissions } from './useApprovalPermissions'
 
 vi.mock('../access/accessClient', () => ({
   accessFetchClient: { POST: vi.fn() },
   accessClient: {
-    useQuery: vi.fn(() => ({
-      data: { permissions: [] },
-      isLoading: false,
-      error: null,
-    })),
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
+}))
+
+vi.mock('../access/useAllPermissions', () => ({
+  useAllPermissions: vi.fn(() => ({
+    permissions: [],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
 }))
 
 vi.mock('../../client', () => ({
@@ -144,22 +151,20 @@ describe('useApprovalPermissions', () => {
     // Global decide is denied, but user has project-scoped permission for 'Project Alpha'
     mockCanI({ read: true, decide: false })
 
-    // Mock what_can_i to return project-scoped permission
-    vi.mocked(accessClient.useQuery).mockReturnValue({
-      data: {
-        permissions: [
-          {
-            policy_name: 'test',
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'project',
-            project: 'Project Alpha',
-          },
-        ],
-      },
+    vi.mocked(useAllPermissions).mockReturnValue({
+      permissions: [
+        {
+          policy_name: 'test',
+          effect: 'allow',
+          actions: ['approval:decide'],
+          scope: 'project',
+          project: 'Project Alpha',
+        },
+      ] as ReturnType<typeof useAllPermissions>['permissions'],
       isLoading: false,
       error: null,
-    } as never)
+      refetch: vi.fn() as ReturnType<typeof useAllPermissions>['refetch'],
+    })
 
     const { result } = renderHook(() => useApprovalPermissions('Project Alpha'), { wrapper: createWrapper() })
 
@@ -175,21 +180,20 @@ describe('useApprovalPermissions', () => {
     // Global decide is denied, user has project-scoped permission for 'Project Alpha' but not 'Project Beta'
     mockCanI({ read: true, decide: false })
 
-    vi.mocked(accessClient.useQuery).mockReturnValue({
-      data: {
-        permissions: [
-          {
-            policy_name: 'test',
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'project',
-            project: 'Project Alpha',
-          },
-        ],
-      },
+    vi.mocked(useAllPermissions).mockReturnValue({
+      permissions: [
+        {
+          policy_name: 'test',
+          effect: 'allow',
+          actions: ['approval:decide'],
+          scope: 'project',
+          project: 'Project Alpha',
+        },
+      ] as ReturnType<typeof useAllPermissions>['permissions'],
       isLoading: false,
       error: null,
-    } as never)
+      refetch: vi.fn() as ReturnType<typeof useAllPermissions>['refetch'],
+    })
 
     const { result } = renderHook(() => useApprovalPermissions('Project Beta'), { wrapper: createWrapper() })
 

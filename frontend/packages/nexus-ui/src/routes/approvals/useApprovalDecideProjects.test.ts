@@ -1,23 +1,30 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAllPermissions } from '../access/useAllPermissions'
+
 import { useApprovalDecideProjects } from './useApprovalDecideProjects'
 
-// Mock the access client
-const mockUseQuery = vi.fn()
-function getMockValue(): unknown {
-  return mockUseQuery()
-}
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
   interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
-vi.mock('../access/accessClient', () => ({
-  accessClient: {
-    useQuery: getMockValue,
-  },
+vi.mock('../access/useAllPermissions', () => ({
+  useAllPermissions: vi.fn(),
 }))
+
+function mockPermissions(
+  permissions: Record<string, unknown>[],
+  overrides: { isLoading?: boolean; error?: Error | null } = {}
+) {
+  vi.mocked(useAllPermissions).mockReturnValue({
+    permissions: permissions as ReturnType<typeof useAllPermissions>['permissions'],
+    isLoading: overrides.isLoading ?? false,
+    error: overrides.error ?? null,
+    refetch: vi.fn() as ReturnType<typeof useAllPermissions>['refetch'],
+  })
+}
 
 describe('useApprovalDecideProjects', () => {
   beforeEach(() => {
@@ -25,11 +32,7 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('initializes with isLoading true and empty permission sets', () => {
-    mockUseQuery.mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      error: null,
-    })
+    mockPermissions([], { isLoading: true })
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -39,19 +42,13 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('detects system-level approval:decide permission', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'system',
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'system',
       },
-      isLoading: false,
-      error: null,
-    })
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -61,18 +58,12 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('detects system-level permission when scope is undefined', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
       },
-      isLoading: false,
-      error: null,
-    })
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -80,19 +71,13 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('detects system-level permission when project is null', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            project: null,
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        project: null,
       },
-      isLoading: false,
-      error: null,
-    })
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -100,26 +85,20 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('extracts project-scoped approval:decide permissions', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'project',
-            project: 'test-project-1',
-          },
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'project',
-            project: 'test-project-2',
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'project',
+        project: 'test-project-1',
       },
-      isLoading: false,
-      error: null,
-    })
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'project',
+        project: 'test-project-2',
+      },
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -129,20 +108,13 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('ignores project-scoped permissions without project field', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'project',
-            // Missing project field
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'project',
       },
-      isLoading: false,
-      error: null,
-    })
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -151,19 +123,13 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('ignores permissions with effect deny', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'deny',
-            actions: ['approval:decide'],
-            scope: 'system',
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'deny',
+        actions: ['approval:decide'],
+        scope: 'system',
       },
-      isLoading: false,
-      error: null,
-    })
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -171,19 +137,13 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('ignores permissions without decide action', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['read', 'write'],
-            scope: 'system',
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['read', 'write'],
+        scope: 'system',
       },
-      isLoading: false,
-      error: null,
-    })
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -191,25 +151,19 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('handles mixed system and project permissions', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'system',
-          },
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'project',
-            project: 'test-project',
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'system',
       },
-      isLoading: false,
-      error: null,
-    })
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'project',
+        project: 'test-project',
+      },
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -218,20 +172,14 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('handles permissions with multiple actions including decide', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['read', 'approval:decide', 'write'],
-            scope: 'project',
-            project: 'multi-action-project',
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['read', 'approval:decide', 'write'],
+        scope: 'project',
+        project: 'multi-action-project',
       },
-      isLoading: false,
-      error: null,
-    })
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -239,26 +187,7 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('handles empty permissions array', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [],
-      },
-      isLoading: false,
-      error: null,
-    })
-
-    const { result } = renderHook(() => useApprovalDecideProjects())
-
-    expect(result.current.canDecideAllProjects).toBe(false)
-    expect(result.current.canDecideProjectNames).toEqual(new Set())
-  })
-
-  it('handles undefined data', () => {
-    mockUseQuery.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      error: null,
-    })
+    mockPermissions([])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
@@ -268,44 +197,28 @@ describe('useApprovalDecideProjects', () => {
 
   it('exposes error from query', () => {
     const testError = new Error('Network error')
-    mockUseQuery.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      error: testError,
-    })
+    mockPermissions([], { error: testError })
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 
     expect(result.current.error).toBe(testError)
   })
 
-  it('updates when query data changes', async () => {
-    // Start with loading state
-    mockUseQuery.mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      error: null,
-    })
+  it('updates when permissions data changes', async () => {
+    mockPermissions([], { isLoading: true })
 
     const { result, rerender } = renderHook(() => useApprovalDecideProjects())
 
     expect(result.current.isLoading).toBe(true)
 
-    // Update to first loaded state
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'project',
-            project: 'project-1',
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'project',
+        project: 'project-1',
       },
-      isLoading: false,
-      error: null,
-    })
+    ])
 
     rerender()
 
@@ -313,20 +226,13 @@ describe('useApprovalDecideProjects', () => {
       expect(result.current.canDecideProjectNames).toEqual(new Set(['project-1']))
     })
 
-    // Update to second loaded state
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'system',
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'system',
       },
-      isLoading: false,
-      error: null,
-    })
+    ])
 
     rerender()
 
@@ -336,26 +242,20 @@ describe('useApprovalDecideProjects', () => {
   })
 
   it('deduplicates project names', () => {
-    mockUseQuery.mockReturnValue({
-      data: {
-        permissions: [
-          {
-            effect: 'allow',
-            actions: ['approval:decide'],
-            scope: 'project',
-            project: 'duplicate-project',
-          },
-          {
-            effect: 'allow',
-            actions: ['decide', 'read'],
-            scope: 'project',
-            project: 'duplicate-project',
-          },
-        ],
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'project',
+        project: 'duplicate-project',
       },
-      isLoading: false,
-      error: null,
-    })
+      {
+        effect: 'allow',
+        actions: ['decide', 'read'],
+        scope: 'project',
+        project: 'duplicate-project',
+      },
+    ])
 
     const { result } = renderHook(() => useApprovalDecideProjects())
 

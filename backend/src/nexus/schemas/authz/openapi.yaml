@@ -103,16 +103,22 @@ paths:
   /authz/what_can_i:
     post:
       summary: List all permissions for the current user
-      description: Resolves the current user's effective policies and returns them as a flat list of permission entries. No OPA call needed.
+      description: Resolves the current user's effective policies and returns them as a paginated list of permission entries. No OPA call needed.
       operationId: what_can_i
       x-app-permission:
         resource: null
         action: null
       tags:
         - Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatCanIRequest"
       responses:
         "200":
-          description: List of permission entries
+          description: Paginated list of permission entries
           content:
             application/json:
               schema:
@@ -447,18 +453,75 @@ components:
           title: Project
           description: Project scope (empty for system-level)
 
+    WhatCanIRequest:
+      type: object
+      title: WhatCanIRequest
+      description: Request body for the What can I? endpoint.
+      properties:
+        limit:
+          type: integer
+          maximum: 100.0
+          exclusiveMinimum: 0.0
+          title: Limit
+          description: Maximum number of results per page
+          default: 20
+        cursor:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Cursor
+          description: Pagination cursor from previous response
+        sort:
+          anyOf:
+            - type: string
+              pattern: "^-?[a-z][a-z0-9_]*$"
+            - type: 'null'
+          title: Sort
+          description: "Sort parameter (e.g., 'name', '-created_at')"
+        include_total:
+          type: boolean
+          title: Include Total
+          description: Include total count in response (expensive)
+          default: false
+
     WhatCanIResponse:
       type: object
       title: WhatCanIResponse
-      description: Response body for the What can I? endpoint.
+      description: Paginated response body for the What can I? endpoint.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
       required:
-        - permissions
+        - resources
       properties:
-        permissions:
-          type: array
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
           items:
             $ref: "#/components/schemas/PermissionEntry"
-          title: Permissions
+          type: array
+          maxItems: 100
+          title: Resources
+          description: Array of resources in current page
 
     ResourceActionsResponse:
       type: object

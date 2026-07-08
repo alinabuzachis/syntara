@@ -34,6 +34,24 @@ _REGO_POLICY_PATH = Path(__file__).resolve().parents[3] / "src" / "nexus" / "aut
 _OPA_RESULT_FIELDS = {"allow", "deny", "matched_policy", "denial_reason", "denied_by", "allowed_projects"}
 
 
+async def _fetch_all_what_can_i(client: AsyncClient) -> list[dict[str, Any]]:
+    """Follow cursors to collect all what_can_i permissions across pages."""
+    all_permissions: list[dict[str, Any]] = []
+    cursor = None
+    while True:
+        body: dict[str, Any] = {"limit": 100}
+        if cursor:
+            body["cursor"] = cursor
+        resp = await client.post("/api/v1/authz/what_can_i", json=body)
+        assert resp.status_code == 200
+        data = resp.json()
+        all_permissions.extend(data["resources"])
+        cursor = data.get("next")
+        if not cursor:
+            break
+    return all_permissions
+
+
 def _opa_evaluate_cli(opa_input: dict[str, Any]) -> dict[str, Any]:
     """Evaluate authz using the OPA CLI against the real rego policy."""
     result = subprocess.run(  # noqa: S603
@@ -180,9 +198,7 @@ async def test_can_i_project_scoped(
     assert response.json()["allowed"] is True
 
     # Verify: project-scoped policies appear in what-can-i
-    response = await auth_client.post("/api/v1/authz/what_can_i")
-    assert response.status_code == 200
-    permissions = response.json()["permissions"]
+    permissions = await _fetch_all_what_can_i(auth_client)
     project_perms = [p for p in permissions if p["scope"] == "project" and p["project"] == project_name]
     assert len(project_perms) > 0
 
@@ -584,10 +600,15 @@ async def test_what_can_i_returns_effective_permissions(
     test_user: User,
 ) -> None:
     """WI-1: what-can-i returns all effective permissions for the user."""
-    response = await auth_client.post("/api/v1/authz/what_can_i")
+    # limit=100 to fetch all permissions in one page; pagination is tested separately in WI-5.
+    response = await auth_client.post("/api/v1/authz/what_can_i", json={"limit": 100})
     assert response.status_code == 200
     data = response.json()
-    permissions = data["permissions"]
+    # Response must use ResourcesResponse shape
+    assert "resources" in data
+    assert "next" in data
+    assert "prev" in data
+    permissions = data["resources"]
     policy_names = {p["policy_name"] for p in permissions}
     # Admin role includes all policies
     assert "workflow:create:any" in policy_names
@@ -609,9 +630,7 @@ async def test_what_can_i_includes_project_scoped_policies(
     assert response.status_code == 201
     project_name = response.json()["name"]
 
-    response = await auth_client.post("/api/v1/authz/what_can_i")
-    assert response.status_code == 200
-    permissions = response.json()["permissions"]
+    permissions = await _fetch_all_what_can_i(auth_client)
 
     # Should have project-scoped entries for the created project
     project_perms = [p for p in permissions if p["scope"] == "project" and p["project"] == project_name]
@@ -631,9 +650,10 @@ async def test_what_can_i_admin_sees_all_policies(
     """WI-3: Admin user sees all built-in policies."""
     await make_admin(test_db_session, test_user)
 
-    response = await auth_client.post("/api/v1/authz/what_can_i")
+    # limit=100 to fetch all permissions in one page; pagination is tested separately in WI-5.
+    response = await auth_client.post("/api/v1/authz/what_can_i", json={"limit": 100})
     assert response.status_code == 200
-    permissions = response.json()["permissions"]
+    permissions = response.json()["resources"]
     policy_names = {p["policy_name"] for p in permissions}
 
     # Admin role includes all policies
@@ -653,14 +673,157 @@ async def test_what_can_i_multiple_groups_additive(
     # Add auditor role via a second group.
     await make_auditor(test_db_session, test_user)
 
-    response = await auth_client.post("/api/v1/authz/what_can_i")
+    # limit=100 to fetch all permissions in one page; pagination is tested separately in WI-5.
+    response = await auth_client.post("/api/v1/authz/what_can_i", json={"limit": 100})
     assert response.status_code == 200
-    permissions = response.json()["permissions"]
+    permissions = response.json()["resources"]
     policy_names = {p["policy_name"] for p in permissions}
 
     # Should have policies from both user role and auditor role
     assert "project:create:any" in policy_names  # from user role
     assert "policy:read:any" in policy_names  # from auditor role
+
+
+@pytest.mark.asyncio
+async def test_what_can_i_pagination(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """WI-5: what-can-i paginates results with cursor, includes prev field."""
+    await make_admin(test_db_session, test_user)
+
+    # First, get all permissions to know the total count
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 100, "include_total": True},
+    )
+    assert response.status_code == 200
+    all_data = response.json()
+    total_count = all_data["total"]
+    assert total_count is not None
+    assert total_count > 2, "Need at least 3 permissions to test pagination"
+
+    # Request page 1 with limit=2
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 2},
+    )
+    assert response.status_code == 200
+    page1 = response.json()
+    assert len(page1["resources"]) == 2
+    assert page1["next"] is not None
+    assert page1["prev"] is None  # First page has no prev
+
+    # Request page 2 using cursor
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 2, "cursor": page1["next"]},
+    )
+    assert response.status_code == 200
+    page2 = response.json()
+    assert len(page2["resources"]) > 0
+    assert page2["prev"] is not None  # Second page has prev
+
+    # No overlap between pages
+    page1_names = {p["policy_name"] + p["scope"] + p["project"] for p in page1["resources"]}
+    page2_names = {p["policy_name"] + p["scope"] + p["project"] for p in page2["resources"]}
+    assert page1_names.isdisjoint(page2_names)
+
+
+@pytest.mark.asyncio
+async def test_what_can_i_backward_pagination(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """WI-6: what-can-i supports backward pagination via prev cursor."""
+    await make_admin(test_db_session, test_user)
+
+    # Get page 1
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 2},
+    )
+    assert response.status_code == 200
+    page1 = response.json()
+    page1_names = [p["policy_name"] for p in page1["resources"]]
+    assert page1["next"] is not None
+
+    # Get page 2
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 2, "cursor": page1["next"]},
+    )
+    assert response.status_code == 200
+    page2 = response.json()
+    assert page2["prev"] is not None
+
+    # Navigate back using prev cursor — should return same items as page 1
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 2, "cursor": page2["prev"]},
+    )
+    assert response.status_code == 200
+    back_page = response.json()
+    back_names = [p["policy_name"] for p in back_page["resources"]]
+    assert back_names == page1_names
+
+
+@pytest.mark.asyncio
+async def test_what_can_i_include_total(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """WI-7: what-can-i returns total count when include_total is true."""
+    await make_admin(test_db_session, test_user)
+
+    # Without include_total, total should be None
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 1},
+    )
+    assert response.status_code == 200
+    assert response.json()["total"] is None
+
+    # With include_total, total should be an integer >= the page size
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 1, "include_total": True},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data["total"], int)
+    assert data["total"] >= len(data["resources"])
+
+
+@pytest.mark.asyncio
+async def test_what_can_i_sort(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """WI-8: what-can-i supports sorting by policy_name."""
+    await make_admin(test_db_session, test_user)
+
+    # Sort ascending
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 100, "sort": "policy_name"},
+    )
+    assert response.status_code == 200
+    asc_names = [p["policy_name"] for p in response.json()["resources"]]
+    assert asc_names == sorted(asc_names)
+
+    # Sort descending
+    response = await auth_client.post(
+        "/api/v1/authz/what_can_i",
+        json={"limit": 100, "sort": "-policy_name"},
+    )
+    assert response.status_code == 200
+    desc_names = [p["policy_name"] for p in response.json()["resources"]]
+    assert desc_names == sorted(desc_names, reverse=True)
 
 
 # ============================================================================

@@ -39,10 +39,6 @@ exclusions:
   # TEMPORARY EXCLUSIONS (tech debt - should fix)
   # ===========================================================================
 
-  # Authorization endpoints with custom response schemas
-  - operation_id: what_can_i
-    reason: "Non-standard response shape (WhatCanIResponse), returns permissions array not resources"
-
   # Batch/aggregation operations
   - operation_id: batch_decide_approvals
     reason: "Batch operation with custom response (BatchApprovalResponse), returns results not resources"

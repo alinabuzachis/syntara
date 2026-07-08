@@ -47,7 +47,7 @@ const samplePermissions = [
 
 function mockPostSuccess(permissions = samplePermissions) {
   vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-    data: { permissions },
+    data: { resources: permissions, next: null, prev: null, total: permissions.length },
     error: undefined,
     response: new Response(),
   })
@@ -92,7 +92,7 @@ describe('MyPermissionsView', () => {
     vi.mocked(accessFetchClient.POST)
       .mockReset()
       .mockResolvedValue({
-        data: { permissions: [] },
+        data: { resources: [], next: null, prev: null, total: 0 },
         error: undefined,
         response: new Response(),
       })
@@ -100,7 +100,7 @@ describe('MyPermissionsView', () => {
 
   it('auto-loads permissions on mount', async () => {
     await renderAndWaitForData()
-    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/what_can_i')
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/what_can_i', { body: { limit: 100 } })
   })
 
   it('shows spinner immediately on mount', () => {

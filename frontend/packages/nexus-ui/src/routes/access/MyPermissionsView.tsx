@@ -2,7 +2,7 @@ import { Button, Flex, Label, Tooltip } from '@patternfly/react-core'
 import { CheckCircleIcon, SyncAltIcon, TimesCircleIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { ThProps } from '@patternfly/react-table'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
@@ -11,8 +11,8 @@ import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 
-import { accessFetchClient } from './accessClient'
 import type { PermissionEntry } from './types'
+import { useAllPermissions } from './useAllPermissions'
 
 function textContainsFilter(key: string, label: string): FilterFieldDefinition {
   return {
@@ -130,9 +130,7 @@ function PermissionsTableContent({
 }
 
 export function MyPermissionsView() {
-  const [permissions, setPermissions] = useState<PermissionEntry[] | null>(null)
-  const [error, setError] = useState<unknown>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const { permissions, isLoading, error, refetch } = useAllPermissions()
 
   const [filters, setFilters] = useState<FilterConfig[]>([])
   const [activeSortIndex, setActiveSortIndex] = useState<number | undefined>(undefined)
@@ -141,27 +139,6 @@ export function MyPermissionsView() {
   const [perPage, setPerPage] = useState(20)
 
   const hasActiveFilters = filters.length > 0
-
-  const handleFetch = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const { data, error: fetchError } = await accessFetchClient.POST('/authz/what_can_i')
-      if (fetchError) {
-        throw new Error(JSON.stringify(fetchError))
-      }
-      setPermissions(data.permissions)
-    } catch (err) {
-      setError(err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    detachPromise(handleFetch())
-  }, [handleFetch])
 
   const handleFilterChange = useCallback((newFilters: FilterConfig[]) => {
     setFilters(newFilters)
@@ -196,7 +173,6 @@ export function MyPermissionsView() {
   )
 
   const filtered = useMemo(() => {
-    if (!permissions) return []
     if (filters.length === 0) return permissions
     return permissions.filter((p) => filters.every((f) => matchesFilter(p, f)))
   }, [permissions, filters])
@@ -237,7 +213,7 @@ export function MyPermissionsView() {
       <NxListPanelView
         isPending={isLoading}
         error={error}
-        onRetry={() => detachPromise(handleFetch())}
+        onRetry={() => detachPromise(refetch())}
         isEmpty={sorted.length === 0}
         hasActiveFilters={hasActiveFilters}
         onClearAllFilters={clearAllFilters}
@@ -255,7 +231,7 @@ export function MyPermissionsView() {
                 <Button
                   variant="plain"
                   aria-label="Refresh permissions"
-                  onClick={() => detachPromise(handleFetch())}
+                  onClick={() => detachPromise(refetch())}
                   icon={<SyncAltIcon />}
                 />
               </Tooltip>

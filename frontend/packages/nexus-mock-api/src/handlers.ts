@@ -4215,48 +4215,42 @@ export const handlers = [
   http.post('/api/v1/authz/what_can_i', async ({ request }) => {
     const username = getUsernameFromRequest(request)
 
+    const respond = (items: Record<string, unknown>[]) => HttpResponse.json(paginate(items, null, items.length, true))
+
     if (username === 'viewer') {
-      return HttpResponse.json({
-        permissions: [
-          { policy_name: 'viewer-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
-        ],
-      })
+      return respond([
+        { policy_name: 'viewer-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
+      ])
     }
 
     if (username === 'user') {
-      return HttpResponse.json({
-        permissions: [{ policy_name: 'user-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' }],
-      })
+      return respond([{ policy_name: 'user-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' }])
     }
 
     if (username === 'auditor') {
-      return HttpResponse.json({
-        permissions: [
-          { policy_name: 'auditor-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
-        ],
-      })
+      return respond([
+        { policy_name: 'auditor-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
+      ])
     }
 
-    return HttpResponse.json({
-      permissions: [
-        {
-          policy_name: 'admin-policy',
-          effect: 'allow',
-          actions: ['create', 'read', 'update', 'delete', 'approval:decide'],
-          scope: 'system',
-          project: '',
-        },
-        { policy_name: 'admin-policy', effect: 'allow', actions: ['read', 'run'], scope: 'system', project: '' },
-        {
-          policy_name: 'project-editor',
-          effect: 'allow',
-          actions: ['create', 'read', 'update'],
-          scope: 'project',
-          project: 'default',
-        },
-        { policy_name: 'project-viewer', effect: 'allow', actions: ['read'], scope: 'project', project: 'production' },
-        { policy_name: 'audit-reader', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
-      ],
-    })
+    return respond([
+      {
+        policy_name: 'admin-policy',
+        effect: 'allow',
+        actions: ['create', 'read', 'update', 'delete', 'approval:decide'],
+        scope: 'system',
+        project: '',
+      },
+      { policy_name: 'admin-policy', effect: 'allow', actions: ['read', 'run'], scope: 'system', project: '' },
+      {
+        policy_name: 'project-editor',
+        effect: 'allow',
+        actions: ['create', 'read', 'update'],
+        scope: 'project',
+        project: 'default',
+      },
+      { policy_name: 'project-viewer', effect: 'allow', actions: ['read'], scope: 'project', project: 'production' },
+      { policy_name: 'audit-reader', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
+    ])
   }),
 ]

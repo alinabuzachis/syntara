@@ -35,6 +35,7 @@ from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.models.user import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.utils.cursor import (
+    CursorData,
     PaginationDirection,
     SortDirection,
     create_cursor_data,
@@ -120,10 +121,12 @@ class PermissionEntry(SQLModel):
     project: str = Field(default="", description="Project scope (empty for system-level)")
 
 
-class WhatCanIResponse(SQLModel):
-    """Response body for the What can I? endpoint."""
+class WhatCanIRequest(BasePaginatedRequest):
+    """Request body for the What can I? endpoint."""
 
-    permissions: list[PermissionEntry]
+
+class WhatCanIResponse(ResourcesResponse[PermissionEntry]):
+    """Paginated response body for the What can I? endpoint."""
 
 
 class ResourceActionsResponse(SQLModel):
@@ -135,7 +138,7 @@ class ResourceActionsResponse(SQLModel):
 
 
 # ============================================================================
-# Helpers
+# Shared helpers (used by multiple endpoints)
 # ============================================================================
 
 
@@ -166,6 +169,149 @@ async def _ids_to_names(db: AsyncSession, project_ids: set[UUID]) -> set[str]:
     )
     return set(projects_result.all())
 
+
+# ============================================================================
+# what_can_i helpers
+# ============================================================================
+
+_WHAT_CAN_I_SORTABLE_FIELDS: list[str] = ["policy_name", "effect", "scope"]
+
+
+def _is_cursor_stale(
+    cursor_data: CursorData,
+    cursor_index: int | None,
+    sorted_items: list[PermissionEntry],
+    sort_field: str,
+) -> bool:
+    """Detect if the in-memory list changed between paginated requests.
+
+    what_can_i paginates an in-memory list using index-based cursors. If
+    the underlying data changes (e.g., a role assignment is added or removed),
+    the same index may point to a different item. This compares the stored
+    sort value in the cursor against the current value at that index; a
+    mismatch resets pagination to page 1.
+    """
+    if cursor_index is None:
+        return False
+    if not (0 <= cursor_index < len(sorted_items)):
+        return True
+    stored = cursor_data.get("created_at")
+    if stored is None:
+        return False
+    return str(getattr(sorted_items[cursor_index], sort_field)) != stored
+
+
+def _parse_what_can_i_cursor(
+    cursor: str,
+    sort_field: str,
+    sort_direction: SortDirection,
+) -> tuple[CursorData, int | None, str, SortDirection, PaginationDirection]:
+    """Decode a what_can_i cursor string into its components."""
+    cursor_data = decode_cursor(cursor)
+
+    sort_field_c, sort_direction_c = extract_sort_from_cursor(cursor_data)
+    if sort_field_c and sort_field_c in _WHAT_CAN_I_SORTABLE_FIELDS:
+        sort_field = sort_field_c
+        sort_direction = sort_direction_c
+
+    raw_id = cursor_data.get("id")
+    try:
+        cursor_index = int(raw_id) if raw_id else None
+    except (ValueError, TypeError):
+        cursor_index = None
+
+    dir_str = cursor_data.get("direction", "next")
+    direction = PaginationDirection.PREV if dir_str == "prev" else PaginationDirection.NEXT
+
+    return cursor_data, cursor_index, sort_field, sort_direction, direction
+
+
+def _slice_page(
+    sorted_items: list[PermissionEntry],
+    cursor_index: int | None,
+    direction: PaginationDirection,
+    limit: int,
+) -> tuple[list[PermissionEntry], int]:
+    """Select the page slice and return (page, start_index)."""
+    if cursor_index is None:
+        return sorted_items[:limit], 0
+    if direction == PaginationDirection.NEXT:
+        start = cursor_index + 1
+        return sorted_items[start : start + limit], start
+    end = cursor_index
+    start = max(0, end - limit)
+    return sorted_items[start:end], start
+
+
+def _paginate_in_memory(
+    items: list[PermissionEntry],
+    *,
+    sort_field: str,
+    sort_direction: SortDirection,
+    limit: int,
+    cursor: str | None,
+    include_total: bool,
+) -> WhatCanIResponse:
+    """Sort and paginate an in-memory list of PermissionEntry items.
+
+    Uses index-based cursor positioning: the cursor encodes the index of the
+    boundary item in the sorted list plus the sort parameters. On subsequent
+    requests the list is re-sorted identically and the index is used to slice.
+    """
+    if not items:
+        return WhatCanIResponse(resources=[], next=None, prev=None, total=0 if include_total else None)
+
+    cursor_index: int | None = None
+    direction = PaginationDirection.NEXT
+    cursor_data: CursorData = {}
+
+    if cursor:
+        cursor_data, cursor_index, sort_field, sort_direction, direction = _parse_what_can_i_cursor(
+            cursor, sort_field, sort_direction
+        )
+
+    reverse = sort_direction == SortDirection.DESC
+    sorted_items = sorted(
+        items,
+        key=lambda p: (getattr(p, sort_field), p.policy_name, p.effect, p.scope, p.project),
+        reverse=reverse,
+    )
+
+    if cursor and _is_cursor_stale(cursor_data, cursor_index, sorted_items, sort_field):
+        cursor_index = None
+        direction = PaginationDirection.NEXT
+
+    total_count = len(sorted_items) if include_total else None
+    page, start_index = _slice_page(sorted_items, cursor_index, direction, limit)
+
+    if not page:
+        return WhatCanIResponse(resources=[], next=None, prev=None, total=total_count)
+
+    page_end_index = start_index + len(page) - 1
+    has_next = page_end_index < len(sorted_items) - 1
+    has_prev = start_index > 0
+
+    def _make_cursor(index: int, nav_direction: PaginationDirection) -> str:
+        sort_value = str(getattr(sorted_items[index], sort_field))
+        return encode_cursor(
+            create_cursor_data(
+                resource_id=str(index),
+                created_at=sort_value,
+                direction=nav_direction,
+                sort_field=sort_field,
+                sort_direction=sort_direction,
+            )
+        )
+
+    next_cursor = _make_cursor(page_end_index, PaginationDirection.NEXT) if has_next else None
+    prev_cursor = _make_cursor(start_index, PaginationDirection.PREV) if has_prev else None
+
+    return WhatCanIResponse(resources=page, next=next_cursor, prev=prev_cursor, total=total_count)
+
+
+# ============================================================================
+# who_can helpers
+# ============================================================================
 
 # who_can can't use BaseService for pagination because authorization is determined
 # per-user via OPA, not by SQL filters. We must scan users in batches, check each
@@ -654,30 +800,18 @@ async def who_can(
     operation_id="what_can_i",
     summary="List all permissions for the current user",
     description=(
-        "Resolves the current user's effective policies and returns them as a flat list of permission entries."
-        " No OPA call needed."
+        "Resolves the current user's effective policies and returns them as a paginated list of"
+        " permission entries. No OPA call needed."
     ),
-    response_description="List of permission entries",
+    response_description="Paginated list of permission entries",
 )
 async def what_can_i(
     request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    body: WhatCanIRequest,
 ) -> WhatCanIResponse:
-    """List all permissions for the current user.
-
-    Resolves the user's effective policies and returns them as a
-    flat list of permission entries. No OPA call needed.
-
-    Args:
-        request: The HTTP request.
-        current_user: The authenticated user.
-        db: Database session.
-
-    Returns:
-        List of permission entries.
-
-    """
+    """List all permissions for the current user. No OPA call needed."""
     effective = await resolve_effective_policies(db, current_user.id)
     groups = await resolve_user_groups(db, current_user.id)
 
@@ -706,7 +840,18 @@ async def what_can_i(
         for p in effective
     ]
 
-    return WhatCanIResponse(permissions=permissions)
+    sort_field, sort_direction = parse_sort(
+        body.sort, _WHAT_CAN_I_SORTABLE_FIELDS, default_field="policy_name", default_direction=SortDirection.ASC
+    )
+
+    return _paginate_in_memory(
+        items=permissions,
+        sort_field=sort_field,
+        sort_direction=sort_direction,
+        limit=body.limit,
+        cursor=body.cursor,
+        include_total=body.include_total,
+    )
 
 
 @router.get(
