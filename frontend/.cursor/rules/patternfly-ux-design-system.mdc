@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 
 <!--
-  SYNC NOTE: This is a condensed version of .claude/skills/patternfly-ux-design-system.md
+  SYNC NOTE: This is a condensed version of .claude/skills/frontend-patternfly-ux/SKILL.md
   (the comprehensive Claude skill). Both files must stay in sync — when updating one,
   update the other. This file is optimized for Cursor (auto-loaded, lightweight).
   The skill file is the source of truth for full details.
@@ -56,16 +56,18 @@ Every page must follow this structural hierarchy:
 | ------------------ | ------------------------------------------------------------------------------------------------------------- |
 | **List page**      | `NxPageHeader` (Create CTA) → `NxPanel isFullHeight` → `NxPanelContentStack variant="inset"` → filter + table |
 | **Detail page**    | `NxPageBreadcrumbs` → `NxPageHeader` → `NxPanel isFullHeight` → `NxPanelContentStack` (default) → tabs        |
-| **Form page**      | `NxPageBreadcrumbs` → `NxPageHeader` Cancel/Save toolbar → `NxPanel` → form body                              |
+| **Form page**      | `NxPageBreadcrumbs` → `NxPageHeader` → `NxPanel isFullHeight footer={<ActionGroup>…}` → form body              |
 | **Error in panel** | Same shell → `NxPageBody isCentered` + `ErrorState` inside `NxPanel`                                          |
 
 **`NxListPanel`** — canonical list page implementation. Compound API: `NxListPanelView` (handles loading/error/empty/filter states), `NxListPanelToolbar` (wraps in `<fieldset disabled={isFetching}>` during refetch), `NxListPanelTable`. Use instead of manual `NxPanelContentStack` + `useQueryState` + three-state branching.
+
+**Sticky form footer** — Form Save/Cancel buttons live in `NxPanel footer={<ActionGroup>…</ActionGroup>}`, NOT in the page header. `PanelMain` scrolls while footer stays pinned. Cancel uses `variant="link"`. Applies to Create/Edit forms, Configure Integration, Settings tabs. Does NOT apply to builder node editor panels or modals.
 
 ### Page Header Types
 
 - **Main page header** — Left-aligned title, right-aligned actions
 - **Details page header** — Left-aligned breadcrumbs (`NxPageBreadcrumbs`) + title; toolbar left→right: Switch → Edit (primary) → kebab
-- **Form page header** — Left-aligned breadcrumbs + title; toolbar: Cancel (secondary) → Save (primary, rightmost)
+- **Form page header** — Left-aligned breadcrumbs + title; no action buttons in the header — Save and Cancel live in the `NxPanel` sticky footer
 
 ### Breadcrumbs
 
@@ -87,6 +89,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - Hover on nav item (has children) → flyout panel with sub-items
 - Click nav item (no children) → navigate to route
 - Click nav item (has children) → navigate to first enabled child route
+- Click flyout sub-item → navigate to route, **close flyout immediately**
 - Mouse leaves flyout → close after 150ms grace period
 
 ## Tabs
@@ -128,7 +131,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 
 - Use PatternFly's Basic Form component
 - Left-aligned, one column, max-width of 600px
-- Header: title + primary action button + secondary cancel
+- Submit buttons in `NxPanel` sticky footer (not in the page header)
 - Use typeahead for lists with 10+ options
 - Use Read-only Clipboard Copy for system-pre-populated values
 - Use Validated component for form validation
@@ -275,10 +278,10 @@ Button alignment differs by context (follows PatternFly convention):
 
 | Context           | Primary action position                |
 | ----------------- | -------------------------------------- |
-| Page headers      | **Rightmost**                          |
-| Modals            | **Leftmost** (Cancel link on right)    |
-| Forms (full page) | **Leftmost** (Cancel link on right)    |
-| Toolbars          | **Leftmost** (kebab menu on far right) |
+| Page headers      | **Rightmost**                                         |
+| Modals            | **Leftmost** (Cancel link on right)                   |
+| Forms (full page) | **Leftmost** in NxPanel sticky footer (Cancel = link) |
+| Toolbars          | **Leftmost** (kebab menu on far right)                |
 
 ## Modals
 
@@ -331,7 +334,8 @@ All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g.
 - **Save behavior:** `isAriaDisabled` when `!isDirty` for existing workflows. Tooltip shows "Last saved {datetime}". No toast on update; toast on create only.
 - Add step: opens side panel, auto-adjusts canvas. **Empty workflow onboarding:** When no triggers/steps exist, "Add step" button is **hidden** (not disabled) and the panel is forced open for trigger selection. Once first step is added, button appears. **Toggle-style button:** When panel is open (and steps exist), button uses `isClicked` + `aria-pressed` for toggle feedback.
 - **Duplicate workflow:** Row kebab action with `RhUiDuplicateIcon`; no confirmation dialog; success toast with inline deep-link to new workflow.
-- Run workflow: single trigger → plain Run button; multiple triggers → dropdown for trigger selection; confirmation dialog with "Don't show again", then `RunWorkflowModal` JSON editor for mock trigger data
+- Run workflow: single trigger → plain Run button; multiple triggers → dropdown for trigger selection; confirmation dialog with "Don't show again" (stored in `localStorage` per user — skips confirmation on next run), then `RunWorkflowModal` JSON editor for mock trigger data
+- **Schedule triggers:** Interval (`DurationInput`) and Cron (`TextInput` with 5-field validation). "Continuous" type removed. Both show "Next run" preview when valid.
 - Test step (Run step): from step kebab menu → choice dialog ("Run all previous steps" or mock data) → mock data editor (CodeEditor with JSON); upstream steps mocked as "skipped"; results in execution visualizer
 - **Cancel run:** secondary destructive button (`variant="secondary"` + `isDanger`), no confirmation dialog. Visible only when status is `pending`/`running`.
 - **Canvas controls:** anchored to bottom-left corner; canvas overlays (controls, step legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
@@ -340,12 +344,15 @@ All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g.
 - **Floating canvas panels:** prefer `NxPanel` with `variant="raised"` for compact controls or `opaqueFloatingFill` for large flat shells without raised chrome (see `NxPanel.tsx` JSDoc)
 - Execution view panels: use `NxPanel isFullHeight` for proper scroll — don't hand-roll flex column inline styles
 - View-only views: Run view, Run history, Version history
-- **Verify workflow:** Kebab action → `POST /workflows/validate` → expandable danger `Alert` (`ValidationBanner`) above canvas + per-node error badges. Node names are clickable links to the node editor; errors grouped via compact horizontal `DescriptionList`.
+- **Verify workflow:** Kebab action → `POST /workflows/validate` → expandable `Alert` (`ValidationBanner`) above canvas + per-node error badges. Node names are clickable links to the node editor; errors grouped via compact horizontal `DescriptionList`.
+- **Two-tier validation:** Errors (`severity: 'error'`) block publish; warnings (`severity: 'warning'`) allow save via `force_save=true` retry. Banner variant: any error → `danger`; all warnings → `warning`. Verify-then-publish gate: Publish always verifies first; `isAriaDisabled` when errors exist or verifying.
+- **Version history panel:** Right-side `NxPanel isFullHeight` with `SimpleList` grouped by date. Each version shows name + timestamp + status badge (Published/Draft). Kebab per version: Restore, Export, Publish. Viewing a version sets canvas to read-only mode. Mutually exclusive with approval panel.
+- **Three-column node editor:** Input (flat) | Parameters (`variant="raised"`) | Output (flat). Branching nodes add branch-handle dropdown in center column header. Columns use `ResizableDivider`.
 - **Node settings:** `NodeFormTabsLayout` splits node forms into Parameters + Settings tabs. Settings tab: continue-on-failure (three-way select), timeout, retry via shared `NodeSettingsForm`. System defaults as live placeholders from `/settings`. Hidden for Condition/Switch/triggers.
 - **Node panel navigation:** Previous/Next arrow controls on panel edges for navigating connected steps. Single target = icon button + tooltip; multiple = dropdown menu. Uses `useAdjacentNodes`.
 - **Node disable/enable:** Activity nodes (Task, Approval) get Disable/Enable kebab action (no confirmation). Disabled = dashed gray border + 50% opacity. Control flow nodes only get Replace + Delete.
 - **Switch node expressions:** Paths share `ExpressionBuilderCore` (AND/OR groups + custom expression toggle). Drag-reorder paths via `@dnd-kit/sortable` with grip handle.
-- **Approval side panel:** Right-side panel on execution viewer for inline approval review. Mutually exclusive with history panel; auto-opens on pending approval via `useAutoApprovalDetection`.
+- **Approval side panel:** Right-side panel on execution viewer for inline approval review. Mutually exclusive with history panel; auto-opens on pending approval via `useAutoApprovalDetection`. **Multi-approval navigation:** `ApprovalNavigationHeader` with prev/next arrows, "2 of 5" counter, keyboard nav support.
 - **Wait node countdown:** Live `HH:MM:SS` countdown on canvas during execution via `useWaitCountdown` (1s interval). Clears on terminal status.
 - **Import confirmation:** Modal with radio choices ("Import as new" vs "Import into current") for existing saved workflows. Direct import for new/empty. Warns about unsaved changes when `isDirty`.
 
@@ -369,13 +376,27 @@ Permission tooltip format: `"To {action}, you need a role with the {policy} poli
 
 Non-dismissible alert dialog for security-critical time warnings: `Modal variant="small" role="alertdialog"` with `onClose={undefined}`. Live countdown with `aria-live="assertive"`. Actions: "Continue session" (primary) + "Log out" (link). Centralize timing constants in a constants file.
 
+## Integration Configuration
+
+- 3-step PatternFly Wizard for initial setup: Select type → Configure connection → Review & confirm with "Test connection"
+- Detail page header: integration name + enabled/disabled `Switch` toggle (immediate, no confirmation for enable)
+- "Test connection" secondary button — must pass before enabling tools
+- Tools tab: table of available tools with per-row `Switch` to enable/disable individual tools
+
+## Access Management & My Profile
+
+- Access Management tab label: **"Check access"** (not "Can I")
+- Self-service flows (Check access, My tokens) live on the **My Profile** page, not Access Management
+- Access Management contains only admin tabs: Users, Groups, Projects, Roles, Policies, Assignments
+- **My Profile** (`/my-profile`): reuses `UserDetail` with `isMyProfile` flag; no breadcrumbs; extra tabs (My tokens, Check access); accessible from user avatar menu in masthead
+
 ## Full-Page Wizard
 
 Use when flow has 2+ steps with tables/filters (too large for modal). Dedicated route. Each step: title + description (bold target entity) + FilterBar + ScrollableTableContainer (radio selection). Footer: Back/Next/Cancel (link). Cancel navigates to origin route. Going back clears selections. Terminology must be consistent across button/loading/toast/error.
 
 ## Dedicated Edit Page
 
-Use when editing is too complex for inline (many rows, nested modals, external actions). Parent tab stays read-only with "Edit" button navigating to edit route. Edit page: `NxPageHeader` with Save (primary) + Cancel (link) toolbar. Permission-gated with `EmptyStateAccessDenied` fallback.
+Use when editing is too complex for inline (many rows, nested modals, external actions). Parent tab stays read-only with "Edit" button navigating to edit route. Edit page: `NxPageHeader` with breadcrumbs + `NxPanel` with Save/Cancel in sticky footer. Permission-gated with `EmptyStateAccessDenied` fallback.
 
 ## Accessibility Guidelines
 
@@ -458,4 +479,4 @@ If a global style seems necessary, follow the PatternFly gaps process: check PF 
 
 - `npm run storybook` (port 5174). Preview in light + dark mode via toolbar before sign-off.
 - Stories reflect real app compositions, not isolated prop demos.
-- `Nx*` components with `autodocs`: `NxPage`, `NxPageHeader`, `NxPageBreadcrumbs`, `NxPanel`, `NxPanelContentStack`, `NxUrlTabs`, `NxConfirmationDialog`, `NxCodeBlock`, `NxDetail`, `NxDetailList`, `ErrorState`.
+- `Nx*` components with `autodocs`: `NxPage`, `NxPageHeader`, `NxPageBreadcrumbs`, `NxPanel`, `NxPanelContentStack`, `NxUrlTabs`, `NxConfirmationDialog`, `NxCodeBlock`, `NxDetail`, `NxDetailList`, `NxErrorState`, `NxLoadingState`, `NxEmptyStateNoData`, `NxEmptyStateFilter`, `NxEmptyStateServiceUnavailable`, `NxListPanel`, `NxKebabMenu`, `NxLabel`, `NxUserTag`, `NxScrollableTableContainer`.

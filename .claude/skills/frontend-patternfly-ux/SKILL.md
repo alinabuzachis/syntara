@@ -141,7 +141,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's [flyout panels com
 | Hover on nav item (has children) | Show flyout panel with sub-items              |
 | Click on nav item (no children)  | Navigate to route                             |
 | Click on nav item (has children) | Navigate to first enabled child route         |
-| Click on flyout sub-item         | Navigate to that route, close flyout          |
+| Click on flyout sub-item         | Navigate to that route, **close flyout immediately** |
 | Mouse leaves flyout              | Close flyout after 150ms delay (grace period) |
 | Mouse moves from icon to flyout  | Flyout stays open (no gap flicker)            |
 
@@ -185,8 +185,25 @@ The following four compositions are the canonical page structures. Storybook doc
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | **List page**      | `NxPageHeader` (Create CTA) → `NxPageBody` → `NxPanel isFullHeight` → `NxPanelContentStack variant="inset"` → filter bar + table |
 | **Detail page**    | `NxPageBreadcrumbs` → `NxPageHeader` → `NxPanel isFullHeight` → `NxPanelContentStack` (default) → tabs + content                 |
-| **Form page**      | `NxPageBreadcrumbs` → `NxPageHeader` with Cancel/Save toolbar → `NxPanel` → form body (max-width 600px)                          |
+| **Form page**      | `NxPageBreadcrumbs` → `NxPageHeader` → `NxPanel isFullHeight footer={<ActionGroup>…</ActionGroup>}` → form body (max-width 600px) |
 | **Error in panel** | Same shell as list page → `NxPageBody isCentered` + `NxErrorState` **inside** `NxPanel` (page header and shell remain visible)   |
+
+### Sticky Form Footer
+
+Form submit and cancel buttons live in a **pinned footer at the bottom of the content panel**, not in the page header toolbar. Use the `NxPanel` `footer` prop:
+
+```tsx
+<NxPanel isFullHeight footer={<ActionGroup>{/* Save + Cancel buttons */}</ActionGroup>}>
+  {/* form body */}
+</NxPanel>
+```
+
+- When `NxPanel` is `isScrollable`, `PanelMain` scrolls while the footer stays pinned — no custom sticky CSS needed
+- Cancel button uses `variant="link"` (per UX design system)
+- `NxPanel.module.css` normalizes footer padding (`--spacer--md`), widens button spacing, and adds a visible divider border
+- **Applies to:** Create/Edit User, Configure Integration, Edit Group Mapping, Settings tabs, Integration Tools, Approval Detail
+- **Does NOT apply to:** Builder forms (use node editor panel footer), modals/dialogs (buttons inside modal footer)
+- **Does NOT apply to:** Check Access / Who Can forms — these are inline query forms inside a tab panel with no header buttons to move
 
 **`NxListPanel` — canonical list page implementation:**
 
@@ -213,7 +230,7 @@ There are different kinds of page headers:
 
 - **Form page header**
   - Left-aligned breadcrumbs (via `NxPageBreadcrumbs`) + page title
-  - Right-aligned toolbar actions: Cancel (secondary) → Save [resource] (primary, rightmost)
+  - No action buttons in the header — Save and Cancel live in the `NxPanel` sticky footer (see Sticky Form Footer above)
 
 ### Breadcrumbs
 
@@ -756,6 +773,42 @@ For title and body copy patterns → see Storybook `NxConfirmationDialog` → **
 - From list/table view → stay on list, item updated
 - From details page → stay on details page
 - Show feedback → PatternFly's [Dismissible Success Toast Alert](https://www.patternfly.org/components/alert#alert-variations)
+
+### Integration Configuration Wizard
+
+Integrations (e.g., tool providers) use a 3-step PatternFly Wizard for initial configuration:
+
+**Wizard steps:**
+
+1. **Select type** — radio or card selection for integration type
+2. **Configure connection** — credentials, endpoint URL, authentication fields
+3. **Review & confirm** — summary of configuration, "Test connection" button
+
+**Post-creation detail page:**
+
+- Header: integration name with enabled/disabled `Switch` toggle (inline, not modal-gated)
+- "Test connection" secondary button in the detail header — must pass before enabling tools
+- **Tools tab:** Table of available tools from the integration, each with an individual `Switch` to enable/disable
+- Enable/disable the integration itself via the header Switch; enable/disable individual tools via per-row Switches
+- All Switches follow standard PF behavior — toggle takes effect immediately, no confirmation for enable, standard confirmation for disable
+
+### Access Management UX
+
+Access Management uses consistent terminology and navigation:
+
+- **Tab label:** "Check access" (not "Can I") — verb-first label for the self-service permission-checking tab
+- **Self-service flows** (Check access, My tokens) are moved to the **My Profile** page, not Access Management
+- Access Management contains only admin-level tabs: Users, Groups, Projects, Roles, Policies, Assignments
+
+### My Profile Page
+
+The My Profile page (`/my-profile`) reuses the existing `UserDetail` component with an `isMyProfile` flag:
+
+- **No breadcrumbs** — this is a top-level self-service route, not a child of Access Management
+- **Route:** `/my-profile` (not `/access-management/users/:id`)
+- **Reuse:** Same `UserDetail` component renders both the admin user detail view and the self-service My Profile view
+- **Extra tabs** (only on My Profile): "My tokens", "Check access"
+- **Nav entry:** Accessible from user avatar menu in the masthead, not from the side navigation
 
 ---
 
@@ -1303,6 +1356,22 @@ These badges use `Label` with no icons — text and color only.
 - Run history
 - Version history
 
+### Version History Panel
+
+The version history side panel lets users browse, compare, and manage published workflow versions.
+
+- **Trigger:** Kebab menu → "Version history" (under Views group)
+- **Layout:** Right-side `NxPanel isFullHeight` with `SidePanelHeader` titled "Version history"
+- **Version list:** PatternFly `SimpleList` grouped by date headers (e.g., "Jun 25, 2026")
+  - Each item shows: version name, publish timestamp
+  - Clicking a version loads a **read-only** view of that version on the canvas
+- **Status badges per version:**
+  - **Published** (`status="success"`, green label) — currently active version
+  - **Draft** (grey label) — unpublished working copy
+- **Kebab actions per version:** Restore, Export, Publish (contextual based on version state)
+- **Mutual exclusivity:** History panel, approval panel, and add-step panel cannot be open simultaneously — opening one closes the others
+- **Read-only mode:** When viewing a historical version, the canvas is non-editable — toolbar save/publish buttons are disabled, node interactions are view-only
+
 ### Add Step
 
 - Opens "Add step" side panel and auto-adjusts the canvas view
@@ -1325,6 +1394,20 @@ These badges use `Label` with no icons — text and color only.
 - **Success toast with deep link:** Toast title "Workflow duplicated"; description includes an inline link button (`variant="link" isInline`) to open the new workflow in the builder
 - Button disabled while duplicate request is in flight
 
+### Schedule Triggers (Interval + Cron)
+
+Trigger configuration supports two scheduling types:
+
+| Type | UI control | Validation |
+| ---- | ---------- | ---------- |
+| **Interval** | `DurationInput` component (hours/minutes/seconds fields) | Minimum > 0 |
+| **Cron** | `TextInput` with 5-field cron expression (`* * * * *`) | Must be valid 5-field cron syntax |
+
+- "Continuous" trigger type has been **removed** — replaced by interval scheduling
+- Cron input uses a plain `TextInput` (not a specialized cron builder component); helper text below the input explains the 5-field format (`minute hour day-of-month month day-of-week`)
+- Both types show a "Next run" preview when the schedule is valid
+- Schedule triggers are enabled/disabled via the trigger's own enabled state, not a separate toggle
+
 ### Run Workflow
 
 - **Single trigger** — Plain "Run" button in the builder toolbar
@@ -1333,6 +1416,13 @@ These badges use `Label` with no icons — text and color only.
   1. Confirmation dialog ("Run [workflow name]?") with a "Don't show again" checkbox
   2. `RunWorkflowModal` — JSON code editor for providing mock trigger output data; validates against the trigger's `input_schema` when defined
 - After run, the execution visualizer panel opens showing real-time results
+
+**"Don't show again" preference persistence:**
+
+- User can tick "Don't show again" on the run confirmation dialog to skip it in future runs
+- Preference is stored in browser `localStorage` per user — NOT in backend settings
+- When preference is set, clicking "Run" skips the confirmation and goes straight to `RunWorkflowModal`
+- Use `useLocalStorage` hook for read/write; key format includes user ID for multi-user machines
 
 ### Test Step (Run Step)
 
@@ -1370,12 +1460,42 @@ These badges use `Label` with no icons — text and color only.
 Verify validates the entire workflow graph against the backend and surfaces errors inline on the canvas.
 
 - **Trigger:** Kebab action "Verify workflow" with `RhUiCheckCircleIcon`
-- **API:** `POST /workflows/validate` — returns an array of `ValidationError` objects with `nodeId` and message
+- **API:** `POST /workflows/validate` — returns an array of `ValidationError` objects with `nodeId`, message, and severity
 - **Loading state:** Toolbar shows a "Verifying..." button with spinner during the API call
-- **`ValidationBanner`:** Expandable inline danger `Alert` rendered above the canvas; dismissing the banner clears all node badges
+- **`ValidationBanner`:** Expandable inline `Alert` rendered above the canvas; dismissing the banner clears all node badges
 - **Per-node error badges:** Failed nodes show a circular warning badge (bottom-right, matching execution badge positioning) via `data.__validationError` on the node
 - **Clickable node links:** Node-specific errors in the banner are inline links (`Button variant="link" isInline`) that navigate to the node editor panel via `useNodePanelNavigation`. Fallback label "Go to step" when name is unparseable; global errors (`nodeId: null`) stay as plain text
 - **Grouped/humanized errors:** `parseValidationMessage()` / `humanizeValidationMessage()` extract node names and error lists; the banner uses compact horizontal `DescriptionList` (`isCompact isFluid isHorizontal`) — term = node name link, description = comma-separated messages. Display key "Workflow" for global errors
+
+### Two-Tier Validation and `force_save`
+
+Validation findings have two severity levels that drive different UI behavior:
+
+| Severity | Save behavior | Publish behavior | Banner variant |
+| -------- | ------------- | ---------------- | -------------- |
+| **Error** (`severity: 'error'`) | May block save unless `force_save` | Always blocks publish | `danger` |
+| **Warning** (`severity: 'warning'`) | Save succeeds via `force_save=true` retry | Does not block publish | `warning` |
+
+**Save flow (`useBuilderSaveWorkflow`):**
+
+1. Normal create/update API call
+2. On retryable validation error (backend codes `WORKFLOW_DEFINITION_INVALID` 422, `WORKFLOW_DEFINITION_WARNINGS` 409) → retry with `force_save=true` query parameter
+3. Success toast on force-save: "Workflow saved with warnings"
+4. `onForceSaveSuccess` callback extracts findings for node-level display
+
+**ValidationBanner variant logic:**
+
+- Any finding with `severity !== 'warning'` → banner uses `variant="danger"`, title "Verification failed — N issue(s) found"
+- All findings are warnings → banner uses `variant="warning"`, title "Saved with N warning(s)"
+- Dismissible via `AlertActionCloseButton`
+
+**Verify-then-publish gate (`PublishWorkflowButton`):**
+
+- Publish button always runs verification first before opening the publish dialog
+- Publish is `isAriaDisabled` when `validationErrorCount > 0` or during verification
+- Disabled tooltips: "Verifying workflow…" or "Verify your workflow before publishing — N error(s) found"
+- Permission gating: `DisabledWithTooltip` when `!canEdit`
+- Auto re-verify: `BuilderContent` silently re-verifies on load when the workflow has existing validation issues
 
 ### Node Settings
 
@@ -1388,6 +1508,21 @@ Every activity node form uses `NodeFormTabsLayout` to split configuration into *
   - **Retry policy:** Retry count + delay configuration
 - **System defaults:** Live placeholders from `GET /settings?category=workflow_execution` via `useWorkflowEngineDefaults` — e.g., "System default — 30m"
 - **Hidden for control flow:** `hideSettingsTab` is set for Condition, Switch, and trigger nodes (they have no configurable execution settings)
+
+### Three-Column Node Editor Layout
+
+When a node is opened for editing, the builder can display a three-column layout for advanced node types:
+
+| Column | Content | Panel style |
+| ------ | ------- | ----------- |
+| **Left** | Input data (upstream output / trigger data) | Default `NxPanel` |
+| **Center** | Node parameters (the form) | `NxPanel variant="raised"` — visually elevated to signal "this is where you edit" |
+| **Right** | Output data (downstream preview / schema) | Default `NxPanel` |
+
+- Input/Output panels support Schema / Table / JSON view toggle (see Data Panel View Modes)
+- **Branching nodes** (Condition, Switch): The center column header includes a branch-handle dropdown (`MenuToggle` with branch icon) for selecting which output path to inspect in the Output panel
+- Columns use `ResizableDivider` for user-adjustable widths
+- Center panel uses `variant="raised"` to maintain visual hierarchy — Input/Output panels stay flat
 
 ### Node Panel Navigation
 
@@ -1426,6 +1561,16 @@ Pending approval review happens inline in the execution viewer rather than on a 
 - **Mutual exclusivity:** History panel and approval panel cannot be open simultaneously
 - **Auto-open:** `useAutoApprovalDetection` automatically opens the panel when a pending approval is detected on the current execution
 - **Components:** `ApprovalSidePanel`, `useExecutionApprovalPanel`, `ApprovalDetailContent`
+
+**Multi-approval navigation (`ApprovalNavigationHeader`):**
+
+When an execution contains multiple approval steps (pending or completed), the panel provides sequential navigation:
+
+- **Header:** "Approval 2 of 5" counter with Previous/Next arrow buttons
+- **Navigation:** `RhUiCaretLeftIcon` / `RhUiCaretRightIcon` buttons cycle through approval nodes in graph order
+- **Keyboard support:** Arrow-key navigation for accessibility
+- **Auto-focus:** Panel auto-scrolls to the first pending approval on open
+- **Canvas sync:** Navigating approvals highlights the corresponding node on the canvas
 
 ### Wait Node Canvas Countdown
 
@@ -1615,7 +1760,7 @@ The project ships with Storybook for documenting and reviewing `Nx*` components.
 - **Light and dark mode:** Preview components in both themes via the Storybook toolbar (System / Light / Dark) before sign-off
 - **Composed stories over isolated demos:** Stories should reflect real app compositions (e.g., a full list page layout), not isolated prop playgrounds
 - **Autodocs:** Foundational `Nx*` components have `autodocs` enabled — browse auto-generated API docs alongside live examples
-- **Available stories:** `NxPage`, `NxPageHeader`, `NxPageBreadcrumbs`, `NxPanel`, `NxPanelContentStack`, `NxUrlTabs`, `NxConfirmationDialog`, `NxCodeBlock`, `NxDetail`, `NxDetailList`, `NxErrorState`, `NxLoadingState`, `NxEmptyStateNoData`, `NxEmptyStateFilter`, `NxEmptyStateServiceUnavailable`
+- **Available stories:** `NxPage`, `NxPageHeader`, `NxPageBreadcrumbs`, `NxPanel`, `NxPanelContentStack`, `NxUrlTabs`, `NxConfirmationDialog`, `NxCodeBlock`, `NxDetail`, `NxDetailList`, `NxErrorState`, `NxLoadingState`, `NxEmptyStateNoData`, `NxEmptyStateFilter`, `NxEmptyStateServiceUnavailable`, `NxListPanel`, `NxKebabMenu`, `NxLabel`, `NxUserTag`, `NxScrollableTableContainer`
 
 ---
 
@@ -1654,7 +1799,8 @@ What are you building?
 │   ├── 5+ fields or multi-step? → Full page
 │   ├── 2–4 simple fields? → Modal
 │   ├── Use PatternFly Basic Form, left-aligned, one column, max-width 600px
-│   └── Use Zod + react-hook-form for validation
+│   ├── Use Zod + react-hook-form for validation
+│   └── Save/Cancel buttons in NxPanel footer (sticky), NOT in page header
 │
 ├── Delete/Remove/Cancel/Stop (destructive)
 │   ├── Always use confirmation modal (Small variant)
@@ -1698,10 +1844,18 @@ What are you building?
 │   ├── Edit page at sub-route with Save/Cancel toolbar
 │   └── Permission-gated with EmptyStateAccessDenied fallback
 │
-└── Canvas/builder view
-    ├── Use React Flow + PatternFly wrapper
-    ├── Left-to-right layout
-    ├── Canvas controls at bottom-left (NxPanel variant="raised")
-    ├── Side panel for step details (not modal)
-    └── Input/Output panels with Schema/Table/JSON view toggle
+├── Canvas/builder view
+│   ├── Use React Flow + PatternFly wrapper
+│   ├── Left-to-right layout
+│   ├── Canvas controls at bottom-left (NxPanel variant="raised")
+│   ├── Side panel for step details (not modal)
+│   ├── Three-column node editor: Input | Parameters (raised) | Output
+│   ├── Version history panel: SimpleList grouped by date, view-only mode
+│   └── Input/Output panels with Schema/Table/JSON view toggle
+│
+└── Integration configuration
+    ├── 3-step wizard: type → connection → review
+    ├── Header Switch for enable/disable (no confirmation for enable)
+    ├── "Test connection" before enabling tools
+    └── Per-tool Switch toggles in Tools tab
 ```
