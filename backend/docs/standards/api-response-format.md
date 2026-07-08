@@ -59,7 +59,9 @@ class BaseListParams(SQLModel):
 
 ### Cursor Format
 
-Cursors are opaque Base64-encoded JSON tokens. Clients must not parse or construct them:
+Cursors are opaque Base64-encoded JSON tokens. Clients must not parse or construct them.
+
+**Default sort** (sorting by `created_at`):
 
 ```json
 {
@@ -69,13 +71,28 @@ Cursors are opaque Base64-encoded JSON tokens. Clients must not parse or constru
 }
 ```
 
+**Custom sort** (sorting by a non-default field, e.g., `?sort=name`):
+
+```json
+{
+    "id": "uuid-of-boundary-item",
+    "created_at": "2025-01-01T12:00:00.000000",
+    "direction": "next",
+    "sort_field": "name",
+    "sort_direction": "asc",
+    "sort_value": "my-resource"
+}
+```
+
+The `sort_field`, `sort_direction`, and `sort_value` fields are only present when the client requests a non-default sort. They store the boundary item's sort column value so the next page fetch can use keyset comparison on the custom sort field.
+
 ### N+1 Fetch Pattern
 
 The pagination implementation fetches `limit + 1` items to definitively detect whether more pages exist, then trims the response to `limit` items. This avoids an extra count query.
 
 ### Stable Ordering
 
-The resource `id` is always appended as a tiebreaker to the sort order. This prevents duplicate or missing items when multiple resources share the same sort value (e.g., identical `created_at` timestamps).
+The resource `id` is always appended as a tiebreaker to the sort order. This prevents duplicate or missing items when multiple resources share the same sort value (e.g., identical `created_at` timestamps). Without a deterministic tiebreaker, cursor boundaries between items sharing the same sort value would be ambiguous, causing items to appear on multiple pages or be skipped entirely.
 
 ## Constants
 
@@ -127,7 +144,20 @@ class MyModel(BaseResource, table=True):
     ]
 ```
 
-Requests filtering on undeclared fields are ignored (no error).
+Requests filtering on undeclared fields return a `422` error (`SafeValueError`).
+
+### Filter Combination Logic
+
+Filters are combined using AND/OR semantics based on how they are specified:
+
+| Pattern | Logic | Example | Effect |
+|---|---|---|---|
+| Same field, same operator, comma-separated values | **OR** | `?status=active,pending` | `status='active' OR status='pending'` |
+| Same field, different operators | **AND** | `?created_at[gte]=2025-01-01&created_at[lte]=2025-06-01` | Range filter (both conditions must match) |
+| Different fields | **AND** | `?name[contains]=test&status=active` | Both conditions must match |
+| Multiple label filters | **AND** | `?labels[env]=prod&labels[team]=platform` | All label conditions must match |
+
+Comma-separated values on the same parameter create multiple `Filter` objects with the same `(field, operator)` tuple, which are grouped and combined with `or_()`. All other filter groups are combined with `and_()`.
 
 ## Sorting
 
@@ -312,6 +342,89 @@ class MyModel(Resource, table=True):
     )
 ```
 
+## Error Responses for Invalid List Parameters
+
+All invalid list parameter errors return HTTP `422 Unprocessable Content` with an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details response body and `Content-Type: application/problem+json`.
+
+### Response Format
+
+The error body uses the `ErrorData` model:
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `str` (URI) | Problem type identifier (e.g., `https://api.nexus.com/errors/validation-error`) |
+| `title` | `str` | Human-readable error category |
+| `detail` | `str` | Specific error message (safe to display to end users) |
+| `code` | `str` | Machine-readable error code (e.g., `VALIDATION_ERROR`) |
+| `retryable` | `bool` | Whether the client should retry the request |
+| `instance` | `str \| null` | The request path that triggered the error |
+
+### Error Scenarios
+
+All list parameter validation errors are raised as `SafeValueError` (messages are safe to expose to clients) and handled by `safe_value_error_handler()`:
+
+| Scenario | Example Detail Message |
+|---|---|
+| Invalid filter field | `"Invalid field: bogus_field"` |
+| Invalid filter operator | `"Invalid operator: like"` |
+| Invalid sort field | `"Invalid field: bogus_field"` |
+| Malformed cursor | `"Invalid cursor format: ..."` |
+| Cursor too large | `"Cursor too large (max 1024 bytes)"` |
+| Invalid datetime value | `"Invalid datetime format: not-a-date..."` |
+| Invalid boolean value | `"Invalid boolean value: maybe..."` |
+| Invalid enum value | `"Invalid value 'bogus' for field 'status'. Valid values are: ..."` |
+
+### Example Error Response
+
+```json
+{
+  "type": "https://api.nexus.com/errors/validation-error",
+  "title": "Validation Error",
+  "detail": "Invalid field: bogus_field",
+  "code": "VALIDATION_ERROR",
+  "retryable": false,
+  "instance": "/api/v1/workflows"
+}
+```
+
+### Error Handling Exceptions
+
+Not all validation errors follow the exact pattern above:
+
+| Case | Behavior | Rationale |
+|---|---|---|
+| AAP proxy endpoints | Upstream validation errors are forwarded as-is | Pass-through proxies to AAP Controller API v2 |
+| Generic `ValueError` (not `SafeValueError`) | Returns generic `"Invalid input value"` message | Prevents information leakage — only `SafeValueError` messages are safe to expose |
+| Pydantic `RequestValidationError` | Returns 422 with field-level error details (`loc`/`msg`/`type`) | Standard Pydantic validation structure for malformed request parameters |
+
+## Known Exceptions
+
+### AAP Proxy Endpoints
+
+Endpoints under `/api/v1/aap/` are pure HTTP proxies to AAP Controller API v2. They do not use cursor-based pagination or the standard query parameter conventions:
+
+| Aspect | Standard Pattern | AAP Proxy |
+|---|---|---|
+| Pagination | Cursor-based keyset (N+1) | Offset-based (`page_size`) |
+| Response type | `ResourcesResponse[T]` (`resources`, `next`, `prev`, `total`) | `AAPListResponse[T]` (`count`, `results`) |
+| Query params | `BaseListParams` (`limit`, `cursor`, `sort`, `include_total`) | `AAPBaseQuery` (`search`, `page_size`, `credential_id`) |
+| Filtering | Bracket notation with 7 operators + label filters | `search` string only |
+| Sorting | `-field` prefix notation with ID tiebreaker | None (upstream order) |
+| Default page size | 20 (max 100) | 50 (max 200) |
+
+**Rationale:** These endpoints proxy an external system (AAP Controller) that has its own pagination contract. Conforming to cursor-based pagination would require caching the upstream result set. AAP proxy endpoints are excluded from compliance testing by the `"aap"` tag in the OpenAPI spec, not via `list_compliance_exclusions.yaml`.
+
+### Custom List Implementations
+
+Some services bypass `BaseService.list_resources()` when they need to sort by joined columns, merge in-memory builtins with database results, or evaluate authorization per-row via OPA. These include `RoleAssignmentService`, `RoleService`, `PolicyService`, `GroupService` (member/group listing), and the `who_can` endpoint. They follow cursor-based keyset pagination conceptually but with custom implementations. Non-compliant spec-level details (e.g., missing filter operators) are tracked in the exclusions YAML below.
+
+### Other Exclusions
+
+All other endpoints that do not conform to the list operation standards are tracked in `tests/unit/api/compliance/list_compliance_exclusions.yaml`. This YAML file is the canonical registry and is enforced by the compliance test suite (stale exclusions are detected automatically). Exclusions fall into two categories:
+
+- **Permanent (by design):** Endpoints that return non-list shapes (metrics aggregations, batch operations, validation results) and will never conform.
+- **Temporary (tech debt):** Endpoints that use simple value filters instead of the operator-based pattern, or have non-standard response shapes. These should be migrated over time.
+
 ## Tooling vs Convention
 
 **Enforced by tooling:**
@@ -319,6 +432,8 @@ class MyModel(Resource, table=True):
 - `limit` range validation (Pydantic, 1–100)
 - Cursor size validation (max 1024 bytes)
 - `__filterable_fields__` / `__sortable_fields__` enforcement in filter/sort utilities
+- `SafeValueError` for invalid filter fields, operators, and sort fields (HTTP 422)
+- RFC 9457 error response format for all validation errors (`application/problem+json`)
 
 **Convention only:**
 
@@ -326,6 +441,7 @@ class MyModel(Resource, table=True):
 - Extending `__filterable_fields__` / `__sortable_fields__` from parent classes
 - Default sort order (`-created_at`)
 - Using `BaseListParams` as the base for domain-specific query params
+- AND/OR filter combination semantics (enforced at runtime, not by static tooling)
 
 ## Compliance Test Suite
 
@@ -361,14 +477,91 @@ Each exclusion requires:
 - `operation_id` — the OpenAPI operationId
 - `reason` — why this endpoint is excluded (minimum 20 characters, should reference a ticket for temporary exclusions)
 
-### Adding a new list endpoint
-
-1. Use `ResourcesResponse[T]` and `BaseListParams` — the test passes automatically
-2. If the standard pattern doesn't apply, add the endpoint to `list_compliance_exclusions.yaml` with a justification — this will be reviewed in the PR
-
 ### CI integration
 
 The compliance tests run as part of `make test-api-compliance` and `make test-unit`. They are unit tests (no Docker/DB) that validate OpenAPI spec structure.
+
+## Adding a New List Endpoint
+
+1. **Define filterable and sortable fields** on your model:
+
+   ```python
+   class MyResource(Resource, table=True):
+       __filterable_fields__: ClassVar[list[str]] = [
+           *Resource.__filterable_fields__,
+           "status",
+       ]
+       __sortable_fields__: ClassVar[list[str]] = [
+           *Resource.__sortable_fields__,
+           "name",
+       ]
+   ```
+
+2. **Create a ListParams class** if your endpoint has domain-specific filters (otherwise use `BaseListParams` directly):
+
+   ```python
+   class MyResourceListParams(BaseListParams):
+       status: MyStatus | None = None
+   ```
+
+3. **Define the read model and response type** (see [Model Naming Conventions](#model-naming-conventions)):
+
+   ```python
+   class MyResourceRead(SQLModel):
+       """API read response for my resource."""
+       id: UUID
+       name: str
+       status: MyStatus
+       created_at: datetime
+       updated_at: datetime
+
+   class MyResourceListResponse(ResourcesResponse[MyResourceRead]):
+       """Paginated list response for my resources."""
+   ```
+
+4. **Wire the router** — inject `Request` to pass raw query params for filter parsing:
+
+   ```python
+   @router.get("", operation_id="get_my_resources")
+   async def get_my_resources(
+       request: Request,
+       service: Annotated[MyResourceService, Depends(get_my_resource_service)],
+       params: Annotated[MyResourceListParams, Query()],
+   ) -> MyResourceListResponse:
+       """List my resources with filtering, sorting, and pagination."""
+       return await service.list_my_resources(
+           limit=params.limit,
+           cursor=params.cursor,
+           sort=params.sort,
+           query_params_items=request.query_params.items(),
+           include_total=params.include_total,
+       )
+   ```
+
+5. **Call `list_resources()` in your service** — pagination, filtering, sorting, and error handling are automatic:
+
+   ```python
+   async def list_my_resources(
+       self,
+       limit: int = 100,
+       cursor: str | None = None,
+       sort: str | None = None,
+       query_params_items: Iterable[tuple[str, str]] | None = None,
+       *,
+       include_total: bool = False,
+   ) -> MyResourceListResponse:
+       return await self.list_resources(
+           model=MyResource,
+           response_type=MyResourceListResponse,
+           limit=limit,
+           cursor=cursor,
+           sort=sort,
+           query_params_items=query_params_items,
+           include_total=include_total,
+       )
+   ```
+
+6. **Run `make test-api-compliance`** — if you used `ResourcesResponse[T]` and `BaseListParams`, the compliance tests pass automatically. If the standard pattern doesn't apply, add the endpoint to `list_compliance_exclusions.yaml` with a justification.
 
 ## Reference
 
@@ -383,6 +576,12 @@ The compliance tests run as part of `make test-api-compliance` and `make test-un
 | `src/nexus/core/utils/cursor.py` | Cursor encoding/decoding |
 | `src/nexus/core/constants.py` | Pagination constants |
 | `src/nexus/core/services/base.py` | `BaseService.list_resources()` |
+| `src/nexus/core/models/error.py` | `ErrorData` model (RFC 9457 Problem Details) |
+| `src/nexus/core/error_handlers.py` | Error handler functions and `PROBLEM_TYPES` registry |
+| `src/nexus/core/exceptions.py` | `SafeValueError` definition |
+| `src/nexus/aap/router.py` | AAP proxy endpoints (known exception) |
+| `src/nexus/aap/models/responses.py` | `AAPListResponse` model (known exception) |
+| `src/nexus/authz/services/role_assignment_service.py` | Custom sorting/pagination (known exception — joined columns) |
 | `tests/unit/api/compliance/test_list_endpoint_compliance.py` | List endpoint compliance validation tests |
 | `tests/unit/api/compliance/test_list_endpoint_discovery.py` | List endpoint discovery mechanism tests |
 | `tests/unit/api/compliance/endpoint_discovery.py` | Discovery logic and helpers |

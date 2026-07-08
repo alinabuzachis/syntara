@@ -17,6 +17,9 @@ Scope:
 - ✓ Response schema definitions
 - ✗ Actual endpoint behavior or responses
 - ✗ Functional correctness of sorting/filtering/pagination
+
+Standards Reference:
+    docs/standards/api-response-format.md
 """
 
 from __future__ import annotations
