@@ -89,13 +89,57 @@ edges:
     return result
 
 
-@activity.defn(name="execute_script")
+@activity.defn(name=ActivityName.SCRIPT)
 async def _test_script_activity(
-    code: str,
-    language: str,
+    resolved_parameters: dict[str, Any],
+    outputs: dict[str, str] | None = None,
     **kwargs: object,
 ) -> dict[str, Any]:
     return {"output": {"status": "completed"}}
+
+
+def _create_approval_cof_workflow_yaml(
+    decision_window: int = 5,
+    fallback_decision: str = "reject",
+) -> dict[str, Any]:
+    workflow_yaml = f"""
+schema_version: "2.0.0"
+name: approval-cof-test
+description: Integration test for approval timeout with continue_on_failure
+triggers:
+- id: trigger_manual
+  type: manual_trigger
+nodes:
+- id: approval_node
+  type: approval
+  parameters:
+    name: Test Approval
+    decision_window: {decision_window}
+    fallback_decision: {fallback_decision}
+  settings:
+    continue_on_failure: true
+- id: approved_step
+  type: script
+  parameters:
+    language: python
+    code: "print('approved')"
+- id: rejected_step
+  type: script
+  parameters:
+    language: python
+    code: "print('rejected')"
+edges:
+- from: trigger_manual
+  to: approval_node
+- from: approval_node
+  to: approved_step
+  from_port: approved
+- from: approval_node
+  to: rejected_step
+  from_port: rejected
+"""
+    result: dict[str, Any] = yaml.safe_load(workflow_yaml)
+    return result
 
 
 @pytest.mark.integration
@@ -144,3 +188,51 @@ class TestApprovalTimeoutIntegration:
             execution_id_called, node_id_called = _expire_calls[0]
             assert node_id_called == "approval_node"
             assert execution_id_called is not None
+
+    @pytest.mark.parametrize("fallback_decision", ["reject", "approve"])
+    async def test_approval_timeout_with_cof_routes_via_fallback(
+        self, temporal_env: WorkflowEnvironment, fallback_decision: str
+    ) -> None:
+        """When approval times out with continue_on_failure, workflow continues via fallback port."""
+        task_queue = f"approval-cof-{fallback_decision}-queue"
+        _expire_calls.clear()
+
+        from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
+
+        async with Worker(
+            temporal_env.client,
+            task_queue=task_queue,
+            workflows=[NexusWorkflow],
+            activities=[
+                manual_trigger,
+                _test_approval_activity,
+                _test_expire_approval_activity,
+                _test_script_activity,
+                fetch_workflow_runtime_settings,
+            ],
+        ):
+            execution_service = TemporalExecutionService(
+                temporal_client=temporal_env.client,
+                task_queue=task_queue,
+            )
+
+            workflow_def = _create_approval_cof_workflow_yaml(
+                decision_window=1,
+                fallback_decision=fallback_decision,
+            )
+
+            result = await execution_service.start_workflow(
+                workflow_def=workflow_def,
+                workflow_name=f"approval-cof-{fallback_decision}-test",
+            )
+
+            workflow_result = await asyncio.wait_for(
+                execution_service.get_workflow_result(result.temporal_workflow_id),
+                timeout=30,
+            )
+
+            # Workflow completes with errors: approval node failed but CoF absorbed it
+            assert workflow_result.status == "completed_with_errors"
+            # Expire activity should still be called
+            assert len(_expire_calls) == 1
+            assert _expire_calls[0][1] == "approval_node"

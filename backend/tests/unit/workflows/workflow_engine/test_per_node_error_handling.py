@@ -376,25 +376,25 @@ class TestContinueOnFailureApproval:
 
     @pytest.mark.asyncio
     async def test_reject_fallback_sets_control_data(self) -> None:
-        """Explicit fallback_decision='reject' routes to the reject port."""
+        """Explicit fallback_decision='reject' routes to the rejected port."""
         wf = _make_workflow()
         node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "reject"})
         wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "reject"}
 
         await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
 
-        assert wf.node_control_data["approval_1"] == {"next_port": "reject"}
+        assert wf.node_control_data["approval_1"] == {"next_port": "rejected"}
 
     @pytest.mark.asyncio
     async def test_approve_fallback_sets_control_data(self) -> None:
-        """Explicit fallback_decision='approve' routes to the approve port."""
+        """Explicit fallback_decision='approve' routes to the approved port."""
         wf = _make_workflow()
         node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "approve"})
         wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "approve"}
 
         await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
 
-        assert wf.node_control_data["approval_1"] == {"next_port": "approve"}
+        assert wf.node_control_data["approval_1"] == {"next_port": "approved"}
 
     @pytest.mark.asyncio
     async def test_default_fallback_is_reject(self) -> None:
@@ -405,7 +405,7 @@ class TestContinueOnFailureApproval:
 
         await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
 
-        assert wf.node_control_data["approval_1"] == {"next_port": "reject"}
+        assert wf.node_control_data["approval_1"] == {"next_port": "rejected"}
 
     @pytest.mark.asyncio
     async def test_uses_resolved_parameters_not_raw_config(self) -> None:
@@ -417,7 +417,7 @@ class TestContinueOnFailureApproval:
 
         await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
 
-        assert wf.node_control_data["approval_1"] == {"next_port": "approve"}
+        assert wf.node_control_data["approval_1"] == {"next_port": "approved"}
 
     @pytest.mark.asyncio
     async def test_invalid_fallback_raises_non_retryable_config_error(self) -> None:

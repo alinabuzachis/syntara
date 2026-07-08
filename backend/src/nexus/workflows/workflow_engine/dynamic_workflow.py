@@ -370,7 +370,8 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
             if fallback not in {"approve", "reject"}:
                 msg = f"Invalid fallback_decision '{fallback}' on node {node_id}: must be 'approve' or 'reject'"
                 raise ApplicationError(msg, type="ConfigError", non_retryable=True)
-            self.node_control_data[node_id] = {"next_port": fallback}
+            port = "approved" if fallback == "approve" else "rejected"
+            self.node_control_data[node_id] = {"next_port": port}
         await self._schedule_successors(node_id, graph, pending_tasks)
         self._cancel_skipped_pending_tasks(pending_tasks)
 
