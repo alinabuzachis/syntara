@@ -1,5 +1,5 @@
 ---
-name: SAST Snyk Code (Frontend)
+name: SAST & SCA - Snyk Frontend
 
 on:
   schedule:
@@ -9,11 +9,20 @@ on:
       - 'devel'
     paths:
       - 'frontend/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/sast-snyk-frontend.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/sast-snyk-frontend.yml'
   workflow_dispatch:
 
 jobs:
-  security:
+  snyk-sast:
+    name: Snyk SAST (Code Analysis)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -24,5 +33,54 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
-          snyk code test --project-name="${{ github.repository }}" --report ${{ github.workspace }}/frontend
+          snyk code test --project-name="${{ github.repository }}/frontend" --report ${{ github.workspace }}/frontend
+
+  snyk-sca:
+    name: Snyk SCA (Dependency Scanning)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
+        with:
+          node-version: '20'
+
+      - uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Snyk to check for vulnerabilities
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --severity-threshold=high \
+            --project-name="${{ github.repository }}/frontend" \
+            --file=package.json \
+            --sarif-file-output=snyk-npm.sarif \
+            --json-file-output=snyk-npm.json
+
+      - name: Upload Snyk results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('frontend/snyk-npm.sarif') != ''
+        # continue-on-error: GitHub Advanced Security (required for SARIF upload)
+        # is only available for public repos or paid Enterprise plan.
+        # This allows the workflow to succeed even when Advanced Security is unavailable,
+        # while still uploading SARIF if the feature becomes available later.
         continue-on-error: true
+        with:
+          sarif_file: frontend/snyk-npm.sarif
+          category: snyk-sca-npm
+
+      - name: Upload Snyk JSON report as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && hashFiles('frontend/snyk-npm.json') != ''
+        with:
+          name: snyk-npm-report
+          path: frontend/snyk-npm.json
+          retention-days: 90

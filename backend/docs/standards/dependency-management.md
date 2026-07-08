@@ -141,12 +141,13 @@ Renovate bot automatically creates PRs for dependency updates:
 - Schedule: before 6am Monday
 - Strategy: `in-range-only` (only updates within declared version ranges)
 - Grouping: all Python dependencies grouped into a single PR
-- Auto-merge: `quay.io/aap-ci/*` container images
+- Auto-merge: **disabled** - all PRs require manual review and approval
 
 Review Renovate PRs for:
 - Breaking changes in release notes
 - Test failures in CI
 - Performance regressions
+- **Snyk SCA vulnerability findings** (see Vulnerability Scanning below)
 
 ### Manual Updates
 
@@ -181,6 +182,60 @@ When adding a new Python version:
 1. Update `requires-python` in pyproject.toml
 2. Add version to CI matrix in `.github/workflows/ci.yml`
 3. Add classifier to `[project.classifiers]`
+
+## Vulnerability Scanning
+
+### Snyk SCA (Software Composition Analysis)
+
+All dependency updates are automatically scanned for known vulnerabilities using Snyk SCA:
+
+**When it runs:**
+- On every pull request (Python and npm dependencies)
+- Scheduled daily at 2:23 PM UTC
+- On pushes to `devel` branch
+- On-demand via workflow_dispatch
+
+**What it checks:**
+- Python dependencies (via `requirements.txt`)
+- npm dependencies (via `package.json` in `frontend/`)
+
+**Severity thresholds:**
+- **HIGH/CRITICAL**: Blocks PR merge (CI fails)
+- **MEDIUM/LOW**: Reported but does not block merge
+
+**Workflow files:**
+- `.github/workflows/sast-snyk-backend.yml` - Backend SAST & SCA
+- `.github/workflows/sast-snyk-frontend.yml` - Frontend SAST & SCA
+
+### Manual Review Policy
+
+All dependency update PRs require manual review and approval before merge:
+
+**Review checklist:**
+- Verify no HIGH or CRITICAL vulnerabilities detected by Snyk SCA
+- Review breaking changes in release notes
+- Confirm all CI checks pass
+- Assess security advisory details if vulnerabilities are present
+
+**Security-first approach:**
+Auto-merge is disabled to ensure human review of all dependency changes and prevent potential malware/attack risks.
+
+### Responding to Vulnerability Alerts
+
+When Snyk SCA detects a HIGH/CRITICAL vulnerability:
+
+1. **Review the security advisory**: understand the impact and affected versions
+2. **Check for available fix**: determine if a patched version exists
+3. **Assess applicability**: confirm if the vulnerability affects your usage
+4. **Remediation options:**
+   - Update to a patched version (preferred)
+   - Apply a workaround if no patch is available
+   - Accept the risk if impact is negligible (requires security review)
+5. **Document decision**: add comment to PR explaining the chosen approach
+
+For MEDIUM/LOW severity findings:
+- Review during normal PR review process
+- Plan remediation during next dependency update cycle
 
 ## Enforcement
 
