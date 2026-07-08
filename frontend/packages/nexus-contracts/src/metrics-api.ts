@@ -226,6 +226,7 @@ export interface components {
       | 'system_uptime_seconds'
       | 'system_e2e_latency_ms'
       | 'system_error_rate'
+      | 'auth_failure'
     /**
      * MetricsCategoryType
      * @description Metric category names used to group :class:`MetricType` members.

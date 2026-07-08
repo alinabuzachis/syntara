@@ -29,6 +29,7 @@ class TestMetricDefinitions:
         """All required counters are present."""
         assert prom.requests_total is not None
         assert prom.errors_total is not None
+        assert prom.auth_failures_total is not None
         assert prom.cache_hits_total is not None
         assert prom.cache_misses_total is not None
         assert prom.llm_calls_total is not None
@@ -253,3 +254,27 @@ class TestInterfaceLabelInPrometheusOutput:
         output = generate_latest(prom.registry).decode("utf-8")
 
         assert 'interface="api"' in output
+
+
+# =============================================================================
+# Auth failure counter
+# =============================================================================
+
+
+class TestAuthFailuresInstrument:
+    """Verify auth_failures_total counter has correct label sets."""
+
+    def test_auth_failures_labels(self, prom: NexusPrometheusMetrics) -> None:
+        """auth_failures_total counter has [failure_type, interface] labels."""
+        prom.auth_failures_total.labels(failure_type="expired_token", interface="ui").inc()
+        value = prom.auth_failures_total.labels(failure_type="expired_token", interface="ui")._value.get()
+        assert value == pytest.approx(1.0)
+
+    def test_auth_failures_per_interface(self, prom: NexusPrometheusMetrics) -> None:
+        """Auth failure counts are tracked independently per interface."""
+        prom.auth_failures_total.labels(failure_type="invalid_token", interface="api").inc(3)
+        prom.auth_failures_total.labels(failure_type="invalid_token", interface="ui").inc(1)
+        api_val = prom.auth_failures_total.labels(failure_type="invalid_token", interface="api")._value.get()
+        ui_val = prom.auth_failures_total.labels(failure_type="invalid_token", interface="ui")._value.get()
+        assert api_val == pytest.approx(3.0)
+        assert ui_val == pytest.approx(1.0)

@@ -92,7 +92,7 @@ def csrf_validation_error_handler(
         method=request.method,
     )
 
-    return create_problem_details_response(
+    response = create_problem_details_response(
         status_code=status.HTTP_403_FORBIDDEN,
         problem_type=PROBLEM_TYPES["forbidden"],
         title="Forbidden",
@@ -101,6 +101,8 @@ def csrf_validation_error_handler(
         retryable=False,
         instance=str(request.url),
     )
+    response.headers["X-Auth-Failure-Type"] = "csrf_failed"
+    return response
 
 
 def authentication_required_handler(
@@ -123,7 +125,7 @@ def authentication_required_handler(
         method=request.method,
     )
 
-    return create_problem_details_response(
+    response = create_problem_details_response(
         status_code=status.HTTP_401_UNAUTHORIZED,
         problem_type=PROBLEM_TYPES["unauthorized"],
         title="Unauthorized",
@@ -132,6 +134,8 @@ def authentication_required_handler(
         retryable=False,
         instance=str(request.url),
     )
+    response.headers["X-Auth-Failure-Type"] = "missing_credentials"
+    return response
 
 
 def token_expired_handler(
@@ -154,7 +158,7 @@ def token_expired_handler(
         method=request.method,
     )
 
-    return create_problem_details_response(
+    response = create_problem_details_response(
         status_code=status.HTTP_401_UNAUTHORIZED,
         problem_type=PROBLEM_TYPES["token_expired"],
         title="Token Expired",
@@ -163,6 +167,8 @@ def token_expired_handler(
         retryable=False,
         instance=str(request.url),
     )
+    response.headers["X-Auth-Failure-Type"] = "expired_token"
+    return response
 
 
 def invalid_token_handler(
@@ -185,7 +191,7 @@ def invalid_token_handler(
         method=request.method,
     )
 
-    return create_problem_details_response(
+    response = create_problem_details_response(
         status_code=status.HTTP_401_UNAUTHORIZED,
         problem_type=PROBLEM_TYPES["unauthorized"],
         title="Unauthorized",
@@ -194,6 +200,8 @@ def invalid_token_handler(
         retryable=False,
         instance=str(request.url),
     )
+    response.headers["X-Auth-Failure-Type"] = "invalid_token"
+    return response
 
 
 def refresh_token_revoked_handler(
@@ -216,7 +224,7 @@ def refresh_token_revoked_handler(
         method=request.method,
     )
 
-    return create_problem_details_response(
+    response = create_problem_details_response(
         status_code=status.HTTP_401_UNAUTHORIZED,
         problem_type=PROBLEM_TYPES["unauthorized"],
         title="Unauthorized",
@@ -225,6 +233,8 @@ def refresh_token_revoked_handler(
         retryable=False,
         instance=str(request.url),
     )
+    response.headers["X-Auth-Failure-Type"] = "refresh_revoked"
+    return response
 
 
 def token_globally_revoked_handler(
@@ -262,6 +272,7 @@ def token_globally_revoked_handler(
         instance=str(request.url),
     )
     clear_refresh_cookie(response)
+    response.headers["X-Auth-Failure-Type"] = "globally_revoked"
     return response
 
 

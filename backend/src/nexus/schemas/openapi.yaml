@@ -28985,6 +28985,7 @@ components:
         - system_uptime_seconds
         - system_e2e_latency_ms
         - system_error_rate
+        - auth_failure
       title: MetricType
       description: |-
         Categories of metrics recorded by Nexus.

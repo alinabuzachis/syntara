@@ -9,6 +9,7 @@ import pytest
 from nexus.core.exceptions import SafeValueError
 from nexus.metrics.types import (
     METRIC_CATEGORIES,
+    AuthFailureType,
     ComponentLabel,
     MetricRecord,
     MetricsCategoryType,
@@ -52,6 +53,7 @@ class TestMetricType:
             "CONTEXT_DURATION",
             # Error
             "ERROR",
+            "AUTH_FAILURE",
             # API Service
             "API_RESPONSE_TIME",
             "API_ERROR_RATE",
@@ -150,6 +152,36 @@ class TestMetricType:
         categorized = {mt for types in METRIC_CATEGORIES.values() for mt in types}
         uncategorized = set(MetricType) - categorized
         assert uncategorized == set()
+
+
+# =============================================================================
+# AuthFailureType enum tests
+# =============================================================================
+
+
+class TestAuthFailureType:
+    """Tests for the AuthFailureType enum."""
+
+    def test_auth_failure_type_values_exist(self) -> None:
+        """All expected auth failure types are defined with correct string values."""
+        expected = {
+            "invalid_token",
+            "expired_token",
+            "missing_credentials",
+            "globally_revoked",
+            "refresh_revoked",
+            "csrf_failed",
+            "disabled_user",
+            "stale_token",
+            "disabled_sa",
+            "revoked_sa_token",
+        }
+        assert {m.value for m in AuthFailureType} == expected
+
+    def test_auth_failure_type_is_string_enum(self) -> None:
+        """AuthFailureType values are usable as plain strings."""
+        assert AuthFailureType.INVALID_TOKEN.value == "invalid_token"
+        assert isinstance(AuthFailureType.INVALID_TOKEN, str)
 
 
 # =============================================================================

@@ -9,6 +9,7 @@ Tests cover system overhead and error metrics:
 """
 
 import asyncio
+from collections.abc import MutableMapping
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -501,6 +502,35 @@ class TestMetricsMiddlewareExclusions:
         assert len(results) == 0
 
     @pytest.mark.asyncio
+    async def test_excluded_path_strips_auth_failure_header(self, recorder: MetricsRecorder) -> None:
+        """X-Auth-Failure-Type header is stripped even on excluded paths."""
+        captured_headers: list[tuple[bytes, bytes]] = []
+
+        async def auth_failure_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 401,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"x-auth-failure-type", b"stale_token"),
+                    ],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
+
+        async def capturing_send(message: MutableMapping[str, Any]) -> None:
+            if message["type"] == "http.response.start":
+                captured_headers.extend(message.get("headers", []))
+
+        middleware = MetricsMiddleware(auth_failure_app, recorder=recorder)  # type: ignore[arg-type]
+        await middleware(_make_scope(path="/health"), AsyncMock(), capturing_send)
+
+        header_names = [name for name, _ in captured_headers]
+        assert b"x-auth-failure-type" not in header_names
+        assert b"content-type" in header_names
+
+    @pytest.mark.asyncio
     async def test_excluded_paths_still_pass_to_app(self, recorder: MetricsRecorder) -> None:
         """Excluded paths are still forwarded to the underlying app."""
         call_count = 0
@@ -763,3 +793,163 @@ class TestMetricsMiddlewareInterfaceTagging:
         assert labels["method"] == "POST"
         assert labels["status"] == "201"
         assert labels["interface"] == INTERFACE_UI
+
+
+# =============================================================================
+# MetricsMiddleware - auth failure recording (AAP-77261)
+# =============================================================================
+
+
+class TestMetricsMiddlewareAuthFailure:
+    """Verify auth failure metrics are recorded from X-Auth-Failure-Type response header."""
+
+    @pytest.mark.asyncio
+    async def test_auth_failure_recorded_from_response_header(self, recorder: MetricsRecorder) -> None:
+        """When inner app sets X-Auth-Failure-Type header, AUTH_FAILURE metric is recorded."""
+
+        async def auth_failure_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 401,
+                    "headers": [(b"x-auth-failure-type", b"expired_token")],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = MetricsMiddleware(auth_failure_app, recorder=recorder)  # type: ignore[arg-type]
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.AUTH_FAILURE}))
+        assert len(results) == 1
+        assert results[0].labels["failure_type"] == "expired_token"
+        assert results[0].labels["interface"] == INTERFACE_API
+
+    @pytest.mark.asyncio
+    async def test_auth_failure_with_ui_interface(self, recorder: MetricsRecorder) -> None:
+        """Auth failure metric includes the interface from the request header."""
+
+        async def auth_failure_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 401,
+                    "headers": [(b"x-auth-failure-type", b"invalid_token")],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = MetricsMiddleware(auth_failure_app, recorder=recorder)  # type: ignore[arg-type]
+        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+        await middleware(scope, AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.AUTH_FAILURE}))
+        assert len(results) == 1
+        assert results[0].labels["failure_type"] == "invalid_token"
+        assert results[0].labels["interface"] == INTERFACE_UI
+
+    @pytest.mark.asyncio
+    async def test_no_auth_failure_on_success(self, recorder: MetricsRecorder) -> None:
+        """No AUTH_FAILURE metric when authentication succeeds."""
+        app = await _make_app(status_code=200)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.AUTH_FAILURE}))
+        assert len(results) == 0
+
+    @pytest.mark.asyncio
+    async def test_auth_failure_header_stripped_from_response(self, recorder: MetricsRecorder) -> None:
+        """X-Auth-Failure-Type header is stripped and not sent to the client."""
+        captured_headers: list[tuple[bytes, bytes]] = []
+
+        async def auth_failure_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 401,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"x-auth-failure-type", b"expired_token"),
+                    ],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
+
+        async def capturing_send(message: MutableMapping[str, Any]) -> None:
+            if message["type"] == "http.response.start":
+                captured_headers.extend(message.get("headers", []))
+
+        middleware = MetricsMiddleware(auth_failure_app, recorder=recorder)  # type: ignore[arg-type]
+        await middleware(_make_scope(), AsyncMock(), capturing_send)
+
+        header_names = [name for name, _ in captured_headers]
+        assert b"x-auth-failure-type" not in header_names
+        assert b"content-type" in header_names
+
+    @pytest.mark.asyncio
+    async def test_401_auth_failure_does_not_double_count_error(self, recorder: MetricsRecorder) -> None:
+        """A 401 with X-Auth-Failure-Type records AUTH_FAILURE but not ERROR."""
+
+        async def auth_failure_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 401,
+                    "headers": [(b"x-auth-failure-type", b"expired_token")],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = MetricsMiddleware(auth_failure_app, recorder=recorder)  # type: ignore[arg-type]
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        auth_failures = list(recorder.query(metric_types={MetricType.AUTH_FAILURE}))
+        assert len(auth_failures) == 1
+
+        errors = list(recorder.query(metric_types={MetricType.ERROR}))
+        assert len(errors) == 0
+
+    @pytest.mark.asyncio
+    async def test_403_csrf_records_auth_failure(self, recorder: MetricsRecorder) -> None:
+        """A 403 CSRF failure with X-Auth-Failure-Type records AUTH_FAILURE."""
+
+        async def csrf_failure_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 403,
+                    "headers": [(b"x-auth-failure-type", b"csrf_failed")],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = MetricsMiddleware(csrf_failure_app, recorder=recorder)  # type: ignore[arg-type]
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        auth_failures = list(recorder.query(metric_types={MetricType.AUTH_FAILURE}))
+        assert len(auth_failures) == 1
+        assert auth_failures[0].labels["failure_type"] == "csrf_failed"
+
+    @pytest.mark.asyncio
+    async def test_auth_failure_prometheus_counter(self, recorder: MetricsRecorder) -> None:
+        """AUTH_FAILURE metric updates the Prometheus auth_failures_total counter."""
+
+        async def auth_failure_app(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 401,
+                    "headers": [(b"x-auth-failure-type", b"missing_credentials")],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = MetricsMiddleware(auth_failure_app, recorder=recorder)  # type: ignore[arg-type]
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        value = recorder.prometheus.auth_failures_total.labels(
+            failure_type="missing_credentials", interface="api"
+        )._value.get()
+        assert value == pytest.approx(1.0)

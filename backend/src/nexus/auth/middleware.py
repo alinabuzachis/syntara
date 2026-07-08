@@ -105,7 +105,7 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                     sa_status=status_val,
                     is_alive=is_alive,
                 )
-                return create_problem_details_response(
+                response = create_problem_details_response(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     problem_type=PROBLEM_TYPES["unauthorized"],
                     title="Unauthorized",
@@ -114,6 +114,8 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                     retryable=False,
                     instance=str(request.url),
                 )
+                response.headers["X-Auth-Failure-Type"] = "disabled_sa"
+                return response
 
             if current_ver > token_ver:
                 logger.warning(
@@ -122,7 +124,7 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                     token_version=token_ver,
                     current_version=current_ver,
                 )
-                return create_problem_details_response(
+                response = create_problem_details_response(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     problem_type=PROBLEM_TYPES["unauthorized"],
                     title="Unauthorized",
@@ -131,6 +133,8 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                     retryable=False,
                     instance=str(request.url),
                 )
+                response.headers["X-Auth-Failure-Type"] = "revoked_sa_token"
+                return response
 
         return await call_next(request)
 
@@ -185,7 +189,7 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 )
             )
             logger.warning("Rejected request from disabled user", user_id=user_id)
-            return create_problem_details_response(
+            response = create_problem_details_response(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 problem_type=PROBLEM_TYPES["unauthorized"],
                 title="Unauthorized",
@@ -194,6 +198,8 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 retryable=False,
                 instance=str(request.url),
             )
+            response.headers["X-Auth-Failure-Type"] = "disabled_user"
+            return response
 
         if status_resolved and current_ver > token_ver and not is_auth_lifecycle:
             if user_id not in _stale_audit_cache:
@@ -211,7 +217,7 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 _stale_audit_cache[user_id] = True
 
             logger.warning("Rejected request with stale token", user_id=user_id)
-            return create_problem_details_response(
+            response = create_problem_details_response(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 problem_type=PROBLEM_TYPES["unauthorized"],
                 title="Unauthorized",
@@ -220,5 +226,7 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 retryable=True,
                 instance=str(request.url),
             )
+            response.headers["X-Auth-Failure-Type"] = "stale_token"
+            return response
 
         return await call_next(request)

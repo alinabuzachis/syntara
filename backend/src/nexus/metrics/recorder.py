@@ -365,6 +365,12 @@ class MetricsRecorder:
                 interface=labels.get("interface", "api"),
             ).inc()
 
+        elif metric_type == MetricType.AUTH_FAILURE:
+            p.auth_failures_total.labels(
+                failure_type=labels.get("failure_type", "unknown"),
+                interface=labels.get("interface", "api"),
+            ).inc()
+
         elif metric_type in {
             MetricType.TOOL_EXECUTION_DURATION,
             MetricType.TOOL_EXECUTION_STATUS,

@@ -301,7 +301,7 @@ class TestRecorderPrometheus:
         recorder.record(
             MetricType.ERROR,
             1.0,
-            labels={"error_type": "timeout"},
+            labels={"error_type": "timeout", "interface": "api"},
         )
         sample_value = recorder.prometheus.errors_total.labels(error_type="timeout", interface="api")._value.get()
         assert sample_value == pytest.approx(1.0)
@@ -312,11 +312,10 @@ class TestRecorderPrometheus:
             MetricType.REQUEST_DURATION,
             250.0,
             unit="ms",
-            labels={"endpoint": "/api/v1/chat"},
+            labels={"endpoint": "/api/v1/chat", "interface": "api"},
         )
         sample_value = recorder.prometheus.request_duration_seconds.labels(
-            endpoint="/api/v1/chat",
-            interface="api",
+            endpoint="/api/v1/chat", interface="api"
         )._sum.get()
         assert sample_value == pytest.approx(0.25, rel=0.01)
 
@@ -326,12 +325,36 @@ class TestRecorderPrometheus:
             MetricType.REQUEST_DURATION,
             100.0,
             unit="ms",
-            labels={"endpoint": "/api/v1/health", "status": "200"},
+            labels={"endpoint": "/api/v1/health", "status": "200", "interface": "ui"},
         )
         value = recorder.prometheus.requests_total.labels(
             status="200",
             endpoint="/api/v1/health",
-            interface="api",
+            interface="ui",
+        )._value.get()
+        assert value == pytest.approx(1.0)
+
+    def test_auth_failure_dispatches_to_counter(self, recorder: MetricsRecorder) -> None:
+        """Recording AUTH_FAILURE increments the auth_failures_total counter."""
+        recorder.record(
+            MetricType.AUTH_FAILURE,
+            1.0,
+            labels={"failure_type": "expired_token", "interface": "ui"},
+        )
+        value = recorder.prometheus.auth_failures_total.labels(
+            failure_type="expired_token", interface="ui"
+        )._value.get()
+        assert value == pytest.approx(1.0)
+
+    def test_auth_failure_defaults_interface_to_api(self, recorder: MetricsRecorder) -> None:
+        """AUTH_FAILURE without explicit interface defaults to 'api'."""
+        recorder.record(
+            MetricType.AUTH_FAILURE,
+            1.0,
+            labels={"failure_type": "invalid_token"},
+        )
+        value = recorder.prometheus.auth_failures_total.labels(
+            failure_type="invalid_token", interface="api"
         )._value.get()
         assert value == pytest.approx(1.0)
 

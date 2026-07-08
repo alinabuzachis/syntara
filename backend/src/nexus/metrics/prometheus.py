@@ -76,6 +76,13 @@ class NexusPrometheusMetrics:
             registry=self.registry,
         )
 
+        self.auth_failures_total = Counter(
+            "nexus_auth_failures_total",
+            "Total authentication failures by type and interface",
+            ["failure_type", "interface"],
+            registry=self.registry,
+        )
+
         self.cache_hits_total = Counter(
             "nexus_cache_hits_total",
             "Total cache hits",

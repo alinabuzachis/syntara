@@ -96,6 +96,9 @@ class MetricType(StrEnum):
     SYSTEM_E2E_LATENCY = "system_e2e_latency_ms"
     SYSTEM_ERROR_RATE = "system_error_rate"
 
+    # Authentication Metrics
+    AUTH_FAILURE = "auth_failure"
+
 
 class MetricsCategoryType(StrEnum):
     """Metric category names used to group :class:`MetricType` members."""
@@ -142,6 +145,7 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
     ],
     MetricsCategoryType.ERROR: [
         MetricType.ERROR,
+        MetricType.AUTH_FAILURE,
     ],
     MetricsCategoryType.SYSTEM_OVERHEAD: [
         MetricType.REQUEST_DURATION,
@@ -200,6 +204,21 @@ class ComponentLabel(StrEnum):
     TOOL_MANAGER = "tool_manager"
     DATABASE = "database"
     SYSTEM_WIDE = "system_wide"
+
+
+class AuthFailureType(StrEnum):
+    """Authentication failure categories for the ``auth_failures_total`` counter."""
+
+    INVALID_TOKEN = "invalid_token"  # noqa: S105
+    EXPIRED_TOKEN = "expired_token"  # noqa: S105
+    MISSING_CREDENTIALS = "missing_credentials"
+    GLOBALLY_REVOKED = "globally_revoked"
+    REFRESH_REVOKED = "refresh_revoked"
+    CSRF_FAILED = "csrf_failed"
+    DISABLED_USER = "disabled_user"
+    STALE_TOKEN = "stale_token"  # noqa: S105
+    DISABLED_SA = "disabled_sa"
+    REVOKED_SA_TOKEN = "revoked_sa_token"  # noqa: S105
 
 
 def _validate_labels(labels: dict[str, str] | None) -> dict[str, str]:

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 logger = structlog.stdlib.get_logger(__name__)
 
 _REQUEST_ID_HEADER: bytes = b"x-request-id"
+_AUTH_FAILURE_HEADER: bytes = b"x-auth-failure-type"
 
 # ---- Error type classification -------------------------------------------------
 
@@ -130,40 +131,49 @@ class MetricsMiddleware:
 
         path: str = scope["path"]
 
-        if path in EXCLUDED_PATHS or path.startswith(EXCLUDED_PATH_PREFIXES):
-            await self.app(scope, receive, send)
-            return
-
         method: str = scope.get("method", "UNKNOWN")
         status_code = 0
-        start = time.perf_counter()
-
-        interface = detect_interface(scope)
-        interface_context_var.set(interface)
+        auth_failure_type: str | None = None
 
         # Read request_id from ContextVar (set by AuditMiddleware, the outermost middleware).
         request_id = request_id_context_var.get()
 
         async def send_wrapper(message: Message) -> None:
-            nonlocal status_code
+            nonlocal status_code, auth_failure_type
             if message["type"] == "http.response.start":
                 status_code = message["status"]
                 existing_headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
                 if request_id is not None:
                     existing_headers.append((_REQUEST_ID_HEADER, str(request_id).encode()))
-                message = {**message, "headers": existing_headers}
+                # Extract and strip the internal auth-failure signaling header.
+                filtered_headers: list[tuple[bytes, bytes]] = []
+                for name, value in existing_headers:
+                    if name == _AUTH_FAILURE_HEADER:
+                        auth_failure_type = value.decode("latin-1")
+                    else:
+                        filtered_headers.append((name, value))
+                message = {**message, "headers": filtered_headers}
             await send(message)
+
+        if path in EXCLUDED_PATHS or path.startswith(EXCLUDED_PATH_PREFIXES):
+            await self.app(scope, receive, send_wrapper)
+            return
+
+        start = time.perf_counter()
+
+        interface = detect_interface(scope)
+        interface_context_var.set(interface)
 
         try:
             await self.app(scope, receive, send_wrapper)
         except Exception:
             status_code = 500
             endpoint = _resolve_endpoint(scope, path)
-            self._record_metrics(endpoint, method, status_code, start, interface)
+            self._record_metrics(endpoint, method, status_code, start, interface, auth_failure_type)
             raise
 
         endpoint = _resolve_endpoint(scope, path)
-        self._record_metrics(endpoint, method, status_code, start, interface)
+        self._record_metrics(endpoint, method, status_code, start, interface, auth_failure_type)
 
     def _record_metrics(
         self,
@@ -172,8 +182,9 @@ class MetricsMiddleware:
         status_code: int,
         start: float,
         interface: str,
+        auth_failure_type: str | None = None,
     ) -> None:
-        """Record request duration and error metrics.
+        """Record request duration, error, and auth failure metrics.
 
         Args:
             path: Request path.
@@ -181,6 +192,9 @@ class MetricsMiddleware:
             status_code: Response status code.
             start: ``time.perf_counter()`` at request start.
             interface: Originating interface (``"api"`` or ``"ui"``).
+            auth_failure_type: Authentication failure type extracted from
+                the ``X-Auth-Failure-Type`` response header, or ``None``
+                for successful authentication.
 
         """
         duration_ms = (time.perf_counter() - start) * 1000
@@ -211,7 +225,7 @@ class MetricsMiddleware:
             self._recorder.increment("requests")
 
             error_type = classify_error_type(status_code)
-            if error_type is not None:
+            if error_type is not None and auth_failure_type is None:
                 self._recorder.record(
                     MetricType.ERROR,
                     1.0,
@@ -231,6 +245,16 @@ class MetricsMiddleware:
                         summary.total_errors / summary.total_requests,
                         component=component,
                     )
+
+            if auth_failure_type is not None:
+                self._recorder.record(
+                    MetricType.AUTH_FAILURE,
+                    1.0,
+                    labels={
+                        "failure_type": auth_failure_type,
+                        "interface": interface,
+                    },
+                )
 
             self._request_count += 1
             if error_type is not None or self._request_count % self._UPTIME_SAMPLE_INTERVAL == 0:
