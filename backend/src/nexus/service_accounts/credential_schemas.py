@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import ClassVar
 from uuid import UUID
 
-from pydantic import ConfigDict
+from pydantic import AwareDatetime, ConfigDict
 from sqlmodel import Field, SQLModel
 
 from nexus.core.models.base.query_params import BaseListParams
@@ -27,6 +27,13 @@ class SACredentialCreate(SQLModel):
         le=86400,
         description="Duration (seconds) old secret remains valid after rotation",
     )
+    expires_at: AwareDatetime | None = Field(
+        default=None,
+        description=(
+            "Optional expiry timestamp (must include timezone). If omitted, auto-set from the configured "
+            "maximum credential lifetime. Rejected if it exceeds the configured limit."
+        ),
+    )
 
 
 class SACredentialRead(SQLModel):
@@ -41,6 +48,7 @@ class SACredentialRead(SQLModel):
     status: ServiceAccountCredentialStatus
     grace_period_seconds: int
     expires_at: datetime | None = None
+    old_secret_valid_until: datetime | None = None
     last_used_at: datetime | None = None
     created_by: UUID
     updated_by: UUID | None = None

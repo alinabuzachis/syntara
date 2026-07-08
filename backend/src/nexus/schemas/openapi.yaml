@@ -29868,6 +29868,13 @@ components:
         credential_type:
           $ref: '#/components/schemas/ServiceAccountCredentialType'
           description: Type of credential to create
+        expires_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: Optional expiry timestamp (must include timezone). If omitted, auto-set from the configured maximum credential lifetime. Rejected if it exceeds the configured limit.
+          title: Expires At
         grace_period_seconds:
           type: integer
           maximum: 86400.0
@@ -29912,6 +29919,12 @@ components:
               format: date-time
             - type: 'null'
           title: Last Used At
+        old_secret_valid_until:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Old Secret Valid Until
         created_by:
           type: string
           format: uuid
@@ -29975,6 +29988,12 @@ components:
               format: date-time
             - type: 'null'
           title: Last Used At
+        old_secret_valid_until:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Old Secret Valid Until
         created_by:
           type: string
           format: uuid
@@ -30057,6 +30076,12 @@ components:
               format: date-time
             - type: 'null'
           title: Last Used At
+        old_secret_valid_until:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Old Secret Valid Until
         created_by:
           type: string
           format: uuid

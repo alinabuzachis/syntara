@@ -6,6 +6,8 @@ from unittest.mock import MagicMock
 from fastapi import status
 
 from nexus.service_accounts.error_handlers import (
+    sa_credential_expiration_exceeded_handler,
+    sa_credential_expiration_in_past_handler,
     sa_credential_limit_handler,
     sa_credential_not_found_handler,
     service_account_error_handler,
@@ -13,6 +15,8 @@ from nexus.service_accounts.error_handlers import (
     service_account_not_found_handler,
 )
 from nexus.service_accounts.exceptions import (
+    CredentialExpirationExceededError,
+    CredentialExpirationInPastError,
     ServiceAccountCredentialLimitError,
     ServiceAccountCredentialNotFoundError,
     ServiceAccountError,
@@ -110,3 +114,43 @@ class TestSACredentialLimitHandler:
         body = json.loads(bytes(response.body))
         assert "maximum" in body["detail"]
         assert body["code"] == "SERVICE_ACCOUNT_CREDENTIAL_LIMIT"
+
+
+class TestSACredentialExpirationExceededHandler:
+    """Tests for credential expiration exceeded 400 error handler."""
+
+    def test_returns_400(self) -> None:
+        request = MagicMock()
+        request.url = "http://test/api/v1/service_accounts/123/credentials"
+        exc = CredentialExpirationExceededError(30)
+        response = sa_credential_expiration_exceeded_handler(request, exc)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_response_contains_detail(self) -> None:
+        request = MagicMock()
+        request.url = "http://test/api/v1/service_accounts/123/credentials"
+        exc = CredentialExpirationExceededError(30)
+        response = sa_credential_expiration_exceeded_handler(request, exc)
+        body = json.loads(bytes(response.body))
+        assert "30 days" in body["detail"]
+        assert body["code"] == "CREDENTIAL_EXPIRATION_EXCEEDED"
+
+
+class TestSACredentialExpirationInPastHandler:
+    """Tests for credential expiration in past 400 error handler."""
+
+    def test_returns_400(self) -> None:
+        request = MagicMock()
+        request.url = "http://test/api/v1/service_accounts/123/credentials"
+        exc = CredentialExpirationInPastError("expires_at must be in the future")
+        response = sa_credential_expiration_in_past_handler(request, exc)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_response_contains_detail(self) -> None:
+        request = MagicMock()
+        request.url = "http://test/api/v1/service_accounts/123/credentials"
+        exc = CredentialExpirationInPastError("expires_at must be in the future")
+        response = sa_credential_expiration_in_past_handler(request, exc)
+        body = json.loads(bytes(response.body))
+        assert "future" in body["detail"]
+        assert body["code"] == "CREDENTIAL_EXPIRATION_IN_PAST"

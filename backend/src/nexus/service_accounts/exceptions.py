@@ -39,3 +39,18 @@ class ServiceAccountCredentialLimitError(ServiceAccountError):
         self.service_account_id = service_account_id
         self.limit = limit
         super().__init__(f"Service account {service_account_id} has reached the maximum of {limit} credentials")
+
+
+@fastapi_exception(handler="nexus.service_accounts.error_handlers.sa_credential_expiration_exceeded_handler")
+class CredentialExpirationExceededError(ServiceAccountError):
+    """Exception raised when a requested expires_at exceeds the configured maximum lifetime."""
+
+    def __init__(self, max_lifetime_days: int) -> None:
+        """Initialize exception with the configured maximum lifetime."""
+        self.max_lifetime_days = max_lifetime_days
+        super().__init__(f"Requested expiration exceeds the maximum credential lifetime of {max_lifetime_days} days")
+
+
+@fastapi_exception(handler="nexus.service_accounts.error_handlers.sa_credential_expiration_in_past_handler")
+class CredentialExpirationInPastError(ServiceAccountError):
+    """Exception raised when a requested expires_at is in the past."""

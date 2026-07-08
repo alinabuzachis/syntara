@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from contextlib import AbstractContextManager
 
 from nexus.service_accounts.credential_schemas import (
     SACredentialCreateResponse,
@@ -13,6 +19,8 @@ from nexus.service_accounts.credential_schemas import (
     SACredentialRotateResponse,
 )
 from nexus.service_accounts.exceptions import (
+    CredentialExpirationExceededError,
+    CredentialExpirationInPastError,
     ServiceAccountCredentialLimitError,
     ServiceAccountCredentialNotFoundError,
 )
@@ -250,3 +258,211 @@ class TestServiceInheritance:
         from nexus.core.services import BaseService
 
         assert issubclass(ServiceAccountCredentialService, BaseService)
+
+
+class TestCredentialMaxLifetime:
+    """Tests for configurable credential max lifetime (AAP-80610)."""
+
+    @pytest.mark.asyncio
+    async def test_create_rejects_expires_at_in_past(
+        self,
+        service: ServiceAccountCredentialService,
+        mock_session: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        mock_session.exec.return_value = _mock_count_result(0)
+        past = datetime.now(tz=UTC) - timedelta(hours=1)
+        with (
+            override_settings(sa_credential_max_lifetime_days=180),
+            pytest.raises(CredentialExpirationInPastError, match="future"),
+        ):
+            await service.create_credential(
+                service_account_id=uuid4(),
+                credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
+                expires_at=past,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_rejects_expires_at_in_past_unlimited(
+        self,
+        service: ServiceAccountCredentialService,
+        mock_session: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        mock_session.exec.return_value = _mock_count_result(0)
+        past = datetime.now(tz=UTC) - timedelta(days=5)
+        with (
+            override_settings(sa_credential_max_lifetime_days=-1),
+            pytest.raises(CredentialExpirationInPastError, match="future"),
+        ):
+            await service.create_credential(
+                service_account_id=uuid4(),
+                credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
+                expires_at=past,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_auto_sets_expires_at_from_setting(
+        self,
+        service: ServiceAccountCredentialService,
+        mock_session: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        mock_session.exec.return_value = _mock_count_result(0)
+        with override_settings(sa_credential_max_lifetime_days=30):
+            before = datetime.now(tz=UTC)
+            cred, _ = await service.create_credential(
+                service_account_id=uuid4(),
+                credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
+            )
+            after = datetime.now(tz=UTC)
+
+        assert cred.expires_at is not None
+        assert before + timedelta(days=30) <= cred.expires_at <= after + timedelta(days=30)
+
+    @pytest.mark.asyncio
+    async def test_create_respects_caller_expires_at_within_limit(
+        self,
+        service: ServiceAccountCredentialService,
+        mock_session: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        mock_session.exec.return_value = _mock_count_result(0)
+        requested = datetime.now(tz=UTC) + timedelta(days=10)
+        with override_settings(sa_credential_max_lifetime_days=30):
+            cred, _ = await service.create_credential(
+                service_account_id=uuid4(),
+                credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
+                expires_at=requested,
+            )
+
+        assert cred.expires_at == requested
+
+    @pytest.mark.asyncio
+    async def test_create_rejects_expires_at_beyond_limit(
+        self,
+        service: ServiceAccountCredentialService,
+        mock_session: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        mock_session.exec.return_value = _mock_count_result(0)
+        requested = datetime.now(tz=UTC) + timedelta(days=60)
+        with (
+            override_settings(sa_credential_max_lifetime_days=30),
+            pytest.raises(CredentialExpirationExceededError, match="30 days"),
+        ):
+            await service.create_credential(
+                service_account_id=uuid4(),
+                credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
+                expires_at=requested,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_unlimited_skips_expiry(
+        self,
+        service: ServiceAccountCredentialService,
+        mock_session: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        mock_session.exec.return_value = _mock_count_result(0)
+        with override_settings(sa_credential_max_lifetime_days=-1):
+            cred, _ = await service.create_credential(
+                service_account_id=uuid4(),
+                credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
+            )
+
+        assert cred.expires_at is None
+
+    @pytest.mark.asyncio
+    async def test_create_unlimited_allows_caller_expires_at(
+        self,
+        service: ServiceAccountCredentialService,
+        mock_session: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        mock_session.exec.return_value = _mock_count_result(0)
+        requested = datetime.now(tz=UTC) + timedelta(days=999)
+        with override_settings(sa_credential_max_lifetime_days=-1):
+            cred, _ = await service.create_credential(
+                service_account_id=uuid4(),
+                credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
+                expires_at=requested,
+            )
+
+        assert cred.expires_at == requested
+
+    @pytest.mark.asyncio
+    async def test_rotate_refreshes_expires_at(
+        self,
+        service: ServiceAccountCredentialService,
+        mock_session: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        old_expiry = datetime.now(tz=UTC) + timedelta(days=10)
+        mock_cred = MagicMock(spec=ServiceAccountCredential)
+        mock_cred.credential_type = ServiceAccountCredentialType.CLIENT_CREDENTIALS
+        mock_cred.grace_period_seconds = 3600
+        mock_cred.hashed_secret = "$argon2id$old"  # noqa: S105
+        mock_cred.expires_at = old_expiry
+        mock_cred.update_by_user = MagicMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = mock_cred
+        mock_session.exec.return_value = mock_result
+
+        with override_settings(sa_credential_max_lifetime_days=90):
+            before = datetime.now(tz=UTC)
+            await service.rotate_credential(uuid4())
+            after = datetime.now(tz=UTC)
+
+        assert mock_cred.expires_at != old_expiry
+        assert mock_cred.expires_at is not None
+        assert before + timedelta(days=90) <= mock_cred.expires_at <= after + timedelta(days=90)
+
+    @pytest.mark.asyncio
+    async def test_rotate_unlimited_clears_expires_at(
+        self,
+        service: ServiceAccountCredentialService,
+        mock_session: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        mock_cred = MagicMock(spec=ServiceAccountCredential)
+        mock_cred.credential_type = ServiceAccountCredentialType.CLIENT_CREDENTIALS
+        mock_cred.grace_period_seconds = 3600
+        mock_cred.hashed_secret = "$argon2id$old"  # noqa: S105
+        mock_cred.update_by_user = MagicMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = mock_cred
+        mock_session.exec.return_value = mock_result
+
+        with override_settings(sa_credential_max_lifetime_days=-1):
+            await service.rotate_credential(uuid4())
+
+        assert mock_cred.expires_at is None
+
+
+class TestReadSchemaIncludesRotationField:
+    """Tests that SACredentialRead exposes old_secret_valid_until (AAP-82027)."""
+
+    def test_old_secret_valid_until_populated_from_model(self) -> None:
+        rotation_expiry = datetime.now(tz=UTC) + timedelta(hours=1)
+        cred = ServiceAccountCredential(
+            service_account_id=uuid4(),
+            credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
+            identifier="nx_sa_abcdef1234567890",
+            hashed_secret="$argon2id$placeholder",  # noqa: S106
+            old_secret_valid_until=rotation_expiry,
+            created_by=uuid4(),
+        )
+        read = SACredentialRead.model_validate(cred)
+        assert read.old_secret_valid_until == rotation_expiry
+
+    def test_old_secret_valid_until_none_when_not_rotating(self) -> None:
+        cred = ServiceAccountCredential(
+            service_account_id=uuid4(),
+            credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
+            identifier="nx_sa_abcdef1234567890",
+            hashed_secret="$argon2id$placeholder",  # noqa: S106
+            created_by=uuid4(),
+        )
+        read = SACredentialRead.model_validate(cred)
+        assert read.old_secret_valid_until is None

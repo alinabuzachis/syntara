@@ -11,6 +11,8 @@ from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_resp
 
 if TYPE_CHECKING:
     from nexus.service_accounts.exceptions import (
+        CredentialExpirationExceededError,
+        CredentialExpirationInPastError,
         ServiceAccountCredentialLimitError,
         ServiceAccountCredentialNotFoundError,
         ServiceAccountError,
@@ -86,6 +88,36 @@ def sa_credential_limit_handler(request: Request, exc: "ServiceAccountCredential
         title="Service Account Credential Limit Reached",
         detail=exc.message,
         code="SERVICE_ACCOUNT_CREDENTIAL_LIMIT",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def sa_credential_expiration_exceeded_handler(
+    request: Request, exc: "CredentialExpirationExceededError"
+) -> JSONResponse:
+    """Handle CredentialExpirationExceededError with RFC 9457 format."""
+    logger.error("Credential expiration exceeds maximum lifetime", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Credential Expiration Exceeded",
+        detail=exc.message,
+        code="CREDENTIAL_EXPIRATION_EXCEEDED",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def sa_credential_expiration_in_past_handler(request: Request, exc: "CredentialExpirationInPastError") -> JSONResponse:
+    """Handle CredentialExpirationInPastError with RFC 9457 format."""
+    logger.error("Credential expiration is in the past", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Credential Expiration In Past",
+        detail=exc.message,
+        code="CREDENTIAL_EXPIRATION_IN_PAST",
         retryable=False,
         instance=str(request.url),
     )

@@ -47,6 +47,31 @@ This skill detects drift between the OpenAPI spec and the implementation, then g
 
 4. **Repeat** until the user is satisfied or no drift remains. Compact context whenever a new issue is worked on.
 
+## Post-Fix: Contract Regeneration
+
+Whenever the bundled `openapi.yaml` changes, CI checks whether the generated TypeScript types in `frontend/packages/nexus-contracts/src/` are still in sync. After resolving all drift:
+
+1. **Regenerate frontend contracts:**
+
+   ```bash
+   make gen-contracts
+   ```
+
+2. **Check if contracts actually changed:**
+
+   ```bash
+   git diff --stat -- frontend/packages/nexus-contracts/src/
+   ```
+
+   - If there are changes, commit them alongside the spec updates.
+   - If there are no changes (common for additive nullable fields), no contract commit is needed.
+
+3. **Discard unrelated churn:** `gen-contracts` also runs `sync-examples` which copies backend test fixtures into `frontend/packages/nexus-mock-api/src/examples/`. If those changed but are unrelated to the spec fix, discard them:
+
+   ```bash
+   git checkout -- frontend/packages/nexus-mock-api/src/examples/
+   ```
+
 ## Reminders
 
 - Do **not** edit `backend/src/nexus/schemas/openapi.yaml` — it is auto-generated.

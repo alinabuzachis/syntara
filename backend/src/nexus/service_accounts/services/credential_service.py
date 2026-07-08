@@ -9,6 +9,7 @@ from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.passwords import hash_password
+from nexus.core.config.base import get_settings
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
@@ -19,6 +20,8 @@ from nexus.service_accounts.credential_schemas import (
     SACredentialRotateResponse,
 )
 from nexus.service_accounts.exceptions import (
+    CredentialExpirationExceededError,
+    CredentialExpirationInPastError,
     ServiceAccountCredentialLimitError,
     ServiceAccountCredentialNotFoundError,
 )
@@ -72,12 +75,35 @@ class ServiceAccountCredentialService(BaseService):
         if count >= MAX_CREDENTIALS_PER_SA:
             raise ServiceAccountCredentialLimitError(str(service_account_id), MAX_CREDENTIALS_PER_SA)
 
+    @staticmethod
+    def _resolve_expires_at(requested: datetime | None) -> datetime | None:
+        if requested is not None and requested <= datetime.now(tz=UTC):
+            msg = "expires_at must be in the future"
+            raise CredentialExpirationInPastError(msg)
+
+        settings = get_settings()
+        max_days = settings.sa_credential_max_lifetime_days
+
+        if max_days == -1:
+            return requested
+
+        max_expiry = datetime.now(tz=UTC) + timedelta(days=max_days)
+
+        if requested is None:
+            return max_expiry
+
+        if requested > max_expiry:
+            raise CredentialExpirationExceededError(max_days)
+
+        return requested
+
     async def create_credential(
         self,
         service_account_id: UUID,
         credential_type: ServiceAccountCredentialType,
         *,
         grace_period_seconds: int = 3600,
+        expires_at: datetime | None = None,
     ) -> tuple[ServiceAccountCredential, str]:
         """Create a new credential for a service account.
 
@@ -87,6 +113,7 @@ class ServiceAccountCredentialService(BaseService):
         """
         await self._check_credential_limit(service_account_id)
 
+        resolved_expires_at = self._resolve_expires_at(expires_at)
         identifier, plaintext_secret, hashed = self._generate_credential(credential_type)
 
         credential = ServiceAccountCredential(
@@ -95,6 +122,7 @@ class ServiceAccountCredentialService(BaseService):
             identifier=identifier,
             hashed_secret=hashed,
             grace_period_seconds=grace_period_seconds,
+            expires_at=resolved_expires_at,
             status=ServiceAccountCredentialStatus.ACTIVE,
             created_by=self.user.id,
             updated_by=self.user.id,
@@ -154,6 +182,7 @@ class ServiceAccountCredentialService(BaseService):
 
         _, plaintext_secret, hashed = self._generate_credential(credential.credential_type)
         credential.hashed_secret = hashed
+        credential.expires_at = self._resolve_expires_at(None)
 
         credential.update_by_user(self.user.id)
 

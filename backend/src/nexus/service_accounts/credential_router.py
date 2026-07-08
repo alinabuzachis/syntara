@@ -95,6 +95,7 @@ async def create_credential(
         service_account_id=service_account_id,
         credential_type=request.credential_type,
         grace_period_seconds=request.grace_period_seconds,
+        expires_at=request.expires_at,
     )
     return service.to_create_response(credential, plaintext_secret)
 
