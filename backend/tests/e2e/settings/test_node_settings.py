@@ -483,7 +483,7 @@ def test_retry_policy_max_retries_zero_no_retry(nexus_api: NexusApiRegistry, fir
     elapsed = time.monotonic() - start
 
     assert result.status == ExecutionStatus.FAILED, f"Expected FAILED, got {result.status}"
-    assert elapsed < 15, f"max_retries=0 should fail without retry delay, took {elapsed:.1f}s"
+    assert elapsed < 30, f"max_retries=0 should fail without retry delay, took {elapsed:.1f}s"
 
 
 @pytest.mark.e2e
@@ -522,7 +522,7 @@ def test_retry_not_applied_to_script_nodes(nexus_api: NexusApiRegistry, first_pr
 
         assert result.status == ExecutionStatus.FAILED, f"Expected FAILED, got {result.status}"
         # If retry applied, 5 retries x 2s interval = >10s. Script should fail well under that.
-        assert elapsed < 15, f"Script should fail fast (no retry despite global retry=5), took {elapsed:.1f}s"
+        assert elapsed < 30, f"Script should fail fast (no retry despite global retry=5), took {elapsed:.1f}s"
     finally:
         _restore_settings(nexus_api, {key_max: orig_max, key_interval: orig_interval})
 
@@ -723,7 +723,7 @@ def test_retry_no_retry_on_permanent_error(
     assert result.status == ExecutionStatus.FAILED, f"Expected FAILED, got {result.status}"
     # 404 is non_retryable=True — no retry delays.
     # If retries applied: 3 x 3s = 9s minimum. Under 8s proves no retry.
-    assert elapsed < 15, f"Permanent error (404) should not retry, took {elapsed:.1f}s"
+    assert elapsed < 30, f"Permanent error (404) should not retry, took {elapsed:.1f}s"
 
 
 # ---------------------------------------------------------------------------

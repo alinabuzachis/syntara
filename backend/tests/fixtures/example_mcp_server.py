@@ -79,13 +79,6 @@ class BaseServer(ABC):
         self.server_url = f"http://{self.host}:{actual_port}"
         self.base_url = f"http://{self.host}:{actual_port}/mcp"
 
-        # Wait for ASGI app to be fully ready
-        await self._wait_for_server_ready()
-
-        # Add grace period for streamable-http session manager to fully initialize
-        # This prevents "ASGI callable returned without completing response" race conditions
-        await asyncio.sleep(0.2)
-
         logger.info("Test MCP server started at %s, MCP endpoint at %s", self.server_url, self.base_url)
 
     async def _wait_for_socket_bound(self, *, max_timeout: float = 10.0) -> None:
@@ -102,40 +95,6 @@ class BaseServer(ABC):
             await asyncio.sleep(0.05)
 
         msg = f"Server socket did not bind within {max_timeout}s"
-        raise TimeoutError(msg)
-
-    async def _wait_for_server_ready(self, *, max_timeout: float = 10.0) -> None:
-        """Wait for server to be ready by attempting HTTP requests.
-
-        A TCP socket check is not sufficient because the ASGI application may
-        not be fully initialised yet (the streamable-http transport in FastMCP
-        can race), which leads to ``ASGI callable returned without completing
-        response`` errors and 30-second timeouts in CI.
-
-        Args:
-            max_timeout: Maximum time to wait for server startup
-
-        """
-        import httpx
-
-        start_time = asyncio.get_event_loop().time()
-        async with httpx.AsyncClient() as client:
-            while (asyncio.get_event_loop().time() - start_time) < max_timeout:
-                try:
-                    # Check the /health endpoint to ensure FastMCP app is fully initialized.
-                    # Accept 200 (success) or 403 (ForbiddenMCPServer) as proof of readiness.
-                    # Any HTTP response (not connection error) means ASGI is processing requests.
-                    response = await client.get(f"http://{self.host}:{self.port}/health", timeout=2.0)
-                    if response.status_code in (200, 403):
-                        logger.debug("Server health check succeeded with status %s", response.status_code)
-                        return
-                    logger.debug("Server health check returned status %s, retrying", response.status_code)
-                except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError):
-                    pass
-
-                await asyncio.sleep(0.1)
-
-        msg = f"Server did not start within {max_timeout}s"
         raise TimeoutError(msg)
 
     async def stop(self) -> None:
@@ -182,7 +141,10 @@ class ExampleMCPServer(BaseServer):
 
     def get_app(self) -> StarletteWithLifespan:
         """Get the Starlette application for the MCP server."""
-        return self.mcp_app.http_app(transport="streamable-http")
+        return self.mcp_app.http_app(
+            transport="streamable-http",
+            host_origin_protection=False,
+        )
 
     def _setup_tools(self) -> None:
         """Set up test tools for the MCP server."""
@@ -275,6 +237,9 @@ class ForbiddenMCPServer(BaseServer):
 
     def get_app(self) -> StarletteWithLifespan:
         """Get the Starlette application for the MCP server with forbidden middleware."""
-        http_app = self.mcp_app.http_app(transport="streamable-http")
+        http_app = self.mcp_app.http_app(
+            transport="streamable-http",
+            host_origin_protection=False,
+        )
         http_app.add_middleware(ForbiddenMiddleware)
         return http_app
