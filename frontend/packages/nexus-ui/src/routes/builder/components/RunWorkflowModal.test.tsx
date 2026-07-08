@@ -139,7 +139,7 @@ describe('RunWorkflowModal', () => {
       }
       renderModal({ inputSchema })
 
-      const editor: HTMLTextAreaElement = screen.getByTestId('mock-code-editor')
+      const editor: HTMLTextAreaElement = screen.getByRole('textbox', { name: /workflow data editor/i })
       const parsed = JSON.parse(editor.value) as Record<string, unknown>
       expect(parsed).toEqual({ name: '', count: 0, active: false })
     })
@@ -153,14 +153,14 @@ describe('RunWorkflowModal', () => {
       }
       renderModal({ inputSchema })
 
-      const editor: HTMLTextAreaElement = screen.getByTestId('mock-code-editor')
+      const editor: HTMLTextAreaElement = screen.getByRole('textbox', { name: /workflow data editor/i })
       const parsed = JSON.parse(editor.value) as Record<string, unknown>
       expect(parsed).toEqual({ env: 'production' })
     })
 
     it('starts with empty object when no inputSchema', () => {
       renderModal()
-      const editor: HTMLTextAreaElement = screen.getByTestId('mock-code-editor')
+      const editor: HTMLTextAreaElement = screen.getByRole('textbox', { name: /workflow data editor/i })
       expect(editor.value).toBe('{}')
     })
   })
@@ -385,7 +385,7 @@ describe('RunWorkflowModal', () => {
       }
       renderModal({ inputSchema })
 
-      const editor: HTMLTextAreaElement = screen.getByTestId('mock-code-editor')
+      const editor: HTMLTextAreaElement = screen.getByRole('textbox', { name: /workflow data editor/i })
       const parsed = JSON.parse(editor.value) as Record<string, unknown>
       expect(parsed.count).toBe(0)
       expect(parsed.enabled).toBe(false)
@@ -394,12 +394,20 @@ describe('RunWorkflowModal', () => {
       expect(parsed.extra).toBeNull()
     })
 
-    it('returns empty object template when schema type is not object', () => {
+    it('falls back to raw schema value when schema type is not object', () => {
       const inputSchema = { type: 'array', items: { type: 'string' } }
       renderModal({ inputSchema })
 
-      const editor: HTMLTextAreaElement = screen.getByTestId('mock-code-editor')
-      expect(editor.value).toBe('{}')
+      const editor: HTMLTextAreaElement = screen.getByRole('textbox', { name: /workflow data editor/i })
+      expect(editor.value).toBe(JSON.stringify(inputSchema, null, 2))
+    })
+
+    it('falls back to raw data when input is not a JSON Schema', () => {
+      const inputSchema = { host: 'web-prod-04.example.com', severity: 'critical' }
+      renderModal({ inputSchema })
+
+      const editor: HTMLTextAreaElement = screen.getByRole('textbox', { name: /workflow data editor/i })
+      expect(editor.value).toBe(JSON.stringify(inputSchema, null, 2))
     })
   })
 
@@ -430,7 +438,7 @@ describe('RunWorkflowModal', () => {
 
       renderModal({ workflowId: 'wf-abc', triggerNodeId: 'trigger-1' })
 
-      const editor: HTMLTextAreaElement = screen.getByTestId('mock-code-editor')
+      const editor: HTMLTextAreaElement = screen.getByRole('textbox', { name: /workflow data editor/i })
       expect(JSON.parse(editor.value)).toEqual(previousData)
     })
 
@@ -449,7 +457,7 @@ describe('RunWorkflowModal', () => {
       }
       renderModal({ workflowId: 'wf-abc', triggerNodeId: 'trigger-1', inputSchema })
 
-      const editor: HTMLTextAreaElement = screen.getByTestId('mock-code-editor')
+      const editor: HTMLTextAreaElement = screen.getByRole('textbox', { name: /workflow data editor/i })
       expect(JSON.parse(editor.value)).toEqual({ name: '' })
       expect(screen.queryByText('Pre-populated from the last successful run')).not.toBeInTheDocument()
     })

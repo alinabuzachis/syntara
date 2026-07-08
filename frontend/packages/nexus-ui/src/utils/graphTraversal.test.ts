@@ -146,6 +146,76 @@ describe('getAncestorNodes', () => {
     expect(result).toContainEqual(expect.objectContaining({ id: 'a', name: 'Node A' }))
   })
 
+  it('includes connected trigger ancestors when includeTriggers is true', () => {
+    // Arrange — trigger-0 → a → b
+    const edges = [
+      { id: 'e1', source: 'trigger-0', target: 'a' },
+      { id: 'e2', source: 'a', target: 'b' },
+    ] as Edge[]
+
+    const nodes = [
+      { id: 'trigger-0', data: { name: 'Manual trigger' }, position: { x: 0, y: 0 } },
+      { id: 'a', data: { name: 'Node A' }, position: { x: 0, y: 0 } },
+      { id: 'b', data: { name: 'Node B' }, position: { x: 0, y: 0 } },
+    ] as Node[]
+
+    // Act
+    const result = getAncestorNodes('b', edges, nodes, { includeTriggers: true })
+
+    // Assert — trigger-0 is included with isTrigger flag
+    expect(result).toHaveLength(2)
+    expect(result).toContainEqual(expect.objectContaining({ id: 'a', name: 'Node A' }))
+    expect(result).toContainEqual(expect.objectContaining({ id: 'trigger-0', name: 'Manual trigger', isTrigger: true }))
+  })
+
+  it('only includes connected triggers, not all triggers in the workflow', () => {
+    // Arrange — trigger-0 → a → target, trigger-1 → b (disconnected from target)
+    const edges = [
+      { id: 'e1', source: 'trigger-0', target: 'a' },
+      { id: 'e2', source: 'a', target: 'target' },
+      { id: 'e3', source: 'trigger-1', target: 'b' },
+    ] as Edge[]
+
+    const nodes = [
+      { id: 'trigger-0', data: { name: 'Manual trigger' }, position: { x: 0, y: 0 } },
+      { id: 'trigger-1', data: { name: 'Webhook trigger' }, position: { x: 0, y: 0 } },
+      { id: 'a', data: { name: 'Node A' }, position: { x: 0, y: 0 } },
+      { id: 'b', data: { name: 'Node B' }, position: { x: 0, y: 0 } },
+      { id: 'target', data: { name: 'Target' }, position: { x: 0, y: 0 } },
+    ] as Node[]
+
+    // Act
+    const result = getAncestorNodes('target', edges, nodes, { includeTriggers: true })
+
+    // Assert — only trigger-0 is an ancestor of target, not trigger-1
+    expect(result).toHaveLength(2)
+    expect(result).toContainEqual(expect.objectContaining({ id: 'trigger-0', name: 'Manual trigger', isTrigger: true }))
+    expect(result).toContainEqual(expect.objectContaining({ id: 'a', name: 'Node A' }))
+    expect(result).not.toContainEqual(expect.objectContaining({ id: 'trigger-1' }))
+  })
+
+  it('does not set isTrigger on non-trigger ancestors when includeTriggers is true', () => {
+    // Arrange — trigger-0 → a → b
+    const edges = [
+      { id: 'e1', source: 'trigger-0', target: 'a' },
+      { id: 'e2', source: 'a', target: 'b' },
+    ] as Edge[]
+
+    const nodes = [
+      { id: 'trigger-0', data: { name: 'Manual trigger' }, position: { x: 0, y: 0 } },
+      { id: 'a', data: { name: 'Node A' }, position: { x: 0, y: 0 } },
+      { id: 'b', data: { name: 'Node B' }, position: { x: 0, y: 0 } },
+    ] as Node[]
+
+    // Act
+    const result = getAncestorNodes('b', edges, nodes, { includeTriggers: true })
+
+    // Assert — non-trigger ancestors should not have isTrigger
+    const nodeA = result.find((n) => n.id === 'a')
+    expect(nodeA).toBeDefined()
+    expect(nodeA).not.toHaveProperty('isTrigger')
+  })
+
   it('handles complex graph with multiple levels', () => {
     // Arrange
     const edges = [

@@ -7,6 +7,7 @@ export type AncestorNode = {
   name: string
   type?: string
   portTowardTarget?: string
+  isTrigger?: boolean
 }
 
 type ParentInfo = { sourceId: string; sourceHandle?: string }
@@ -32,7 +33,12 @@ function buildParentMap(edges: Edge[]): Map<string, ParentInfo[]> {
  * Walk backwards from a target node to collect all ancestor nodes via BFS.
  * Handles cycles via a visited set. Excludes the target node itself and trigger nodes.
  */
-export function getAncestorNodes(targetNodeId: string, edges: Edge[], allNodes: Node[]): AncestorNode[] {
+export function getAncestorNodes(
+  targetNodeId: string,
+  edges: Edge[],
+  allNodes: Node[],
+  options?: { includeTriggers?: boolean }
+): AncestorNode[] {
   const ancestors: AncestorNode[] = []
   const visited = new Set<string>([targetNodeId])
   const queue = [targetNodeId]
@@ -48,13 +54,15 @@ export function getAncestorNodes(targetNodeId: string, edges: Edge[], allNodes: 
       if (!visited.has(sourceId)) {
         visited.add(sourceId)
         queue.push(sourceId)
-        if (parseTriggerIndex(sourceId) !== undefined) continue
+        const isTrigger = parseTriggerIndex(sourceId) !== undefined
+        if (isTrigger && !options?.includeTriggers) continue
         const predNode = nodeMap.get(sourceId)
         ancestors.push({
           id: sourceId,
           name: (predNode?.data as { name?: string } | undefined)?.name ?? sourceId,
           type: (predNode?.data as { type?: string } | undefined)?.type ?? predNode?.type,
           portTowardTarget: sourceHandle,
+          ...(isTrigger && { isTrigger: true }),
         })
       }
     }

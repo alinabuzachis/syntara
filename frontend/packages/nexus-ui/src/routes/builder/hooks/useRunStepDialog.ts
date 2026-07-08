@@ -36,8 +36,13 @@ export function useRunStepDialog(handleSaveWorkflow: () => Promise<boolean>, isT
       const node = reactFlowInstance.getNode(nodeId)
       if (!node?.data) return
       if (useWorkflowStore.getState().isDirty && !(await handleSaveWorkflow())) return
-      const ancestors = getAncestorNodes(nodeId, reactFlowInstance.getEdges(), reactFlowInstance.getNodes())
-      openRunStepDialog({ nodeId, nodeName: (node.data as { name?: string }).name ?? nodeId, predecessors: ancestors })
+      const edges = reactFlowInstance.getEdges()
+      const nodes = reactFlowInstance.getNodes()
+      const predecessors: RunStepDialogData['predecessors'] = getAncestorNodes(nodeId, edges, nodes, {
+        includeTriggers: true,
+      })
+
+      openRunStepDialog({ nodeId, nodeName: (node.data as { name?: string }).name ?? nodeId, predecessors })
     },
     [reactFlowInstance, openRunStepDialog, handleSaveWorkflow]
   )

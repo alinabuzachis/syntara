@@ -1151,6 +1151,173 @@ describe('RunStepDialog', () => {
     })
   })
 
+  describe('Trigger Predecessor Support', () => {
+    const triggerSchema = {
+      type: 'object',
+      properties: { host: { type: 'string' }, severity: { type: 'string' } },
+    }
+
+    const triggerPredecessorProps = {
+      isOpen: true,
+      onClose: vi.fn(),
+      nodeId: 'step_1',
+      nodeName: 'Run Script',
+      workflowId: 'wf_123',
+      predecessors: [{ id: 'trigger-0', name: 'Manual Trigger', isTrigger: true }],
+      triggerInputSchema: triggerSchema,
+    }
+
+    it('enables "Set mock data" when trigger is the only predecessor', () => {
+      render(<RunStepDialog {...triggerPredecessorProps} />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Set mock data' })).toBeEnabled()
+    })
+
+    it('pre-populates mock editor with trigger schema template', async () => {
+      const user = userEvent.setup()
+      render(<RunStepDialog {...triggerPredecessorProps} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Set mock data' }))
+
+      const textarea: HTMLTextAreaElement = screen.getByRole('textbox', { name: /mock json output data/i })
+      expect(JSON.parse(textarea.value || '{}') as Record<string, unknown>).toEqual({ host: '', severity: '' })
+    })
+
+    it('pre-populates with raw data when schema has no type/properties', async () => {
+      const rawData = { host: 'web-prod-04.example.com', severity: 'critical' }
+      const user = userEvent.setup()
+      render(<RunStepDialog {...triggerPredecessorProps} triggerInputSchema={rawData} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Set mock data' }))
+
+      const textarea: HTMLTextAreaElement = screen.getByRole('textbox', { name: /mock json output data/i })
+      expect(JSON.parse(textarea.value || '{}') as Record<string, unknown>).toEqual(rawData)
+    })
+
+    it('sends trigger data as trigger_inputs, not pre_resolved_nodes', async () => {
+      const user = userEvent.setup()
+      render(<RunStepDialog {...triggerPredecessorProps} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Set mock data' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
+
+      await waitFor(() =>
+        expect(mockPost).toHaveBeenCalledWith('/workflows/{workflow_id}/test', {
+          params: { path: { workflow_id: 'wf_123' } },
+          body: {
+            target_node_id: 'step_1',
+            pre_resolved_nodes: {},
+            trigger_inputs: { host: '', severity: '' },
+            execute_target: true,
+          },
+        })
+      )
+    })
+
+    it('pre-populates keyed editor when trigger and regular predecessor coexist', async () => {
+      const mixedProps = {
+        ...triggerPredecessorProps,
+        predecessors: [
+          { id: 'trigger-0', name: 'Manual Trigger', isTrigger: true },
+          { id: 'step_a', name: 'Step A' },
+        ],
+        pinnedMockData: { step_a: { result: 'ok' } },
+      }
+      const user = userEvent.setup()
+      render(<RunStepDialog {...mixedProps} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Use mock data' }))
+
+      const textarea: HTMLTextAreaElement = screen.getByRole('textbox', { name: /mock json output data/i })
+      expect(JSON.parse(textarea.value || '{}') as Record<string, unknown>).toEqual({
+        'trigger-0': { host: '', severity: '' },
+        step_a: { result: 'ok' },
+      })
+    })
+
+    it('submits keyed mixed mock data with trigger inputs and predecessor output', async () => {
+      const mixedProps = {
+        ...triggerPredecessorProps,
+        predecessors: [
+          { id: 'trigger-0', name: 'Manual Trigger', isTrigger: true },
+          { id: 'step_a', name: 'Step A' },
+        ],
+        pinnedMockData: { step_a: { result: 'ok' } },
+      }
+      const user = userEvent.setup()
+      render(<RunStepDialog {...mixedProps} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Use mock data' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
+
+      await waitFor(() =>
+        expect(mockPost).toHaveBeenCalledWith('/workflows/{workflow_id}/test', {
+          params: { path: { workflow_id: 'wf_123' } },
+          body: {
+            target_node_id: 'step_1',
+            pre_resolved_nodes: {
+              step_a: { output: { result: 'ok' } },
+            },
+            trigger_inputs: { host: '', severity: '' },
+            execute_target: true,
+          },
+        })
+      )
+    })
+
+    it('submits keyed mixed mock data after user edits keyed JSON', async () => {
+      const mixedProps = {
+        ...triggerPredecessorProps,
+        predecessors: [
+          { id: 'trigger-0', name: 'Manual Trigger', isTrigger: true },
+          { id: 'step_a', name: 'Step A' },
+        ],
+      }
+      const user = userEvent.setup()
+      render(<RunStepDialog {...mixedProps} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Set mock data' }))
+      const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
+      await user.clear(textarea)
+      await user.click(textarea)
+      await user.paste(
+        JSON.stringify({
+          'trigger-0': { host: 'prod-01', severity: 'high' },
+          step_a: { result: 'edited' },
+        })
+      )
+      await user.click(screen.getByRole('button', { name: 'Run' }))
+
+      await waitFor(() =>
+        expect(mockPost).toHaveBeenCalledWith('/workflows/{workflow_id}/test', {
+          params: { path: { workflow_id: 'wf_123' } },
+          body: {
+            target_node_id: 'step_1',
+            pre_resolved_nodes: {
+              step_a: { output: { result: 'edited' } },
+            },
+            trigger_inputs: { host: 'prod-01', severity: 'high' },
+            execute_target: true,
+          },
+        })
+      )
+    })
+
+    it('does not pre-populate when trigger has no input schema', async () => {
+      const noSchemaProps = {
+        ...triggerPredecessorProps,
+        triggerInputSchema: undefined,
+      }
+      const user = userEvent.setup()
+      render(<RunStepDialog {...noSchemaProps} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Set mock data' }))
+
+      const textarea = screen.getByRole('textbox', { name: /mock json output data/i })
+      expect(textarea).toHaveValue('')
+    })
+  })
+
   describe('error handling and state guards', () => {
     describe('Error + Retry flow', () => {
       it('shows Retry button after API error and resets state on click', async () => {

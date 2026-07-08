@@ -209,7 +209,25 @@ describe('useRunStepDialog', () => {
         await result.current.handleRunStep('node-1')
       })
 
-      expect(mockGetAncestorNodes).toHaveBeenCalledWith('node-1', edges, nodes)
+      expect(mockGetAncestorNodes).toHaveBeenCalledWith('node-1', edges, nodes, { includeTriggers: true })
+    })
+
+    it('forwards trigger predecessors from getAncestorNodes to the dialog', async () => {
+      const triggerPredecessor = { id: 'trigger-0', name: 'Manual Trigger', isTrigger: true }
+      mockGetNode.mockReturnValue({ id: 'node-1', data: { name: 'My Step' } })
+      mockGetAncestorNodes.mockReturnValue([triggerPredecessor])
+
+      const { result } = renderRunStepDialog()
+
+      await act(async () => {
+        await result.current.handleRunStep('node-1')
+      })
+
+      expect(mockDialogOpen).toHaveBeenCalledWith({
+        nodeId: 'node-1',
+        nodeName: 'My Step',
+        predecessors: [triggerPredecessor],
+      })
     })
   })
 

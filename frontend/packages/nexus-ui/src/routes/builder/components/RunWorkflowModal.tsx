@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { executionsClient } from '../../../client'
 import { useAlerts } from '../../../providers/alerts'
+import { schemaToTemplateJson } from '../../../utils/jsonSchemaTemplate'
 
 import { ExpandableCodeEditor } from './ExpandableCodeEditor'
 import { JsonEditorControls } from './JsonEditorToolbar'
@@ -17,66 +18,6 @@ type RunWorkflowModalProps = Readonly<{
   inputSchema?: Record<string, unknown>
   workflowId?: string | null
 }>
-
-type SchemaProperty = { type?: string; default?: unknown }
-
-/**
- * Generate a JSON template from a JSON Schema definition.
- * Creates an object with default values based on the schema's property types.
- * Supports string, number, integer, boolean, array, and object types.
- * Uses schema-defined default values when available.
- *
- * @param schema - JSON Schema object defining the expected structure
- * @returns JSON string representation of the template (formatted with 2-space indent)
- *
- * @example
- * ```typescript
- * const schema = {
- *   type: 'object',
- *   properties: {
- *     name: { type: 'string' },
- *     count: { type: 'number', default: 10 }
- *   }
- * }
- * generateTemplateFromSchema(schema)
- * // Returns: '{\n  "name": "",\n  "count": 10\n}'
- * ```
- */
-function defaultValueForType(prop: SchemaProperty): unknown {
-  const raw = prop as Record<string, unknown>
-  switch (prop.type) {
-    case 'string':
-      return ''
-    case 'number':
-    case 'integer':
-      return 0
-    case 'boolean':
-      return false
-    case 'array':
-      return raw.items ? [JSON.parse(generateTemplateFromSchema(raw.items as Record<string, unknown>))] : []
-    case 'object':
-      return raw.properties ? JSON.parse(generateTemplateFromSchema(raw)) : {}
-    case undefined:
-    default:
-      return null
-  }
-}
-
-function generateTemplateFromSchema(schema: Record<string, unknown>): string {
-  try {
-    const properties = schema.properties as Record<string, SchemaProperty> | undefined
-    if (schema.type === 'object' && properties) {
-      const template: Record<string, unknown> = {}
-      for (const [key, prop] of Object.entries(properties)) {
-        template[key] = prop.default !== undefined ? prop.default : defaultValueForType(prop)
-      }
-      return JSON.stringify(template, null, 2)
-    }
-    return '{}'
-  } catch {
-    return '{}'
-  }
-}
 
 /**
  * Check if a value matches a JSON Schema primitive type.
@@ -152,7 +93,7 @@ function validateAgainstSchema(data: Record<string, unknown>, schema: Record<str
     }
   }
 
-  const properties = schema.properties as Record<string, SchemaProperty> | undefined
+  const properties = schema.properties as Record<string, { type?: string }> | undefined
   if (properties) {
     for (const [key, prop] of Object.entries(properties)) {
       if (!(key in data) || data[key] === null || data[key] === undefined) continue
@@ -220,7 +161,10 @@ export function RunWorkflowModal({
     return null
   }, [activitiesQuery.data, triggerNodeId])
 
-  const schemaTemplate = useMemo(() => (inputSchema ? generateTemplateFromSchema(inputSchema) : '{}'), [inputSchema])
+  const schemaTemplate = useMemo(() => {
+    if (!inputSchema) return '{}'
+    return schemaToTemplateJson(inputSchema)
+  }, [inputSchema])
 
   const defaultCode = useMemo(
     () => (previousTriggerData ? JSON.stringify(previousTriggerData, null, 2) : schemaTemplate),

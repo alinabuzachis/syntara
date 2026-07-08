@@ -16,6 +16,7 @@ import { workflowFetchClient } from '../../../client'
 import { FlowNodeType } from '../../../constants'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { schemaToTemplateData } from '../../../utils/jsonSchemaTemplate'
 import { handleToV2Port } from '../utils/edgeHelpers'
 
 import { ExpandableCodeEditor } from './ExpandableCodeEditor'
@@ -25,7 +26,13 @@ type TestExecutionResponse = {
   id: string
 }
 
-type PredecessorNode = Readonly<{ id: string; name: string; type?: string; portTowardTarget?: string }>
+type PredecessorNode = Readonly<{
+  id: string
+  name: string
+  type?: string
+  portTowardTarget?: string
+  isTrigger?: boolean
+}>
 
 const CONTROL_FLOW_TYPES = new Set<string>([FlowNodeType.CONDITION, FlowNodeType.LOOP, FlowNodeType.APPROVAL])
 
@@ -48,6 +55,7 @@ type RunStepDialogProps = Readonly<{
   workflowId: string
   predecessors?: PredecessorNode[]
   pinnedMockData?: Record<string, Record<string, unknown>>
+  triggerInputSchema?: Record<string, unknown>
 }>
 
 // Brief success state before auto-close per UX spec
@@ -63,21 +71,46 @@ function getMockEditorDescription(predecessors: readonly PredecessorNode[], node
   return `Provide mock output data for the previous steps. This data will be applied to all ${predecessors.length} predecessor steps, and only ${nodeName} will execute.`
 }
 
-function getInitialMockJson(
-  pinnedMockData: Record<string, Record<string, unknown>> | undefined,
+function buildTriggerMockJson(
+  triggerInputSchema: Record<string, unknown>,
+  predecessors: readonly PredecessorNode[],
+  pinnedMockData: Record<string, Record<string, unknown>> | undefined
+): string {
+  const triggerTemplate = schemaToTemplateData(triggerInputSchema)
+  const nonTriggerPreds = predecessors.filter((p) => !p.isTrigger)
+  if (nonTriggerPreds.length === 0) return JSON.stringify(triggerTemplate, null, 2)
+
+  const keyed: Record<string, Record<string, unknown>> = {}
+  for (const pred of predecessors) {
+    keyed[pred.id] = pred.isTrigger ? triggerTemplate : (pinnedMockData?.[pred.id] ?? {})
+  }
+  return JSON.stringify(keyed, null, 2)
+}
+
+function buildPinnedMockJson(
+  pinnedMockData: Record<string, Record<string, unknown>>,
   predecessors: readonly PredecessorNode[]
 ): string {
-  if (!pinnedMockData) return ''
   const entries = Object.entries(pinnedMockData)
   if (entries.length === 0) return ''
   if (predecessors.length === 1 && entries.length === 1) return JSON.stringify(entries[0][1], null, 2)
   const keyed: Record<string, Record<string, unknown>> = {}
   for (const pred of predecessors) {
-    if (pinnedMockData[pred.id]) {
-      keyed[pred.id] = pinnedMockData[pred.id]
-    }
+    if (pinnedMockData[pred.id]) keyed[pred.id] = pinnedMockData[pred.id]
   }
   return JSON.stringify(keyed, null, 2)
+}
+
+function getInitialMockJson(
+  pinnedMockData: Record<string, Record<string, unknown>> | undefined,
+  predecessors: readonly PredecessorNode[],
+  triggerInputSchema?: Record<string, unknown>
+): string {
+  const hasTrigger =
+    triggerInputSchema && Object.keys(triggerInputSchema).length > 0 && predecessors.some((p) => p.isTrigger)
+  if (hasTrigger) return buildTriggerMockJson(triggerInputSchema, predecessors, pinnedMockData)
+  if (!pinnedMockData) return ''
+  return buildPinnedMockJson(pinnedMockData, predecessors)
 }
 
 function isKeyedByPredecessors(parsed: Record<string, unknown>, predecessors: readonly PredecessorNode[]): boolean {
@@ -92,22 +125,64 @@ function buildControlData(pred: PredecessorNode): { next_port: string } | undefi
   return { next_port: handleToV2Port(pred.portTowardTarget) ?? pred.portTowardTarget }
 }
 
-function buildPreResolvedFromParsedMock(
+type MockSubmission = {
+  preResolvedNodes: TestExecutionCreate['pre_resolved_nodes']
+  triggerInputs: Record<string, unknown>
+}
+
+function buildPreResolvedEntry(pred: PredecessorNode, output: Record<string, unknown>): PreResolvedEntry {
+  const entry: PreResolvedEntry = { output }
+  const control = buildControlData(pred)
+  if (control) entry.control = control
+  return entry
+}
+
+function buildNoTriggerSubmission(
   parsedMock: Record<string, unknown>,
   predecessors: readonly PredecessorNode[]
-): TestExecutionCreate['pre_resolved_nodes'] {
-  const result: TestExecutionCreate['pre_resolved_nodes'] = {}
+): MockSubmission {
+  const preResolvedNodes: TestExecutionCreate['pre_resolved_nodes'] = {}
   const keyed = predecessors.length > 1 && isKeyedByPredecessors(parsedMock, predecessors)
-
   for (const pred of predecessors) {
     const output = keyed ? ((parsedMock[pred.id] as Record<string, unknown>) ?? {}) : parsedMock
-    const entry: PreResolvedEntry = { output }
-    const control = buildControlData(pred)
-    if (control) entry.control = control
-    result[pred.id] = entry
+    preResolvedNodes[pred.id] = buildPreResolvedEntry(pred, output)
+  }
+  return { preResolvedNodes, triggerInputs: {} }
+}
+
+function buildMixedSubmission(
+  parsedMock: Record<string, unknown>,
+  predecessors: readonly PredecessorNode[]
+): MockSubmission {
+  const triggerPreds = predecessors.filter((p) => p.isTrigger)
+  const nonTriggerPreds = predecessors.filter((p) => !p.isTrigger)
+
+  if (!isKeyedByPredecessors(parsedMock, predecessors)) {
+    const preResolvedNodes: TestExecutionCreate['pre_resolved_nodes'] = {}
+    for (const pred of nonTriggerPreds) preResolvedNodes[pred.id] = { output: {} }
+    return { preResolvedNodes, triggerInputs: parsedMock }
   }
 
-  return result
+  const preResolvedNodes: TestExecutionCreate['pre_resolved_nodes'] = {}
+  let triggerInputs: Record<string, unknown> = {}
+  for (const pred of triggerPreds) {
+    triggerInputs = { ...triggerInputs, ...((parsedMock[pred.id] as Record<string, unknown>) ?? {}) }
+  }
+  for (const pred of nonTriggerPreds) {
+    preResolvedNodes[pred.id] = buildPreResolvedEntry(pred, (parsedMock[pred.id] as Record<string, unknown>) ?? {})
+  }
+  return { preResolvedNodes, triggerInputs }
+}
+
+function buildMockSubmission(
+  parsedMock: Record<string, unknown>,
+  predecessors: readonly PredecessorNode[]
+): MockSubmission {
+  const hasTrigger = predecessors.some((p) => p.isTrigger)
+  if (!hasTrigger) return buildNoTriggerSubmission(parsedMock, predecessors)
+  const hasNonTrigger = predecessors.some((p) => !p.isTrigger)
+  if (!hasNonTrigger) return { preResolvedNodes: {}, triggerInputs: parsedMock }
+  return buildMixedSubmission(parsedMock, predecessors)
 }
 
 type ChoiceViewProps = Readonly<{
@@ -301,6 +376,7 @@ export function RunStepDialog({
   workflowId,
   predecessors = [],
   pinnedMockData,
+  triggerInputSchema,
 }: RunStepDialogProps) {
   const [dialogView, setDialogView] = useState<DialogView>('choice')
   const [mockJson, setMockJson] = useState('')
@@ -328,12 +404,12 @@ export function RunStepDialog({
   }, [onClose])
 
   const handleSetMockData = useCallback(() => {
-    setMockJson(getInitialMockJson(pinnedMockData, predecessors))
+    setMockJson(getInitialMockJson(pinnedMockData, predecessors, triggerInputSchema))
     setDialogView('mock-editor')
-  }, [pinnedMockData, predecessors])
+  }, [pinnedMockData, predecessors, triggerInputSchema])
 
   const executeTestRun = useCallback(
-    async (preResolvedNodes: TestExecutionCreate['pre_resolved_nodes']) => {
+    async (submission: MockSubmission) => {
       if (!nodeId || !workflowId) return
       if (runState !== 'idle') return
 
@@ -347,8 +423,8 @@ export function RunStepDialog({
             params: { path: { workflow_id: workflowId } },
             body: {
               target_node_id: nodeId,
-              pre_resolved_nodes: preResolvedNodes,
-              trigger_inputs: {},
+              pre_resolved_nodes: submission.preResolvedNodes,
+              trigger_inputs: submission.triggerInputs,
               execute_target: true,
             } satisfies TestExecutionCreate,
           } as never
@@ -378,7 +454,7 @@ export function RunStepDialog({
 
   const handleRunAllPrevious = useCallback(() => {
     clearMocksRef.current = true
-    detachPromise(executeTestRun({}))
+    detachPromise(executeTestRun({ preResolvedNodes: {}, triggerInputs: {} }))
   }, [executeTestRun])
 
   const handleRunWithMockData = useCallback(async () => {
@@ -394,7 +470,7 @@ export function RunStepDialog({
     }
 
     clearMocksRef.current = false
-    await executeTestRun(buildPreResolvedFromParsedMock(parsedMock, predecessors))
+    await executeTestRun(buildMockSubmission(parsedMock, predecessors))
   }, [mockJson, predecessors, executeTestRun])
 
   const hasPinnedData = pinnedMockData && Object.keys(pinnedMockData).length > 0

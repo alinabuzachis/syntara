@@ -246,6 +246,7 @@ export function BuilderDialogs({
         workflowId={workflowId ?? ''}
         predecessors={runStepDialog.item?.predecessors}
         pinnedMockData={pinnedMockData}
+        triggerInputSchema={triggerInputSchema}
       />
       <ImportConfirmationDialog
         isOpen={pendingImport != null}
