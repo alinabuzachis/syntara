@@ -1,4 +1,4 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
 import {
   Button,
   Content,
@@ -15,11 +15,9 @@ import {
 } from '@patternfly/react-core'
 import { RhUiSyncIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import { useUnsavedChanges } from '../../../app/useUnsavedChanges'
-import { integrationsClient, toolManagerClient } from '../../../client'
+import { integrationsClient } from '../../../client'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
@@ -29,25 +27,32 @@ import { formatTimeAgo } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 
 import styles from './IntegrationDetail.module.css'
-import { useAllIntegrationTools } from './useAllIntegrationTools'
-import { useToolSelection } from './useToolSelection'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 
 type IntegrationResourcesTabProps = Readonly<{
   integrationId: string
+  tools: Tool[]
+  enabledToolIds: Set<string>
+  enabledCount: number
+  handleSelectTool: (toolId: string, checked: boolean) => void
   lastRefreshedAt: string | null | undefined
   onRefreshed: () => Promise<IntegrationRead | undefined>
+  refetchTools: () => Promise<unknown>
 }>
 
-export function IntegrationResourcesTab({ integrationId, lastRefreshedAt, onRefreshed }: IntegrationResourcesTabProps) {
+export function IntegrationResourcesTab({
+  integrationId,
+  tools,
+  enabledToolIds,
+  enabledCount,
+  handleSelectTool,
+  lastRefreshedAt,
+  onRefreshed,
+  refetchTools,
+}: IntegrationResourcesTabProps) {
   const { showAlert } = useAlerts()
-  const queryClient = useQueryClient()
-  const { registerDirtyCheck } = useUnsavedChanges()
   const [nameFilter, setNameFilter] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
-
-  const { tools, refetch: refetchTools } = useAllIntegrationTools(integrationId)
 
   const filteredTools = useMemo(() => {
     if (!nameFilter) return tools
@@ -57,66 +62,18 @@ export function IntegrationResourcesTab({ integrationId, lastRefreshedAt, onRefr
     )
   }, [tools, nameFilter])
 
-  const { enabledToolIds, enabledCount, allSelected, isDirty, handleSelectAll, handleSelectTool, resetToServer } =
-    useToolSelection(tools, filteredTools)
+  const allSelected = filteredTools.length > 0 && filteredTools.every((t) => enabledToolIds.has(t.id))
 
-  const { mutateAsync: updateTools } = toolManagerClient.useMutation('patch', '/tool_manager/tools/bulk_update')
+  function handleSelectAll(checked: boolean) {
+    for (const tool of filteredTools) {
+      handleSelectTool(tool.id, checked)
+    }
+  }
+
   const { mutateAsync: refreshIntegrationAsync, isPending: isRefreshing } = integrationsClient.useMutation(
     'post',
     '/integrations/{integration_id}/refresh'
   )
-
-  const handleSaveRef = useRef<() => Promise<boolean>>(null)
-
-  handleSaveRef.current = async () => {
-    const toEnable = tools.filter((t) => enabledToolIds.has(t.id)).map((t) => t.id)
-    const toDisable = tools.filter((t) => !enabledToolIds.has(t.id)).map((t) => t.id)
-    setIsSaving(true)
-    try {
-      if (toEnable.length > 0) await updateTools({ body: { tool_ids: toEnable, enabled: true } })
-      if (toDisable.length > 0) await updateTools({ body: { tool_ids: toDisable, enabled: false } })
-      await queryClient.invalidateQueries({ queryKey: ['all-integration-tools', integrationId] })
-      await queryClient.invalidateQueries({ queryKey: ['get', '/integrations/{integration_id}'] })
-      showAlert({
-        title: 'Changes saved',
-        description: 'Resource selections have been updated.',
-        variant: 'success',
-        autoDismiss: true,
-      })
-      return true
-    } catch (error: unknown) {
-      showAlert({
-        title: 'Save failed',
-        description: `Failed to save changes: ${getErrorMessage(error)}`,
-        variant: 'danger',
-        autoDismiss: true,
-      })
-      return false
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  function handleSave() {
-    detachPromise(handleSaveRef.current?.() ?? Promise.resolve(false))
-  }
-
-  const isDirtyRef = useRef(isDirty)
-  isDirtyRef.current = isDirty
-
-  const resetToServerRef = useRef(resetToServer)
-  resetToServerRef.current = resetToServer
-
-  useEffect(() => {
-    return registerDirtyCheck({
-      check: () => isDirtyRef.current,
-      saveAndExit: () => handleSaveRef.current?.() ?? Promise.resolve(false),
-      exitWithoutSaving: () => resetToServerRef.current(),
-      title: 'Save resource changes?',
-      body: 'You have unsaved changes to enabled resources. Would you like to save before leaving?',
-      saveLabel: 'Save changes',
-    })
-  }, [registerDirtyCheck])
 
   async function handleRefresh() {
     try {
@@ -236,17 +193,6 @@ export function IntegrationResourcesTab({ integrationId, lastRefreshedAt, onRefr
           ))}
         </Tbody>
       </NxScrollableTableContainer>
-
-      <div className={styles.resourcesFooter}>
-        <Button
-          variant="primary"
-          onClick={isDirty ? handleSave : undefined}
-          isAriaDisabled={!isDirty}
-          isLoading={isSaving}
-        >
-          Save changes
-        </Button>
-      </div>
     </>
   )
 }

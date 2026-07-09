@@ -1,5 +1,6 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
 import {
+  ActionGroup,
   Badge,
   Button,
   Content,
@@ -11,6 +12,8 @@ import {
   Tab,
 } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
 import {
@@ -18,7 +21,8 @@ import {
   breadcrumbsIntegrationDetailEarlyShell,
   type IntegrationDetailBreadcrumbTab,
 } from '../../../app/breadcrumbBuilders'
-import { credentialsClient, integrationsClient } from '../../../client'
+import { useUnsavedChanges } from '../../../app/useUnsavedChanges'
+import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
 import { NxDetail } from '../../../components/details/NxDetail'
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { IconLabel } from '../../../components/IconLabel'
@@ -34,6 +38,8 @@ import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useNavigate } from '../../../hooks/routing/useNavigate'
 import { useParams } from '../../../hooks/routing/useParams'
 import { useUrlTab } from '../../../hooks/useUrlTab'
+import { useAlerts } from '../../../providers/alerts'
+import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 
@@ -42,7 +48,9 @@ import { INTEGRATION_TYPE_LABELS } from './integrationFilters'
 import { IntegrationResourcesTab } from './IntegrationResourcesTab'
 import { getBaseUrl } from './integrationUtils'
 import { StatusLabel } from './StatusLabel'
+import { useAllIntegrationTools } from './useAllIntegrationTools'
 import { useIntegrationActions } from './useIntegrationActions'
+import { useToolSelection } from './useToolSelection'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 
@@ -222,19 +230,102 @@ function IntegrationDialogs({
   )
 }
 
+function useResourcesSave(
+  integrationId: string,
+  tools: Tool[],
+  enabledToolIds: Set<string>,
+  isDirty: boolean,
+  resetToServer: () => void
+) {
+  const { showAlert } = useAlerts()
+  const queryClient = useQueryClient()
+  const { registerDirtyCheck } = useUnsavedChanges()
+  const { mutateAsync: updateTools } = toolManagerClient.useMutation('patch', '/tool_manager/tools/bulk_update')
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSaveRef = useRef<() => Promise<boolean>>(null)
+
+  handleSaveRef.current = async () => {
+    const toEnable = tools.filter((t) => enabledToolIds.has(t.id)).map((t) => t.id)
+    const toDisable = tools.filter((t) => !enabledToolIds.has(t.id)).map((t) => t.id)
+    setIsSaving(true)
+    try {
+      if (toEnable.length > 0) await updateTools({ body: { tool_ids: toEnable, enabled: true } })
+      if (toDisable.length > 0) await updateTools({ body: { tool_ids: toDisable, enabled: false } })
+      await queryClient.invalidateQueries({ queryKey: ['all-integration-tools', integrationId] })
+      await queryClient.invalidateQueries({ queryKey: ['get', '/integrations/{integration_id}'] })
+      showAlert({
+        title: 'Changes saved',
+        description: 'Resource selections have been updated.',
+        variant: 'success',
+        autoDismiss: true,
+      })
+      return true
+    } catch (error: unknown) {
+      showAlert({
+        title: 'Save failed',
+        description: `Failed to save changes: ${getErrorMessage(error)}`,
+        variant: 'danger',
+        autoDismiss: true,
+      })
+      return false
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSave = useCallback(() => {
+    detachPromise(handleSaveRef.current?.() ?? Promise.resolve(false))
+  }, [])
+
+  const isDirtyRef = useRef(false)
+  isDirtyRef.current = isDirty
+
+  const resetToServerRef = useRef(resetToServer)
+  resetToServerRef.current = resetToServer
+
+  useEffect(() => {
+    return registerDirtyCheck({
+      check: () => isDirtyRef.current,
+      saveAndExit: () => handleSaveRef.current?.() ?? Promise.resolve(false),
+      exitWithoutSaving: () => resetToServerRef.current(),
+      title: 'Save resource changes?',
+      body: 'You have unsaved changes to enabled resources. Would you like to save before leaving?',
+      saveLabel: 'Save changes',
+    })
+  }, [registerDirtyCheck])
+
+  return { isSaving, handleSave }
+}
+
+function ResourcesFooter({
+  isDirty,
+  isSaving,
+  onSave,
+}: Readonly<{ isDirty: boolean; isSaving: boolean; onSave: () => void }>) {
+  return (
+    <ActionGroup>
+      <Button variant="primary" onClick={isDirty ? onSave : undefined} isAriaDisabled={!isDirty} isLoading={isSaving}>
+        Save changes
+      </Button>
+    </ActionGroup>
+  )
+}
+
 export function IntegrationDetail() {
-  const { integrationId } = useParams<{ integrationId: string }>()
+  const { integrationId: rawIntegrationId } = useParams<{ integrationId: string }>()
+  const integrationId = rawIntegrationId ?? ''
   const navigate = useNavigate()
-  const integrationBasePath = AppRoute.Configuration.Integrations.Detail.replace(':integrationId', integrationId ?? '')
-  const editPath = AppRoute.Configuration.Integrations.Edit.replace(':integrationId', integrationId ?? '')
+  const integrationBasePath = AppRoute.Configuration.Integrations.Detail.replace(':integrationId', integrationId)
+  const editPath = AppRoute.Configuration.Integrations.Edit.replace(':integrationId', integrationId)
   const [activeTab] = useUrlTab<IntegrationDetailBreadcrumbTab>(integrationBasePath)
   const docLink = useDocLink('integrations')
 
   const query = integrationsClient.useQuery(
     'get',
     '/integrations/{integration_id}',
-    { params: { path: { integration_id: integrationId ?? '' } } },
-    { enabled: !!integrationId }
+    { params: { path: { integration_id: integrationId } } },
+    { enabled: integrationId.length > 0 }
   )
   const integration = query.data
 
@@ -261,30 +352,28 @@ export function IntegrationDetail() {
   const enabledResourceCount = integration?.enabled_tool_count ?? 0
   const totalToolCount = integration?.total_tool_count ?? 0
 
+  const { tools, refetch: refetchTools } = useAllIntegrationTools(integrationId)
+  const { enabledToolIds, enabledCount, isDirty, handleSelectTool, resetToServer } = useToolSelection(tools, tools)
+  const { isSaving, handleSave } = useResourcesSave(integrationId, tools, enabledToolIds, isDirty, resetToServer)
+
   const queryState = useQueryState(query, {
     title: 'Error loading integration',
     onRetry: () => detachPromise(query.refetch()),
   })
 
-  if (!integrationId) {
-    return (
-      <NxPage>
-        <NxPageHeader title="Error" breadcrumbs={breadcrumbsIntegrationDetailEarlyShell()} />
-        <NxPageBody>
-          <NxPanel isFullHeight>
-            <NxErrorState title="Invalid integration" message="No integration ID provided" />
-          </NxPanel>
-        </NxPageBody>
-      </NxPage>
+  const earlyState =
+    integrationId.length === 0 ? (
+      <NxErrorState title="Invalid integration" message="No integration ID provided" />
+    ) : (
+      queryState
     )
-  }
 
-  if (queryState) {
+  if (earlyState) {
     return (
       <NxPage>
         <NxPageHeader title="Integration" breadcrumbs={breadcrumbsIntegrationDetailEarlyShell()} />
         <NxPageBody>
-          <NxPanel isFullHeight>{queryState}</NxPanel>
+          <NxPanel isFullHeight>{earlyState}</NxPanel>
         </NxPageBody>
       </NxPage>
     )
@@ -293,6 +382,10 @@ export function IntegrationDetail() {
   if (!integration?.id) return null
 
   const integrationCrumbs = breadcrumbsIntegrationDetail(integration.id, integration.name, activeTab)
+  const footer =
+    activeTab === 'resources' ? (
+      <ResourcesFooter isDirty={isDirty} isSaving={isSaving} onSave={handleSave} />
+    ) : undefined
 
   return (
     <NxPage>
@@ -311,7 +404,7 @@ export function IntegrationDetail() {
       />
 
       <NxPageBody>
-        <NxPanel isFullHeight>
+        <NxPanel isFullHeight isScrollable footer={footer}>
           <NxUrlTabs
             basePath={integrationBasePath}
             defaultTab="details"
@@ -334,11 +427,16 @@ export function IntegrationDetail() {
               <NxPanelContentStack className={styles.resourcesTabContent}>
                 <IntegrationResourcesTab
                   integrationId={integration.id}
+                  tools={tools}
+                  enabledToolIds={enabledToolIds}
+                  enabledCount={enabledCount}
+                  handleSelectTool={handleSelectTool}
                   lastRefreshedAt={integration.last_refreshed_at}
                   onRefreshed={async () => {
                     const result = await query.refetch()
                     return result.data
                   }}
+                  refetchTools={() => refetchTools()}
                 />
               </NxPanelContentStack>
             </Tab>

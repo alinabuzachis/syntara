@@ -1,6 +1,7 @@
 import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
+  ActionGroup,
   Button,
   Content,
   ContentVariants,
@@ -380,7 +381,31 @@ export function EditIntegrationForm() {
     <NxPage>
       <NxPageHeader title="Edit integration" breadcrumbs={breadcrumbs} docLink={docLink} />
       <NxPageBody>
-        <NxPanel isFullHeight isScrollable panelMainBodyProps={{ className: styles.panelBody }}>
+        <NxPanel
+          isFullHeight
+          isScrollable
+          panelMainBodyProps={{ className: styles.panelBody }}
+          footer={
+            <ActionGroup>
+              <Button
+                variant="primary"
+                type="submit"
+                form="edit-integration-form"
+                isLoading={isSaving}
+                isAriaDisabled={isSaving}
+              >
+                Save
+              </Button>
+              <Button
+                variant="link"
+                onClick={isSaving ? undefined : () => navigate(detailPath)}
+                isAriaDisabled={isSaving}
+              >
+                Cancel
+              </Button>
+            </ActionGroup>
+          }
+        >
           <Form
             id="edit-integration-form"
             className={styles.form}
@@ -400,24 +425,6 @@ export function EditIntegrationForm() {
               onTestConnection={handleTestConnection}
             />
           </Form>
-
-          <div className={styles.footer}>
-            <Button
-              variant="primary"
-              onClick={() => detachPromise(handleSubmit(onSubmit)())}
-              isLoading={isSaving}
-              isAriaDisabled={isSaving}
-            >
-              Save
-            </Button>
-            <Button
-              variant="link"
-              onClick={isSaving ? undefined : () => navigate(detailPath)}
-              isAriaDisabled={isSaving}
-            >
-              Cancel
-            </Button>
-          </div>
         </NxPanel>
       </NxPageBody>
     </NxPage>

@@ -9,14 +9,3 @@
 .checkboxCol {
   width: var(--pf-t--global--spacer--3xl);
 }
-
-.resourcesFooter {
-  display: flex;
-  gap: var(--pf-t--global--spacer--md);
-  padding: var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg);
-  border-top: var(--pf-t--global--border--width--divider--default) solid var(--pf-t--global--border--color--default);
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  background-color: var(--pf-t--global--background--color--primary--default);
-}

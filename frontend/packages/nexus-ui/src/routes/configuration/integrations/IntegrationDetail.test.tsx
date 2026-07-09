@@ -1,4 +1,4 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { credentialsClient, integrationsClient } from '../../../client'
+import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
 
 import { IntegrationDetail } from './IntegrationDetail'
@@ -19,6 +19,23 @@ vi.mock('../../../client', () => ({
   credentialsClient: {
     useQuery: vi.fn(),
   },
+  toolManagerClient: {
+    useMutation: vi.fn(),
+  },
+}))
+
+const mockUseAllIntegrationTools = vi.fn()
+
+vi.mock('./useAllIntegrationTools', () => ({
+  useAllIntegrationTools: (...args: unknown[]) =>
+    mockUseAllIntegrationTools(...args) as ReturnType<typeof import('./useAllIntegrationTools').useAllIntegrationTools>,
+}))
+
+const mockUseToolSelection = vi.fn()
+
+vi.mock('./useToolSelection', () => ({
+  useToolSelection: (...args: unknown[]) =>
+    mockUseToolSelection(...args) as ReturnType<typeof import('./useToolSelection').useToolSelection>,
 }))
 
 const mockNavigate = vi.fn()
@@ -35,12 +52,22 @@ vi.mock('./IntegrationResourcesTab', () => ({
   IntegrationResourcesTab: () => <div data-testid="resources-tab-content">Resources tab content</div>,
 }))
 
+let mockActiveTab = 'details'
+
+vi.mock('../../../hooks/useUrlTab', () => ({
+  useUrlTab: (): [string, (tab: string) => void] => [mockActiveTab, vi.fn()],
+}))
+
+const mockRegisterDirtyCheck: ReturnType<typeof vi.fn<(opts: Record<string, unknown>) => () => void>> = vi.fn(
+  () => () => {}
+)
+
 vi.mock('../../../app/useUnsavedChanges', () => ({
   useUnsavedChanges: () => ({
     requestNavigation: vi.fn(),
     registerSaveHandler: vi.fn(),
-    unregisterSaveHandler: vi.fn(),
-    registerDirtyCheck: vi.fn(() => vi.fn()),
+    unregisterSaveHandler: vi.fn() as () => void,
+    registerDirtyCheck: mockRegisterDirtyCheck,
   }),
 }))
 
@@ -129,11 +156,46 @@ describe('IntegrationDetail', () => {
       status: 'idle',
       isPaused: false,
     } as never)
+
+    vi.mocked(toolManagerClient.useMutation).mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      mutate: vi.fn(),
+      isPending: false,
+      isIdle: true,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      data: null,
+      reset: vi.fn(),
+      failureCount: 0,
+      failureReason: null,
+      context: undefined,
+      submittedAt: 0,
+      variables: undefined,
+      status: 'idle',
+      isPaused: false,
+    } as never)
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
     setupDefaultMocks()
+    mockActiveTab = 'details'
+    mockUseAllIntegrationTools.mockReturnValue({
+      tools: [],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+    mockUseToolSelection.mockReturnValue({
+      enabledToolIds: new Set<string>(),
+      enabledCount: 0,
+      allSelected: false,
+      isDirty: false,
+      handleSelectAll: vi.fn(),
+      handleSelectTool: vi.fn(),
+      resetToServer: vi.fn(),
+    })
   })
 
   describe('Details tab rendering', () => {
@@ -366,6 +428,224 @@ describe('IntegrationDetail', () => {
       render(<IntegrationDetail />, { wrapper })
 
       expect(screen.getAllByText('Error loading integration').length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Unsaved changes guard', () => {
+    it('registers a dirty check on mount', () => {
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(mockRegisterDirtyCheck).toHaveBeenCalledOnce()
+      const opts = mockRegisterDirtyCheck.mock.lastCall?.[0] as unknown as Record<string, unknown> | undefined
+      expect(opts).toBeDefined()
+      expect(typeof opts!.check).toBe('function')
+      expect(typeof opts!.saveAndExit).toBe('function')
+      expect(typeof opts!.exitWithoutSaving).toBe('function')
+      expect(opts!.title).toBe('Save resource changes?')
+      expect(opts!.body).toBe('You have unsaved changes to enabled resources. Would you like to save before leaving?')
+      expect(opts!.saveLabel).toBe('Save changes')
+    })
+
+    it('shows save button disabled on resources tab when no changes are made', () => {
+      mockActiveTab = 'resources'
+      render(<IntegrationDetail />, { wrapper })
+
+      const saveButton = screen.getByRole('button', { name: 'Save changes' })
+      expect(saveButton).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('shows save button enabled on resources tab when changes are made', () => {
+      mockActiveTab = 'resources'
+      mockUseToolSelection.mockReturnValue({
+        enabledToolIds: new Set(['t1']),
+        enabledCount: 1,
+        allSelected: false,
+        isDirty: true,
+        handleSelectAll: vi.fn(),
+        handleSelectTool: vi.fn(),
+        resetToServer: vi.fn(),
+      })
+      render(<IntegrationDetail />, { wrapper })
+
+      const saveButton = screen.getByRole('button', { name: 'Save changes' })
+      expect(saveButton).not.toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('does not show save button on details tab', () => {
+      mockActiveTab = 'details'
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Resource save flow', () => {
+    const mockTools = [
+      { id: 't1', name: 'Tool 1' },
+      { id: 't2', name: 'Tool 2' },
+    ] as unknown as Tool[]
+
+    let mockMutateAsync: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+      mockActiveTab = 'resources'
+      mockMutateAsync = vi.fn().mockResolvedValue({})
+
+      mockUseAllIntegrationTools.mockReturnValue({
+        tools: mockTools,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      mockUseToolSelection.mockReturnValue({
+        enabledToolIds: new Set(['t1']),
+        enabledCount: 1,
+        allSelected: false,
+        isDirty: true,
+        handleSelectAll: vi.fn(),
+        handleSelectTool: vi.fn(),
+        resetToServer: vi.fn(),
+      })
+
+      vi.mocked(toolManagerClient.useMutation).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        mutate: vi.fn(),
+        isPending: false,
+        isIdle: true,
+        isSuccess: false,
+        isError: false,
+        error: null,
+        data: null,
+        reset: vi.fn(),
+        failureCount: 0,
+        failureReason: null,
+        context: undefined,
+        submittedAt: 0,
+        variables: undefined,
+        status: 'idle',
+        isPaused: false,
+      } as never)
+    })
+
+    it('calls updateTools with enabled and disabled tool IDs when save is clicked', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith({ body: { tool_ids: ['t1'], enabled: true } })
+      })
+      expect(mockMutateAsync).toHaveBeenCalledWith({ body: { tool_ids: ['t2'], enabled: false } })
+    })
+
+    it('shows success alert after save completes', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Changes saved')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error alert when save fails', async () => {
+      mockMutateAsync.mockRejectedValue(new Error('Network error'))
+      const user = userEvent.setup()
+      render(<IntegrationDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Save failed')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Dirty check callbacks', () => {
+    it('check() reflects the current isDirty state', () => {
+      mockUseToolSelection.mockReturnValue({
+        enabledToolIds: new Set<string>(),
+        enabledCount: 0,
+        allSelected: false,
+        isDirty: true,
+        handleSelectAll: vi.fn(),
+        handleSelectTool: vi.fn(),
+        resetToServer: vi.fn(),
+      })
+      render(<IntegrationDetail />, { wrapper })
+
+      const opts = mockRegisterDirtyCheck.mock.lastCall?.[0] as unknown as Record<string, unknown>
+      expect((opts.check as () => boolean)()).toBe(true)
+    })
+
+    it('exitWithoutSaving() calls resetToServer', () => {
+      const mockResetToServer = vi.fn()
+      mockUseToolSelection.mockReturnValue({
+        enabledToolIds: new Set<string>(),
+        enabledCount: 0,
+        allSelected: false,
+        isDirty: false,
+        handleSelectAll: vi.fn(),
+        handleSelectTool: vi.fn(),
+        resetToServer: mockResetToServer,
+      })
+      render(<IntegrationDetail />, { wrapper })
+
+      const opts = mockRegisterDirtyCheck.mock.lastCall?.[0] as unknown as Record<string, unknown>
+      ;(opts.exitWithoutSaving as () => void)()
+      expect(mockResetToServer).toHaveBeenCalled()
+    })
+
+    it('saveAndExit() triggers the save mutation', async () => {
+      const mockMutateAsync = vi.fn().mockResolvedValue({})
+      vi.mocked(toolManagerClient.useMutation).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        mutate: vi.fn(),
+        isPending: false,
+        isIdle: true,
+        isSuccess: false,
+        isError: false,
+        error: null,
+        data: null,
+        reset: vi.fn(),
+        failureCount: 0,
+        failureReason: null,
+        context: undefined,
+        submittedAt: 0,
+        variables: undefined,
+        status: 'idle',
+        isPaused: false,
+      } as never)
+
+      mockUseAllIntegrationTools.mockReturnValue({
+        tools: [{ id: 't1' }] as unknown as Tool[],
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      mockUseToolSelection.mockReturnValue({
+        enabledToolIds: new Set(['t1']),
+        enabledCount: 1,
+        allSelected: false,
+        isDirty: true,
+        handleSelectAll: vi.fn(),
+        handleSelectTool: vi.fn(),
+        resetToServer: vi.fn(),
+      })
+
+      render(<IntegrationDetail />, { wrapper })
+
+      const opts = mockRegisterDirtyCheck.mock.lastCall?.[0] as unknown as Record<string, unknown>
+      let result: boolean | undefined
+      await act(async () => {
+        result = await (opts.saveAndExit as () => Promise<boolean>)()
+      })
+      expect(result).toBe(true)
+      expect(mockMutateAsync).toHaveBeenCalledWith({ body: { tool_ids: ['t1'], enabled: true } })
     })
   })
 
