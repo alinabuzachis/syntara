@@ -339,4 +339,71 @@ describe('useVersionHistory', () => {
       })
     })
   })
+
+  describe('updateVersionMetadata', () => {
+    it('calls mutate with correct params', () => {
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.updateVersionMetadata(2, 'new name', 'new desc')
+      })
+
+      expect(mockMutate).toHaveBeenCalled()
+      const [args] = mockMutate.mock.calls[0] as [Record<string, unknown>]
+      expect(args).toEqual({
+        params: { path: { workflow_id: 'wf-1', version: 2 } },
+        body: { publish_name: 'new name', change_description: 'new desc' },
+      })
+    })
+
+    it('shows success toast on successful update', () => {
+      mockMutate.mockImplementation((_args: unknown, callbacks: { onSuccess?: () => void }) => {
+        callbacks?.onSuccess?.()
+      })
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.updateVersionMetadata(2, 'name', 'desc')
+      })
+
+      expect(mockShowSuccess).toHaveBeenCalledWith({ title: 'Version updated' })
+    })
+
+    it('shows error toast on failure', () => {
+      const mockError = new Error('Update failed')
+      mockMutate.mockImplementation((_args: unknown, callbacks: { onError?: (e: Error) => void }) => {
+        callbacks?.onError?.(mockError)
+      })
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.updateVersionMetadata(2, 'name', 'desc')
+      })
+
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Failed to update version',
+        description: 'Update failed',
+      })
+    })
+
+    it('does not call mutate when workflowId is null', () => {
+      const { result } = renderHook(() => useVersionHistory({ workflowId: null, isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.updateVersionMetadata(2, 'name', 'desc')
+      })
+
+      expect(mockMutate).not.toHaveBeenCalled()
+    })
+  })
 })

@@ -45,6 +45,7 @@ from nexus.workflows.models import (
     WorkflowVersion,
     WorkflowVersionListResponse,
     WorkflowVersionRead,
+    WorkflowVersionUpdate,
 )
 from nexus.workflows.models.execution import ExecutionRead, TestExecutionCreate
 from nexus.workflows.models.workflow_definition import WorkflowDefinition
@@ -559,3 +560,29 @@ async def export_workflow_version(
         media_type="application/json",
         headers={"content-disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.patch(
+    "/{workflow_id}/versions/{version}",
+    dependencies=[Depends(_wf_perm_update)],
+    operation_id="update_workflow_version_metadata",
+    response_description="Updated workflow version",
+    responses={
+        404: {"description": WORKFLOW_NOT_FOUND},
+    },
+)
+async def update_workflow_version_metadata(
+    workflow_id: UUID,
+    version: int,
+    request: WorkflowVersionUpdate,
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
+) -> WorkflowVersionRead:
+    """Update a workflow version's metadata (publish_name, change_description)."""
+    updated = await service.update_version_metadata(
+        workflow_id=workflow_id,
+        version=version,
+        publish_name=request.publish_name,
+        change_description=request.change_description,
+        fields_set=request.model_fields_set,
+    )
+    return WorkflowVersionRead.model_validate(deserialize_workflow_version(updated))

@@ -74,6 +74,7 @@ from .workflow_version import (
     WorkflowVersionListResponse,
     WorkflowVersionRead,
     WorkflowVersionStatus,
+    WorkflowVersionUpdate,
 )
 
 __all__ = [
@@ -119,4 +120,5 @@ __all__ = [
     "WorkflowVersionListResponse",
     "WorkflowVersionRead",
     "WorkflowVersionStatus",
+    "WorkflowVersionUpdate",
 ]

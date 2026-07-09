@@ -499,6 +499,55 @@ paths:
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+    patch:
+      summary: Update Workflow Version Metadata
+      description: Update a workflow version's metadata (publish_name, change_description).
+      operationId: update_workflow_version_metadata
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Workflow Id
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowVersionUpdate'
+      responses:
+        '200':
+          description: Updated workflow version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowVersionRead'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          description: Workflow not found
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
   /workflows/{workflow_id}/versions/{version}/publish:
     post:
@@ -932,6 +981,26 @@ components:
           description: >-
             Version the client was editing. If the server's current_version is
             higher, returns 409 Conflict.
+
+    WorkflowVersionUpdate:
+      type: object
+      title: WorkflowVersionUpdate
+      description: Request body for updating version metadata (PATCH /workflows/{id}/versions/{version}).
+      properties:
+        publish_name:
+          anyOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
+          title: Publish Name
+          description: Version name
+        change_description:
+          anyOf:
+            - type: string
+              maxLength: 1024
+            - type: 'null'
+          title: Change Description
+          description: Description of changes
 
     WorkflowVersionListResponse:
       type: object

@@ -674,6 +674,56 @@ class WorkflowService(BaseService):
         )
         return workflow, version_record
 
+    async def update_version_metadata(
+        self,
+        workflow_id: UUID,
+        version: int,
+        publish_name: str | None = None,
+        change_description: str | None = None,
+        *,
+        fields_set: set[str] | None = None,
+    ) -> WorkflowVersion:
+        """Update a version's metadata (publish_name, change_description).
+
+        Args:
+            workflow_id: Workflow UUID
+            version: Version number to update
+            publish_name: New publish name (or None to clear)
+            change_description: New change description (or None to clear)
+            fields_set: Fields explicitly present in the request body.
+                When provided, only fields in this set are updated —
+                this distinguishes "field absent" from "field explicitly null".
+
+        Returns:
+            Updated version record
+
+        Raises:
+            WorkflowNotFoundError: If workflow not found
+            WorkflowVersionNotFoundError: If version not found
+
+        """
+        await self.get_workflow_by_id(workflow_id)
+        version_record = await self._get_version_or_none(workflow_id, version)
+        if not version_record:
+            raise WorkflowVersionNotFoundError(workflow_id, version)
+
+        update_fields = fields_set if fields_set is not None else {"publish_name", "change_description"}
+        changed = False
+        if "publish_name" in update_fields:
+            version_record.publish_name = publish_name
+            changed = True
+        if "change_description" in update_fields:
+            version_record.change_description = change_description
+            changed = True
+
+        if not changed:
+            return version_record
+
+        version_record.updated_by = self.user.id
+        await self.session.commit()
+        await self.session.refresh(version_record)
+        return version_record
+
     async def update_workflow_metadata(
         self,
         workflow: Workflow,

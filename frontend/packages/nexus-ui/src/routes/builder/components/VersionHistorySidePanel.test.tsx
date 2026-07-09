@@ -34,6 +34,10 @@ function createSidePanelState(overrides: Partial<VersionSidePanelState> = {}): V
     onExportVersion: vi.fn(),
     onOpenInNewWindow: vi.fn(),
     onPublishVersion: vi.fn(),
+    onViewRunHistory: vi.fn(),
+    executedVersionNumbers: new Map(),
+    onEditVersion: vi.fn(),
+    onDuplicateVersion: vi.fn(),
     publishDialog: { isOpen: false, onClose: vi.fn(), onPublish: vi.fn() },
     saveBeforeViewDialog: {
       isOpen: false,
@@ -47,6 +51,14 @@ function createSidePanelState(overrides: Partial<VersionSidePanelState> = {}): V
       isLoading: false,
       onClose: vi.fn(),
       onConfirm: vi.fn(),
+    },
+    editDialog: {
+      isOpen: false,
+      isSaving: false,
+      onClose: vi.fn(),
+      onSave: vi.fn(),
+      initialPublishName: null,
+      initialDescription: null,
     },
     ...overrides,
   }
@@ -127,6 +139,28 @@ describe('VersionHistorySidePanel', () => {
     await user.click(screen.getByRole('button', { name: 'Restore' }))
 
     expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders EditVersionDialog when editDialog is open', () => {
+    const sidePanel = createSidePanelState({
+      editDialog: {
+        isOpen: true,
+        isSaving: false,
+        onClose: vi.fn(),
+        onSave: vi.fn(),
+        initialPublishName: 'Release 1.0',
+        initialDescription: 'First release',
+      },
+    })
+    render(<VersionHistorySidePanel sidePanel={sidePanel} isNodeEditorOpen={false} />)
+
+    expect(screen.getByText('Edit version name and description')).toBeInTheDocument()
+  })
+
+  it('does not render EditVersionDialog when editDialog is closed', () => {
+    render(<VersionHistorySidePanel sidePanel={createSidePanelState()} isNodeEditorOpen={false} />)
+
+    expect(screen.queryByText('Edit version name and description')).not.toBeInTheDocument()
   })
 
   describe('accessibility', () => {

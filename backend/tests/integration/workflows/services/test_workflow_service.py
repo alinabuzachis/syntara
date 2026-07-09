@@ -2465,3 +2465,130 @@ class TestWorkflowVersionConflictDetection(TestWorkflowServiceBase):
             )
             assert result_workflow.published_version is not None
             assert result_version.status == WorkflowVersionStatus.PUBLISHED
+
+
+class TestUpdateVersionMetadata(TestWorkflowServiceBase):
+    """Test update_version_metadata functionality."""
+
+    async def _setup_workflow_with_version(
+        self,
+        session: AsyncSession,
+        user: User,
+        *,
+        publish_name: str | None = "v1.0",
+        change_description: str | None = "Initial release",
+    ) -> tuple[Workflow, WorkflowVersion]:
+        workflow = self._create_test_workflow(name=f"meta-{uuid4().hex[:6]}", created_by=user.id)
+        session.add(workflow)
+
+        version = self._create_test_workflow_version(
+            workflow_id=workflow.id, version=1, created_by=user.id, change_description=change_description or ""
+        )
+        version.publish_name = publish_name
+        session.add(version)
+        await session.commit()
+        return workflow, version
+
+    @pytest.mark.asyncio
+    async def test_update_both_fields(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test updating both publish_name and change_description."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow, _ = await self._setup_workflow_with_version(test_db_session, test_user)
+
+        result = await service.update_version_metadata(
+            workflow.id, 1, publish_name="Updated Name", change_description="Updated Desc"
+        )
+
+        assert result.publish_name == "Updated Name"
+        assert result.change_description == "Updated Desc"
+        assert result.updated_by == test_user.id
+
+    @pytest.mark.asyncio
+    async def test_partial_update_publish_name_only(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test updating only publish_name leaves change_description unchanged."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow, _ = await self._setup_workflow_with_version(
+            test_db_session, test_user, change_description="Original desc"
+        )
+
+        result = await service.update_version_metadata(
+            workflow.id, 1, publish_name="New Name", fields_set={"publish_name"}
+        )
+
+        assert result.publish_name == "New Name"
+        assert result.change_description == "Original desc"
+
+    @pytest.mark.asyncio
+    async def test_partial_update_change_description_only(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test updating only change_description leaves publish_name unchanged."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow, _ = await self._setup_workflow_with_version(test_db_session, test_user, publish_name="Original Name")
+
+        result = await service.update_version_metadata(
+            workflow.id, 1, change_description="New Desc", fields_set={"change_description"}
+        )
+
+        assert result.publish_name == "Original Name"
+        assert result.change_description == "New Desc"
+
+    @pytest.mark.asyncio
+    async def test_clear_fields_with_explicit_none(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test clearing fields by sending explicit None values."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow, _ = await self._setup_workflow_with_version(
+            test_db_session, test_user, publish_name="Has Name", change_description="Has Desc"
+        )
+
+        result = await service.update_version_metadata(
+            workflow.id,
+            1,
+            publish_name=None,
+            change_description=None,
+            fields_set={"publish_name", "change_description"},
+        )
+
+        assert result.publish_name is None
+        assert result.change_description is None
+
+    @pytest.mark.asyncio
+    async def test_noop_when_fields_set_is_empty(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test that an empty fields_set results in no changes and no commit."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow, version = await self._setup_workflow_with_version(test_db_session, test_user)
+
+        result = await service.update_version_metadata(workflow.id, 1, fields_set=set())
+
+        assert result.publish_name == version.publish_name
+        assert result.change_description == version.change_description
+        assert result.updated_by != test_user.id
+
+    @pytest.mark.asyncio
+    async def test_workflow_not_found_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test that a nonexistent workflow_id raises WorkflowNotFoundError."""
+        service = WorkflowService(test_db_session, test_user)
+
+        with pytest.raises(WorkflowNotFoundError):
+            await service.update_version_metadata(uuid4(), 1, publish_name="x")
+
+    @pytest.mark.asyncio
+    async def test_version_not_found_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test that a nonexistent version raises WorkflowVersionNotFoundError."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow, _ = await self._setup_workflow_with_version(test_db_session, test_user)
+
+        with pytest.raises(WorkflowVersionNotFoundError):
+            await service.update_version_metadata(workflow.id, 999, publish_name="x")
+
+    @pytest.mark.asyncio
+    async def test_default_fields_set_updates_both(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test that fields_set=None defaults to updating both fields."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow, _ = await self._setup_workflow_with_version(test_db_session, test_user)
+
+        result = await service.update_version_metadata(
+            workflow.id, 1, publish_name="Default Name", change_description="Default Desc"
+        )
+
+        assert result.publish_name == "Default Name"
+        assert result.change_description == "Default Desc"
+        assert result.updated_by == test_user.id

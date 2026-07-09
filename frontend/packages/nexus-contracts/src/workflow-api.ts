@@ -165,7 +165,11 @@ export interface paths {
     delete?: never
     options?: never
     head?: never
-    patch?: never
+    /**
+     * Update Workflow Version Metadata
+     * @description Update a workflow version's metadata (publish_name, change_description).
+     */
+    patch: operations['update_workflow_version_metadata']
     trace?: never
   }
   '/workflows/{workflow_id}/versions/{version}/publish': {
@@ -526,6 +530,22 @@ export interface components {
        * @description Version the client was editing. If the server's current_version is higher, returns 409 Conflict.
        */
       expected_version?: number | null
+    }
+    /**
+     * WorkflowVersionUpdate
+     * @description Request body for updating version metadata (PATCH /workflows/{id}/versions/{version}).
+     */
+    WorkflowVersionUpdate: {
+      /**
+       * Publish Name
+       * @description Version name
+       */
+      publish_name?: string | null
+      /**
+       * Change Description
+       * @description Description of changes
+       */
+      change_description?: string | null
     }
     /**
      * WorkflowVersionListResponse
@@ -2735,6 +2755,46 @@ export interface operations {
       401: components['responses']['UnauthorizedError']
       403: components['responses']['ForbiddenError']
       404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  update_workflow_version_metadata: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+        version: number
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['WorkflowVersionUpdate']
+      }
+    }
+    responses: {
+      /** @description Updated workflow version */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkflowVersionRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      /** @description Workflow not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
       409: components['responses']['ConflictError']
       422: components['responses']['ValidationError']
       500: components['responses']['InternalServerError']

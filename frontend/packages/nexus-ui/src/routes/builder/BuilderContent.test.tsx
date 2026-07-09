@@ -3359,4 +3359,177 @@ describe('BuilderContent', () => {
       expect(screen.queryByText('You are viewing this workflow in read-only mode.')).not.toBeInTheDocument()
     })
   })
+
+  describe('executionsByVersion and run history', () => {
+    const versionData = [
+      {
+        id: 'ver-2',
+        workflow_id: 'workflow-1',
+        version: 2,
+        schema_version: '2.0.0',
+        workflow_definition: { schema_version: '2.0.0', name: 'v2', triggers: [], nodes: [], edges: [] },
+        created_at: '2026-05-19T14:30:00.000Z',
+        change_description: 'Second version',
+        status: 'draft',
+        publish_name: null,
+        created_by: 'user-1',
+        created_by_username: 'sarah.chen',
+      },
+      {
+        id: 'ver-1',
+        workflow_id: 'workflow-1',
+        version: 1,
+        schema_version: '2.0.0',
+        workflow_definition: { schema_version: '2.0.0', name: 'v1', triggers: [], nodes: [], edges: [] },
+        created_at: '2026-05-18T10:00:00.000Z',
+        change_description: 'First version',
+        status: 'published',
+        publish_name: null,
+        created_by: 'user-1',
+        created_by_username: 'marcus.williams',
+      },
+    ]
+
+    function mockVersionAndExecutionQueries(executions: Record<string, unknown>[] = []) {
+      vi.mocked(workflowClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path.includes('/versions/')) {
+          return { data: versionData[0], isPending: false, isError: false, error: null, refetch: vi.fn() }
+        }
+        if (path.includes('/versions')) {
+          return {
+            data: { resources: versionData },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn().mockResolvedValue({ data: { resources: versionData } }),
+          }
+        }
+        if (path === '/workflows') {
+          return { data: { resources: [] }, isPending: false, isError: false, error: null, refetch: vi.fn() }
+        }
+        return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() }
+      })
+      vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
+        if (method === 'get' && path === '/executions') {
+          return { data: { resources: executions }, isPending: false, isError: false, error: null, refetch: vi.fn() }
+        }
+        return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() }
+      })
+    }
+
+    it('enables run history kebab item when version has executions', async () => {
+      mockVersionAndExecutionQueries([{ id: 'exec-1', workflow_version: 2, workflow_version_id: 'ver-2-pub' }])
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+      await user.click(kebabButtons[0])
+
+      const viewRunHistoryItem = screen.getByRole('menuitem', { name: /View run history/ })
+      expect(viewRunHistoryItem).not.toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables run history kebab item when version has no executions', async () => {
+      mockVersionAndExecutionQueries([])
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+      await user.click(kebabButtons[0])
+
+      const viewRunHistoryItem = screen.getByRole('menuitem', { name: /View run history/ })
+      expect(viewRunHistoryItem).toHaveAttribute('aria-disabled', 'true')
+    })
+  })
+
+  describe('duplicate workflow', () => {
+    const duplicateMutate = vi.fn()
+    const dupVersionData = [
+      {
+        id: 'ver-2',
+        workflow_id: 'workflow-1',
+        version: 2,
+        schema_version: '2.0.0',
+        workflow_definition: { schema_version: '2.0.0', name: 'v2', triggers: [], nodes: [], edges: [] },
+        created_at: '2026-05-19T14:30:00.000Z',
+        change_description: 'Second version',
+        status: 'draft',
+        publish_name: null,
+        created_by: 'user-1',
+        created_by_username: 'sarah.chen',
+      },
+    ]
+
+    function setupDuplicateQueries() {
+      vi.mocked(workflowClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path.includes('/versions/')) {
+          return { data: dupVersionData[0], isPending: false, isError: false, error: null, refetch: vi.fn() }
+        }
+        if (path.includes('/versions')) {
+          return {
+            data: { resources: dupVersionData },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn().mockResolvedValue({ data: { resources: dupVersionData } }),
+          }
+        }
+        if (path === '/workflows') {
+          return { data: { resources: [] }, isPending: false, isError: false, error: null, refetch: vi.fn() }
+        }
+        return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() }
+      })
+      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
+        if (method === 'post' && path === '/workflows') {
+          return createMockMutation(duplicateMutate)
+        }
+        return createMockMutation()
+      })
+    }
+
+    it('calls duplicate mutation with workflow name when duplicating a version', async () => {
+      setupDuplicateQueries()
+      const workflowWithProject = {
+        ...mockWorkflow,
+        project_id: 'project-1',
+      } as unknown as WorkflowWithVersion
+
+      await renderBuilder({ workflow: workflowWithProject, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+      await user.click(kebabButtons[0])
+      await user.click(screen.getByText('Duplicate as new workflow'))
+
+      expect(duplicateMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({
+            name: expect.stringContaining('Test Workflow - duplicate-') as unknown,
+            project_id: 'project-1',
+          }) as unknown,
+        }),
+        expect.objectContaining({
+          onSuccess: expect.any(Function) as unknown,
+          onError: expect.any(Function) as unknown,
+        })
+      )
+    })
+  })
 })

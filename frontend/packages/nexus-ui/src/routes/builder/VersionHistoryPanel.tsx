@@ -24,9 +24,12 @@ import {
 } from '@patternfly/react-core'
 import {
   RhUiClockIcon,
+  RhUiDuplicateIcon,
+  RhUiEditIcon,
   RhUiEllipsisVerticalFillIcon,
   RhUiExportIcon,
   RhUiExternalLinkIcon,
+  RhUiHistoryIcon,
   RhUiMinusIcon,
   RhUiPublishIcon,
   RhUiUndoIcon,
@@ -87,6 +90,122 @@ function VersionKebabToggle({ toggleRef, isOpen, onToggle, ariaLabel }: VersionK
   )
 }
 
+type VersionKebabMenuProps = Readonly<{
+  version: WorkflowVersion
+  isOpen: boolean
+  onToggle: () => void
+  onClose: () => void
+  onRestore: () => void
+  onExport: () => void
+  onOpenInNewWindow: () => void
+  onPublish: () => void
+  onViewRunHistory: () => void
+  hasRunHistory: boolean
+  onEdit: () => void
+  onDuplicate: () => void
+  canEdit: boolean
+  editTooltip?: string
+}>
+
+function VersionKebabMenu({
+  version,
+  isOpen,
+  onToggle,
+  onClose,
+  onRestore,
+  onExport,
+  onOpenInNewWindow,
+  onPublish,
+  onViewRunHistory,
+  hasRunHistory,
+  onEdit,
+  onDuplicate,
+  canEdit,
+  editTooltip,
+}: VersionKebabMenuProps) {
+  const ariaLabel = `Actions for version ${version.version}`
+  const disabledTooltip = !canEdit && editTooltip ? { content: editTooltip } : undefined
+  const isAlreadyPublished = version.status === 'published'
+  const publishTooltip =
+    disabledTooltip ?? (isAlreadyPublished ? { content: 'This version is already published' } : undefined)
+  const renderToggle = (toggleRef: Ref<MenuToggleElement>) => (
+    <VersionKebabToggle toggleRef={toggleRef} isOpen={isOpen} onToggle={onToggle} ariaLabel={ariaLabel} />
+  )
+
+  return (
+    <Dropdown
+      isOpen={isOpen}
+      onSelect={onClose}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+      toggle={renderToggle}
+      popperProps={{ position: 'end' }}
+    >
+      <DropdownGroup label="Views">
+        <DropdownList>
+          <DropdownItem key="open-new-window" onClick={() => onOpenInNewWindow()} icon={<RhUiExternalLinkIcon />}>
+            Open version in new window
+          </DropdownItem>
+          <DropdownItem
+            key="view-run-history"
+            onClick={hasRunHistory ? () => onViewRunHistory() : undefined}
+            icon={<RhUiHistoryIcon />}
+            isAriaDisabled={!hasRunHistory}
+            tooltipProps={!hasRunHistory ? { content: 'No runs for this version' } : undefined}
+          >
+            View run history of this version
+          </DropdownItem>
+        </DropdownList>
+      </DropdownGroup>
+      <Divider />
+      <DropdownGroup label="Actions">
+        <DropdownList>
+          <DropdownItem
+            key="restore"
+            onClick={canEdit ? () => onRestore() : undefined}
+            icon={<RhUiUndoIcon />}
+            isAriaDisabled={!canEdit}
+            tooltipProps={disabledTooltip}
+          >
+            Restore version
+          </DropdownItem>
+          <DropdownItem
+            key="edit"
+            onClick={canEdit ? () => onEdit() : undefined}
+            icon={<RhUiEditIcon />}
+            isAriaDisabled={!canEdit}
+            tooltipProps={disabledTooltip}
+          >
+            Edit version name and description
+          </DropdownItem>
+          <DropdownItem
+            key="duplicate"
+            onClick={canEdit ? () => onDuplicate() : undefined}
+            icon={<RhUiDuplicateIcon />}
+            isAriaDisabled={!canEdit}
+            tooltipProps={disabledTooltip}
+          >
+            Duplicate as new workflow
+          </DropdownItem>
+          <DropdownItem key="export" onClick={() => onExport()} icon={<RhUiExportIcon />}>
+            Export workflow
+          </DropdownItem>
+          <DropdownItem
+            key="publish"
+            onClick={() => onPublish()}
+            icon={<RhUiPublishIcon />}
+            isAriaDisabled={!canEdit || isAlreadyPublished}
+            tooltipProps={publishTooltip}
+          >
+            Publish this version
+          </DropdownItem>
+        </DropdownList>
+      </DropdownGroup>
+    </Dropdown>
+  )
+}
+
 type VersionRowProps = Readonly<{
   version: WorkflowVersion
   onSelect: () => void
@@ -94,6 +213,10 @@ type VersionRowProps = Readonly<{
   onExport: () => void
   onOpenInNewWindow: () => void
   onPublish: () => void
+  onViewRunHistory: () => void
+  hasRunHistory: boolean
+  onEdit: () => void
+  onDuplicate: () => void
   isSelected?: boolean
   isKebabOpen: boolean
   onKebabToggle: () => void
@@ -110,6 +233,10 @@ function VersionRow({
   onExport,
   onOpenInNewWindow,
   onPublish,
+  onViewRunHistory,
+  hasRunHistory,
+  onEdit,
+  onDuplicate,
   isSelected,
   isKebabOpen,
   onKebabToggle,
@@ -118,22 +245,6 @@ function VersionRow({
   editTooltip,
   scrollRef,
 }: VersionRowProps) {
-  const kebabAriaLabel = `Actions for version ${version.version}`
-  let publishTooltip: { content: string } | undefined
-  if (!canEdit && editTooltip) {
-    publishTooltip = { content: editTooltip }
-  } else if (version.status === 'published') {
-    publishTooltip = { content: 'This version is already published' }
-  }
-  const renderKebabToggle = (toggleRef: Ref<MenuToggleElement>) => (
-    <VersionKebabToggle
-      toggleRef={toggleRef}
-      isOpen={isKebabOpen}
-      onToggle={onKebabToggle}
-      ariaLabel={kebabAriaLabel}
-    />
-  )
-
   return (
     <SimpleListItem itemId={version.id} isActive={isSelected} onClick={onSelect}>
       <span ref={scrollRef} />
@@ -167,53 +278,22 @@ function VersionRow({
               </FlexItem>
             )}
             <FlexItem className={styles.kebabFlexItem} onClick={(e) => e.stopPropagation()}>
-              <Dropdown
+              <VersionKebabMenu
+                version={version}
                 isOpen={isKebabOpen}
-                onSelect={onKebabClose}
-                onOpenChange={(open) => {
-                  if (!open) onKebabClose()
-                }}
-                toggle={renderKebabToggle}
-                popperProps={{ position: 'end' }}
-              >
-                <DropdownGroup label="Views">
-                  <DropdownList>
-                    <DropdownItem
-                      key="open-new-window"
-                      onClick={() => onOpenInNewWindow()}
-                      icon={<RhUiExternalLinkIcon />}
-                    >
-                      Open version in new window
-                    </DropdownItem>
-                  </DropdownList>
-                </DropdownGroup>
-                <Divider />
-                <DropdownGroup label="Actions">
-                  <DropdownList>
-                    <DropdownItem
-                      key="restore"
-                      onClick={() => onRestore()}
-                      icon={<RhUiUndoIcon />}
-                      isAriaDisabled={!canEdit}
-                      tooltipProps={!canEdit && editTooltip ? { content: editTooltip } : undefined}
-                    >
-                      Restore version
-                    </DropdownItem>
-                    <DropdownItem key="export" onClick={() => onExport()} icon={<RhUiExportIcon />}>
-                      Export workflow
-                    </DropdownItem>
-                    <DropdownItem
-                      key="publish"
-                      onClick={() => onPublish()}
-                      icon={<RhUiPublishIcon />}
-                      isAriaDisabled={!canEdit || version.status === 'published'}
-                      tooltipProps={publishTooltip}
-                    >
-                      Publish this version
-                    </DropdownItem>
-                  </DropdownList>
-                </DropdownGroup>
-              </Dropdown>
+                onToggle={onKebabToggle}
+                onClose={onKebabClose}
+                onRestore={onRestore}
+                onExport={onExport}
+                onOpenInNewWindow={onOpenInNewWindow}
+                onPublish={onPublish}
+                onViewRunHistory={onViewRunHistory}
+                hasRunHistory={hasRunHistory}
+                onEdit={onEdit}
+                onDuplicate={onDuplicate}
+                canEdit={canEdit}
+                editTooltip={editTooltip}
+              />
             </FlexItem>
           </Flex>
         </Flex>
@@ -239,6 +319,10 @@ type VersionHistoryPanelProps = Readonly<{
   onExportVersion: (version: number) => void
   onOpenInNewWindow: (version: number) => void
   onPublishVersion: (version: number) => void
+  onViewRunHistory: (versionNumber: number) => void
+  executedVersionNumbers: Map<number, string>
+  onEditVersion: (version: WorkflowVersion) => void
+  onDuplicateVersion: (version: WorkflowVersion) => void
   statusFilter: VersionStatus[]
   onStatusFilterChange: (statuses: VersionStatus[]) => void
   selectedVersion?: number | null
@@ -261,6 +345,10 @@ export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
     onExportVersion,
     onOpenInNewWindow,
     onPublishVersion,
+    onViewRunHistory,
+    executedVersionNumbers,
+    onEditVersion,
+    onDuplicateVersion,
     statusFilter,
     onStatusFilterChange,
     selectedVersion,
@@ -310,6 +398,10 @@ export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
                   onExport={() => onExportVersion(version.version)}
                   onOpenInNewWindow={() => onOpenInNewWindow(version.version)}
                   onPublish={() => onPublishVersion(version.version)}
+                  onViewRunHistory={() => onViewRunHistory(version.version)}
+                  hasRunHistory={executedVersionNumbers.has(version.version)}
+                  onEdit={() => onEditVersion(version)}
+                  onDuplicate={() => onDuplicateVersion(version)}
                   isSelected={isActive}
                   isKebabOpen={openKebabVersionId === version.id}
                   onKebabToggle={() => setOpenKebabVersionId(openKebabVersionId === version.id ? null : version.id)}

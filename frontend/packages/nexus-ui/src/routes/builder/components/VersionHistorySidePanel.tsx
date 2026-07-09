@@ -1,6 +1,7 @@
 import { Content, FlexItem } from '@patternfly/react-core'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
+import { EditVersionDialog } from '../EditVersionDialog'
 import type { VersionSidePanelState } from '../hooks/useBuilderVersionPanel'
 import { PublishWorkflowDialog } from '../PublishWorkflowDialog'
 import { SaveBeforeViewDialog } from '../SaveBeforeViewDialog'
@@ -28,6 +29,10 @@ export function VersionHistorySidePanel({ sidePanel, isNodeEditorOpen, editPermi
             onExportVersion={sidePanel.onExportVersion}
             onOpenInNewWindow={sidePanel.onOpenInNewWindow}
             onPublishVersion={sidePanel.onPublishVersion}
+            onViewRunHistory={sidePanel.onViewRunHistory}
+            executedVersionNumbers={sidePanel.executedVersionNumbers}
+            onEditVersion={sidePanel.onEditVersion}
+            onDuplicateVersion={sidePanel.onDuplicateVersion}
             statusFilter={sidePanel.statusFilter}
             onStatusFilterChange={sidePanel.onStatusFilterChange}
             canEdit={editPermission?.canEdit}
@@ -48,6 +53,15 @@ export function VersionHistorySidePanel({ sidePanel, isNodeEditorOpen, editPermi
         onSave={sidePanel.saveBeforeViewDialog.onSave}
         onViewWithoutSaving={sidePanel.saveBeforeViewDialog.onViewWithoutSaving}
         onCancel={sidePanel.saveBeforeViewDialog.onCancel}
+      />
+
+      <EditVersionDialog
+        isOpen={sidePanel.editDialog.isOpen}
+        isSaving={sidePanel.editDialog.isSaving}
+        onClose={sidePanel.editDialog.onClose}
+        onSave={sidePanel.editDialog.onSave}
+        initialPublishName={sidePanel.editDialog.initialPublishName}
+        initialDescription={sidePanel.editDialog.initialDescription}
       />
 
       {sidePanel.restoreDialog.onConfirm && (

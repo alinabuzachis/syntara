@@ -187,6 +187,13 @@ class WorkflowVersionListResponse(ResourcesResponse[WorkflowVersionRead]):
     """Schema for workflow version list response."""
 
 
+class WorkflowVersionUpdate(SQLModel):
+    """Request body for updating version metadata (PATCH /workflows/{id}/versions/{version})."""
+
+    publish_name: str | None = Field(None, max_length=255, description="Version name")
+    change_description: str | None = Field(None, max_length=1024, description="Description of changes")
+
+
 class PublishVersionRequest(SQLModel):
     """Request body for publishing a workflow version."""
 

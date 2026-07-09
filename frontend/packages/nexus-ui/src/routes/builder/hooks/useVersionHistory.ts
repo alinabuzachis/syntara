@@ -42,6 +42,7 @@ export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams
 
   const restoreMutation = workflowClient.useMutation('post', '/workflows/{workflow_id}/versions/{version}/restore')
   const publishMutation = workflowClient.useMutation('post', '/workflows/{workflow_id}/versions/{version}/publish')
+  const updateMetadataMutation = workflowClient.useMutation('patch', '/workflows/{workflow_id}/versions/{version}')
 
   const allVersions = versionsQuery.data?.resources
   const filteredVersions = useMemo((): WorkflowVersion[] => {
@@ -100,6 +101,28 @@ export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams
     [workflowId]
   )
 
+  const updateVersionMetadata = useCallback(
+    (version: number, publishName: string | null, changeDescription: string | null) => {
+      if (!workflowId) return
+      updateMetadataMutation.mutate(
+        {
+          params: { path: { workflow_id: workflowId, version } },
+          body: { publish_name: publishName, change_description: changeDescription },
+        },
+        {
+          onSuccess: () => {
+            showSuccess({ title: 'Version updated' })
+            detachPromise(versionsQuery.refetch())
+          },
+          onError: (error: unknown) => {
+            showError({ title: 'Failed to update version', description: getErrorMessage(error) })
+          },
+        }
+      )
+    },
+    [workflowId, updateMetadataMutation, versionsQuery, showSuccess, showError]
+  )
+
   return {
     versionsQuery,
     filteredVersions,
@@ -109,5 +132,7 @@ export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams
     exportVersion,
     openInNewWindow,
     publishVersion,
+    updateVersionMetadata,
+    updateMetadataMutation,
   }
 }

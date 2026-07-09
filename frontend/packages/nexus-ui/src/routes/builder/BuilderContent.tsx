@@ -1,7 +1,8 @@
-import { Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { AlertActionLink, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { executionsClient, workflowClient } from '../../client'
@@ -9,10 +10,12 @@ import { NxPage } from '../../components/layout/NxPage'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxReactFlowViewportGuard } from '../../components/layout/NxReactFlowViewportGuard'
 import { useNavigate } from '../../hooks/routing/useNavigate'
+import { useSearchParams } from '../../hooks/routing/useSearchParams'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
+import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { ApprovalSidePanel } from '../executions/ApprovalSidePanel'
 import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExpandedAllContext'
@@ -53,12 +56,15 @@ import { createAddStepHandler } from './utils/panelActions'
 import { ValidationBanner } from './ValidationBanner'
 import { VersionInfoCard } from './VersionInfoCard'
 import { VersionViewProvider } from './VersionViewContext'
+
+type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionRead']
 /* eslint-disable max-lines */
 // eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId, executionCopy, initialViewVersion } = props
   const setLocation = useNavigate()
-  const { showSuccess, showError } = useAlerts()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { showAlert, showSuccess, showError } = useAlerts()
   const [saveAttemptedWithoutProject, setSaveAttemptedWithoutProject] = useState(false)
   const { selectedProject, stableProjectId, ProjectSelector } = useProjectSelector({
     requireProject: isNew,
@@ -148,6 +154,18 @@ export function BuilderContent(props: BuilderContentProps) {
     loadWorkflowWithEdges,
   })
   useExecutionCopyToEditor({ executionCopy, dispatch, markDirty, showSuccess })
+
+  const initialViewVersionRef = useRef(initialViewVersion)
+  useEffect(() => {
+    if (initialViewVersionRef.current === initialViewVersion) return
+    initialViewVersionRef.current = initialViewVersion
+    if (initialViewVersion != null) {
+      dispatch({ type: 'SET_VIEWING_VERSION', payload: initialViewVersion })
+      dispatch({ type: 'SET_VERSION_HISTORY_OPEN', payload: true })
+      dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })
+      queueMicrotask(() => setExecutionFilters([]))
+    }
+  }, [initialViewVersion, dispatch])
   const { handleForceSaveSuccess } = useBuilderValidation({
     dispatch,
     hasValidationIssues: workflow?.has_validation_issues,
@@ -263,6 +281,86 @@ export function BuilderContent(props: BuilderContentProps) {
     return () => unregisterSaveHandler()
   }, [handleSaveWorkflow, onPublish, handleRunWorkflow, registerSaveHandler, unregisterSaveHandler, setActions])
 
+  const executionsByVersion = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const e of executionsQuery.data?.resources ?? []) {
+      const versionNum = e.workflow_version
+      const versionId = e.workflow_version_id
+      if (versionNum != null && versionId && !map.has(versionNum)) {
+        map.set(versionNum, versionId)
+      }
+    }
+    return map
+  }, [executionsQuery.data?.resources])
+
+  const clearExecutionFilters = useCallback(() => setExecutionFilters([]), [])
+
+  const handleOpenRunHistory = useCallback(
+    (versionNumber: number) => {
+      const versionId = executionsByVersion.get(versionNumber)
+      if (versionId) {
+        setExecutionFilters([{ key: 'workflow_version_id', value: versionId, operator: 'eq' }])
+      }
+      dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: true })
+    },
+    [dispatch, executionsByVersion]
+  )
+
+  const { mutate: duplicateWorkflow, isPending: isDuplicating } = workflowClient.useMutation('post', '/workflows')
+  const handleDuplicateVersion = useCallback(
+    (version: WorkflowVersion) => {
+      if (isDuplicating || !workflow?.name || !workflow.project_id) return
+      const definition = version.workflow_definition
+      if (!definition) {
+        showError({ title: 'Failed to duplicate workflow', description: 'Version has no definition to duplicate' })
+        return
+      }
+      const timestamp = Date.now().toString(36)
+      const suffix = ` - duplicate-${timestamp}`
+      const maxBaseLength = 255 - suffix.length
+      const baseName = workflow.name.length > maxBaseLength ? workflow.name.slice(0, maxBaseLength) : workflow.name
+      const duplicateName = `${baseName}${suffix}`
+      duplicateWorkflow(
+        {
+          body: {
+            name: duplicateName,
+            description: workflow.description ?? '',
+            workflow_definition: definition,
+            labels: workflow.labels ?? {},
+            project_id: workflow.project_id,
+          },
+        },
+        {
+          onSuccess: (created) => {
+            showAlert({
+              variant: 'success',
+              autoDismiss: true,
+              title: 'Workflow duplicated',
+              description: `Created "${duplicateName}"`,
+              actionLinks: created?.id ? (
+                <AlertActionLink onClick={() => setLocation(`/workflow-builder/${created.id}`)}>
+                  Open workflow
+                </AlertActionLink>
+              ) : undefined,
+            })
+            detachPromise(
+              queryClient.invalidateQueries({
+                predicate: (q) =>
+                  q.queryKey[0] === 'get' &&
+                  typeof q.queryKey[1] === 'string' &&
+                  q.queryKey[1].startsWith('/workflows'),
+              })
+            )
+          },
+          onError: (error: unknown) => {
+            showError({ title: 'Failed to duplicate workflow', description: getErrorMessage(error) })
+          },
+        }
+      )
+    },
+    [isDuplicating, workflow, duplicateWorkflow, queryClient, showAlert, showError, setLocation]
+  )
+
   const versionPanel = useBuilderVersionPanel({
     workflowId,
     isNew,
@@ -274,7 +372,14 @@ export function BuilderContent(props: BuilderContentProps) {
     workflowName,
     expandAllEvent,
     baseHandleToggleVersionHistory,
+    searchParams,
+    setSearchParams,
+    onOpenRunHistory: handleOpenRunHistory,
+    onClearExecutionFilters: clearExecutionFilters,
+    executedVersionNumbers: executionsByVersion,
+    onDuplicateVersion: (v: WorkflowVersion) => detachPromise(handleDuplicateVersion(v)),
   })
+
   const {
     handleNodeClick,
     handleClearDesiredPosition,

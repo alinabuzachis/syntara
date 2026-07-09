@@ -58,6 +58,14 @@ const defaultProps = {
   onExportVersion: vi.fn(),
   onOpenInNewWindow: vi.fn(),
   onPublishVersion: vi.fn(),
+  onViewRunHistory: vi.fn(),
+  executedVersionNumbers: new Map([
+    [3, 'ver-3'],
+    [2, 'ver-2'],
+    [1, 'ver-1'],
+  ]),
+  onEditVersion: vi.fn(),
+  onDuplicateVersion: vi.fn(),
   statusFilter: [] as VersionStatus[],
   onStatusFilterChange: vi.fn(),
 }
@@ -177,6 +185,39 @@ describe('VersionHistoryPanel', () => {
     await user.click(screen.getByText('Publish this version'))
 
     expect(defaultProps.onPublishVersion).toHaveBeenCalledWith(3)
+  })
+
+  it('calls onViewRunHistory via kebab menu', async () => {
+    const user = userEvent.setup()
+    render(<VersionHistoryPanel {...defaultProps} />)
+
+    const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+    await user.click(kebabButtons[0])
+    await user.click(screen.getByText('View run history of this version'))
+
+    expect(defaultProps.onViewRunHistory).toHaveBeenCalledWith(defaultProps.versions[0].version)
+  })
+
+  it('calls onEditVersion via kebab menu', async () => {
+    const user = userEvent.setup()
+    render(<VersionHistoryPanel {...defaultProps} />)
+
+    const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+    await user.click(kebabButtons[0])
+    await user.click(screen.getByText('Edit version name and description'))
+
+    expect(defaultProps.onEditVersion).toHaveBeenCalledWith(defaultProps.versions[0])
+  })
+
+  it('calls onDuplicateVersion via kebab menu', async () => {
+    const user = userEvent.setup()
+    render(<VersionHistoryPanel {...defaultProps} />)
+
+    const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+    await user.click(kebabButtons[0])
+    await user.click(screen.getByText('Duplicate as new workflow'))
+
+    expect(defaultProps.onDuplicateVersion).toHaveBeenCalledWith(defaultProps.versions[0])
   })
 
   it('renders the status filter', () => {
@@ -400,6 +441,91 @@ describe('VersionHistoryPanel', () => {
     await user.click(screen.getByText('Publish this version'))
 
     expect(defaultProps.onPublishVersion).toHaveBeenCalledWith(3)
+  })
+
+  it('disables "View run history" when version has no runs', async () => {
+    const user = userEvent.setup()
+    render(<VersionHistoryPanel {...defaultProps} executedVersionNumbers={new Map()} />)
+
+    const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+    await user.click(kebabButtons[0])
+
+    const viewRunHistoryBtn = screen.getByRole('menuitem', { name: /View run history of this version/ })
+    expect(viewRunHistoryBtn).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('enables "View run history" when version has runs', async () => {
+    const user = userEvent.setup()
+    render(<VersionHistoryPanel {...defaultProps} />)
+
+    const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+    await user.click(kebabButtons[0])
+
+    const viewRunHistoryBtn = screen.getByRole('menuitem', { name: /View run history of this version/ })
+    expect(viewRunHistoryBtn).not.toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('disables publish for already-published version', async () => {
+    const user = userEvent.setup()
+    render(<VersionHistoryPanel {...defaultProps} />)
+
+    const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+    await user.click(kebabButtons[2])
+
+    const publishBtn = screen.getByRole('menuitem', { name: /Publish this version/ })
+    expect(publishBtn).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows publish_name as primary text when set', () => {
+    const version = createMockVersion({
+      version: 1,
+      publish_name: 'Release 1.0',
+      created_at: '2026-05-19T10:00:00.000Z',
+      created_by_username: 'testuser',
+    })
+    render(<VersionHistoryPanel {...defaultProps} versions={[version]} />)
+
+    expect(screen.getByText('Release 1.0')).toBeInTheDocument()
+  })
+
+  it('disables restore, edit, and duplicate when canEdit is false', async () => {
+    const user = userEvent.setup()
+    render(
+      <VersionHistoryPanel
+        {...defaultProps}
+        versions={[createMockVersion({ version: 1, status: 'draft', created_by_username: 'user1' })]}
+        canEdit={false}
+        editTooltip="You do not have permission"
+      />
+    )
+
+    const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+    await user.click(kebabButtons[0])
+
+    expect(screen.getByRole('menuitem', { name: /Restore version/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('menuitem', { name: /Edit version name/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('menuitem', { name: /Duplicate as new/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('menuitem', { name: /Publish this version/ })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('does not disable export and open in new window when canEdit is false', async () => {
+    const user = userEvent.setup()
+    render(
+      <VersionHistoryPanel
+        {...defaultProps}
+        versions={[createMockVersion({ version: 1, status: 'draft', created_by_username: 'user1' })]}
+        canEdit={false}
+      />
+    )
+
+    const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+    await user.click(kebabButtons[0])
+
+    expect(screen.getByRole('menuitem', { name: /Export workflow/ })).not.toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('menuitem', { name: /Open version in new window/ })).not.toHaveAttribute(
+      'aria-disabled',
+      'true'
+    )
   })
 
   it('has no accessibility violations', async () => {

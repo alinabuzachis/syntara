@@ -29,6 +29,8 @@ type UseBuilderVersionHistoryParams = {
   showSuccess: (options: AlertMessage) => void
   showError: (options: AlertMessage) => void
   expandAllEvent?: EventTarget
+  searchParams: URLSearchParams
+  setSearchParams: (params: URLSearchParams) => void
 }
 
 function loadDefinitionIntoStore(
@@ -64,6 +66,8 @@ export function useBuilderVersionHistory({
   showSuccess,
   showError,
   expandAllEvent,
+  searchParams,
+  setSearchParams,
 }: UseBuilderVersionHistoryParams) {
   const { loadWorkflowWithEdges, markClean } = useWorkflowStore()
   const queryClient = useQueryClient()
@@ -77,6 +81,8 @@ export function useBuilderVersionHistory({
     publishVersion,
     restoreMutation,
     versionsQuery,
+    updateVersionMetadata,
+    updateMetadataMutation,
   } = useVersionHistory({ workflowId, isNew })
 
   const viewedVersionQuery = workflowClient.useQuery(
@@ -100,16 +106,23 @@ export function useBuilderVersionHistory({
     expandAllEvent?.dispatchEvent(new Event('expandAll'))
   }, [isViewingVersion, viewedVersionQuery.data, loadWorkflowWithEdges, markClean, expandAllEvent])
 
+  const clearVersionParam = useCallback(() => {
+    const params = new URLSearchParams(searchParams)
+    params.delete('version')
+    setSearchParams(params)
+  }, [searchParams, setSearchParams])
+
   const handleExitVersionView = useCallback(() => {
     dispatch({ type: 'EXIT_VERSION_VIEW' })
     dispatch({ type: 'SET_VERSION_HISTORY_OPEN', payload: false })
+    clearVersionParam()
     if (workflow?.version?.workflow_definition) {
       const def = workflow.version.workflow_definition as unknown as Record<string, unknown>
       loadDefinitionIntoStore(def, loadWorkflowWithEdges)
       markClean()
       expandAllEvent?.dispatchEvent(new Event('expandAll'))
     }
-  }, [dispatch, workflow, loadWorkflowWithEdges, markClean, expandAllEvent])
+  }, [dispatch, workflow, loadWorkflowWithEdges, markClean, expandAllEvent, clearVersionParam])
 
   const handleConfirmRestore = useCallback(() => {
     if (!restoreDialog.item || !workflowId) return
@@ -121,6 +134,7 @@ export function useBuilderVersionHistory({
           restoreDialog.close()
           dispatch({ type: 'EXIT_VERSION_VIEW' })
           dispatch({ type: 'SET_VERSION_HISTORY_OPEN', payload: false })
+          clearVersionParam()
           if (data.version?.workflow_definition) {
             const def = data.version.workflow_definition as unknown as Record<string, unknown>
             loadDefinitionIntoStore(def, loadWorkflowWithEdges)
@@ -149,6 +163,7 @@ export function useBuilderVersionHistory({
     queryClient,
     showSuccess,
     showError,
+    clearVersionParam,
   ])
 
   const restoreDialogTitle = restoreDialog.item?.dateTime
@@ -173,5 +188,7 @@ export function useBuilderVersionHistory({
     restoreDialogTitle,
     restoreMutation,
     versionsQuery,
+    updateVersionMetadata,
+    updateMetadataMutation,
   }
 }

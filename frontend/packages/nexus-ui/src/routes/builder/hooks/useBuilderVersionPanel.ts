@@ -10,6 +10,7 @@ import type { BuilderAction } from '../builderReducer'
 import { useBuilderVersionHistory } from './useBuilderVersionHistory'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
+type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionRead']
 
 type UseBuilderVersionPanelParams = {
   workflowId: string | null
@@ -22,6 +23,12 @@ type UseBuilderVersionPanelParams = {
   workflowName: string
   expandAllEvent: EventTarget
   baseHandleToggleVersionHistory: () => void
+  searchParams: URLSearchParams
+  setSearchParams: (params: URLSearchParams) => void
+  onOpenRunHistory: (versionNumber: number) => void
+  onClearExecutionFilters: () => void
+  executedVersionNumbers: Map<number, string>
+  onDuplicateVersion: (version: WorkflowVersion) => void
 }
 
 export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
@@ -35,6 +42,12 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     handleSaveWorkflow,
     expandAllEvent,
     baseHandleToggleVersionHistory,
+    searchParams,
+    setSearchParams,
+    onOpenRunHistory,
+    onClearExecutionFilters,
+    executedVersionNumbers,
+    onDuplicateVersion,
   } = params
   const { isDirty } = useWorkflowStore()
   const { showSuccess, showError } = useAlerts()
@@ -57,6 +70,8 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     restoreDialogTitle,
     restoreMutation,
     versionsQuery,
+    updateVersionMetadata,
+    updateMetadataMutation,
   } = useBuilderVersionHistory({
     workflowId,
     isNew,
@@ -66,6 +81,8 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     showSuccess,
     showError,
     expandAllEvent,
+    searchParams,
+    setSearchParams,
   })
 
   const { refetch: refetchVersions } = versionsQuery
@@ -73,11 +90,43 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
   const handleToggleVersionHistory = useCallback(() => {
     baseHandleToggleVersionHistory()
     if (!versionHistoryOpen) {
+      onClearExecutionFilters()
       detachPromise(refetchVersions())
     }
-  }, [baseHandleToggleVersionHistory, versionHistoryOpen, refetchVersions])
+  }, [baseHandleToggleVersionHistory, versionHistoryOpen, onClearExecutionFilters, refetchVersions])
 
   const versionPublishDialog = useDialogState<number>()
+  const editVersionDialog = useDialogState<WorkflowVersion>()
+
+  const handleEditVersionSave = useCallback(
+    (publishName: string | null, changeDescription: string | null) => {
+      if (!editVersionDialog.item) return
+      updateVersionMetadata(editVersionDialog.item.version, publishName, changeDescription)
+      editVersionDialog.close()
+    },
+    [editVersionDialog, updateVersionMetadata]
+  )
+
+  const handleViewRunHistory = useCallback(
+    (versionNumber: number) => {
+      if (isViewingVersion) {
+        handleExitVersionView()
+      } else {
+        dispatch({ type: 'SET_VERSION_HISTORY_OPEN', payload: false })
+      }
+      onOpenRunHistory(versionNumber)
+    },
+    [isViewingVersion, handleExitVersionView, dispatch, onOpenRunHistory]
+  )
+
+  const setVersionParam = useCallback(
+    (version: number) => {
+      const params = new URLSearchParams(searchParams)
+      params.set('version', String(version))
+      setSearchParams(params)
+    },
+    [searchParams, setSearchParams]
+  )
 
   const [pendingViewVersion, setPendingViewVersion] = useState<number | null>(null)
   const handleSelectVersion = useCallback(
@@ -86,15 +135,16 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
         setPendingViewVersion(version)
       } else {
         dispatch({ type: 'SET_VIEWING_VERSION', payload: version })
+        setVersionParam(version)
       }
     },
-    [isDirty, isViewingVersion, dispatch]
+    [isDirty, isViewingVersion, dispatch, setVersionParam]
   )
 
-  const openRestoreDialogForCurrentVersion =
-    isViewingVersion && viewedVersionDate && viewingVersion !== null
-      ? () => restoreDialog.open({ version: viewingVersion, dateTime: viewedVersionDate })
-      : undefined
+  const canRestoreCurrentVersion = isViewingVersion && viewedVersionDate != null && viewingVersion !== null
+  const openRestoreDialogForCurrentVersion = canRestoreCurrentVersion
+    ? () => restoreDialog.open({ version: viewingVersion, dateTime: viewedVersionDate })
+    : undefined
 
   const handleSaveBeforeView = useCallback(async (): Promise<boolean> => {
     const versionToView = pendingViewVersion
@@ -102,16 +152,18 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     setPendingViewVersion(null)
     if (saved && versionToView !== null) {
       dispatch({ type: 'SET_VIEWING_VERSION', payload: versionToView })
+      setVersionParam(versionToView)
     }
     return saved
-  }, [pendingViewVersion, handleSaveWorkflow, dispatch])
+  }, [pendingViewVersion, handleSaveWorkflow, dispatch, setVersionParam])
 
   const handleViewWithoutSaving = useCallback(() => {
     if (pendingViewVersion !== null) {
       dispatch({ type: 'SET_VIEWING_VERSION', payload: pendingViewVersion })
+      setVersionParam(pendingViewVersion)
     }
     setPendingViewVersion(null)
-  }, [pendingViewVersion, dispatch])
+  }, [pendingViewVersion, dispatch, setVersionParam])
 
   const handleCancelSaveBeforeView = useCallback(() => {
     setPendingViewVersion(null)
@@ -139,6 +191,10 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
       onExportVersion: (v: number) => exportVersion(v),
       onOpenInNewWindow: openInNewWindow,
       onPublishVersion: (v: number) => versionPublishDialog.open(v),
+      onViewRunHistory: handleViewRunHistory,
+      executedVersionNumbers,
+      onEditVersion: (v: WorkflowVersion) => editVersionDialog.open(v),
+      onDuplicateVersion,
 
       publishDialog: {
         isOpen: versionPublishDialog.isOpen,
@@ -164,6 +220,15 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
         isLoading: restoreMutation.isPending,
         onClose: restoreDialog.close,
         onConfirm: handleConfirmRestore,
+      },
+
+      editDialog: {
+        isOpen: editVersionDialog.isOpen,
+        isSaving: updateMetadataMutation.isPending,
+        onClose: editVersionDialog.close,
+        onSave: handleEditVersionSave,
+        initialPublishName: editVersionDialog.item?.publish_name,
+        initialDescription: editVersionDialog.item?.change_description,
       },
     },
   }

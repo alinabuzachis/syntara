@@ -915,6 +915,31 @@ export const handlers = [
     return HttpResponse.json(mutableWorkflow)
   }),
 
+  http.patch('/api/v1/workflows/:workflowId/versions/:version', async (request) => {
+    const workflowId = String(request.params.workflowId)
+    const versionNum = Number(request.params.version)
+    const workflow = workflows.find((w) => w.id === workflowId)
+    if (!workflow) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Workflow not found', code: 'WORKFLOW_NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+    const versions = getOrCreateVersionStore(workflowId, workflow)
+    const found = versions.find((v) => v.version === versionNum)
+    if (!found) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: `Version ${versionNum} not found`, code: 'VERSION_NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+    const body = (await request.request.json()) as { publish_name?: string | null; change_description?: string | null }
+    if (body.publish_name !== undefined) found.publish_name = body.publish_name
+    if (body.change_description !== undefined) found.change_description = body.change_description
+    found.updated_at = new Date().toISOString()
+    return HttpResponse.json(found)
+  }),
+
   http.get('/api/v1/workflows/:workflowId/versions', (request) => {
     const workflowId = String(request.params.workflowId)
     const workflow = workflows.find((w) => w.id === workflowId)

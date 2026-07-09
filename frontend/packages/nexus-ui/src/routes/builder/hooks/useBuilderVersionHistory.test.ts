@@ -41,6 +41,8 @@ vi.mock('../../../client', () => ({
       data: opts.enabled
         ? {
             created_at: '2026-05-19T14:30:00.000Z',
+            change_description: 'Bug fix',
+            publish_name: 'Release 1.0',
             workflow_definition: {
               schema_version: '2.0.0',
               name: 'test',
@@ -91,6 +93,8 @@ function createDefaultParams() {
     dispatch: vi.fn(),
     showSuccess: vi.fn(),
     showError: vi.fn(),
+    searchParams: new URLSearchParams(),
+    setSearchParams: vi.fn(),
   }
 }
 
@@ -138,6 +142,26 @@ describe('useBuilderVersionHistory', () => {
     })
 
     expect(result.current.viewedVersionDate).toBe('2026-05-19T14:30:00.000Z')
+  })
+
+  it('returns viewed version description when viewing a version', () => {
+    const params = createDefaultParams()
+    params.viewingVersion = 2
+    const { result } = renderHook(() => useBuilderVersionHistory(params), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    expect(result.current.viewedVersionDescription).toBe('Bug fix')
+  })
+
+  it('returns viewed version publish name when viewing a version', () => {
+    const params = createDefaultParams()
+    params.viewingVersion = 2
+    const { result } = renderHook(() => useBuilderVersionHistory(params), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    expect(result.current.viewedVersionPublishName).toBe('Release 1.0')
   })
 
   it('loads version definition into store when viewing a version', () => {
@@ -404,6 +428,24 @@ describe('useBuilderVersionHistory', () => {
     })
 
     expect(params.dispatch).toHaveBeenCalledWith({ type: 'EXIT_VERSION_VIEW' })
+  })
+
+  it('clears version URL param on handleExitVersionView', () => {
+    const setSearchParams = vi.fn()
+    const params = createDefaultParams()
+    params.setSearchParams = setSearchParams
+    params.searchParams = new URLSearchParams('version=2')
+    const { result } = renderHook(() => useBuilderVersionHistory(params), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.handleExitVersionView()
+    })
+
+    expect(setSearchParams).toHaveBeenCalled()
+    const calledParams = setSearchParams.mock.calls[0][0] as URLSearchParams
+    expect(calledParams.has('version')).toBe(false)
   })
 
   it('exposes restoreMutation for loading state', () => {

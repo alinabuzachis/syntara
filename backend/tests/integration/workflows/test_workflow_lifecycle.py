@@ -10,7 +10,7 @@ Tests the complete workflow management lifecycle:
 7. Verify soft delete prevents access
 """
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -293,3 +293,133 @@ async def test_workflow_version_immutability(jwt_client: AsyncClient, test_proje
     # But version 1 still has original definition
     v1_def = v1_again["workflow_definition"]
     assert v1_def["nodes"][0]["id"] == "immutable_activity"
+
+
+@pytest.mark.asyncio
+async def test_update_version_metadata_via_patch(jwt_client: AsyncClient, test_project_id: UUID) -> None:
+    """Test PATCH /workflows/{id}/versions/{version} updates metadata without affecting the definition."""
+    create_payload = {
+        "name": "version-metadata-test",
+        "project_id": str(test_project_id),
+        "workflow_definition": create_minimal_workflow_definition(
+            name="version-metadata-test",
+            description="Metadata test",
+            activity_id="activity_1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=create_payload)
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    # PATCH version metadata — both fields
+    patch_response = await jwt_client.patch(
+        f"/api/v1/workflows/{workflow_id}/versions/1",
+        json={"publish_name": "Release 1.0", "change_description": "First release"},
+    )
+    assert patch_response.status_code == 200
+    patched = patch_response.json()
+    assert patched["publish_name"] == "Release 1.0"
+    assert patched["change_description"] == "First release"
+    assert patched["version"] == 1
+
+    # Verify via GET that metadata persisted
+    get_response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}/versions/1")
+    assert get_response.status_code == 200
+    version_data = get_response.json()
+    assert version_data["publish_name"] == "Release 1.0"
+    assert version_data["change_description"] == "First release"
+
+    # Verify the workflow definition is unchanged
+    assert version_data["workflow_definition"]["name"] == "version-metadata-test"
+
+
+@pytest.mark.asyncio
+async def test_update_version_metadata_partial(jwt_client: AsyncClient, test_project_id: UUID) -> None:
+    """Test PATCH with only publish_name leaves change_description unchanged."""
+    create_payload = {
+        "name": "partial-metadata-test",
+        "project_id": str(test_project_id),
+        "workflow_definition": create_minimal_workflow_definition(
+            name="partial-metadata-test",
+            description="Partial metadata test",
+            activity_id="activity_1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=create_payload)
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    # Get the original change_description (set by service on create)
+    get_response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}/versions/1")
+    original_description = get_response.json()["change_description"]
+
+    # PATCH only publish_name
+    patch_response = await jwt_client.patch(
+        f"/api/v1/workflows/{workflow_id}/versions/1",
+        json={"publish_name": "Named Version"},
+    )
+    assert patch_response.status_code == 200
+    patched = patch_response.json()
+    assert patched["publish_name"] == "Named Version"
+    assert patched["change_description"] == original_description
+
+
+@pytest.mark.asyncio
+async def test_update_version_metadata_empty_body(jwt_client: AsyncClient, test_project_id: UUID) -> None:
+    """Test PATCH with empty body returns 200 without modifying the record."""
+    create_payload = {
+        "name": "empty-body-test",
+        "project_id": str(test_project_id),
+        "workflow_definition": create_minimal_workflow_definition(
+            name="empty-body-test",
+            description="Empty body test",
+            activity_id="activity_1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=create_payload)
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    patch_response = await jwt_client.patch(
+        f"/api/v1/workflows/{workflow_id}/versions/1",
+        json={},
+    )
+    assert patch_response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_update_version_metadata_workflow_not_found(jwt_client: AsyncClient) -> None:
+    """Test PATCH returns 404 for nonexistent workflow."""
+    fake_id = str(uuid4())
+    patch_response = await jwt_client.patch(
+        f"/api/v1/workflows/{fake_id}/versions/1",
+        json={"publish_name": "x"},
+    )
+    assert patch_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_version_metadata_version_not_found(jwt_client: AsyncClient, test_project_id: UUID) -> None:
+    """Test PATCH returns 404 for nonexistent version."""
+    create_payload = {
+        "name": "version-not-found-test",
+        "project_id": str(test_project_id),
+        "workflow_definition": create_minimal_workflow_definition(
+            name="version-not-found-test",
+            description="Version not found test",
+            activity_id="activity_1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=create_payload)
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    patch_response = await jwt_client.patch(
+        f"/api/v1/workflows/{workflow_id}/versions/999",
+        json={"publish_name": "x"},
+    )
+    assert patch_response.status_code == 404
