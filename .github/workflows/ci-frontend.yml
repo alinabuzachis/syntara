@@ -379,8 +379,8 @@ jobs:
             const startupWindow = 15 * 60 * 1000;
             const interval = 30 * 1000;
             const start = Date.now();
-            const pipelineCheckName = 'Red Hat Konflux kflux-prd-rh03 / Konflux kflux-prd-rh03 / ansible-automation-orchestrator-ui-devel-on-pull-request';
-            const conformaCheckName = 'conforma-on-pull-request-devel / ansible-automation-orchestrator-ui-devel';
+            const pipelineCheckName = 'Konflux kflux-prd-rh03 / ansible-automation-orchestrator-ui-devel-on-pull-request';
+            const conformaCheckName = 'Red Hat Konflux / conforma-on-pull-request-devel / ansible-automation-orchestrator-ui-devel';
 
             // Phase 1: wait up to 15 minutes for the parent pipeline check to appear.
             // If it never appears the Tekton CEL did not match (no frontend/ changes) — skip.
