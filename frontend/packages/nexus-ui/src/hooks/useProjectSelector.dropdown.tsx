@@ -23,18 +23,18 @@ import type { ProjectRead } from '../routes/access/types'
 import { ProjectFormModal } from '../routes/access-management/ProjectFormModal'
 import { detachPromise } from '../utils/detachPromise'
 
-import { PROJECT_SELECTOR_LIST_MAX_HEIGHT, PROJECT_SELECTOR_WIDTH, projectSelectorUx } from './projectSelectorUtils'
+import {
+  getProjectTogglePrefixLabelStyle,
+  PROJECT_SELECTOR_LIST_MAX_HEIGHT,
+  PROJECT_SELECTOR_WIDTH,
+  projectSelectorUx,
+} from './projectSelectorUtils'
 import { ALL_PROJECTS_VALUE, CREATE_PROJECT_VALUE, VIEW_MORE_VALUE } from './useProjectSelector.constants'
 
 /**
  * Class matches `.pf-v6-c-input-group__text`; a string avoids importing `input-group.mjs` (pulls `.css`, breaks Vitest).
  */
 const PROJECT_TOGGLE_PREFIX_TEXT_CLASS = 'pf-v6-c-input-group__text' as const
-const projectTogglePrefixLabelStyle: CSSProperties = {
-  color: 'var(--pf-t--global--text--color--subtle)',
-  paddingInlineStart: 'var(--pf-t--global--spacer--control--horizontal--default)',
-  paddingInlineEnd: 'var(--pf-t--global--spacer--xs)',
-}
 
 const descriptionStyle: CSSProperties = {
   display: 'block',
@@ -245,7 +245,10 @@ export function ProjectSelectorDropdown(props: Readonly<ProjectSelectorDropdownP
             >
               <TextInputGroup isPlain isDisabled={isDisabled}>
                 <InputGroupItem isPlain isBox={false}>
-                  <Content className={PROJECT_TOGGLE_PREFIX_TEXT_CLASS} style={projectTogglePrefixLabelStyle}>
+                  <Content
+                    className={PROJECT_TOGGLE_PREFIX_TEXT_CLASS}
+                    style={getProjectTogglePrefixLabelStyle(isDisabled)}
+                  >
                     {projectSelectorUx.togglePrefixLabel}
                   </Content>
                 </InputGroupItem>

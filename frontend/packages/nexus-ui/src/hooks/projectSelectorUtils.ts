@@ -3,6 +3,8 @@
  * Keep logic comparisons out of `projectSelectorUx` — use internal keys in code instead.
  */
 
+import type { CSSProperties } from 'react'
+
 /**
  * No `--pf-t--global--*` width token exists for "select menu max width".
  * PatternFly's scrollable menu content often uses ~`18.75rem`; we match that for width.
@@ -32,3 +34,19 @@ export const projectSelectorUx = {
   /** Select group: full project list for the current typeahead / page (includes favorites). */
   projectsGroupLabel: 'Projects',
 } as const
+
+/**
+ * Returns inline styles for the "Project:" prefix label in the project selector toggle.
+ * When disabled, inherits the MenuToggle's disabled text color for proper contrast.
+ * When enabled, uses regular text color (not subtle) for better contrast on the toggle background.
+ */
+export function getProjectTogglePrefixLabelStyle(isDisabled: boolean | undefined): CSSProperties {
+  return {
+    // When disabled, inherit PatternFly's disabled text color (--pf-v6-c-menu-toggle--disabled--Color).
+    // When enabled, use regular text color for better contrast on MenuToggle's background.
+    // (Subtle text color is designed for dark backgrounds; MenuToggle has light grey background in dark mode.)
+    color: isDisabled ? 'inherit' : 'var(--pf-t--global--text--color--regular)',
+    paddingInlineStart: 'var(--pf-t--global--spacer--control--horizontal--default)',
+    paddingInlineEnd: 'var(--pf-t--global--spacer--xs)',
+  }
+}
