@@ -100,7 +100,7 @@ export function useWorkflowImportExport({
   )
 
   const handleExport = useCallback(() => {
-    const { currentWorkflow, edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
+    const { currentWorkflow, edges, nodePositions } = useWorkflowStore.getState()
     if (!currentWorkflow) {
       dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
       return
@@ -112,7 +112,7 @@ export function useWorkflowImportExport({
       const description = currentWorkflow.description ?? ''
       const definition = buildWorkflowDefinition(name, description, activities, triggers, {
         edges,
-        nodePositions: _positionsUserModified ? nodePositions : {},
+        nodePositions,
       })
       downloadWorkflowDefinition(definition as Record<string, unknown>, name)
     } catch (err: unknown) {

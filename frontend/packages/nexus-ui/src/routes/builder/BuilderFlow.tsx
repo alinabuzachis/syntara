@@ -67,7 +67,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const {
     workflowId,
     canEdit = true,
-    triggerLayout,
     panelOpen,
     activeEdgeButtonNodeId,
     activeEdgeButtonHandle,
@@ -175,12 +174,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
       // and relying on the init effect to re-populate creates a window where any
       // condition failure in the init effect leaves the canvas permanently blank.
       isInitializedRef.current = false
-      const positions = useWorkflowStore.getState().nodePositions
+      const { nodePositions: positions, currentWorkflow } = useWorkflowStore.getState()
+      const trigs = currentWorkflow?.triggers ?? []
       const currentInitialNodes = initialNodesRef.current
       const nodesWithPositions =
         Object.keys(positions).length > 0
           ? currentInitialNodes.map((n) => {
-              const stored = positions[n.id]
+              const stored = positions[toPositionKey(n.id, trigs)]
               return stored ? { ...n, position: stored } : n
             })
           : currentInitialNodes
@@ -294,7 +294,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
     [isReadOnly]
   )
 
-  // Read positions snapshot once per version (non-reactive — avoids re-renders during drag)
   const hasStoredPositions = useMemo(
     () => Object.keys(useWorkflowStore.getState().nodePositions).length > 0,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -315,7 +314,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const { isInitialized } = useWorkflowInitialization({
     nodes,
     workflowVersion,
-    triggerLayout,
     onLayout,
     hasStoredPositions,
     onAfterInitialLayout: clearUndoHistory,

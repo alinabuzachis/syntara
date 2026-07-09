@@ -71,6 +71,26 @@ describe('ExecutionViewContent', () => {
     })
   })
 
+  it('passes extracted node positions to loadWorkflowWithEdges to prevent re-layout on return', async () => {
+    const workflow = {
+      id: 'workflow-positions',
+      triggers: [{ id: 'trigger_manual', type: 'manual_trigger', position: { x: 50, y: 75 } }],
+      nodes: [{ id: 'task-1', type: 'script', name: 'Task', parameters: {}, position: { x: 100, y: 200 } }],
+      edges: [{ from: 'trigger_manual', to: 'task-1' }],
+      workflow: { activities: [{ id: 'task-1', type: 'script', name: 'Task', parameters: {} }] },
+    } as never
+
+    render(<ExecutionViewContent workflow={workflow} executionId="exec-1" executionStatus={null} />)
+
+    await waitFor(() => {
+      expect(mockLoadWorkflowWithEdges).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ 'task-1': { x: 100, y: 200 }, trigger_manual: { x: 50, y: 75 } })
+      )
+    })
+  })
+
   it('adds trigger edges for parallel workflows', async () => {
     const workflow = {
       id: 'workflow-parallel',

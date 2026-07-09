@@ -93,14 +93,14 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
       // Atomic operation to set both workflow and edges in a single update
       // This prevents race conditions where BuilderFlow renders with workflow but no edges
       loadWorkflowWithEdges: (workflow, edges, nodePositions, projectId) => {
-        const hasPositions = nodePositions != null && Object.keys(nodePositions).length > 0
         set((state) => ({
           currentWorkflow: workflow,
           projectId: projectId ?? null,
           workflowVersion: state.workflowVersion + 1,
           edges,
           nodePositions: nodePositions ?? {},
-          _positionsUserModified: hasPositions,
+          _positionsUserModified: nodePositions != null && Object.keys(nodePositions).length > 0,
+          _preserveHistoryOnLayout: false,
           isDirty: false,
           validationErrorCount: 0,
         }))

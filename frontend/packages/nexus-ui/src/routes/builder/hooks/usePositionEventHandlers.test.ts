@@ -6,7 +6,6 @@ import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { usePositionEventHandlers } from './usePositionEventHandlers'
 
 const mockUpdateNodePositions = vi.fn()
-const mockClearNodePositions = vi.fn()
 const mockFitView = vi.fn().mockResolvedValue(undefined)
 
 let storeState: Record<string, unknown> = {}
@@ -23,7 +22,6 @@ vi.mock('../../../stores/useWorkflowStore', () => {
     useWorkflowStore,
     useWorkflowStoreActions: () => ({
       updateNodePositions: mockUpdateNodePositions,
-      clearNodePositions: mockClearNodePositions,
     }),
     selectCurrentWorkflow: (state: Record<string, unknown>) => state.currentWorkflow,
     selectPositionUndoVersion: (state: Record<string, unknown>) => state._positionUndoVersion ?? 0,
@@ -89,17 +87,19 @@ describe('usePositionEventHandlers', () => {
   })
 
   describe('onLayout', () => {
-    it('calls clearNodePositions when markDirty is true', () => {
+    it('calls updateNodePositions with markDirty true when markDirty is true', () => {
       const nodes = [makeNode('task-1')]
       const { result } = renderSyncHook(nodes)
 
       result.current.onLayout({ markDirty: true })
 
-      expect(mockClearNodePositions).toHaveBeenCalled()
-      expect(mockUpdateNodePositions).not.toHaveBeenCalled()
+      expect(mockUpdateNodePositions).toHaveBeenCalledWith(
+        { 'task-1': { x: 0, y: 0 } },
+        { skipTracking: false, markDirty: true }
+      )
     })
 
-    it('calls updateNodePositions when markDirty is false', () => {
+    it('calls updateNodePositions with markDirty false when markDirty is false', () => {
       const nodes = [makeNode('task-1')]
       const { result } = renderSyncHook(nodes)
 
@@ -109,7 +109,6 @@ describe('usePositionEventHandlers', () => {
         { 'task-1': { x: 0, y: 0 } },
         { skipTracking: true, markDirty: false }
       )
-      expect(mockClearNodePositions).not.toHaveBeenCalled()
     })
 
     it('maps trigger node IDs to definition IDs in layout positions', () => {

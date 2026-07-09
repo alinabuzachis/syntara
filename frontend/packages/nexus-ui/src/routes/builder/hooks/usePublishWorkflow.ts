@@ -20,7 +20,7 @@ function getDirtyWorkflowDefinition(
   workflowName: string | undefined,
   workflowDescription: string | undefined
 ): Record<string, unknown> | undefined {
-  const { currentWorkflow, isDirty, edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
+  const { currentWorkflow, isDirty, edges, nodePositions } = useWorkflowStore.getState()
   if (!isDirty || !currentWorkflow) return undefined
   const wf = currentWorkflow.workflow as { name?: string; description?: string } | undefined
   return buildWorkflowDefinition(
@@ -28,7 +28,7 @@ function getDirtyWorkflowDefinition(
     workflowDescription || String(wf?.description ?? ''),
     currentWorkflow.workflow.activities ?? [],
     currentWorkflow.triggers ?? [],
-    { edges, nodePositions: _positionsUserModified ? nodePositions : {} }
+    { edges, nodePositions }
   ) as unknown as Record<string, unknown>
 }
 

@@ -118,52 +118,25 @@ describe('useWorkflowInitialization', () => {
     expect(mockOnVersionChange).toHaveBeenCalled()
   })
 
-  it('triggers layout when triggerLayout changes', async () => {
+  it('skips layout when hasStoredPositions is true', async () => {
     const measuredNodes = [{ id: 'node-1', measured: { width: 100, height: 50 } }] as never[]
 
-    const { rerender } = renderHook(
-      ({ triggerLayout }) =>
-        useWorkflowInitialization({
-          nodes: measuredNodes,
-          workflowVersion: 1,
-          triggerLayout,
-          onLayout: mockOnLayout,
-        }),
-      { initialProps: { triggerLayout: 0 } }
+    renderHook(() =>
+      useWorkflowInitialization({
+        nodes: measuredNodes,
+        workflowVersion: 1,
+        onLayout: mockOnLayout,
+        hasStoredPositions: true,
+      })
     )
 
-    // Initialize
     await act(async () => {
       await Promise.resolve()
     })
 
     act(() => {
-      vi.advanceTimersByTime(50)
+      vi.advanceTimersByTime(100)
     })
-
-    mockOnLayout.mockClear()
-
-    // Trigger layout
-    rerender({ triggerLayout: 1 })
-
-    expect(mockOnLayout).toHaveBeenCalled()
-  })
-
-  it('does not trigger layout when not initialized', () => {
-    const unmeasuredNodes = [{ id: 'node-1' }] as never[]
-
-    const { rerender } = renderHook(
-      ({ triggerLayout }) =>
-        useWorkflowInitialization({
-          nodes: unmeasuredNodes,
-          workflowVersion: 1,
-          triggerLayout,
-          onLayout: mockOnLayout,
-        }),
-      { initialProps: { triggerLayout: 0 } }
-    )
-
-    rerender({ triggerLayout: 1 })
 
     expect(mockOnLayout).not.toHaveBeenCalled()
   })

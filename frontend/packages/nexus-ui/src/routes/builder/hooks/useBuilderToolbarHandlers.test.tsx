@@ -312,8 +312,8 @@ describe('useBuilderToolbarHandlers', () => {
     expect(executeWorkflow).not.toHaveBeenCalled()
   })
 
-  it('handleRunWorkflow skips save when not isDirty', async () => {
-    const handleSaveWorkflow = vi.fn()
+  it('handleRunWorkflow always saves before executing (even when not isDirty)', async () => {
+    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
     const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
       args[1]?.onSuccess?.({ id: 'exec-99' })
     }) as MockedFunction<ExecuteWorkflow>
@@ -324,7 +324,7 @@ describe('useBuilderToolbarHandlers', () => {
 
     await result.current.handleRunWorkflow()
 
-    expect(handleSaveWorkflow).not.toHaveBeenCalled()
+    expect(handleSaveWorkflow).toHaveBeenCalledTimes(1)
     expect(executeWorkflow).toHaveBeenCalledTimes(1)
   })
 

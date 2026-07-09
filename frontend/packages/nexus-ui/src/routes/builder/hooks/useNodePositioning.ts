@@ -1,6 +1,8 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { useEffect, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { toPositionKey } from '../../../utils/triggerNodeIds'
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { FlowPosition } from '../types'
 import type { EdgeType } from '../utils/workflowToGraph'
@@ -106,6 +108,7 @@ type LoopPositioningContext = {
   getViewport: () => { x: number; y: number; zoom: number }
   updateNode: (nodeId: string, updates: { position: { x: number; y: number } }) => void
   updateNodePositions: UseNodePositioningParams['updateNodePositions']
+  triggers: Array<{ id: string }>
   desiredPosition: FlowPosition | null
   onClearDesiredPosition?: () => void
   loopPositionTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>
@@ -180,7 +183,11 @@ function positionLoopBranch(ctx: LoopPositioningContext) {
   })
 
   if (Object.keys(loopBranchPositions).length > 0) {
-    ctx.updateNodePositions(loopBranchPositions, { skipTracking: true, markDirty: false })
+    const storePositions: Record<string, { x: number; y: number }> = {}
+    for (const [id, pos] of Object.entries(loopBranchPositions)) {
+      storePositions[toPositionKey(id, ctx.triggers)] = pos
+    }
+    ctx.updateNodePositions(storePositions, { skipTracking: true, markDirty: false })
   }
 
   if (clearDesiredAfterUpdate.should) {
@@ -195,6 +202,7 @@ type StandardPositioningContext = {
   setNodes: Dispatch<SetStateAction<NodeType[]>>
   getViewport: () => { x: number; y: number; zoom: number }
   updateNodePositions: UseNodePositioningParams['updateNodePositions']
+  triggers: Array<{ id: string }>
   desiredPosition: FlowPosition | null
   onClearDesiredPosition?: () => void
 }
@@ -229,7 +237,12 @@ function positionStandardNodes(ctx: StandardPositioningContext) {
     })
   )
 
-  ctx.updateNodePositions(positionsToApply, { skipTracking: true, markDirty: false })
+  // Map React Flow display IDs to definition IDs for consistent store keys
+  const storePositions: Record<string, { x: number; y: number }> = {}
+  for (const [id, pos] of Object.entries(positionsToApply)) {
+    storePositions[toPositionKey(id, ctx.triggers)] = pos
+  }
+  ctx.updateNodePositions(storePositions, { skipTracking: true, markDirty: false })
 
   if (useDesired && firstNodeId) {
     ctx.onClearDesiredPosition?.()
@@ -278,6 +291,7 @@ export function useNodePositioning({
     // This prevents React from batching our setNodes call with useNodeUpdates' setNodes
     const timeoutId = setTimeout(() => {
       const loopBodyNodeMap = buildLoopBodyNodeMap(edges)
+      const triggers = useWorkflowStore.getState().currentWorkflow?.triggers ?? []
 
       const nodesToPosition = nodes.filter((node) => {
         if (!newlyAddedNodeIdsRef.current.has(node.id) || !node.measured) return false
@@ -297,6 +311,7 @@ export function useNodePositioning({
           getViewport,
           updateNode,
           updateNodePositions,
+          triggers,
           desiredPosition,
           onClearDesiredPosition,
           loopPositionTimerRef,
@@ -309,6 +324,7 @@ export function useNodePositioning({
           setNodes,
           getViewport,
           updateNodePositions,
+          triggers,
           desiredPosition,
           onClearDesiredPosition,
         })

@@ -165,7 +165,7 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
   const handleVerify = useCallback(
     (onValid?: () => void, options?: { silent?: boolean }) => {
       const silent = options?.silent ?? false
-      const { currentWorkflow, edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
+      const { currentWorkflow, edges, nodePositions } = useWorkflowStore.getState()
       if (!currentWorkflow) {
         dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
         return
@@ -182,7 +182,7 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
       try {
         definition = buildWorkflowDefinition(name, description, activities, triggers, {
           edges,
-          nodePositions: _positionsUserModified ? nodePositions : {},
+          nodePositions,
         })
       } catch (err: unknown) {
         dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })

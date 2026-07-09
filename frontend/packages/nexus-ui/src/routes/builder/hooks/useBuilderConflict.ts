@@ -133,13 +133,13 @@ export function useBuilderConflict(params: UseBuilderConflictParams) {
       if (!workflowId || !currentWorkflow) return
       setIsConflictLoading(true)
       try {
-        const { edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
+        const { edges, nodePositions } = useWorkflowStore.getState()
         const definition = buildWorkflowDefinition(
           workflowName,
           workflowDescription,
           currentWorkflow.workflow.activities ?? [],
           currentWorkflow.triggers ?? [],
-          { edges, nodePositions: _positionsUserModified ? nodePositions : {} }
+          { edges, nodePositions }
         )
         const projectId = workflowProjectId ?? selectedProjectId
 

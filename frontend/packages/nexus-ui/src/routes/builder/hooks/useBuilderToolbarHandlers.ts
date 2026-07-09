@@ -109,21 +109,17 @@ export function useBuilderToolbarHandlers({
         }
       }
 
-      // Save workflow first if there are unsaved changes (always save, even if validation fails)
-      const isDirty = useWorkflowStore.getState().isDirty
-      if (isDirty) {
-        try {
-          const saved = await handleSaveWorkflow()
-          if (!saved) {
-            // Save failed, close dialog and don't proceed with run
-            dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
-            return
-          }
-        } catch {
-          // Save threw an error, close dialog and abort run
+      // Always save before running to ensure node positions are persisted.
+      // Auto-layout positions don't mark isDirty, so we save unconditionally.
+      try {
+        const saved = await handleSaveWorkflow()
+        if (!saved) {
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
           return
         }
+      } catch {
+        dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+        return
       }
 
       // Validate workflow has minimum requirements to run (after save)

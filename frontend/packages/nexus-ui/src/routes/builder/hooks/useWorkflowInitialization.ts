@@ -5,7 +5,6 @@ import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 type UseWorkflowInitializationOptions = {
   nodes: NodeType[]
   workflowVersion: number
-  triggerLayout?: number
   onLayout: (options?: { markDirty?: boolean }) => void
   onVersionChange?: () => void
   /** When true, skip the automatic layout after initialization (e.g. undo/redo with stored positions). */
@@ -26,7 +25,6 @@ type UseWorkflowInitializationOptions = {
 export function useWorkflowInitialization({
   nodes,
   workflowVersion,
-  triggerLayout,
   onLayout,
   onVersionChange,
   hasStoredPositions = false,
@@ -77,7 +75,10 @@ export function useWorkflowInitialization({
   useEffect(() => {
     if (isInitialized && !hasRunInitialLayoutRef.current) {
       hasRunInitialLayoutRef.current = true
-      if (hasStoredPositions) return
+      if (hasStoredPositions) {
+        onAfterInitialLayoutRef.current?.()
+        return
+      }
       const timer = setTimeout(() => {
         onLayoutRef.current()
         onAfterInitialLayoutRef.current?.()
@@ -85,13 +86,6 @@ export function useWorkflowInitialization({
       return () => clearTimeout(timer)
     }
   }, [isInitialized, hasStoredPositions])
-
-  // Trigger layout when requested from parent
-  useEffect(() => {
-    if (triggerLayout && isInitialized) {
-      onLayoutRef.current()
-    }
-  }, [triggerLayout, isInitialized])
 
   return {
     isInitialized,

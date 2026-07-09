@@ -236,6 +236,20 @@ describe('BuilderContent', () => {
     submittedAt: 0,
   })
 
+  /** Mock workflowClient PATCH to succeed — required for handleRunWorkflow which always saves first. */
+  function mockWorkflowPatchSuccess() {
+    vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
+      if (method === 'patch') {
+        return createMockMutation(
+          vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
+            callbacks?.onSuccess?.({ id: 'workflow-1', current_version: 1 }, params, undefined)
+          })
+        )
+      }
+      return createMockMutation()
+    })
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
@@ -719,6 +733,8 @@ describe('BuilderContent', () => {
         }
       })
 
+      mockWorkflowPatchSuccess()
+
       vi.mocked(executionsClient.useMutation).mockImplementation((method, path) => {
         if (method === 'post' && path === '/executions') {
           return createMockMutation(mockExecuteMutate)
@@ -750,6 +766,8 @@ describe('BuilderContent', () => {
           callbacks.onError({ message: 'Execution failed' }, params, undefined)
         }
       })
+
+      mockWorkflowPatchSuccess()
 
       vi.mocked(executionsClient.useMutation).mockImplementation((method, path) => {
         if (method === 'post' && path === '/executions') {
@@ -1669,6 +1687,9 @@ describe('BuilderContent', () => {
 
   describe('Save Workflow Validation', () => {
     it('shows validation error for workflow without trigger', async () => {
+      // Mock PATCH to succeed so handleRunWorkflow proceeds past save to validation
+      mockWorkflowPatchSuccess()
+
       // Create workflow with activity but no trigger - use mockWorkflow name
       const workflowNoTrigger = {
         ...mockWorkflow,
@@ -2199,6 +2220,8 @@ describe('BuilderContent', () => {
         }
       })
 
+      mockWorkflowPatchSuccess()
+
       vi.mocked(executionsClient.useMutation).mockImplementation((method, path) => {
         if (method === 'post' && path === '/executions') {
           return createMockMutation(mockExecuteMutate)
@@ -2456,6 +2479,8 @@ describe('BuilderContent', () => {
           callbacks.onSuccess({ id: 'execution-123' }, params, undefined)
         }
       })
+
+      mockWorkflowPatchSuccess()
 
       vi.mocked(executionsClient.useMutation).mockImplementation((method, path) => {
         if (method === 'post' && path === '/executions') {

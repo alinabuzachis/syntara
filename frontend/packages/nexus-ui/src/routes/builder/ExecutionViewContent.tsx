@@ -13,6 +13,7 @@ import { BuilderFlow } from './BuilderFlow'
 import { ExecutionViewContext } from './ExecutionViewContext'
 import type { EdgeConnection } from './types/edge'
 import { v2PortToHandle, v2TargetPortToHandle } from './utils/edgeHelpers'
+import { parseNodePositions } from './utils/processExistingWorkflow'
 
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
@@ -143,9 +144,18 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
         },
       }
 
-      // Load workflow and edges into store
+      // Extract positions from raw nodes/triggers so the canvas matches saved layout
+      const rawNodesForPositions = nodes as unknown as Array<Record<string, unknown>>
+      const rawTriggersForPositions = triggers as unknown as Array<Record<string, unknown>>
+      const nodePositions = parseNodePositions([...rawNodesForPositions, ...rawTriggersForPositions])
+
+      // Load workflow and edges into store (with positions to prevent re-layout on return)
       queueMicrotask(() => {
-        loadWorkflowWithEdges(storeWorkflow as unknown as Parameters<typeof loadWorkflowWithEdges>[0], generatedEdges)
+        loadWorkflowWithEdges(
+          storeWorkflow as unknown as Parameters<typeof loadWorkflowWithEdges>[0],
+          generatedEdges,
+          nodePositions
+        )
         hasLoadedRef.current = true
       })
     }

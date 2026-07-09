@@ -255,11 +255,26 @@ describe('BuilderDialogs', () => {
   })
 
   it('stores "Don\'t show again" preference when running workflow with no input schema', async () => {
+    const store: Record<string, string> = {}
+    const storageMock: Storage = {
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, value: string) => {
+        store[key] = value
+      },
+      removeItem: (key: string) => {
+        delete store[key]
+      },
+      clear: () => Object.keys(store).forEach((k) => delete store[k]),
+      get length() {
+        return Object.keys(store).length
+      },
+      key: (i: number) => Object.keys(store)[i] ?? null,
+    }
+    vi.stubGlobal('localStorage', storageMock)
+
     const user = userEvent.setup()
     const handleRunWorkflow = vi.fn()
     const dispatch = vi.fn()
-    // Clear localStorage to ensure clean state
-    localStorage.clear()
     renderDialogs({ confirmDialogOpen: true, handleRunWorkflow, dispatch })
 
     // Check the "Don't show again" checkbox
@@ -276,7 +291,9 @@ describe('BuilderDialogs', () => {
     expect(screen.queryByText('Set mock output data for Manual Trigger')).not.toBeInTheDocument()
 
     // Verify the preference was stored
-    expect(localStorage.getItem('nexus-run-workflow-confirm-dismissed')).toBe('true')
+    expect(store['nexus-run-workflow-confirm-dismissed']).toBe('true')
+
+    vi.unstubAllGlobals()
   })
 
   describe('accessibility', () => {

@@ -169,7 +169,6 @@ const sampleEdges = [
 
 const defaultProps = {
   workflowId: 'wf-1',
-  triggerLayout: 0,
   panelOpen: false,
   onNodeClick: vi.fn(),
   onAddNodeFromEdge: vi.fn(),

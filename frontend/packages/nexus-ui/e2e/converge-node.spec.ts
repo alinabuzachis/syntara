@@ -15,6 +15,7 @@ import {
   deleteWorkflow,
   closeNodeEditorPanel,
   openWorkflowInBuilder,
+  triggerLayout,
 } from './helpers/workflows'
 
 type WorkflowNode = {
@@ -125,6 +126,7 @@ test.describe('Converge Node - E2E Tests', () => {
 
       try {
         await addConvergeNodeWithAllStrategy(app, 'Converge All')
+        await triggerLayout(app)
 
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
@@ -159,6 +161,7 @@ test.describe('Converge Node - E2E Tests', () => {
 
       try {
         await addConvergeNodeWithAnyStrategy(app, 'Converge Any', 2)
+        await triggerLayout(app)
 
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
@@ -217,6 +220,7 @@ test.describe('Converge Node - E2E Tests', () => {
 
       try {
         await addConvergeNodeWithAnyStrategy(app, 'Converge Any', 2)
+        await triggerLayout(app)
 
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
@@ -252,6 +256,7 @@ test.describe('Converge Node - E2E Tests', () => {
 
       try {
         await addConvergeNodeWithAllStrategy(app, 'Converge All')
+        await triggerLayout(app)
 
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
@@ -356,6 +361,7 @@ test.describe('Converge Node - E2E Tests', () => {
           minutes: 5,
           action: 'continue',
         })
+        await triggerLayout(app)
 
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
@@ -385,6 +391,7 @@ test.describe('Converge Node - E2E Tests', () => {
         await addConvergeNodeWithTimeout(app, 'Converge Wait Edit', {
           minutes: 10,
         })
+        await triggerLayout(app)
 
         const saveRequestPromise = app.waitForRequest(
           (req) => req.url().includes('/workflows') && req.method() === 'POST'
@@ -423,6 +430,7 @@ test.describe('Converge Node - E2E Tests', () => {
           days: 2,
           action: 'continue',
         })
+        await triggerLayout(app)
 
         const saveRequestPromise = app.waitForRequest(
           (req) => req.url().includes('/workflows') && req.method() === 'POST'

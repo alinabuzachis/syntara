@@ -15,8 +15,6 @@ export type BuilderFlowProps = {
   workflowId?: string | null
   /** Whether the user has RBAC permission to edit. Defaults to `true` (execution view sets its own read-only). */
   canEdit?: boolean
-  /** Counter to trigger layout re-calculation */
-  triggerLayout?: number
   /** Whether the side panel is open */
   panelOpen?: boolean
   /** ID of the node whose button edge is currently active */
