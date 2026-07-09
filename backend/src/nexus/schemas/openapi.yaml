@@ -33820,9 +33820,11 @@ components:
           $ref: '#/components/schemas/HTTPMethod'
           description: HTTP method
         url:
-          type: string
+          anyOf:
+            - type: string
+            - type: 'null'
           title: Url
-          description: Request URL
+          description: Request URL (optional when a Secret URL credential provides it)
         headers:
           additionalProperties: true
           type: object
@@ -33847,11 +33849,10 @@ components:
             - type: string
             - type: 'null'
           title: Credential Id
-          description: Nexus credential UUID for authentication. Takes priority over authentication field.
+          description: Nexus credential UUID for authentication or Secret URL. Takes priority over authentication field.
       type: object
       required:
         - method
-        - url
       title: APIExecutorParameters
       description: Parameters for API executor (http_request activity).
     AgenticExecutorParameters:

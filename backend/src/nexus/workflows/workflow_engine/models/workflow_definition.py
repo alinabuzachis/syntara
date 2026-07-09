@@ -367,20 +367,22 @@ class APIExecutorParameters(TemplateAwareBaseModel):
     """Parameters for API executor (http_request activity)."""
 
     method: HTTPMethod = Field(description="HTTP method")
-    url: str = Field(description="Request URL")
+    url: str | None = Field(default=None, description="Request URL (optional when a Secret URL credential provides it)")
     headers: dict[str, Any] = Field(default_factory=dict)
     body: dict[str, Any] | str | None = None
     query_params: dict[str, Any] = Field(default_factory=dict)
     authentication: Authentication | None = None
     credential_id: str | None = Field(
         default=None,
-        description="Nexus credential UUID for authentication. Takes priority over authentication field.",
+        description="Nexus credential UUID for authentication or Secret URL. Takes priority over authentication field.",
     )
 
     @field_validator("url")
     @classmethod
-    def validate_url_scheme(cls, v: str) -> str:
+    def validate_url_scheme(cls, v: str | None) -> str | None:
         """Restrict URL to http/https schemes to prevent SSRF."""
+        if v is None:
+            return v
         if TEMPLATE_PATTERN.search(v):
             return v
         parsed = urlparse(v)

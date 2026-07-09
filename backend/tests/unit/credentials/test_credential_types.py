@@ -36,8 +36,8 @@ class TestCredentialTypeModel:
 class TestGACredentialTypes:
     """Tests for GA managed credential type definitions."""
 
-    def test_five_ga_types_defined(self) -> None:
-        assert len(GA_CREDENTIAL_TYPES) == 5
+    def test_six_ga_types_defined(self) -> None:
+        assert len(GA_CREDENTIAL_TYPES) == 6
 
     @pytest.mark.parametrize(
         "name",
@@ -47,6 +47,7 @@ class TestGACredentialTypes:
             "Ansible Automation Platform",
             "LLM Provider",
             "SSH Key",
+            "Secret URL",
         ],
     )
     def test_ga_type_exists(self, name: str) -> None:

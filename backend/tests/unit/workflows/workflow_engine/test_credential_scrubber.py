@@ -42,6 +42,12 @@ class TestScrubCredentials:
         result = scrub_credentials(data)
         assert result["ssh_private_key"] == REDACTED
 
+    def test_scrubs_secret_url(self) -> None:
+        data = {"auth_type": "url", "secret_url": "https://hooks.slack.com/services/T/B/xxx"}
+        result = scrub_credentials(data)
+        assert result["secret_url"] == REDACTED
+        assert result["auth_type"] == REDACTED
+
     def test_scrubs_resolved_credentials(self) -> None:
         data = {"_resolved_credentials": {"extra_vars": {"token": "secret"}}, "name": "test"}
         result = scrub_credentials(data)

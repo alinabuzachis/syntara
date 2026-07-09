@@ -230,7 +230,7 @@ class TestExecuteHttpRequestActivityFailures:
     @pytest.mark.asyncio
     async def test_invalid_config_raises(self) -> None:
         with pytest.raises(ApplicationError) as exc_info:
-            await execute_http_request_activity({"method": "GET"}, None)  # missing url
+            await execute_http_request_activity({}, None)  # missing method
         assert exc_info.value.type == "ValidationError"
 
     @pytest.mark.asyncio
@@ -390,4 +390,109 @@ class TestSsrfValidation:
             patch(_PATCH_GETADDRINFO, return_value=_mock_getaddrinfo("10.0.0.1")),
             pytest.raises(ApplicationError, match="SSRF blocked"),
         ):
+            await execute_http_request_activity(config, None)
+
+
+class TestSecretUrlCredential:
+    """Tests for Secret URL credential type (auth_type='url')."""
+
+    @pytest.mark.asyncio
+    async def test_url_from_credential_overrides_config(self) -> None:
+        resp = _mock_response(200, json_body={"ok": True})
+        config = {
+            **VALID_CONFIG,
+            "_resolved_credentials": {
+                "credential_id": "cred-url-1",
+                "extra_vars": {"auth_type": "url", "secret_url": "https://hooks.slack.com/services/T/B/xxx"},
+            },
+        }
+        with (
+            patch(_PATCH_GETADDRINFO, return_value=_mock_getaddrinfo("54.1.2.3")),
+            patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=resp) as mock_req,
+        ):
+            await execute_http_request_activity(config, None)
+        assert mock_req.call_args.kwargs["url"] == "https://hooks.slack.com/services/T/B/xxx"
+
+    @pytest.mark.asyncio
+    async def test_url_credential_does_not_set_auth_headers(self) -> None:
+        resp = _mock_response(200, json_body={})
+        config = {
+            **VALID_CONFIG,
+            "_resolved_credentials": {
+                "credential_id": "cred-url-1",
+                "extra_vars": {"auth_type": "url", "secret_url": "https://hooks.slack.com/services/T/B/xxx"},
+            },
+        }
+        with (
+            patch(_PATCH_GETADDRINFO, return_value=_mock_getaddrinfo("54.1.2.3")),
+            patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=resp) as mock_req,
+        ):
+            await execute_http_request_activity(config, None)
+        headers_sent = mock_req.call_args.kwargs["headers"]
+        assert "Authorization" not in headers_sent
+        assert "X-API-Key" not in headers_sent
+
+    @pytest.mark.asyncio
+    async def test_url_credential_empty_raises(self) -> None:
+        config = {
+            **VALID_CONFIG,
+            "_resolved_credentials": {
+                "credential_id": "cred-url-1",
+                "extra_vars": {"auth_type": "url", "secret_url": ""},
+            },
+        }
+        with pytest.raises(ActivityExecutionError, match="URL is empty"):
+            await execute_http_request_activity(config, None)
+
+    @pytest.mark.asyncio
+    async def test_url_none_without_credential_raises(self) -> None:
+        config = {"method": "GET"}
+        with pytest.raises(ApplicationError, match="No URL provided"):
+            await execute_http_request_activity(config, None)
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(self) -> None:
+        resp = _mock_response(401)
+        secret_url = "https://hooks.slack.com/services/T/B/supersecret"  # noqa: S105
+        config = {
+            **VALID_CONFIG,
+            "_resolved_credentials": {
+                "credential_id": "cred-url-1",
+                "extra_vars": {"auth_type": "url", "secret_url": secret_url},
+            },
+        }
+        with (
+            patch(_PATCH_GETADDRINFO, return_value=_mock_getaddrinfo("54.1.2.3")),
+            patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=resp),
+            pytest.raises(ApplicationError) as exc_info,
+        ):
+            await execute_http_request_activity(config, None)
+        assert "supersecret" not in str(exc_info.value)
+        assert "[REDACTED]" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_url_credential_ssrf_private_ip_rejected(self) -> None:
+        config = {
+            **VALID_CONFIG,
+            "_resolved_credentials": {
+                "credential_id": "cred-url-1",
+                "extra_vars": {"auth_type": "url", "secret_url": "https://internal.example.com/webhook"},
+            },
+        }
+        with (
+            patch(_PATCH_GETADDRINFO, return_value=_mock_getaddrinfo("10.0.0.1")),
+            pytest.raises(ApplicationError, match="SSRF blocked"),
+        ):
+            await execute_http_request_activity(config, None)
+
+    @pytest.mark.asyncio
+    async def test_url_credential_schemeless_rejected(self) -> None:
+        config = {
+            **VALID_CONFIG,
+            "_resolved_credentials": {
+                "credential_id": "cred-url-1",
+                "extra_vars": {"auth_type": "url", "secret_url": "//evil.com/hook"},
+            },
+        }
+        with pytest.raises(ActivityExecutionError, match="http:// or https://"):
             await execute_http_request_activity(config, None)

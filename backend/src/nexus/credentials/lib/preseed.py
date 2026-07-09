@@ -227,6 +227,38 @@ GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
             "file": {},
         },
     },
+    {
+        "name": "Secret URL",
+        "description": (
+            "Stores a URL as an encrypted secret. Use when the URL itself"
+            " grants access — such as webhook URLs, pre-signed cloud storage"
+            " URLs, or API endpoints with tokens in the path."
+        ),
+        "inputs": {
+            "fields": [
+                {
+                    "id": "url",
+                    "label": "Secret URL",
+                    "type": "string",
+                    "secret": True,
+                    "help_text": (
+                        "The URL to keep secret. It will be encrypted at rest,"
+                        " resolved at runtime, and masked in all workflow outputs."
+                        " Use this instead of the HTTP request node's URL field"
+                        " when the URL should not be visible to workflow viewers."
+                    ),
+                    "placeholder": "https://hooks.slack.com/services/T.../B.../xxx",
+                },
+            ],
+            "required": ["url"],
+        },
+        # extra_vars keys are auto-collected by credential_scrubber._build_credential_keys()
+        "injectors": {
+            "extra_vars": {"auth_type": "url", "secret_url": "{{url}}"},
+            "env": {},
+            "file": {},
+        },
+    },
 ]
 
 

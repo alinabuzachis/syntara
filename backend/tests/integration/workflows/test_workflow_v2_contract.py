@@ -349,10 +349,10 @@ class TestAPIExecutorParameters:
         with pytest.raises(ValidationError, match="method"):
             APIExecutorParameters(url="https://example.com")  # type: ignore[call-arg]
 
-    def test_requires_url(self) -> None:
-        """URL is required."""
-        with pytest.raises(ValidationError, match="url"):
-            APIExecutorParameters(method=HTTPMethod.GET)  # type: ignore[call-arg]
+    def test_url_is_optional(self) -> None:
+        """URL is optional (can be provided by a Secret URL credential at runtime)."""
+        config = APIExecutorParameters(method=HTTPMethod.GET)
+        assert config.url is None
 
 
 class TestAgenticExecutorParameters:

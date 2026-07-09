@@ -5,6 +5,7 @@ import json
 import time
 from http import HTTPStatus
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import structlog
@@ -13,7 +14,7 @@ from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
 from nexus.core.lib.url_validation import validate_url_no_ssrf
-from nexus.credentials.lib.auth_types import AUTH_TYPE_API_KEY, AUTH_TYPE_BASIC, AUTH_TYPE_BEARER
+from nexus.credentials.lib.auth_types import AUTH_TYPE_API_KEY, AUTH_TYPE_BASIC, AUTH_TYPE_BEARER, AUTH_TYPE_URL
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityName,
@@ -93,6 +94,46 @@ def _apply_authentication(headers: dict[str, Any], config: APIExecutorParameters
         headers["Authorization"] = f"Bearer {credential_value}"
 
 
+def _resolve_credentials_and_url(
+    input_config: dict[str, Any],
+    config: APIExecutorParameters,
+    headers: dict[str, Any],
+) -> tuple[str, bool]:
+    """Resolve credentials and determine the request URL.
+
+    For non-URL credential types, mutates ``headers`` in place with auth headers.
+
+    Returns (request_url, url_from_credential).
+    """
+    request_url = config.url
+    url_from_credential = False
+    resolved_creds = input_config.get("_resolved_credentials")
+    if resolved_creds:
+        resolved_creds = ensure_resolved_credentials_dict(resolved_creds)
+        extra_vars = resolved_creds.get("extra_vars", {})
+        if extra_vars.get("auth_type") == AUTH_TYPE_URL:
+            secret_url = extra_vars.get("secret_url", "")
+            if not secret_url:
+                msg = "Secret URL credential resolved but URL is empty. Re-save the credential with a valid URL."
+                raise ActivityExecutionError(msg)
+            parsed = urlparse(secret_url)
+            if not parsed.scheme or parsed.scheme not in ("http", "https"):
+                msg = "Secret URL must use http:// or https:// scheme."
+                raise ActivityExecutionError(msg)
+            request_url = secret_url
+            url_from_credential = True
+        else:
+            _add_credential_auth_headers(headers, extra_vars)
+    else:
+        _apply_authentication(headers, config)
+
+    if not request_url:
+        msg = "No URL provided. Set a URL in the node configuration or attach a Secret URL credential."
+        raise ApplicationError(msg, type="ConfigurationError", non_retryable=True)
+
+    return request_url, url_from_credential
+
+
 @activity.defn(name=ActivityName.HTTP_REQUEST)
 async def execute_http_request_activity(
     input_config: dict[str, Any],
@@ -131,20 +172,14 @@ async def execute_http_request_activity(
         msg = f"Invalid configuration: {exc.error_count()} error(s) in fields {fields}"
         raise ApplicationError(msg, type="ValidationError", non_retryable=True) from None
 
+    headers = dict(config.headers)
+    request_url, url_from_credential = _resolve_credentials_and_url(input_config, config, headers)
+
     # SSRF validation: reject private/internal IPs and cloud metadata endpoints
     try:
-        validate_url_no_ssrf(config.url)
+        validate_url_no_ssrf(request_url)
     except ValueError as exc:
         raise ApplicationError(str(exc), type="SSRFValidationError", non_retryable=True) from None
-
-    # Build headers — Nexus credentials take priority over config-based auth
-    headers = dict(config.headers)
-    resolved_creds = input_config.get("_resolved_credentials")
-    if resolved_creds:
-        resolved_creds = ensure_resolved_credentials_dict(resolved_creds)
-        _add_credential_auth_headers(headers, resolved_creds.get("extra_vars", {}))
-    else:
-        _apply_authentication(headers, config)
 
     timeout_seconds = int(input_config.get(constants.ENGINE_TIMEOUT_SECONDS_KEY, 30))
 
@@ -154,7 +189,7 @@ async def execute_http_request_activity(
         async with httpx.AsyncClient(follow_redirects=False) as client:
             response = await client.request(
                 method=config.method.value,
-                url=config.url,
+                url=request_url,
                 headers=headers,
                 params=config.query_params,
                 json=config.body if isinstance(config.body, dict) else None,
@@ -166,8 +201,7 @@ async def execute_http_request_activity(
 
         # Detect HTTP errors (4xx/5xx)
         if response.status_code >= HTTPStatus.BAD_REQUEST:
-            # Strip query params from URL to avoid leaking tokens/keys stored there
-            safe_url = config.url.split("?")[0]
+            safe_url = "[REDACTED]" if url_from_credential else request_url.split("?")[0]
             msg = f"HTTP {response.status_code} {response.reason_phrase} (url={safe_url}, elapsed={elapsed:.2f}s)"
             max_error_body_length = 4096
             try:

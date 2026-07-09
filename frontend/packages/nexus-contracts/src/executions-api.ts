@@ -1199,9 +1199,9 @@ export interface components {
       method: components['schemas']['HTTPMethod']
       /**
        * Url
-       * @description Request URL
+       * @description Request URL (optional when a Secret URL credential provides it)
        */
-      url: string
+      url?: string | null
       /** Headers */
       headers?: {
         [key: string]: unknown
@@ -1220,7 +1220,7 @@ export interface components {
       authentication?: components['schemas']['Authentication'] | null
       /**
        * Credential Id
-       * @description Nexus credential UUID for authentication. Takes priority over authentication field.
+       * @description Nexus credential UUID for authentication or Secret URL. Takes priority over authentication field.
        */
       credential_id?: string | null
     }
