@@ -463,19 +463,54 @@ describe('RolesTab', () => {
       expect(within(typeHeader).getByRole('button')).toBeInTheDocument()
     })
 
-    it('sends sort parameter when column header is clicked', async () => {
+    it('passes pagination params to the API', () => {
+      render(<RolesTab />, { wrapper: createWrapper() })
+
+      const callArgs = vi
+        .mocked(accessClient.useQuery)
+        .mock.calls.find((call) => call[0] === 'get' && call[1] === '/roles')
+      expect(callArgs).toBeDefined()
+      const queryOptions = callArgs![2] as unknown as {
+        params: { query: Record<string, unknown> }
+      }
+      expect(queryOptions.params.query).toMatchObject({
+        limit: 20,
+        include_total: true,
+      })
+    })
+
+    it('sends ascending sort parameter when column is clicked', async () => {
       const user = userEvent.setup()
       render(<RolesTab />, { wrapper: createWrapper() })
 
       const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
-      await user.click(within(nameHeader).getByRole('button'))
+      const sortButton = within(nameHeader).getByRole('button')
+
+      await user.click(sortButton)
 
       await waitFor(() => {
         const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
-        expect(lastCall).toBeDefined()
         const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
           ?.query
-        expect(queryParams).toHaveProperty('sort')
+        expect(queryParams).toHaveProperty('sort', 'name')
+      })
+    })
+
+    it('sends descending sort parameter when column is clicked twice', async () => {
+      const user = userEvent.setup()
+      render(<RolesTab />, { wrapper: createWrapper() })
+
+      const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
+      const sortButton = within(nameHeader).getByRole('button')
+
+      await user.click(sortButton)
+      await user.click(sortButton)
+
+      await waitFor(() => {
+        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('sort', '-name')
       })
     })
   })
@@ -521,28 +556,6 @@ describe('RolesTab', () => {
         const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
           ?.query
         expect(queryParams).toHaveProperty('cursor', 'next-cursor')
-      })
-    })
-  })
-
-  describe('Sorting descending', () => {
-    it('sends descending sort parameter when column is clicked twice', async () => {
-      const user = userEvent.setup()
-      render(<RolesTab />, { wrapper: createWrapper() })
-
-      const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
-      const sortButton = within(nameHeader).getByRole('button')
-
-      // First click: ascending
-      await user.click(sortButton)
-      // Second click: descending
-      await user.click(sortButton)
-
-      await waitFor(() => {
-        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
-        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
-          ?.query
-        expect(queryParams).toHaveProperty('sort', '-name')
       })
     })
   })

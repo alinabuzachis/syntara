@@ -9,19 +9,21 @@ import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { IconLabel } from '../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { useAlerts } from '../../providers/alerts'
+import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
+import { useDeleteAction } from '../../hooks/useDeleteAction'
+import { useDialogState } from '../../hooks/useDialogState'
+import { useSortState } from '../../hooks/useSortState'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
+import { buildFilterParams } from '../../utils/filterUtils'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
 import { POLICY_NAME_FILTER_DEF } from './builtinFilterDefinitions'
 import { EditRoleDialog } from './EditRoleDialog'
-import { buildAccessApiQueryParams, buildProjectFilterDefs, ROLE_SCOPE_OPTIONS } from './scopeFilterUtils'
+import { buildProjectFilterDefs, ROLE_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
 import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { RoleRead } from './types'
-import { useBuiltinListState } from './useBuiltinListState'
 import { useProjectNameMap } from './useProjectNameMap'
 import { useRolePermissions } from './useRolePermissions'
 
@@ -61,7 +63,7 @@ const BASE_FILTER_FIELD_DEFS = [
   },
 ]
 
-const sortFieldByColumn: Record<number, string> = {
+const SORT_FIELDS: Record<number, string> = {
   1: 'name',
   3: 'scope',
   4: 'project_id',
@@ -199,24 +201,24 @@ function RolesTable({
 
 export function RolesTab() {
   const permissions = useRolePermissions()
+
   const {
+    cursor,
+    resetPagination,
     filters,
     hasActiveFilters,
     handleFilterChange,
-    clearAllFilters,
-    getSortParams,
-    queryParams: baseQueryParams,
-    page,
+    handleClearAllFilters,
+    getFooterProps,
     perPage,
-    handlePerPageChange,
-    goToPrevPage,
-    goToNextPage,
-  } = useBuiltinListState(sortFieldByColumn)
-  const [roleToEdit, setRoleToEdit] = useState<RoleRead | null>(null)
-  const [roleToDelete, setRoleToDelete] = useState<RoleRead | null>(null)
+  } = useCursorPagination()
+
+  const { sortParam, getSortParams } = useSortState(SORT_FIELDS, resetPagination)
+
+  const editDialog = useDialogState<RoleRead>()
+  const deleteDialog = useDialogState<RoleRead>()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
-  const { showSuccess, showError } = useAlerts()
 
   const { projectNameMap } = useProjectNameMap()
 
@@ -225,13 +227,23 @@ export function RolesTab() {
     [projectNameMap]
   )
 
-  const queryParams = useMemo(() => buildAccessApiQueryParams(baseQueryParams, filters), [baseQueryParams, filters])
+  const queryParams = useMemo(() => {
+    const params: Record<string, unknown> = { limit: perPage, include_total: true }
+    if (sortParam) params.sort = sortParam
+    if (cursor) params.cursor = cursor
+    Object.assign(params, buildFilterParams(transformFiltersForApi(filters)))
+    return params
+  }, [sortParam, perPage, cursor, filters])
 
   const rolesQuery = accessClient.useQuery('get', '/roles', {
     params: { query: queryParams },
   })
 
-  const roles = useMemo(() => rolesQuery.data?.resources ?? [], [rolesQuery.data?.resources])
+  const data = rolesQuery.data
+  const roles = useMemo(() => data?.resources ?? [], [data?.resources])
+  const refetch = useCallback(() => detachPromise(rolesQuery.refetch()), [rolesQuery])
+
+  useCursorReset(roles.length, hasActiveFilters, cursor, rolesQuery.isFetching, resetPagination)
 
   const allRowsExpanded = roles.length > 0 && roles.every((r) => expandedRows.has(r.id))
 
@@ -257,39 +269,14 @@ export function RolesTab() {
 
   const { mutate: deleteRole } = accessClient.useMutation('delete', '/roles/{role_id}')
 
-  const handleRolesChanged = () => {
-    detachPromise(rolesQuery.refetch())
-  }
-
-  const handleDelete = () => {
-    if (!roleToDelete) return
-    deleteRole(
-      { params: { path: { role_id: roleToDelete.id } } },
-      {
-        onSuccess: () => {
-          showSuccess({ title: 'Role deleted', description: `Deleted role "${roleToDelete.name}"` })
-          handleRolesChanged()
-        },
-        onError: (error) => {
-          showError({ title: 'Failed to delete role', description: getErrorMessage(error) })
-        },
-        onSettled: () => setRoleToDelete(null),
-      }
-    )
-  }
-
-  const tableFooter = useMemo(
-    () => ({
-      page,
-      perPage,
-      total: rolesQuery.data?.total ?? null,
-      hasNext: !!rolesQuery.data?.next,
-      onPrev: goToPrevPage,
-      onNext: () => goToNextPage(rolesQuery.data?.next ?? null),
-      onPerPageChange: handlePerPageChange,
-    }),
-    [page, perPage, rolesQuery.data, goToPrevPage, goToNextPage, handlePerPageChange]
-  )
+  const handleDelete = useDeleteAction({
+    deleteFn: deleteRole,
+    buildParams: (role: RoleRead) => ({ params: { path: { role_id: role.id } } }),
+    entityLabel: 'role',
+    getItemName: (role: RoleRead) => role.name,
+    onSuccess: refetch,
+    onSettled: deleteDialog.close,
+  })
 
   return (
     <>
@@ -299,10 +286,10 @@ export function RolesTab() {
         isPending={rolesQuery.isPending}
         isFetching={rolesQuery.isFetching}
         error={rolesQuery.error}
-        onRetry={() => detachPromise(rolesQuery.refetch())}
+        onRetry={refetch}
         isEmpty={roles.length === 0}
         hasActiveFilters={hasActiveFilters}
-        onClearAllFilters={clearAllFilters}
+        onClearAllFilters={handleClearAllFilters}
         noDataState={<NxEmptyStateNoData title="No roles found" description="No roles are available." />}
         toolbar={
           roles.length > 0 || hasActiveFilters ? (
@@ -310,7 +297,7 @@ export function RolesTab() {
               filters={filters}
               filterDefinitions={filterFieldDefinitions}
               onFilterChange={handleFilterChange}
-              clearAllFilters={clearAllFilters}
+              clearAllFilters={handleClearAllFilters}
               actions={
                 <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
                   <Button
@@ -333,7 +320,7 @@ export function RolesTab() {
               system or project level. Assign roles system-wide for broad access, or scope them to specific projects for
               tighter control.
             </Content>
-            <NxListPanelTable caption="Roles" isExpandable footer={tableFooter}>
+            <NxListPanelTable caption="Roles" isExpandable footer={getFooterProps(data)}>
               <RolesTable
                 roles={roles}
                 projectNameMap={projectNameMap}
@@ -342,8 +329,8 @@ export function RolesTab() {
                 onToggleRow={handleToggleRow}
                 onCollapseAll={handleCollapseAll}
                 getSortParams={getSortParams}
-                onEdit={setRoleToEdit}
-                onDelete={setRoleToDelete}
+                onEdit={editDialog.open}
+                onDelete={deleteDialog.open}
                 permissions={permissions}
               />
             </NxListPanelTable>
@@ -351,16 +338,14 @@ export function RolesTab() {
         }
       />
 
-      {isAddDialogOpen && <AddRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={handleRolesChanged} />}
+      {isAddDialogOpen && <AddRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={refetch} />}
 
-      {roleToEdit && (
-        <EditRoleDialog role={roleToEdit} onClose={() => setRoleToEdit(null)} onSuccess={handleRolesChanged} />
-      )}
+      {editDialog.item && <EditRoleDialog role={editDialog.item} onClose={editDialog.close} onSuccess={refetch} />}
 
       <NxConfirmationDialog
-        isOpen={!!roleToDelete}
-        onClose={() => setRoleToDelete(null)}
-        onConfirm={handleDelete}
+        isOpen={deleteDialog.isOpen}
+        onClose={deleteDialog.close}
+        onConfirm={() => handleDelete(deleteDialog.item)}
         title="Delete role?"
         confirmLabel="Delete"
         confirmVariant="danger"
@@ -370,8 +355,8 @@ export function RolesTab() {
           label: 'I understand this role will be permanently deleted.',
         }}
       >
-        The role <strong>{roleToDelete?.name}</strong> will be deleted. Assignments that use this role will lose access.
-        This cannot be undone.
+        The role <strong>{deleteDialog.item?.name}</strong> will be deleted. Assignments that use this role will lose
+        access. This cannot be undone.
       </NxConfirmationDialog>
     </>
   )

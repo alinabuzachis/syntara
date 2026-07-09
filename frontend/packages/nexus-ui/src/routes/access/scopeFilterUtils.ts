@@ -1,6 +1,5 @@
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
-import { buildFilterParams } from '../../utils/filterUtils'
 
 /** Sentinel value used in scope filter to represent system-scoped items (no project) */
 const SYSTEM_SCOPE_VALUE = '__system__'
@@ -75,20 +74,4 @@ export function transformFiltersForApi(filters: FilterConfig[]): FilterConfig[] 
     }
     return f
   })
-}
-
-/**
- * Builds the API query params object for access-management list endpoints
- * (Roles, Policies) from the base params returned by `useBuiltinListState`
- * and the current filter state. Shared by all tabs that use `transformFiltersForApi`.
- */
-export function buildAccessApiQueryParams(
-  baseQueryParams: Record<string, unknown>,
-  filters: FilterConfig[]
-): Record<string, unknown> {
-  const params: Record<string, unknown> = { limit: baseQueryParams.limit, include_total: true }
-  if (typeof baseQueryParams.cursor === 'string') params.cursor = baseQueryParams.cursor
-  if (typeof baseQueryParams.sort === 'string') params.sort = baseQueryParams.sort
-  Object.assign(params, buildFilterParams(transformFiltersForApi(filters)))
-  return params
 }
