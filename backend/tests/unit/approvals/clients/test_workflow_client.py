@@ -27,10 +27,7 @@ class TestWorkflowApiClient:
         decided_at = "2026-05-20T10:00:00+00:00"
         notes = "Approved by test"
 
-        with (
-            patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url,
-            patch("nexus.approvals.clients.workflow_client.create_service_token", return_value="test-system-jwt"),
-        ):
+        with patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url:
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
 
             with respx.mock:
@@ -57,7 +54,6 @@ class TestWorkflowApiClient:
                 assert request.method == "POST"
                 assert str(request.url) == "http://localhost:8000/api/v1/signal"
                 assert request.headers["content-type"] == "application/json"
-                assert request.headers["authorization"] == "Bearer test-system-jwt"
 
                 # Verify the request payload
                 request_json = json.loads(request.content)
@@ -79,10 +75,7 @@ class TestWorkflowApiClient:
         decision = "rejected"
         approval_id = uuid4()
 
-        with (
-            patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url,
-            patch("nexus.approvals.clients.workflow_client.create_service_token", return_value="test-jwt"),
-        ):
+        with patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url:
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
 
             with respx.mock:
@@ -119,10 +112,7 @@ class TestWorkflowApiClient:
         decision = "approved"
         approval_id = uuid4()
 
-        with (
-            patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url,
-            patch("nexus.approvals.clients.workflow_client.create_service_token", return_value="test-jwt"),
-        ):
+        with patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url:
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
 
             with respx.mock:
@@ -160,7 +150,6 @@ class TestWorkflowApiClient:
         with (
             override_settings(workflow_client_max_retries=0),
             patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url,
-            patch("nexus.approvals.clients.workflow_client.create_service_token", return_value="test-jwt"),
         ):
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
 
@@ -195,10 +184,7 @@ class TestWorkflowApiClient:
         decision = "rejected"
         approval_id = uuid4()
 
-        with (
-            patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url,
-            patch("nexus.approvals.clients.workflow_client.create_service_token", return_value="test-jwt"),
-        ):
+        with patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url:
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
 
             with respx.mock:

@@ -35,7 +35,6 @@ from nexus.audit.emitter import (
     workflow_id_context_var,
 )
 from nexus.audit.events.http_request import HTTPRequestEvent
-from nexus.audit.utils import escalate_actor_type_from_jwt
 from nexus.core.auth.jwt_utils import extract_actor_claims
 from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models.principal import PrincipalType
@@ -175,7 +174,7 @@ class AuditMiddleware:
         if claims.get("token_type") == "service_account":
             actor_type = PrincipalType.SERVICE_ACCOUNT
         else:
-            actor_type = escalate_actor_type_from_jwt(actor_claims)
+            actor_type = PrincipalType.USER
 
         return AuditActorContext(
             actor_id=actor_claims.actor_id,

@@ -4,7 +4,7 @@ Provides mock HTTP server using respx for API activity testing.
 """
 
 from collections.abc import Generator
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, PropertyMock, patch
 from uuid import uuid4
 
 import httpx
@@ -12,7 +12,16 @@ import pytest
 import respx
 from httpx import Response
 
+from nexus.core.config.base import Settings
 from nexus.core.models import User
+
+
+@pytest.fixture(autouse=True)
+def _mock_service_identity() -> Generator[None, None, None]:
+    """Provide a service_identity for tests running without S2S TLS certificates."""
+    with patch.object(Settings, "service_identity", new_callable=PropertyMock, return_value="backend.ao.svc"):
+        yield
+
 
 _FAKE_USER = User(
     id=uuid4(),

@@ -77,7 +77,7 @@ make check-cycles
 
 | Pattern | Domains | Status |
 |---------|---------|--------|
-| `auth.__init__` ↔ `auth.dependencies` | auth | **Accepted** — auth re-exports (`get_current_user`, `create_service_token`) are actively consumed by 20+ modules across the codebase. This is intentional public API encapsulation. |
+| `auth.__init__` ↔ `auth.dependencies` | auth | **Accepted** — auth re-exports (`get_current_user`) are actively consumed by 20+ modules across the codebase. This is intentional public API encapsulation. |
 
 ### Exception Handler Import Patterns
 

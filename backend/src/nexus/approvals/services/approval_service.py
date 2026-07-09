@@ -264,31 +264,19 @@ class ApprovalService(BaseService):
 
         return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 
-    async def _is_user_authorized_approver(self, approval: ApprovalRequest) -> bool:  # noqa: C901
+    async def _is_user_authorized_approver(self, approval: ApprovalRequest) -> bool:
         """Check if current user is authorized to approve this request.
 
         Authorization logic:
-        1. Check OPA for approval:decide permission (project-scoped or system-level)
-        2. If no approvers configured (approver_users and approver_groups both null/empty),
-           any user with approval:decide permission can approve
-        3. If approver_users configured, current user's username must be in the list
-        4. If approver_groups configured, current user must be a member of at least one group
+        1. Service principals (cert-authenticated S2S callers) are always authorized
+        2. Check OPA for approval:decide permission (project-scoped or system-level)
+        3. If no approvers configured, any user with approval:decide permission can approve
+        4. If approver_users configured, current user's username must be in the list
+        5. If approver_groups configured, current user must be a member of at least one group
 
         SECURITY: This method performs BOTH OPA permission check AND approver list check.
         Used by batch_decide endpoint which doesn't have endpoint-level permission dependency
         to support users with project-scoped (not system-level) approval:decide permission.
-
-        Args:
-            approval: The approval request to check authorization for.
-                     IMPORTANT: Must be fetched with eager loading of approver_user_records
-                     and approver_group_records relationships (use selectinload() or
-                     _get_approval_by_id() which does this automatically).
-
-        Returns:
-            True if user is authorized, False otherwise
-
-        Raises:
-            RuntimeError: If approval was not fetched with eager loading (defensive check)
 
         """
         # Defensive check: Ensure relationships were eagerly loaded to avoid MissingGreenlet
@@ -309,9 +297,16 @@ class ApprovalService(BaseService):
             )
             raise RuntimeError(msg)
 
+        # Cert-authenticated service principals bypass OPA — they are internal
+        # S2S callers (e.g. workflow engine cancelling approvals). This mirrors
+        # the endpoint-level RequirePermission bypass in authz/dependencies.py.
+        from nexus.core.models.principal import KNOWN_SERVICE_CNS, service_principal_id  # noqa: PLC0415
+
+        if self.user.id in {service_principal_id(cn) for cn in KNOWN_SERVICE_CNS}:
+            return True
+
         # SECURITY: Check OPA for approval:decide permission (project-scoped or system-level)
         # This is required for batch_decide which doesn't have endpoint-level permission check.
-        # Fail closed: deny if OPA client unavailable.
         if self.opa_client is None:
             return False
         if self.opa_client is not None:
@@ -344,22 +339,15 @@ class ApprovalService(BaseService):
         if not approval.approver_user_records and not approval.approver_group_records:
             return True
 
-        # Check if current user is in the approver_user_records
-        if approval.approver_user_records:
-            approver_user_ids = {user.id for user in approval.approver_user_records}
-            if self.user.id in approver_user_ids:
-                return True
-
-        # Check if current user is a member of any approver_group_records
-        if approval.approver_group_records:
-            approver_group_ids = [group.id for group in approval.approver_group_records]
-            is_member = await self.group_membership_service.is_user_in_any_group_by_ids(
-                user_id=self.user.id, group_ids=approver_group_ids
-            )
-            if is_member:
-                return True
-
-        return False
+        # Check if current user is in the approver lists (user or group membership)
+        in_user_list = approval.approver_user_records and self.user.id in {
+            user.id for user in approval.approver_user_records
+        }
+        in_group = approval.approver_group_records and await self.group_membership_service.is_user_in_any_group_by_ids(
+            user_id=self.user.id,
+            group_ids=[group.id for group in approval.approver_group_records],
+        )
+        return bool(in_user_list or in_group)
 
     async def create(
         self,

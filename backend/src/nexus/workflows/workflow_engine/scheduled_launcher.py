@@ -19,7 +19,7 @@ with workflow.unsafe.imports_passed_through():
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from nexus.core.config.base import get_settings
-    from nexus.core.models import User
+    from nexus.core.models.principal import service_principal_id
     from nexus.metrics.dependencies import get_metrics_recorder
     from nexus.metrics.types import MetricType
     from nexus.workflows.exceptions import WorkflowNotPublishedError
@@ -103,8 +103,8 @@ class ScheduledExecutionLauncher:
         """Launch a scheduled workflow execution.
 
         Loads the published workflow version, starts NexusWorkflow via Temporal,
-        and creates the Execution record in the database using the system user.
-        Records schedule timing metadata and Prometheus metrics.
+        and creates the Execution record in the database using the service
+        principal identity. Records schedule timing metadata and Prometheus metrics.
 
         Args:
             workflow_id_str: UUID of the workflow (as string).
@@ -114,7 +114,6 @@ class ScheduledExecutionLauncher:
             Dict with ``execution_id`` and ``temporal_workflow_id``.
 
         Raises:
-            RuntimeError: If the system user is not found.
             WorkflowNotPublishedError: If the workflow is not published.
 
         """
@@ -187,15 +186,15 @@ class ScheduledExecutionLauncher:
         retries are sequential, so the practical risk is negligible.
         """
         # Phase 1: Load published workflow definition (read-only session)
+        settings = get_settings()
+        svc_principal_id = service_principal_id(settings.service_identity)
         async with self._session_factory() as session:
             wf_workflow, wf_version = await self._load_published_workflow(session, workflow_id)
-            system_user = await self._get_system_user(session)
             wf_id = wf_workflow.id
             wf_name = wf_workflow.name
             wf_project_id = wf_workflow.project_id
             wf_version_id = wf_version.id
             workflow_def = wf_version.workflow_definition
-            system_user_id = system_user.id
 
         # Phase 2: Start NexusWorkflow via Temporal (no DB session held)
         temporal_service = await create_temporal_execution_service(task_queue=self._task_queue)
@@ -229,8 +228,8 @@ class ScheduledExecutionLauncher:
                 status=ExecutionStatus.PENDING,
                 input_data={},
                 trigger_node_id=trigger_node_id,
-                created_by=system_user_id,
-                updated_by=system_user_id,
+                created_by=svc_principal_id,
+                updated_by=svc_principal_id,
                 execution_metadata={
                     "trigger_type": ActivityName.SCHEDULED_TRIGGER,
                     "schedule_id": build_schedule_id(str(workflow_id), trigger_node_id),
@@ -282,16 +281,3 @@ class ScheduledExecutionLauncher:
         if row is None:
             raise WorkflowNotPublishedError(workflow_id)
         return row
-
-    @staticmethod
-    async def _get_system_user(session: AsyncSession) -> User:
-        """Load the system user for scheduled executions."""
-        settings = get_settings()
-        user = await session.get(User, settings.system_user_id)
-        if user is None:
-            msg = (
-                f"System user {settings.system_user_id} not found. "
-                "Run 'uv run python tools/create_system_user.py' to create it."
-            )
-            raise RuntimeError(msg)
-        return user

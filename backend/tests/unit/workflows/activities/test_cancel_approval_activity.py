@@ -3,8 +3,9 @@
 Tests cancelling pending approval requests when a workflow is cancelled.
 """
 
+from contextlib import AbstractContextManager
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -38,16 +39,10 @@ def _mock_client(pending: list[dict[str, Any]], cancel_result: dict[str, Any] | 
     return client
 
 
-def _patch_client(mock_client: AsyncMock) -> tuple[Any, Any]:
-    return (
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
-            return_value=mock_client,
-        ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
-        ),
+def _patch_client(mock_client: AsyncMock) -> AbstractContextManager[MagicMock]:
+    return patch(
+        "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
+        return_value=mock_client,
     )
 
 
@@ -56,7 +51,7 @@ async def test_cancel_success(execution_id: str, pending_approvals: list[dict[st
     """All pending approvals are batch-cancelled."""
     client = _mock_client(pending_approvals)
 
-    with _patch_client(client)[0], _patch_client(client)[1]:
+    with _patch_client(client):
         result = await cancel_approval_requests_activity(execution_id)
 
     assert result["cancelled_count"] == 2
@@ -70,7 +65,7 @@ async def test_cancel_no_pending(execution_id: str) -> None:
     """No-op when no pending approvals exist."""
     client = _mock_client([])
 
-    with _patch_client(client)[0], _patch_client(client)[1]:
+    with _patch_client(client):
         result = await cancel_approval_requests_activity(execution_id)
 
     assert result["cancelled_count"] == 0
@@ -89,7 +84,7 @@ async def test_cancel_api_error(execution_id: str) -> None:
     client.__aenter__ = AsyncMock(return_value=client)
     client.__aexit__ = AsyncMock(return_value=None)
 
-    with _patch_client(client)[0], _patch_client(client)[1]:
+    with _patch_client(client):
         result = await cancel_approval_requests_activity(execution_id)
 
     assert result["cancelled_count"] == 0
@@ -104,7 +99,7 @@ async def test_cancel_unexpected_error(execution_id: str) -> None:
     client.__aenter__ = AsyncMock(return_value=client)
     client.__aexit__ = AsyncMock(return_value=None)
 
-    with _patch_client(client)[0], _patch_client(client)[1]:
+    with _patch_client(client):
         result = await cancel_approval_requests_activity(execution_id)
 
     assert result["cancelled_count"] == 0

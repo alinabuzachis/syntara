@@ -359,26 +359,6 @@ async def test_batch_expire_sends_expired_status(client: ApprovalsApiClient) -> 
     assert body["decisions"][0]["status"] == "expired"
 
 
-def test_auth_token_sets_authorization_header() -> None:
-    """Test that auth_token produces per-request Authorization headers."""
-    auth_client = ApprovalsApiClient(
-        base_url="http://test-api:8000/api/v1",
-        auth_token="test-system-jwt",  # noqa: S106
-    )
-
-    # Token should NOT be in httpx client default headers (security)
-    assert "authorization" not in auth_client.http_client.headers
-    # Token should be injected per-request via _get_auth_headers
-    assert auth_client._get_auth_headers() == {"Authorization": "Bearer test-system-jwt"}
-
-
-def test_no_auth_token_omits_authorization_header() -> None:
-    """Test that omitting auth_token produces empty auth headers."""
-    client = ApprovalsApiClient(base_url="http://test-api:8000/api/v1")
-
-    assert client._get_auth_headers() == {}
-
-
 @pytest.mark.asyncio
 async def test_context_manager(client: ApprovalsApiClient) -> None:
     """Test async context manager closes client."""

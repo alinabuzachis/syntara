@@ -10,7 +10,7 @@ import pytest
 
 from nexus.audit.actor_extractor import extract_actor
 from nexus.audit.emitter import AuditActorContext, actor_context_var
-from nexus.core.models.principal import PrincipalType
+from nexus.core.models.principal import PrincipalType, service_principal_id
 from nexus.core.models.user import User
 
 
@@ -341,19 +341,17 @@ class TestActorExtractorAutoDetection:
         assert result.actor_type is None
 
 
-class TestActorExtractorSystemUserClassification:
-    """Test system user classification based on system_user_id from settings."""
+class TestActorExtractorServicePrincipalClassification:
+    """Test service principal classification based on known service principal IDs."""
 
-    def test_system_user_classified_as_system_actor(self) -> None:
-        """Test that user with id == settings.system_user_id is classified as SYSTEM."""
-        from nexus.core.config.base import get_settings
-
-        settings = get_settings()
-        system_user = User(
-            id=settings.system_user_id,
-            username="system_user",
-            email="system@example.com",
-            first_name="System",
+    def test_service_principal_classified_as_service_actor(self) -> None:
+        """Test that user with a service principal ID is classified as SERVICE."""
+        svc_id = service_principal_id("backend.ao.svc")
+        service_user = User(
+            id=svc_id,
+            username="service_user",
+            email="service@example.com",
+            first_name="Service",
             last_name="User",
             password_hash="not-a-real-hash",  # noqa: S106
         )
@@ -361,20 +359,17 @@ class TestActorExtractorSystemUserClassification:
         def test_func(current_user: User) -> None:
             pass
 
-        args = (system_user,)
+        args = (service_user,)
         kwargs: dict[str, str] = {}
 
         result = extract_actor(inspect.signature(test_func), args, kwargs)
 
-        assert result.actor_id == settings.system_user_id
-        assert result.actor_username == "system_user"
-        assert result.actor_type == PrincipalType.SYSTEM
+        assert result.actor_id == svc_id
+        assert result.actor_username == "service_user"
+        assert result.actor_type == PrincipalType.SERVICE
 
     def test_regular_user_classified_as_user_actor(self) -> None:
-        """Test that user with id != settings.system_user_id is classified as USER."""
-        from nexus.core.config.base import get_settings
-
-        settings = get_settings()
+        """Test that user with a non-service principal ID is classified as USER."""
         regular_user = User(
             id=uuid4(),
             username="regular_user",
@@ -383,7 +378,6 @@ class TestActorExtractorSystemUserClassification:
             last_name="User",
             password_hash="not-a-real-hash",  # noqa: S106
         )
-        assert regular_user.id != settings.system_user_id
 
         def test_func(current_user: User) -> None:
             pass
@@ -397,38 +391,34 @@ class TestActorExtractorSystemUserClassification:
         assert result.actor_username == regular_user.username
         assert result.actor_type == PrincipalType.USER
 
-    def test_system_user_via_fastapi_dependency(self, simple_test_signature: inspect.Signature) -> None:
-        """Test system user classification via FastAPI dependency injection."""
-        from nexus.core.config.base import get_settings
-
-        settings = get_settings()
-        system_user = User(
-            id=settings.system_user_id,
-            username="system_via_dep",
-            email="system_dep@example.com",
-            first_name="System",
+    def test_service_principal_via_fastapi_dependency(self, simple_test_signature: inspect.Signature) -> None:
+        """Test service principal classification via FastAPI dependency injection."""
+        svc_id = service_principal_id("backend.ao.svc")
+        service_user = User(
+            id=svc_id,
+            username="service_via_dep",
+            email="service_dep@example.com",
+            first_name="Service",
             last_name="Dep",
             password_hash="not-a-real-hash",  # noqa: S106
         )
 
-        kwargs = {"current_user": system_user}
+        kwargs = {"current_user": service_user}
 
         result = extract_actor(simple_test_signature, (), kwargs)
 
-        assert result.actor_id == settings.system_user_id
-        assert result.actor_username == "system_via_dep"
-        assert result.actor_type == PrincipalType.SYSTEM
+        assert result.actor_id == svc_id
+        assert result.actor_username == "service_via_dep"
+        assert result.actor_type == PrincipalType.SERVICE
 
-    def test_system_user_via_explicit_param(self) -> None:
-        """Test system user classification via explicit actor_param."""
-        from nexus.core.config.base import get_settings
-
-        settings = get_settings()
-        system_user = User(
-            id=settings.system_user_id,
-            username="system_explicit",
-            email="system_explicit@example.com",
-            first_name="System",
+    def test_service_principal_via_explicit_param(self) -> None:
+        """Test service principal classification via explicit actor_param."""
+        svc_id = service_principal_id("backend.ao.svc")
+        service_user = User(
+            id=svc_id,
+            username="service_explicit",
+            email="service_explicit@example.com",
+            first_name="Service",
             last_name="Explicit",
             password_hash="not-a-real-hash",  # noqa: S106
         )
@@ -437,10 +427,10 @@ class TestActorExtractorSystemUserClassification:
             pass
 
         args: tuple[User, ...] = ()
-        kwargs = {"actor": system_user}
+        kwargs = {"actor": service_user}
 
         result = extract_actor(inspect.signature(test_func), args, kwargs, actor_param="actor")
 
-        assert result.actor_id == settings.system_user_id
-        assert result.actor_username == "system_explicit"
-        assert result.actor_type == PrincipalType.SYSTEM
+        assert result.actor_id == svc_id
+        assert result.actor_username == "service_explicit"
+        assert result.actor_type == PrincipalType.SERVICE

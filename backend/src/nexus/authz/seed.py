@@ -6,7 +6,6 @@ only creates groups, the default project, the admin user, and role
 assignments (which reference roles by name).
 """
 
-import secrets
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -211,25 +210,16 @@ async def _seed_assignments_and_admin(
     await _ensure_role_assignment(session, auditors_group, "auditor")
     await _ensure_role_assignment(session, users_group, "project-user", is_builtin=False, project_id=default_project.id)
 
-    # Bootstrap system user (used by workflow engine for automated invocations)
-    settings = get_settings()
-    existing_system_user = await session.exec(select(User).where(User.id == settings.system_user_id))
-    system_user = existing_system_user.one_or_none()
-    if not system_user:
-        from nexus.auth.passwords import hash_password  # noqa: PLC0415
+    # Seed service principals for internal mTLS-authenticated services
+    from nexus.core.models.principal import KNOWN_SERVICE_CNS, Principal, service_principal_id  # noqa: PLC0415
 
-        system_user = User(
-            id=settings.system_user_id,
-            username="system",
-            email="system@nexus.local",
-            first_name="System",
-            is_active=True,
-            is_builtin=False,
-            password_hash=hash_password(secrets.token_hex(32)),
-        )
-        session.add(system_user)
-        await session.flush()
-        logger.info("Bootstrap system user created", user_id=str(system_user.id))
+    for cn in KNOWN_SERVICE_CNS:
+        sp_id = service_principal_id(cn)
+        existing = await session.get(Principal, sp_id)
+        if not existing:
+            session.add(Principal.for_service(cn))
+            await session.flush()
+            logger.info("Service principal created", cn=cn, principal_id=str(sp_id))
 
     # Bootstrap admin user
     existing_admin_user = await session.exec(select(User).where(User.username == "admin"))
@@ -248,9 +238,6 @@ async def _seed_assignments_and_admin(
         await session.flush()
         logger.info("Bootstrap admin user created", user_id=str(admin_user.id))
 
-    await _ensure_group_membership(session, system_user, auth_group)
-    await _ensure_group_membership(session, system_user, admin_group)
-    await _ensure_group_membership(session, system_user, users_group)
     await _ensure_group_membership(session, admin_user, auth_group)
     await _ensure_group_membership(session, admin_user, admin_group)
     await _ensure_group_membership(session, admin_user, users_group)

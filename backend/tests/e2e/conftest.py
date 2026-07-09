@@ -45,7 +45,6 @@ from nexus_api_client.models.sub_resource_role_assignment_create import SubResou
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_info import UserInfo
 from nexus_api_client.models.user_read import UserRead
-from nexus_api_client.models.user_update import UserUpdate
 from nexus_api_client.types import UNSET, Response, Unset
 from typer.testing import CliRunner
 
@@ -760,30 +759,6 @@ def mcp_integration_id(nexus_api: NexusApiRegistry) -> str:
 def nexus_admin_user(nexus_api: NexusApiRegistry) -> UserInfo:
     """Get admin user ID for Nexus API."""
     return cast("UserInfo", nexus_api.authentication.get_current_user().assert_and_get())
-
-
-@pytest.fixture(scope="session")
-def nexus_system_user(nexus_api: NexusApiRegistry) -> UserRead:
-    """Get system user for Nexus API."""
-    if "APP_SYSTEM_USER_ID" not in os.environ:
-        pytest.skip("No APP_SYSTEM_USER_ID")
-    system_user_id = os.environ["APP_SYSTEM_USER_ID"]
-    system_user: UserRead = nexus_api.users.get(user_id=system_user_id).assert_and_get()
-    return system_user
-
-
-@pytest.fixture
-def disable_system_user(nexus_api: NexusApiRegistry, nexus_system_user: UserRead) -> Generator[None, None, None]:
-    """Returns the disabled system user and re-enable at end."""
-    if nexus_system_user.is_builtin:
-        """Skip this test is system user is built in."""
-        pytest.skip("System user is a built in user. Data migration is required.")
-
-    nexus_api.users.update(user_id=nexus_system_user.id, body=UserUpdate(is_enabled=False)).assert_successful()
-
-    yield
-
-    nexus_api.users.update(user_id=nexus_system_user.id, body=UserUpdate(is_enabled=True))
 
 
 @pytest.fixture

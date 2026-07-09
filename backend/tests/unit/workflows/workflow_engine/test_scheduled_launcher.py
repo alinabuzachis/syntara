@@ -12,6 +12,7 @@ from uuid import uuid4
 
 import pytest
 
+from nexus.core.models.principal import service_principal_id
 from nexus.metrics.types import MetricType
 from nexus.workflows.exceptions import WorkflowNotPublishedError
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
@@ -47,6 +48,7 @@ class TestExecutionMetadata:
         workflow_id = uuid4()
         scheduled_at = datetime(2024, 1, 1, 9, 0, 0, tzinfo=UTC)
         triggered_at = datetime(2024, 1, 1, 9, 0, 3, tzinfo=UTC)
+        service_identity = "backend.ao.svc"
 
         mock_workflow = MagicMock()
         mock_workflow.id = workflow_id
@@ -60,20 +62,18 @@ class TestExecutionMetadata:
             "edges": [],
         }
 
-        mock_user = MagicMock()
-        mock_user.id = uuid4()
-
         mock_temporal_result = MagicMock()
         mock_temporal_result.execution_id = str(uuid4())
         mock_temporal_result.temporal_workflow_id = "temporal-wf-123"
 
         with (
             patch.object(launcher, "_load_published_workflow", return_value=(mock_workflow, mock_version)),
-            patch.object(launcher, "_get_system_user", return_value=mock_user),
+            patch("nexus.workflows.workflow_engine.scheduled_launcher.get_settings") as mock_get_settings,
             patch(
                 "nexus.workflows.workflow_engine.scheduled_launcher.create_temporal_execution_service"
             ) as mock_create_svc,
         ):
+            mock_get_settings.return_value.service_identity = service_identity
             mock_svc = AsyncMock()
             mock_svc.start_workflow.return_value = mock_temporal_result
             mock_create_svc.return_value = mock_svc
@@ -88,6 +88,11 @@ class TestExecutionMetadata:
         # Verify execution was added to session
         mock_session.add.assert_called_once()
         execution = mock_session.add.call_args[0][0]
+
+        # Verify created_by/updated_by use service_principal_id
+        expected_principal_id = service_principal_id(service_identity)
+        assert execution.created_by == expected_principal_id
+        assert execution.updated_by == expected_principal_id
 
         # Verify execution_metadata
         metadata = execution.execution_metadata
@@ -231,29 +236,3 @@ class TestLoadPublishedWorkflow:
 
         with pytest.raises(WorkflowNotPublishedError):
             await ScheduledExecutionLauncher._load_published_workflow(session, uuid4())
-
-
-class TestGetSystemUser:
-    """Tests for _get_system_user static method."""
-
-    async def test_returns_user_when_found(self) -> None:
-        """Should return the system user from settings."""
-        mock_user = MagicMock()
-        session = AsyncMock()
-        session.get.return_value = mock_user
-
-        with patch("nexus.workflows.workflow_engine.scheduled_launcher.get_settings") as mock_settings:
-            mock_settings.return_value.system_user_id = uuid4()
-            user = await ScheduledExecutionLauncher._get_system_user(session)
-
-        assert user is mock_user
-
-    async def test_raises_when_not_found(self) -> None:
-        """Should raise RuntimeError with guidance when system user is missing."""
-        session = AsyncMock()
-        session.get.return_value = None
-
-        with patch("nexus.workflows.workflow_engine.scheduled_launcher.get_settings") as mock_settings:
-            mock_settings.return_value.system_user_id = uuid4()
-            with pytest.raises(RuntimeError, match=r"System user .* not found"):
-                await ScheduledExecutionLauncher._get_system_user(session)

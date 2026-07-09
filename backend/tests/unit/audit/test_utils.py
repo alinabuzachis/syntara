@@ -6,10 +6,8 @@ from uuid import UUID, uuid4
 import pytest
 
 from nexus.audit.models.audit_event import EventSeverity
-from nexus.audit.utils import escalate_actor_type, escalate_actor_type_from_jwt, escalate_severity, resolve_actor_type
-from nexus.core.auth.jwt_utils import ActorClaims
-from nexus.core.config.base import get_settings
-from nexus.core.models.principal import PrincipalType
+from nexus.audit.utils import escalate_actor_type, escalate_severity, resolve_actor_type
+from nexus.core.models.principal import PrincipalType, service_principal_id
 
 
 class TestEscalateSeverity:
@@ -70,54 +68,18 @@ class TestEscalateSeverity:
             assert result in {current, minimum}
 
 
-class TestEscalateActorTypeFromJwt:
-    """Unit tests for ``escalate_actor_type_from_jwt``.
-
-    Validates that service tokens (amr containing "service") are classified
-    as PrincipalType.SERVICE_ACCOUNT while all other tokens are PrincipalType.USER.
-    """
-
-    @pytest.mark.parametrize(
-        ("amr", "expected"),
-        [
-            # Service tokens → SERVICE_ACCOUNT
-            (["service"], PrincipalType.SERVICE_ACCOUNT),
-            (["service", "mfa"], PrincipalType.SERVICE_ACCOUNT),
-            (["mfa", "service"], PrincipalType.SERVICE_ACCOUNT),
-            # Non-service tokens → USER
-            (None, PrincipalType.USER),
-            ([], PrincipalType.USER),
-            (["pwd"], PrincipalType.USER),
-            (["pwd", "mfa"], PrincipalType.USER),
-            (["mfa"], PrincipalType.USER),
-        ],
-    )
-    def test_escalate_actor_type_from_jwt(
-        self,
-        amr: list[str] | None,
-        expected: PrincipalType,
-    ) -> None:
-        """Service tokens return SERVICE_ACCOUNT, all others return USER."""
-        actor_claims = ActorClaims(
-            actor_id=uuid4(),
-            actor_username="test-user",
-            amr=amr,
-        )
-        assert escalate_actor_type_from_jwt(actor_claims) == expected
-
-
 class TestEscalateActorType:
     """Unit tests for ``escalate_actor_type``.
 
-    Validates that the configured system user ID is classified as
-    PrincipalType.SYSTEM while all other user IDs are PrincipalType.USER.
+    Validates that known service principal IDs are classified as
+    PrincipalType.SERVICE while all other user IDs are PrincipalType.USER.
     """
 
     @pytest.mark.parametrize(
         ("actor_id", "expected"),
         [
-            # System user → SYSTEM
-            (get_settings().system_user_id, PrincipalType.SYSTEM),
+            # Service principal → SERVICE
+            (service_principal_id("backend.ao.svc"), PrincipalType.SERVICE),
             # Regular users → USER
             (uuid4(), PrincipalType.USER),
             (UUID("00000000-0000-0000-0000-000000000000"), PrincipalType.USER),
@@ -128,11 +90,7 @@ class TestEscalateActorType:
         actor_id: UUID,
         expected: PrincipalType,
     ) -> None:
-        """System user returns SYSTEM, all others return USER."""
-        # Skip the regular user test if it happens to match system_user_id
-        if actor_id != get_settings().system_user_id and expected == PrincipalType.SYSTEM:
-            pytest.skip("Test UUID randomly matched system_user_id")
-
+        """Service principal returns SERVICE, all others return USER."""
         assert escalate_actor_type(actor_id) == expected
 
 
@@ -153,13 +111,13 @@ class TestResolveActorType:
             == PrincipalType.SERVICE_ACCOUNT
         )
 
-    def test_system_user_escalated(self) -> None:
-        """System user actor_id escalates to SYSTEM when no override is set."""
+    def test_service_principal_escalated(self) -> None:
+        """Service principal actor_id escalates to SERVICE when no override is set."""
         assert (
             resolve_actor_type(
-                actor_id=get_settings().system_user_id,
+                actor_id=service_principal_id("backend.ao.svc"),
             )
-            == PrincipalType.SYSTEM
+            == PrincipalType.SERVICE
         )
 
     def test_regular_user_defaults(self) -> None:
@@ -174,8 +132,8 @@ class TestResolveActorType:
         """Explicit None principal_type does not short-circuit."""
         assert (
             resolve_actor_type(
-                actor_id=get_settings().system_user_id,
+                actor_id=service_principal_id("backend.ao.svc"),
                 principal_type=None,
             )
-            == PrincipalType.SYSTEM
+            == PrincipalType.SERVICE
         )

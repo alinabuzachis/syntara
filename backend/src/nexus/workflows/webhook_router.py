@@ -4,8 +4,11 @@ This router handles incoming POST requests from external services (GitHub, Jira,
 Slack, EDA, etc.) and triggers the matching workflow.
 """
 
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from nexus.core.models.user import User
 
 import structlog
 from fastapi import Body, Depends, Path, Request, status
@@ -16,7 +19,7 @@ from temporalio.service import RPCError
 from nexus.core.config.base import get_settings
 from nexus.core.constants import WebhookLimits
 from nexus.core.database.session import get_db
-from nexus.core.models import User
+from nexus.core.models.principal import make_service_user
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.workflows.exceptions import (
     PayloadTooLargeError,
@@ -96,29 +99,16 @@ async def get_webhook_temporal_service() -> TemporalExecutionService | None:
         return None
 
 
-async def _get_system_user(db: AsyncSession) -> User:
-    """Get the system user for webhook-triggered executions.
-
-    Fetches per-request to avoid caching a detached ORM instance across
-    sessions. The PK lookup is negligible cost.
-    """
-    settings = get_settings()
-    user = await db.get(User, settings.system_user_id)
-    if user is None:
-        msg = (
-            f"System user {settings.system_user_id} not found. "
-            "Run 'uv run python tools/create_system_user.py' to create it."
-        )
-        raise RuntimeError(msg)
-    return user
+def _get_service_user() -> "User":
+    """Build a synthetic User for the backend service principal."""
+    return make_service_user(get_settings().service_identity)
 
 
 async def get_webhook_trigger_service(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> WebhookTriggerService:
     """Dependency provider for WebhookTriggerService."""
-    system_user = await _get_system_user(db)
-    return WebhookTriggerService(db, system_user)
+    return WebhookTriggerService(db, _get_service_user())
 
 
 # ============================================================================

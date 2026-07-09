@@ -52,10 +52,6 @@ def mock_agent_client() -> Generator[AsyncMock, None, None]:
         patch("temporalio.activity.heartbeat"),
         patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
         patch(
-            "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-            return_value="mock_token",
-        ),
-        patch(
             "nexus.workflows.workflow_engine.activities.agentic_activity._inject_runtime_settings",
             side_effect=_fake_inject_runtime_settings,
         ),

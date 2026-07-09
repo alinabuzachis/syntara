@@ -23,7 +23,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Self
 from urllib.parse import urlparse
-from uuid import UUID
 
 from pydantic import Field, HttpUrl, SecretStr, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -1173,10 +1172,19 @@ class TemporalSettings(BaseSettings):
         ),
     )
 
-    system_user_id: UUID = Field(
-        default=UUID("00000000-0000-0000-0000-000000000001"),
-        description="System user UUID for automated/workflow operations",
-    )
+
+@lru_cache(maxsize=4)
+def _read_cert_cn(cert_path: str) -> str:
+    """Read the Common Name from a PEM certificate file (cached)."""
+    from cryptography import x509  # noqa: PLC0415
+
+    cert_pem = Path(cert_path).read_bytes()
+    cert = x509.load_pem_x509_certificate(cert_pem)
+    cn = cert.subject.get_attributes_for_oid(x509.oid.NameOID.COMMON_NAME)
+    if not cn:
+        msg = f"S2S TLS certificate at {cert_path} has no Common Name"
+        raise RuntimeError(msg)
+    return str(cn[0].value)
 
 
 def _validate_tls_cert_paths(
@@ -1865,6 +1873,21 @@ class Settings(
         HTTP  → Secure=False (local development without TLS).
         """
         return self.server_scheme == "https"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def service_identity(self) -> str:
+        """Derive service identity from the mTLS certificate CN.
+
+        Raises RuntimeError if S2S TLS is not configured with a valid certificate.
+        """
+        if not self.s2s_tls_enabled or not self.s2s_tls_cert_path:
+            msg = (
+                "service_identity requires S2S TLS to be enabled with a valid certificate. "
+                "Ensure certificates exist and APP_S2S_TLS_CERT_PATH points to the service certificate."
+            )
+            raise RuntimeError(msg)
+        return _read_cert_cn(self.s2s_tls_cert_path)
 
     @model_validator(mode="after")
     def _validate_cors_production(self) -> "Settings":

@@ -152,18 +152,22 @@ class ApprovalRequest(BaseApprovalRequest, table=True):
         "decided_at",
     ]
 
-    # Decision field - database stores UUID foreign key
+    # Decision field - database stores UUID foreign key to principals (not users)
+    # so that both human users and service principals can be recorded as deciders.
     decided_by: UUID | None = Field(
         default=None,
-        foreign_key="users.id",
+        foreign_key="principals.id",
         nullable=True,
         ondelete="SET NULL",
-        description="User who made the decision",
+        description="Principal who made the decision",
     )
 
     # Relationships
     decider: "User" = Relationship(
-        sa_relationship_kwargs={"foreign_keys": "[ApprovalRequest.decided_by]"},
+        sa_relationship_kwargs={
+            "primaryjoin": "ApprovalRequest.decided_by == User.id",
+            "foreign_keys": "[ApprovalRequest.decided_by]",
+        },
     )
 
     # Many-to-many relationships through junction tables

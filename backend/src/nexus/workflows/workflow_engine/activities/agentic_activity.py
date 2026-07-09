@@ -24,7 +24,8 @@ from .common import HEARTBEAT_STOP_MONITOR, ActivityExecutionError
 
 # See - https://github.com/temporalio/sdk-python?tab=readme-ov-file#avoiding-the-sandbox for more detail
 with workflow.unsafe.imports_passed_through():
-    from nexus.auth import create_service_token
+    from nexus.core.config.base import get_settings
+    from nexus.core.models.principal import service_principal_id
     from nexus.workflows.clients.agent_orchestrator_client import (
         AgentOrchestratorClient,
         AgentOrchestratorClientConnectionError,
@@ -77,6 +78,7 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
     execution_id: str = "",
     request_id: str | None = None,
     project_id: str = "",
+    created_by_user_id: str = "",
 ) -> dict[str, Any]:
     """V2 agentic activity with async completion.
 
@@ -90,6 +92,7 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
         execution_id: Workflow execution ID for callback URL generation
         request_id: Optional X-Request-Id (UUID) from the originating HTTP request
         project_id: Project ID to associate the invocation with (required)
+        created_by_user_id: UUID of the user who started the workflow (for created_by attribution)
 
     """
     logger.info("Starting agentic activity (v2)")
@@ -127,11 +130,8 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
             workflow_id = "direct-invocation"
             activity_id = "unknown"
 
-        # Use system user ID
-        user_id = str(constants.SYSTEM_USER_ID)
-
-        # Mint a short-lived service JWT for internal API calls
-        service_token = create_service_token()
+        settings = get_settings()
+        user_id = created_by_user_id or str(service_principal_id(settings.service_identity))
 
         # Generate callback URL for the agent orchestrator to signal back results
         callback_url = generate_activity_signal_url(UUID(execution_id), activity_id) if execution_id else ""
@@ -146,7 +146,7 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
 
         async with AgentOrchestratorClient(
             base_url=constants.AGENT_ORCHESTRATOR_BASE_URL,
-            auth_token=service_token,
+            on_behalf_of_user_id=user_id,
         ) as agent_client:
             # Build metadata (callback_url is extracted by client into contextData)
             agent_metadata: dict[str, Any] = {

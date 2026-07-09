@@ -112,10 +112,6 @@ async def test_create_approval_request_success(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
         ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
-        ),
         pytest.raises(CompleteAsyncError),
     ):
         await create_approval_request_activity(
@@ -159,10 +155,6 @@ async def test_create_approval_request_with_timeout(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
         ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
-        ),
         pytest.raises(CompleteAsyncError),
     ):
         await create_approval_request_activity(
@@ -201,10 +193,6 @@ async def test_create_approval_request_with_rejected_path(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
         ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
-        ),
         pytest.raises(CompleteAsyncError),
     ):
         await create_approval_request_activity(
@@ -241,10 +229,6 @@ async def test_create_approval_request_api_error(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
         ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
-        ),
         pytest.raises(ApprovalActivityError, match="Connection refused"),
     ):
         await create_approval_request_activity(
@@ -275,10 +259,6 @@ async def test_create_approval_request_unexpected_error(
         patch(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
-        ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
         ),
         pytest.raises(ApprovalActivityError, match="Unexpected error creating approval request"),
     ):

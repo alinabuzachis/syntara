@@ -376,7 +376,7 @@ async def _assign_system_group_role(role_name: str, group_name: str) -> None:
         print(f"Assigned role '{role_name}' to group '{group_name}'")
 
 
-async def _assign_system_user_role(role_name: str, target_user: str) -> None:
+async def _assign_user_role(role_name: str, target_user: str) -> None:
     """Assign a role directly to a user at system level via API."""
     user_id = await _resolve_user_id(target_user)
     if not user_id:
@@ -416,7 +416,7 @@ async def cmd_assign_role(args: argparse.Namespace) -> None:
     elif group_name and project_name:
         await _assign_project_group_role(args.role_name, group_name, project_name)
     elif target_user:
-        await _assign_system_user_role(args.role_name, target_user)
+        await _assign_user_role(args.role_name, target_user)
     else:
         await _assign_system_group_role(args.role_name, group_name)
 
@@ -607,7 +607,7 @@ async def _unassign_system_group_role(role_name: str, group_name: str) -> None:
         print(f"Removed role '{role_name}' from group '{group_name}'")
 
 
-async def _unassign_system_user_role(role_name: str, target_user: str) -> None:
+async def _unassign_user_role(role_name: str, target_user: str) -> None:
     """Remove a direct user→role assignment at system level via API."""
     response, _ = await api_request(
         "GET", f"/role-assignments?principal_type=user&principal_name={target_user}&role_name={role_name}"
@@ -641,7 +641,7 @@ async def cmd_unassign_role(args: argparse.Namespace) -> None:
     elif group_name and project_name:
         await _unassign_project_group_role(args.role_name, group_name, project_name)
     elif target_user:
-        await _unassign_system_user_role(args.role_name, target_user)
+        await _unassign_user_role(args.role_name, target_user)
     else:
         await _unassign_system_group_role(args.role_name, group_name)
 

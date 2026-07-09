@@ -14,7 +14,6 @@ from temporalio.exceptions import ApplicationError
 with workflow.unsafe.imports_passed_through():
     from nexus.approvals.audit.approval import ApprovalExpiredEvent
     from nexus.audit.dispatcher import AuditEventDispatcher
-    from nexus.auth import create_service_token
     from nexus.workflows.clients.approvals_client import (
         ApprovalsApiClient,
         ApprovalsApiClientError,
@@ -96,7 +95,6 @@ async def create_approval_request_activity(
     try:
         async with ApprovalsApiClient(
             base_url=constants.APPROVALS_API_BASE_URL,
-            auth_token=create_service_token(),
         ) as client:
             await client.create_approval(request_data)
     except ApprovalsApiClientError as e:
@@ -145,7 +143,6 @@ async def _batch_update_approvals(
     try:
         async with ApprovalsApiClient(
             base_url=constants.APPROVALS_API_BASE_URL,
-            auth_token=create_service_token(),
         ) as client:
             pending = await client.list_approvals_by_execution(UUID(execution_id), status="pending")
             if node_id:

@@ -310,7 +310,7 @@ describe('AssignRoleModal', () => {
   })
 
   describe('Form submission', () => {
-    it('assigns system user role on submit', async () => {
+    it('assigns user role on submit', async () => {
       const user = userEvent.setup()
       mockMutateAsync.mockResolvedValue({})
 

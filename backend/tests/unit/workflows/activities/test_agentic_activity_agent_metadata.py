@@ -65,10 +65,6 @@ class TestAgenticActivityWorkflowContextMetadata:
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
             patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
-            patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
             ),
@@ -108,10 +104,6 @@ class TestAgenticActivityWorkflowContextMetadata:
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
             patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
-            patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
             ),
@@ -147,10 +139,6 @@ class TestAgenticActivityWorkflowContextMetadata:
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
             patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
-            patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
             ),
@@ -178,10 +166,6 @@ class TestAgenticActivityWorkflowContextMetadata:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
@@ -215,10 +199,6 @@ class TestAgenticActivityWorkflowContextMetadata:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
@@ -260,10 +240,6 @@ class TestAgenticActivityWorkflowContextMetadata:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
@@ -311,10 +287,6 @@ class TestAgenticActivityWorkflowContextMetadata:
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
             patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
-            patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
             ),
@@ -351,10 +323,6 @@ class TestAgenticActivityWorkflowContextMetadata:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 side_effect=RuntimeError("Not in activity context"),
@@ -397,10 +365,6 @@ class TestAgenticActivityWorkflowContextMetadata:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
@@ -454,10 +418,6 @@ class TestAgenticActivityIntegrationConnections:
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
             patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
-            patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
             ),
@@ -493,10 +453,6 @@ class TestAgenticActivityIntegrationConnections:
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
             patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
-            patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
             ),
@@ -517,10 +473,6 @@ class TestAgenticActivityIntegrationConnections:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
@@ -552,10 +504,6 @@ class TestAgenticActivityToolSelection:
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
             patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
-            patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
             ),
@@ -575,10 +523,6 @@ class TestAgenticActivityToolSelection:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,
@@ -601,10 +545,6 @@ class TestAgenticActivityToolSelection:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             patch(
                 "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
                 return_value=mock_activity_info,

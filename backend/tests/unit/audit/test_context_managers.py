@@ -29,7 +29,7 @@ from nexus.audit.models.audit_event import (
 )
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.sanitization import REDACTED
-from nexus.core.models.principal import PrincipalType
+from nexus.core.models.principal import PrincipalType, service_principal_id
 from nexus.core.models.user import User
 
 
@@ -192,40 +192,32 @@ class TestActorContext:
         assert actor_context_var.get() is None
 
 
-class TestActorContextSystemUserClassification:
-    """Test system user classification in actor_context context manager."""
+class TestActorContextServicePrincipalClassification:
+    """Test service principal classification in actor_context context manager."""
 
-    async def test_system_user_classified_as_system_actor(self) -> None:
-        """Test that user with id == settings.system_user_id is classified as SYSTEM in actor_context."""
-        from nexus.core.config.base import get_settings
-
-        settings = get_settings()
-        system_user = User(
-            id=settings.system_user_id,
-            username="system_user",
-            email="system@example.com",
-            first_name="System",
+    async def test_service_principal_classified_as_service_actor(self) -> None:
+        """Test that user with a service principal ID is classified as SERVICE in actor_context."""
+        svc_id = service_principal_id("backend.ao.svc")
+        service_user = User(
+            id=svc_id,
+            username="service_user",
+            email="service@example.com",
+            first_name="Service",
             last_name="User",
             password_hash="not-a-real-hash",  # noqa: S106
         )
 
-        with actor_context(actor=system_user):
+        with actor_context(actor=service_user):
             _actor_context = actor_context_var.get()
             assert _actor_context is not None
-            assert _actor_context.actor_id == settings.system_user_id
-            assert _actor_context.actor_username == "system_user"
-            assert _actor_context.actor_type == PrincipalType.SYSTEM
+            assert _actor_context.actor_id == svc_id
+            assert _actor_context.actor_username == "service_user"
+            assert _actor_context.actor_type == PrincipalType.SERVICE
 
         assert actor_context_var.get() is None
 
     async def test_regular_user_classified_as_user_actor(self, test_user: User) -> None:
-        """Test that user with id != settings.system_user_id is classified as USER in actor_context."""
-        from nexus.core.config.base import get_settings
-
-        settings = get_settings()
-        # Verify test user is NOT the system user
-        assert test_user.id != settings.system_user_id
-
+        """Test that user with a non-service principal ID is classified as USER in actor_context."""
         with actor_context(actor=test_user):
             _actor_context = actor_context_var.get()
             assert _actor_context is not None
@@ -296,23 +288,21 @@ class TestBuildActorContextDuckTyping:
         assert ctx.actor_type is None
 
 
-class TestAuditContextSystemUserClassification:
-    """Test system user classification in audit_context context manager."""
+class TestAuditContextServicePrincipalClassification:
+    """Test service principal classification in audit_context context manager."""
 
     def setup_method(self) -> None:
         AuditEventDispatcher.register({AuditContextEvent: AuditContextHandler()})
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    async def test_system_user_classified_as_system_actor(self, mock_emit: Mock) -> None:
-        """Test that user with id == settings.system_user_id is classified as SYSTEM in audit_context."""
-        from nexus.core.config.base import get_settings
-
-        settings = get_settings()
-        system_user = User(
-            id=settings.system_user_id,
-            username="system_user",
-            email="system@example.com",
-            first_name="System",
+    async def test_service_principal_classified_as_service_actor(self, mock_emit: Mock) -> None:
+        """Test that user with a service principal ID is classified as SERVICE in audit_context."""
+        svc_id = service_principal_id("backend.ao.svc")
+        service_user = User(
+            id=svc_id,
+            username="service_user",
+            email="service@example.com",
+            first_name="Service",
             last_name="User",
             password_hash="not-a-real-hash",  # noqa: S106
         )
@@ -321,7 +311,7 @@ class TestAuditContextSystemUserClassification:
             event_category=EventCategory.USER_ACTION,
             event_action="test_action",
             source_component="test.component",
-            actor=system_user,
+            actor=service_user,
         ):
             pass
 
@@ -329,20 +319,14 @@ class TestAuditContextSystemUserClassification:
         emitted_event = mock_emit.call_args[0][0]
 
         assert isinstance(emitted_event, AuditEvent)
-        assert emitted_event.actor_id == settings.system_user_id
-        assert emitted_event.actor_username == "system_user"
-        assert emitted_event.actor_type == PrincipalType.SYSTEM
+        assert emitted_event.actor_id == svc_id
+        assert emitted_event.actor_username == "service_user"
+        assert emitted_event.actor_type == PrincipalType.SERVICE
         assert emitted_event.event_status == EventStatus.SUCCESS
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_regular_user_classified_as_user_actor(self, mock_emit: Mock, test_user: User) -> None:
-        """Test that user with id != settings.system_user_id is classified as USER in audit_context."""
-        from nexus.core.config.base import get_settings
-
-        settings = get_settings()
-        # Verify test user is NOT the system user
-        assert test_user.id != settings.system_user_id
-
+        """Test that user with a non-service principal ID is classified as USER in audit_context."""
         with audit_context(
             event_category=EventCategory.USER_ACTION,
             event_action="test_action",

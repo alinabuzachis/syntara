@@ -1,13 +1,12 @@
 """Utility functions for the audit package."""
 
+from functools import lru_cache
 from uuid import UUID
 
 import structlog
 
 from nexus.audit.models.audit_event import EventSeverity
-from nexus.core.auth.jwt_utils import ActorClaims
-from nexus.core.config.base import get_settings
-from nexus.core.models.principal import PrincipalType
+from nexus.core.models.principal import KNOWN_SERVICE_CNS, PrincipalType, service_principal_id
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -32,58 +31,33 @@ def escalate_severity(current: EventSeverity, minimum: EventSeverity) -> EventSe
     return current if _SEVERITY_RANK[current] >= _SEVERITY_RANK[minimum] else minimum
 
 
-def escalate_actor_type_from_jwt(actor_claims: ActorClaims) -> PrincipalType:
-    """Determine PrincipalType from JWT authentication method reference (amr).
-
-    Service-to-service tokens (amr containing "service") are classified as
-    SERVICE_ACCOUNT. All other tokens are USER.
-
-    Args:
-        actor_claims: Extracted JWT claims containing authentication method reference.
-
-    Returns:
-        PrincipalType.SERVICE_ACCOUNT for service tokens, PrincipalType.USER otherwise.
-
-    """
-    is_service_token = isinstance(actor_claims.amr, list) and "service" in actor_claims.amr
-
-    if is_service_token:
-        logger.debug(
-            "actor_type_escalated_from_jwt",
-            amr=actor_claims.amr,
-            actor_type=PrincipalType.SERVICE_ACCOUNT,
-            reason="service token detected in amr claim",
-        )
-        return PrincipalType.SERVICE_ACCOUNT
-
-    return PrincipalType.USER
+@lru_cache(maxsize=1)
+def _get_service_principal_ids() -> frozenset[UUID]:
+    return frozenset(service_principal_id(cn) for cn in KNOWN_SERVICE_CNS)
 
 
 def escalate_actor_type(actor_id: UUID) -> PrincipalType:
-    """Determine PrincipalType by comparing actor_id against the system user ID.
+    """Classify an actor UUID as SERVICE or USER.
 
-    The system user (configured via SYSTEM_USER_ID) represents internal
-    operations and is classified as SYSTEM. All other users are USER.
+    Needed because some code paths construct synthetic ``User`` objects
+    with a service principal UUID (via ``make_service_user``) to satisfy
+    ``BaseService``.  Since the actor is a ``User`` instance, the caller
+    cannot distinguish it by type alone — this function checks the UUID
+    against the known service principal set.
 
-    Args:
-        actor_id: UUID of the actor to classify.
-
-    Returns:
-        PrincipalType.SYSTEM if actor_id matches system_user_id, PrincipalType.USER otherwise.
+    For HTTP requests the cert middleware already sets actor_type=SERVICE
+    directly; this function covers non-HTTP paths (audit context managers,
+    invocation executor fallback).
 
     """
-    settings = get_settings()
-    is_system_user = actor_id == settings.system_user_id
-
-    if is_system_user:
+    if actor_id in _get_service_principal_ids():
         logger.debug(
             "actor_type_escalated",
             actor_id=str(actor_id),
-            system_user_id=str(settings.system_user_id),
-            actor_type=PrincipalType.SYSTEM,
-            reason="actor_id matches configured system_user_id",
+            actor_type=PrincipalType.SERVICE,
+            reason="actor_id matches a known service principal",
         )
-        return PrincipalType.SYSTEM
+        return PrincipalType.SERVICE
 
     return PrincipalType.USER
 
@@ -103,7 +77,7 @@ def resolve_actor_type(
 
     Resolution order:
     1. Explicit *principal_type* when set by the dispatch site.
-    2. ``escalate_actor_type(actor_id)`` — promotes the system user to SYSTEM.
+    2. ``escalate_actor_type(actor_id)`` — checks for known service principals.
     3. ``PrincipalType.USER`` as the default.
     """
     if principal_type is not None:

@@ -960,18 +960,24 @@ async def test_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
 
 @pytest_asyncio.fixture
 async def system_user(test_db_session: AsyncSession, user_factory: Callable[..., Awaitable["User"]]) -> "User":
-    """Get or create system user with default attributes."""
-    settings = get_settings()
+    """Get or create the service principal user for tests.
+
+    Uses the deterministic service_principal_id for the backend service CN.
+    Fixture keeps the ``system_user`` name to avoid a risky rename across all consumers.
+    """
+    from nexus.core.models.principal import service_principal_id
+
+    svc_id = service_principal_id("backend.ao.svc")
 
     async with test_db_session:
-        system_user = await test_db_session.get(User, settings.system_user_id)
-        if system_user is None:
-            system_user = await user_factory(
-                username="system",
+        svc_user = await test_db_session.get(User, svc_id)
+        if svc_user is None:
+            svc_user = await user_factory(
+                username="backend.ao.svc",
                 email="system@example.com",
-                id=settings.system_user_id,
+                id=svc_id,
             )
-    return system_user
+    return svc_user
 
 
 @pytest_asyncio.fixture

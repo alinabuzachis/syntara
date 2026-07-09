@@ -12,7 +12,6 @@ from uuid import UUID
 import httpx
 import structlog
 
-from nexus.auth import create_service_token
 from nexus.core.config.base import get_settings
 from nexus.core.tls.http_client import build_internal_http_client
 from nexus.workflows.utils.url import generate_activity_signal_url
@@ -152,10 +151,8 @@ class WorkflowApiClient:
 
         for attempt in range(self.max_retries + 1):
             try:
-                # Generate a fresh token per attempt to avoid expiry on retries
                 auth_headers = {
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {create_service_token()}",
                 }
                 response = await self.http_client.post(
                     signal_url,

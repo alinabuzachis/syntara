@@ -63,10 +63,6 @@ class TestAgenticActivityFileIds:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
@@ -86,10 +82,6 @@ class TestAgenticActivityFileIds:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
@@ -111,10 +103,6 @@ class TestAgenticActivityFileIds:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
@@ -136,10 +124,6 @@ class TestAgenticActivityFileIds:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
@@ -184,10 +168,6 @@ class TestAgenticActivityFileIds:
 
         with (
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
-            patch(
-                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
-                return_value="mock_token",
-            ),
             patch("nexus.workflows.workflow_engine.activities.agentic_activity.logger") as mock_logger,
             pytest.raises(CompleteAsyncError),
         ):

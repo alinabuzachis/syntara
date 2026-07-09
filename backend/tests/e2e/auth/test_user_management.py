@@ -83,7 +83,6 @@ class TestBuiltInAdminManagement:
         nexus_api: NexusApiRegistry,
         nexus_admin_user: UserInfo,
         nexus_api_admin_group_id: UUID,
-        disable_system_user: None,
     ) -> None:
         """Verify the system prevents disabling the built-in admin when no admin mapping exists."""
         """1. Validate no other enabled admin users"""

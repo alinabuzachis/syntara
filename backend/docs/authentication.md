@@ -523,7 +523,7 @@ If the compromise is detected but not actively exploited (e.g., a key was accide
 
 ## Bootstrap Admin User
 
-On first application startup, an `admin` user is seeded with the password from `APP_ADMIN_PASSWORD_PATH`. This happens in the application lifespan handler via `authz/seed.py`, which reads the password file, hashes it with Argon2id, and creates the user if it doesn't already exist. The admin user is created with `is_builtin=True`, which identifies it as a system user with special protection rules.
+On first application startup, an `admin` user is seeded with the password from `APP_ADMIN_PASSWORD_PATH`. This happens in the application lifespan handler via `authz/seed.py`, which reads the password file, hashes it with Argon2id, and creates the user if it doesn't already exist. The admin user is created with `is_builtin=True`, which identifies it as a built-in user with special protection rules.
 
 If the password file is not configured or missing, the application still starts but logs a warning — the admin user will be created without a password (unable to log in locally).
 
@@ -1037,7 +1037,7 @@ A user can have multiple sources for the same group (e.g., manually assigned *an
 The `UserRead` response schema includes:
 
 - **`is_enabled`** — whether the user account is enabled (renamed from `is_active`)
-- **`is_builtin`** — whether this is a built-in system user (e.g., the seeded admin). Built-in users have special protection rules (see [Built-in Admin Protection](#built-in-admin-protection)).
+- **`is_builtin`** — whether this is a built-in user (e.g., the seeded admin). Built-in users have special protection rules (see [Built-in Admin Protection](#built-in-admin-protection)).
 - **`auth_type`** — `"local"` or `"federated"`. Determines whether the user authenticates via local password or an external identity provider. These are mutually exclusive (enforced by a database CHECK constraint).
 
 ### `user_identities` Table

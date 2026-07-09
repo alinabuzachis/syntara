@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from typing import TYPE_CHECKING
-from uuid import UUID  # noqa: TC003 - needed at runtime by SQLModel field resolution
+from uuid import UUID, uuid5
 
 from sqlalchemy import String
 from sqlmodel import Field, SQLModel
@@ -29,15 +29,52 @@ from nexus.core.constants import FieldLimits
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from nexus.core.models.user import User
+
+_SERVICE_PRINCIPAL_NS = UUID("8001555d-5289-4875-8848-7756b26e6bc3")
+
+KNOWN_SERVICE_CNS: tuple[str, ...] = (
+    "backend.ao.svc",
+    "worker.ao.svc",
+    "temporal.ao.svc",
+)
+
+
+def service_principal_id(cn: str) -> UUID:
+    """Deterministic UUID for a service principal identified by mTLS cert CN."""
+    return uuid5(_SERVICE_PRINCIPAL_NS, cn)
+
+
+def make_service_user(cn: str) -> User:
+    """Build a non-persistent synthetic User for a service principal.
+
+    Used where ``BaseService`` requires a ``User`` but the caller is an
+    internal service operating outside a user request context.  The
+    returned object is NOT backed by a database row — do not pass it to
+    ``session.refresh()`` or access ORM relationships on it.
+    """
+    from nexus.core.models.user import User  # noqa: PLC0415
+
+    return User(
+        id=service_principal_id(cn),
+        username=cn,
+        email=f"{cn}@internal",
+        first_name=cn,
+        is_enabled=True,
+    )
+
 
 class PrincipalType(StrEnum):
     """Types that get rows in the principals table (class-table inheritance).
 
     Most types correspond 1:1 to a child table (USER → ``users``,
-    SERVICE_ACCOUNT → ``service_accounts``).  SYSTEM is the exception:
-    the system user's row lives in ``users``, but its principal_type is
-    SYSTEM so audit attribution can distinguish automated actions from
-    human-user actions without inspecting the actor_id.
+    SERVICE_ACCOUNT → ``service_accounts``).  SERVICE represents
+    internal mTLS-authenticated services (backend, worker, temporal)
+    that have Principal rows but no child-table rows.
+
+    SYSTEM is retained for backward compatibility with existing DB rows
+    from before the system user was replaced by per-service principals.
+    New code should use SERVICE instead.
     """
 
     USER = "user"
@@ -74,6 +111,11 @@ class Principal(SQLModel, table=True):
     def for_service_account(cls, sa_id: UUID) -> Principal:
         """Create a principal row for a service account."""
         return cls(id=sa_id, principal_type=PrincipalType.SERVICE_ACCOUNT)
+
+    @classmethod
+    def for_service(cls, cn: str) -> Principal:
+        """Create a principal row for an internal service identified by cert CN."""
+        return cls(id=service_principal_id(cn), principal_type=PrincipalType.SERVICE)
 
 
 def _before_flush(session: Session, _flush_context: object, _instances: object) -> None:

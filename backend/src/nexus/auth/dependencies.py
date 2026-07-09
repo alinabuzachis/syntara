@@ -17,7 +17,7 @@ Usage:
 
 import threading
 from typing import Annotated
-from uuid import NAMESPACE_DNS, UUID, uuid5
+from uuid import UUID
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -34,7 +34,7 @@ from nexus.core.auth.jwt_utils import extract_actor_claims
 from nexus.core.database.session import get_db
 from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models import User
-from nexus.core.models.principal import PrincipalType
+from nexus.core.models.principal import PrincipalType, make_service_user
 
 # Optional bearer scheme - doesn't auto-raise 403
 bearer_scheme = HTTPBearer(
@@ -182,18 +182,30 @@ def _user_from_payload(payload: TokenPayload) -> User:
     return user
 
 
-def _service_user_from_cert(cert_cn: str) -> User:
-    """Build a synthetic User for a cert-authenticated internal service."""
-    return User(
-        # Deterministic UUID per CN so each service has a distinct identity
-        # for audit trails and ownership. uuid5 with NAMESPACE_DNS is
-        # collision-safe and reproducible across restarts.
-        id=uuid5(NAMESPACE_DNS, f"service:{cert_cn}"),
-        username=cert_cn,
-        email=f"{cert_cn}@internal",
-        first_name=cert_cn,
-        is_enabled=True,
-    )
+def _user_from_cert(request: Request, cert_cn: str) -> User:
+    """Build a User for a cert-authenticated internal service request.
+
+    If the request carries an ``X-On-Behalf-Of`` header (trusted because
+    the middleware only preserves it for cert-authenticated requests), the
+    returned User has that UUID as its ``id`` — preserving ``created_by``
+    attribution to the originating human user.
+
+    Without the header, falls back to a deterministic service principal
+    UUID derived from the cert CN so that FK constraints on ``created_by``
+    remain valid.
+    """
+    on_behalf_of = request.headers.get("x-on-behalf-of")
+    if on_behalf_of:
+        user_id = _safe_parse_uuid(on_behalf_of)
+        if user_id:
+            return User(
+                id=user_id,
+                username=cert_cn,
+                email=f"{cert_cn}@internal",
+                first_name=cert_cn,
+                is_enabled=True,
+            )
+    return make_service_user(cert_cn)
 
 
 async def get_current_user(
@@ -232,7 +244,7 @@ async def get_current_user(
     """
     if not credentials:
         if getattr(request.state, "is_cert_authenticated", False):
-            return _service_user_from_cert(request.state.cert_cn)
+            return _user_from_cert(request, request.state.cert_cn)
         raise AuthenticationRequiredError
 
     # Validate token

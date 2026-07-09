@@ -7,7 +7,7 @@ Verifies that InvocationExecutor emits the expected audit events during executio
 from collections.abc import AsyncGenerator
 from contextlib import ExitStack, asynccontextmanager
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -23,8 +23,8 @@ from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
-from nexus.core.config.base import get_settings
-from nexus.core.models.principal import PrincipalType
+from nexus.core.config.base import Settings
+from nexus.core.models.principal import PrincipalType, service_principal_id
 from nexus.core.models.user import User
 
 
@@ -137,6 +137,7 @@ class TestInvocationExecutorLifecycleEvents:
                 "_complete_invocation_if_not_cancelled",
                 return_value=update_status_if_not_cancelled_return,
             ),
+            patch.object(Settings, "service_identity", new_callable=PropertyMock, return_value="backend.ao.svc"),
         ]
 
         with ExitStack() as stack:
@@ -183,9 +184,9 @@ class TestInvocationExecutorLifecycleEvents:
             expected_actor_username: str = user.username
             expected_actor_type: PrincipalType = PrincipalType.USER
         else:
-            expected_actor_id = get_settings().system_user_id
-            expected_actor_username = "system"
-            expected_actor_type = PrincipalType.SYSTEM
+            expected_actor_id = service_principal_id("backend.ao.svc")
+            expected_actor_username = "backend.ao.svc"
+            expected_actor_type = PrincipalType.SERVICE
 
         # Verify events: RUNNING, COMPLETED
         assert len(events) == 2
@@ -227,7 +228,7 @@ class TestInvocationExecutorLifecycleEvents:
 
     @pytest.mark.asyncio
     async def test_execute_orchestration_emits_running_and_completed_events_with_unknown_user(self) -> None:
-        """Successful execution with unknown user emits RUNNING and COMPLETED events with SYSTEM actor."""
+        """Successful execution with unknown user emits RUNNING and COMPLETED events with SERVICE actor."""
         await self._run_successful_execution_lifecycle_test(user=None)
 
     @pytest.mark.asyncio

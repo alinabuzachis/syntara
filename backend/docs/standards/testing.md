@@ -114,7 +114,7 @@ tests/
 - Fast execution (milliseconds)
 - Function-scoped fixtures only
 - Test internal logic, edge cases, validation
-- **Do not use `user_factory` or other database-persisting fixtures** — construct model objects directly. Session-scoped seeders (e.g., `run_seeders` in `session_app`) pre-populate the database with system data. Using factories that INSERT rows with seeded IDs (like `settings.system_user_id`) causes `IntegrityError` under parallel execution when the test lands on a worker where the seeder has already run.
+- **Do not use `user_factory` or other database-persisting fixtures** — construct model objects directly. Session-scoped seeders (e.g., `run_seeders` in `session_app`) pre-populate the database with system data (service principals, admin user, default groups). Using factories that INSERT rows with seeded IDs causes `IntegrityError` under parallel execution when the test lands on a worker where the seeder has already run.
 
 **Marker:** `@pytest.mark.unit` (optional, inferred by location)
 

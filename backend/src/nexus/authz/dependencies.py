@@ -307,6 +307,9 @@ class PermissionChecker:
             AuthorizationDeniedError: If the user is not authorized.
 
         """
+        if getattr(request.state, "is_cert_authenticated", False):
+            return
+
         opa_client = get_opa_client(request)
         resource_name, resource_project, resource_labels = await self._resolve_resource_project(request, db)
 
@@ -394,6 +397,9 @@ class ProjectScopeFilter:
             AllowedProjectsResult with the set of accessible project IDs.
 
         """
+        if getattr(request.state, "is_cert_authenticated", False):
+            return AllowedProjectsResult(all_projects=True, project_ids=[])
+
         opa_client = get_opa_client(request)
 
         return await resolve_allowed_projects(
@@ -422,6 +428,9 @@ class VisibilityFilter:
         db: AsyncSession = Depends(get_db),  # noqa: B008
     ) -> VisibilityResult:
         """Resolve visibility for the current user."""
+        if getattr(request.state, "is_cert_authenticated", False):
+            return VisibilityResult(unrestricted=True)
+
         opa_client = get_opa_client(request)
 
         return await resolve_visibility(

@@ -62,7 +62,6 @@ class ApprovalsApiClient:
         timeout: float = 30.0,
         max_retries: int = 3,
         retry_backoff_base: float = 1.0,
-        auth_token: str | None = None,
     ) -> None:
         """Initialize Approvals API client.
 
@@ -71,15 +70,12 @@ class ApprovalsApiClient:
             timeout: HTTP request timeout in seconds.
             max_retries: Max retry attempts for transient errors.
             retry_backoff_base: Base delay for exponential backoff.
-            auth_token: Bearer token for authentication. Pass the system
-                auth token from nexus.auth.create_service_token().
 
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_backoff_base = retry_backoff_base
-        self._auth_token = auth_token
 
         self.http_client = build_internal_http_client(
             base_url=self.base_url,
@@ -88,12 +84,6 @@ class ApprovalsApiClient:
         )
 
         logger.debug("Initialized Approvals API client", base_url=self.base_url)
-
-    def _get_auth_headers(self) -> dict[str, str]:
-        """Build per-request auth headers from stored token."""
-        if self._auth_token:
-            return {"Authorization": f"Bearer {self._auth_token}"}
-        return {}
 
     async def close(self) -> None:
         """Close the HTTP client."""
@@ -197,9 +187,7 @@ class ApprovalsApiClient:
         """
 
         async def _do_create() -> dict[str, Any]:
-            response = await self.http_client.post(
-                "/approvals", json=request_data, headers=self._get_auth_headers(), timeout=self.timeout
-            )
+            response = await self.http_client.post("/approvals", json=request_data, timeout=self.timeout)
             response.raise_for_status()
             data: dict[str, Any] = response.json()
             logger.info(
@@ -230,9 +218,7 @@ class ApprovalsApiClient:
             params["cursor"] = cursor
 
         async def _do_list() -> tuple[list[dict[str, Any]], str | None]:
-            response = await self.http_client.get(
-                "/approvals", params=params, headers=self._get_auth_headers(), timeout=self.timeout
-            )
+            response = await self.http_client.get("/approvals", params=params, timeout=self.timeout)
             response.raise_for_status()
             data = response.json()
             resources_data: list[dict[str, Any]] = data.get("resources") or []
@@ -302,9 +288,7 @@ class ApprovalsApiClient:
         body = {"decisions": decisions}
 
         async def _do_batch() -> dict[str, Any]:
-            response = await self.http_client.post(
-                "/approvals/batch", json=body, headers=self._get_auth_headers(), timeout=self.timeout
-            )
+            response = await self.http_client.post("/approvals/batch", json=body, timeout=self.timeout)
             response.raise_for_status()
             data: dict[str, Any] = response.json()
             logger.info(
@@ -342,9 +326,7 @@ class ApprovalsApiClient:
         body = {"decisions": decisions}
 
         async def _do_batch() -> dict[str, Any]:
-            response = await self.http_client.post(
-                "/approvals/batch", json=body, headers=self._get_auth_headers(), timeout=self.timeout
-            )
+            response = await self.http_client.post("/approvals/batch", json=body, timeout=self.timeout)
             response.raise_for_status()
             data: dict[str, Any] = response.json()
             logger.info(

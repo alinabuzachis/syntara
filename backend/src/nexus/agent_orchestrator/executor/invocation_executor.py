@@ -10,6 +10,7 @@ from uuid import UUID
 import structlog
 
 from nexus.audit.utils import escalate_actor_type
+from nexus.core.models.principal import service_principal_id
 
 if TYPE_CHECKING:
     from nexus.agent_orchestrator.context_manager.compressor import CompressorService
@@ -146,18 +147,17 @@ class InvocationExecutor:
                 actor_username=user.username,
                 actor_type=escalate_actor_type(user.id),
             )
-        # This scenario should not happen. Invocations are created by the AgenticActivity that
-        # creates a Bearer Token for the System User. The Invocation.created_by will therefore be
-        # that of the System User.
+        settings = get_settings()
+        cn = settings.service_identity
         logger.warning(
-            "User associated with Invocation.created_by cannot be found. Using System User context.",
+            "User associated with Invocation.created_by cannot be found. Using service principal context.",
             invocation_id=invocation.id,
             created_by=invocation.created_by,
         )
         return AuditActorContext(
-            actor_id=get_settings().system_user_id,
-            actor_username="system",
-            actor_type=PrincipalType.SYSTEM,
+            actor_id=service_principal_id(cn),
+            actor_username=cn,
+            actor_type=PrincipalType.SERVICE,
         )
 
     async def _load_invocation(self, invocation_id: UUID) -> Invocation | None:

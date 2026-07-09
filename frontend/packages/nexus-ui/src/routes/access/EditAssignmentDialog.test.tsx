@@ -551,7 +551,7 @@ describe('EditAssignmentDialog', () => {
       })
     })
 
-    it('revokes new assignment when delete fails after assign (system user)', async () => {
+    it('revokes new assignment when delete fails after assign (user)', async () => {
       // Assign new succeeds, delete old fails, revoke new succeeds
       const mutateAsyncSpy = vi
         .fn()

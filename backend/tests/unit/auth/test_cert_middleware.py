@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -396,39 +396,50 @@ class TestClientCertAuthMiddleware:
         app.assert_called_once()
 
 
-class TestServiceUserFromCert:
-    """Tests for _service_user_from_cert deterministic UUID generation."""
+class TestUserFromCert:
+    """Tests for _user_from_cert service user construction."""
 
-    def test_deterministic_uuid_per_cn(self) -> None:
-        """Same CN always produces the same UUID."""
-        from nexus.auth.dependencies import _service_user_from_cert
+    @staticmethod
+    def _make_request(on_behalf_of: str | None = None) -> MagicMock:
+        request = MagicMock()
+        request.headers = {"x-on-behalf-of": on_behalf_of} if on_behalf_of else {}
+        return request
 
-        user1 = _service_user_from_cert("backend.ao.svc")
-        user2 = _service_user_from_cert("backend.ao.svc")
-        assert user1.id == user2.id
+    def test_fallback_uses_service_principal_id(self) -> None:
+        """Without X-On-Behalf-Of, uses service_principal_id derived from CN."""
+        from nexus.auth.dependencies import _user_from_cert
+        from nexus.core.models.principal import service_principal_id
 
-    def test_different_cn_produces_different_uuid(self) -> None:
-        """Different CNs produce different UUIDs."""
-        from nexus.auth.dependencies import _service_user_from_cert
+        request = self._make_request()
+        user = _user_from_cert(request, "backend.ao.svc")
+        assert user.id == service_principal_id("backend.ao.svc")
 
-        backend = _service_user_from_cert("backend.ao.svc")
-        worker = _service_user_from_cert("worker.ao.svc")
-        assert backend.id != worker.id
-
-    def test_uuid_is_not_nil(self) -> None:
-        """Generated UUID is not the nil UUID."""
+    def test_on_behalf_of_uses_header_uuid(self) -> None:
+        """With valid X-On-Behalf-Of header, uses that UUID."""
         from uuid import UUID
 
-        from nexus.auth.dependencies import _service_user_from_cert
+        from nexus.auth.dependencies import _user_from_cert
 
-        user = _service_user_from_cert("backend.ao.svc")
-        assert user.id != UUID(int=0)
+        user_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        request = self._make_request(on_behalf_of=user_id)
+        user = _user_from_cert(request, "backend.ao.svc")
+        assert user.id == UUID(user_id)
+
+    def test_invalid_on_behalf_of_falls_back(self) -> None:
+        """With invalid X-On-Behalf-Of, falls back to service_principal_id."""
+        from nexus.auth.dependencies import _user_from_cert
+        from nexus.core.models.principal import service_principal_id
+
+        request = self._make_request(on_behalf_of="not-a-uuid")
+        user = _user_from_cert(request, "backend.ao.svc")
+        assert user.id == service_principal_id("backend.ao.svc")
 
     def test_user_fields_populated(self) -> None:
         """Username, email, and first_name are populated from CN."""
-        from nexus.auth.dependencies import _service_user_from_cert
+        from nexus.auth.dependencies import _user_from_cert
 
-        user = _service_user_from_cert("backend.ao.svc")
+        request = self._make_request()
+        user = _user_from_cert(request, "backend.ao.svc")
         assert user.username == "backend.ao.svc"
         assert user.email == "backend.ao.svc@internal"
         assert user.first_name == "backend.ao.svc"

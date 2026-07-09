@@ -16,6 +16,7 @@ from nexus.auth.dependencies import (
 )
 from nexus.auth.exceptions import AuthenticationRequiredError, CSRFErrorCode, CSRFValidationError, InvalidTokenError
 from nexus.auth.services.token_service import TokenPayload
+from nexus.core.models.principal import service_principal_id
 
 
 def _make_payload(
@@ -130,6 +131,33 @@ class TestGetCurrentUser:
 
         with pytest.raises(AuthenticationRequiredError):
             await get_current_user(request, db=AsyncMock(), credentials=None)
+
+    @pytest.mark.asyncio
+    async def test_cert_auth_with_on_behalf_of(self) -> None:
+        """Cert-authenticated request with X-On-Behalf-Of returns that user's identity."""
+        user_id = uuid4()
+        request = MagicMock()
+        request.state.is_cert_authenticated = True
+        request.state.cert_cn = "worker.ao.svc"
+        request.headers = {"x-on-behalf-of": str(user_id)}
+
+        user = await get_current_user(request, db=AsyncMock(), credentials=None)
+
+        assert user.id == user_id
+        assert user.username == "worker.ao.svc"
+
+    @pytest.mark.asyncio
+    async def test_cert_auth_without_on_behalf_of(self) -> None:
+        """Cert-authenticated request without X-On-Behalf-Of falls back to service principal."""
+        request = MagicMock()
+        request.state.is_cert_authenticated = True
+        request.state.cert_cn = "backend.ao.svc"
+        request.headers = {}
+
+        user = await get_current_user(request, db=AsyncMock(), credentials=None)
+
+        assert user.id == service_principal_id("backend.ao.svc")
+        assert user.username == "backend.ao.svc"
 
     @pytest.mark.asyncio
     async def test_returns_user_for_valid_token(self) -> None:

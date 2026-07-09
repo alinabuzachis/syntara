@@ -573,18 +573,17 @@ class TestAuditMiddlewareUserContext:
 
     @pytest.mark.asyncio
     async def test_service_token_classified_as_service_account(self) -> None:
-        """JWT with amr=['service'] is classified as SERVICE_ACCOUNT actor type."""
+        """JWT with token_type='service_account' is classified as SERVICE_ACCOUNT actor type."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        # Create JWT token with service authentication method reference
         import jwt
 
         user_id = "550e8400-e29b-41d4-a716-446655440000"
         claims = {
             "sub": user_id,
             "preferred_username": "service-account",
-            "amr": ["service"],
+            "token_type": "service_account",
         }
         auth_token = jwt.encode(claims, key="", algorithm="none")
         scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)

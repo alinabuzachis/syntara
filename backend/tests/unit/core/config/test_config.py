@@ -435,7 +435,6 @@ class TestTemporalSettings:
         monkeypatch.delenv("APP_TASK_QUEUE", raising=False)
         monkeypatch.delenv("APP_TEMPORAL_ADDRESS", raising=False)
         monkeypatch.delenv("APP_TEMPORAL_NAMESPACE", raising=False)
-        monkeypatch.delenv("APP_SYSTEM_USER_ID", raising=False)
         monkeypatch.delenv("APP_MAX_LOOP_ITERATIONS", raising=False)
         monkeypatch.delenv("APP_NAME", raising=False)
         get_settings.cache_clear()
@@ -446,7 +445,6 @@ class TestTemporalSettings:
             assert settings.temporal_address == "localhost:7233"
             assert settings.temporal_namespace == "default"
             assert settings.task_queue == "nexus-workflow-queue"
-            assert str(settings.system_user_id) == "00000000-0000-0000-0000-000000000001"
         finally:
             get_settings.cache_clear()
 
@@ -455,12 +453,25 @@ class TestTemporalSettings:
         monkeypatch.setenv("APP_TEMPORAL_ADDRESS", "temporal.example.com:7233")
         monkeypatch.setenv("APP_TEMPORAL_NAMESPACE", "production")
         monkeypatch.setenv("APP_TASK_QUEUE", "prod-queue")
-        monkeypatch.setenv("APP_SYSTEM_USER_ID", "12345678-1234-1234-1234-123456789012")
         settings = Settings()
         assert settings.temporal_address == "temporal.example.com:7233"
         assert settings.temporal_namespace == "production"
         assert settings.task_queue == "prod-queue"
-        assert str(settings.system_user_id) == "12345678-1234-1234-1234-123456789012"
+
+
+# =============================================================================
+# ServiceIdentitySettings Tests
+# =============================================================================
+
+
+class TestServiceIdentitySettings:
+    """Tests for service_identity computed property."""
+
+    def test_service_identity_raises_when_tls_disabled(self) -> None:
+        """Test that service_identity raises RuntimeError when S2S TLS is disabled."""
+        settings = Settings(_env_file=None, s2s_tls_enabled=False)
+        with pytest.raises(RuntimeError, match="service_identity requires S2S TLS"):
+            _ = settings.service_identity
 
 
 # =============================================================================

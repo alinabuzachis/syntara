@@ -1,6 +1,6 @@
 """Unit tests for the webhook reception router.
 
-Tests cover the helper functions (_get_system_user, _check_payload_size) and
+Tests cover the helper functions (_get_service_user, _check_payload_size) and
 the receive_webhook / receive_eda_webhook endpoints with mocked dependencies.
 """
 
@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.constants import WebhookLimits
 from nexus.core.models import User
+from nexus.core.models.principal import service_principal_id
 from nexus.workflows.exceptions import (
     PayloadTooLargeError,
     TemporalUnavailableError,
@@ -24,7 +25,7 @@ from nexus.workflows.models.webhook_trigger import WebhookTrigger
 from nexus.workflows.webhook_router import (
     WebhookResponse,
     _check_payload_size,
-    _get_system_user,
+    _get_service_user,
     receive_eda_webhook,
     receive_webhook,
 )
@@ -32,38 +33,33 @@ from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 # ============================================================================
-# _get_system_user tests
+# _get_service_user tests
 # ============================================================================
 
 
-class TestGetSystemUser:
-    """Test suite for _get_system_user helper."""
+class TestGetServiceUser:
+    """Test suite for _get_service_user helper."""
 
-    @pytest.mark.asyncio
-    async def test_returns_user_when_found(self) -> None:
-        """Test that the system user is returned when it exists."""
-        mock_db = AsyncMock(spec=AsyncSession)
-        mock_user = Mock(spec=User)
-        mock_db.get = AsyncMock(return_value=mock_user)
-
+    def test_returns_synthetic_user_with_service_principal_id(self) -> None:
+        """Test that a synthetic User is returned with the correct service principal ID."""
         with patch("nexus.workflows.webhook_router.get_settings") as mock_settings:
-            mock_settings.return_value.system_user_id = uuid4()
-            result = await _get_system_user(mock_db)
+            mock_settings.return_value.service_identity = "backend.ao.svc"
+            result = _get_service_user()
 
-        assert result is mock_user
+        assert result.id == service_principal_id("backend.ao.svc")
+        assert result.username == "backend.ao.svc"
+        assert result.email == "backend.ao.svc@internal"
+        assert result.first_name == "backend.ao.svc"
+        assert result.is_enabled is True
 
-    @pytest.mark.asyncio
-    async def test_raises_runtime_error_when_not_found(self) -> None:
-        """Test that RuntimeError is raised when the system user doesn't exist."""
-        mock_db = AsyncMock(spec=AsyncSession)
-        mock_db.get = AsyncMock(return_value=None)
+    def test_uses_configured_service_identity(self) -> None:
+        """Test that the service identity CN from settings is used."""
+        with patch("nexus.workflows.webhook_router.get_settings") as mock_settings:
+            mock_settings.return_value.service_identity = "worker.ao.svc"
+            result = _get_service_user()
 
-        with (
-            patch("nexus.workflows.webhook_router.get_settings") as mock_settings,
-            pytest.raises(RuntimeError, match="System user"),
-        ):
-            mock_settings.return_value.system_user_id = uuid4()
-            await _get_system_user(mock_db)
+        assert result.id == service_principal_id("worker.ao.svc")
+        assert result.username == "worker.ao.svc"
 
 
 # ============================================================================
@@ -243,7 +239,7 @@ class TestReceiveWebhookEndpoints:
         mock_temporal = AsyncMock(spec=TemporalExecutionService)
 
         with (
-            patch("nexus.workflows.webhook_router._get_system_user") as mock_get_user,
+            patch("nexus.workflows.webhook_router._get_service_user") as mock_get_user,
             patch("nexus.workflows.webhook_router.ExecutionService") as mock_exec_svc_cls,
         ):
             mock_get_user.return_value = Mock(spec=User)

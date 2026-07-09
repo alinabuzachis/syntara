@@ -41,6 +41,15 @@ SERVICE_CERTS = [
     ("temporal", "temporal.ao.svc", ["temporal"]),
 ]
 
+# Validate against the canonical list in principal.py
+from nexus.core.models.principal import KNOWN_SERVICE_CNS  # noqa: E402
+
+_cert_cns = {cn for _, cn, _ in SERVICE_CERTS}
+_expected = set(KNOWN_SERVICE_CNS)
+if _cert_cns != _expected:
+    msg = f"SERVICE_CERTS CNs {_cert_cns} do not match KNOWN_SERVICE_CNS {_expected}"
+    raise RuntimeError(msg)
+
 
 def _write_key(path: Path, key: rsa.RSAPrivateKey) -> None:
     path.write_bytes(

@@ -90,8 +90,7 @@ until curl -sf --cacert .secrets/certs/ca.pem https://localhost:8000/health 2>/d
 done
 echo "✅ API server is ready"
 
-echo "🔧 Creating system user..."
-uv run python tools/create_system_user.py
+echo "🔧 Setting admin password..."
 uv run python tools/set_admin_password.py < .secrets/admin-password
 API="https://localhost:8000/api/v1"
 

@@ -53,10 +53,6 @@ async def test_expire_success(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
         ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
-        ),
     ):
         result = await expire_approval_requests_activity(execution_id, node_id)
 
@@ -78,10 +74,6 @@ async def test_expire_no_pending_approvals(execution_id: str, node_id: str) -> N
         patch(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
-        ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
         ),
     ):
         result = await expire_approval_requests_activity(execution_id, node_id)
@@ -106,10 +98,6 @@ async def test_expire_filters_by_node_id(execution_id: str, node_id: str) -> Non
         patch(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
-        ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
         ),
     ):
         result = await expire_approval_requests_activity(execution_id, node_id)
@@ -136,10 +124,6 @@ async def ***REMOVED***(execution_id: str, node_id: str) -> None:
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
         ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
-        ),
     ):
         result = await expire_approval_requests_activity(execution_id, node_id)
 
@@ -159,10 +143,6 @@ async def test_expire_unexpected_error_returns_gracefully(execution_id: str, nod
         patch(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
-        ),
-        patch(
-            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
-            return_value="mock_token",
         ),
     ):
         result = await expire_approval_requests_activity(execution_id, node_id)

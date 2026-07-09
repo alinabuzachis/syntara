@@ -22,7 +22,7 @@ from nexus.agent_orchestrator.utils import retry_with_backoff
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
-from nexus.core.models import User
+from nexus.core.models.principal import make_service_user
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import MetricType
 from nexus.telemetry.events.tool_execution import ToolExecutedEvent
@@ -151,7 +151,7 @@ async def _persist_tool_execution_to_db(
     """Persist a tool execution record to the database (best-effort).
 
     Opens its own DB session since this runs outside FastAPI request context.
-    Uses the system user for audit fields.
+    Uses the worker's service principal for audit fields.
 
     Args:
         base_tool: The BaseTool instance with metadata containing namespaced_name.
@@ -163,18 +163,10 @@ async def _persist_tool_execution_to_db(
     """
     try:
         namespaced_name: str = base_tool.metadata["namespaced_name"]
-        settings = get_settings()
+        svc_user = make_service_user(get_settings().service_identity)
         async with session_factory() as session:
-            user = await session.get(User, settings.system_user_id)
-            if user is None:
-                msg = (
-                    f"System user {settings.system_user_id} not found. "
-                    "Run 'uv run python tools/create_system_user.py' to create it."
-                )
-                raise RuntimeError(msg)  # noqa: TRY301
-
             try:
-                service = ToolMetricsService(session, user)
+                service = ToolMetricsService(session, svc_user)
                 await service.record_tool_execution(
                     namespaced_name=namespaced_name,
                     duration_ms=int(duration_ms),

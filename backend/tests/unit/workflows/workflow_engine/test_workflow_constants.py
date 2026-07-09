@@ -43,7 +43,6 @@ class TestConstantsModuleLoading:
         expected_constants = [
             "DEFAULT_ACTIVITY_TIMEOUT_SECONDS",
             "AGENT_ORCHESTRATOR_BASE_URL",
-            "SYSTEM_USER_ID",
             "SCRIPT_CLEANUP_TERMINATE_TIMEOUT",
             "SCRIPT_CLEANUP_KILL_TIMEOUT",
             "MAX_ENV_VAR_LENGTH",
@@ -57,7 +56,6 @@ class TestConstantsModuleLoading:
 
         settings = get_settings()
         assert str(settings.agent_orchestrator_base_url) == constants.AGENT_ORCHESTRATOR_BASE_URL
-        assert settings.system_user_id == constants.SYSTEM_USER_ID
         assert settings.script_cleanup_terminate_timeout == constants.SCRIPT_CLEANUP_TERMINATE_TIMEOUT
         assert settings.script_cleanup_kill_timeout == constants.SCRIPT_CLEANUP_KILL_TIMEOUT
         assert settings.max_env_var_length == constants.MAX_ENV_VAR_LENGTH
@@ -76,14 +74,6 @@ class TestConstantsModuleLoading:
         assert constants.SCRIPT_CLEANUP_TERMINATE_TIMEOUT == 2.0
         assert constants.SCRIPT_CLEANUP_KILL_TIMEOUT == 1.0
         assert constants.MAX_ENV_VAR_LENGTH == 65536
-
-    def test_system_user_id_is_uuid(self) -> None:
-        from uuid import UUID
-
-        from nexus.workflows.workflow_engine import constants
-
-        assert isinstance(constants.SYSTEM_USER_ID, UUID)
-        assert str(constants.SYSTEM_USER_ID) == "00000000-0000-0000-0000-000000000001"
 
     def test_runtime_settings_not_in_constants(self) -> None:
         """Runtime-configurable settings should NOT be in constants."""

@@ -19,6 +19,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.database.session import get_db
 from nexus.core.models import User
+from nexus.core.models.principal import service_principal_id
 from nexus.workflows.models.execution import Execution
 from nexus.workflows.models.webhook_trigger import WebhookTrigger
 from nexus.workflows.models.workflow import Workflow
@@ -34,19 +35,24 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-def _mock_system_user() -> Mock:
-    """Mock system user for webhook-triggered executions."""
-    mock_user = Mock(spec=User)
-    mock_user.id = uuid4()
-    return mock_user
+def _mock_service_user() -> User:
+    """Mock service user for webhook-triggered executions."""
+    cn = "backend.ao.svc"
+    return User(
+        id=service_principal_id(cn),
+        username=cn,
+        email=f"{cn}@internal",
+        first_name=cn,
+        is_enabled=True,
+    )
 
 
 @pytest.fixture(autouse=True)
-def _patch_system_user(_mock_system_user: Mock) -> Generator[None]:
-    """Patch _get_system_user for all tests (webhook endpoints require it)."""
+def _patch_service_user(_mock_service_user: User) -> Generator[None]:
+    """Patch _get_service_user for all tests (webhook endpoints require it)."""
     with patch(
-        "nexus.workflows.webhook_router._get_system_user",
-        return_value=_mock_system_user,
+        "nexus.workflows.webhook_router._get_service_user",
+        return_value=_mock_service_user,
     ):
         yield
 

@@ -18,7 +18,6 @@ from nexus.audit.events.audit_context import AuditContextEvent
 from nexus.audit.models.audit_event import EventCategory, EventSeverity
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.utils import escalate_severity, resolve_actor_type
-from nexus.core.config.base import get_settings
 from nexus.core.models.user import User
 
 if TYPE_CHECKING:
@@ -29,16 +28,12 @@ if TYPE_CHECKING:
 
 _RESERVED_AUDIT_FIELDS = frozenset(AuditContextData.model_fields.keys())
 
-settings = get_settings()
-
 
 def _build_actor_context(actor: User | ServiceAccount | None) -> AuditActorContext:
     """Build an AuditActorContext from a principal model.
 
-    For ``User`` objects, actor_type is determined by checking the
-    instance-level ``__principal_type__`` first (set for service account
-    virtual principals), then falling back to ``escalate_actor_type``
-    which promotes the system user to SYSTEM.
+    For ``User`` objects, actor_type is determined by checking if the user ID
+    matches a known service principal (escalating to SERVICE when it does).
     For other principal models (e.g. ``ServiceAccount``), actor_type is read
     from the model's ``__principal_type__`` class variable.
     When *actor* is ``None``, all fields are ``None`` (no actor identity).

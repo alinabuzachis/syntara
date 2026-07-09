@@ -266,6 +266,7 @@ def _mock_user() -> MagicMock:
 def _mock_request() -> MagicMock:
     request = MagicMock()
     request.app.state.opa_client = MagicMock()
+    request.state.is_cert_authenticated = False
     return request
 
 

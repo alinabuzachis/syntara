@@ -45,7 +45,6 @@ def _make_integration_response(
     }
 
 
-@pytest.mark.usefixtures("mock_service_token")
 class TestMCPIntegrationDiscovery:
     """Test MCP integration discovery scenarios."""
 
