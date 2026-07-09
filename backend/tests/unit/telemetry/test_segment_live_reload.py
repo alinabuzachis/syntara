@@ -244,17 +244,56 @@ class TestReinitializeFromRuntime:
         )
 
     @patch("nexus.telemetry.client.get_telemetry_registry")
-    def test_skips_reinitialize_when_not_yet_initialized(
+    @patch("nexus.settings.cache.settings_cache.get_runtime_settings")
+    def test_skips_reinitialize_when_not_initialized_and_no_key(
         self,
+        mock_get_runtime: MagicMock,
         mock_get_registry: MagicMock,
     ) -> None:
-        """_reinitialize_from_runtime is a no-op before initialize_telemetry() runs."""
+        """_reinitialize_from_runtime is a no-op when not initialized and no runtime key."""
+        mock_cache = MagicMock()
+        mock_cache.get_cached.return_value = None
+        mock_get_runtime.return_value = mock_cache
+
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = False
         mock_get_registry.return_value = mock_registry
 
-        _on_segment_write_key_changed("telemetry.segment_write_key", "some-key")
+        _on_segment_write_key_changed("telemetry.segment_write_key", "")
 
+        mock_registry.reinitialize.assert_not_called()
+
+    @patch("nexus.telemetry.client.asyncio.get_running_loop")
+    @patch("nexus.telemetry.client.get_telemetry_registry")
+    @patch("nexus.telemetry.client.get_settings")
+    @patch("nexus.settings.cache.settings_cache.get_runtime_settings")
+    def test_schedules_async_init_when_not_initialized_but_key_present(
+        self,
+        mock_get_runtime: MagicMock,
+        mock_get_settings: MagicMock,
+        mock_get_registry: MagicMock,
+        mock_get_running_loop: MagicMock,
+    ) -> None:
+        """When not initialized but a runtime key arrives, an async init task is scheduled."""
+        cached_values = {"telemetry.segment_write_key": "runtime-key"}
+        mock_cache = MagicMock()
+        mock_cache.get_cached.side_effect = cached_values.get
+        mock_get_runtime.return_value = mock_cache
+
+        mock_settings = MagicMock()
+        mock_settings.segment_write_key.get_secret_value.return_value = ""
+        mock_get_settings.return_value = mock_settings
+
+        mock_registry = MagicMock()
+        mock_registry.is_initialized.return_value = False
+        mock_get_registry.return_value = mock_registry
+
+        mock_loop = MagicMock()
+        mock_get_running_loop.return_value = mock_loop
+
+        _on_segment_write_key_changed("telemetry.segment_write_key", "runtime-key")
+
+        mock_loop.create_task.assert_called_once()
         mock_registry.reinitialize.assert_not_called()
 
 

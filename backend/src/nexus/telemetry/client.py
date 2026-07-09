@@ -6,6 +6,7 @@ the WorkerRegistry pattern used in temporal_worker.py.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import uuid
 from functools import lru_cache
@@ -404,6 +405,42 @@ def _resolve_telemetry_config(
     return write_key, host
 
 
+async def _async_initialize_from_runtime(write_key: str, host: str | None) -> None:
+    """Perform a full first-time telemetry initialization driven by a runtime key.
+
+    Called as an asyncio task from ``_reinitialize_from_runtime()`` when the
+    registry was never initialized at startup (no static write key) but a key
+    has since been set via the runtime settings API.  Needs a DB round-trip
+    to derive ``anonymous_id`` — hence async.
+
+    Args:
+        write_key: Resolved Segment write key from runtime settings.
+        host: Resolved Segment endpoint URL, or *None* to fall back to the
+            static ``APP_SEGMENT_ENDPOINT`` setting.
+
+    """
+    settings = get_settings()
+    try:
+        async with AsyncSessionLocal() as session:
+            installation = await get_installation(session)
+    except Exception:
+        logger.exception("Failed to fetch installation for telemetry initialization")
+        return
+
+    anonymous_id = derive_anonymous_id(installation.id, settings.db_host, settings.db_name)
+    registry = get_telemetry_registry()
+    registry.initialize(
+        write_key=write_key,
+        host=host or str(settings.segment_endpoint),
+        entitlement_id=settings.entitlement_id,
+        anonymous_id=anonymous_id,
+        installation_salt=str(installation.salt),
+        max_retries=settings.segment_max_retries,
+        timeout=settings.segment_timeout,
+    )
+    logger.info("Telemetry client initialized from runtime settings")
+
+
 def _reinitialize_from_runtime() -> None:
     """Reinitialize the Segment client from the current runtime settings.
 
@@ -411,10 +448,6 @@ def _reinitialize_from_runtime() -> None:
     ``telemetry.segment_endpoint`` from the in-process L1 cache (already
     populated by the cache layer before callbacks fire).
     """
-    registry = get_telemetry_registry()
-    if not registry.is_initialized():
-        return
-
     from nexus.settings.cache.settings_cache import get_runtime_settings  # noqa: PLC0415
 
     cache = get_runtime_settings()
@@ -424,12 +457,25 @@ def _reinitialize_from_runtime() -> None:
         override_endpoint=cache.get_cached("telemetry.segment_endpoint"),
     )
 
+    registry = get_telemetry_registry()
+    if not registry.is_initialized():
+        if write_key:
+            # First-time enablement via runtime settings: the registry was
+            # never initialized at startup (no static write key).  Schedule
+            # an async task to do the DB round-trip for anonymous_id, then
+            # call registry.initialize().
+            try:
+                asyncio.get_running_loop().create_task(_async_initialize_from_runtime(write_key, host))
+            except RuntimeError:
+                logger.warning("No running event loop; cannot enable telemetry from runtime settings")
+        return
+
     if write_key:
         logger.info("Reinitializing telemetry client from runtime settings")
-        get_telemetry_registry().reinitialize(write_key, host=host)
+        registry.reinitialize(write_key, host=host)
     else:
         logger.info("Telemetry disabled — no write key in runtime or static config")
-        get_telemetry_registry().reinitialize("")
+        registry.reinitialize("")
 
 
 @watch_setting("telemetry.segment_write_key")

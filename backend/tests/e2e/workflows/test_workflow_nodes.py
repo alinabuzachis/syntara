@@ -427,6 +427,7 @@ def test_multi_node_workflow(nexus_api: NexusApiRegistry):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_script_then_agentic(
     nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
@@ -480,6 +481,7 @@ def test_script_then_agentic(
     assert activities["agent"] == "completed"
 
 
+@pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_agentic_then_script(
     nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
@@ -533,6 +535,7 @@ def test_agentic_then_script(
     assert activities["post_process"] == "completed"
 
 
+@pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_loop_with_agentic_body(
     nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
@@ -587,6 +590,7 @@ def test_loop_with_agentic_body(
     assert activities["greet"] == "completed"
 
 
+@pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_http_request_then_agentic(
     nexus_api: NexusApiRegistry, llm_credential_id: str, llm_model: str, first_project_id: UUID

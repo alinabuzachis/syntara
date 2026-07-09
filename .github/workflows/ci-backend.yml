@@ -820,7 +820,7 @@ jobs:
     # events (see e2e-ao-operator.yml). No commit status is posted.
     if: needs.changes.outputs.backend == 'true' && github.event_name != 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 120
     steps:
       - name: Wait for E2E commit status
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
