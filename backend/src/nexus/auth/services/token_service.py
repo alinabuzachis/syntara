@@ -635,7 +635,7 @@ class TokenService:
                 iss=payload["iss"],
                 iat=iat,
                 exp=exp,
-                token_type=actual_type,
+                token_type=payload.get("token_type", actual_type),
                 aud=payload.get("aud"),
                 jti=payload.get("jti"),
                 email=payload.get("email"),

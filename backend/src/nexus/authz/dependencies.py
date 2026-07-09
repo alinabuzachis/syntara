@@ -336,6 +336,7 @@ class PermissionChecker:
                     resource_name=resource_name,
                     action=self.action,
                     denied_by=authz_result.denied_by,
+                    principal_type=current_user.__dict__.get("__principal_type__"),
                 )
             )
             logger.info(

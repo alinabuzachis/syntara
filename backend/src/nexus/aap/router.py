@@ -100,6 +100,7 @@ async def list_organizations(
                 credential_used=query.credential_id is not None,
                 search_filter=query.search,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result
@@ -132,6 +133,7 @@ async def list_job_templates(
                 search_filter=query.search,
                 organization_filter=query.organization,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result
@@ -167,6 +169,7 @@ async def get_job_template(
                 resource_name=resource_name,
                 credential_used=query.credential_id is not None,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result
@@ -199,6 +202,7 @@ async def list_workflow_job_templates(
                 search_filter=query.search,
                 organization_filter=query.organization,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result
@@ -234,6 +238,7 @@ async def get_workflow_job_template(
                 resource_name=resource_name,
                 credential_used=query.credential_id is not None,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result
@@ -266,6 +271,7 @@ async def list_inventories(
                 search_filter=query.search,
                 organization_filter=query.organization,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result
@@ -298,6 +304,7 @@ async def list_execution_environments(
                 search_filter=query.search,
                 organization_filter=query.organization,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result
@@ -329,6 +336,7 @@ async def list_credentials(
                 credential_used=query.credential_id is not None,
                 search_filter=query.search,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result
@@ -360,6 +368,7 @@ async def list_instance_groups(
                 credential_used=query.credential_id is not None,
                 search_filter=query.search,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result
@@ -391,6 +400,7 @@ async def list_labels(
                 credential_used=query.credential_id is not None,
                 search_filter=query.search,
                 error_type=error_type,
+                principal_type=current_user.__dict__.get("__principal_type__"),
             )
         )
     return result

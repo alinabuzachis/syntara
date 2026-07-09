@@ -99,6 +99,16 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
             token_ver = payload.token_version or 0
 
             if not is_alive or status_val != "active":
+                from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+                from nexus.auth.audit.sa_rejection import DisabledSARejectionEvent  # noqa: PLC0415
+
+                AuditEventDispatcher.dispatch(
+                    DisabledSARejectionEvent(
+                        service_account_id=sa_id,
+                        sa_status=status_val,
+                        is_alive=is_alive,
+                    )
+                )
                 logger.warning(
                     "Rejected request from disabled/deleted service account",
                     service_account_id=sa_id,
@@ -118,6 +128,19 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 return response
 
             if current_ver > token_ver:
+                if sa_id not in _stale_audit_cache:
+                    from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+                    from nexus.auth.audit.sa_rejection import StaleSATokenDetectionEvent  # noqa: PLC0415
+
+                    AuditEventDispatcher.dispatch(
+                        StaleSATokenDetectionEvent(
+                            service_account_id=sa_id,
+                            token_version=token_ver,
+                            current_version=current_ver,
+                        )
+                    )
+                    _stale_audit_cache[sa_id] = True
+
                 logger.warning(
                     "Rejected request with stale service account token",
                     service_account_id=sa_id,

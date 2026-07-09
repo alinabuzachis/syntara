@@ -586,6 +586,7 @@ class ApprovalService(BaseService):
                 decided_at=decided_at,
                 wait_time_ms=wait_time_ms,
                 decision_notes=request.notes,
+                principal_type=self.user.__dict__.get("__principal_type__"),
             )
         )
 
@@ -698,6 +699,7 @@ class ApprovalService(BaseService):
                 decided_at=approval.decided_at,
                 wait_time_ms=wait_time_ms,
                 decision_notes=notes,
+                principal_type=self.user.__dict__.get("__principal_type__"),
             )
         )
 

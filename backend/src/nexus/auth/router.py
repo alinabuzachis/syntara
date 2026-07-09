@@ -327,6 +327,7 @@ def _dispatch_sa_login_failure(
             method=LoginMethod.CLIENT_CREDENTIALS,
             error_type=error_reason,
             user_id=sa_id,
+            principal_type=PrincipalType.SERVICE_ACCOUNT,
         )
     )
     raise AuthenticationRequiredError
@@ -447,6 +448,7 @@ async def token(
             username=cred_client_id,
             method=LoginMethod.CLIENT_CREDENTIALS,
             user_id=sa.id,
+            principal_type=PrincipalType.SERVICE_ACCOUNT,
         )
     )
     logger.info(

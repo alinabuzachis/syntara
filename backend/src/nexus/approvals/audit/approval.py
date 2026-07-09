@@ -18,6 +18,7 @@ from nexus.audit.models.audit_event import (
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.audit.utils import resolve_actor_type
 from nexus.core.models.principal import PrincipalType
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ class ApprovalDecidedEvent:
     decided_at: datetime
     wait_time_ms: int  # ms between request creation and decision
     decision_notes: str | None = field(default=None)
+    principal_type: PrincipalType | None = field(default=None)
 
 
 @dataclass
@@ -140,7 +142,7 @@ class ApprovalDecidedHandler(AuditEventHandler[ApprovalDecidedEvent]):
             source_component="nexus.approvals",
             structured_data=data,
             actor_id=event.decided_by,
-            actor_type=PrincipalType.USER,
+            actor_type=resolve_actor_type(actor_id=event.decided_by, principal_type=event.principal_type),
             execution_id=event.execution_id,
             activity_id=event.approval_node_id,
             resource_urn=f"urn:nexus:approval:{event.approval_id}",

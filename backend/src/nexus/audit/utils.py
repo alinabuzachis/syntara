@@ -86,3 +86,28 @@ def escalate_actor_type(actor_id: UUID) -> PrincipalType:
         return PrincipalType.SYSTEM
 
     return PrincipalType.USER
+
+
+def resolve_actor_type(
+    actor_id: UUID | None = None,
+    *,
+    principal_type: PrincipalType | None = None,
+) -> PrincipalType:
+    """Determine the correct PrincipalType for audit attribution.
+
+    Central resolver used by audit event handlers to avoid hard-coding
+    ``PrincipalType.USER``.  Dispatch sites set *principal_type* from
+    whatever context they have (e.g. the instance-level
+    ``__principal_type__`` on SA virtual principals, or a mapping from
+    ``TokenPayload.token_type``).
+
+    Resolution order:
+    1. Explicit *principal_type* when set by the dispatch site.
+    2. ``escalate_actor_type(actor_id)`` — promotes the system user to SYSTEM.
+    3. ``PrincipalType.USER`` as the default.
+    """
+    if principal_type is not None:
+        return principal_type
+    if actor_id is not None:
+        return escalate_actor_type(actor_id)
+    return PrincipalType.USER

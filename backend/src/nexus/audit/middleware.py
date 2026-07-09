@@ -141,6 +141,48 @@ class AuditMiddleware:
         # Truncate to max length
         return normalized[:_MAX_PATH_LENGTH]
 
+    @staticmethod
+    def _extract_bearer_token(scope: Scope) -> str | None:
+        """Extract the Bearer token from ASGI scope headers."""
+        for header_name, header_value in scope.get("headers", []):
+            if header_name.lower() == b"authorization":
+                try:
+                    authorization_header = header_value.decode("latin-1")
+                except UnicodeDecodeError:
+                    return None
+                parts = authorization_header.split()
+                if len(parts) == 2 and parts[0].lower() == "bearer":  # noqa: PLR2004
+                    return str(parts[1])
+                return None
+        return None
+
+    @staticmethod
+    def _actor_from_jwt(token: str) -> AuditActorContext:
+        """Decode a JWT (unverified) and return actor context for audit logging."""
+        try:
+            claims = jwt.decode(
+                token,
+                options={"verify_signature": False},
+                algorithms=["ES256"],
+            )
+        except (jwt.DecodeError, ValueError, KeyError):
+            return AuditActorContext()
+
+        actor_claims = extract_actor_claims(claims)
+        if not (actor_claims.actor_id or actor_claims.actor_username):
+            return AuditActorContext()
+
+        if claims.get("token_type") == "service_account":
+            actor_type = PrincipalType.SERVICE_ACCOUNT
+        else:
+            actor_type = escalate_actor_type_from_jwt(actor_claims)
+
+        return AuditActorContext(
+            actor_id=actor_claims.actor_id,
+            actor_username=actor_claims.actor_username,
+            actor_type=actor_type,
+        )
+
     def _extract_user(self, scope: Scope) -> AuditActorContext:
         """Extract actor information from client cert or JWT token.
 
@@ -164,57 +206,11 @@ class AuditMiddleware:
                 actor_type=PrincipalType.SERVICE,
             )
 
-        # Extract Authorization header from ASGI scope
-        authorization_header: str | None = None
-        for header_name, header_value in scope.get("headers", []):
-            if header_name.lower() == b"authorization":
-                try:
-                    authorization_header = header_value.decode("latin-1")
-                except UnicodeDecodeError:
-                    # Malformed header, return empty context
-                    return AuditActorContext()
-                break
-
-        if not authorization_header:
+        token = self._extract_bearer_token(scope)
+        if not token:
             return AuditActorContext()
 
-        # Extract bearer token from "Bearer <token>" format
-        parts = authorization_header.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":  # noqa: PLR2004
-            return AuditActorContext()
-
-        token = parts[1]
-
-        # Decode JWT without signature verification
-        try:
-            claims = jwt.decode(
-                token,
-                options={"verify_signature": False},
-                # Algorithm doesn't matter since we're not verifying
-                # This is however the same as auth.services.token_service.JWT_ALGORITHM
-                algorithms=["ES256"],
-            )
-
-            # Extract actor claims using shared utility to ensure consistency
-            # with auth.dependencies._user_from_payload
-            actor_claims = extract_actor_claims(claims)
-
-            if actor_claims.actor_id or actor_claims.actor_username:
-                # Determine actor type based on authentication method reference
-                # Service tokens (amr=["service"]) are SYSTEM, all others are USER
-                actor_type = escalate_actor_type_from_jwt(actor_claims)
-                return AuditActorContext(
-                    actor_id=actor_claims.actor_id,
-                    actor_username=actor_claims.actor_username,
-                    actor_type=actor_type,
-                )
-
-        except (jwt.DecodeError, ValueError, KeyError):
-            # Malformed JWT or invalid UUID - return empty context
-            # The endpoint's authentication will handle the actual error
-            pass
-
-        return AuditActorContext()
+        return self._actor_from_jwt(token)
 
     def _parse_query_params(self, query_string: bytes) -> dict[str, str | list[str]]:
         """Parse query string into a dictionary.

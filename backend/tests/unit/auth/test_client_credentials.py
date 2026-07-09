@@ -553,12 +553,15 @@ class TestTokenServiceExtension:
         from unittest.mock import PropertyMock
 
         from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
         from nexus.auth.services.token_service import KeyManager
 
         key_manager = MagicMock(spec=KeyManager)
         private_key = ec.generate_private_key(ec.SECP256R1())
         key_manager.get_private_key.return_value = private_key
+        public_pem = private_key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+        key_manager.get_public_key_for_kid.return_value = public_pem
         type(key_manager).key_id = PropertyMock(return_value="test-key")
 
         settings = MagicMock()
@@ -645,3 +648,67 @@ class TestTokenServiceExtension:
         assert payload["email"] == "user@test.com"
         assert "amr" in payload
         assert "idp" in payload
+
+    def test_decode_sa_token_preserves_token_type(self, token_service: TokenService) -> None:
+        """decode_token round-trip: SA token_type='service_account' is preserved."""
+        sa_id = uuid4()
+        access_token = token_service.create_access_token(
+            subject_id=sa_id,
+            username="ci-pipeline",
+            principal_type=PrincipalType.SERVICE_ACCOUNT,
+        )
+
+        decoded = token_service.decode_token(access_token, token_type="access")  # noqa: S106
+        assert decoded.token_type == "service_account"  # noqa: S105
+
+    def test_decode_user_token_type_remains_access(self, token_service: TokenService) -> None:
+        """decode_token round-trip: user token keeps token_type='access'."""
+        access_token = token_service.create_access_token(
+            subject_id=uuid4(),
+            username="human-user",
+            email="user@test.com",
+        )
+
+        decoded = token_service.decode_token(access_token, token_type="access")  # noqa: S106
+        assert decoded.token_type == "access"  # noqa: S105
+
+
+class TestUserFromPayloadPrincipalType:
+    """Tests for _user_from_payload setting __principal_type__ on service account tokens."""
+
+    def test_sa_token_sets_service_account_principal_type(self) -> None:
+        """SA token produces a User with __principal_type__ = SERVICE_ACCOUNT."""
+        from datetime import UTC, datetime
+
+        from nexus.auth.dependencies import _user_from_payload
+        from nexus.auth.services.token_service import TokenPayload
+
+        payload = TokenPayload(
+            sub=str(uuid4()),
+            iss="nexus",
+            iat=datetime.now(UTC),
+            exp=datetime.now(UTC),
+            token_type="service_account",  # noqa: S106
+            preferred_username="my-sa",
+        )
+        user = _user_from_payload(payload)
+        assert user.__principal_type__ == PrincipalType.SERVICE_ACCOUNT
+
+    def test_user_token_keeps_user_principal_type(self) -> None:
+        """User token keeps the default __principal_type__ = USER."""
+        from datetime import UTC, datetime
+
+        from nexus.auth.dependencies import _user_from_payload
+        from nexus.auth.services.token_service import TokenPayload
+
+        payload = TokenPayload(
+            sub=str(uuid4()),
+            iss="nexus",
+            iat=datetime.now(UTC),
+            exp=datetime.now(UTC),
+            token_type="access",  # noqa: S106
+            preferred_username="human",
+            email="human@example.com",
+        )
+        user = _user_from_payload(payload)
+        assert user.__principal_type__ == PrincipalType.USER

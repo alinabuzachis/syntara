@@ -34,6 +34,7 @@ from nexus.core.auth.jwt_utils import extract_actor_claims
 from nexus.core.database.session import get_db
 from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models import User
+from nexus.core.models.principal import PrincipalType
 
 # Optional bearer scheme - doesn't auto-raise 403
 bearer_scheme = HTTPBearer(
@@ -119,6 +120,9 @@ async def _check_global_revocation(payload: TokenPayload, *, token_type: str, db
                 token_issued_at=payload.iat.isoformat(),
                 revocation_timestamp=revocation_ts.isoformat(),
                 token_type=token_type,
+                principal_type=PrincipalType.SERVICE_ACCOUNT
+                if payload.token_type == "service_account"  # noqa: S105
+                else None,
             )
         )
         raise TokenGloballyRevokedError
@@ -165,7 +169,7 @@ def _user_from_payload(payload: TokenPayload) -> User:
         first_name = username
         last_name = None
 
-    return User(
+    user = User(
         id=user_id,
         username=username,
         email=email,
@@ -173,6 +177,9 @@ def _user_from_payload(payload: TokenPayload) -> User:
         last_name=last_name,
         is_enabled=True,
     )
+    if payload.token_type == "service_account":  # noqa: S105
+        object.__setattr__(user, "__principal_type__", PrincipalType.SERVICE_ACCOUNT)
+    return user
 
 
 def _service_user_from_cert(cert_cn: str) -> User:

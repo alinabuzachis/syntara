@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from nexus.audit.models.audit_event import EventSeverity
-from nexus.audit.utils import escalate_actor_type, escalate_actor_type_from_jwt, escalate_severity
+from nexus.audit.utils import escalate_actor_type, escalate_actor_type_from_jwt, escalate_severity, resolve_actor_type
 from nexus.core.auth.jwt_utils import ActorClaims
 from nexus.core.config.base import get_settings
 from nexus.core.models.principal import PrincipalType
@@ -134,3 +134,48 @@ class TestEscalateActorType:
             pytest.skip("Test UUID randomly matched system_user_id")
 
         assert escalate_actor_type(actor_id) == expected
+
+
+class TestResolveActorType:
+    """Unit tests for ``resolve_actor_type``.
+
+    Validates the resolution order: explicit principal_type override >
+    system user escalation > USER default.
+    """
+
+    def test_explicit_principal_type_wins(self) -> None:
+        """An explicit principal_type is returned without checking actor_id."""
+        assert (
+            resolve_actor_type(
+                actor_id=uuid4(),
+                principal_type=PrincipalType.SERVICE_ACCOUNT,
+            )
+            == PrincipalType.SERVICE_ACCOUNT
+        )
+
+    def test_system_user_escalated(self) -> None:
+        """System user actor_id escalates to SYSTEM when no override is set."""
+        assert (
+            resolve_actor_type(
+                actor_id=get_settings().system_user_id,
+            )
+            == PrincipalType.SYSTEM
+        )
+
+    def test_regular_user_defaults(self) -> None:
+        """Non-system actor_id with no override returns USER."""
+        assert resolve_actor_type(actor_id=uuid4()) == PrincipalType.USER
+
+    def test_no_args_returns_user(self) -> None:
+        """No actor_id and no override returns USER."""
+        assert resolve_actor_type() == PrincipalType.USER
+
+    def test_none_principal_type_falls_through(self) -> None:
+        """Explicit None principal_type does not short-circuit."""
+        assert (
+            resolve_actor_type(
+                actor_id=get_settings().system_user_id,
+                principal_type=None,
+            )
+            == PrincipalType.SYSTEM
+        )

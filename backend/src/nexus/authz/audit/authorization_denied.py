@@ -12,12 +12,13 @@ from nexus.audit.models.audit_event import (
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.audit.utils import resolve_actor_type
 from nexus.core.models.principal import PrincipalType
 
 
 @dataclass
 class AuthorizationDeniedEvent:
-    """Domain event emitted when a user is denied access to a resource."""
+    """Domain event emitted when a principal is denied access to a resource."""
 
     user_id: UUID
     username: str
@@ -26,6 +27,7 @@ class AuthorizationDeniedEvent:
     resource_name: str
     action: str
     denied_by: str | None = field(default=None)
+    principal_type: PrincipalType | None = field(default=None)
 
 
 class AuthorizationDeniedHandler(AuditEventHandler[AuthorizationDeniedEvent]):
@@ -49,7 +51,7 @@ class AuthorizationDeniedHandler(AuditEventHandler[AuthorizationDeniedEvent]):
             source_component="nexus.authz",
             structured_data=data,
             actor_id=event.user_id,
-            actor_type=PrincipalType.USER,
+            actor_type=resolve_actor_type(actor_id=event.user_id, principal_type=event.principal_type),
             actor_username=event.username,
             resource_urn=f"urn:nexus:{quote(event.resource_type, safe='')}:{quote(event.resource_id, safe='')}",
             resource_name=event.resource_name,

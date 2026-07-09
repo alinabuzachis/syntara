@@ -156,6 +156,37 @@ class TestLoginAttemptHandler:
         assert result.resource_urn == "urn:nexus:user:carol"
         assert result.resource_name == "carol"
 
+    def test_sa_login_failure_without_user_id_uses_service_account_type(self) -> None:
+        """Failed SA login with no user_id but principal_type=SERVICE_ACCOUNT → SERVICE_ACCOUNT actor."""
+        event = LoginAttemptEvent(
+            username="nx_sa_unknown",
+            method=LoginMethod.CLIENT_CREDENTIALS,
+            error_type=LoginErrorReason.UNKNOWN_USER,
+            principal_type=PrincipalType.SERVICE_ACCOUNT,
+        )
+        handler = LoginAttemptHandler()
+        result = handler.handle(event)
+
+        assert result.actor_id is None
+        assert result.actor_type == PrincipalType.SERVICE_ACCOUNT
+        assert result.event_status == EventStatus.ERROR
+
+    def test_sa_login_failure_with_user_id_uses_service_account_type(self) -> None:
+        """Failed SA login with both user_id and principal_type=SERVICE_ACCOUNT."""
+        sa_id = uuid4()
+        event = LoginAttemptEvent(
+            username="nx_sa_test",
+            method=LoginMethod.CLIENT_CREDENTIALS,
+            error_type=LoginErrorReason.DISABLED_SERVICE_ACCOUNT,
+            user_id=sa_id,
+            principal_type=PrincipalType.SERVICE_ACCOUNT,
+        )
+        handler = LoginAttemptHandler()
+        result = handler.handle(event)
+
+        assert result.actor_id == sa_id
+        assert result.actor_type == PrincipalType.SERVICE_ACCOUNT
+
     def test_login_with_no_username(self) -> None:
         """Login attempt with no username → resource_urn and resource_name are None."""
         event = LoginAttemptEvent(

@@ -13,6 +13,7 @@ from nexus.audit.models.audit_event import (
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.audit.utils import resolve_actor_type
 from nexus.core.models.principal import PrincipalType
 
 
@@ -56,6 +57,7 @@ class LoginAttemptEvent:
     method: LoginMethod
     user_id: UUID | None = field(default=None)
     error_type: str | LoginErrorReason | None = field(default=None)
+    principal_type: PrincipalType | None = field(default=None)
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +71,11 @@ class LoginAttemptHandler(AuditEventHandler[LoginAttemptEvent]):
     def handle(self, event: LoginAttemptEvent) -> AuditEvent:
         """Map a LoginAttemptEvent to a normalized AuditEvent."""
         action = "login"
-        actor_type = PrincipalType.USER if event.user_id else PrincipalType.SYSTEM
+        actor_type = (
+            resolve_actor_type(actor_id=event.user_id, principal_type=event.principal_type)
+            if event.user_id or event.principal_type
+            else PrincipalType.SYSTEM
+        )
 
         is_error = event.error_type is not None
 

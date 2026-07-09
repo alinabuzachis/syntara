@@ -19,6 +19,7 @@ from nexus.audit.models.audit_event import (
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.audit.utils import resolve_actor_type
 from nexus.core.models.principal import PrincipalType
 
 if TYPE_CHECKING:
@@ -69,6 +70,7 @@ class AAPResourceAccessEvent:
     search_filter: str | None = field(default=None)
     organization_filter: str | None = field(default=None)
     error_type: str | None = field(default=None)
+    principal_type: PrincipalType | None = field(default=None)
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +126,8 @@ class AAPResourceAccessHandler(AuditEventHandler[AAPResourceAccessEvent]):
             resource_urn=resource_urn,
             resource_name=event.resource_name,
             actor_id=event.user_id,
-            actor_type=PrincipalType.USER if event.user_id else PrincipalType.SYSTEM,
+            actor_type=resolve_actor_type(actor_id=event.user_id, principal_type=event.principal_type)
+            if event.user_id
+            else PrincipalType.SYSTEM,
             actor_username=event.username,
         )

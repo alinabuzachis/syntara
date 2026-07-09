@@ -11,6 +11,7 @@ from nexus.audit.models.audit_event import (
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.audit.utils import resolve_actor_type
 from nexus.core.models.principal import PrincipalType
 
 # ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ class GlobalRevocationRejectEvent:
     token_issued_at: str  # ISO 8601
     revocation_timestamp: str  # ISO 8601
     token_type: str = field(default="access")  # "access" or "refresh"
+    principal_type: PrincipalType | None = field(default=None)
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +96,6 @@ class GlobalRevocationRejectHandler(AuditEventHandler[GlobalRevocationRejectEven
             source_component="nexus.auth.revocation",
             structured_data=data,
             actor_id=event.user_id,
-            actor_type=PrincipalType.USER,
+            actor_type=resolve_actor_type(actor_id=event.user_id, principal_type=event.principal_type),
             actor_username=event.username,
         )

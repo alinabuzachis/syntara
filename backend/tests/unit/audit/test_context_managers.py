@@ -273,6 +273,22 @@ class TestBuildActorContextDuckTyping:
         assert ctx.actor_username == "fallback-name"
         assert ctx.actor_type == PrincipalType.SERVICE_ACCOUNT
 
+    def test_sa_virtual_principal_uses_instance_principal_type(self) -> None:
+        """User with __principal_type__ overridden to SERVICE_ACCOUNT reports correct actor_type."""
+        sa_user = User(
+            id=uuid4(),
+            username="my-sa",
+            email="my-sa@internal",
+            first_name="my-sa",
+            is_enabled=True,
+        )
+        object.__setattr__(sa_user, "__principal_type__", PrincipalType.SERVICE_ACCOUNT)
+        ctx = _build_actor_context(sa_user)
+
+        assert ctx.actor_id == sa_user.id
+        assert ctx.actor_username == "my-sa"
+        assert ctx.actor_type == PrincipalType.SERVICE_ACCOUNT
+
     def test_none_actor_returns_all_none(self) -> None:
         ctx = _build_actor_context(None)
         assert ctx.actor_id is None
