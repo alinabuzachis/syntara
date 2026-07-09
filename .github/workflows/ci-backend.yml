@@ -940,15 +940,17 @@ jobs:
 
               const runs = data.check_runs;
               const completed = runs.filter(r => r.status === 'completed');
-              const succeeded = completed.filter(r => r.conclusion === 'success');
-              const failed = completed.filter(r => !['success', 'cancelled', 'skipped'].includes(r.conclusion));
+              const succeeded = completed.filter(r => ['success', 'neutral'].includes(r.conclusion));
+              const failed = completed.filter(r => !['success', 'neutral', 'cancelled', 'skipped'].includes(r.conclusion));
 
               if (failed.length > 0) {
                 core.setFailed(`${conformaCheckName} failed (${failed[0].conclusion}): ${failed[0].html_url}`);
                 return;
               }
               if (succeeded.length > 0) {
-                console.log(`${conformaCheckName} passed`);
+                const r = succeeded[0];
+                const suffix = r.conclusion === 'neutral' ? ' (with warnings)' : '';
+                console.log(`${conformaCheckName} passed${suffix}: ${r.html_url}`);
                 return;
               }
 
