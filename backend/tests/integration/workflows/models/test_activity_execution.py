@@ -36,6 +36,7 @@ async def test_create_activity_execution_with_required_fields(
     activity = ActivityExecution(
         execution_id=execution.id,
         activity_name="test_activity",
+        node_type="script",
         temporal_activity_id="activity-123",
         status=ActivityStatus.PENDING,
     )
@@ -45,6 +46,7 @@ async def test_create_activity_execution_with_required_fields(
     assert activity.id is not None
     assert activity.execution_id == execution.id
     assert activity.activity_name == "test_activity"
+    assert activity.node_type == "script"
     assert activity.temporal_activity_id == "activity-123"
     assert activity.status == ActivityStatus.PENDING
     assert activity.labels == {}
@@ -57,7 +59,6 @@ async def test_create_activity_execution_with_required_fields(
     assert activity.error_details is None
     assert activity.retry_count == 0
     assert activity.iteration is None
-    assert activity.activity_definition is None
 
 
 @pytest.mark.asyncio
@@ -78,10 +79,10 @@ async def test_create_activity_execution_with_all_fields(
     activity = ActivityExecution(
         execution_id=execution.id,
         activity_name="complete_activity",
+        node_type=activity_def["type"],
         temporal_activity_id="activity-456",
         status=ActivityStatus.COMPLETED,
         labels=labels,
-        activity_definition=activity_def,
         started_at=now,
         completed_at=now,
         input_data=input_data,
@@ -96,7 +97,7 @@ async def test_create_activity_execution_with_all_fields(
     assert activity.activity_name == "complete_activity"
     assert activity.status == ActivityStatus.COMPLETED
     assert activity.labels == labels
-    assert activity.activity_definition == activity_def
+    assert activity.node_type == "script"
     assert activity.started_at == now
     assert activity.completed_at == now
     assert activity.input_data == input_data
@@ -127,6 +128,7 @@ async def test_activity_status_enum_values(
         activity = ActivityExecution(
             execution_id=execution.id,
             activity_name=f"activity_{i}",
+            node_type="script",
             temporal_activity_id=f"activity-{i}",
             status=status,
         )
@@ -155,6 +157,7 @@ async def test_activity_unique_constraint_execution_temporal_id(
     activity1 = ActivityExecution(
         execution_id=execution.id,
         activity_name="test_activity",
+        node_type="script",
         temporal_activity_id="activity-123",
         status=ActivityStatus.PENDING,
     )
@@ -165,6 +168,7 @@ async def test_activity_unique_constraint_execution_temporal_id(
     activity2 = ActivityExecution(
         execution_id=execution.id,
         activity_name="different_name",  # Different name is OK
+        node_type="script",
         temporal_activity_id="activity-123",  # But same temporal_activity_id should fail
         status=ActivityStatus.RUNNING,
     )
@@ -208,12 +212,14 @@ async def test_activity_allows_same_temporal_id_different_executions(
     activity1 = ActivityExecution(
         execution_id=execution1.id,
         activity_name="test_activity",
+        node_type="script",
         temporal_activity_id="activity-shared",
         status=ActivityStatus.PENDING,
     )
     activity2 = ActivityExecution(
         execution_id=execution2.id,
         activity_name="test_activity",
+        node_type="script",
         temporal_activity_id="activity-shared",  # Same ID is OK for different execution
         status=ActivityStatus.RUNNING,
     )
@@ -241,6 +247,7 @@ async def test_activity_timezone_aware_datetimes(
     activity = ActivityExecution(
         execution_id=execution.id,
         activity_name="test_activity",
+        node_type="script",
         temporal_activity_id="activity-123",
         status=ActivityStatus.RUNNING,
         started_at=now,
@@ -268,6 +275,7 @@ async def test_activity_labels_jsonb_operations(
     activity = ActivityExecution(
         execution_id=execution.id,
         activity_name="test_activity",
+        node_type="script",
         temporal_activity_id="activity-123",
         status=ActivityStatus.PENDING,
         labels=labels,
@@ -299,6 +307,7 @@ async def test_activity_relationship_with_execution(
         ActivityExecution(
             execution_id=execution.id,
             activity_name=f"activity_{i}",
+            node_type="script",
             temporal_activity_id=f"activity-{i}",
             status=ActivityStatus.PENDING,
         )
@@ -322,42 +331,21 @@ async def test_activity_relationship_with_execution(
 
 
 @pytest.mark.asyncio
-async def test_activity_definition_storage(
+async def test_node_type_storage(
     test_db_session: AsyncSession,
     test_execution_minimal: Execution,
 ) -> None:
-    """Test activity_definition JSONB field stores complex nested structures."""
+    """Test node_type field is stored and retrieved correctly."""
     execution = test_execution_minimal
-
-    # Create activity with complex definition
-    activity_def = {
-        "id": "fetch_data",
-        "name": "Fetch Data from API",
-        "type": "http_request",
-        "parameters": {
-            "method": "GET",
-            "url": "https://api.example.com/data",
-            "headers": {"Authorization": "Bearer token"},
-        },
-        "timeout": "PT5M",
-        "retryPolicy": {
-            "maxAttempts": 3,
-            "backoff": "exponential",
-            "initialInterval": "PT2S",
-        },
-    }
 
     activity = ActivityExecution(
         execution_id=execution.id,
         activity_name="fetch_data",
+        node_type="http_request",
         temporal_activity_id="activity-123",
         status=ActivityStatus.COMPLETED,
-        activity_definition=activity_def,
     )
     test_db_session.add(activity)
     await test_db_session.commit()
 
-    # Verify complex structure stored and retrieved correctly
-    assert activity.activity_definition == activity_def
-    assert activity.activity_definition["parameters"]["method"] == "GET"
-    assert activity.activity_definition["retryPolicy"]["maxAttempts"] == 3
+    assert activity.node_type == "http_request"

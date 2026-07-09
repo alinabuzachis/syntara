@@ -1235,6 +1235,8 @@ class TestAgenticActivityFinalizationOnWorkflowCompletion:
         return execution
 
     def _create_mock_activity(self, status: ActivityStatus, executor: str = "agentic") -> Mock:
+        # NOTE: Accepts strings for node_type in tests for backward compatibility.
+        # Production code uses NodeType enum. Tracked for migration in ANSTRAT-1845.
         act = Mock()
         act.id = uuid4()
         act.activity_name = "test-activity"
@@ -1243,8 +1245,7 @@ class TestAgenticActivityFinalizationOnWorkflowCompletion:
         act.completed_at = None
         act.error_details = None
         act.output_data = None
-        # V2 format: type is at top level
-        act.activity_definition = {"type": executor}
+        act.node_type = executor
         return act
 
     def _create_workflow_event(self, event_type: int, failure_message: str | None = None) -> Mock:
@@ -1839,10 +1840,39 @@ class TestSyncNodesToTerminalStatus:
         record = mock_session.add.call_args[0][0]
         assert record.activity_name == "node-A"
         assert record.status == ActivityStatus.SKIPPED
-        assert record.activity_definition == node_def
+        assert record.node_type == node_def.get("type", "script")
         assert record.temporal_activity_id.startswith("pre-resolved-")
         assert record.started_at is not None
         assert record.completed_at is not None
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_ensure_activity_records_handles_invalid_node_type(self) -> None:
+        """Invalid node types fall back to INTERNAL_ACTIVITY instead of crashing."""
+        mock_result = Mock()
+        mock_result.all.return_value = []
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        self.mock_session_factory.return_value = mock_session
+
+        # Provide an invalid node type that will trigger ValueError
+        node_def = {"id": "node-invalid", "type": "not_a_valid_node_type"}
+        metadata = self._create_metadata()
+        metadata.activity_definitions_map = {"node-invalid": node_def}
+
+        # Should not raise ValueError - should fall back to INTERNAL_ACTIVITY
+        await self.service._ensure_activity_records_exist(metadata, ["node-invalid"], ActivityStatus.SKIPPED)
+
+        mock_session.add.assert_called_once()
+        record = mock_session.add.call_args[0][0]
+        assert record.activity_name == "node-invalid"
+        assert record.status == ActivityStatus.SKIPPED
+        # Should have fallen back to INTERNAL_ACTIVITY
+        assert record.node_type == NodeType.INTERNAL_ACTIVITY
         mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -2849,6 +2879,8 @@ class TestUpdatePendingActivitiesToCancelled:
             id=uuid4(),
             execution_id=execution_id,
             activity_name="pending_activity",
+            node_type="script",
+            temporal_activity_id="temporal-pending",
             status=ActivityStatus.PENDING,
         )
 
@@ -2856,6 +2888,8 @@ class TestUpdatePendingActivitiesToCancelled:
             id=uuid4(),
             execution_id=execution_id,
             activity_name="running_activity",
+            node_type="script",
+            temporal_activity_id="temporal-running",
             status=ActivityStatus.RUNNING,
             started_at=datetime.now(UTC),
         )
@@ -2864,6 +2898,8 @@ class TestUpdatePendingActivitiesToCancelled:
             id=uuid4(),
             execution_id=execution_id,
             activity_name="completed_activity",
+            node_type="script",
+            temporal_activity_id="temporal-completed",
             status=ActivityStatus.COMPLETED,
             started_at=datetime.now(UTC),
             completed_at=datetime.now(UTC),
@@ -3045,3 +3081,112 @@ class TestInitializeMonitoringWorkflowLookup:
         metadata = await self.service._initialize_monitoring(self.execution_id, request_id=request_id)
 
         assert metadata.request_id == request_id
+
+
+class TestUpdateApprovalPendingFlag:
+    """Tests for _update_approval_pending_flag method."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(
+            temporal_client=Mock(),
+            session_factory=Mock(),
+        )
+
+    def _make_execution(self, *, approval_pending: bool = False) -> Mock:
+        execution = Mock(spec=Execution)
+        execution.approval_pending = approval_pending
+        execution.id = uuid4()
+        return execution
+
+    def _make_activity(self, node_type: str, status: ActivityStatus) -> Mock:
+        activity = Mock(spec=ActivityExecution)
+        activity.node_type = node_type
+        activity.status = status
+        return activity
+
+    def test_sets_true_when_approval_waiting(self) -> None:
+        """Flag should become True when an approval activity is WAITING."""
+        execution = self._make_execution(approval_pending=False)
+        activities = [
+            self._make_activity(NodeType.APPROVAL, ActivityStatus.WAITING),
+        ]
+
+        result = self.service._update_approval_pending_flag(execution, activities)
+
+        assert result is True
+        assert execution.approval_pending is True
+
+    def test_sets_false_when_approval_completed(self) -> None:
+        """Flag should become False when approval activity is completed."""
+        execution = self._make_execution(approval_pending=True)
+        activities = [
+            self._make_activity(NodeType.APPROVAL, ActivityStatus.COMPLETED),
+        ]
+
+        result = self.service._update_approval_pending_flag(execution, activities)
+
+        assert result is False
+        assert execution.approval_pending is False
+
+    def test_no_change_returns_none(self) -> None:
+        """Should return None when flag hasn't changed."""
+        execution = self._make_execution(approval_pending=False)
+        activities = [
+            self._make_activity(NodeType.APPROVAL, ActivityStatus.COMPLETED),
+        ]
+
+        result = self.service._update_approval_pending_flag(execution, activities)
+
+        assert result is None
+
+    def test_wait_node_does_not_trigger_flag(self) -> None:
+        """Wait nodes in WAITING status should NOT set approval_pending."""
+        execution = self._make_execution(approval_pending=False)
+        activities = [
+            self._make_activity(NodeType.WAIT, ActivityStatus.WAITING),
+        ]
+
+        result = self.service._update_approval_pending_flag(execution, activities)
+
+        assert result is None
+        assert execution.approval_pending is False
+
+    def test_multiple_activities_one_approval_waiting(self) -> None:
+        """Flag should be True if any approval is WAITING among multiple activities."""
+        execution = self._make_execution(approval_pending=False)
+        activities = [
+            self._make_activity(NodeType.SCRIPT, ActivityStatus.COMPLETED),
+            self._make_activity(NodeType.APPROVAL, ActivityStatus.WAITING),
+            self._make_activity(NodeType.WAIT, ActivityStatus.WAITING),
+        ]
+
+        result = self.service._update_approval_pending_flag(execution, activities)
+
+        assert result is True
+        assert execution.approval_pending is True
+
+    def ***REMOVED***(self) -> None:
+        """Flag should clear when all approval activities complete."""
+        execution = self._make_execution(approval_pending=True)
+        activities = [
+            self._make_activity(NodeType.APPROVAL, ActivityStatus.COMPLETED),
+            self._make_activity(NodeType.APPROVAL, ActivityStatus.COMPLETED),
+        ]
+
+        result = self.service._update_approval_pending_flag(execution, activities)
+
+        assert result is False
+        assert execution.approval_pending is False
+
+    def test_non_approval_node_type_does_not_trigger(self) -> None:
+        """Non-approval node types in WAITING status should not set flag."""
+        execution = self._make_execution(approval_pending=False)
+        activity = Mock(spec=ActivityExecution)
+        activity.node_type = "script"
+        activity.status = ActivityStatus.WAITING
+
+        result = self.service._update_approval_pending_flag(execution, [activity])
+
+        assert result is None
+        assert execution.approval_pending is False

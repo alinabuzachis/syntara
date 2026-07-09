@@ -5,6 +5,7 @@ import { FilterTypeEnum } from '../../types/filters'
 import {
   getExecutionWorkflowFilterDefinition,
   getExecutionStatusFilterDefinition,
+  getExecutionApprovalPendingFilterDefinition,
   getExecutionCreatedAtFilterDefinition,
   transformWorkflowsToOptions,
 } from './executionFilters'
@@ -191,6 +192,26 @@ describe('executionFilters', () => {
       const result = transformWorkflowsToOptions(workflows)
 
       expect(result).toEqual([])
+    })
+  })
+
+  describe('getExecutionApprovalPendingFilterDefinition', () => {
+    it('returns approval pending filter definition with correct configuration', () => {
+      const definition = getExecutionApprovalPendingFilterDefinition()
+
+      expect(definition.key).toBe('approval_pending')
+      expect(definition.label).toBe('Pending approval')
+      expect(definition.type).toBe(FilterTypeEnum.SELECT)
+      expect(definition.placeholder).toBe('Filter by pending approval')
+    })
+
+    it('provides Yes/No options', () => {
+      const definition = getExecutionApprovalPendingFilterDefinition()
+
+      expect(definition.options).toEqual([
+        { value: 'true', label: 'Yes' },
+        { value: 'false', label: 'No' },
+      ])
     })
   })
 

@@ -1133,9 +1133,9 @@ async def test_activity(
     activity = ActivityExecution(
         execution_id=test_execution.id,
         activity_name=test_activity_definition.get("id"),
+        node_type=test_activity_definition.get("type", "script"),
         temporal_activity_id="temporal-123",
         status=ActivityStatus.COMPLETED,
-        activity_definition=test_activity_definition,
         labels={"environment": "test"},
         started_at=now,
         completed_at=now,

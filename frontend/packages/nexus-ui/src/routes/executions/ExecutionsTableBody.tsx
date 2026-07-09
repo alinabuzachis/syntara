@@ -1,7 +1,8 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import { Content, ContentVariants, Truncate } from '@patternfly/react-core'
+import { Content, ContentVariants, Flex, FlexItem, Truncate } from '@patternfly/react-core'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
 
+import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
 import { ProjectGroupHeaderRow } from '../../components/ProjectGroupHeaderRow'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
@@ -20,6 +21,7 @@ type Execution = {
   workflow_version_publish_name?: string | null
   workflow_version_created_at?: string | null
   status?: ExecutionStatus
+  approval_pending?: boolean
   completed_at?: string | null
   [key: string]: unknown
 }
@@ -47,7 +49,20 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
           </code>
         </LinkCell>
       </Td>
-      <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
+      <Td dataLabel="Status">
+        <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+          {execution.status && (
+            <FlexItem>
+              <StatusLabel status={execution.status} />
+            </FlexItem>
+          )}
+          {execution.approval_pending && (
+            <FlexItem>
+              <ApprovalPendingBadge approvalPending={execution.approval_pending} />
+            </FlexItem>
+          )}
+        </Flex>
+      </Td>
       <Td dataLabel="Version">
         {execution.workflow_version != null && execution.workflow_id ? (
           <LinkCell href={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}>

@@ -20,6 +20,11 @@ vi.mock('./ExecutionStatus', () => ({
   StatusLabel: ({ status }: { status: string }) => <span data-testid="status-label">{status}</span>,
 }))
 
+vi.mock('../../components/labels/ApprovalPendingBadge', () => ({
+  ApprovalPendingBadge: ({ approvalPending }: { approvalPending?: boolean }) =>
+    approvalPending ? <span data-testid="approval-pending-badge">Pending approval</span> : null,
+}))
+
 vi.mock('../../utils/dateUtils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../utils/dateUtils')>()
   return {
@@ -324,5 +329,57 @@ describe('ExecutionHistoryRow', () => {
   it('does not display version when workflow_version is null', () => {
     renderRow({ ...baseExecution, workflow_version: undefined })
     expect(screen.queryByText(/Version:/)).not.toBeInTheDocument()
+  })
+
+  it('renders approval pending badge when approval_pending is true', () => {
+    const execution: Execution = { ...baseExecution, approval_pending: true }
+    renderRow(execution)
+    expect(screen.getByTestId('approval-pending-badge')).toBeInTheDocument()
+    expect(screen.getByText('Pending approval')).toBeInTheDocument()
+  })
+
+  it('does not render approval pending badge when approval_pending is false', () => {
+    const execution: Execution = { ...baseExecution, approval_pending: false }
+    renderRow(execution)
+    expect(screen.queryByTestId('approval-pending-badge')).not.toBeInTheDocument()
+  })
+
+  it('does not render approval pending badge when approval_pending is undefined', () => {
+    renderRow(baseExecution)
+    expect(screen.queryByTestId('approval-pending-badge')).not.toBeInTheDocument()
+  })
+
+  it('renders "Test run" label when execution_metadata.mode is "test"', () => {
+    const testExecution = {
+      ...baseExecution,
+      execution_metadata: { mode: 'test' },
+    } as Execution
+    renderRow(testExecution)
+    expect(screen.getByText('Test run')).toBeInTheDocument()
+  })
+
+  it('does not render "Test run" label when execution_metadata.mode is not "test"', () => {
+    const normalExecution = {
+      ...baseExecution,
+      execution_metadata: { mode: 'normal' },
+    } as Execution
+    renderRow(normalExecution)
+    expect(screen.queryByText('Test run')).not.toBeInTheDocument()
+  })
+
+  it('does not render "Test run" label when execution_metadata is undefined', () => {
+    renderRow(baseExecution)
+    expect(screen.queryByText('Test run')).not.toBeInTheDocument()
+  })
+
+  it('renders all badges together for a test run with pending approval', () => {
+    const execution = {
+      ...baseExecution,
+      approval_pending: true,
+      execution_metadata: { mode: 'test' },
+    } as Execution
+    renderRow(execution)
+    expect(screen.getByTestId('approval-pending-badge')).toBeInTheDocument()
+    expect(screen.getByText('Test run')).toBeInTheDocument()
   })
 })

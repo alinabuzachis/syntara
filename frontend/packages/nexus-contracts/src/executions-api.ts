@@ -197,6 +197,11 @@ export interface components {
         [key: string]: unknown
       }
       /**
+       * Approval Pending
+       * @default false
+       */
+      approval_pending?: boolean
+      /**
        * Current Activities
        * @description Currently executing activities
        */
@@ -225,13 +230,8 @@ export interface components {
        * @description Activity ID from workflow definition
        */
       activity_name: string
-      /**
-       * Activity Definition
-       * @description Snapshot of activity configuration from workflow definition
-       */
-      activity_definition?: {
-        [key: string]: unknown
-      } | null
+      /** @description Node type from workflow definition */
+      node_type: components['schemas']['NodeType']
       /**
        * Temporal Activity Id
        * @description Temporal activity execution ID
@@ -306,6 +306,28 @@ export interface components {
      * @enum {string}
      */
     ActivityStatus: 'pending' | 'running' | 'waiting' | 'completed' | 'failed' | 'retrying' | 'skipped' | 'cancelled'
+    /**
+     * NodeType
+     * @description Node types for V2 workflows (used by telemetry).
+     * @enum {string}
+     */
+    NodeType:
+      | 'manual_trigger'
+      | 'scheduled_trigger'
+      | 'webhook_trigger'
+      | 'eda_trigger'
+      | 'condition'
+      | 'converge'
+      | 'loop'
+      | 'switch'
+      | 'wait'
+      | 'aap_job_template'
+      | 'aap_workflow_job_template'
+      | 'agentic'
+      | 'approval'
+      | 'http_request'
+      | 'internal_activity'
+      | 'script'
     /**
      * CurrentActivity
      * @description Currently executing activity information.

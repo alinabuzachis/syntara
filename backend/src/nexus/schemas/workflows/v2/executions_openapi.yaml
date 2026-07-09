@@ -315,6 +315,9 @@ components:
     ActivityStatus:
       $ref: ./shared-schemas.yaml#/components/schemas/ActivityStatus
 
+    NodeType:
+      $ref: ./shared-schemas.yaml#/components/schemas/NodeType
+
     CurrentActivity:
       $ref: ./shared-schemas.yaml#/components/schemas/CurrentActivity
 

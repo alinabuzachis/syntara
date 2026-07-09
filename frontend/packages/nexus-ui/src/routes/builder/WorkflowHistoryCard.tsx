@@ -7,7 +7,6 @@ import {
   Flex,
   FlexItem,
   Icon,
-  Label,
   SimpleList,
   SimpleListGroup,
   SimpleListItem,
@@ -21,6 +20,8 @@ import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import React, { useMemo, type CSSProperties, type ReactNode } from 'react'
 
 import { FilterBar } from '../../components/filters/FilterBar'
+import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
+import { NxLabel } from '../../components/labels/NxLabel'
 import pageMainSlotStyles from '../../components/layout/NxPage.module.css'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
@@ -111,11 +112,8 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
         <FlexItem style={{ flexShrink: 0 }}>
           <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)' }}>
             {execution.status && <StatusLabel status={execution.status} />}
-            {isTestRun && (
-              <Label isCompact color="purple">
-                Test run
-              </Label>
-            )}
+            <ApprovalPendingBadge approvalPending={execution.approval_pending} />
+            {isTestRun && <NxLabel color="purple">Test run</NxLabel>}
           </Stack>
         </FlexItem>
       </Flex>

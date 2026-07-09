@@ -24,6 +24,7 @@ import { useDocLink } from '../../utils/docs/useDocLink'
 import {
   getExecutionWorkflowFilterDefinition,
   getExecutionStatusFilterDefinition,
+  getExecutionApprovalPendingFilterDefinition,
   getExecutionCreatedAtFilterDefinition,
   getExecutionVersionFilterFromExecutions,
 } from './executionFilters'
@@ -34,6 +35,7 @@ function buildFilterFieldDefinitions(executions: Execution[]): FilterFieldDefini
   return [
     getExecutionWorkflowFilterDefinition(),
     getExecutionStatusFilterDefinition(),
+    getExecutionApprovalPendingFilterDefinition(),
     getExecutionVersionFilterFromExecutions(executions),
     getExecutionCreatedAtFilterDefinition(),
   ].filter((def): def is FilterFieldDefinition => def !== null)

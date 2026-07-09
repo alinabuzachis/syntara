@@ -105,6 +105,7 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
             trigger_node_id=resource.trigger_node_id,
             error_details=resource.error_details,
             labels=resource.labels,
+            approval_pending=resource.approval_pending,
             deleted_at=resource.deleted_at,
             deleted_by=resource.deleted_by,
             mode=resource.mode,

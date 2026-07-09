@@ -139,6 +139,8 @@ export type ExecutionVisualization = {
   workflowId: string
   /** Overall execution status */
   status: ExecutionStatus
+  /** Whether this execution has pending approval requests */
+  approval_pending?: boolean
   /** Workflow definition for building graph */
   workflowDefinition: unknown // TODO: Type from workflow-definition.schema
   /** Activity states keyed by activity_id */

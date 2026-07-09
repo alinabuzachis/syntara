@@ -250,7 +250,7 @@ class ActivitiesFactory:
                 activity_name=name,
                 temporal_activity_id=f"temporal-{uuid4()}",
                 status=status,
-                activity_definition={"id": name, "type": "task"},
+                node_type="script",
                 started_at=now - timedelta(seconds=duration_seconds),
                 completed_at=now if is_terminal else None,
                 input_data={},

@@ -1,5 +1,4 @@
 import { ActivityTypeEnum, type ExecutionsAPI } from '@ansible/nexus-contracts'
-import { Label } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
   RhUiClockIcon,
@@ -13,6 +12,8 @@ import {
   RhUiWarningFillIcon,
 } from '@patternfly/react-icons'
 import type React from 'react'
+
+import { NxLabel } from '../../components/labels/NxLabel'
 
 import { executionStatusDisplayLabels } from './executionStatusConstants'
 
@@ -43,9 +44,9 @@ export function StatusLabel({ status }: Readonly<{ status: ExecutionStatus }>) {
   const IconComponent = statusIcons[status]
 
   return (
-    <Label variant="outline" status={statusMap[status]} icon={<IconComponent />}>
+    <NxLabel variant="outline" status={statusMap[status]} icon={<IconComponent />}>
       {executionStatusDisplayLabels[status]}
-    </Label>
+    </NxLabel>
   )
 }
 
@@ -85,9 +86,9 @@ const activityStatusDisplayLabels: Record<ActivityStatus, string> = {
 export function ActivityStatusLabel({ status, nodeType }: Readonly<{ status: ActivityStatus; nodeType?: string }>) {
   if (nodeType === ActivityTypeEnum.WAIT && status === 'waiting') {
     return (
-      <Label variant="outline" status="custom" icon={<RhUiSyncIcon />}>
+      <NxLabel variant="outline" status="custom" icon={<RhUiSyncIcon />}>
         Running
-      </Label>
+      </NxLabel>
     )
   }
 
@@ -96,8 +97,8 @@ export function ActivityStatusLabel({ status, nodeType }: Readonly<{ status: Act
   const displayLabel = activityStatusDisplayLabels[status] ?? status.charAt(0).toUpperCase() + status.slice(1)
 
   return (
-    <Label variant="outline" status={variant} icon={<IconComponent />}>
+    <NxLabel variant="outline" status={variant} icon={<IconComponent />}>
       {displayLabel}
-    </Label>
+    </NxLabel>
   )
 }

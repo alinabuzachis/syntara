@@ -1,6 +1,7 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Button, FlexItem, Label } from '@patternfly/react-core'
 
+import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
 import { StatusLabel } from '../builder/ExecutionStatus'
 import { formatHistoryDateTime } from '../builder/historyDateUtils'
 import { RunHistoryToggleButton } from '../builder/RunHistoryToggleButton'
@@ -19,6 +20,11 @@ export function ExecutionDetailTitleRowAddons({ execution }: Readonly<{ executio
       {execution.status ? (
         <FlexItem>
           <StatusLabel status={execution.status} />
+        </FlexItem>
+      ) : null}
+      {execution.approval_pending ? (
+        <FlexItem>
+          <ApprovalPendingBadge approvalPending={execution.approval_pending} />
         </FlexItem>
       ) : null}
       {execution.created_at ? (

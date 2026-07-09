@@ -116,6 +116,7 @@ describe('useSyncActivityStore', () => {
         execution_id: 'exec-1',
         activity_name: 'Task A',
         temporal_activity_id: 'ta-1',
+        node_type: 'internal_activity',
         status: 'completed',
         error_details: null,
         started_at: '2026-01-01T00:00:00Z',

@@ -110,6 +110,7 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
                 "status",
                 "mode",
                 "completed_at",
+                "approval_pending",
             ]
         )
     )
@@ -208,6 +209,15 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         default=0,
         sa_column=Column(BigInteger, nullable=False, server_default=text("0")),
         description="Last Temporal event ID processed for incremental activity sync (0 = never synced)",
+    )
+
+    # Approval pending flag
+    approval_pending: bool = Field(
+        default=False,
+        description="Whether this execution has one or more pending approval requests",
+        index=True,
+        nullable=False,
+        sa_column_kwargs={"server_default": text("false")},
     )
 
     # Execution mode and metadata
@@ -408,6 +418,7 @@ class ExecutionRead(SQLModel):
     trigger_node_id: str | None = None
     error_details: str | None
     labels: dict[str, Any] = Field(default_factory=dict)
+    approval_pending: bool = False
     current_activities: list[CurrentActivity] = Field(
         default_factory=list, description="Currently executing activities"
     )

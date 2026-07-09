@@ -125,6 +125,28 @@ export function getExecutionVersionFilterFromExecutions(executions: ExecutionWit
 }
 
 /**
+ * Returns filter definition for filtering executions by pending approval status
+ *
+ * @returns FilterFieldDefinition configured for approval_pending filtering with SELECT type
+ *
+ * @example
+ * ```typescript
+ * const filterDef = getExecutionApprovalPendingFilterDefinition()
+ * // Generates query param: approval_pending=true
+ * ```
+ */
+export const getExecutionApprovalPendingFilterDefinition = (): FilterFieldDefinition => ({
+  key: 'approval_pending',
+  label: 'Pending approval',
+  type: FilterTypeEnum.SELECT,
+  options: [
+    { value: 'true', label: 'Yes' },
+    { value: 'false', label: 'No' },
+  ],
+  placeholder: 'Filter by pending approval',
+})
+
+/**
  * Returns filter definition for filtering executions by creation date range
  *
  * @returns null - Currently disabled due to backend limitation

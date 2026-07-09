@@ -43,6 +43,7 @@ async def test_list_execution_activities_returns_persisted_data(
         ActivityExecution(
             execution_id=test_execution.id,
             activity_name=f"activity_{i}",
+            node_type="script",
             temporal_activity_id=f"temporal-{i}",
             status=ActivityStatus.COMPLETED,
             started_at=base_time + timedelta(seconds=i),
@@ -98,9 +99,9 @@ async def test_list_execution_activities_includes_all_fields(
     activity = ActivityExecution(
         execution_id=test_execution.id,
         activity_name="complete_activity",
+        node_type=activity_def["type"],
         temporal_activity_id="temporal-123",
         status=ActivityStatus.COMPLETED,
-        activity_definition=activity_def,
         labels={"environment": "test"},
         started_at=now,
         completed_at=now,
@@ -126,7 +127,7 @@ async def test_list_execution_activities_includes_all_fields(
     assert activity_data["activity_name"] == "complete_activity"
     assert activity_data["temporal_activity_id"] == "temporal-123"
     assert activity_data["status"] == "completed"
-    assert activity_data["activity_definition"] == activity_def
+    assert activity_data["node_type"] == "script"
     assert activity_data["labels"] == {"environment": "test"}
     assert activity_data["input_data"] == {"param": "value"}
     assert activity_data["output_data"] == {"result": "success"}
@@ -171,6 +172,7 @@ async def test_list_execution_activities_with_different_statuses(
         activity = ActivityExecution(
             execution_id=test_execution.id,
             activity_name=f"activity_{status.value}",
+            node_type="script",
             temporal_activity_id=f"temporal-{i}",
             status=status,
         )
@@ -193,41 +195,18 @@ async def test_list_execution_activities_with_different_statuses(
 
 
 @pytest.mark.asyncio
-async def test_list_execution_activities_with_nested_activity_definition(
+async def test_list_execution_activities_returns_node_type(
     jwt_client: AsyncClient,
     test_execution: Execution,
     test_db_session: AsyncSession,
 ) -> None:
-    """Test that complex nested activity definitions are properly returned."""
-    # Create activity with complex nested definition
-    complex_def = {
-        "id": "fetch_data",
-        "name": "Fetch Data from API",
-        "type": "http_request",
-        "parameters": {
-            "method": "GET",
-            "url": "https://api.example.com/data",
-            "headers": {
-                "Authorization": "Bearer token",
-                "Content-Type": "application/json",
-            },
-            "timeout": 30,
-        },
-        "timeout": "PT5M",
-        "retry_policy": {
-            "max_attempts": 3,
-            "backoff": "exponential",
-            "initial_interval": "PT2S",
-            "retryable_errors": [500, 503, 504],
-        },
-    }
-
+    """Test that node_type is properly returned in API responses."""
     activity = ActivityExecution(
         execution_id=test_execution.id,
         activity_name="fetch_data",
+        node_type="http_request",
         temporal_activity_id="temporal-api-1",
         status=ActivityStatus.COMPLETED,
-        activity_definition=complex_def,
     )
 
     test_db_session.add(activity)
@@ -240,16 +219,7 @@ async def test_list_execution_activities_with_nested_activity_definition(
     body = response.json()
     data = body["resources"]
     assert len(data) == 1
-
-    # Verify nested structure is preserved
-    returned_def = data[0]["activity_definition"]
-    assert returned_def == complex_def
-    assert returned_def["parameters"]["method"] == "GET"
-    assert returned_def["retry_policy"]["max_attempts"] == 3
-    assert len(returned_def["retry_policy"]["retryable_errors"]) == 3
-    assert 500 in returned_def["retry_policy"]["retryable_errors"]
-    assert 503 in returned_def["retry_policy"]["retryable_errors"]
-    assert 504 in returned_def["retry_policy"]["retryable_errors"]
+    assert data[0]["node_type"] == "http_request"
 
 
 @pytest.mark.asyncio
@@ -275,6 +245,7 @@ async def test_list_execution_activities_multiple_executions_isolated(
         activity = ActivityExecution(
             execution_id=test_execution.id,
             activity_name=f"exec1_activity_{i}",
+            node_type="script",
             temporal_activity_id=f"temporal-exec1-{i}",
             status=ActivityStatus.COMPLETED,
         )
@@ -285,6 +256,7 @@ async def test_list_execution_activities_multiple_executions_isolated(
         activity = ActivityExecution(
             execution_id=execution2.id,
             activity_name=f"exec2_activity_{i}",
+            node_type="script",
             temporal_activity_id=f"temporal-exec2-{i}",
             status=ActivityStatus.RUNNING,
         )

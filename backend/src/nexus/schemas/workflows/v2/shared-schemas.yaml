@@ -338,6 +338,10 @@ components:
           additionalProperties: true
           type: object
           title: Labels
+        approval_pending:
+          type: boolean
+          title: Approval Pending
+          default: false
         current_activities:
           type: array
           items:
@@ -393,6 +397,7 @@ components:
           required:
             - execution_id
             - activity_name
+            - node_type
             - temporal_activity_id
             - status
           properties:
@@ -407,13 +412,9 @@ components:
               minLength: 1
               maxLength: 255
               title: Activity Name
-            activity_definition:
-              anyOf:
-                - additionalProperties: true
-                  type: object
-                - type: 'null'
-              description: Snapshot of activity configuration from workflow definition
-              title: Activity Definition
+            node_type:
+              $ref: "#/components/schemas/NodeType"
+              description: Node type from workflow definition
             temporal_activity_id:
               type: string
               description: Temporal activity execution ID
@@ -484,6 +485,28 @@ components:
       title: ActivityStatus
       description: Activity execution status enumeration.
       enum: [pending, running, waiting, completed, failed, retrying, skipped, cancelled]
+
+    NodeType:
+      type: string
+      title: NodeType
+      description: Node types for V2 workflows (used by telemetry).
+      enum:
+        - manual_trigger
+        - scheduled_trigger
+        - webhook_trigger
+        - eda_trigger
+        - condition
+        - converge
+        - loop
+        - switch
+        - wait
+        - aap_job_template
+        - aap_workflow_job_template
+        - agentic
+        - approval
+        - http_request
+        - internal_activity
+        - script
 
     CurrentActivity:
       type: object

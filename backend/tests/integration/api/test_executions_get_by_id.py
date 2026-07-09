@@ -99,14 +99,12 @@ def _assert_workflow_definition(data: dict[str, Any], test_workflow_definition: 
 
 def _assert_workflow_activities(data: dict[str, Any], test_activity: ActivityExecution) -> None:
     # Verify workflow activities matches the test fixture
-    # test_activity_definition is used in test_activity fixture
     assert "activities" in data
     assert data["activities"] is not None
     activities = data["activities"]
     assert isinstance(activities, list)
     assert len(activities) == 1
-    assert test_activity.activity_definition is not None
-    assert activities[0]["activity_id"] == test_activity.activity_definition.get("id")
+    assert activities[0]["activity_id"] == test_activity.activity_name
     assert activities[0]["status"] == test_activity.status
     assert activities[0]["error_details"] == test_activity.error_details
     # Check datetime fields with proper formatting

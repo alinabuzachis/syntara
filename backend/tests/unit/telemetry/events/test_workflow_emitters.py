@@ -27,12 +27,14 @@ class TestEmitActivities:
         *,
         status: ActivityStatus,
         activity_name: str = "script-1",
+        node_type: str = "script",
         started_at: datetime | None = None,
         completed_at: datetime | None = None,
     ) -> MagicMock:
         activity = MagicMock(spec=ActivityExecution)
         activity.status = status
         activity.activity_name = activity_name
+        activity.node_type = node_type
         activity.started_at = started_at
         activity.completed_at = completed_at
         return activity

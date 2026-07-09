@@ -18,6 +18,7 @@ from sqlmodel import Field, Relationship
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
 from nexus.core.models.pagination import ResourcesResponse
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 
 if TYPE_CHECKING:
     from nexus.workflows.models.execution import Execution
@@ -66,7 +67,8 @@ class ActivityExecution(BaseResource, table=True):
         *BaseResource.__filterable_fields__,
         "execution_id",
         "activity_name",
-        "status",
+        "node_type",  # NodeType enum; filtering works via string value (e.g. "approval")
+        "status",  # ActivityStatus enum; same filtering pattern as node_type
     ]
 
     # Constraints for ensuring unique activities per execution
@@ -101,8 +103,20 @@ class ActivityExecution(BaseResource, table=True):
         sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         description="Activity ID from workflow definition",
     )
-    activity_definition: dict[str, Any] | None = Field(
-        default=None, sa_column=Column(JSONB), description="Snapshot of activity configuration from workflow definition"
+    node_type: NodeType = Field(
+        ...,
+        description="Node type from workflow definition",
+        sa_column=Column(
+            SAEnum(
+                NodeType,
+                name="nodetype",
+                create_constraint=True,
+                native_enum=True,
+                values_callable=lambda x: [e.value for e in x],
+            ),
+            nullable=False,
+            index=True,
+        ),
     )
 
     # Temporal identity

@@ -68,7 +68,7 @@ def emit_activities(
                 continue
 
             activity_def = activity_definitions_map.get(activity.activity_name, {})
-            node_type = activity_def.get("type", "script")
+            node_type = activity.node_type
             duration_ms: int | None = None
             if activity.started_at and activity.completed_at:
                 duration_ms = int((activity.completed_at - activity.started_at).total_seconds() * 1000)

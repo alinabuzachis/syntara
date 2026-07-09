@@ -102,7 +102,9 @@ export async function closeNodeEditorPanel(page: Page) {
     await expect(cancelAddButton).toHaveCount(0, { timeout: 10000 })
     return
   }
-  const closeButton = page.getByRole('button', { name: 'Close node editor', exact: true })
+  // Scope the "Close" button query to the drawer panel to avoid matching alert close buttons
+  const drawer = page.locator('.pf-v6-c-drawer__panel')
+  const closeButton = drawer.getByRole('button', { name: 'Close node editor' })
   if ((await closeButton.count()) > 0) {
     await expect(closeButton).toBeVisible()
     await closeButton.click()
@@ -372,12 +374,9 @@ export async function deleteWorkflow(page: Page, workflowName: string) {
       await page.getByRole('checkbox', { name: /I understand this workflow/i }).check()
       await page.getByRole('button', { name: 'Delete' }).click()
 
-      // Wait for deletion to complete - row should disappear
-      await expect(row.first())
-        .not.toBeVisible({ timeout: 10000 })
-        .catch(() => {
-          // If row doesn't disappear, at least wait for dialog to close
-        })
+      // Wait for deletion to complete - delete dialog should close
+      const deleteDialog = page.getByRole('dialog', { name: /Delete workflow/i })
+      await expect(deleteDialog).not.toBeVisible({ timeout: 10000 })
     }
   } catch {
     // Best-effort cleanup — don't fail the test

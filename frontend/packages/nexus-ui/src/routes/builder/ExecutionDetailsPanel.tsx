@@ -20,6 +20,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 
 import { executionsClient } from '../../client'
+import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
@@ -63,6 +64,7 @@ type HeaderMetadataProps = {
     created_at?: string | null
     completed_at?: string | null
     status?: ExecutionStatus | null
+    approval_pending?: boolean
   }
   elapsedLabel?: string
   isRunning: boolean
@@ -122,8 +124,17 @@ function HeaderMetadata({
             </Content>
           )}
           {execution.status && (
-            <FlexItem style={{ display: 'flex', alignItems: 'center' }}>
-              <StatusLabel status={execution.status} />
+            <FlexItem>
+              <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+                <FlexItem>
+                  <StatusLabel status={execution.status} />
+                </FlexItem>
+                {execution.approval_pending && (
+                  <FlexItem>
+                    <ApprovalPendingBadge approvalPending={execution.approval_pending} />
+                  </FlexItem>
+                )}
+              </Flex>
             </FlexItem>
           )}
           {onClosePanel && (

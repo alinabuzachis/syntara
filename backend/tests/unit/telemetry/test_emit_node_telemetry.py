@@ -20,10 +20,12 @@ def _make_activity(
     status: ActivityStatus,
     started_at: datetime | None = None,
     completed_at: datetime | None = None,
+    node_type: str = "script",
 ) -> ActivityExecution:
     return ActivityExecution(
         execution_id=EXECUTION_ID,
         activity_name=name,
+        node_type=node_type,
         temporal_activity_id=f"temporal-{name}",
         status=status,
         started_at=started_at,

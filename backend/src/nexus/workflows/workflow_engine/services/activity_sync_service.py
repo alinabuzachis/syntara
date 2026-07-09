@@ -263,20 +263,17 @@ class ActivitySyncService:
     async def _publish_execution_patch(
         self,
         execution_id: UUID,
-        status: ExecutionStatus,
+        ops: list[JsonPatchOperation],
     ) -> None:
-        """Publish an execution status change as a JSON Patch (best-effort).
+        """Publish execution-level field changes as JSON Patch operations (best-effort).
 
         Args:
             execution_id: Execution UUID.
-            status: New execution status to broadcast.
+            ops: JSON Patch operations to broadcast.
 
         """
         try:
-            await self.activity_publisher.publish_execution_patch(
-                execution_id,
-                [JsonPatchOperation(op="replace", path="/status", value=status.value)],
-            )
+            await self.activity_publisher.publish_execution_patch(execution_id, ops)
         except Exception:
             logger.exception(
                 "Failed to publish execution patch (non-fatal)",
@@ -316,7 +313,10 @@ class ActivitySyncService:
                     await session.commit()
                     logger.info("Updated execution to RUNNING status", execution_id=metadata.execution_id)
 
-                    await self._publish_execution_patch(metadata.execution_id, ExecutionStatus.RUNNING)
+                    await self._publish_execution_patch(
+                        metadata.execution_id,
+                        [JsonPatchOperation(op="replace", path="/status", value=ExecutionStatus.RUNNING.value)],
+                    )
 
                     # Dispatch workflow-start domain event through audit framework
                     trigger_activity_type = self._extract_trigger_activity_type(metadata.activity_definitions_map)
@@ -1417,6 +1417,31 @@ class ActivitySyncService:
         )
         return new_status
 
+    def _update_approval_pending_flag(
+        self,
+        execution: Execution,
+        activities: Sequence[ActivityExecution],
+    ) -> bool | None:
+        """Update execution.approval_pending based on current activity states.
+
+        Returns the new flag value if changed, None if unchanged.
+        """
+        has_pending_approval = any(
+            a.node_type == NodeType.APPROVAL and a.status == ActivityStatus.WAITING for a in activities
+        )
+
+        if execution.approval_pending != has_pending_approval:
+            execution.approval_pending = has_pending_approval
+            execution.updated_at = datetime.now(UTC)
+            logger.info(
+                "Execution approval_pending flag updated",
+                execution_id=execution.id,
+                approval_pending=has_pending_approval,
+            )
+            return has_pending_approval
+
+        return None
+
     def _process_activity_event(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process a single activity event and update metadata's pending updates.
 
@@ -1725,6 +1750,69 @@ class ActivitySyncService:
         )
         return existing, old_values
 
+    async def _update_execution_flags(
+        self,
+        execution: Execution | None,
+        updated_activities: list[tuple[ActivityExecution, dict[str, Any]]],
+        existing_activities: list[ActivityExecution],
+    ) -> tuple[ExecutionStatus | None, bool | None]:
+        """Update execution status and approval_pending flag based on activity changes.
+
+        Args:
+            execution: Execution record to update
+            updated_activities: List of updated activities with their old values
+            existing_activities: All existing activities for the execution
+
+        Returns:
+            Tuple of (new_execution_status, approval_pending_changed)
+
+        """
+        if not updated_activities or not execution:
+            return None, None
+
+        new_status = await self._maybe_update_execution_paused_status(execution, existing_activities)
+        approval_changed = self._update_approval_pending_flag(execution, existing_activities)
+        return new_status, approval_changed
+
+    async def _publish_patches_and_emit_telemetry(
+        self,
+        metadata: ExecutionMonitorMetadata,
+        updated_activities: list[tuple[ActivityExecution, dict[str, Any]]],
+        timed_out_activities: list[tuple[str, dict[str, Any]]],
+        *,
+        new_execution_status: ExecutionStatus | None,
+        approval_pending_changed: bool | None,
+        execution: Execution | None,
+    ) -> None:
+        """Publish activity and execution patches after DB commit and emit telemetry.
+
+        Args:
+            metadata: Execution monitoring metadata
+            updated_activities: List of updated activities with their before/after diffs
+            timed_out_activities: List of (activity_id, timeout_info) tuples for timed-out activities
+            new_execution_status: New execution status if it changed
+            approval_pending_changed: New approval_pending value if it changed
+            execution: Execution record (for approval_pending patch)
+
+        """
+        # Publish activity patches after commit
+        if updated_activities:
+            await self._publish_activity_patches(metadata, updated_activities)
+
+        # Coalesce execution-level patches into a single message to avoid intermediate render states
+        execution_patches: list[JsonPatchOperation] = []
+        if new_execution_status is not None:
+            execution_patches.append(JsonPatchOperation(op="replace", path="/status", value=new_execution_status.value))
+        if approval_pending_changed is not None and execution:
+            execution_patches.append(
+                JsonPatchOperation(op="replace", path="/approval_pending", value=approval_pending_changed)
+            )
+
+        if execution_patches:
+            await self._publish_execution_patch(metadata.execution_id, execution_patches)
+
+        self._emit_post_commit_telemetry(metadata, updated_activities, timed_out_activities)
+
     async def _sync_activities_to_db(
         self,
         metadata: ExecutionMonitorMetadata,
@@ -1781,23 +1869,22 @@ class ActivitySyncService:
 
                 # Check if execution should transition between PAUSED and RUNNING
                 # using already-loaded data from this session (no extra DB roundtrip).
-                new_execution_status: ExecutionStatus | None = None
-                if updated_activities and execution:
-                    new_execution_status = await self._maybe_update_execution_paused_status(
-                        execution, list(existing_activities.values())
-                    )
+                new_execution_status, approval_pending_changed = await self._update_execution_flags(
+                    execution, updated_activities, list(existing_activities.values())
+                )
 
                 await session.commit()
                 metadata.pending_sync_event_ids.clear()
 
-                # Publish activity patches after commit
-                if updated_activities:
-                    await self._publish_activity_patches(metadata, updated_activities)
-
-                if new_execution_status is not None:
-                    await self._publish_execution_patch(metadata.execution_id, new_execution_status)
-
-                self._emit_post_commit_telemetry(metadata, updated_activities, timed_out_activities)
+                # Publish patches and emit telemetry after successful commit
+                await self._publish_patches_and_emit_telemetry(
+                    metadata,
+                    updated_activities,
+                    timed_out_activities,
+                    new_execution_status=new_execution_status,
+                    approval_pending_changed=approval_pending_changed,
+                    execution=execution,
+                )
 
             except Exception:
                 await session.rollback()
@@ -1907,11 +1994,26 @@ class ActivitySyncService:
 
             now = datetime.now(UTC)
             for node_id in missing:
+                activity_def = metadata.activity_definitions_map.get(node_id, {})
+                node_type_str = activity_def.get("type", "script")
+
+                # Safely construct NodeType enum with fallback to INTERNAL_ACTIVITY
+                try:
+                    node_type = NodeType(node_type_str)
+                except ValueError:
+                    logger.warning(
+                        "Invalid node type in workflow definition, defaulting to INTERNAL_ACTIVITY",
+                        execution_id=metadata.execution_id,
+                        node_id=node_id,
+                        invalid_type=node_type_str,
+                    )
+                    node_type = NodeType.INTERNAL_ACTIVITY
+
                 session.add(
                     ActivityExecution(
                         execution_id=metadata.execution_id,
                         activity_name=node_id,
-                        activity_definition=metadata.activity_definitions_map.get(node_id),
+                        node_type=node_type,
                         temporal_activity_id=f"{PRE_RESOLVED_ACTIVITY_ID_PREFIX}{node_id}"[
                             : FieldLimits.NAME_MAX_LENGTH
                         ],
@@ -2065,44 +2167,36 @@ class ActivitySyncService:
                 new_activities: list[ActivityExecution] = []
 
                 for activity_id, activity_def in activity_definitions_map.items():
-                    activity_type = activity_def.get("type")
+                    activity_type_str = activity_def.get("type")
+
+                    # Safely construct NodeType enum with fallback to INTERNAL_ACTIVITY
+                    try:
+                        node_type = NodeType(activity_type_str)
+                    except ValueError:
+                        logger.warning(
+                            "Invalid node type in workflow definition, defaulting to INTERNAL_ACTIVITY",
+                            execution_id=execution_id,
+                            activity_id=activity_id,
+                            invalid_type=activity_type_str,
+                        )
+                        node_type = NodeType.INTERNAL_ACTIVITY
 
                     # V2 workflows: Create records for all node types (triggers, control, executors)
-                    if activity_type in [
-                        # V2 triggers
-                        NodeType.MANUAL_TRIGGER,
-                        NodeType.WEBHOOK_TRIGGER,
-                        NodeType.EDA_TRIGGER,
-                        # V2 control nodes
-                        NodeType.CONDITION,
-                        NodeType.CONVERGE,
-                        NodeType.LOOP,
-                        NodeType.SWITCH,
-                        NodeType.WAIT,
-                        # V2 executor nodes
-                        NodeType.AAP_JOB_TEMPLATE,
-                        NodeType.AAP_WORKFLOW_JOB_TEMPLATE,
-                        NodeType.AGENTIC,
-                        NodeType.APPROVAL,
-                        NodeType.HTTP_REQUEST,
-                        NodeType.INTERNAL_ACTIVITY,
-                        NodeType.SCRIPT,
-                    ]:
-                        new_activity = ActivityExecution(
-                            execution_id=execution_id,
-                            activity_name=activity_id,
-                            activity_definition=activity_def,
-                            temporal_activity_id=activity_id,  # Set to activity_name initially
-                            status=ActivityStatus.PENDING,
-                            started_at=None,
-                            completed_at=None,
-                            input_data={},
-                            output_data=None,
-                            error_details=None,
-                            retry_count=0,
-                            iteration=None,
-                        )
-                        new_activities.append(new_activity)
+                    new_activity = ActivityExecution(
+                        execution_id=execution_id,
+                        activity_name=activity_id,
+                        node_type=node_type,
+                        temporal_activity_id=activity_id,  # Set to activity_name initially
+                        status=ActivityStatus.PENDING,
+                        started_at=None,
+                        completed_at=None,
+                        input_data={},
+                        output_data=None,
+                        error_details=None,
+                        retry_count=0,
+                        iteration=None,
+                    )
+                    new_activities.append(new_activity)
 
                 # Bulk insert all activities
                 if new_activities:

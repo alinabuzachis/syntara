@@ -305,6 +305,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       executionId: execution.id,
       workflowId: execution.workflow_id ?? '',
       status: execution.status ?? 'pending',
+      approval_pending: execution.approval_pending ?? false,
       workflowDefinition: execution.workflow_definition,
       activities: activityStateMap,
       createdAt: execution.created_at,
@@ -374,6 +375,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     for (const op of ops) {
       if (op.op === 'replace' && op.path === '/status' && typeof op.value === 'string') {
         updated = { ...updated, status: op.value as ExecutionStatus }
+      } else if (op.op === 'replace' && op.path === '/approval_pending' && typeof op.value === 'boolean') {
+        updated = { ...updated, approval_pending: op.value }
       }
     }
 
@@ -557,6 +560,16 @@ type ExecutionRead = ExecutionsAPI.components['schemas']['ExecutionRead']
  */
 export function useExecutionWithLiveStatus<T extends ExecutionRead | undefined>(data: T): T {
   const liveStatus = useExecutionStore((s) => s.visualization?.status)
+  const liveApprovalPending = useExecutionStore((s) => s.visualization?.approval_pending)
   if (!data) return data
-  return { ...data, status: liveStatus ?? data.status } as T
+
+  // If no WebSocket visualization, return data as-is
+  if (liveStatus === undefined) return data
+
+  // Merge WebSocket visualization data with API data
+  return {
+    ...data,
+    status: liveStatus,
+    approval_pending: liveApprovalPending ?? data.approval_pending,
+  } as T
 }

@@ -55,6 +55,7 @@ class ExecutionRead:
             mode (ExecutionMode | Unset): Execution mode for workflow runs.
             execution_metadata (ExecutionReadExecutionMetadataType0 | None | Unset):
             labels (ExecutionReadLabels | Unset):
+            approval_pending (bool | Unset):  Default: False.
             current_activities (list[CurrentActivity] | Unset): Currently executing activities
             deleted_at (datetime.datetime | None | Unset):
             deleted_by (None | Unset | UUID):
@@ -84,6 +85,7 @@ class ExecutionRead:
     mode: ExecutionMode | Unset = UNSET
     execution_metadata: ExecutionReadExecutionMetadataType0 | None | Unset = UNSET
     labels: ExecutionReadLabels | Unset = UNSET
+    approval_pending: bool | Unset = False
     current_activities: list[CurrentActivity] | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
     deleted_by: None | Unset | UUID = UNSET
@@ -172,6 +174,8 @@ class ExecutionRead:
         if not isinstance(self.labels, Unset):
             labels = self.labels.to_dict()
 
+        approval_pending = self.approval_pending
+
         current_activities: list[dict[str, Any]] | Unset = UNSET
         if not isinstance(self.current_activities, Unset):
             current_activities = []
@@ -248,6 +252,8 @@ class ExecutionRead:
             field_dict["execution_metadata"] = execution_metadata
         if labels is not UNSET:
             field_dict["labels"] = labels
+        if approval_pending is not UNSET:
+            field_dict["approval_pending"] = approval_pending
         if current_activities is not UNSET:
             field_dict["current_activities"] = current_activities
         if deleted_at is not UNSET:
@@ -405,6 +411,8 @@ class ExecutionRead:
         else:
             labels = ExecutionReadLabels.from_dict(_labels)
 
+        approval_pending = d.pop("approval_pending", UNSET)
+
         _current_activities = d.pop("current_activities", UNSET)
         current_activities: list[CurrentActivity] | Unset = UNSET
         if _current_activities is not UNSET:
@@ -508,6 +516,7 @@ class ExecutionRead:
             mode=mode,
             execution_metadata=execution_metadata,
             labels=labels,
+            approval_pending=approval_pending,
             current_activities=current_activities,
             deleted_at=deleted_at,
             deleted_by=deleted_by,

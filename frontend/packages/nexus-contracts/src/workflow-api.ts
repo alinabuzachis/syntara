@@ -834,6 +834,11 @@ export interface components {
         [key: string]: unknown
       }
       /**
+       * Approval Pending
+       * @default false
+       */
+      approval_pending?: boolean
+      /**
        * Current Activities
        * @description Currently executing activities
        */

@@ -9,10 +9,10 @@ from attrs import define as _attrs_define
 from dateutil.parser import isoparse
 
 from ..models.activity_status import ActivityStatus
+from ..models.node_type import NodeType
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.activity_execution_activity_definition_type_0 import ActivityExecutionActivityDefinitionType0
     from ..models.activity_execution_input_data import ActivityExecutionInputData
     from ..models.activity_execution_labels import ActivityExecutionLabels
     from ..models.activity_execution_output_data_type_0 import ActivityExecutionOutputDataType0
@@ -40,6 +40,7 @@ class ActivityExecution:
         Attributes:
             execution_id (UUID): Parent execution ID
             activity_name (str): Activity ID from workflow definition
+            node_type (NodeType): Node types for V2 workflows (used by telemetry).
             temporal_activity_id (str): Temporal activity execution ID
             status (ActivityStatus): Activity execution status enumeration.
             id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
@@ -47,8 +48,6 @@ class ActivityExecution:
             updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
             labels (ActivityExecutionLabels | Unset): Key-value pairs for resource labeling and filtering Example:
                 {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
-            activity_definition (ActivityExecutionActivityDefinitionType0 | None | Unset): Snapshot of activity
-                configuration from workflow definition
             started_at (datetime.datetime | None | Unset): When activity started execution
             completed_at (datetime.datetime | None | Unset): When activity completed/failed
             input_data (ActivityExecutionInputData | Unset): Runtime input parameters
@@ -60,13 +59,13 @@ class ActivityExecution:
 
     execution_id: UUID
     activity_name: str
+    node_type: NodeType
     temporal_activity_id: str
     status: ActivityStatus
     id: UUID | Unset = UNSET
     created_at: datetime.datetime | Unset = UNSET
     updated_at: datetime.datetime | Unset = UNSET
     labels: ActivityExecutionLabels | Unset = UNSET
-    activity_definition: ActivityExecutionActivityDefinitionType0 | None | Unset = UNSET
     started_at: datetime.datetime | None | Unset = UNSET
     completed_at: datetime.datetime | None | Unset = UNSET
     input_data: ActivityExecutionInputData | Unset = UNSET
@@ -76,12 +75,13 @@ class ActivityExecution:
     iteration: int | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.activity_execution_activity_definition_type_0 import ActivityExecutionActivityDefinitionType0
         from ..models.activity_execution_output_data_type_0 import ActivityExecutionOutputDataType0
 
         execution_id = str(self.execution_id)
 
         activity_name = self.activity_name
+
+        node_type = self.node_type.value
 
         temporal_activity_id = self.temporal_activity_id
 
@@ -102,14 +102,6 @@ class ActivityExecution:
         labels: dict[str, Any] | Unset = UNSET
         if not isinstance(self.labels, Unset):
             labels = self.labels.to_dict()
-
-        activity_definition: dict[str, Any] | None | Unset
-        if isinstance(self.activity_definition, Unset):
-            activity_definition = UNSET
-        elif isinstance(self.activity_definition, ActivityExecutionActivityDefinitionType0):
-            activity_definition = self.activity_definition.to_dict()
-        else:
-            activity_definition = self.activity_definition
 
         started_at: None | str | Unset
         if isinstance(self.started_at, Unset):
@@ -159,6 +151,7 @@ class ActivityExecution:
             {
                 "execution_id": execution_id,
                 "activity_name": activity_name,
+                "node_type": node_type,
                 "temporal_activity_id": temporal_activity_id,
                 "status": status,
             }
@@ -171,8 +164,6 @@ class ActivityExecution:
             field_dict["updated_at"] = updated_at
         if labels is not UNSET:
             field_dict["labels"] = labels
-        if activity_definition is not UNSET:
-            field_dict["activity_definition"] = activity_definition
         if started_at is not UNSET:
             field_dict["started_at"] = started_at
         if completed_at is not UNSET:
@@ -192,7 +183,6 @@ class ActivityExecution:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.activity_execution_activity_definition_type_0 import ActivityExecutionActivityDefinitionType0
         from ..models.activity_execution_input_data import ActivityExecutionInputData
         from ..models.activity_execution_labels import ActivityExecutionLabels
         from ..models.activity_execution_output_data_type_0 import ActivityExecutionOutputDataType0
@@ -201,6 +191,8 @@ class ActivityExecution:
         execution_id = UUID(d.pop("execution_id"))
 
         activity_name = d.pop("activity_name")
+
+        node_type = NodeType(d.pop("node_type"))
 
         temporal_activity_id = d.pop("temporal_activity_id")
 
@@ -233,23 +225,6 @@ class ActivityExecution:
             labels = UNSET
         else:
             labels = ActivityExecutionLabels.from_dict(_labels)
-
-        def _parse_activity_definition(data: object) -> ActivityExecutionActivityDefinitionType0 | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, dict):
-                    raise TypeError()
-                activity_definition_type_0 = ActivityExecutionActivityDefinitionType0.from_dict(data)
-
-                return activity_definition_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(ActivityExecutionActivityDefinitionType0 | None | Unset, data)
-
-        activity_definition = _parse_activity_definition(d.pop("activity_definition", UNSET))
 
         def _parse_started_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -332,13 +307,13 @@ class ActivityExecution:
         activity_execution = cls(
             execution_id=execution_id,
             activity_name=activity_name,
+            node_type=node_type,
             temporal_activity_id=temporal_activity_id,
             status=status,
             id=id,
             created_at=created_at,
             updated_at=updated_at,
             labels=labels,
-            activity_definition=activity_definition,
             started_at=started_at,
             completed_at=completed_at,
             input_data=input_data,
