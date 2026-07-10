@@ -64,6 +64,39 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
   { label: 'DELETE', value: 'DELETE' },
 ]
 
+type ScriptInputParametersProps = {
+  register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
+  getValues: ReturnType<typeof useFormContext<ActionFormValues>>['getValues']
+  setValue: ReturnType<typeof useFormContext<ActionFormValues>>['setValue']
+  isDisabled: boolean
+}
+
+function ScriptInputParameters({ register, getValues, setValue, isDisabled }: ScriptInputParametersProps) {
+  return (
+    <FormGroup label="Input parameters" fieldId="action-parameters">
+      <DroppableField
+        onDropText={(text) => {
+          const current = getValues('parameters')
+          setValue('parameters', (current ?? '') + text)
+        }}
+      >
+        <TextArea
+          {...register('parameters')}
+          id="action-parameters"
+          placeholder='{"key": "value"}'
+          rows={3}
+          isDisabled={isDisabled}
+        />
+      </DroppableField>
+      <FormHelperText>
+        <HelperText>
+          <HelperTextItem>Define inputs for this task</HelperTextItem>
+        </HelperText>
+      </FormHelperText>
+    </FormGroup>
+  )
+}
+
 /** Script + API form fields (Stack content) for action node. */
 type ActionParametersContentProps = Readonly<{
   register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
@@ -151,20 +184,12 @@ function ActionParametersContent(props: ActionParametersContentProps) {
             </FormGroup>
           </StackItem>
           <StackItem>
-            <FormGroup label="Input parameters" fieldId="action-parameters">
-              <TextArea
-                {...register('parameters')}
-                id="action-parameters"
-                placeholder='{"key": "value"}'
-                rows={3}
-                isDisabled={isVersionView}
-              />
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem>Define inputs for this task</HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            </FormGroup>
+            <ScriptInputParameters
+              register={register}
+              getValues={getValues}
+              setValue={setValue}
+              isDisabled={isVersionView}
+            />
           </StackItem>
         </>
       )}

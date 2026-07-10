@@ -241,6 +241,24 @@ describe('ActionNodeForm', () => {
     expect(screen.getByTestId('code-editor')).toBeInTheDocument()
   })
 
+  it('accepts drop on input parameters field for script executor', () => {
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
+
+    const parametersField = screen.getByRole('textbox', { name: 'Input parameters' })
+
+    fireEvent.drop(parametersField, {
+      dataTransfer: {
+        getData: (type: string) => {
+          if (type === 'application/json') return '{"type":"nexus/input-field"}'
+          if (type === 'text/plain') return '${trigger.tier}'
+          return ''
+        },
+      },
+    })
+
+    expect(parametersField).toHaveValue('${trigger.tier}')
+  })
+
   it('shows Developer Preview label for script executor', () => {
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'script' }} />)
 
