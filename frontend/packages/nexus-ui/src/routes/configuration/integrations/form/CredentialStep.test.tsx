@@ -8,12 +8,31 @@ import { CredentialStep } from './CredentialStep'
 import type { IntegrationFormData } from './integrationFormSchema'
 
 vi.mock('../../../builder/components/CredentialSelector', () => ({
-  CredentialSelector: ({ label }: { label?: string }) => <div data-testid="credential-selector">{label}</div>,
+  CredentialSelector: ({
+    label,
+    compatibleTypeNames,
+    onChange,
+  }: {
+    label?: string
+    compatibleTypeNames?: string[]
+    onChange?: (id: string | undefined) => void
+  }) => (
+    <div data-testid="credential-selector" data-compatible-types={compatibleTypeNames?.join(',')}>
+      {label}
+      <button data-testid="select-credential" onClick={() => onChange?.('cred-123')}>
+        Select
+      </button>
+    </div>
+  ),
 }))
 
 function TestWrapper(props: Omit<Parameters<typeof CredentialStep>[0], 'control' | 'setValue'>) {
   const { control, setValue } = useForm<IntegrationFormData>({
-    defaultValues: { management_credential_id: null },
+    defaultValues: {
+      management_credential_id: null,
+      integration_type: 'mcp_server',
+      configuration: { integration_type: 'mcp_server', base_url: '' },
+    },
   })
   return <CredentialStep control={control} setValue={setValue} {...props} />
 }
@@ -61,6 +80,24 @@ describe('CredentialStep', () => {
     expect(button).toHaveAttribute('aria-disabled', 'true')
   })
 
+  it('calls onCredentialChange when credential is selected', async () => {
+    const user = userEvent.setup()
+    const onCredentialChange = vi.fn()
+
+    render(
+      <TestWrapper
+        credentialId={null}
+        isTesting={false}
+        onTestConnection={vi.fn()}
+        onCredentialChange={onCredentialChange}
+      />
+    )
+
+    await user.click(screen.getByTestId('select-credential'))
+
+    expect(onCredentialChange).toHaveBeenCalled()
+  })
+
   it('calls onTestConnection when button clicked', async () => {
     const user = userEvent.setup()
     const onTestConnection = vi.fn()
@@ -89,5 +126,34 @@ describe('CredentialStep', () => {
       results = await axe(container)
     })
     expect(results!).toHaveNoViolations()
+  })
+
+  describe('Dynamic credential types', () => {
+    function LLMTestWrapper(props: Omit<Parameters<typeof CredentialStep>[0], 'control' | 'setValue'>) {
+      const { control, setValue } = useForm<IntegrationFormData>({
+        defaultValues: {
+          management_credential_id: null,
+          integration_type: 'llm_provider',
+          configuration: { integration_type: 'llm_provider', provider_hint: 'red_hat_ai', base_url: '' },
+        },
+      })
+      return <CredentialStep control={control} setValue={setValue} {...props} />
+    }
+
+    it('passes LLM Provider credential types when integration type is llm_provider', () => {
+      render(
+        <LLMTestWrapper credentialId={null} isTesting={false} onTestConnection={vi.fn()} onCredentialChange={vi.fn()} />
+      )
+
+      expect(screen.getByTestId('credential-selector')).toHaveAttribute('data-compatible-types', 'LLM Provider')
+    })
+
+    it('passes HTTP Bearer Token credential types when integration type is mcp_server', () => {
+      render(
+        <TestWrapper credentialId={null} isTesting={false} onTestConnection={vi.fn()} onCredentialChange={vi.fn()} />
+      )
+
+      expect(screen.getByTestId('credential-selector')).toHaveAttribute('data-compatible-types', 'HTTP Bearer Token')
+    })
   })
 })

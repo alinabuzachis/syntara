@@ -5,32 +5,35 @@ type SelectableItem = {
   enabled?: boolean
 }
 
-export function useToolSelection<T extends SelectableItem>(allItems: T[], filteredItems: T[]) {
+export function useItemSelection<T extends SelectableItem>(allItems: T[], filteredItems: T[]) {
   const serverEnabledIds = useMemo(() => new Set(allItems.filter((t) => t.enabled).map((t) => t.id)), [allItems])
-  const serverKey = useMemo(() => [...serverEnabledIds].sort().join(','), [serverEnabledIds])
+  const serverKey = useMemo(
+    () => [...serverEnabledIds].sort((a, b) => a.localeCompare(b)).join(','),
+    [serverEnabledIds]
+  )
 
   const [localState, setLocalState] = useState<{ key: string; ids: Set<string> }>({
     key: serverKey,
     ids: new Set(serverEnabledIds),
   })
 
-  const enabledToolIds = localState.key === serverKey ? localState.ids : serverEnabledIds
+  const enabledIds = localState.key === serverKey ? localState.ids : serverEnabledIds
 
   // Sync local state when server data changes (React-approved setState-during-render pattern)
   if (localState.key !== serverKey) {
     setLocalState({ key: serverKey, ids: new Set(serverEnabledIds) })
   }
 
-  const enabledCount = allItems.filter((t) => enabledToolIds.has(t.id)).length
-  const allSelected = filteredItems.length > 0 && filteredItems.every((t) => enabledToolIds.has(t.id))
+  const enabledCount = allItems.filter((t) => enabledIds.has(t.id)).length
+  const allSelected = filteredItems.length > 0 && filteredItems.every((t) => enabledIds.has(t.id))
 
   const isDirty = useMemo(() => {
-    if (serverEnabledIds.size !== enabledToolIds.size) return true
-    for (const id of enabledToolIds) {
+    if (serverEnabledIds.size !== enabledIds.size) return true
+    for (const id of enabledIds) {
       if (!serverEnabledIds.has(id)) return true
     }
     return false
-  }, [serverEnabledIds, enabledToolIds])
+  }, [serverEnabledIds, enabledIds])
 
   function handleSelectAll(checked: boolean) {
     setLocalState((prev) => {
@@ -43,11 +46,11 @@ export function useToolSelection<T extends SelectableItem>(allItems: T[], filter
     })
   }
 
-  function handleSelectTool(toolId: string, checked: boolean) {
+  function handleSelectItem(itemId: string, checked: boolean) {
     setLocalState((prev) => {
       const updated = new Set(prev.ids)
-      if (checked) updated.add(toolId)
-      else updated.delete(toolId)
+      if (checked) updated.add(itemId)
+      else updated.delete(itemId)
       return { key: prev.key, ids: updated }
     })
   }
@@ -57,12 +60,12 @@ export function useToolSelection<T extends SelectableItem>(allItems: T[], filter
   }
 
   return {
-    enabledToolIds,
+    enabledIds,
     enabledCount,
     allSelected,
     isDirty,
     handleSelectAll,
-    handleSelectTool,
+    handleSelectItem,
     resetToServer,
   }
 }

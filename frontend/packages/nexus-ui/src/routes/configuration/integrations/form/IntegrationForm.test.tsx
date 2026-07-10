@@ -129,7 +129,7 @@ describe('IntegrationForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
-    expect(screen.getByText('Server name / ID is required')).toBeInTheDocument()
+    expect(screen.getByText('Name is required')).toBeInTheDocument()
     expect(screen.getByText('Base URL is required')).toBeInTheDocument()
   })
 
@@ -306,16 +306,12 @@ describe('IntegrationForm', () => {
       await user.click(screen.getByTestId('select-credential'))
       await user.click(screen.getByRole('button', { name: 'Test connection' }))
 
-      expect(discoverMutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          body: expect.objectContaining({
-            integration_type: 'mcp_server',
-            credential_id: 'cred-123',
-          }),
-        }),
-        expect.any(Object)
-      )
+      expect(discoverMutate).toHaveBeenCalledOnce()
+      const [reqArg] = discoverMutate.mock.calls[0] as [Record<string, unknown>]
+      expect(reqArg.body).toMatchObject({
+        integration_type: 'mcp_server',
+        credential_id: 'cred-123',
+      })
     })
 
     it('shows success alert when discover returns tools', async () => {
@@ -340,7 +336,7 @@ describe('IntegrationForm', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Connection tested')).toBeInTheDocument()
-        expect(screen.getByText('Successfully connected. Discovered 2 tool(s).')).toBeInTheDocument()
+        expect(screen.getByText('Successfully connected. Discovered 2 tools.')).toBeInTheDocument()
       })
     })
 
@@ -432,5 +428,127 @@ describe('IntegrationForm', () => {
     const { container } = render(<IntegrationForm />, { wrapper })
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  describe('LLM Provider wizard flow', () => {
+    async function selectLLMProvider(user: ReturnType<typeof userEvent.setup>) {
+      const typeToggle = screen.getByText('MCP Server')
+      await user.click(typeToggle)
+      await user.click(screen.getByRole('option', { name: 'LLM Provider' }))
+    }
+
+    async function advanceLLMToStep2(user: ReturnType<typeof userEvent.setup>) {
+      await selectLLMProvider(user)
+      await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Test LLM')
+      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'https://api.example.com')
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+    }
+
+    it('shows LLM Provider option in integration type selector', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await user.click(screen.getByText('MCP Server'))
+
+      expect(screen.getByRole('option', { name: 'LLM Provider' })).toBeInTheDocument()
+    })
+
+    it('shows provider hint and name fields after selecting LLM Provider', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await selectLLMProvider(user)
+
+      expect(screen.getByText('Red Hat AI')).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument()
+    })
+
+    it('step 3 shows Enable models for LLM provider', async () => {
+      const discoverMutate = vi.fn()
+      discoverMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({
+          success: true,
+          discovered_models: [{ id: 'm1', name: 'model-1', description: 'A model' }],
+        })
+      })
+      mockMutations(discoverMutate)
+
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceLLMToStep2(user)
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Connection tested')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+
+      expect(screen.getByText('model-1')).toBeInTheDocument()
+    })
+
+    it('test connection returns discovered_models for LLM providers', async () => {
+      const discoverMutate = vi.fn()
+      discoverMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({
+          success: true,
+          discovered_models: [
+            { id: 'm1', name: 'model-1', description: 'First' },
+            { id: 'm2', name: 'model-2', description: 'Second' },
+          ],
+        })
+      })
+      mockMutations(discoverMutate)
+
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceLLMToStep2(user)
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Successfully connected. Discovered 2 models.')).toBeInTheDocument()
+      })
+    })
+
+    it('changing credential clears test result', async () => {
+      const discoverMutate = vi.fn()
+      discoverMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({
+          success: true,
+          discovered_models: [{ id: 'm1', name: 'model-1', description: 'A model' }],
+        })
+      })
+      mockMutations(discoverMutate)
+
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceLLMToStep2(user)
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Connection tested')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByTestId('clear-credential'))
+
+      expect(screen.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('MCP server flow still works unchanged (regression)', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
+      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+
+      expect(screen.getByText(/This credential is used to discover/)).toBeInTheDocument()
+    })
   })
 })

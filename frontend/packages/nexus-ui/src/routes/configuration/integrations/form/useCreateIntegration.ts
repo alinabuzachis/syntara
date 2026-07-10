@@ -1,3 +1,4 @@
+import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { useCallback } from 'react'
 
 import { AppRoute } from '../../../../app/AppRoute'
@@ -26,12 +27,18 @@ type InitialToolSelection = {
   parameters?: Record<string, unknown>[] | null
 }
 
+type InitialModelSelection = IntegrationsAPI.components['schemas']['InitialModelSelection']
+
 export function useCreateIntegration({ handleError }: UseCreateIntegrationOptions) {
   const { mutate: createIntegration } = integrationsClient.useMutation('post', '/integrations')
   const { showAlert } = useAlerts()
 
   return useCallback(
-    (formData: IntegrationFormData, discoveredTools?: InitialToolSelection[]) => {
+    (
+      formData: IntegrationFormData,
+      discoveredTools?: InitialToolSelection[],
+      discoveredModels?: InitialModelSelection[]
+    ) => {
       const context = formData.name ? `Integration "${formData.name}"` : undefined
       const navigateToList = () => navigate(AppRoute.Configuration.Integrations.Root)
 
@@ -45,6 +52,7 @@ export function useCreateIntegration({ handleError }: UseCreateIntegrationOption
             management_credential_id: formData.management_credential_id ?? undefined,
             scope: formData.scope,
             discovered_tools: discoveredTools ?? null,
+            discovered_models: discoveredModels ?? null,
           },
         },
         {

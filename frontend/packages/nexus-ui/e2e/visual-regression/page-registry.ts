@@ -681,6 +681,33 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Edit integration' })).toBeVisible()
     },
   },
+  {
+    section: 'configuration/integrations',
+    name: 'llm-provider-detail',
+    path: AppRoute.Configuration.Integrations.Detail.replace(':integrationId', '10'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Red Hat AI' })).toBeVisible()
+      await expect(page.getByText('LLM Provider', { exact: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'llm-provider-models',
+    path: AppRoute.Configuration.Integrations.DetailTab.replace(':integrationId', '10').replace(':tab', 'resources'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('granite-3.3-8b-instruct')).toBeVisible()
+      await expect(page.getByRole('tab', { name: 'Details' })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'llm-provider-edit',
+    path: AppRoute.Configuration.Integrations.Edit.replace(':integrationId', '10'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Edit integration' })).toBeVisible()
+    },
+  },
   ...integrationDialogPages,
   ...integrationWizardPages,
 

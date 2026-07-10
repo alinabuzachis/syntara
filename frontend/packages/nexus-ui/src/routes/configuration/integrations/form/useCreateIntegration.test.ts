@@ -58,21 +58,20 @@ describe('useCreateIntegration', () => {
       result.current(formData)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledWith(
+    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    const callArgs: unknown[] = mockCreateMutation.mock.calls[0] as unknown[]
+    const reqArg = callArgs[0] as Record<string, unknown>
+    const callbacksArg = callArgs[1] as Record<string, unknown>
+    expect(reqArg.body).toMatchObject({
+      name: 'Test Integration',
+      integration_type: 'mcp_server',
+      configuration: { integration_type: 'mcp_server', base_url: 'http://localhost:8765/mcp' },
+      scope: 'global',
+    })
+    expect(callbacksArg).toEqual(
       expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        body: expect.objectContaining({
-          name: 'Test Integration',
-          integration_type: 'mcp_server',
-          configuration: { integration_type: 'mcp_server', base_url: 'http://localhost:8765/mcp' },
-          scope: 'global',
-        }),
-      }),
-      expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        onSuccess: expect.any(Function),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        onError: expect.any(Function),
+        onSuccess: expect.any(Function) as unknown,
+        onError: expect.any(Function) as unknown,
       })
     )
   })
@@ -154,15 +153,11 @@ describe('useCreateIntegration', () => {
       result.current(formData, discoveredTools)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        body: expect.objectContaining({
-          discovered_tools: discoveredTools,
-        }),
-      }),
-      expect.any(Object)
-    )
+    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
+    expect(reqArg.body).toMatchObject({
+      discovered_tools: discoveredTools,
+    })
   })
 
   it('passes null discovered_tools when none provided', () => {
@@ -173,15 +168,11 @@ describe('useCreateIntegration', () => {
       result.current(formData)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        body: expect.objectContaining({
-          discovered_tools: null,
-        }),
-      }),
-      expect.any(Object)
-    )
+    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
+    expect(reqArg.body).toMatchObject({
+      discovered_tools: null,
+    })
   })
 
   it('passes empty description through to the API', () => {
@@ -192,15 +183,11 @@ describe('useCreateIntegration', () => {
       result.current(formData)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        body: expect.objectContaining({
-          description: '',
-        }),
-      }),
-      expect.any(Object)
-    )
+    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
+    expect(reqArg.body).toMatchObject({
+      description: '',
+    })
   })
 
   it('passes management_credential_id when provided', () => {
@@ -211,15 +198,11 @@ describe('useCreateIntegration', () => {
       result.current(formData)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        body: expect.objectContaining({
-          management_credential_id: 'cred-123',
-        }),
-      }),
-      expect.any(Object)
-    )
+    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
+    expect(reqArg.body).toMatchObject({
+      management_credential_id: 'cred-123',
+    })
   })
 
   it('returns a stable function reference across re-renders', () => {
@@ -229,5 +212,54 @@ describe('useCreateIntegration', () => {
     rerender()
 
     expect(result.current).toBe(firstRef)
+  })
+
+  it('passes discovered_models to the API when provided', () => {
+    const formData = createTestFormData({
+      integration_type: 'llm_provider',
+      configuration: {
+        integration_type: 'llm_provider',
+        provider_hint: 'red_hat_ai',
+        base_url: 'https://api.example.com',
+      },
+    })
+    const discoveredModels = [
+      { model_id: 'm1', name: 'model-1', description: null, enabled: true, is_default: true },
+      { model_id: 'm2', name: 'model-2', description: null, enabled: true, is_default: false },
+    ]
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
+
+    act(() => {
+      result.current(formData, undefined, discoveredModels)
+    })
+
+    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
+    expect(reqArg.body).toMatchObject({
+      discovered_models: discoveredModels,
+      integration_type: 'llm_provider',
+    })
+  })
+
+  it('passes null discovered_models when none provided for LLM', () => {
+    const formData = createTestFormData({
+      integration_type: 'llm_provider',
+      configuration: {
+        integration_type: 'llm_provider',
+        provider_hint: 'openai',
+        base_url: '',
+      },
+    })
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
+
+    act(() => {
+      result.current(formData)
+    })
+
+    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
+    expect(reqArg.body).toMatchObject({
+      discovered_models: null,
+    })
   })
 })

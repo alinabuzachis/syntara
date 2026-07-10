@@ -235,20 +235,20 @@ describe('EditIntegrationForm', () => {
 
       const nameInput = screen.getByDisplayValue('My MCP Server')
       await user.clear(nameInput)
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(screen.getByText('Server name / ID is required')).toBeInTheDocument()
+        expect(screen.getByText('Name is required')).toBeInTheDocument()
       })
     })
 
-    it('shows error when URL is empty on save', async () => {
+    it('shows error when URL is empty for MCP server', async () => {
       const user = userEvent.setup()
       render(<EditIntegrationForm />, { wrapper })
 
       const urlInput = screen.getByDisplayValue('https://mcp.example.com')
       await user.clear(urlInput)
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
         expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
@@ -262,7 +262,7 @@ describe('EditIntegrationForm', () => {
       const urlInput = screen.getByDisplayValue('https://mcp.example.com')
       await user.clear(urlInput)
       await user.type(urlInput, 'not-a-url')
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
         expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
@@ -276,7 +276,7 @@ describe('EditIntegrationForm', () => {
       const user = userEvent.setup()
       render(<EditIntegrationForm />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
         expect(patchMutate).toHaveBeenCalledWith(
@@ -304,7 +304,7 @@ describe('EditIntegrationForm', () => {
       const user = userEvent.setup()
       render(<EditIntegrationForm />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/int-1')
@@ -321,7 +321,7 @@ describe('EditIntegrationForm', () => {
       const user = userEvent.setup()
       render(<EditIntegrationForm />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
         expect(screen.getByText('Integration updated')).toBeInTheDocument()
@@ -334,7 +334,7 @@ describe('EditIntegrationForm', () => {
       render(<EditIntegrationForm />, { wrapper })
 
       await user.click(screen.getByTestId('select-credential'))
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
         expect(patchMutate).toHaveBeenCalledWith(
@@ -357,7 +357,7 @@ describe('EditIntegrationForm', () => {
       render(<EditIntegrationForm />, { wrapper })
 
       await user.click(screen.getByTestId('clear-credential'))
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
         expect(patchMutate).toHaveBeenCalledWith(
@@ -378,7 +378,7 @@ describe('EditIntegrationForm', () => {
       render(<EditIntegrationForm />, { wrapper })
 
       await user.click(screen.getByTestId('select-credential'))
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
         expect(patchMutate).toHaveBeenCalledWith(
@@ -407,7 +407,7 @@ describe('EditIntegrationForm', () => {
       const user = userEvent.setup()
       render(<EditIntegrationForm />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
         expect(patchMutate).toHaveBeenCalledWith(
@@ -503,7 +503,7 @@ describe('EditIntegrationForm', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Connection tested')).toBeInTheDocument()
-        expect(screen.getByText('Successfully connected. Discovered 2 tool(s).')).toBeInTheDocument()
+        expect(screen.getByText('Successfully connected. Discovered 2 tools.')).toBeInTheDocument()
       })
     })
 
@@ -552,6 +552,156 @@ describe('EditIntegrationForm', () => {
     it('has no accessibility violations', async () => {
       const { container } = render(<EditIntegrationForm />, { wrapper })
       expect(await axe(container)).toHaveNoViolations()
+    })
+  })
+
+  describe('LLM Provider editing', () => {
+    const llmIntegration = {
+      ...mockIntegration,
+      name: 'My LLM Provider',
+      description: 'An LLM integration',
+      integration_type: 'llm_provider',
+      configuration: {
+        integration_type: 'llm_provider',
+        provider_hint: 'red_hat_ai',
+        base_url: 'https://api.redhat.ai',
+      },
+    }
+
+    it('shows provider type as read-only text for LLM provider', () => {
+      setupMocks({ integration: llmIntegration })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByText('LLM Provider')).toBeInTheDocument()
+      expect(screen.getByText('Red Hat AI')).toBeInTheDocument()
+    })
+
+    it('shows base URL field for LLM provider with red_hat_ai', () => {
+      setupMocks({ integration: llmIntegration })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByDisplayValue('https://api.redhat.ai')).toBeInTheDocument()
+    })
+
+    it('shows error when URL is empty for red_hat_ai provider', async () => {
+      setupMocks({ integration: llmIntegration })
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const urlInput = screen.getByDisplayValue('https://api.redhat.ai')
+      await user.clear(urlInput)
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when URL is empty for custom provider', async () => {
+      setupMocks({
+        integration: {
+          ...llmIntegration,
+          configuration: {
+            integration_type: 'llm_provider',
+            provider_hint: 'custom',
+            base_url: 'https://custom.example.com',
+          },
+        },
+      })
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const urlInput = screen.getByDisplayValue('https://custom.example.com')
+      await user.clear(urlInput)
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
+      })
+    })
+
+    it('hides base URL field for openai provider', () => {
+      setupMocks({
+        integration: {
+          ...llmIntegration,
+          configuration: {
+            integration_type: 'llm_provider',
+            provider_hint: 'openai',
+          },
+        },
+      })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.queryByRole('textbox', { name: /api url/i })).not.toBeInTheDocument()
+    })
+
+    it('hides base URL field for anthropic provider', () => {
+      setupMocks({
+        integration: {
+          ...llmIntegration,
+          configuration: {
+            integration_type: 'llm_provider',
+            provider_hint: 'anthropic',
+          },
+        },
+      })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.queryByRole('textbox', { name: /api url/i })).not.toBeInTheDocument()
+    })
+
+    it('sends correct LLM configuration in PATCH body', async () => {
+      setupMocks({ integration: llmIntegration })
+      const { patchMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
+
+      await waitFor(() => {
+        expect(patchMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            body: expect.objectContaining({
+              configuration: expect.objectContaining({
+                integration_type: 'llm_provider',
+                provider_hint: 'red_hat_ai',
+              }) as Record<string, unknown>,
+            }) as Record<string, unknown>,
+          }),
+          expect.any(Object)
+        )
+      })
+    })
+
+    it('test connection shows models for LLM provider', async () => {
+      setupMocks({ integration: { ...llmIntegration, management_credential_id: 'cred-existing' } })
+      const discoverMutate = vi.fn()
+      discoverMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({
+          success: true,
+          discovered_models: [
+            { id: 'm1', name: 'model-1' },
+            { id: 'm2', name: 'model-2' },
+          ],
+        })
+      })
+      setupMutationMocks(undefined, discoverMutate)
+
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Successfully connected. Discovered 2 models.')).toBeInTheDocument()
+      })
+    })
+
+    it('MCP edit flow still works unchanged (regression)', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByText('MCP Server')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('https://mcp.example.com')).toBeInTheDocument()
     })
   })
 })

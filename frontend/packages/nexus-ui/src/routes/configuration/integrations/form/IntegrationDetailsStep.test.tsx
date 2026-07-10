@@ -71,4 +71,65 @@ describe('IntegrationDetailsStep', () => {
     })
     expect(results!).toHaveNoViolations()
   })
+
+  describe('LLM Provider type', () => {
+    function LLMTestWrapper() {
+      const { control, setValue } = useForm<IntegrationFormData>({
+        defaultValues: {
+          name: '',
+          description: '',
+          integration_type: 'llm_provider',
+          configuration: { integration_type: 'llm_provider', provider_hint: 'red_hat_ai', base_url: '' },
+          scope: 'global',
+        },
+      })
+      return <IntegrationDetailsStep control={control} setValue={setValue} />
+    }
+
+    it('shows provider hint dropdown when LLM Provider is selected', () => {
+      render(<LLMTestWrapper />)
+
+      expect(screen.getByText('Red Hat AI')).toBeInTheDocument()
+    })
+
+    it('shows name label as "Name" (not "Server name / ID") for LLM', () => {
+      render(<LLMTestWrapper />)
+
+      expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument()
+    })
+
+    it('shows base URL field for red_hat_ai provider', () => {
+      render(<LLMTestWrapper />)
+
+      expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
+    })
+
+    it('switching from LLM Provider to MCP Server resets configuration', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      const typeToggle = screen.getByText('MCP Server')
+      await user.click(typeToggle)
+      await user.click(screen.getByRole('option', { name: 'LLM Provider' }))
+
+      expect(screen.getByText('Red Hat AI')).toBeInTheDocument()
+
+      const typeToggle2 = screen.getByText('LLM Provider')
+      await user.click(typeToggle2)
+      await user.click(screen.getByRole('option', { name: 'MCP Server' }))
+
+      expect(screen.queryByText('Red Hat AI')).not.toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
+    })
+
+    it('has no accessibility violations with LLM Provider selected', async () => {
+      const { container } = render(<LLMTestWrapper />)
+
+      let results: Awaited<ReturnType<typeof axe>>
+      await act(async () => {
+        results = await axe(container)
+      })
+      expect(results!).toHaveNoViolations()
+    })
+  })
 })

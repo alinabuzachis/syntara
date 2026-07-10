@@ -161,6 +161,18 @@ export const IntegrationTypeEnum = {
 } as const
 
 /**
+ * Constants for LLM provider hint values
+ * Use these constants instead of string literals when comparing provider_hint values
+ */
+export const LLMProviderHintEnum = {
+  RED_HAT_AI: 'red_hat_ai',
+  OPENAI: 'openai',
+  ANTHROPIC: 'anthropic',
+  GEMINI: 'gemini',
+  CUSTOM: 'custom',
+} as const
+
+/**
  * Constants for integration status values
  * Use these constants instead of string literals when comparing integration.status values
  */

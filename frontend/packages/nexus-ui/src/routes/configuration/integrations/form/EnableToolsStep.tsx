@@ -18,11 +18,12 @@ import {
   ToolbarContent,
   ToolbarItem,
 } from '@patternfly/react-core'
-import { RhUiCubesFillIcon, WrenchIcon } from '@patternfly/react-icons'
+import { WrenchIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
 import { NxPanelContentStack } from '../../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateNoData } from '../../../../components/states/NxEmptyStateNoData'
 import { NxScrollableTableContainer } from '../../../../components/table/NxScrollableTableContainer'
 
 import styles from './WizardSteps.module.css'
@@ -81,7 +82,7 @@ function EnableToolsStep({
 
   if (!testResult) {
     return (
-      <EmptyState headingLevel="h3" icon={WrenchIcon} titleText="No tools discovered yet">
+      <EmptyState headingLevel="h3" icon={WrenchIcon} titleText="No tools discovered yet" isFullHeight>
         <EmptyStateBody>
           Test the connection in the previous step to discover available tools, or test it from here.
         </EmptyStateBody>
@@ -104,7 +105,7 @@ function EnableToolsStep({
 
   if (!testResult.success) {
     return (
-      <EmptyState headingLevel="h3" titleText="Connection test failed" status="danger">
+      <EmptyState headingLevel="h3" titleText="Connection test failed" status="danger" isFullHeight>
         <EmptyStateBody>{testResult.error ?? 'Unable to connect to the integration.'}</EmptyStateBody>
         {onTestConnection && (
           <EmptyStateFooter>
@@ -121,9 +122,10 @@ function EnableToolsStep({
 
   if (tools.length === 0) {
     return (
-      <EmptyState headingLevel="h3" icon={RhUiCubesFillIcon} titleText="No tools found">
-        <EmptyStateBody>The connection was successful, but no tools were found on this server.</EmptyStateBody>
-      </EmptyState>
+      <NxEmptyStateNoData
+        title="No tools found"
+        description="The connection was successful, but no tools were found on this server."
+      />
     )
   }
 
@@ -206,16 +208,16 @@ export function EnableToolsWrapper({
 
   return (
     <Stack className={styles.stepContainer}>
-      <StackItem>
-        <Content component="h2" className={styles.stepTitle}>
-          Enable tools
-        </Content>
-        {hasTools && (
+      {hasTools && (
+        <StackItem>
+          <Content component="h2" className={styles.stepTitle}>
+            Enable tools
+          </Content>
           <Content component={ContentVariants.p} className={styles.stepDescription}>
             Select which tools to enable for this integration. You can change this later.
           </Content>
-        )}
-      </StackItem>
+        </StackItem>
+      )}
       <StackItem isFilled className={styles.fillContent}>
         <EnableToolsStep
           testResult={testResult}

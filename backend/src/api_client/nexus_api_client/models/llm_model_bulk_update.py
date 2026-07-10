@@ -15,7 +15,7 @@ class LLMModelBulkUpdate:
     """Schema for bulk-updating LLM models.
 
     Attributes:
-        model_ids (list[UUID]): Model IDs to update (max 50)
+        model_ids (list[UUID]): Model IDs to update (max 1000)
         enabled (bool): New enabled state
     """
 

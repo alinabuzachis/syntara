@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { integrationsClient, toolManagerClient } from '../../../client'
+import { integrationsClient } from '../../../client'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { AlertProvider } from '../../../providers/alerts'
 import { assertUrlParam } from '../../../test/filter-test-helpers'
@@ -18,9 +18,6 @@ vi.mock('../../../client', () => ({
   integrationsClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
-  },
-  toolManagerClient: {
-    useQuery: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
   interfaceTagMiddleware: { onRequest: vi.fn() },
@@ -96,6 +93,7 @@ describe('Integrations Component', () => {
           { name: 'tool5' },
         ],
       },
+      enabled_tool_count: 5,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-02T00:00:00Z',
     },
@@ -112,6 +110,7 @@ describe('Integrations Component', () => {
         base_url: 'https://secondary.example.com',
         discovered_tools: [{ name: 'tool1' }, { name: 'tool2' }, { name: 'tool3' }],
       },
+      enabled_tool_count: 3,
       created_at: '2023-02-01T00:00:00Z',
       updated_at: '2023-02-02T00:00:00Z',
     },
@@ -128,6 +127,7 @@ describe('Integrations Component', () => {
         base_url: 'https://dev.example.com',
         discovered_tools: Array.from({ length: 8 }, (_, i) => ({ name: `tool${String(i + 1)}` })),
       },
+      enabled_tool_count: 8,
       created_at: '2023-03-01T00:00:00Z',
       updated_at: '2023-03-02T00:00:00Z',
     },
@@ -146,38 +146,6 @@ describe('Integrations Component', () => {
 
     vi.mocked(integrationsClient.useQuery).mockReturnValue({
       data: { resources: mockIntegrations },
-      isPending: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    } as never)
-
-    vi.mocked(toolManagerClient.useQuery).mockReturnValue({
-      data: {
-        resources: [
-          ...Array.from({ length: 5 }, (_, i) => ({
-            id: `t1-${i}`,
-            integration_id: '1',
-            enabled: true,
-            namespaced_name: `tool-${i}`,
-            parameters: [],
-          })),
-          ...Array.from({ length: 3 }, (_, i) => ({
-            id: `t2-${i}`,
-            integration_id: '2',
-            enabled: true,
-            namespaced_name: `tool-${i}`,
-            parameters: [],
-          })),
-          ...Array.from({ length: 8 }, (_, i) => ({
-            id: `t3-${i}`,
-            integration_id: '3',
-            enabled: true,
-            namespaced_name: `tool-${i}`,
-            parameters: [],
-          })),
-        ],
-      },
       isPending: false,
       isError: false,
       error: null,

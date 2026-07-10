@@ -1,4 +1,4 @@
-import { IntegrationStatusEnum, IntegrationTypeEnum } from '@ansible/nexus-contracts'
+import { IntegrationStatusEnum, IntegrationTypeEnum, LLMProviderHintEnum } from '@ansible/nexus-contracts'
 
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
@@ -15,6 +15,25 @@ export const INTEGRATION_TYPE_LABELS: Record<string, string> = {
   [IntegrationTypeEnum.LLM_PROVIDER]: 'LLM Provider',
   [IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM]: 'Ansible Automation Platform',
 }
+
+export const PROVIDER_HINT_LABELS: Record<string, string> = {
+  [LLMProviderHintEnum.RED_HAT_AI]: 'Red Hat AI',
+  [LLMProviderHintEnum.OPENAI]: 'OpenAI',
+  [LLMProviderHintEnum.ANTHROPIC]: 'Anthropic',
+  [LLMProviderHintEnum.GEMINI]: 'Google Gemini',
+  [LLMProviderHintEnum.CUSTOM]: 'Custom',
+}
+
+export const PROVIDERS_REQUIRING_BASE_URL: ReadonlySet<string> = new Set([
+  LLMProviderHintEnum.RED_HAT_AI,
+  LLMProviderHintEnum.CUSTOM,
+])
+
+export const PROVIDERS_HIDING_BASE_URL: ReadonlySet<string> = new Set([
+  LLMProviderHintEnum.OPENAI,
+  LLMProviderHintEnum.ANTHROPIC,
+  LLMProviderHintEnum.GEMINI,
+])
 
 export const getIntegrationNameFilterDefinition = (): FilterFieldDefinition => ({
   key: 'name',

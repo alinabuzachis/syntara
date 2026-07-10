@@ -114,7 +114,7 @@ class LLMModelUpdate(SQLModel):
         return self
 
 
-_MAX_BULK_UPDATE_MODELS = 50
+_MAX_BULK_UPDATE_MODELS = 1000
 
 
 class LLMModelBulkUpdate(SQLModel):

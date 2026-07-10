@@ -1,16 +1,5 @@
 import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
-import {
-  ActionGroup,
-  Badge,
-  Button,
-  Content,
-  ContentVariants,
-  DescriptionList,
-  Stack,
-  StackItem,
-  Switch,
-  Tab,
-} from '@patternfly/react-core'
+import { ActionGroup, Badge, Button, DescriptionList, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -24,7 +13,6 @@ import {
 import { useUnsavedChanges } from '../../../app/useUnsavedChanges'
 import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
 import { NxDetail } from '../../../components/details/NxDetail'
-import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
@@ -35,6 +23,7 @@ import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
+import { Link } from '../../../hooks/routing/Link'
 import { useNavigate } from '../../../hooks/routing/useNavigate'
 import { useParams } from '../../../hooks/routing/useParams'
 import { useUrlTab } from '../../../hooks/useUrlTab'
@@ -44,13 +33,23 @@ import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 
 import styles from './IntegrationDetail.module.css'
-import { INTEGRATION_TYPE_LABELS } from './integrationFilters'
+import { IntegrationDialogs } from './IntegrationDialogs'
+import { INTEGRATION_TYPE_LABELS, PROVIDER_HINT_LABELS } from './integrationFilters'
+import { IntegrationModelsTab } from './IntegrationModelsTab'
 import { IntegrationResourcesTab } from './IntegrationResourcesTab'
-import { getBaseUrl } from './integrationUtils'
+import {
+  getBaseUrl,
+  getEnabledResourceCount,
+  getProviderHint,
+  getResourceNoun,
+  getTotalResourceCount,
+  isLLMProvider,
+} from './integrationUtils'
 import { StatusLabel } from './StatusLabel'
 import { useAllIntegrationTools } from './useAllIntegrationTools'
 import { useIntegrationActions } from './useIntegrationActions'
-import { useToolSelection } from './useToolSelection'
+import { useIntegrationModelsState } from './useIntegrationModelsState'
+import { useItemSelection } from './useItemSelection'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 
@@ -63,14 +62,14 @@ function IntegrationDetailsTab({
   enabledResourceCount: number
   credentialName: string | undefined
 }>) {
-  const navigate = useNavigate()
   const credentialId = integration.management_credential_id
+  const resourceNoun = getResourceNoun(integration)
 
   return (
     <Stack hasGutter className={styles.tabContent}>
       <StackItem>
         <DescriptionList isHorizontal>
-          <NxDetail label="Server name / ID">{integration.name}</NxDetail>
+          <NxDetail label={isLLMProvider(integration) ? 'Name' : 'Server name / ID'}>{integration.name}</NxDetail>
           <NxDetail label="Description">{integration.description}</NxDetail>
           <NxDetail label="Integration type">
             {INTEGRATION_TYPE_LABELS[integration.integration_type ?? ''] ?? integration.integration_type ?? ''}
@@ -79,23 +78,22 @@ function IntegrationDetailsTab({
             <StatusLabel status={integration.validation_status ?? 'unknown'} />
           </NxDetail>
           <NxDetail label="Scope">{integration.scope === 'project' ? 'Project' : 'Global'}</NxDetail>
+          {isLLMProvider(integration) && (
+            <NxDetail label="Provider type">
+              {PROVIDER_HINT_LABELS[getProviderHint(integration)] ?? getProviderHint(integration)}
+            </NxDetail>
+          )}
           <NxDetail label="URL">{getBaseUrl(integration) || '—'}</NxDetail>
           <NxDetail label="Connection credential">
             {credentialId && credentialName ? (
-              <Button
-                variant="link"
-                isInline
-                onClick={() =>
-                  navigate(AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId))
-                }
-              >
+              <Link href={AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId)}>
                 {credentialName}
-              </Button>
+              </Link>
             ) : (
               'None'
             )}
           </NxDetail>
-          <NxDetail label="Enabled resources">{String(enabledResourceCount)}</NxDetail>
+          <NxDetail label={`Enabled ${resourceNoun}`}>{String(enabledResourceCount)}</NxDetail>
         </DescriptionList>
       </StackItem>
     </Stack>
@@ -155,88 +153,15 @@ function buildKebabActions(
   ]
 }
 
-type IntegrationDialogsProps = Readonly<{
-  validateDialog: ReturnType<typeof useIntegrationActions>['validateDialog']
-  deleteDialog: ReturnType<typeof useIntegrationActions>['deleteDialog']
-  disableDialog: ReturnType<typeof useIntegrationActions>['disableDialog']
-  onValidate: () => void
-  onDelete: () => void
-  onDisable: () => void
-  totalToolCount: number
-}>
-
-function IntegrationDialogs({
-  validateDialog,
-  deleteDialog,
-  disableDialog,
-  onValidate,
-  onDelete,
-  onDisable,
-  totalToolCount,
-}: IntegrationDialogsProps) {
-  return (
-    <>
-      <NxConfirmationDialog
-        isOpen={validateDialog.isOpen}
-        onClose={validateDialog.close}
-        onConfirm={onValidate}
-        title="Validate integration"
-        confirmLabel="Validate"
-      >
-        Are you sure you want to validate the connection for &quot;{validateDialog.item?.name}&quot;?
-      </NxConfirmationDialog>
-
-      <NxConfirmationDialog
-        isOpen={deleteDialog.isOpen}
-        onClose={deleteDialog.close}
-        onConfirm={onDelete}
-        title="Delete integration?"
-        confirmLabel="Delete"
-        confirmVariant="danger"
-        titleIconVariant="warning"
-        destructiveAcknowledgement={{
-          checkboxId: 'delete-integration-ack',
-          label: 'I understand this integration and the resources shown above will be permanently deleted.',
-        }}
-      >
-        <Content component={ContentVariants.p}>
-          The integration <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
-        </Content>
-        <Content component={ContentVariants.p}>
-          <strong>Resources that will be deleted</strong>
-        </Content>
-        <Content component={ContentVariants.p}>
-          Tools <Badge isRead>{totalToolCount}</Badge>
-        </Content>
-      </NxConfirmationDialog>
-
-      <NxConfirmationDialog
-        isOpen={disableDialog.isOpen}
-        onClose={disableDialog.close}
-        onConfirm={onDisable}
-        title="Disable integration?"
-        confirmLabel="Disable"
-        confirmVariant="primary"
-      >
-        <Content component={ContentVariants.p}>
-          You are about to disable the following integration: <strong>{disableDialog.item?.name}</strong>
-        </Content>
-        <Content component={ContentVariants.p}>
-          Workflows using this integration will no longer have access to its tools. You can re-enable the integration at
-          any time.
-        </Content>
-      </NxConfirmationDialog>
-    </>
-  )
-}
-
-function useResourcesSave(
-  integrationId: string,
-  tools: Tool[],
-  enabledToolIds: Set<string>,
-  isDirty: boolean,
+function useResourcesSave(opts: {
+  integrationId: string
+  tools: Tool[]
+  enabledToolIds: Set<string>
+  isDirty: boolean
   resetToServer: () => void
-) {
+  isActive: boolean
+}) {
+  const { integrationId, tools, enabledToolIds, isDirty, resetToServer, isActive } = opts
   const { showAlert } = useAlerts()
   const queryClient = useQueryClient()
   const { registerDirtyCheck } = useUnsavedChanges()
@@ -286,14 +211,17 @@ function useResourcesSave(
 
   useEffect(() => {
     return registerDirtyCheck({
-      check: () => isDirtyRef.current,
+      check: () => isActive && isDirtyRef.current,
       saveAndExit: () => handleSaveRef.current?.() ?? Promise.resolve(false),
-      exitWithoutSaving: () => resetToServerRef.current(),
+      exitWithoutSaving: () => {
+        isDirtyRef.current = false
+        resetToServerRef.current()
+      },
       title: 'Save resource changes?',
       body: 'You have unsaved changes to enabled resources. Would you like to save before leaving?',
       saveLabel: 'Save changes',
     })
-  }, [registerDirtyCheck])
+  }, [registerDirtyCheck, isActive])
 
   return { isSaving, handleSave }
 }
@@ -302,14 +230,33 @@ function ResourcesFooter({
   isDirty,
   isSaving,
   onSave,
-}: Readonly<{ isDirty: boolean; isSaving: boolean; onSave: () => void }>) {
+  saveLabel = 'Save changes',
+}: Readonly<{ isDirty: boolean; isSaving: boolean; onSave: () => void; saveLabel?: string }>) {
   return (
     <ActionGroup>
       <Button variant="primary" onClick={isDirty ? onSave : undefined} isAriaDisabled={!isDirty} isLoading={isSaving}>
-        Save changes
+        {saveLabel}
       </Button>
     </ActionGroup>
   )
+}
+
+function getFooterState(
+  isLLM: boolean,
+  modelsState: ReturnType<typeof useIntegrationModelsState>,
+  toolsDirty: boolean,
+  isToolsSaving: boolean,
+  handleToolsSave: () => void
+) {
+  if (isLLM) {
+    return {
+      isDirty: modelsState.isDirty,
+      isSaving: modelsState.isSaving,
+      onSave: modelsState.handleSave,
+      saveLabel: 'Save model changes',
+    }
+  }
+  return { isDirty: toolsDirty, isSaving: isToolsSaving, onSave: handleToolsSave, saveLabel: 'Save changes' }
 }
 
 export function IntegrationDetail() {
@@ -318,7 +265,7 @@ export function IntegrationDetail() {
   const navigate = useNavigate()
   const integrationBasePath = AppRoute.Configuration.Integrations.Detail.replace(':integrationId', integrationId)
   const editPath = AppRoute.Configuration.Integrations.Edit.replace(':integrationId', integrationId)
-  const [activeTab] = useUrlTab<IntegrationDetailBreadcrumbTab>(integrationBasePath)
+  const [activeTab] = useUrlTab<IntegrationDetailBreadcrumbTab | 'edit'>(integrationBasePath)
   const docLink = useDocLink('integrations')
 
   const query = integrationsClient.useQuery(
@@ -349,17 +296,38 @@ export function IntegrationDetail() {
 
   const kebabActions = buildKebabActions(integration, validateDialog, deleteDialog)
 
-  const enabledResourceCount = integration?.enabled_tool_count ?? 0
-  const totalToolCount = integration?.total_tool_count ?? 0
+  const enabledResourceCount = integration ? getEnabledResourceCount(integration) : 0
+  const isLLM = integration ? isLLMProvider(integration) : false
 
+  // Tools state (MCP servers)
   const { tools, refetch: refetchTools } = useAllIntegrationTools(integrationId)
-  const { enabledToolIds, enabledCount, isDirty, handleSelectTool, resetToServer } = useToolSelection(tools, tools)
-  const { isSaving, handleSave } = useResourcesSave(integrationId, tools, enabledToolIds, isDirty, resetToServer)
+  const {
+    enabledIds: enabledToolIds,
+    enabledCount: toolEnabledCount,
+    isDirty: toolsDirty,
+    handleSelectItem: handleSelectTool,
+    resetToServer: resetToolsToServer,
+  } = useItemSelection(tools, tools)
+  const { isSaving: isToolsSaving, handleSave: handleToolsSave } = useResourcesSave({
+    integrationId,
+    tools,
+    enabledToolIds,
+    isDirty: toolsDirty,
+    resetToServer: resetToolsToServer,
+    isActive: !isLLM,
+  })
+
+  // Models state (LLM providers)
+  const modelsState = useIntegrationModelsState(integrationId, isLLM)
+
+  const footerState = getFooterState(isLLM, modelsState, toolsDirty, isToolsSaving, handleToolsSave)
 
   const queryState = useQueryState(query, {
     title: 'Error loading integration',
     onRetry: () => detachPromise(query.refetch()),
   })
+
+  if (activeTab === 'edit') return null
 
   const earlyState =
     integrationId.length === 0 ? (
@@ -382,10 +350,7 @@ export function IntegrationDetail() {
   if (!integration?.id) return null
 
   const integrationCrumbs = breadcrumbsIntegrationDetail(integration.id, integration.name, activeTab)
-  const footer =
-    activeTab === 'resources' ? (
-      <ResourcesFooter isDirty={isDirty} isSaving={isSaving} onSave={handleSave} />
-    ) : undefined
+  const footer = activeTab === 'resources' ? <ResourcesFooter {...footerState} /> : undefined
 
   return (
     <NxPage>
@@ -404,7 +369,7 @@ export function IntegrationDetail() {
       />
 
       <NxPageBody>
-        <NxPanel isFullHeight isScrollable footer={footer}>
+        <NxPanel isFullHeight isScrollable footer={footer} className={styles.tabsFullHeight}>
           <NxUrlTabs
             basePath={integrationBasePath}
             defaultTab="details"
@@ -422,22 +387,53 @@ export function IntegrationDetail() {
 
             <Tab
               eventKey="resources"
-              title={<>Enabled resources {totalToolCount > 0 && <Badge isRead>{enabledResourceCount}</Badge>}</>}
+              title={
+                <>
+                  Enabled resources{' '}
+                  {getTotalResourceCount(integration) > 0 && <Badge isRead>{enabledResourceCount}</Badge>}
+                </>
+              }
             >
               <NxPanelContentStack className={styles.resourcesTabContent}>
-                <IntegrationResourcesTab
-                  integrationId={integration.id}
-                  tools={tools}
-                  enabledToolIds={enabledToolIds}
-                  enabledCount={enabledCount}
-                  handleSelectTool={handleSelectTool}
-                  lastRefreshedAt={integration.last_refreshed_at}
-                  onRefreshed={async () => {
-                    const result = await query.refetch()
-                    return result.data
-                  }}
-                  refetchTools={() => refetchTools()}
-                />
+                {integration && isLLMProvider(integration) ? (
+                  <IntegrationModelsTab
+                    integrationId={integration.id}
+                    models={modelsState.models}
+                    isLoading={modelsState.isLoading}
+                    error={modelsState.error?.message ?? null}
+                    refetchModels={() => modelsState.refetchModels()}
+                    enabledModelIds={modelsState.enabledModelIds}
+                    enabledCount={modelsState.enabledCount}
+                    allSelected={modelsState.allSelected}
+                    handleSelectAll={modelsState.handleSelectAll}
+                    defaultModelId={modelsState.defaultModelId}
+                    handleSelectWithDefaultClear={modelsState.handleSelectWithDefaultClear}
+                    handleSetDefault={modelsState.handleSetDefault}
+                    handleRemoveDefault={modelsState.handleRemoveDefault}
+                    resetSelectionToServer={modelsState.resetSelectionToServer}
+                    resetDefault={modelsState.resetDefault}
+                    lastRefreshedAt={integration.last_refreshed_at}
+                    canUpdate={true}
+                    onRefreshed={async () => {
+                      const result = await query.refetch()
+                      return result.data
+                    }}
+                  />
+                ) : (
+                  <IntegrationResourcesTab
+                    integrationId={integration.id}
+                    tools={tools}
+                    enabledToolIds={enabledToolIds}
+                    enabledCount={toolEnabledCount}
+                    handleSelectTool={handleSelectTool}
+                    lastRefreshedAt={integration.last_refreshed_at}
+                    onRefreshed={async () => {
+                      const result = await query.refetch()
+                      return result.data
+                    }}
+                    refetchTools={() => refetchTools()}
+                  />
+                )}
               </NxPanelContentStack>
             </Tab>
           </NxUrlTabs>
@@ -451,7 +447,6 @@ export function IntegrationDetail() {
         onValidate={handleValidate}
         onDelete={handleDelete}
         onDisable={handleDisable}
-        totalToolCount={totalToolCount}
       />
     </NxPage>
   )

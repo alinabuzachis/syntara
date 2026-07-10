@@ -1,10 +1,12 @@
 import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   ActionGroup,
   Button,
   Content,
   ContentVariants,
+  DescriptionList,
   Divider,
   Form,
   FormGroup,
@@ -17,13 +19,14 @@ import {
   Title,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsIntegrationEdit } from '../../../app/breadcrumbBuilders'
 import { integrationsClient } from '../../../client'
+import { NxDetail } from '../../../components/details/NxDetail'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
@@ -39,24 +42,115 @@ import { useDocLink } from '../../../utils/docs/useDocLink'
 import { CredentialSelector } from '../../builder/components/CredentialSelector'
 
 import styles from './EditIntegrationForm.module.css'
-import { CREDENTIAL_TYPES_BY_INTEGRATION, INTEGRATION_TYPE_LABELS } from './integrationFilters'
-import { getBaseUrl } from './integrationUtils'
+import {
+  CREDENTIAL_TYPES_BY_INTEGRATION,
+  INTEGRATION_TYPE_LABELS,
+  PROVIDER_HINT_LABELS,
+  PROVIDERS_HIDING_BASE_URL,
+  PROVIDERS_REQUIRING_BASE_URL,
+} from './integrationFilters'
+import { getBaseUrl, getProviderHint, isLLMProvider } from './integrationUtils'
 
-const editIntegrationSchema = z.object({
-  name: z.string().min(1, 'Server name / ID is required'),
-  description: z.string(),
-  base_url: z
-    .string()
-    .url('Must be a valid URL')
-    .refine((url) => /^https?:\/\//.test(url), 'Must be an HTTP or HTTPS URL'),
-  scope: z.enum(['global', 'project']),
-  management_credential_id: z.string().nullable(),
-})
+const httpUrl = z
+  .string()
+  .url('Must be a valid URL')
+  .refine((url) => /^https?:\/\//.test(url), 'Must be an HTTP or HTTPS URL')
+
+function buildEditIntegrationSchema(isLLM: boolean, requiresBaseUrl: boolean) {
+  const urlRequired = !isLLM || requiresBaseUrl
+  return z.object({
+    name: z.string().min(1, 'Name is required'),
+    description: z.string(),
+    base_url: urlRequired ? httpUrl : httpUrl.or(z.literal('')),
+    scope: z.enum(['global', 'project']),
+    management_credential_id: z.string().nullable(),
+  })
+}
+
+const editIntegrationSchema = buildEditIntegrationSchema(false, true)
 
 type EditIntegrationFormValues = z.infer<typeof editIntegrationSchema>
 
 type DiscoverResult = IntegrationsAPI.components['schemas']['DiscoverResult']
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
+
+function buildConfiguration(
+  integration: IntegrationRead,
+  baseUrl: string
+): NonNullable<IntegrationsAPI.components['schemas']['IntegrationPatch']['configuration']> {
+  if (isLLMProvider(integration) && integration.configuration.integration_type === IntegrationTypeEnum.LLM_PROVIDER) {
+    return {
+      integration_type: IntegrationTypeEnum.LLM_PROVIDER,
+      provider_hint: integration.configuration.provider_hint,
+      base_url: baseUrl || undefined,
+    }
+  }
+  return { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: baseUrl }
+}
+
+function useTestConnection(integration: IntegrationRead | undefined, getValues: () => EditIntegrationFormValues) {
+  const { showAlert } = useAlerts()
+  const { mutate: testConnection, isPending: isTesting } = integrationsClient.useMutation(
+    'post',
+    '/integrations/discover'
+  )
+
+  const handleTestConnection = useCallback(() => {
+    const values = getValues()
+    const credId = values.management_credential_id
+    if (!credId) return
+
+    const isLLM = integration ? isLLMProvider(integration) : false
+    testConnection(
+      {
+        body: {
+          integration_type: integration?.integration_type ?? IntegrationTypeEnum.MCP_SERVER,
+          configuration: integration
+            ? buildConfiguration(integration, values.base_url)
+            : { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: values.base_url },
+          credential_id: credId,
+        },
+      },
+      {
+        onSuccess: (result: DiscoverResult) => {
+          if (result.success) {
+            const resourceCount = isLLM
+              ? (result.discovered_models?.length ?? 0)
+              : (result.discovered_tools?.length ?? 0)
+            const singular = isLLM ? 'model' : 'tool'
+            const resourceLabel = resourceCount === 1 ? singular : `${singular}s`
+            showAlert({
+              title: 'Connection tested',
+              description:
+                resourceCount > 0
+                  ? `Successfully connected. Discovered ${String(resourceCount)} ${resourceLabel}.`
+                  : 'Successfully connected. The integration is reachable.',
+              variant: 'success',
+              autoDismiss: true,
+            })
+          } else {
+            showAlert({
+              title: 'Connection failed',
+              description: result.error ?? 'Unable to connect to the integration.',
+              variant: 'danger',
+              autoDismiss: true,
+            })
+          }
+        },
+        onError: (error: unknown) => {
+          showAlert({
+            title: 'Connection test failed',
+            description: getErrorMessage(error),
+            variant: 'danger',
+            autoDismiss: true,
+          })
+        },
+      }
+    )
+  }, [getValues, testConnection, showAlert, integration])
+
+  return { handleTestConnection, isTesting }
+}
 
 type FormFieldsProps = Readonly<{
   integration: IntegrationRead
@@ -85,13 +179,18 @@ function EditIntegrationFormFields({
         Integration details
       </Title>
 
-      <FormGroup label="Integration type" fieldId="edit-integration-type">
-        <Content component={ContentVariants.p}>
+      <DescriptionList isCompact isHorizontal>
+        <NxDetail label="Integration type">
           {INTEGRATION_TYPE_LABELS[integration.integration_type ?? ''] ?? integration.integration_type ?? ''}
-        </Content>
-      </FormGroup>
+        </NxDetail>
+        {isLLMProvider(integration) && (
+          <NxDetail label="Provider type">
+            {PROVIDER_HINT_LABELS[getProviderHint(integration)] ?? getProviderHint(integration)}
+          </NxDetail>
+        )}
+      </DescriptionList>
 
-      <FormGroup label="Server name / ID" isRequired fieldId="edit-name">
+      <FormGroup label={isLLMProvider(integration) ? 'Name' : 'Server name / ID'} isRequired fieldId="edit-name">
         <Controller
           name="name"
           control={control}
@@ -128,24 +227,31 @@ function EditIntegrationFormFields({
         />
       </FormGroup>
 
-      <FormGroup label="API URL" isRequired fieldId="edit-base-url">
-        <Controller
-          name="base_url"
-          control={control}
-          render={({ field }) => (
-            <TextInput id="edit-base-url" isRequired validated={errors.base_url ? 'error' : 'default'} {...field} />
+      {!(isLLMProvider(integration) && PROVIDERS_HIDING_BASE_URL.has(getProviderHint(integration))) && (
+        <FormGroup label="API URL" isRequired={!isLLMProvider(integration)} fieldId="edit-base-url">
+          <Controller
+            name="base_url"
+            control={control}
+            render={({ field }) => (
+              <TextInput
+                id="edit-base-url"
+                isRequired={!isLLMProvider(integration)}
+                validated={errors.base_url ? 'error' : 'default'}
+                {...field}
+              />
+            )}
+          />
+          {errors.base_url && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {errors.base_url.message}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
           )}
-        />
-        {errors.base_url && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                {errors.base_url.message}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
+        </FormGroup>
+      )}
 
       <FormGroup label="Scope" fieldId="edit-integration-scope">
         <Controller
@@ -192,7 +298,9 @@ function EditIntegrationFormFields({
           <CredentialSelector
             value={field.value ?? undefined}
             onChange={(id) => setValue('management_credential_id', id ?? null)}
-            compatibleTypeNames={CREDENTIAL_TYPES_BY_INTEGRATION.mcp_server}
+            compatibleTypeNames={
+              CREDENTIAL_TYPES_BY_INTEGRATION[integration.integration_type ?? IntegrationTypeEnum.MCP_SERVER]
+            }
             label="Health check credential"
             fieldId="edit-credential-select"
             allowCreate
@@ -230,6 +338,13 @@ export function EditIntegrationForm() {
   const detailPath = AppRoute.Configuration.Integrations.Detail.replace(':integrationId', integrationId ?? '')
   const breadcrumbs = breadcrumbsIntegrationEdit(integration?.name ?? 'Integration', detailPath)
 
+  const schema = useMemo(() => {
+    if (!integration) return editIntegrationSchema
+    const isLLM = isLLMProvider(integration)
+    const requiresBaseUrl = PROVIDERS_REQUIRING_BASE_URL.has(getProviderHint(integration))
+    return buildEditIntegrationSchema(isLLM, requiresBaseUrl)
+  }, [integration])
+
   const {
     control,
     handleSubmit,
@@ -239,7 +354,7 @@ export function EditIntegrationForm() {
     getValues,
     formState: { errors },
   } = useForm<EditIntegrationFormValues>({
-    resolver: zodResolver(editIntegrationSchema),
+    resolver: zodResolver(schema, undefined, { mode: 'sync' }),
     defaultValues: {
       name: '',
       description: '',
@@ -271,57 +386,7 @@ export function EditIntegrationForm() {
     '/integrations/{integration_id}'
   )
 
-  const { mutate: testConnection, isPending: isTesting } = integrationsClient.useMutation(
-    'post',
-    '/integrations/discover'
-  )
-
-  const handleTestConnection = useCallback(() => {
-    const values = getValues()
-    const credId = values.management_credential_id
-    if (!credId) return
-
-    testConnection(
-      {
-        body: {
-          integration_type: integration?.integration_type ?? 'mcp_server',
-          configuration: { integration_type: 'mcp_server', base_url: values.base_url },
-          credential_id: credId,
-        },
-      },
-      {
-        onSuccess: (result: DiscoverResult) => {
-          if (result.success) {
-            const toolCount = result.discovered_tools?.length ?? 0
-            showAlert({
-              title: 'Connection tested',
-              description:
-                toolCount > 0
-                  ? `Successfully connected. Discovered ${String(toolCount)} tool(s).`
-                  : 'Successfully connected. The integration is reachable.',
-              variant: 'success',
-              autoDismiss: true,
-            })
-          } else {
-            showAlert({
-              title: 'Connection failed',
-              description: result.error ?? 'Unable to connect to the integration.',
-              variant: 'danger',
-              autoDismiss: true,
-            })
-          }
-        },
-        onError: (error: unknown) => {
-          showAlert({
-            title: 'Connection test failed',
-            description: getErrorMessage(error),
-            variant: 'danger',
-            autoDismiss: true,
-          })
-        },
-      }
-    )
-  }, [getValues, testConnection, showAlert, integration?.integration_type])
+  const { handleTestConnection, isTesting } = useTestConnection(integration, getValues)
 
   function onSubmit(values: EditIntegrationFormValues) {
     if (!integrationId) return
@@ -330,10 +395,9 @@ export function EditIntegrationForm() {
       name: values.name,
       description: values.description || null,
       scope: values.scope,
-      configuration: {
-        integration_type: 'mcp_server',
-        base_url: values.base_url,
-      },
+      configuration: integration
+        ? buildConfiguration(integration, values.base_url)
+        : { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: values.base_url },
       management_credential_id: values.management_credential_id,
     }
 
@@ -394,7 +458,7 @@ export function EditIntegrationForm() {
                 isLoading={isSaving}
                 isAriaDisabled={isSaving}
               >
-                Save
+                Save integration
               </Button>
               <Button
                 variant="link"

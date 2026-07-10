@@ -10,6 +10,7 @@ import type { Approval, Tool, WorkflowWithVersion, WorkflowsResponse } from '@an
 import { ExecutionStatusEnum, WorkflowVersionStatusEnum } from '@ansible/nexus-contracts'
 import { credentials, credentialTypes, credentialWorkflows } from './resources/credentials'
 import { integrations } from './resources/integrations'
+import { models } from './resources/models'
 import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
 import { executions } from './resources/executions'
@@ -376,17 +377,17 @@ export const handlers = [
 
   http.post('/api/v1/integrations', async (req) => {
     const body = (await req.request.json()) as Record<string, unknown>
-    const now = new Date().toISOString()
+    const now = mockDate.now
     const integrationId = uuidv4()
 
     const discoveredTools = body.discovered_tools as
       | Array<{ name: string; description?: string; enabled?: boolean }>
       | undefined
-    let enabledCount = 0
+    let enabledToolCount = 0
     if (discoveredTools && discoveredTools.length > 0) {
       for (const dt of discoveredTools) {
         const enabled = dt.enabled !== false
-        if (enabled) enabledCount++
+        if (enabled) enabledToolCount++
         tools.push({
           id: uuidv4(),
           name: dt.name,
@@ -397,6 +398,29 @@ export const handlers = [
           created_at: now,
           updated_at: now,
         } as Tool)
+      }
+    }
+
+    const discoveredModels = body.discovered_models as
+      | Array<{ model_id: string; name: string; description?: string; enabled?: boolean; is_default?: boolean }>
+      | undefined
+    let enabledModelCount = 0
+    if (discoveredModels && discoveredModels.length > 0) {
+      for (const dm of discoveredModels) {
+        const enabled = dm.enabled !== false
+        if (enabled) enabledModelCount++
+        models.push({
+          id: uuidv4(),
+          integration_id: integrationId,
+          model_id: dm.model_id,
+          name: dm.name,
+          description: dm.description ?? null,
+          enabled,
+          is_default: dm.is_default ?? false,
+          last_refreshed_at: now,
+          created_at: now,
+          updated_at: now,
+        })
       }
     }
 
@@ -416,7 +440,9 @@ export const handlers = [
       last_refreshed_at: null,
       refresh_error: null,
       total_tool_count: discoveredTools?.length ?? 0,
-      enabled_tool_count: enabledCount,
+      enabled_tool_count: enabledToolCount,
+      total_model_count: discoveredModels?.length ?? 0,
+      enabled_model_count: enabledModelCount,
       created_at: now,
       updated_at: now,
       created_by: 'user-1',
@@ -438,7 +464,7 @@ export const handlers = [
       )
     }
     const body = (await req.request.json()) as Record<string, unknown>
-    Object.assign(integration, body, { updated_at: new Date().toISOString() })
+    Object.assign(integration, body, { updated_at: mockDate.now })
     return HttpResponse.json(integration)
   }),
 
@@ -454,10 +480,23 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  http.post('/api/v1/integrations/discover', () => {
+  http.post('/api/v1/integrations/discover', async (req) => {
+    const body = (await req.request.json()) as { integration_type?: string }
+    if (body.integration_type === 'llm_provider') {
+      return HttpResponse.json({
+        success: true,
+        checked_at: mockDate.now,
+        error: null,
+        discovered_models: [
+          { id: 'granite-3.3-8b-instruct', name: 'granite-3.3-8b-instruct', description: '128k context' },
+          { id: 'granite-3.3-2b-instruct', name: 'granite-3.3-2b-instruct', description: '128k context' },
+          { id: 'granite-code-8b', name: 'granite-code-8b', description: '8k context' },
+        ],
+      })
+    }
     return HttpResponse.json({
       success: true,
-      checked_at: new Date().toISOString(),
+      checked_at: mockDate.now,
       error: null,
       discovered_tools: [
         { name: 'get_repo', description: 'Get repository details', parameters: [] },
@@ -476,9 +515,9 @@ export const handlers = [
       )
     }
     integration.validation_status = 'available'
-    integration.last_validated_at = new Date().toISOString()
+    integration.last_validated_at = mockDate.now
     integration.validation_error = null
-    return HttpResponse.json({ success: true, checked_at: new Date().toISOString(), error: null })
+    return HttpResponse.json({ success: true, checked_at: mockDate.now, error: null })
   }),
 
   http.post('/api/v1/integrations/:integration_id/refresh', ({ params }) => {
@@ -490,14 +529,162 @@ export const handlers = [
       )
     }
     integration.refresh_status = 'available'
-    integration.last_refreshed_at = new Date().toISOString()
+    integration.last_refreshed_at = mockDate.now
     integration.refresh_error = null
     return HttpResponse.json({
       tools_synced_count: 0,
       tools_updated_count: 0,
       tools_disabled_count: 0,
-      refreshed_at: new Date().toISOString(),
+      refreshed_at: mockDate.now,
     })
+  }),
+
+  http.get('/api/v1/integrations/:integration_id/models', ({ request, params }) => {
+    const integrationId = params.integration_id as string
+    const integration = integrations.find((i) => i.id === integrationId)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+
+    const url = new URL(request.url)
+    const nameContains = url.searchParams.get('name[contains]')
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let filtered = models.filter((m) => m.integration_id === integrationId)
+    if (nameContains) {
+      const lower = nameContains.toLowerCase()
+      filtered = filtered.filter((m) => m.name.toLowerCase().includes(lower))
+    }
+
+    return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
+  }),
+
+  http.get('/api/v1/integrations/:integration_id/models/:model_id', ({ params }) => {
+    const integrationId = params.integration_id as string
+    const modelId = params.model_id as string
+    const integration = integrations.find((i) => i.id === integrationId)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    const model = models.find((m) => m.id === modelId && m.integration_id === integrationId)
+    if (!model) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(model)
+  }),
+
+  http.patch('/api/v1/integrations/:integration_id/models/:model_id', async (req) => {
+    const integrationId = req.params.integration_id as string
+    const modelId = req.params.model_id as string
+    const integration = integrations.find((i) => i.id === integrationId)
+    if (!integration) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/not-found',
+          title: 'Not Found',
+          detail: `Integration ${integrationId} not found`,
+          code: 'INTEGRATION_NOT_FOUND',
+          retryable: false,
+        },
+        { status: 404 }
+      )
+    }
+    const index = models.findIndex((m) => m.id === modelId && m.integration_id === integrationId)
+    if (index === -1) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/not-found',
+          title: 'Not Found',
+          detail: `Model ${modelId} not found in integration ${integrationId}`,
+          code: 'MODEL_NOT_FOUND',
+          retryable: false,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await req.request.json()) as { enabled?: boolean | null; is_default?: boolean | null }
+
+    // When setting is_default to true, clear is_default on all other models for the same integration
+    if (body.is_default === true) {
+      for (const m of models) {
+        if (m.integration_id === integrationId && m.id !== modelId) {
+          m.is_default = false
+        }
+      }
+    }
+
+    const model = models[index]
+    if (body.enabled !== undefined && body.enabled !== null) model.enabled = body.enabled
+    if (body.is_default !== undefined && body.is_default !== null) model.is_default = body.is_default
+    model.updated_at = mockDate.now
+
+    // Update counts on the integration (reuses `integration` from the guard above)
+    const integrationModels = models.filter((m) => m.integration_id === integrationId)
+    integration.enabled_model_count = integrationModels.filter((m) => m.enabled).length
+
+    return HttpResponse.json(model)
+  }),
+
+  http.patch('/api/v1/integrations/:integration_id/models/bulk_update', async (req) => {
+    const integrationId = req.params.integration_id as string
+    const integration = integrations.find((i) => i.id === integrationId)
+    if (!integration) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/not-found',
+          title: 'Not Found',
+          detail: `Integration ${integrationId} not found`,
+          code: 'NOT_FOUND',
+          retryable: false,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await req.request.json()) as { model_ids: string[]; enabled: boolean }
+    if (!body.model_ids || body.model_ids.length === 0) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/validation-error',
+          title: 'Validation Error',
+          detail: 'model_ids must contain at least one ID',
+          code: 'VALIDATION_ERROR',
+          retryable: false,
+        },
+        { status: 422 }
+      )
+    }
+    let updatedCount = 0
+    let skippedCount = 0
+
+    for (const id of body.model_ids) {
+      const model = models.find((m) => m.id === id && m.integration_id === integrationId)
+      if (model) {
+        model.enabled = body.enabled
+        model.updated_at = mockDate.now
+        updatedCount++
+      } else {
+        skippedCount++
+      }
+    }
+
+    // Update counts on the integration
+    const integrationModels = models.filter((m) => m.integration_id === integrationId)
+    integration.enabled_model_count = integrationModels.filter((m) => m.enabled).length
+
+    return HttpResponse.json({ updated_count: updatedCount, skipped_count: skippedCount })
   }),
 
   http.get('/api/v1/workflows', ({ request }) => {

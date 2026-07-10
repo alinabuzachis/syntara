@@ -28,21 +28,36 @@ import { detachPromise } from '../../../../utils/detachPromise'
 import { useDocLink } from '../../../../utils/docs/useDocLink'
 
 import { CredentialStep } from './CredentialStep'
+import { EnableModelsWrapper } from './EnableModelsStep'
 import { EnableToolsWrapper } from './EnableToolsStep'
 import { IntegrationDetailsStep } from './IntegrationDetailsStep'
-import { integrationFormSchema, STEP1_FIELDS, type IntegrationFormData } from './integrationFormSchema'
+import {
+  integrationFormSchema,
+  LLM_STEP1_FIELDS,
+  MCP_STEP1_FIELDS,
+  type IntegrationFormData,
+} from './integrationFormSchema'
 import { useCreateIntegration } from './useCreateIntegration'
 import styles from './WizardSteps.module.css'
 
 type DiscoverResult = IntegrationsAPI.components['schemas']['DiscoverResult']
+type InitialModelSelection = IntegrationsAPI.components['schemas']['InitialModelSelection']
+
+function discoveredDescription(count: number, singular: string): string {
+  if (count === 0) return 'Successfully connected. The integration is reachable.'
+  const noun = count === 1 ? singular : `${singular}s`
+  return `Successfully connected. Discovered ${String(count)} ${noun}.`
+}
 
 type WizardNavFooterProps = Readonly<{
   trigger: UseFormTrigger<IntegrationFormData>
   onSubmit: () => void
   credentialId: string | null | undefined
+  integrationType: string
+  onStep1Validated: () => void
 }>
 
-function WizardNavFooter({ trigger, onSubmit, credentialId }: WizardNavFooterProps) {
+function WizardNavFooter({ trigger, onSubmit, credentialId, integrationType, onStep1Validated }: WizardNavFooterProps) {
   const { goToNextStep, goToPrevStep, activeStep, steps } = useWizardContext()
   const isFirst = activeStep.index === 1
   const isSecond = activeStep.id === 'credential'
@@ -50,12 +65,16 @@ function WizardNavFooter({ trigger, onSubmit, credentialId }: WizardNavFooterPro
 
   const handleNext = useCallback(async () => {
     if (isFirst) {
-      const valid = await trigger(STEP1_FIELDS as unknown as (keyof IntegrationFormData)[])
-      if (valid) await goToNextStep()
+      const step1Fields = integrationType === IntegrationTypeEnum.LLM_PROVIDER ? LLM_STEP1_FIELDS : MCP_STEP1_FIELDS
+      const valid = await trigger(step1Fields)
+      if (valid) {
+        onStep1Validated()
+        await goToNextStep()
+      }
       return
     }
     await goToNextStep()
-  }, [trigger, isFirst, goToNextStep])
+  }, [trigger, isFirst, integrationType, goToNextStep, onStep1Validated])
 
   const isNextDisabled = isSecond && !credentialId
 
@@ -114,9 +133,12 @@ export function IntegrationForm() {
   const handleError = useFormMutationErrorHandler<IntegrationFormData>(setError)
   const createIntegration = useCreateIntegration({ handleError })
   const credentialId = useWatch({ control, name: 'management_credential_id' })
+  const integrationType = useWatch({ control, name: 'integration_type' })
 
   const [testResult, setTestResult] = useState<DiscoverResult | null>(null)
   const [selectedToolNames, setSelectedToolNames] = useState<Set<string>>(new Set())
+  const [selectedModels, setSelectedModels] = useState<Map<string, InitialModelSelection>>(new Map())
+  const [step1Validated, setStep1Validated] = useState(false)
 
   const { mutate: testConnection, isPending: isTesting } = integrationsClient.useMutation(
     'post',
@@ -124,14 +146,72 @@ export function IntegrationForm() {
   )
   const { showAlert } = useAlerts()
 
-  /** Tests connection via POST /integrations/discover. Populates testResult with discovered tools for step 3. Clears on credential change. */
+  const isLLM = integrationType === IntegrationTypeEnum.LLM_PROVIDER
+
+  const resetTestState = useCallback(() => {
+    setTestResult(null)
+    setSelectedToolNames(new Set())
+    setSelectedModels(new Map())
+  }, [])
+
+  const handleTypeChange = useCallback(() => {
+    resetTestState()
+    setStep1Validated(false)
+  }, [resetTestState])
+
+  const handleDiscoverSuccess = useCallback(
+    (result: DiscoverResult, isLLMType: boolean) => {
+      setTestResult(result)
+      if (!result.success) {
+        showAlert({
+          title: 'Connection failed',
+          description: result.error ?? 'Unable to connect to the integration.',
+          variant: 'danger',
+          autoDismiss: true,
+        })
+        return
+      }
+
+      if (isLLMType) {
+        const discoveredModels = result.discovered_models ?? []
+        const modelMap = new Map<string, InitialModelSelection>()
+        for (const model of discoveredModels) {
+          modelMap.set(model.id, {
+            model_id: model.id,
+            name: model.name,
+            description: model.description ?? null,
+            enabled: true,
+            is_default: false,
+          })
+        }
+        setSelectedModels(modelMap)
+        showAlert({
+          title: 'Connection tested',
+          description: discoveredDescription(discoveredModels.length, 'model'),
+          variant: 'success',
+          autoDismiss: true,
+        })
+      } else {
+        setSelectedToolNames(new Set(result.discovered_tools?.map((t) => t.name) ?? []))
+        showAlert({
+          title: 'Connection tested',
+          description: discoveredDescription(result.discovered_tools?.length ?? 0, 'tool'),
+          variant: 'success',
+          autoDismiss: true,
+        })
+      }
+    },
+    [showAlert]
+  )
+
   const handleTestConnection = useCallback(() => {
     const values = getValues()
     const credId = values.management_credential_id
     if (!credId) return
 
-    setTestResult(null)
+    resetTestState()
 
+    const isLLMType = values.integration_type === IntegrationTypeEnum.LLM_PROVIDER
     testConnection(
       {
         body: {
@@ -141,29 +221,7 @@ export function IntegrationForm() {
         },
       },
       {
-        onSuccess: (result) => {
-          setTestResult(result)
-          if (result.success) {
-            setSelectedToolNames(new Set(result.discovered_tools?.map((t) => t.name) ?? []))
-            const toolCount = result.discovered_tools?.length ?? 0
-            showAlert({
-              title: 'Connection tested',
-              description:
-                toolCount > 0
-                  ? `Successfully connected. Discovered ${String(toolCount)} tool(s).`
-                  : 'Successfully connected. The integration is reachable.',
-              variant: 'success',
-              autoDismiss: true,
-            })
-          } else {
-            showAlert({
-              title: 'Connection failed',
-              description: result.error ?? 'Unable to connect to the integration.',
-              variant: 'danger',
-              autoDismiss: true,
-            })
-          }
-        },
+        onSuccess: (result) => handleDiscoverSuccess(result, isLLMType),
         onError: (error: unknown) => {
           showAlert({
             title: 'Connection test failed',
@@ -174,19 +232,24 @@ export function IntegrationForm() {
         },
       }
     )
-  }, [getValues, testConnection, showAlert])
+  }, [getValues, testConnection, showAlert, resetTestState, handleDiscoverSuccess])
 
   const onSubmit = handleSubmit(
     (formData) => {
-      const discoveredTools = testResult?.discovered_tools?.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        enabled: selectedToolNames.has(tool.name),
-        parameters: tool.parameters as
-          | { name: string; type?: string; description?: string; required?: boolean }[]
-          | undefined,
-      }))
-      createIntegration(formData, discoveredTools)
+      if (formData.integration_type === IntegrationTypeEnum.LLM_PROVIDER) {
+        const discoveredModels = Array.from(selectedModels.values())
+        createIntegration(formData, undefined, discoveredModels)
+      } else {
+        const discoveredTools = testResult?.discovered_tools?.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          enabled: selectedToolNames.has(tool.name),
+          parameters: tool.parameters as
+            | { name: string; type?: string; description?: string; required?: boolean }[]
+            | undefined,
+        }))
+        createIntegration(formData, discoveredTools)
+      }
     },
     (errors) => {
       const messages: string[] = []
@@ -203,6 +266,8 @@ export function IntegrationForm() {
     }
   )
 
+  const resourceStepName = isLLM ? 'Enable models' : 'Enable tools'
+
   return (
     <NxPage>
       <NxPageHeader title="Configure integration" breadcrumbs={breadcrumbsIntegrationConfigure()} docLink={docLink} />
@@ -215,35 +280,44 @@ export function IntegrationForm() {
                 trigger={trigger}
                 onSubmit={() => detachPromise(onSubmit())}
                 credentialId={credentialId}
+                integrationType={integrationType}
+                onStep1Validated={() => setStep1Validated(true)}
               />
             }
           >
             <WizardStep name="Integration details" id="integration-details">
-              <IntegrationDetailsStep control={control} setValue={setValue} />
+              <IntegrationDetailsStep control={control} setValue={setValue} onTypeChange={handleTypeChange} />
             </WizardStep>
 
-            <WizardStep name="Connection credential" id="credential">
+            <WizardStep name="Connection credential" id="credential" navItem={{ isDisabled: !step1Validated }}>
               <CredentialStep
                 control={control}
                 setValue={setValue}
                 credentialId={credentialId}
                 isTesting={isTesting}
                 onTestConnection={handleTestConnection}
-                onCredentialChange={() => {
-                  setTestResult(null)
-                  setSelectedToolNames(new Set())
-                }}
+                onCredentialChange={resetTestState}
               />
             </WizardStep>
 
-            <WizardStep name="Enable tools" id="enable-tools" isDisabled={!credentialId}>
-              <EnableToolsWrapper
-                testResult={testResult}
-                selectedNames={selectedToolNames}
-                onSelectionChange={setSelectedToolNames}
-                onTestConnection={handleTestConnection}
-                isTestDisabled={!credentialId || isTesting}
-              />
+            <WizardStep name={resourceStepName} id="enable-resources" isDisabled={!credentialId}>
+              {isLLM ? (
+                <EnableModelsWrapper
+                  testResult={testResult}
+                  selectedModels={selectedModels}
+                  onSelectionChange={setSelectedModels}
+                  onTestConnection={handleTestConnection}
+                  isTestDisabled={!credentialId || isTesting}
+                />
+              ) : (
+                <EnableToolsWrapper
+                  testResult={testResult}
+                  selectedNames={selectedToolNames}
+                  onSelectionChange={setSelectedToolNames}
+                  onTestConnection={handleTestConnection}
+                  isTestDisabled={!credentialId || isTesting}
+                />
+              )}
             </WizardStep>
           </Wizard>
         </NxPanel>

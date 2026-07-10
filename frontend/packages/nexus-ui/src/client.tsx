@@ -136,7 +136,7 @@ settingsFetchClient.use(authMiddleware)
 export { settingsFetchClient }
 export const settingsClient = createClient(settingsFetchClient)
 
-const integrationsFetchClient = createFetchClient<IntegrationsAPI.paths>({ baseUrl: '/api/v1/' })
+export const integrationsFetchClient = createFetchClient<IntegrationsAPI.paths>({ baseUrl: '/api/v1/' })
 integrationsFetchClient.use(interfaceTagMiddleware)
 integrationsFetchClient.use(authMiddleware)
 export const integrationsClient = createClient(integrationsFetchClient)

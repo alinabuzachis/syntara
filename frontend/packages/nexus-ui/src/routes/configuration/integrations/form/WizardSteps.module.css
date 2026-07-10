@@ -38,6 +38,10 @@
   width: var(--pf-t--global--spacer--3xl);
 }
 
+.kebabCol {
+  width: var(--pf-t--global--spacer--3xl);
+}
+
 .wizardPanel {
   padding: 0;
   display: flex;

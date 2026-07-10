@@ -1,5 +1,5 @@
 import { Button, Content, ContentVariants, Form, FormGroup, Title } from '@patternfly/react-core'
-import { Controller, type Control, type UseFormSetValue } from 'react-hook-form'
+import { Controller, useWatch, type Control, type UseFormSetValue } from 'react-hook-form'
 
 import { CredentialSelector } from '../../../builder/components/CredentialSelector'
 import { CREDENTIAL_TYPES_BY_INTEGRATION } from '../integrationFilters'
@@ -24,6 +24,8 @@ export function CredentialStep({
   onTestConnection,
   onCredentialChange,
 }: CredentialStepProps) {
+  const integrationType = useWatch({ control, name: 'integration_type' })
+
   return (
     <>
       <Title headingLevel="h2" size="lg" className={styles.stepTitle}>
@@ -44,7 +46,7 @@ export function CredentialStep({
                 setValue('management_credential_id', id ?? null)
                 onCredentialChange()
               }}
-              compatibleTypeNames={CREDENTIAL_TYPES_BY_INTEGRATION.mcp_server}
+              compatibleTypeNames={CREDENTIAL_TYPES_BY_INTEGRATION[integrationType]}
               label="Health check credential"
               fieldId="credential-select"
               allowCreate

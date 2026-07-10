@@ -1,11 +1,11 @@
-import type { IntegrationsAPI, ToolManagerAPI } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { Badge, Button, Content, ContentVariants, Switch, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiCheckCircleIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useMemo } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
-import { integrationsClient, toolManagerClient } from '../../../client'
+import { integrationsClient } from '../../../client'
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
@@ -33,12 +33,17 @@ import {
   getIntegrationStatusFilterDefinition,
   getIntegrationTypeFilterDefinition,
 } from './integrationFilters'
-import { getBaseUrl } from './integrationUtils'
+import {
+  getBaseUrl,
+  getEnabledResourceCount,
+  getResourceNoun,
+  getTotalResourceCount,
+  isLLMProvider,
+} from './integrationUtils'
 import { StatusLabel } from './StatusLabel'
 import { useIntegrationActions } from './useIntegrationActions'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
-type ToolWithParameters = ToolManagerAPI.components['schemas']['ToolWithParameters']
 
 function buildRowActions(
   integration: IntegrationRead,
@@ -67,14 +72,12 @@ function IntegrationsTableContent({
   validateDialog,
   deleteDialog,
   handleToggleEnabled,
-  enabledToolCountByIntegration,
 }: Readonly<{
   results: IntegrationRead[]
   getSortParams: (index: number) => ReturnType<ReturnType<typeof useTableSort>['getSortParams']>
   validateDialog: { open: (item: IntegrationRead) => void }
   deleteDialog: { open: (item: IntegrationRead) => void }
   handleToggleEnabled: (integration: IntegrationRead) => void
-  enabledToolCountByIntegration: Map<string, number>
 }>) {
   return (
     <>
@@ -109,7 +112,7 @@ function IntegrationsTableContent({
               <Truncate content={getBaseUrl(integration)} />
             </Td>
             <Td dataLabel="Enabled resources">
-              <Badge isRead>{enabledToolCountByIntegration.get(integration.id ?? '') ?? 0}</Badge>
+              <Badge isRead>{getEnabledResourceCount(integration)}</Badge>
             </Td>
             <Td dataLabel="State">
               <Switch
@@ -160,17 +163,6 @@ export default function Integrations() {
   const query = integrationsClient.useQuery('get', '/integrations', {
     params: { query: queryParams },
   })
-
-  const toolsQuery = toolManagerClient.useQuery('get', '/tool_manager/tools')
-  const enabledToolCountByIntegration = useMemo(() => {
-    const countMap = new Map<string, number>()
-    for (const tool of (toolsQuery.data?.resources ?? []) as ToolWithParameters[]) {
-      if (tool.enabled !== false && tool.integration_id) {
-        countMap.set(tool.integration_id, (countMap.get(tool.integration_id) ?? 0) + 1)
-      }
-    }
-    return countMap
-  }, [toolsQuery.data])
 
   const {
     validateDialog,
@@ -258,7 +250,6 @@ export default function Integrations() {
                   validateDialog={validateDialog}
                   deleteDialog={deleteDialog}
                   handleToggleEnabled={handleToggleEnabled}
-                  enabledToolCountByIntegration={enabledToolCountByIntegration}
                 />
               </NxListPanelTable>
             }
@@ -296,7 +287,8 @@ export default function Integrations() {
           <strong>Resources that will be deleted</strong>
         </Content>
         <Content component={ContentVariants.p}>
-          Tools <Badge isRead>0</Badge>
+          {deleteDialog.item && isLLMProvider(deleteDialog.item) ? 'Models' : 'Tools'}{' '}
+          <Badge isRead>{deleteDialog.item ? getTotalResourceCount(deleteDialog.item) : 0}</Badge>
         </Content>
       </NxConfirmationDialog>
 
@@ -312,8 +304,9 @@ export default function Integrations() {
           You are about to disable the following integration: <strong>{disableDialog.item?.name}</strong>
         </Content>
         <Content component={ContentVariants.p}>
-          Workflows using this integration will no longer have access to its tools. You can re-enable the integration at
-          any time.
+          Workflows using this integration will no longer have access to its{' '}
+          {disableDialog.item ? getResourceNoun(disableDialog.item) : 'tools'}. You can re-enable the integration at any
+          time.
         </Content>
       </NxConfirmationDialog>
     </NxPage>

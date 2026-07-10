@@ -1,6 +1,14 @@
 import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
+import { z } from 'zod'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
+
+const integrationTypeSchema = z.discriminatedUnion('integration_type', [
+  z.object({ integration_type: z.literal(IntegrationTypeEnum.MCP_SERVER) }),
+  z.object({ integration_type: z.literal(IntegrationTypeEnum.LLM_PROVIDER) }),
+  z.object({ integration_type: z.literal(IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM) }),
+])
 
 export function getBaseUrl(integration: IntegrationRead): string {
   const config = integration.configuration
@@ -8,4 +16,30 @@ export function getBaseUrl(integration: IntegrationRead): string {
   if ('base_url' in config) return String(config.base_url ?? '')
   if ('aap_url' in config) return String(config.aap_url ?? '')
   return ''
+}
+
+export function isLLMProvider(integration: IntegrationRead): boolean {
+  const result = integrationTypeSchema.safeParse(integration)
+  return result.success && result.data.integration_type === IntegrationTypeEnum.LLM_PROVIDER
+}
+
+export function getProviderHint(integration: IntegrationRead): string {
+  const config = integration.configuration
+  if (config && 'provider_hint' in config) return String(config.provider_hint ?? '')
+  return ''
+}
+
+export function getTotalResourceCount(integration: IntegrationRead): number {
+  if (isLLMProvider(integration)) return integration.total_model_count ?? 0
+  return integration.total_tool_count ?? 0
+}
+
+export function getEnabledResourceCount(integration: IntegrationRead): number {
+  if (isLLMProvider(integration)) return integration.enabled_model_count ?? 0
+  return integration.enabled_tool_count ?? 0
+}
+
+export function getResourceNoun(integration: IntegrationRead, plural = true): string {
+  if (isLLMProvider(integration)) return plural ? 'models' : 'model'
+  return plural ? 'tools' : 'tool'
 }

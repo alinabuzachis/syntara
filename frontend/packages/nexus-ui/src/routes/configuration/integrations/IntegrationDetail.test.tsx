@@ -31,11 +31,33 @@ vi.mock('./useAllIntegrationTools', () => ({
     mockUseAllIntegrationTools(...args) as ReturnType<typeof import('./useAllIntegrationTools').useAllIntegrationTools>,
 }))
 
-const mockUseToolSelection = vi.fn()
+const mockUseItemSelection = vi.fn()
 
-vi.mock('./useToolSelection', () => ({
-  useToolSelection: (...args: unknown[]) =>
-    mockUseToolSelection(...args) as ReturnType<typeof import('./useToolSelection').useToolSelection>,
+vi.mock('./useItemSelection', () => ({
+  useItemSelection: (...args: unknown[]) =>
+    mockUseItemSelection(...args) as ReturnType<typeof import('./useItemSelection').useItemSelection>,
+}))
+
+vi.mock('./useIntegrationModelsState', () => ({
+  useIntegrationModelsState: () => ({
+    models: [],
+    isLoading: false,
+    error: null,
+    refetchModels: vi.fn().mockResolvedValue(undefined),
+    enabledModelIds: new Set<string>(),
+    enabledCount: 0,
+    allSelected: false,
+    isDirty: false,
+    isSaving: false,
+    handleSave: vi.fn(),
+    handleSelectAll: vi.fn(),
+    defaultModelId: null,
+    handleSelectWithDefaultClear: vi.fn(),
+    handleSetDefault: vi.fn(),
+    handleRemoveDefault: vi.fn(),
+    resetSelectionToServer: vi.fn(),
+    resetDefault: vi.fn(),
+  }),
 }))
 
 const mockNavigate = vi.fn()
@@ -46,6 +68,10 @@ vi.mock('../../../hooks/routing/useNavigate', () => ({
 
 vi.mock('../../../hooks/routing/useParams', () => ({
   useParams: () => ({ integrationId: 'int-1' }),
+}))
+
+vi.mock('./IntegrationModelsTab', () => ({
+  IntegrationModelsTab: () => <div data-testid="models-tab-content">Models tab content</div>,
 }))
 
 vi.mock('./IntegrationResourcesTab', () => ({
@@ -187,13 +213,13 @@ describe('IntegrationDetail', () => {
       error: null,
       refetch: vi.fn(),
     })
-    mockUseToolSelection.mockReturnValue({
-      enabledToolIds: new Set<string>(),
+    mockUseItemSelection.mockReturnValue({
+      enabledIds: new Set<string>(),
       enabledCount: 0,
       allSelected: false,
       isDirty: false,
       handleSelectAll: vi.fn(),
-      handleSelectTool: vi.fn(),
+      handleSelectItem: vi.fn(),
       resetToServer: vi.fn(),
     })
   })
@@ -219,7 +245,7 @@ describe('IntegrationDetail', () => {
     it('shows credential name as a link when credential is assigned', () => {
       render(<IntegrationDetail />, { wrapper })
 
-      const credLink = screen.getByRole('button', { name: 'Test Credential' })
+      const credLink = screen.getByRole('link', { name: 'Test Credential' })
       expect(credLink).toBeInTheDocument()
     })
 
@@ -230,13 +256,11 @@ describe('IntegrationDetail', () => {
       expect(screen.getByText('None')).toBeInTheDocument()
     })
 
-    it('navigates to credential detail when credential link is clicked', async () => {
-      const user = userEvent.setup()
+    it('navigates to credential detail when credential link is clicked', () => {
       render(<IntegrationDetail />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Test Credential' }))
-
-      expect(mockNavigate).toHaveBeenCalledWith('/configuration/credentials/cred-1')
+      const credLink = screen.getByRole('link', { name: 'Test Credential' })
+      expect(credLink).toHaveAttribute('href', '/configuration/credentials/cred-1')
     })
 
     it('shows dash for URL when none is set', () => {
@@ -456,13 +480,13 @@ describe('IntegrationDetail', () => {
 
     it('shows save button enabled on resources tab when changes are made', () => {
       mockActiveTab = 'resources'
-      mockUseToolSelection.mockReturnValue({
-        enabledToolIds: new Set(['t1']),
+      mockUseItemSelection.mockReturnValue({
+        enabledIds: new Set(['t1']),
         enabledCount: 1,
         allSelected: false,
         isDirty: true,
         handleSelectAll: vi.fn(),
-        handleSelectTool: vi.fn(),
+        handleSelectItem: vi.fn(),
         resetToServer: vi.fn(),
       })
       render(<IntegrationDetail />, { wrapper })
@@ -498,13 +522,13 @@ describe('IntegrationDetail', () => {
         refetch: vi.fn(),
       })
 
-      mockUseToolSelection.mockReturnValue({
-        enabledToolIds: new Set(['t1']),
+      mockUseItemSelection.mockReturnValue({
+        enabledIds: new Set(['t1']),
         enabledCount: 1,
         allSelected: false,
         isDirty: true,
         handleSelectAll: vi.fn(),
-        handleSelectTool: vi.fn(),
+        handleSelectItem: vi.fn(),
         resetToServer: vi.fn(),
       })
 
@@ -566,13 +590,13 @@ describe('IntegrationDetail', () => {
 
   describe('Dirty check callbacks', () => {
     it('check() reflects the current isDirty state', () => {
-      mockUseToolSelection.mockReturnValue({
-        enabledToolIds: new Set<string>(),
+      mockUseItemSelection.mockReturnValue({
+        enabledIds: new Set<string>(),
         enabledCount: 0,
         allSelected: false,
         isDirty: true,
         handleSelectAll: vi.fn(),
-        handleSelectTool: vi.fn(),
+        handleSelectItem: vi.fn(),
         resetToServer: vi.fn(),
       })
       render(<IntegrationDetail />, { wrapper })
@@ -583,13 +607,13 @@ describe('IntegrationDetail', () => {
 
     it('exitWithoutSaving() calls resetToServer', () => {
       const mockResetToServer = vi.fn()
-      mockUseToolSelection.mockReturnValue({
-        enabledToolIds: new Set<string>(),
+      mockUseItemSelection.mockReturnValue({
+        enabledIds: new Set<string>(),
         enabledCount: 0,
         allSelected: false,
         isDirty: false,
         handleSelectAll: vi.fn(),
-        handleSelectTool: vi.fn(),
+        handleSelectItem: vi.fn(),
         resetToServer: mockResetToServer,
       })
       render(<IntegrationDetail />, { wrapper })
@@ -627,13 +651,13 @@ describe('IntegrationDetail', () => {
         refetch: vi.fn(),
       })
 
-      mockUseToolSelection.mockReturnValue({
-        enabledToolIds: new Set(['t1']),
+      mockUseItemSelection.mockReturnValue({
+        enabledIds: new Set(['t1']),
         enabledCount: 1,
         allSelected: false,
         isDirty: true,
         handleSelectAll: vi.fn(),
-        handleSelectTool: vi.fn(),
+        handleSelectItem: vi.fn(),
         resetToServer: vi.fn(),
       })
 
@@ -658,6 +682,77 @@ describe('IntegrationDetail', () => {
         results = await axe(container)
       })
       expect(results!).toHaveNoViolations()
+    })
+  })
+
+  describe('LLM Provider', () => {
+    const llmIntegration: IntegrationRead = {
+      ...mockIntegration,
+      integration_type: 'llm_provider',
+      configuration: {
+        integration_type: 'llm_provider',
+        provider_hint: 'red_hat_ai',
+        base_url: 'https://api.redhat.ai',
+      },
+      total_model_count: 5,
+      enabled_model_count: 3,
+      total_tool_count: 0,
+      enabled_tool_count: 0,
+    }
+
+    it('shows Provider type row for LLM provider', () => {
+      setupDefaultMocks({ integration: llmIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText('Provider type')).toBeInTheDocument()
+      expect(screen.getByText('Red Hat AI')).toBeInTheDocument()
+    })
+
+    it('shows LLM Provider as integration type', () => {
+      setupDefaultMocks({ integration: llmIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText('LLM Provider')).toBeInTheDocument()
+    })
+
+    it('shows model count for enabled resources', () => {
+      setupDefaultMocks({ integration: llmIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('renders IntegrationModelsTab for LLM provider', async () => {
+      setupDefaultMocks({ integration: llmIntegration })
+      const user = userEvent.setup()
+      render(<IntegrationDetail />, { wrapper })
+
+      await user.click(screen.getByRole('tab', { name: /Enabled resources/ }))
+
+      expect(screen.getByTestId('models-tab-content')).toBeInTheDocument()
+    })
+
+    it('renders IntegrationResourcesTab for MCP server (regression)', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationDetail />, { wrapper })
+
+      await user.click(screen.getByRole('tab', { name: /Enabled resources/ }))
+
+      expect(screen.getByTestId('resources-tab-content')).toBeInTheDocument()
+    })
+
+    it('resources tab badge shows model count for LLM provider', () => {
+      setupDefaultMocks({ integration: llmIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      const resourcesTab = screen.getByRole('tab', { name: /Enabled resources/ })
+      expect(within(resourcesTab).getByText('3')).toBeInTheDocument()
+    })
+
+    it('does not show Provider type row for MCP server', () => {
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByText('Provider type')).not.toBeInTheDocument()
     })
   })
 })
