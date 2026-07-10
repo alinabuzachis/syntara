@@ -334,10 +334,10 @@ describe('useNodePositioning', () => {
     const positionedBody = capturedNodes.find((n) => (n as { id: string }).id === 'body-1') as {
       position: { x: number; y: number }
     }
-    // Body node positioned to avoid button edge overlap
-    // Loop is positioned at baseX=50, baseY=50, width=240, so body is at 50+240+40=330, 50+160=210
-    expect(positionedBody?.position.x).toBe(330) // 50 (loop.x) + 240 (loop.width) + 40 (horizontalSpacing)
-    expect(positionedBody?.position.y).toBe(210) // 50 (loop.y) + 160 (verticalOffset)
+    // Body node positioned using unified spacing constants
+    // Loop is positioned at baseX=50, baseY=50, width=240, so body is at 50+240+80=370, 50+100=150
+    expect(positionedBody?.position.x).toBe(370) // 50 (loop.x) + 240 (loop.width) + 80 (LOOP_BODY_SPACING.horizontal)
+    expect(positionedBody?.position.y).toBe(150) // 50 (loop.y) + 100 (LOOP_BODY_SPACING.vertical)
   })
 
   it('does not position loop body node if loop position is not found', () => {

@@ -5,6 +5,7 @@ import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { toPositionKey } from '../../../utils/triggerNodeIds'
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { FlowPosition } from '../types'
+import { LOOP_BODY_SPACING } from '../utils/layoutConstants'
 import type { EdgeType } from '../utils/workflowToGraph'
 
 type UseNodePositioningParams = {
@@ -88,11 +89,9 @@ function positionLoopBodyNode(
   const loopPos = loopPositions.get(loopNodeId)
   if (!loopPos) return node
 
-  // Position to the right and below the loop node, avoiding button edge overlap
-  const horizontalSpacing = 40
-  const verticalOffset = 160
-  const calculatedX = loopPos.x + loopPos.width + horizontalSpacing
-  const calculatedY = loopPos.y + verticalOffset
+  // Position to the right and below the loop node, using unified spacing constants
+  const calculatedX = loopPos.x + loopPos.width + LOOP_BODY_SPACING.horizontal
+  const calculatedY = loopPos.y + LOOP_BODY_SPACING.vertical
 
   newlyAddedNodeIdsRef.current.delete(node.id)
   const updatedNode = { ...node, position: { x: calculatedX, y: calculatedY } }

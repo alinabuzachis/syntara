@@ -57,7 +57,7 @@ describe('layoutEngine', () => {
 
       expect(result.nodes).toHaveLength(2)
       expect(result.edges).toHaveLength(1)
-      expect(mockSetGraph).toHaveBeenCalledWith({ rankdir: 'TB', ranksep: 120, ranker: 'tight-tree' })
+      expect(mockSetGraph).toHaveBeenCalledWith({ rankdir: 'TB', ranksep: 120, nodesep: 90, ranker: 'network-simplex' })
     })
 
     it('filters out placeholder nodes from layout', () => {
@@ -113,9 +113,9 @@ describe('layoutEngine', () => {
       getLayoutedElements(nodes, edges, { direction: 'TB' })
 
       // Loop-back edge (targetHandle: 'end') should not be added
-      // Loop edge (sourceHandle: 'loop') gets no special weight
+      // Loop edge (sourceHandle: 'loop') gets weight 1
       expect(mockSetEdge).toHaveBeenCalledTimes(1)
-      expect(mockSetEdge).toHaveBeenCalledWith('loop-1', 'task-in-loop', {})
+      expect(mockSetEdge).toHaveBeenCalledWith('loop-1', 'task-in-loop', { weight: 1 })
     })
 
     it('preserves placeholder nodes position', () => {
@@ -163,7 +163,7 @@ describe('layoutEngine', () => {
 
       getLayoutedElements(nodes, edges, { direction: 'LR' })
 
-      expect(mockSetGraph).toHaveBeenCalledWith({ rankdir: 'LR', ranksep: 120, ranker: 'tight-tree' })
+      expect(mockSetGraph).toHaveBeenCalledWith({ rankdir: 'LR', ranksep: 120, nodesep: 90, ranker: 'network-simplex' })
     })
 
     it('handles nodes without measured dimensions', () => {
@@ -292,6 +292,221 @@ describe('layoutEngine', () => {
       const task2 = result.nodes.find((n) => n.id === 'task-2-in-loop')
       expect(task1?.className).toBe('min-w-[300px]')
       expect(task2?.className).toBe('min-w-[300px]')
+    })
+
+    describe('branch node ordering', () => {
+      it('assigns edge weights for condition nodes (true=2, false=1)', () => {
+        const nodes: NodeType[] = [
+          {
+            id: 'condition-1',
+            type: 'condition',
+            position: { x: 0, y: 0 },
+            measured: { width: 200, height: 80 },
+            data: {},
+          },
+          { id: 'task-true', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          { id: 'task-false', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+        ] as NodeType[]
+
+        const edges: EdgeType[] = [
+          { id: 'e1', source: 'condition-1', target: 'task-true', sourceHandle: 'true', type: 'default' },
+          { id: 'e2', source: 'condition-1', target: 'task-false', sourceHandle: 'false', type: 'default' },
+        ] as EdgeType[]
+
+        getLayoutedElements(nodes, edges, { direction: 'TB' })
+
+        expect(mockSetEdge).toHaveBeenCalledWith('condition-1', 'task-true', { weight: 2 })
+        expect(mockSetEdge).toHaveBeenCalledWith('condition-1', 'task-false', { weight: 1 })
+      })
+
+      it('assigns edge weights for approval nodes (approved=2, rejected=1)', () => {
+        const nodes: NodeType[] = [
+          {
+            id: 'approval-1',
+            type: 'approval',
+            position: { x: 0, y: 0 },
+            measured: { width: 200, height: 80 },
+            data: {},
+          },
+          {
+            id: 'task-approved',
+            type: 'task',
+            position: { x: 0, y: 0 },
+            measured: { width: 200, height: 80 },
+            data: {},
+          },
+          {
+            id: 'task-rejected',
+            type: 'task',
+            position: { x: 0, y: 0 },
+            measured: { width: 200, height: 80 },
+            data: {},
+          },
+        ] as NodeType[]
+
+        const edges: EdgeType[] = [
+          { id: 'e1', source: 'approval-1', target: 'task-approved', sourceHandle: 'approved', type: 'default' },
+          { id: 'e2', source: 'approval-1', target: 'task-rejected', sourceHandle: 'rejected', type: 'default' },
+        ] as EdgeType[]
+
+        getLayoutedElements(nodes, edges, { direction: 'TB' })
+
+        expect(mockSetEdge).toHaveBeenCalledWith('approval-1', 'task-approved', { weight: 2 })
+        expect(mockSetEdge).toHaveBeenCalledWith('approval-1', 'task-rejected', { weight: 1 })
+      })
+
+      it('assigns descending edge weights for switch nodes', () => {
+        const nodes: NodeType[] = [
+          { id: 'switch-1', type: 'switch', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          { id: 'task-case0', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          { id: 'task-case1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          { id: 'task-case2', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          {
+            id: 'task-default',
+            type: 'task',
+            position: { x: 0, y: 0 },
+            measured: { width: 200, height: 80 },
+            data: {},
+          },
+        ] as NodeType[]
+
+        const edges: EdgeType[] = [
+          { id: 'e1', source: 'switch-1', target: 'task-case0', sourceHandle: 'case_0', type: 'default' },
+          { id: 'e2', source: 'switch-1', target: 'task-case1', sourceHandle: 'case_1', type: 'default' },
+          { id: 'e3', source: 'switch-1', target: 'task-case2', sourceHandle: 'case_2', type: 'default' },
+          { id: 'e4', source: 'switch-1', target: 'task-default', sourceHandle: 'default', type: 'default' },
+        ] as EdgeType[]
+
+        getLayoutedElements(nodes, edges, { direction: 'TB' })
+
+        expect(mockSetEdge).toHaveBeenCalledWith('switch-1', 'task-case0', { weight: 50 })
+        expect(mockSetEdge).toHaveBeenCalledWith('switch-1', 'task-case1', { weight: 49 })
+        expect(mockSetEdge).toHaveBeenCalledWith('switch-1', 'task-case2', { weight: 48 })
+        expect(mockSetEdge).toHaveBeenCalledWith('switch-1', 'task-default', { weight: 1 })
+      })
+
+      it('assigns edge weights for loop nodes (done=2, loop=1)', () => {
+        const nodes: NodeType[] = [
+          { id: 'loop-1', type: 'loop', position: { x: 0, y: 0 }, measured: { width: 300, height: 100 }, data: {} },
+          { id: 'task-done', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          { id: 'task-loop', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+        ] as NodeType[]
+
+        const edges: EdgeType[] = [
+          { id: 'e1', source: 'loop-1', target: 'task-done', sourceHandle: 'done', type: 'default' },
+          { id: 'e2', source: 'loop-1', target: 'task-loop', sourceHandle: 'loop', type: 'default' },
+        ] as EdgeType[]
+
+        getLayoutedElements(nodes, edges, { direction: 'TB' })
+
+        expect(mockSetEdge).toHaveBeenCalledWith('loop-1', 'task-done', { weight: 2 })
+        expect(mockSetEdge).toHaveBeenCalledWith('loop-1', 'task-loop', { weight: 1 })
+      })
+
+      it('corrects vertical order for condition branches when Dagre swaps them', () => {
+        mockNode.mockImplementation((id: string) => {
+          if (id === 'condition-1') return { x: 100, y: 100 }
+          if (id === 'task-true') return { x: 200, y: 300 } // Dagre placed true below false (wrong order)
+          if (id === 'task-false') return { x: 200, y: 100 } // Dagre placed false above true (wrong order)
+          return { x: 0, y: 0 }
+        })
+
+        const nodes: NodeType[] = [
+          {
+            id: 'condition-1',
+            type: 'condition',
+            position: { x: 0, y: 0 },
+            measured: { width: 200, height: 80 },
+            data: {},
+          },
+          { id: 'task-true', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 100 }, data: {} },
+          { id: 'task-false', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 100 }, data: {} },
+        ] as NodeType[]
+
+        const edges: EdgeType[] = [
+          { id: 'e1', source: 'condition-1', target: 'task-true', sourceHandle: 'true', type: 'default' },
+          { id: 'e2', source: 'condition-1', target: 'task-false', sourceHandle: 'false', type: 'default' },
+        ] as EdgeType[]
+
+        const result = getLayoutedElements(nodes, edges, { direction: 'TB' })
+
+        // Positions should be corrected: true should be above false
+        const taskTrue = result.nodes.find((n) => n.id === 'task-true')
+        const taskFalse = result.nodes.find((n) => n.id === 'task-false')
+        expect(taskTrue?.position.y).toBeLessThan(taskFalse?.position.y ?? Infinity)
+      })
+
+      it('handles multiple switch paths pointing to the same target', () => {
+        mockNode.mockImplementation((id: string) => {
+          if (id === 'switch-1') return { x: 100, y: 100 }
+          if (id === 'task-shared') return { x: 200, y: 200 }
+          return { x: 0, y: 0 }
+        })
+
+        const nodes: NodeType[] = [
+          { id: 'switch-1', type: 'switch', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          { id: 'task-shared', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+        ] as NodeType[]
+
+        const edges: EdgeType[] = [
+          { id: 'e1', source: 'switch-1', target: 'task-shared', sourceHandle: 'case_0', type: 'default' },
+          { id: 'e2', source: 'switch-1', target: 'task-shared', sourceHandle: 'case_1', type: 'default' },
+          { id: 'e3', source: 'switch-1', target: 'task-shared', sourceHandle: 'case_2', type: 'default' },
+        ] as EdgeType[]
+
+        const result = getLayoutedElements(nodes, edges, { direction: 'TB' })
+
+        // Should not throw, and shared task should appear only once
+        expect(result.nodes.filter((n) => n.id === 'task-shared')).toHaveLength(1)
+
+        // Verify position is correctly calculated (anchored to switch node)
+        const sharedTask = result.nodes.find((n) => n.id === 'task-shared')
+        // Switch is at y=100, shared task is first target (index 0)
+        // y = sourceY + index * spacing - height/2 = 100 + 0 * 120 - 40 = 60
+        expect(sharedTask?.position.y).toBe(60)
+      })
+
+      it('prevents overlapping when Dagre places targets at same Y', () => {
+        mockNode.mockImplementation((id: string) => {
+          if (id === 'switch-1') return { x: 100, y: 500 }
+          // All targets at same Y (Dagre didn't spread them)
+          if (id === 'task-1') return { x: 200, y: 500 }
+          if (id === 'task-2') return { x: 200, y: 500 }
+          if (id === 'task-3') return { x: 200, y: 500 }
+          return { x: 0, y: 0 }
+        })
+
+        const nodes: NodeType[] = [
+          { id: 'switch-1', type: 'switch', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          { id: 'task-1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          { id: 'task-2', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+          { id: 'task-3', type: 'task', position: { x: 0, y: 0 }, measured: { width: 200, height: 80 }, data: {} },
+        ] as NodeType[]
+
+        const edges: EdgeType[] = [
+          { id: 'e1', source: 'switch-1', target: 'task-1', sourceHandle: 'case_0', type: 'default' },
+          { id: 'e2', source: 'switch-1', target: 'task-2', sourceHandle: 'case_1', type: 'default' },
+          { id: 'e3', source: 'switch-1', target: 'task-3', sourceHandle: 'case_2', type: 'default' },
+        ] as EdgeType[]
+
+        const result = getLayoutedElements(nodes, edges, { direction: 'TB' })
+
+        // Tasks should be centered as a group around switch Y with gaps between
+        const task1 = result.nodes.find((n) => n.id === 'task-1')
+        const task2 = result.nodes.find((n) => n.id === 'task-2')
+        const task3 = result.nodes.find((n) => n.id === 'task-3')
+
+        // Switch at y=500 (center), 3 targets with height=80, gap=20
+        // Total height = 3*80 + 2*20 = 280
+        // Group starts at 500 - 280/2 = 360
+        expect(task1?.position.y).toBe(360) // 360 + 0*(80+20)
+        expect(task2?.position.y).toBe(460) // 360 + 1*(80+20)
+        expect(task3?.position.y).toBe(560) // 360 + 2*(80+20)
+
+        // Verify no overlap and proper spacing (80px tall + 20px gap = 100px between starts)
+        expect(task2!.position.y - task1!.position.y).toBe(100)
+        expect(task3!.position.y - task2!.position.y).toBe(100)
+      })
     })
   })
 })

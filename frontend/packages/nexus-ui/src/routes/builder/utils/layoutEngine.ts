@@ -1,9 +1,10 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
 
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 import { filterRealEdges, filterRealNodes } from './filterHelpers'
+import { LOOP_BODY_SPACING } from './layoutConstants'
 import type { EdgeType } from './workflowToGraph'
 
 type DagreNodeLabel = {
@@ -82,15 +83,9 @@ function calculateLoopBodyPositions(
       .sort((a, b) => a.dagreX - b.dagreX)
 
     // Position nodes to the right of loop node AND below it to fit inside the loop boundary
-    const horizontalSpacing = 80 // Space to the right of loop node (increased to clear button edge)
-    const nodeSpacing = 40 // Spacing between consecutive nodes
-    const verticalOffset = 100 // Space below loop node's top edge (increased for better visual separation)
-
-    // Start position: to the right of loop node's right edge, below the loop node
-    // X: loop's left edge + loop width + spacing
-    // Y: loop's top edge + vertical offset (positions node below loop visually)
-    let currentX = loopX + loopWidth + horizontalSpacing
-    const baseY = loopY + verticalOffset
+    // Use unified spacing constants for consistency with manual positioning
+    let currentX = loopX + loopWidth + LOOP_BODY_SPACING.horizontal
+    const baseY = loopY + LOOP_BODY_SPACING.vertical
 
     // Assign positions to each body node (flowing left to right)
     bodyNodesWithPositions.forEach((bodyNode) => {
@@ -98,7 +93,7 @@ function calculateLoopBodyPositions(
         x: currentX,
         y: baseY,
       })
-      currentX += bodyNode.width + nodeSpacing
+      currentX += bodyNode.width + LOOP_BODY_SPACING.nodeGap
     })
   })
 
@@ -166,57 +161,148 @@ function identifyLoopStructures(realNodes: NodeType[], realEdges: EdgeType[]) {
   return { loopBodyNodes, loopParents, loopBodies }
 }
 
-/**
- * Build map of conditional/approval branch nodes and their desired ordering
- */
-function buildBranchNodeOrdering(edges: EdgeType[]): Map<string, { top?: string; bottom?: string }> {
-  const branchNodeOrdering = new Map<string, { top?: string; bottom?: string }>()
+type BranchOrdering = {
+  // Ordered list of branch targets (handles all branch types uniformly)
+  ordered: Array<{ handle: string; target: string }>
+}
 
-  edges.forEach((edge) => {
-    if (edge.sourceHandle === EdgeHandleEnum.TRUE || edge.sourceHandle === EdgeHandleEnum.APPROVED) {
-      const existing = branchNodeOrdering.get(edge.source) ?? {}
-      branchNodeOrdering.set(edge.source, { ...existing, top: edge.target })
-    } else if (edge.sourceHandle === EdgeHandleEnum.FALSE || edge.sourceHandle === EdgeHandleEnum.REJECTED) {
-      const existing = branchNodeOrdering.get(edge.source) ?? {}
-      branchNodeOrdering.set(edge.source, { ...existing, bottom: edge.target })
+/**
+ * Compare switch case handles (case_0, case_1, ..., default)
+ */
+function compareSwitchHandles(a: string, b: string): number {
+  const aIsCase = a.startsWith('case_')
+  const bIsCase = b.startsWith('case_')
+  if (aIsCase && bIsCase) {
+    const aIndex = Number.parseInt(a.replace('case_', ''), 10)
+    const bIndex = Number.parseInt(b.replace('case_', ''), 10)
+    return aIndex - bIndex
+  }
+  if (aIsCase) return -1 // Cases before default
+  if (bIsCase) return 1
+  return 0
+}
+
+/**
+ * Compare two-way branch handles by priority (first handle on top)
+ */
+function compareTwoWayHandles(a: string, b: string, topHandle: string): number {
+  if (a === topHandle) return -1
+  if (b === topHandle) return 1
+  return 0
+}
+
+/**
+ * Compare function for sorting branch handles by priority
+ */
+function compareBranchHandles(
+  a: { handle: string; target: string },
+  b: { handle: string; target: string },
+  nodeType: NodeType['type']
+): number {
+  if (nodeType === ActivityTypeEnum.CONDITION) return compareTwoWayHandles(a.handle, b.handle, EdgeHandleEnum.TRUE)
+  if (nodeType === ActivityTypeEnum.APPROVAL) return compareTwoWayHandles(a.handle, b.handle, EdgeHandleEnum.APPROVED)
+  if (nodeType === ActivityTypeEnum.SWITCH) return compareSwitchHandles(a.handle, b.handle)
+  if (nodeType === ActivityTypeEnum.LOOP) return compareTwoWayHandles(a.handle, b.handle, EdgeHandleEnum.DONE)
+  return 0
+}
+
+/**
+ * Build map of branch nodes and their desired target ordering
+ * All branch types are treated uniformly as ordered lists:
+ * - Condition: [true, false]
+ * - Approval: [approved, rejected]
+ * - Switch: [case_0, case_1, ..., default]
+ * - Loop: [done, loop]
+ */
+function buildBranchNodeOrdering(edges: EdgeType[], realNodes: NodeType[]): Map<string, BranchOrdering> {
+  const branchNodeOrdering = new Map<string, BranchOrdering>()
+
+  // Identify branching node types
+  const branchingNodes = new Set<string>()
+  realNodes.forEach((node) => {
+    if (
+      node.type === ActivityTypeEnum.CONDITION ||
+      node.type === ActivityTypeEnum.APPROVAL ||
+      node.type === ActivityTypeEnum.SWITCH ||
+      node.type === ActivityTypeEnum.LOOP
+    ) {
+      branchingNodes.add(node.id)
     }
+  })
+
+  // Collect all edges from branching nodes
+  edges.forEach((edge) => {
+    if (!branchingNodes.has(edge.source)) return
+
+    const existing = branchNodeOrdering.get(edge.source) ?? { ordered: [] }
+    existing.ordered.push({ handle: edge.sourceHandle ?? '', target: edge.target })
+    branchNodeOrdering.set(edge.source, existing)
+  })
+
+  // Sort ordered branches by handle priority (type-specific)
+  branchNodeOrdering.forEach((ordering, nodeId) => {
+    const sourceNode = realNodes.find((n) => n.id === nodeId)
+    if (!sourceNode) return
+
+    ordering.ordered.sort((a, b) => compareBranchHandles(a, b, sourceNode.type))
   })
 
   return branchNodeOrdering
 }
 
-/**
- * Correct Y position for branch nodes if Dagre swapped their vertical order
- */
-function correctBranchNodePosition(
-  nodeId: string,
-  baseY: number,
-  nodeHeight: number,
-  branchNodeOrdering: Map<string, { top?: string; bottom?: string }>,
+type BranchPositionContext = {
+  nodeId: string
+  baseY: number
+  nodeHeight: number
+  branchNodeOrdering: Map<string, BranchOrdering>
   g: Dagre.graphlib.Graph
-): number {
-  // Find if this node is part of a branch pair
-  for (const branches of branchNodeOrdering.values()) {
-    if (branches.top !== nodeId && branches.bottom !== nodeId) continue
+}
 
-    const topNodeId = branches.top
-    const bottomNodeId = branches.bottom
+/**
+ * Correct Y position for branch target nodes by anchoring them to the source branch node.
+ * Works for all branch types: condition, approval, switch, loop.
+ * Always repositions targets with consistent spacing to prevent overlap.
+ */
+function correctBranchNodePosition(ctx: BranchPositionContext): number {
+  const { nodeId, baseY, nodeHeight, branchNodeOrdering, g } = ctx
+  // Check if this node is a branch target
+  for (const [sourceNodeId, ordering] of branchNodeOrdering.entries()) {
+    // Build a map of distinct targets with their first occurrence index
+    // Multiple handles can point to the same target - we only position it once
+    const distinctTargets = new Map<string, number>()
+    ordering.ordered.forEach((o, index) => {
+      if (!distinctTargets.has(o.target)) {
+        distinctTargets.set(o.target, index)
+      }
+    })
 
-    if (!topNodeId || !bottomNodeId) return baseY
+    // Check if this node is in the distinct target set
+    if (!distinctTargets.has(nodeId)) continue
 
-    const topPos = getNodeLabel(g, topNodeId)
-    const bottomPos = getNodeLabel(g, bottomNodeId)
+    // Find which position this node should be at (0-based index in distinct list)
+    const distinctTargetList = Array.from(distinctTargets.keys())
+    const positionIndex = distinctTargetList.indexOf(nodeId)
+    if (positionIndex === -1) continue
 
-    // If Dagre swapped them (bottom node has lower Y than top node), fix it
-    if (bottomPos.y >= topPos.y) return baseY
+    // Always reposition branch targets anchored to the source node
+    // This ensures proper spacing even when Dagre places nodes at the same Y
+    // Targets are centered as a group around the source node's vertical center
+    const sourceNodeY = getNodeLabel(g, sourceNodeId).y
 
-    // Swap their Y positions
-    if (nodeId === topNodeId) {
-      return bottomPos.y - nodeHeight / 2
-    }
-    if (nodeId === bottomNodeId) {
-      return topPos.y - nodeHeight / 2
-    }
+    // Calculate the total height needed for all targets
+    const targetCount = distinctTargetList.length
+    const nodeGap = 20 // Gap between consecutive nodes
+
+    // Total height = sum of all target heights + gaps between them
+    // For simplicity, assume all targets have similar height (use current node's height as reference)
+    const totalHeight = targetCount * nodeHeight + (targetCount - 1) * nodeGap
+
+    // Start position: center the entire group around the source node's center
+    const groupStartY = sourceNodeY - totalHeight / 2
+
+    // Position this target within the group
+    const newY = groupStartY + positionIndex * (nodeHeight + nodeGap)
+    return newY
   }
 
   return baseY
@@ -228,8 +314,11 @@ function correctBranchNodePosition(
  */
 export function getLayoutedElements(nodes: NodeType[], edges: EdgeType[], options: LayoutOptions) {
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
-  // Enable ranker: 'tight-tree' for better control over node ordering
-  g.setGraph({ rankdir: options.direction, ranksep: 120, ranker: 'tight-tree' })
+  // Dagre configuration tuned for branching nodes (switch, condition, approval, loop)
+  // - ranksep: vertical spacing between ranks
+  // - nodesep: horizontal spacing between nodes in the same rank (accounts for branch handles)
+  // - ranker: 'network-simplex' produces fewer edge crossings than 'tight-tree'
+  g.setGraph({ rankdir: options.direction, ranksep: 120, nodesep: 90, ranker: 'network-simplex' })
 
   const realNodes = filterRealNodes(nodes)
   const realEdges = filterRealEdges(edges)
@@ -242,18 +331,36 @@ export function getLayoutedElements(nodes: NodeType[], edges: EdgeType[], option
   const layoutEdges = realEdges.filter((edge) => edge.targetHandle !== 'end')
 
   // Add edges to Dagre with weights to control visual ordering
-  // For condition nodes: 'true' branch gets higher weight to appear on top
-  // For approval nodes: 'approved' branch gets higher weight to appear on top
+  // Higher weights encourage Dagre to position targets vertically closer to handle order
   layoutEdges.forEach((edge) => {
     const edgeConfig: { weight?: number } = {}
 
     // Assign weights to control branch ordering:
-    // - 'true' and 'approved' branches: weight 2 (prefer top/straight)
-    // - 'false' and 'rejected' branches: weight 1 (prefer bottom/bent)
+    // - Condition nodes: 'true' (2) appears above 'false' (1)
+    // - Approval nodes: 'approved' (2) appears above 'rejected' (1)
+    // - Loop nodes: 'done' (2) appears above 'loop' (1)
+    // - Switch nodes: descending weights preserve case order (case_0=10, case_1=9, ..., default=1)
     if (edge.sourceHandle === EdgeHandleEnum.TRUE || edge.sourceHandle === EdgeHandleEnum.APPROVED) {
       edgeConfig.weight = 2
     } else if (edge.sourceHandle === EdgeHandleEnum.FALSE || edge.sourceHandle === EdgeHandleEnum.REJECTED) {
       edgeConfig.weight = 1
+    } else if (edge.sourceHandle === EdgeHandleEnum.DONE) {
+      edgeConfig.weight = 2
+    } else if (edge.sourceHandle === EdgeHandleEnum.LOOP) {
+      edgeConfig.weight = 1
+    } else if (edge.sourceHandle === EdgeHandleEnum.DEFAULT) {
+      // Default/fallback branch gets lowest weight (always last)
+      edgeConfig.weight = 1
+    } else if (edge.sourceHandle?.startsWith('case_')) {
+      // Switch case handles: case_0, case_1, case_2, ...
+      // Assign descending weights to preserve vertical order matching handle order
+      const caseMatch = edge.sourceHandle.match(/^case_(\d+)$/)
+      if (caseMatch) {
+        const caseIndex = Number.parseInt(caseMatch[1], 10)
+        // Start at weight 50 for case_0, then 49, 48, ... (always > default weight of 1)
+        // Higher starting value ensures strictly decreasing weights even with many cases
+        edgeConfig.weight = Math.max(50 - caseIndex, 2)
+      }
     }
 
     g.setEdge(edge.source, edge.target, edgeConfig)
@@ -275,8 +382,8 @@ export function getLayoutedElements(nodes: NodeType[], edges: EdgeType[], option
   // Calculate positions for loop body nodes (right and below the loop node)
   const loopBodyPositions = calculateLoopBodyPositions(loopBodies, realNodes, g)
 
-  // Build map of conditional/approval branch nodes and their desired ordering
-  const branchNodeOrdering = buildBranchNodeOrdering(realEdges)
+  // Build map of branch nodes and their desired target ordering
+  const branchNodeOrdering = buildBranchNodeOrdering(realEdges, realNodes)
 
   return {
     nodes: nodes.map((node) => {
@@ -294,10 +401,11 @@ export function getLayoutedElements(nodes: NodeType[], edges: EdgeType[], option
             x = centeredPos.x
             y = centeredPos.y
           }
+        } else {
+          // Adjust Y position for branch target nodes to maintain visual order
+          // Skip loop body nodes since they're already positioned by calculateLoopBodyPositions
+          y = correctBranchNodePosition({ nodeId: node.id, baseY: y, nodeHeight, branchNodeOrdering, g })
         }
-
-        // Adjust Y position for conditional/approval branch nodes to maintain visual order
-        y = correctBranchNodePosition(node.id, y, nodeHeight, branchNodeOrdering, g)
 
         // Add className for loop body nodes to match loop node width
         const isLoopBodyNode = loopBodyNodes.has(node.id)
