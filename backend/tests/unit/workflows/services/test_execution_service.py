@@ -359,6 +359,67 @@ class TestCreateExecution:
             )
         assert str(workflow_id) in str(exc_info.value)
 
+    @pytest.mark.asyncio
+    async def test_create_execution_cancels_temporal_on_db_failure(self) -> None:
+        """Test that Temporal workflow is cancelled when DB commit fails."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_temporal = Mock()
+
+        workflow_id = uuid4()
+        version_id = uuid4()
+        user_id = uuid4()
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = workflow_id
+        workflow.name = "test-workflow"
+        workflow.current_version = 1
+        workflow.published_version = None
+        workflow.project_id = uuid4()
+        workflow.created_by = user_id
+        workflow.deleted_at = None
+
+        version = Mock(spec=WorkflowVersion)
+        version.id = version_id
+        version.version = 1
+        version.workflow_definition = {
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=(workflow, version))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock(side_effect=Exception("DB commit failed"))
+
+        temporal_result = Mock()
+        temporal_result.temporal_workflow_id = f"temporal-{uuid4()}"
+        temporal_result.execution_id = str(uuid4())
+        temporal_result.temporal_run_id = f"run-{uuid4()}"
+        mock_temporal.start_workflow = AsyncMock(return_value=temporal_result)
+        mock_temporal.cancel_workflow = AsyncMock()
+
+        mock_user = Mock(spec=User)
+        mock_user.id = user_id
+        mock_user.display_name = "Test User"
+
+        service = ExecutionService(
+            session=mock_session,
+            user=mock_user,
+            temporal_service=mock_temporal,
+        )
+
+        with (
+            patch.object(service, "_resolve_user_display_name", new_callable=AsyncMock, return_value="Author"),
+            pytest.raises(Exception, match="DB commit failed"),
+        ):
+            await service.create_execution(workflow_id=workflow_id, input_data={})
+
+        mock_temporal.cancel_workflow.assert_awaited_once_with(
+            temporal_workflow_id=temporal_result.temporal_workflow_id
+        )
+
 
 class TestGetExecution(TestExecutionServiceBase):
     """Test get_execution method."""

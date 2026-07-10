@@ -1,36 +1,98 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Flex, FlexItem, Truncate } from '@patternfly/react-core'
+import { RhUiRedoIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
+import { useState } from 'react'
 
+import { IconLabel } from '../../components/IconLabel'
 import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
+import type { KebabAction } from '../../components/NxKebabMenu'
+import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { ProjectGroupHeaderRow } from '../../components/ProjectGroupHeaderRow'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { WorkflowName } from '../../components/WorkflowName'
+import { permissionTooltip } from '../../hooks/permissionUtils'
+import { useNavigate } from '../../hooks/routing/useNavigate'
+import { useCanI } from '../../hooks/useCanI'
 import { formatDateTime } from '../../utils/dateUtils'
-import { getDateField } from '../../utils/getDateField'
 import type { ProjectRead } from '../access/types'
 import { StatusLabel } from '../builder/ExecutionStatus'
+
+import { isExecutionRetryable } from './executionRetryable'
+import { useIsCurrentVersion } from './hooks/useIsCurrentVersion'
+import { RetryExecutionDialog } from './RetryExecutionDialog'
+import { useRetryExecution } from './useRetryExecution'
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 
 type Execution = {
   id: string
   workflow_id?: string
+  workflow_version_id?: string
   workflow_version?: number | null
   workflow_version_publish_name?: string | null
   workflow_version_created_at?: string | null
   status?: ExecutionStatus
   approval_pending?: boolean
+  mode?: string
   completed_at?: string | null
-  [key: string]: unknown
+  created_at?: string
+  updated_at?: string
 }
 
 type ExecutionRowProps = {
   execution: Execution
 }
 
+const retryTooltip = permissionTooltip('retry this execution', 'execution:run')
+
+function ExecutionRowRetryAction({ execution }: Readonly<{ execution: Execution }>) {
+  const [retryDialogOpen, setRetryDialogOpen] = useState(false)
+  const navigate = useNavigate()
+
+  /* v8 ignore start -- v8 emits phantom branches from compiled hook destructuring */
+  const { allowed: canRun, isChecking } = useCanI('run', 'execution')
+  const {
+    isCurrentVersion,
+    versionLabel: dialogVersionLabel,
+    isLoading: isVersionLoading,
+  } = useIsCurrentVersion(execution.workflow_id, execution.workflow_version_id, retryDialogOpen)
+  const retry = useRetryExecution(execution.id, (newId) => {
+    setRetryDialogOpen(false)
+    navigate(`/executions/${newId}`)
+  })
+  /* v8 ignore stop */
+
+  const kebabActions: KebabAction[] = [
+    {
+      key: 'retry',
+      title: <IconLabel icon={<RhUiRedoIcon />}>Retry run</IconLabel>,
+      isAriaDisabled: !canRun || isChecking,
+      tooltipProps: !canRun && !isChecking ? { content: retryTooltip } : undefined,
+      onClick: () => setRetryDialogOpen(true),
+    },
+  ]
+
+  return (
+    <>
+      <NxKebabMenu aria-label={`Actions for execution ${execution.id}`} actions={kebabActions} />
+      <RetryExecutionDialog
+        isOpen={retryDialogOpen}
+        onClose={() => setRetryDialogOpen(false)}
+        onConfirm={retry.handleRetry}
+        confirmLoading={retry.isPending || isVersionLoading}
+        isCurrentVersion={isCurrentVersion}
+        isVersionLoading={isVersionLoading}
+        versionLabel={dialogVersionLabel}
+      />
+    </>
+  )
+}
+
 function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
+  const retryable = isExecutionRetryable(execution.status, execution.mode)
+
   return (
     <Tr>
       <Td dataLabel="Workflow name">
@@ -75,7 +137,7 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
         )}
       </Td>
       <Td dataLabel="Created at">
-        <DateCell dateString={getDateField(execution, 'createdAt')} />
+        <DateCell dateString={execution.created_at} />
       </Td>
       <Td dataLabel="Completed at">
         {execution.completed_at ? (
@@ -89,6 +151,7 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
           </Content>
         )}
       </Td>
+      <Td isActionCell>{retryable && <ExecutionRowRetryAction execution={execution} />}</Td>
     </Tr>
   )
 }
@@ -118,7 +181,7 @@ export function GroupedExecutionsTableBody({
             projectName={project?.name}
             itemCount={executions.length}
             isCollapsed={collapsedProjects.has(projectId)}
-            colSpan={6}
+            colSpan={7}
             onToggle={() => onToggleProject(projectId)}
           />
           {!collapsedProjects.has(projectId) &&

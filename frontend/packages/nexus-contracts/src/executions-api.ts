@@ -68,6 +68,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/executions/{execution_id}/retry': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Retry execution
+     * @description Retry a completed workflow execution. Creates a new execution using the same workflow version, inputs, and trigger as the original.
+     */
+    post: operations['retry_execution']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/executions/{execution_id}/activities': {
     parameters: {
       query?: never
@@ -192,6 +212,8 @@ export interface components {
       execution_metadata?: {
         [key: string]: unknown
       } | null
+      /** Retried From Execution Id */
+      retried_from_execution_id?: string | null
       /** Labels */
       labels?: {
         [key: string]: unknown
@@ -2021,6 +2043,35 @@ export interface operations {
           [name: string]: unknown
         }
         content?: never
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  retry_execution: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        execution_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description New execution created from retry */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ExecutionRead']
+        }
       }
       400: components['responses']['BadRequestError']
       401: components['responses']['UnauthorizedError']

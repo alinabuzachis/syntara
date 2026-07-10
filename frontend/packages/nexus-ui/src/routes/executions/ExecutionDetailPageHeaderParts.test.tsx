@@ -15,6 +15,13 @@ vi.mock('../../client', () => ({
       isPending: false,
     })),
   },
+  workflowClient: {
+    useQuery: vi.fn(() => ({
+      data: null,
+      isLoading: false,
+      error: null,
+    })),
+  },
 }))
 
 vi.mock('../../providers/alerts/AlertContext', () => ({
@@ -94,6 +101,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           onCopyToEditor={() => {}}
           isCancellable={false}
           executionId="exec-123"
+          execution={undefined}
         />
       </QueryClientProvider>
     )
@@ -114,6 +122,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           onCopyToEditor={() => {}}
           isCancellable={true}
           executionId="exec-123"
+          execution={undefined}
         />
       </QueryClientProvider>
     )
@@ -134,6 +143,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           onCopyToEditor={() => {}}
           isCancellable={false}
           executionId="exec-123"
+          execution={undefined}
         />
       </QueryClientProvider>
     )
@@ -170,6 +180,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           onCopyToEditor={() => {}}
           isCancellable={false}
           executionId="exec-123"
+          execution={undefined}
         />
       </QueryClientProvider>
     )
@@ -190,6 +201,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           onCopyToEditor={() => {}}
           isCancellable={true}
           executionId="exec-123"
+          execution={undefined}
         />
       </QueryClientProvider>
     )
@@ -212,6 +224,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           onCopyToEditor={() => {}}
           isCancellable={false}
           executionId="exec-123"
+          execution={undefined}
         />
       </QueryClientProvider>
     )
@@ -234,11 +247,68 @@ describe('ExecutionDetailPageHeaderParts', () => {
           onCopyToEditor={onCopyToEditor}
           isCancellable={false}
           executionId="exec-123"
+          execution={undefined}
         />
       </QueryClientProvider>
     )
     await user.click(screen.getByRole('button', { name: 'Copy to editor' }))
     expect(onCopyToEditor).toHaveBeenCalledOnce()
+  })
+
+  it('renders retry button when execution is in terminal state', () => {
+    const queryClient = new QueryClient()
+    const execution = {
+      id: 'exec-terminal',
+      workflow_id: 'wf-1',
+      workflow_version_id: 'wfv-1',
+      status: 'failed' as const,
+      mode: 'standard',
+    } as never
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetailHeaderToolbar
+          showApprovalActionStrip={false}
+          isApprovalLoading={false}
+          onReviewClick={() => {}}
+          historyCardOpen={false}
+          onToggleHistory={() => {}}
+          onBackToEditor={() => {}}
+          onCopyToEditor={() => {}}
+          isCancellable={false}
+          executionId="exec-terminal"
+          execution={execution}
+        />
+      </QueryClientProvider>
+    )
+    expect(screen.getByRole('button', { name: 'Retry run' })).toBeInTheDocument()
+  })
+
+  it('does not render retry button for running execution', () => {
+    const queryClient = new QueryClient()
+    const execution = {
+      id: 'exec-running',
+      workflow_id: 'wf-1',
+      workflow_version_id: 'wfv-1',
+      status: 'running' as const,
+      mode: 'standard',
+    } as never
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetailHeaderToolbar
+          showApprovalActionStrip={false}
+          isApprovalLoading={false}
+          onReviewClick={() => {}}
+          historyCardOpen={false}
+          onToggleHistory={() => {}}
+          onBackToEditor={() => {}}
+          onCopyToEditor={() => {}}
+          isCancellable={true}
+          executionId="exec-running"
+          execution={execution}
+        />
+      </QueryClientProvider>
+    )
+    expect(screen.queryByRole('button', { name: 'Retry run' })).not.toBeInTheDocument()
   })
 
   it('renders both status and viewing run label when execution has both', () => {

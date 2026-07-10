@@ -8,6 +8,8 @@ import { RunHistoryToggleButton } from '../builder/RunHistoryToggleButton'
 
 import { ApprovalActionButtons } from './ApprovalActionButtons'
 import { CancelExecutionButton } from './CancelExecutionButton'
+import { isExecutionRetryable } from './executionRetryable'
+import { RetryExecutionButton } from './RetryExecutionButton'
 
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 
@@ -47,6 +49,7 @@ export type ExecutionDetailHeaderToolbarProps = Readonly<{
   onCopyToEditor: () => void
   isCancellable: boolean
   executionId: string
+  execution: Execution | undefined
 }>
 
 export function ExecutionDetailHeaderToolbar({
@@ -60,7 +63,10 @@ export function ExecutionDetailHeaderToolbar({
   onCopyToEditor,
   isCancellable,
   executionId,
+  execution,
 }: ExecutionDetailHeaderToolbarProps) {
+  const isRetryable = isExecutionRetryable(execution?.status, execution?.mode)
+
   return (
     <>
       {showApprovalActionStrip && (
@@ -71,6 +77,13 @@ export function ExecutionDetailHeaderToolbar({
         />
       )}
       {isCancellable && <CancelExecutionButton executionId={executionId} />}
+      {isRetryable && execution && (
+        <RetryExecutionButton
+          executionId={executionId}
+          workflowId={execution.workflow_id}
+          workflowVersionId={execution.workflow_version_id}
+        />
+      )}
       <Button variant="secondary" onClick={onCopyToEditor}>
         Copy to editor
       </Button>

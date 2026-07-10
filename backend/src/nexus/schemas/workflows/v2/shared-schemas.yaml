@@ -334,6 +334,12 @@ components:
               type: object
             - type: 'null'
           title: Execution Metadata
+        retried_from_execution_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Retried From Execution Id
         labels:
           additionalProperties: true
           type: object

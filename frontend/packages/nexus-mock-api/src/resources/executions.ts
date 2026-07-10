@@ -55,6 +55,19 @@ export const executions: Execution[] = [
       },
     ],
   },
+  // Retry of exec-3 (failed run for workflow '1')
+  {
+    id: 'exec-3-retry',
+    created_at: mockDate.hoursAgo1,
+    updated_at: mockDate.hoursAgo1,
+    workflow_id: '1',
+    status: 'completed',
+    started_at: mockDate.hoursAgo1,
+    completed_at: mockDate.minutesAgo30,
+    started_by: 'user-2',
+    input_data: {},
+    retried_from_execution_id: 'exec-3',
+  },
   // Executions for workflow '1' (conditional-demo)
   {
     id: 'exec-5',

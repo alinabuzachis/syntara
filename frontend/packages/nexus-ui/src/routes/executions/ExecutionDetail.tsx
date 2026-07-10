@@ -373,6 +373,7 @@ export default function ExecutionDetail() {
               onCopyToEditor={() => copyToEditorDialog.open(undefined)}
               isCancellable={isCancellable}
               executionId={executionId}
+              execution={execution}
             />
           }
         />

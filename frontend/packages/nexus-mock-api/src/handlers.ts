@@ -1363,6 +1363,60 @@ export const handlers = [
     return new HttpResponse(null, { status: 202 })
   }),
 
+  http.post('/api/v1/executions/:executionId/retry', (request) => {
+    const executionId = request.params.executionId as string
+    const execution = executions.find((e) => e.id === executionId)
+    if (!execution) {
+      return createExecutionNotFoundResponse(executionId, 'retry')
+    }
+    const terminalStatuses = new Set([
+      ExecutionStatusEnum.COMPLETED,
+      ExecutionStatusEnum.COMPLETED_WITH_ERRORS,
+      ExecutionStatusEnum.FAILED,
+      ExecutionStatusEnum.CANCELLED,
+    ])
+    if (!terminalStatuses.has(execution.status as (typeof ExecutionStatusEnum)[keyof typeof ExecutionStatusEnum])) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/resource-conflict',
+          title: 'Execution Not Retryable',
+          detail: `Cannot retry execution in '${execution.status}' state`,
+          code: 'EXECUTION_NOT_RETRYABLE',
+          retryable: false,
+          instance: `/api/v1/executions/${executionId}/retry`,
+        },
+        { status: 409 }
+      )
+    }
+    if (execution.mode === 'test') {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/resource-conflict',
+          title: 'Execution Not Retryable',
+          detail: 'Test executions cannot be retried',
+          code: 'EXECUTION_NOT_RETRYABLE',
+          retryable: false,
+          instance: `/api/v1/executions/${executionId}/retry`,
+        },
+        { status: 409 }
+      )
+    }
+    const newExecution: Execution = {
+      ...execution,
+      id: uuidv4(),
+      status: ExecutionStatusEnum.PENDING,
+      temporal_workflow_id: `exec-${uuidv4()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      completed_at: null,
+      error_details: null,
+      retried_from_execution_id: execution.id,
+      current_activities: [],
+    }
+    executions.unshift(newExecution)
+    return HttpResponse.json(newExecution, { status: 201 })
+  }),
+
   http.get('/api/v1/executions/:executionId/activities', ({ request, params }) => {
     const executionId = params.executionId as string
     const execution = executions.find((e) => e.id === executionId)

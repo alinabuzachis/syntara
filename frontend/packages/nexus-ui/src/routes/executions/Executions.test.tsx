@@ -1,6 +1,8 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { executionsClient, workflowClient } from '../../client'
@@ -14,14 +16,25 @@ import Executions from './Executions'
 // Mock the client module
 vi.mock('../../client', () => ({
   workflowClient: {
-    useQuery: vi.fn(),
+    useQuery: vi.fn(() => ({ data: null, isLoading: false, error: null })),
   },
   executionsClient: {
     useQuery: vi.fn(),
+    useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   },
   authMiddleware: { onRequest: vi.fn() },
   interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
+
+vi.mock('../../providers/alerts/AlertContext', () => ({
+  useAlerts: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
+}))
+
+const testQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+function TestWrapper({ children }: { children: ReactNode }) {
+  return <QueryClientProvider client={testQueryClient}>{children}</QueryClientProvider>
+}
 
 // Mock useProjectSelector to avoid needing accessClient / QueryClientProvider
 const mockUseProjectSelector = vi.fn(() => ({
@@ -105,6 +118,11 @@ describe('Executions Component', () => {
     vi.mocked(useSearch).mockReturnValue('')
     vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(''), vi.fn()])
 
+    vi.mocked(executionsClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as never)
+
     // Reset workflowClient mock to default implementation
     vi.mocked(workflowClient.useQuery).mockImplementation(((_method: string, path: string) => {
       if (path === '/workflows') {
@@ -170,7 +188,7 @@ describe('Executions Component', () => {
   it('renders the executions table with data', () => {
     mockExecutionsQuery(mockExecutions)
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     expect(screen.getByText('Workflow Runs')).toBeInTheDocument()
     // FilterBar is visible - check for filter value selector button
@@ -180,7 +198,7 @@ describe('Executions Component', () => {
   it('displays execution IDs', () => {
     mockExecutionsQuery(mockExecutions)
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
     expect(screen.getByText('223e4567-e89b-12d3-a456-426614174001')).toBeInTheDocument()
@@ -190,7 +208,7 @@ describe('Executions Component', () => {
   it('displays execution statuses with correct badges', () => {
     mockExecutionsQuery(mockExecutions)
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     expect(screen.getByText('Completed')).toBeInTheDocument()
     expect(screen.getByText('Running')).toBeInTheDocument()
@@ -200,7 +218,7 @@ describe('Executions Component', () => {
   it('renders table headers', () => {
     mockExecutionsQuery(mockExecutions)
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     expect(screen.getByRole('columnheader', { name: /Run ID/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /^Workflow name$/i })).toBeInTheDocument()
@@ -220,7 +238,7 @@ describe('Executions Component', () => {
       },
     ])
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     expect(screen.getByText('prod release')).toBeInTheDocument()
   })
@@ -235,7 +253,7 @@ describe('Executions Component', () => {
       },
     ])
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     const versionCells = screen.getAllByRole('cell', { name: /Jun/ })
     expect(versionCells.length).toBeGreaterThanOrEqual(1)
@@ -244,7 +262,7 @@ describe('Executions Component', () => {
   it('shows loading state', () => {
     mockExecutionsQuery([], true)
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     expect(screen.getByTestId('loading-state')).toBeInTheDocument()
   })
@@ -252,7 +270,7 @@ describe('Executions Component', () => {
   it('shows error state', () => {
     mockExecutionsQuery([], false, { message: 'Failed to load' })
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     expect(screen.getByText('Error loading executions')).toBeInTheDocument()
   })
@@ -260,7 +278,7 @@ describe('Executions Component', () => {
   it('displays workflow names instead of IDs', () => {
     mockExecutionsQuery(mockExecutions)
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     expect(screen.getByText('Hello World Workflow')).toBeInTheDocument()
     expect(screen.getByText('Data Processing Workflow')).toBeInTheDocument()
@@ -286,7 +304,7 @@ describe('Executions Component', () => {
       },
     ])
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     // Check for placeholder em-dashes (Version and Completed at columns)
     const placeholders = screen.getAllByText('—')
@@ -319,7 +337,7 @@ describe('Executions Component', () => {
       }
     }) as never)
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     // Verify executionsClient.useQuery was called with correct params
     expect(mockUseQuery).toHaveBeenCalledWith('get', '/executions', {
@@ -345,7 +363,7 @@ describe('Executions Component', () => {
     vi.mocked(useNavigate).mockReturnValue(mockSetLocation)
     const user = userEvent.setup()
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     const executionIdButton = screen.getByRole('button', { name: '123e4567-e89b-12d3-a456-426614174000' })
     expect(executionIdButton).toBeInTheDocument()
@@ -361,7 +379,7 @@ describe('Executions Component', () => {
     vi.mocked(useNavigate).mockReturnValue(mockSetLocation)
     const user = userEvent.setup()
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     const workflowButton = screen.getByRole('button', { name: 'Hello World Workflow' })
     expect(workflowButton).toBeInTheDocument()
@@ -377,7 +395,7 @@ describe('Executions Component', () => {
     vi.mocked(useNavigate).mockReturnValue(mockSetLocation)
     const user = userEvent.setup()
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     const execution1Button = screen.getByRole('button', { name: '123e4567-e89b-12d3-a456-426614174000' })
     await user.click(execution1Button)
@@ -399,7 +417,7 @@ describe('Executions Component', () => {
     vi.mocked(useNavigate).mockReturnValue(mockSetLocation)
     const user = userEvent.setup()
 
-    render(<Executions />)
+    render(<Executions />, { wrapper: TestWrapper })
 
     const workflow1Button = screen.getByRole('button', { name: 'Hello World Workflow' })
     await user.click(workflow1Button)
@@ -418,7 +436,7 @@ describe('Executions Component', () => {
     it('renders sortable column headers', () => {
       mockExecutionsQuery(mockExecutions)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Verify sortable columns have sort buttons
       const executionIdHeader = screen.getByRole('columnheader', { name: /Run ID/i })
@@ -435,7 +453,7 @@ describe('Executions Component', () => {
       const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Click Run ID header to sort
       const executionIdHeader = screen.getByRole('columnheader', { name: /Run ID/i })
@@ -452,7 +470,7 @@ describe('Executions Component', () => {
       const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       const executionIdHeader = screen.getByRole('columnheader', { name: /Run ID/i })
       const sortButton = within(executionIdHeader).getByRole('button')
@@ -471,7 +489,7 @@ describe('Executions Component', () => {
       const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Click Workflow name header
       const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow name$/i })
@@ -488,7 +506,7 @@ describe('Executions Component', () => {
       const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       const statusHeader = screen.getByRole('columnheader', { name: /^Status$/i })
       const sortButton = within(statusHeader).getByRole('button')
@@ -504,7 +522,7 @@ describe('Executions Component', () => {
       const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       const completedAtHeader = screen.getByRole('columnheader', { name: /Completed at/i })
       const sortButton = within(completedAtHeader).getByRole('button')
@@ -543,7 +561,7 @@ describe('Executions Component', () => {
         }
       }) as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Workflow name column is always visible
       expect(screen.getByRole('columnheader', { name: /^Workflow name$/i })).toBeInTheDocument()
@@ -573,7 +591,7 @@ describe('Executions Component', () => {
       })
       vi.mocked(executionsClient.useQuery).mockImplementation(mockUseQuery as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Open field selector
       const fieldSelector = screen.getAllByRole('button', { name: 'Workflow name' })[0]
@@ -632,7 +650,7 @@ describe('Executions Component', () => {
       })
       vi.mocked(executionsClient.useQuery).mockImplementation(mockUseQuery as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // When date filters are enabled, verify API is called with correct bracket notation
       // This documents the expected API contract for date range filters:
@@ -655,7 +673,7 @@ describe('Executions Component', () => {
     it('shows filter bar with field selector when data exists', () => {
       mockExecutionsQuery(mockExecutions)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // FilterBar shows by default - verify filter components are present
       // The field selector for "Workflow name" exists (there are 2: filter selector and table header)
@@ -667,7 +685,7 @@ describe('Executions Component', () => {
       mockExecutionsQuery(mockExecutions)
       const user = userEvent.setup()
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Click the field selector dropdown - get all buttons with "Workflow name" and pick the first (filter selector)
       const buttons = screen.getAllByRole('button', { name: 'Workflow name' })
@@ -710,7 +728,7 @@ describe('Executions Component', () => {
         }
       }) as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Verify API was called with workflow_id filter
       expect(mockUseQuery).toHaveBeenCalledWith('get', '/executions', {
@@ -740,7 +758,7 @@ describe('Executions Component', () => {
       } as never)
       // Don't override workflowClient mock - use the one from beforeEach
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // When there's no data and no filters, show EmptyStateNoData without the filter toolbar
       expect(screen.getByText('No executions found')).toBeInTheDocument()
@@ -772,7 +790,7 @@ describe('Executions Component', () => {
         }
       }) as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Shows EmptyStateFilter when there are active filters but no results
       expect(screen.getByText('No results found')).toBeInTheDocument()
@@ -792,7 +810,7 @@ describe('Executions Component', () => {
       } as never)
       // Don't override workflowClient mock - use the one from beforeEach
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // FilterBar is always visible; EmptyStateNoData is shown in the table area
       expect(screen.getByText('No executions found')).toBeInTheDocument()
@@ -803,7 +821,7 @@ describe('Executions Component', () => {
     it('displays footer with execution count', () => {
       mockExecutionsQuery(mockExecutions)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // PF Pagination renders a nav with pagination controls
       expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
@@ -812,7 +830,7 @@ describe('Executions Component', () => {
     it('displays singular execution text for one execution', () => {
       mockExecutionsQuery([mockExecutions[0]])
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // PF Pagination renders a nav with pagination controls even for a single item
       expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
@@ -829,7 +847,7 @@ describe('Executions Component', () => {
         error: null,
       } as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
       expect(paginationNav).toBeInTheDocument()
@@ -849,7 +867,7 @@ describe('Executions Component', () => {
       } as never)
 
       const user = userEvent.setup()
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Find and click the next button
       const nextButton = screen.getByRole('button', { name: /next/i })
@@ -873,7 +891,7 @@ describe('Executions Component', () => {
       } as never)
 
       const user = userEvent.setup()
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Find and click the prev button
       const prevButton = screen.getByRole('button', { name: /previous/i })
@@ -920,7 +938,7 @@ describe('Executions Component', () => {
         return { data: undefined, isPending: false, error: null }
       }) as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Grouped view shows project names as group headers
       expect(screen.getByText('Project Alpha')).toBeInTheDocument()
@@ -960,7 +978,7 @@ describe('Executions Component', () => {
         return { data: undefined, isPending: false, error: null }
       }) as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       expect(screen.getByText('Project Alpha')).toBeInTheDocument()
       // Execution ID should be visible
@@ -1007,7 +1025,7 @@ describe('Executions Component', () => {
         return { data: undefined, isPending: false, error: null }
       }) as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Falls back to project ID string when project is not in the list
       expect(screen.getByText('unknown-proj-id')).toBeInTheDocument()
@@ -1030,7 +1048,7 @@ describe('Executions Component', () => {
       })
       vi.mocked(executionsClient.useQuery).mockImplementation(mockUseQuery as never)
 
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // Query is called with cursor pagination params
       expect(mockUseQuery).toHaveBeenCalledWith(
@@ -1061,7 +1079,7 @@ describe('Executions Component', () => {
       } as never)
 
       const user = userEvent.setup()
-      render(<Executions />)
+      render(<Executions />, { wrapper: TestWrapper })
 
       // EmptyStateFilter should be shown (active filters + empty results)
       expect(screen.getByText('No results found')).toBeInTheDocument()

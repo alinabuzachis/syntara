@@ -107,6 +107,11 @@ vi.mock('../../client', () => ({
     })),
   },
   workflowClient: {
+    useQuery: vi.fn(() => ({
+      data: null,
+      isLoading: false,
+      error: null,
+    })),
     useMutation: vi.fn(() => ({
       mutateAsync: vi.fn(),
       isPending: false,

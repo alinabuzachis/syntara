@@ -187,6 +187,7 @@ export default function Executions() {
                       <Th modifier="nowrap">Version</Th>
                       <Th sort={getSortParams(4)}>Created at</Th>
                       <Th sort={getSortParams(5)}>Completed at</Th>
+                      <Th screenReaderText="Actions" />
                     </Tr>
                   </Thead>
                   {isAllProjects && groupedExecutions ? (

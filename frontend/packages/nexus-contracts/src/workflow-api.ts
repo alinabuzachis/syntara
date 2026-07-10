@@ -849,6 +849,8 @@ export interface components {
       execution_metadata?: {
         [key: string]: unknown
       } | null
+      /** Retried From Execution Id */
+      retried_from_execution_id?: string | null
       /** Labels */
       labels?: {
         [key: string]: unknown

@@ -6,7 +6,7 @@ HTTP/API concerns in the FastAPI endpoints.
 
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import jsonschema
@@ -30,6 +30,7 @@ from nexus.workflows.audit.execution_lifecycle import ExecutionAction, Execution
 from nexus.workflows.exceptions import (
     ExecutionInTerminalStateError,
     ExecutionNotFoundError,
+    ExecutionNotRetryableError,
     TemporalUnavailableError,
     TriggerValidationError,
     WorkflowNotFoundError,
@@ -53,6 +54,9 @@ from nexus.workflows.models.workflow_definition import WorkflowDefinition
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.workflow_engine.models.workflow_definition import NodeType, resolve_trigger_node
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
+
+if TYPE_CHECKING:
+    from nexus.metrics.recorder import MetricsRecorder
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -110,6 +114,7 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
             deleted_by=resource.deleted_by,
             mode=resource.mode,
             execution_metadata=resource.execution_metadata,
+            retried_from_execution_id=resource.retried_from_execution_id,
         )
 
         if self.include and len(self.include) > 0:
@@ -332,7 +337,33 @@ class ExecutionService(BaseService):
         trigger_node_id, trigger_node = resolve_trigger_node(workflow_def, trigger_node_id)
         self._apply_trigger_schema_defaults(trigger_node, input_data)
 
-        # Step 3: Build workflow context for expression resolution.
+        return await self._start_temporal_and_create_execution(
+            workflow=workflow,
+            workflow_version=workflow_version,
+            input_data=input_data,
+            trigger_node_id=trigger_node_id,
+            recorder=recorder,
+            component=component,
+        )
+
+    async def _start_temporal_and_create_execution(
+        self,
+        *,
+        workflow: Workflow,
+        workflow_version: WorkflowVersion,
+        input_data: dict[str, Any],
+        trigger_node_id: str,
+        recorder: "MetricsRecorder",
+        component: ComponentLabel,
+        retried_from_execution_id: UUID | None = None,
+    ) -> ExecutionRead:
+        """Start a Temporal workflow and persist the execution record.
+
+        Shared by create_execution and retry_execution to avoid duplication.
+        Starts Temporal first, then creates the DB record. On DB commit failure,
+        attempts to cancel the orphaned Temporal workflow.
+        """
+        # Build workflow context for expression resolution.
         # Uses the reserved "workflow_context" namespace per the handbook proposal (P3).
         # "now" and "today" are NOT included here — they are resolved dynamically by the
         # workflow engine at each node execution so they reflect the current wall-clock time.
@@ -361,7 +392,7 @@ class ExecutionService(BaseService):
             },
         }
 
-        # Step 4: Start Temporal workflow FIRST (if temporal_service is available)
+        # Start Temporal workflow FIRST (if temporal_service is available)
         from nexus.audit.emitter import request_id_context_var  # noqa: PLC0415
 
         if self.temporal_service is not None:
@@ -394,10 +425,11 @@ class ExecutionService(BaseService):
             execution_id = UUID(pre_generated_execution_id)
             temporal_workflow_id = f"exec-{execution_id}"
             logger.warning(
-                "No Temporal service available, using stub workflow ID", temporal_workflow_id=temporal_workflow_id
+                "No Temporal service available, using stub workflow ID",
+                temporal_workflow_id=temporal_workflow_id,
             )
 
-        # Step 5: Create execution record in database ONLY after Temporal accepts workflow
+        # Create execution record in database ONLY after Temporal accepts workflow
         execution = Execution(
             id=execution_id,
             workflow_id=workflow.id,
@@ -407,6 +439,7 @@ class ExecutionService(BaseService):
             status=ExecutionStatus.PENDING,
             input_data=input_data,
             trigger_node_id=trigger_node_id,
+            retried_from_execution_id=retried_from_execution_id,
             created_by=self.user.id,
             updated_by=self.user.id,
         )
@@ -423,6 +456,20 @@ class ExecutionService(BaseService):
                 mode=ExecutionMode.STANDARD.value,
                 error_type=type(exc).__name__,
             )
+            if self.temporal_service is not None:
+                try:
+                    await self.temporal_service.cancel_workflow(temporal_workflow_id=temporal_workflow_id)
+                    logger.warning(
+                        "Cancelled orphaned Temporal workflow after DB commit failure",
+                        temporal_workflow_id=temporal_workflow_id,
+                        execution_id=str(execution_id),
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to cancel orphaned Temporal workflow after DB commit failure",
+                        temporal_workflow_id=temporal_workflow_id,
+                        execution_id=str(execution_id),
+                    )
             raise
 
         logger.info(
@@ -1041,4 +1088,83 @@ class ExecutionService(BaseService):
             workflow_name=execution.workflow.name,
             action=ExecutionAction.CANCELLED,
             mode=execution.mode.value,
+        )
+
+    async def retry_execution(self, execution_id: UUID) -> ExecutionRead:
+        """Retry a completed execution, re-running with the same version and inputs.
+
+        Creates a new execution that copies workflow_version_id, input_data, and
+        trigger_node_id from the original. The new execution records its lineage
+        via retried_from_execution_id.
+
+        Args:
+            execution_id: ID of the execution to retry
+
+        Returns:
+            The newly created execution with status=PENDING
+
+        Raises:
+            ExecutionNotFoundError: If execution not found
+            ExecutionNotRetryableError: If execution is not in a terminal state or is a test run
+
+        """
+        # Step 1: Fetch original execution with workflow relationship
+        query = (
+            select(Execution)
+            .where(Execution.id == execution_id)
+            .where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
+            .options(selectinload(Execution.workflow))  # type: ignore[arg-type]
+        )
+        result = await self.session.exec(query)
+        original = result.one_or_none()
+
+        if original is None:
+            raise ExecutionNotFoundError(execution_id)
+
+        # Step 2: Validate retryability
+        if original.status not in TERMINAL_EXECUTION_STATUSES:
+            raise ExecutionNotRetryableError(
+                execution_id, f"execution is in {original.status.value} state (must be terminal)"
+            )
+
+        if original.mode == ExecutionMode.TEST:
+            raise ExecutionNotRetryableError(execution_id, "test executions cannot be retried")
+
+        # Step 3: Validate workflow is not soft-deleted
+        workflow = original.workflow
+        if workflow.deleted_at is not None:
+            raise ExecutionNotRetryableError(execution_id, "workflow has been deleted")
+
+        # Step 4: Fetch the workflow version used by the original execution
+        version_result = await self.session.exec(
+            select(WorkflowVersion)
+            .where(WorkflowVersion.id == original.workflow_version_id)
+            .where(WorkflowVersion.deleted_at.is_(None))  # type: ignore[union-attr]
+        )
+        workflow_version = version_result.one_or_none()
+        if workflow_version is None:
+            raise ExecutionNotRetryableError(execution_id, "original workflow version no longer exists")
+
+        logger.info(
+            "Retrying execution",
+            original_execution_id=execution_id,
+            workflow_id=workflow.id,
+            workflow_version_id=workflow_version.id,
+        )
+
+        # Step 5: Resolve trigger node from the original version's definition
+        workflow_def = workflow_version.workflow_definition
+        trigger_node_id, _ = resolve_trigger_node(workflow_def, original.trigger_node_id)
+
+        recorder = get_metrics_recorder()
+        component = ComponentLabel.EXECUTION_SERVICE
+
+        return await self._start_temporal_and_create_execution(
+            workflow=workflow,
+            workflow_version=workflow_version,
+            input_data=original.input_data,
+            trigger_node_id=trigger_node_id,
+            recorder=recorder,
+            component=component,
+            retried_from_execution_id=original.id,
         )

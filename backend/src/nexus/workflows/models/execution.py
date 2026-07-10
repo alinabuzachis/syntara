@@ -220,6 +220,16 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         sa_column_kwargs={"server_default": text("false")},
     )
 
+    # Retry lineage
+    retried_from_execution_id: UUID | None = Field(
+        default=None,
+        foreign_key="executions.id",
+        nullable=True,
+        ondelete="SET NULL",
+        index=True,
+        description="ID of the execution this was retried from (null if not a retry)",
+    )
+
     # Execution mode and metadata
     mode: ExecutionMode = Field(
         default=ExecutionMode.STANDARD,
@@ -426,6 +436,7 @@ class ExecutionRead(SQLModel):
     deleted_by: UUID | None = None
     mode: ExecutionMode = ExecutionMode.STANDARD
     execution_metadata: dict[str, Any] | None = None
+    retried_from_execution_id: UUID | None = None
 
     # Optional: Only populated when ?include=workflow_definition
     workflow_definition: WorkflowDefinition | None = Field(

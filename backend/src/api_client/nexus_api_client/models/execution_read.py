@@ -54,6 +54,7 @@ class ExecutionRead:
             trigger_node_id (None | str | Unset):
             mode (ExecutionMode | Unset): Execution mode for workflow runs.
             execution_metadata (ExecutionReadExecutionMetadataType0 | None | Unset):
+            retried_from_execution_id (None | Unset | UUID):
             labels (ExecutionReadLabels | Unset):
             approval_pending (bool | Unset):  Default: False.
             current_activities (list[CurrentActivity] | Unset): Currently executing activities
@@ -84,6 +85,7 @@ class ExecutionRead:
     trigger_node_id: None | str | Unset = UNSET
     mode: ExecutionMode | Unset = UNSET
     execution_metadata: ExecutionReadExecutionMetadataType0 | None | Unset = UNSET
+    retried_from_execution_id: None | Unset | UUID = UNSET
     labels: ExecutionReadLabels | Unset = UNSET
     approval_pending: bool | Unset = False
     current_activities: list[CurrentActivity] | Unset = UNSET
@@ -170,6 +172,14 @@ class ExecutionRead:
         else:
             execution_metadata = self.execution_metadata
 
+        retried_from_execution_id: None | str | Unset
+        if isinstance(self.retried_from_execution_id, Unset):
+            retried_from_execution_id = UNSET
+        elif isinstance(self.retried_from_execution_id, UUID):
+            retried_from_execution_id = str(self.retried_from_execution_id)
+        else:
+            retried_from_execution_id = self.retried_from_execution_id
+
         labels: dict[str, Any] | Unset = UNSET
         if not isinstance(self.labels, Unset):
             labels = self.labels.to_dict()
@@ -250,6 +260,8 @@ class ExecutionRead:
             field_dict["mode"] = mode
         if execution_metadata is not UNSET:
             field_dict["execution_metadata"] = execution_metadata
+        if retried_from_execution_id is not UNSET:
+            field_dict["retried_from_execution_id"] = retried_from_execution_id
         if labels is not UNSET:
             field_dict["labels"] = labels
         if approval_pending is not UNSET:
@@ -404,6 +416,23 @@ class ExecutionRead:
 
         execution_metadata = _parse_execution_metadata(d.pop("execution_metadata", UNSET))
 
+        def _parse_retried_from_execution_id(data: object) -> None | Unset | UUID:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                retried_from_execution_id_type_0 = UUID(data)
+
+                return retried_from_execution_id_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | UUID, data)
+
+        retried_from_execution_id = _parse_retried_from_execution_id(d.pop("retried_from_execution_id", UNSET))
+
         _labels = d.pop("labels", UNSET)
         labels: ExecutionReadLabels | Unset
         if isinstance(_labels, Unset):
@@ -515,6 +544,7 @@ class ExecutionRead:
             trigger_node_id=trigger_node_id,
             mode=mode,
             execution_metadata=execution_metadata,
+            retried_from_execution_id=retried_from_execution_id,
             labels=labels,
             approval_pending=approval_pending,
             current_activities=current_activities,

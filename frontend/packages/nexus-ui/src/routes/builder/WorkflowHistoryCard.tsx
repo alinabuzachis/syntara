@@ -16,16 +16,22 @@ import {
   TitleSizes,
   Truncate,
 } from '@patternfly/react-core'
-import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
-import React, { useMemo, type CSSProperties, type ReactNode } from 'react'
+import { RhUiCloseIcon, RhUiHistoryIcon, RhUiRedoIcon } from '@patternfly/react-icons'
+import React, { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { FilterBar } from '../../components/filters/FilterBar'
+import { IconLabel } from '../../components/IconLabel'
 import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
 import { NxLabel } from '../../components/labels/NxLabel'
 import pageMainSlotStyles from '../../components/layout/NxPage.module.css'
 import { NxPanel } from '../../components/layout/NxPanel'
+import type { KebabAction } from '../../components/NxKebabMenu'
+import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { permissionTooltip } from '../../hooks/permissionUtils'
 import { Link } from '../../hooks/routing/Link'
+import { useNavigate } from '../../hooks/routing/useNavigate'
+import { useCanI } from '../../hooks/useCanI'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { formatDateTime, formatElapsedTime } from '../../utils/dateUtils'
@@ -33,6 +39,10 @@ import {
   getExecutionStatusFilterDefinition,
   getExecutionVersionFilterFromExecutions,
 } from '../executions/executionFilters'
+import { isExecutionRetryable } from '../executions/executionRetryable'
+import { useIsCurrentVersion } from '../executions/hooks/useIsCurrentVersion'
+import { RetryExecutionDialog } from '../executions/RetryExecutionDialog'
+import { useRetryExecution } from '../executions/useRetryExecution'
 import type { ExecutionMetadata } from '../workflows/stores/useExecutionStore'
 
 import { StatusLabel } from './ExecutionStatus'
@@ -41,6 +51,7 @@ import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 
 const TRUNCATED_ID_LENGTH = 8 // First 8 chars of UUID provide sufficient uniqueness
+const historyRetryTooltip = permissionTooltip('retry this execution', 'execution:run')
 
 type ExecutionGroup = {
   label: string
@@ -63,6 +74,52 @@ type ExecutionHistoryRowProps = {
   isSelected?: boolean
 }
 
+function HistoryRowRetryAction({ execution }: Readonly<{ execution: Execution }>) {
+  const [retryDialogOpen, setRetryDialogOpen] = useState(false)
+  const navigate = useNavigate()
+  const truncatedId = execution.id ? execution.id.slice(0, TRUNCATED_ID_LENGTH) : null
+
+  /* v8 ignore start -- v8 emits phantom branches from compiled hook destructuring */
+  const { allowed: canRun, isChecking } = useCanI('run', 'execution')
+  const {
+    isCurrentVersion,
+    versionLabel,
+    isLoading: isVersionLoading,
+  } = useIsCurrentVersion(execution.workflow_id, execution.workflow_version_id, retryDialogOpen)
+  const retryHook = useRetryExecution(execution.id, (newId) => {
+    setRetryDialogOpen(false)
+    navigate(`/executions/${newId}`)
+  })
+  /* v8 ignore stop */
+
+  const kebabActions: KebabAction[] = [
+    {
+      key: 'retry',
+      title: <IconLabel icon={<RhUiRedoIcon />}>Retry run</IconLabel>,
+      isAriaDisabled: !canRun || isChecking,
+      tooltipProps: !canRun && !isChecking ? { content: historyRetryTooltip } : undefined,
+      onClick: () => setRetryDialogOpen(true),
+    },
+  ]
+
+  return (
+    <>
+      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role="presentation">
+        <NxKebabMenu aria-label={`Actions for execution ${truncatedId ?? execution.id}`} actions={kebabActions} />
+      </div>
+      <RetryExecutionDialog
+        isOpen={retryDialogOpen}
+        onClose={() => setRetryDialogOpen(false)}
+        onConfirm={retryHook.handleRetry}
+        confirmLoading={retryHook.isPending || isVersionLoading}
+        isCurrentVersion={isCurrentVersion}
+        isVersionLoading={isVersionLoading}
+        versionLabel={versionLabel}
+      />
+    </>
+  )
+}
+
 export function ExecutionHistoryRow({ execution, onSelect, isSelected }: ExecutionHistoryRowProps) {
   const isRunning = execution.status === 'running'
   const startedAtValue = execution.created_at ?? null
@@ -70,6 +127,7 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
   const elapsedLabel = elapsedMs !== undefined ? `Elapsed time: ${formatElapsedTime(elapsedMs)}` : 'Elapsed time: -'
   const truncatedId = execution.id ? execution.id.slice(0, TRUNCATED_ID_LENGTH) : null
   const isTestRun = (execution as { execution_metadata?: ExecutionMetadata }).execution_metadata?.mode === 'test'
+  const retryable = isExecutionRetryable(execution.status, execution.mode)
 
   return (
     <SimpleListItem itemId={execution.id} isActive={isSelected} onClick={onSelect}>
@@ -107,14 +165,22 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
                 </Link>
               </Content>
             )}
+            {execution.retried_from_execution_id && (
+              <Content component={ContentVariants.small} style={{ margin: 0, fontStyle: 'italic' }}>
+                {`Retried from: ${execution.retried_from_execution_id.slice(0, TRUNCATED_ID_LENGTH)}`}
+              </Content>
+            )}
           </Stack>
         </FlexItem>
         <FlexItem style={{ flexShrink: 0 }}>
-          <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)' }}>
-            {execution.status && <StatusLabel status={execution.status} />}
-            <ApprovalPendingBadge approvalPending={execution.approval_pending} />
-            {isTestRun && <NxLabel color="purple">Test run</NxLabel>}
-          </Stack>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+            <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)' }}>
+              {execution.status && <StatusLabel status={execution.status} />}
+              <ApprovalPendingBadge approvalPending={execution.approval_pending} />
+              {isTestRun && <NxLabel color="purple">Test run</NxLabel>}
+            </Stack>
+            {retryable && <HistoryRowRetryAction execution={execution} />}
+          </Flex>
         </FlexItem>
       </Flex>
     </SimpleListItem>

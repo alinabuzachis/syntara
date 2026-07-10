@@ -1,12 +1,35 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { SimpleList } from '@patternfly/react-core'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { WorkflowHistoryCard, ExecutionHistoryRow } from './WorkflowHistoryCard'
 
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
+
+vi.mock('../../client', () => ({
+  workflowClient: {
+    useQuery: vi.fn(() => ({ data: null, isLoading: false, error: null })),
+  },
+  executionsClient: {
+    useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  },
+  authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../../providers/alerts/AlertContext', () => ({
+  useAlerts: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
+}))
+
+const testQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+function TestWrapper({ children }: { children: ReactNode }) {
+  return <QueryClientProvider client={testQueryClient}>{children}</QueryClientProvider>
+}
 
 vi.mock('../../hooks/routing/Link', () => ({
   Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
@@ -68,50 +91,54 @@ describe('WorkflowHistoryCard', () => {
     onExecutionSelect: mockOnExecutionSelect,
   }
 
+  function renderCard(ui: React.ReactElement) {
+    return render(ui, { wrapper: TestWrapper })
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('renders the component with title', () => {
-    render(<WorkflowHistoryCard {...defaultProps} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} />)
     expect(screen.getByText('Run History')).toBeInTheDocument()
   })
 
   it('renders the subtext', () => {
-    render(<WorkflowHistoryCard {...defaultProps} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} />)
     expect(screen.getByText('View past runs of this workflow.')).toBeInTheDocument()
   })
 
   it('renders close button', () => {
-    render(<WorkflowHistoryCard {...defaultProps} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} />)
     expect(screen.getByLabelText('Close run history')).toBeInTheDocument()
   })
 
   it('calls onClose when close button is clicked', async () => {
     const user = userEvent.setup()
-    render(<WorkflowHistoryCard {...defaultProps} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} />)
     await user.click(screen.getByLabelText('Close run history'))
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
   it('shows empty message when no executions', () => {
-    render(<WorkflowHistoryCard {...defaultProps} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} />)
     expect(screen.getByText('No execution history available')).toBeInTheDocument()
   })
 
   it('renders date group header "Today" for a recent execution', () => {
-    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     expect(screen.getByText('Today')).toBeInTheDocument()
   })
 
   it('renders execution rows with formatted date and status', () => {
-    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     expect(screen.getByText(/Jan 15, 2024/)).toBeInTheDocument()
     expect(screen.getByTestId('status-label')).toHaveTextContent('running')
   })
 
   it('renders truncated run ID with label', () => {
-    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     expect(screen.getByText('Run ID: 12345678')).toBeInTheDocument()
   })
 
@@ -121,13 +148,13 @@ describe('WorkflowHistoryCard', () => {
       created_at: '2024-01-15T10:00:00Z',
       completed_at: '2024-01-15T10:01:30Z',
     }
-    render(<WorkflowHistoryCard {...defaultProps} executions={[execution]} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} executions={[execution]} />)
     expect(screen.getByText('Elapsed time: 90000ms')).toBeInTheDocument()
   })
 
   it('renders "Elapsed time: -" when execution is completed with no timing data', () => {
     const execution: Execution = { ...baseExecution, status: 'completed' }
-    render(<WorkflowHistoryCard {...defaultProps} executions={[execution]} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} executions={[execution]} />)
     expect(screen.getByText('Elapsed time: -')).toBeInTheDocument()
   })
 
@@ -136,7 +163,7 @@ describe('WorkflowHistoryCard', () => {
       { ...baseExecution, id: 'aaaaaaaa-0000-0000-0000-000000000001', status: 'completed' },
       { ...baseExecution, id: 'bbbbbbbb-0000-0000-0000-000000000002', status: 'failed' },
     ]
-    render(<WorkflowHistoryCard {...defaultProps} executions={executions} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} executions={executions} />)
     const statusLabels = screen.getAllByTestId('status-label')
     expect(statusLabels).toHaveLength(2)
     expect(statusLabels[0]).toHaveTextContent('completed')
@@ -145,14 +172,14 @@ describe('WorkflowHistoryCard', () => {
 
   it('calls onExecutionSelect with the execution id when row is clicked', async () => {
     const user = userEvent.setup()
-    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     const row = screen.getByRole('button', { name: /running/i })
     await user.click(row)
     expect(mockOnExecutionSelect).toHaveBeenCalledWith(baseExecution.id)
   })
 
   it('highlights the selected execution row with pf-m-current class', () => {
-    render(
+    renderCard(
       <WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId={baseExecution.id} />
     )
     const buttons = screen.getAllByRole('button')
@@ -161,32 +188,32 @@ describe('WorkflowHistoryCard', () => {
   })
 
   it('does not highlight an unselected row', () => {
-    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId="other-id" />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId="other-id" />)
     const rowButton = screen.getByRole('button', { name: /running/i })
     expect(rowButton).not.toHaveClass('pf-m-current')
   })
 
   it('renders a SimpleList when executions are present', () => {
-    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    renderCard(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     expect(screen.getByRole('list')).toBeInTheDocument()
   })
 
   describe('status filter', () => {
     it('renders filter bar when onFilterChange is provided', () => {
       const onFilterChange = vi.fn()
-      render(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
+      renderCard(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
       expect(screen.getByText('Filter by status')).toBeInTheDocument()
     })
 
     it('does not render filter bar when onFilterChange is not provided', () => {
-      render(<WorkflowHistoryCard {...defaultProps} />)
+      renderCard(<WorkflowHistoryCard {...defaultProps} />)
       expect(screen.queryByText('Status')).not.toBeInTheDocument()
     })
 
     it('shows status options from API contract when filter dropdown is opened', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
-      render(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
+      renderCard(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
 
       // Open the filter value dropdown (second dropdown in attribute-search)
       const statusToggle = screen.getByText('Filter by status')
@@ -203,7 +230,7 @@ describe('WorkflowHistoryCard', () => {
     it('calls onFilterChange when a status is selected', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
-      render(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
+      renderCard(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
 
       const statusToggle = screen.getByText('Filter by status')
       await user.click(statusToggle)
@@ -227,7 +254,8 @@ describe('ExecutionHistoryRow', () => {
     return render(
       <SimpleList isControlled={false}>
         <ExecutionHistoryRow execution={execution} onSelect={mockOnSelect} isSelected={isSelected} />
-      </SimpleList>
+      </SimpleList>,
+      { wrapper: TestWrapper }
     )
   }
 

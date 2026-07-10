@@ -20,6 +20,7 @@ if TYPE_CHECKING:
         BuiltinWorkflowModifyError,
         ExecutionInTerminalStateError,
         ExecutionNotFoundError,
+        ExecutionNotRetryableError,
         PayloadTooLargeError,
         ScheduledTriggerNotFoundError,
         TemporalUnavailableError,
@@ -147,6 +148,25 @@ def execution_not_found_handler(request: Request, exc: "ExecutionNotFoundError")
         title="Execution Not Found",
         detail="The requested execution was not found",
         code="EXECUTION_NOT_FOUND",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def execution_not_retryable_handler(request: Request, exc: "ExecutionNotRetryableError") -> JSONResponse:
+    """Handle ExecutionNotRetryableError with RFC 9457 format."""
+    logger.error(
+        "Execution not retryable",
+        execution_id=str(exc.execution_id),
+        reason=exc.reason,
+        exc_info=exc,
+    )
+    return create_problem_details_response(
+        status_code=status.HTTP_409_CONFLICT,
+        problem_type=PROBLEM_TYPES["resource_conflict"],
+        title="Execution Not Retryable",
+        detail=str(exc),
+        code="EXECUTION_NOT_RETRYABLE",
         retryable=False,
         instance=str(request.url),
     )

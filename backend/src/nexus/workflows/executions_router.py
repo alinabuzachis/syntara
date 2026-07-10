@@ -282,6 +282,26 @@ async def cancel_execution(
     await service.cancel_execution(execution_id)
 
 
+@router.post(
+    "/{execution_id}/retry",
+    operation_id="retry_execution",
+    summary="Retry execution",
+    description="Retry a completed workflow execution. Creates a new execution "
+    "using the same workflow version, inputs, and trigger as the original.",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ExecutionRead,
+    response_description="New execution created from retry",
+    dependencies=[Depends(_exec_perm_run)],
+)
+async def retry_execution(
+    execution_id: UUID,
+    service: Annotated[ExecutionService, Depends(get_execution_service)],
+) -> ExecutionRead:
+    """Retry a completed workflow execution."""
+    logger.info("Retrying execution", execution_id=execution_id)
+    return await service.retry_execution(execution_id)
+
+
 @router.get(
     "/{execution_id}/activities",
     operation_id="list_execution_activities",
