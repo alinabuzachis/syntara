@@ -1155,6 +1155,11 @@ async def _build_oidc_authorize_redirect(
         code_challenge=code_challenge,
     )
 
+    parsed_auth = urlparse(auth_url)
+    if parsed_auth.scheme not in ("http", "https"):
+        msg = "OIDC authorization endpoint has invalid URL scheme"
+        raise OIDCError(msg)
+
     logger.info("Redirecting to OIDC provider", provider_id=str(provider_id), provider_name=provider.name)
 
     return RedirectResponse(url=auth_url, status_code=302)
@@ -1867,8 +1872,9 @@ def _extract_referer_origin(request: Request) -> str | None:
     origin = f"{parsed.scheme}://{parsed.netloc}"
 
     settings = get_settings()
-    if origin in settings.cors_allow_origins:
-        return origin
+    for allowed in settings.cors_allow_origins:
+        if allowed == origin:
+            return allowed
 
     logger.debug("Referer origin not in CORS allowed origins", origin=origin)
     return None
@@ -1885,8 +1891,9 @@ def _revalidate_origin(origin: str | None) -> str | None:
         return None
 
     settings = get_settings()
-    if origin in settings.cors_allow_origins:
-        return origin
+    for allowed in settings.cors_allow_origins:
+        if allowed == origin:
+            return allowed
 
     logger.warning("Stored OIDC origin no longer in CORS allowed origins, discarding", origin=origin)
     return None
@@ -1900,7 +1907,10 @@ def _get_frontend_base_url(origin: str | None = None) -> str:
     2. jwt_issuer (server origin — last resort)
     """
     if origin:
-        return origin
+        parsed = urlparse(origin)
+        if parsed.scheme in ("http", "https") and parsed.netloc:
+            return origin
+        logger.warning("Rejected frontend base URL with invalid scheme", origin=origin)
 
     return get_settings().jwt_issuer
 
