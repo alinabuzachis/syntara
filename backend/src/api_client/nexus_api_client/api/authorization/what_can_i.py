@@ -88,7 +88,7 @@ def sync_detailed(
     """List all permissions for the current user
 
      Resolves the current user's effective policies and returns them as a flat list of permission
-    entries. No OPA call needed.
+    entries. No runtime policy evaluation call is needed.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -114,7 +114,7 @@ def sync(
     """List all permissions for the current user
 
      Resolves the current user's effective policies and returns them as a flat list of permission
-    entries. No OPA call needed.
+    entries. No runtime policy evaluation call is needed.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -136,7 +136,7 @@ async def asyncio_detailed(
     """List all permissions for the current user
 
      Resolves the current user's effective policies and returns them as a flat list of permission
-    entries. No OPA call needed.
+    entries. No runtime policy evaluation call is needed.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -160,7 +160,7 @@ async def asyncio(
     """List all permissions for the current user
 
      Resolves the current user's effective policies and returns them as a flat list of permission
-    entries. No OPA call needed.
+    entries. No runtime policy evaluation call is needed.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

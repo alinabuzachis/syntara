@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the container locally simulating a hermetic Konflux build.
+# Build the container locally simulating a hermetic Konflux build (pip + rpm + generic).
 #
 # Usage:
 #   bash tools/ci/local-hermetic-build.sh                         # full build (prefetch + KBC build)
@@ -19,7 +19,7 @@ PREFETCH_OUTPUT_DIR="${OUTPUT_DIR}/output"
 IMAGE_TAG="${IMAGE_TAG:-localhost/nexus-local:hermetic}"
 PREFETCH_MODE="${PREFETCH_MODE:-permissive}"
 ENABLE_PACKAGE_REGISTRY_PROXY="${ENABLE_PACKAGE_REGISTRY_PROXY:-false}"
-PREFETCH_INPUT_DEFAULT='[{"type":"pip","path":"backend"},{"type":"rpm","path":"backend"}]'
+PREFETCH_INPUT_DEFAULT='[{"type":"pip","path":"backend"},{"type":"rpm","path":"backend"},{"type":"generic","path":"backend"}]'
 PREFETCH_INPUT="${PREFETCH_INPUT:-${PREFETCH_INPUT_DEFAULT}}"
 KBC_CACHE_MODE="${KBC_CACHE_MODE:-volume}"
 KBC_STORAGE_VOLUME="${KBC_STORAGE_VOLUME:-kbc-storage-cache}"
@@ -32,6 +32,8 @@ KEY_DIR=""
 AUTH_FILE=""
 GRAPHROOT=""
 BUILD_LOG="${BACKEND_ROOT}/.kbc-build.log"
+WORKTREE_GIT_BACKUP=false
+GIT_COMMON_HOST_DIR=""
 
 while [ "$#" -gt 0 ]; do
 	arg="$1"
@@ -73,7 +75,55 @@ done
 
 cd "${BACKEND_ROOT}"
 
+restore_worktree_git() {
+	local ws_git="${WORKSPACE_ROOT}/.git"
+	if [ "${WORKTREE_GIT_BACKUP}" = true ] && [ -f "${ws_git}.worktree-backup" ]; then
+		rm -rf "${ws_git}"
+		mv "${ws_git}.worktree-backup" "${ws_git}"
+		WORKTREE_GIT_BACKUP=false
+	fi
+}
+
+prepare_worktree_git() {
+	local ws_git="${WORKSPACE_ROOT}/.git"
+
+	# Recover from a previously interrupted run
+	if [ -f "${ws_git}.worktree-backup" ]; then
+		if [ -d "${ws_git}" ]; then
+			rm -rf "${ws_git}"
+		fi
+		mv "${ws_git}.worktree-backup" "${ws_git}"
+	fi
+
+	# Only act when .git is a file (worktree pointer)
+	[ -f "${ws_git}" ] || return 0
+
+	echo "=== Detected git worktree; preparing .git directory for container ==="
+
+	local real_common_dir current_head
+	real_common_dir="$(cd "$(git -C "${WORKSPACE_ROOT}" rev-parse --git-common-dir)" && pwd)"
+	current_head="$(git -C "${WORKSPACE_ROOT}" rev-parse HEAD)"
+
+	mv "${ws_git}" "${ws_git}.worktree-backup"
+
+	mkdir -p "${ws_git}/objects/info" "${ws_git}/refs"
+	cp "${real_common_dir}/config" "${ws_git}/config"
+	printf "%s\n" "${current_head}" >"${ws_git}/HEAD"
+
+	# Point git alternates at the container-mounted main repo objects so
+	# Hermeto can resolve commits without copying 300+ MB of pack data.
+	printf "/git-common/objects\n" >"${ws_git}/objects/info/alternates"
+
+	# packed-refs is needed to resolve branch/tag names
+	[ -f "${real_common_dir}/packed-refs" ] && \
+		cp "${real_common_dir}/packed-refs" "${ws_git}/packed-refs"
+
+	GIT_COMMON_HOST_DIR="${real_common_dir}"
+	WORKTREE_GIT_BACKUP=true
+}
+
 cleanup() {
+	restore_worktree_git
 	[ -n "${KEY_DIR}" ] && rm -rf "${KEY_DIR}"
 }
 trap cleanup EXIT
@@ -93,10 +143,10 @@ require_rhsm() {
 	: "${RHSM_ACTIVATION_KEY:?missing RHSM_ACTIVATION_KEY}"
 }
 
-declare -a REQUIRED_BACKENDS=("pip" "rpm")
+declare -a REQUIRED_BACKENDS=("pip" "rpm" "generic")
 if [ "${PIP_ONLY}" = true ]; then
-	REQUIRED_BACKENDS=("pip")
-	PREFETCH_INPUT='[{"type":"pip","path":"backend"}]'
+	REQUIRED_BACKENDS=("pip" "generic")
+	PREFETCH_INPUT='[{"type":"pip","path":"backend"},{"type":"generic","path":"backend"}]'
 fi
 
 resolve_auth_file() {
@@ -169,6 +219,10 @@ run_prefetch() {
 		-e "ENABLE_PACKAGE_REGISTRY_PROXY=${ENABLE_PACKAGE_REGISTRY_PROXY}"
 		--entrypoint /bin/bash
 	)
+
+	if [ -n "${GIT_COMMON_HOST_DIR}" ]; then
+		podman_cmd+=(-v "${GIT_COMMON_HOST_DIR}:/git-common:ro,z")
+	fi
 
 	if [ "${PIP_ONLY}" = false ]; then
 		require_rhsm
@@ -313,8 +367,11 @@ build_with_kbc() {
 		-v "${OUTPUT_DIR}:/var/workdir/cachi2:Z"
 		-w /workspace
 		--entrypoint /usr/local/bin/konflux-build-cli
-		"${KBC_IMAGE}"
 	)
+	if [ -n "${GIT_COMMON_HOST_DIR}" ]; then
+		podman_cmd+=(-v "${GIT_COMMON_HOST_DIR}:/git-common:ro,z")
+	fi
+	podman_cmd+=("${KBC_IMAGE}")
 
 	set +e
 	"${podman_cmd[@]}" "${kbc_args[@]}" 2>&1 | tee "${BUILD_LOG}"
@@ -331,7 +388,13 @@ build_with_kbc() {
 	echo "=== Build complete: ${IMAGE_TAG} ==="
 }
 
-# ── Step 1: Prefetch dependencies (pip/rpm) ─────────────────────────────────
+# ── Step 0: Worktree support ─────────────────────────────────────────────────
+# Hermeto requires an 'origin' remote. In a git worktree the .git file is a
+# pointer to the main repo's .git/worktrees/ dir, which is outside the
+# container mount. Replace it with a minimal .git/ directory for the build.
+prepare_worktree_git
+
+# ── Step 1: Prefetch dependencies (pip/rpm/generic) ──────────────────────────
 if [ "${SKIP_PREFETCH}" = true ] && prefetch_cache_available; then
 	echo "=== Reusing cached prefetch in ${PREFETCH_OUTPUT_DIR} ==="
 else

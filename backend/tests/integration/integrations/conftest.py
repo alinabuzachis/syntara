@@ -1,7 +1,7 @@
 """Shared fixtures for integration visibility tests."""
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -32,7 +32,7 @@ async def project_scoped_setup(
     test_db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> dict[str, Any]:
-    """Set up project-scoped and global integrations, then restrict OPA to one project."""
+    """Set up project-scoped and global integrations, then restrict Rego to one project."""
     project = Project(name=f"test-project-{uuid4().hex[:8]}")
     test_db_session.add(project)
     await test_db_session.flush()
@@ -62,8 +62,8 @@ async def project_scoped_setup(
 
     await test_db_session.flush()
 
-    mock_opa = AsyncMock()
-    mock_opa.evaluate = AsyncMock(
+    mock_evaluator = AsyncMock()
+    mock_evaluator.evaluate = MagicMock(
         return_value={
             "allow": True,
             "deny": False,
@@ -73,9 +73,10 @@ async def project_scoped_setup(
     )
 
     def _mock_getter(request: Any = None) -> AsyncMock:  # noqa: ANN401
-        return mock_opa
+        return mock_evaluator
 
-    monkeypatch.setattr("nexus.authz.dependencies.get_opa_client", _mock_getter)
+    monkeypatch.setattr("nexus.authz.dependencies.get_authz_evaluator", _mock_getter)
+    monkeypatch.setattr("nexus.authz.dependencies.get_authz_evaluator", _mock_getter)
 
     return {
         "project_id": project.id,

@@ -24,7 +24,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -159,17 +159,17 @@ async def _seed_authz_for_ws(test_db_session: AsyncSession) -> None:
 
 @pytest.fixture(autouse=True)
 def _wire_opa_cli_to_app_state(session_app: FastAPI) -> Generator[None, None, None]:
-    """Point app.state.opa_client.evaluate at the real OPA CLI.
+    """Point app.state.authz_evaluator.evaluate at the real OPA CLI.
 
-    The WebSocket authz path reads ``websocket.app.state.opa_client``
+    The WebSocket authz path reads ``websocket.app.state.authz_evaluator``
     directly (not via FastAPI ``Depends``).  The session_app fixture creates
     an ``AsyncMock`` for the OPA client; we set its ``evaluate`` side-effect
     so ``authorize()`` evaluates the real rego policy via CLI.
     """
-    original_evaluate = session_app.state.opa_client.evaluate
-    session_app.state.opa_client.evaluate = AsyncMock(side_effect=_opa_evaluate_cli)
+    original_evaluate = session_app.state.authz_evaluator.evaluate
+    session_app.state.authz_evaluator.evaluate = MagicMock(side_effect=_opa_evaluate_cli)
     yield
-    session_app.state.opa_client.evaluate = original_evaluate
+    session_app.state.authz_evaluator.evaluate = original_evaluate
 
 
 @pytest.fixture(autouse=True)

@@ -1,7 +1,7 @@
 """Policy model for IAM-style authorization statements.
 
 Policies contain one or more statements with effect/actions/scope/conditions
-that are evaluated by OPA's REGO engine.
+that are evaluated by the Rego policy engine.
 """
 
 from typing import Any, ClassVar
@@ -118,7 +118,7 @@ class Policy(BaseResource, table=True):
         return f"<Policy(id={self.id}, name={self.name}, is_builtin={self.is_builtin})>"
 
     def to_statement_dicts(self) -> list[dict[str, Any]]:
-        """Convert to flat statement dicts for OPA consumption.
+        """Convert to flat statement dicts for Rego evaluation.
 
         Single-statement policies use the policy name as-is.
         Multi-statement policies derive names: "policyname/0", "policyname/1".

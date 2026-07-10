@@ -678,12 +678,13 @@ async def session_app(
         FastAPI application with routers registered
 
     """
-    # Mock OPA client so the lifespan health check passes without a running OPA server.
-    # Individual tests use their own OPA mocks (e.g. CLI-based evaluation).
-    mock_opa_client = AsyncMock()
-    mock_opa_client.health = AsyncMock(return_value=True)
-    mock_opa_client.start = MagicMock()
-    mock_opa_client.stop = AsyncMock()
+    # Mock authz evaluator so the lifespan health check passes without regopy.
+    # Individual tests use their own Rego mocks (e.g. CLI-based evaluation).
+    mock_evaluator = AsyncMock()
+    mock_evaluator.health = AsyncMock(return_value=True)
+    mock_evaluator.start = MagicMock()
+    mock_evaluator.stop = AsyncMock()
+    mock_evaluator.evaluate = AsyncMock(return_value={"allow": True})
 
     # Patch module-level DB objects so the lifespan
     # (set_runtime_settings, engine.dispose) uses the test database.
@@ -695,7 +696,7 @@ async def session_app(
         patch("nexus.audit.outbox.worker.AsyncSessionLocal", test_session_factory),
         patch("nexus.audit.outbox.worker.AuditWorkerAsyncSessionLocal", test_session_factory),
         patch("nexus.audit.outbox.session.AuditWorkerAsyncSessionLocal", test_session_factory),
-        patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
+        patch("nexus.api.main.RegoEvaluator", return_value=mock_evaluator),
     ):
         # Seed all required data before app startup (normally done post-migration
         # via ``python -m nexus.seed``).
@@ -1238,11 +1239,12 @@ def sync_test_client(
     previous_streaming_service = getattr(app.state, "execution_streaming_service", None)
     app.state.execution_streaming_service = ExecutionStreamingService(session_factory=session_factory)
 
-    # Mock OPA client so the lifespan health check passes without a running OPA server.
-    mock_opa_client = AsyncMock()
-    mock_opa_client.health = AsyncMock(return_value=True)
-    mock_opa_client.start = MagicMock()
-    mock_opa_client.stop = AsyncMock()
+    # Mock authz evaluator so the lifespan health check passes without regopy.
+    mock_evaluator = AsyncMock()
+    mock_evaluator.health = AsyncMock(return_value=True)
+    mock_evaluator.start = MagicMock()
+    mock_evaluator.stop = AsyncMock()
+    mock_evaluator.evaluate = AsyncMock(return_value={"allow": True})
 
     try:
         with (
@@ -1253,7 +1255,7 @@ def sync_test_client(
             patch("nexus.audit.outbox.worker.AsyncSessionLocal", session_factory),
             patch("nexus.audit.outbox.worker.AuditWorkerAsyncSessionLocal", session_factory),
             patch("nexus.audit.outbox.session.AuditWorkerAsyncSessionLocal", session_factory),
-            patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
+            patch("nexus.api.main.RegoEvaluator", return_value=mock_evaluator),
         ):
             client = TestClient(app)
             try:

@@ -59,7 +59,7 @@ make lint           # Lint both codebases
 make format         # Format both codebases
 make typecheck      # Type-check both codebases
 make gen-contracts  # Regenerate TypeScript types from backend OpenAPI specs
-make services-up    # Start infrastructure (DB, Redis, Temporal, OPA, etc.)
+make services-up    # Start infrastructure (DB, Redis, Temporal, etc.)
 make services-down  # Stop infrastructure
 make sync           # Pull latest changes from upstream repos (transition period)
 ```
@@ -84,7 +84,6 @@ make -C backend db-clean      # Reset database (destructive)
 | Temporal UI | 8081 | Workflow monitoring |
 | PostgreSQL | 5432 | Main + audit databases |
 | Redis | 6379 | Cache, auth sessions |
-| OPA | 8181 | Authorization policy engine |
 | Storybook | 5174 | Component library + MCP server |
 | MCP Server | 8765 | Test MCP server |
 
@@ -110,7 +109,7 @@ Backend API changes and UI consumption can land in the same PR. When changing an
 
 ### Podman Compose
 
-The root `podman-compose.yml` defines the full stack. The UI builds from `frontend/` instead of pulling a pre-built image. Backend services (DB, Redis, Temporal, OPA) use the same config as the standalone backend compose.
+The root `podman-compose.yml` defines the full stack. The UI builds from `frontend/` instead of pulling a pre-built image. Backend services (DB, Redis, Temporal) use the same config as the standalone backend compose.
 
 ```bash
 uv run podman-compose up --build    # Full stack
@@ -119,6 +118,6 @@ uv run podman-compose up -d database redis temporal  # Just infrastructure
 
 ### Technology Stack
 
-**Backend**: Python 3.12+, FastAPI, SQLModel, PostgreSQL 15, Temporal, Redis, OPA, uv, Alembic, pytest, mypy, ruff
+**Backend**: Python 3.12+, FastAPI, SQLModel, PostgreSQL 15, Temporal, Redis, regopy, uv, Alembic, pytest, mypy, ruff
 
 **Frontend**: React 19, TypeScript 5.9, Vite, PatternFly 6, TanStack Query, Zustand, ReactFlow, Vitest, Playwright, npm workspaces

@@ -2041,6 +2041,7 @@ dependencies = [
     { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "rapidfuzz" },
+    { name = "regopy" },
     { name = "redis" },
     { name = "scikit-learn" },
     { name = "segment-analytics-python" },
@@ -2160,6 +2161,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.31" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "rapidfuzz", specifier = ">=3.14.3" },
+    { name = "regopy", specifier = ">=1.5.1" },
     { name = "redis", specifier = ">=7.1.0" },
     { name = "respx", marker = "extra == 'dev'", specifier = ">=0.20.0" },
     { name = "ruamel-yaml", marker = "extra == 'dev'", specifier = ">=0.17.40" },
@@ -3111,6 +3113,28 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c1/ab/1d0354b7d1771a28fa7fe089bc23acec2bdd3756efa2419f463e3ed80e16/rapidfuzz-3.14.3-cp313-cp313t-win32.whl", hash = "sha256:489ce98a895c98cad284f0a47960c3e264c724cb4cfd47a1430fa091c0c25204", size = 1757773, upload-time = "2025-11-01T11:53:57.628Z" },
     { url = "https://files.pythonhosted.org/packages/0b/0c/71ef356adc29e2bdf74cd284317b34a16b80258fa0e7e242dd92cc1e6d10/rapidfuzz-3.14.3-cp313-cp313t-win_amd64.whl", hash = "sha256:656e52b054d5b5c2524169240e50cfa080b04b1c613c5f90a2465e84888d6f15", size = 1576797, upload-time = "2025-11-01T11:53:59.455Z" },
     { url = "https://files.pythonhosted.org/packages/fe/d2/0e64fc27bb08d4304aa3d11154eb5480bcf5d62d60140a7ee984dc07468a/rapidfuzz-3.14.3-cp313-cp313t-win_arm64.whl", hash = "sha256:c7e40c0a0af02ad6e57e89f62bef8604f55a04ecae90b0ceeda591bbf5923317", size = 829940, upload-time = "2025-11-01T11:54:01.1Z" },
+]
+
+[[package]]
+name = "regopy"
+version = "1.5.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/87/7d/21e44a1770caf9b43302cfb7a81f0cc0793fed3cc239d5902f853af15e08/regopy-1.5.1.tar.gz", hash = "sha256:567da4d6f026bd8ab370658ed8b8cdb4c254fffa76f4d9bab9da0bcc24d38865", size = 4322859, upload-time = "2026-07-01T09:08:30.211088Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/fa/f5777e294cbd792f1cea2e5d453a85d24c6fda0feb42f9e26add0274655f/regopy-1.5.1-cp312-cp312-macosx_15_0_arm64.whl", hash = "sha256:f767a3cec75a101dc012b0620c6181a5540b699cd8b52f6e380eef9fe454b797", size = 7161136, upload-time = "2026-07-01T09:07:56.499889Z" },
+    { url = "https://files.pythonhosted.org/packages/28/61/be1028a8f19e1445881ec4e1a9688cbe2e6775692c828f2374aed68d183f/regopy-1.5.1-cp312-cp312-macosx_15_0_x86_64.whl", hash = "sha256:814d54993ac2b8b3206add1701957d7cf3401f7150942b4cef2febdde46fd2aa", size = 7807701, upload-time = "2026-07-01T09:07:58.112067Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/7d/a8c5a7145c65e063653e6f27cbe85ca75be9d49159d1e23b4fd301ce0995/regopy-1.5.1-cp312-cp312-manylinux_2_34_aarch64.whl", hash = "sha256:edbaf66e647adc964848a899d1d1effd4fae8aebd1c7e8b0d2bc6efbb360ed17", size = 7328377, upload-time = "2026-07-01T09:07:59.668112Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/69/9ceecca7bf5fca5d2e7f12941b45ea9fc42b15ce4b0d0bd5efab877e7529/regopy-1.5.1-cp312-cp312-manylinux_2_34_x86_64.whl", hash = "sha256:e9439a6c814c657d643a18cdd14e6e4fbf8f8686126ed3d2afef307d49d3182b", size = 7771418, upload-time = "2026-07-01T09:08:01.220516Z" },
+    { url = "https://files.pythonhosted.org/packages/20/cd/42614c71386965a50dc0303707bc00ab9535c7cc8daf6e625283a357b38e/regopy-1.5.1-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:cdf94cfc8ae1121e15786cc7afbbccd9eb375415db2878c3adcc1215b0b6e369", size = 8034086, upload-time = "2026-07-01T09:08:02.674395Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/8b/fff74773b1c2774d29dc0f7d0116d2e15e3d0aa5f73911940dd6ee833a8f/regopy-1.5.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:2a8c6a3c844dd149c344d06632d57668fdae8769395767330e65804afb9b5d5d", size = 7946945, upload-time = "2026-07-01T09:08:04.254488Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/b3/ccdafd9b3531088513dffa4003bf4e16831bcd64b942c0bed4978f38395d/regopy-1.5.1-cp312-cp312-win_amd64.whl", hash = "sha256:653c1e6add264425ca1216ff10d2008a6a6c2f5be24d84d163726ed321bbf0cf", size = 1959762, upload-time = "2026-07-01T09:08:05.632739Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/d9/c45405ed7bdd14a374f6133546152cc2ec7b5ab7db284f3dc04c574a86fc/regopy-1.5.1-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:54154a43f731c796dbfceb75dd3ae430f828b834772edb5337f073f9a85f9b0c", size = 7161136, upload-time = "2026-07-01T09:08:07.181972Z" },
+    { url = "https://files.pythonhosted.org/packages/93/38/b9d91cfd39cb225a19172bafcd75ea0fb7bad294c1678c984c91ae2cd669/regopy-1.5.1-cp313-cp313-macosx_15_0_x86_64.whl", hash = "sha256:f7e285072f88d9573a4f54b7a895d36885191bcb47f627d60978f9d7e41f8dc9", size = 7807701, upload-time = "2026-07-01T09:08:09.117631Z" },
+    { url = "https://files.pythonhosted.org/packages/11/d6/a8c8dd4da1fb0cbc774c60794cdd149b7fd3d776eb029cc86354a9a69613/regopy-1.5.1-cp313-cp313-manylinux_2_34_aarch64.whl", hash = "sha256:47df71ef0a6b0d55051578b184dfc4cb88ad7a123de00ad7d93340b406330e00", size = 7328378, upload-time = "2026-07-01T09:08:10.675807Z" },
+    { url = "https://files.pythonhosted.org/packages/db/f8/2a72ba55c3fb3ea3f6e1551f15fed4a57cd49382d58d03ebcdd9cd0c2a8e/regopy-1.5.1-cp313-cp313-manylinux_2_34_x86_64.whl", hash = "sha256:c6e955d9597dece65fb68d876a0c5bd5febfa1157472289280ee21e0193ae19e", size = 7771418, upload-time = "2026-07-01T09:08:12.551275Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/ac/cb57beb401be22290b36133ee99a5aecdfefdd1f5a848252086f3ecc677b/regopy-1.5.1-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:6edb99f12d71464f17599827737686f0ab3755c7e5d3ae860559aa5302f52e96", size = 8034085, upload-time = "2026-07-01T09:08:14.207521Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/6a/abd8f6ed69b92be0c43de4fb7776094ec2129c34260a4c151cbd63d762e8/regopy-1.5.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:b81556c73a12feb1b3edfbfdaa9234e777be029b6b5ce671f3a190278d6e6ed4", size = 7946949, upload-time = "2026-07-01T09:08:15.915744Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/3c/110f321b347a598693d999a58a3fb21c67284a050fc101da541de57abfa1/regopy-1.5.1-cp313-cp313-win_amd64.whl", hash = "sha256:db69039997b37054d52c2d6e3ff0dc128512468d1fb2083700cfb497c5819db2", size = 1959756, upload-time = "2026-07-01T09:08:17.275462Z" },
 ]
 
 [[package]]

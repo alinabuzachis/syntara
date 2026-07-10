@@ -5,7 +5,7 @@ following the project's test patterns and using injected factory fixtures.
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import ANY, AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -49,20 +49,20 @@ class TestApprovalServiceBase:
         )
 
     def _create_test_service(self, session: AsyncSession, user: User) -> ApprovalService:
-        """Create ApprovalService instance for testing with mocked OPA client.
+        """Create ApprovalService instance for testing with mocked authz evaluator.
 
-        Integration tests use a mock OPA client that allows all approval:decide permissions
+        Integration tests use a mock authz evaluator that allows all approval:decide permissions
         so tests can focus on approver list authorization logic.
         """
-        # Create a mock OPA client that always returns authorized (allow: true)
-        # This allows tests to focus on the approver list logic, not OPA authorization
-        mock_opa_client = AsyncMock()
-        mock_opa_client.__bool__ = AsyncMock(return_value=True)
+        # Create a mock authz evaluator that always returns authorized (allow: true)
+        # This allows tests to focus on the approver list logic, not authz evaluator authorization
+        mock_evaluator = AsyncMock()
+        mock_evaluator.__bool__ = AsyncMock(return_value=True)
         # Mock the evaluate method to return allow: true (authorized)
-        # The real OPA client unwraps the "result" field, so we return the unwrapped dict
-        mock_opa_client.evaluate = AsyncMock(return_value={"allow": True})
+        # The real authz evaluator unwraps the "result" field, so we return the unwrapped dict
+        mock_evaluator.evaluate = MagicMock(return_value={"allow": True})
 
-        return ApprovalService(session=session, user=user, opa_client=mock_opa_client)
+        return ApprovalService(session=session, user=user, evaluator=mock_evaluator)
 
     def _create_approval_request(
         self,

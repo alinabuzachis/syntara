@@ -41,7 +41,7 @@ spec:
     - name: hermetic
       value: "true"
     - name: prefetch-input
-      value: '[{"type": "pip", "path": "backend"}, {"type": "rpm", "path": "backend"}]'
+      value: '[{"type": "pip", "path": "backend"}, {"type": "rpm", "path": "backend"}, {"type": "generic", "path": "backend"}]'
     - name: prefetch-mode
       value: permissive
     - name: additional-secret
@@ -51,7 +51,7 @@ spec:
       - name: name
         value: container
       - name: bundle
-        value: quay.io/aap-ci/tekton-catalog/pipeline/build/container:0.2@sha256:b41967ddb55936504b95347ef08191fa8c8ca7e92459ae4ad45b77c4760bbb22
+        value: quay.io/aap-ci/tekton-catalog/pipeline/build/container:0.2@sha256:3afc793855da6e527c14b68345d337581ecb60b78b49314d7aca252401cfd630
       - name: kind
         value: pipeline
       - name: secret

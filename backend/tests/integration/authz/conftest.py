@@ -1,8 +1,8 @@
 """Shared fixtures for unit-level authz tests.
 
-Provides helpers to evaluate the authz.rego policy via the OPA CLI
+Provides helpers to evaluate the authz.rego policy via the Rego CLI
 without any database or API dependencies, plus common fixtures for
-engine/cache tests that use a mocked OPA client.
+engine/cache tests that use a mocked authz evaluator.
 """
 
 import json
@@ -10,18 +10,39 @@ import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.resource_actions import _set_registry
 from nexus.authz.seed import seed_authz_data
+
+# ---------------------------------------------------------------------------
+# Resource-actions registry — integration tests bypass app startup, so we
+# initialise the module-level registry here with the pairs that appear in
+# test statements.
+# ---------------------------------------------------------------------------
+_TEST_RESOURCE_ACTIONS: dict[str, list[str]] = {
+    "execution": ["create", "delete", "read", "run", "write"],
+    "group": ["create", "delete", "read", "write"],
+    "project": ["create", "delete", "read", "write"],
+    "role-assignment": ["create", "delete", "read"],
+    "setting": ["read", "write"],
+    "user": ["create", "delete", "read", "write"],
+    "workflow": ["create", "delete", "read", "run", "write"],
+}
+
+_set_registry(
+    _TEST_RESOURCE_ACTIONS,
+    project_eligible=frozenset({"workflow", "execution", "project"}),
+)
 
 # Path to the rego policy file
 _REGO_POLICY_PATH = Path(__file__).resolve().parents[3] / "src" / "nexus" / "authz" / "rego" / "authz.rego"
 
-# Fields we care about from OPA evaluation
-_OPA_RESULT_FIELDS = {"allow", "deny", "matched_policy", "denial_reason", "denied_by", "allowed_projects"}
+# Fields we care about from Rego evaluation
+_Rego_RESULT_FIELDS = {"allow", "deny", "matched_policy", "denial_reason", "denied_by", "allowed_projects"}
 
 
 @pytest.fixture
@@ -32,10 +53,10 @@ async def seeded_db(test_db_session: AsyncSession) -> AsyncSession:
 
 
 @pytest.fixture
-def mock_opa() -> AsyncMock:
-    """Create a mock OPA client."""
+def mock_evaluator() -> AsyncMock:
+    """Create a mock authz evaluator."""
     opa = AsyncMock()
-    opa.evaluate = AsyncMock(
+    opa.evaluate = MagicMock(
         return_value={
             "allow": True,
             "deny": False,
@@ -50,16 +71,16 @@ def mock_opa() -> AsyncMock:
 
 @pytest.fixture(autouse=True)
 def _skip_if_no_opa() -> None:
-    """Skip tests when OPA CLI is not available."""
+    """Skip tests when Rego CLI is not available."""
     if not shutil.which("opa"):
         pytest.skip("opa CLI not found on PATH")
 
 
 def _opa_evaluate(opa_input: dict[str, Any]) -> dict[str, Any]:
-    """Evaluate authz using the OPA CLI against the real rego policy.
+    """Evaluate authz using the Rego CLI against the real rego policy.
 
     Shells out to ``opa eval`` so the unit tests exercise the actual
-    rego rules without needing a running OPA server.
+    rego rules without needing a running authz evaluator.
     """
     result = subprocess.run(  # noqa: S603
         [  # noqa: S607
@@ -83,12 +104,12 @@ def _opa_evaluate(opa_input: dict[str, Any]) -> dict[str, Any]:
 
     raw = json.loads(result.stdout)
     value: dict[str, Any] = raw["result"][0]["expressions"][0]["value"]
-    return {k: v for k, v in value.items() if k in _OPA_RESULT_FIELDS}
+    return {k: v for k, v in value.items() if k in _Rego_RESULT_FIELDS}
 
 
 @pytest.fixture
 def opa_evaluate() -> Any:  # noqa: ANN401
-    """Fixture that returns the OPA evaluation function."""
+    """Fixture that returns the Rego evaluation function."""
     return _opa_evaluate
 
 
@@ -106,7 +127,7 @@ def build_opa_input(
     groups: list[dict[str, Any]] | None = None,
     effective_policies: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Build an OPA input dict matching engine.py:79-95 format."""
+    """Build an Rego input dict matching engine.py:79-95 format."""
     return {
         "user": {
             "id": user_id,

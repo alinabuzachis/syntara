@@ -1,4 +1,4 @@
-"""Unit tests for the OPA result cache."""
+"""Unit tests for the Rego result cache."""
 
 import time
 from collections.abc import Generator
@@ -10,10 +10,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import (
     AuthzRequest,
-    _hash_opa_input,
+    _hash_authz_input,
     authorize,
-    clear_opa_cache,
-    init_opa_cache,
+    clear_authz_cache,
+    init_authz_cache,
     resolve_allowed_projects,
 )
 from nexus.core.models import User
@@ -21,24 +21,24 @@ from nexus.core.models import User
 
 @pytest.fixture(autouse=True)
 def _enable_cache() -> Generator[None, None, None]:
-    """Enable the OPA cache for these tests."""
-    init_opa_cache(enabled=True, ttl_seconds=10)
+    """Enable the Rego cache for these tests."""
+    init_authz_cache(enabled=True, ttl_seconds=10)
     yield
-    clear_opa_cache()
-    init_opa_cache(enabled=False)
+    clear_authz_cache()
+    init_authz_cache(enabled=False)
 
 
-class TestOPACacheHitMiss:
-    """Tests for OPA cache hit/miss behavior."""
+class TestRegoCacheHitMiss:
+    """Tests for Rego cache hit/miss behavior."""
 
     @pytest.mark.asyncio
     async def test_second_call_uses_cached_opa_result(
         self,
         seeded_db: AsyncSession,
         test_user: User,
-        mock_opa: AsyncMock,
+        mock_evaluator: AsyncMock,
     ) -> None:
-        """Identical OPA input on second call skips opa_client.evaluate()."""
+        """Identical Rego input on second call skips evaluator.evaluate()."""
         request = AuthzRequest(
             user_id=test_user.id,
             action="read",
@@ -46,27 +46,27 @@ class TestOPACacheHitMiss:
             resource_id="wf-1",
         )
 
-        await authorize(seeded_db, mock_opa, request)
-        assert mock_opa.evaluate.await_count == 1
+        await authorize(seeded_db, mock_evaluator, request)
+        assert mock_evaluator.evaluate.await_count == 1
 
-        await authorize(seeded_db, mock_opa, request)
-        assert mock_opa.evaluate.await_count == 1
+        await authorize(seeded_db, mock_evaluator, request)
+        assert mock_evaluator.evaluate.await_count == 1
 
     @pytest.mark.asyncio
     async def test_different_action_misses_cache(
         self,
         seeded_db: AsyncSession,
         test_user: User,
-        mock_opa: AsyncMock,
+        mock_evaluator: AsyncMock,
     ) -> None:
-        """Different action produces different OPA input, so cache miss."""
+        """Different action produces different Rego input, so cache miss."""
         req1 = AuthzRequest(
             user_id=test_user.id,
             action="read",
             resource_type="workflow",
             resource_id="wf-1",
         )
-        await authorize(seeded_db, mock_opa, req1)
+        await authorize(seeded_db, mock_evaluator, req1)
 
         req2 = AuthzRequest(
             user_id=test_user.id,
@@ -74,15 +74,15 @@ class TestOPACacheHitMiss:
             resource_type="workflow",
             resource_id="wf-1",
         )
-        await authorize(seeded_db, mock_opa, req2)
-        assert mock_opa.evaluate.await_count == 2
+        await authorize(seeded_db, mock_evaluator, req2)
+        assert mock_evaluator.evaluate.await_count == 2
 
     @pytest.mark.asyncio
     async def test_different_users_miss_cache(
         self,
         seeded_db: AsyncSession,
         test_user: User,
-        mock_opa: AsyncMock,
+        mock_evaluator: AsyncMock,
     ) -> None:
         """Different user_ids produce different effective policies, so cache miss."""
         req1 = AuthzRequest(
@@ -91,7 +91,7 @@ class TestOPACacheHitMiss:
             resource_type="workflow",
             resource_id="wf-1",
         )
-        await authorize(seeded_db, mock_opa, req1)
+        await authorize(seeded_db, mock_evaluator, req1)
 
         other_user_id = uuid4()
         req2 = AuthzRequest(
@@ -112,54 +112,54 @@ class TestOPACacheHitMiss:
                 return_value=[],
             ),
         ):
-            await authorize(seeded_db, mock_opa, req2)
-        assert mock_opa.evaluate.await_count == 2
+            await authorize(seeded_db, mock_evaluator, req2)
+        assert mock_evaluator.evaluate.await_count == 2
 
 
-class TestOPACacheDisabled:
+class TestRegoCacheDisabled:
     """Tests for disabled cache mode."""
 
     @pytest.fixture(autouse=True)
     def _disable(self) -> None:
-        init_opa_cache(enabled=False)
+        init_authz_cache(enabled=False)
 
     @pytest.mark.asyncio
     async def test_every_call_hits_opa(
         self,
         seeded_db: AsyncSession,
         test_user: User,
-        mock_opa: AsyncMock,
+        mock_evaluator: AsyncMock,
     ) -> None:
-        """When cache is disabled, every call goes to OPA."""
+        """When cache is disabled, every call goes to Rego."""
         request = AuthzRequest(
             user_id=test_user.id,
             action="read",
             resource_type="workflow",
             resource_id="wf-1",
         )
-        await authorize(seeded_db, mock_opa, request)
-        await authorize(seeded_db, mock_opa, request)
-        assert mock_opa.evaluate.await_count == 2
+        await authorize(seeded_db, mock_evaluator, request)
+        await authorize(seeded_db, mock_evaluator, request)
+        assert mock_evaluator.evaluate.await_count == 2
 
 
-class TestOPACacheTTLExpiry:
+class TestRegoCacheTTLExpiry:
     """Tests for TTL expiry behavior."""
 
     @pytest.fixture(autouse=True)
     def _short_ttl(self) -> Generator[None, None, None]:
-        init_opa_cache(enabled=True, ttl_seconds=1)
+        init_authz_cache(enabled=True, ttl_seconds=1)
         yield
-        clear_opa_cache()
-        init_opa_cache(enabled=False)
+        clear_authz_cache()
+        init_authz_cache(enabled=False)
 
     @pytest.mark.asyncio
     async def test_cache_expires_after_ttl(
         self,
         seeded_db: AsyncSession,
         test_user: User,
-        mock_opa: AsyncMock,
+        mock_evaluator: AsyncMock,
     ) -> None:
-        """Cache entries expire after TTL, triggering fresh OPA call."""
+        """Cache entries expire after TTL, triggering fresh Rego call."""
         request = AuthzRequest(
             user_id=test_user.id,
             action="read",
@@ -167,26 +167,26 @@ class TestOPACacheTTLExpiry:
             resource_id="wf-1",
         )
 
-        await authorize(seeded_db, mock_opa, request)
-        assert mock_opa.evaluate.await_count == 1
+        await authorize(seeded_db, mock_evaluator, request)
+        assert mock_evaluator.evaluate.await_count == 1
 
         time.sleep(1.1)  # noqa: ASYNC251
 
-        await authorize(seeded_db, mock_opa, request)
-        assert mock_opa.evaluate.await_count == 2
+        await authorize(seeded_db, mock_evaluator, request)
+        assert mock_evaluator.evaluate.await_count == 2
 
 
-class TestClearOPACache:
-    """Tests for the clear_opa_cache utility."""
+class TestClearRegoCache:
+    """Tests for the clear_authz_cache utility."""
 
     @pytest.mark.asyncio
     async def test_clear_forces_fresh_call(
         self,
         seeded_db: AsyncSession,
         test_user: User,
-        mock_opa: AsyncMock,
+        mock_evaluator: AsyncMock,
     ) -> None:
-        """clear_opa_cache() forces the next call to evaluate fresh."""
+        """clear_authz_cache() forces the next call to evaluate fresh."""
         request = AuthzRequest(
             user_id=test_user.id,
             action="read",
@@ -194,34 +194,34 @@ class TestClearOPACache:
             resource_id="wf-1",
         )
 
-        await authorize(seeded_db, mock_opa, request)
-        assert mock_opa.evaluate.await_count == 1
+        await authorize(seeded_db, mock_evaluator, request)
+        assert mock_evaluator.evaluate.await_count == 1
 
-        clear_opa_cache()
+        clear_authz_cache()
 
-        await authorize(seeded_db, mock_opa, request)
-        assert mock_opa.evaluate.await_count == 2
+        await authorize(seeded_db, mock_evaluator, request)
+        assert mock_evaluator.evaluate.await_count == 2
 
 
-class TestHashOPAInput:
-    """Tests for the _hash_opa_input helper."""
+class TestHashRegoInput:
+    """Tests for the _hash_authz_input helper."""
 
     def test_deterministic(self) -> None:
         """Same dict produces same hash."""
         opa_input = {"user": {"id": "abc"}, "action": "read", "groups": []}
-        assert _hash_opa_input(opa_input) == _hash_opa_input(opa_input)
+        assert _hash_authz_input(opa_input) == _hash_authz_input(opa_input)
 
     def test_key_order_independent(self) -> None:
         """Dict key order doesn't affect hash."""
         input1 = {"action": "read", "user": {"id": "abc"}}
         input2 = {"user": {"id": "abc"}, "action": "read"}
-        assert _hash_opa_input(input1) == _hash_opa_input(input2)
+        assert _hash_authz_input(input1) == _hash_authz_input(input2)
 
     def test_different_values_different_hash(self) -> None:
         """Different values produce different hashes."""
         input1 = {"user": {"id": "abc"}, "action": "read"}
         input2 = {"user": {"id": "abc"}, "action": "write"}
-        assert _hash_opa_input(input1) != _hash_opa_input(input2)
+        assert _hash_authz_input(input1) != _hash_authz_input(input2)
 
     def test_list_order_independent(self) -> None:
         """List ordering doesn't affect hash — guards against DB query order variance."""
@@ -239,10 +239,10 @@ class TestHashOPAInput:
                 {"role": "admin", "scope": "global"},
             ],
         }
-        assert _hash_opa_input(input1) == _hash_opa_input(input2)
+        assert _hash_authz_input(input1) == _hash_authz_input(input2)
 
 
-class TestOPACacheDefensiveCopy:
+class TestRegoCacheDefensiveCopy:
     """Tests that cached results are returned as copies."""
 
     @pytest.mark.asyncio
@@ -250,7 +250,7 @@ class TestOPACacheDefensiveCopy:
         self,
         seeded_db: AsyncSession,
         test_user: User,
-        mock_opa: AsyncMock,
+        mock_evaluator: AsyncMock,
     ) -> None:
         """Mutating a cached result does not affect subsequent cache hits."""
         request = AuthzRequest(
@@ -260,13 +260,13 @@ class TestOPACacheDefensiveCopy:
             resource_id="wf-1",
         )
 
-        result1 = await authorize(seeded_db, mock_opa, request)
+        result1 = await authorize(seeded_db, mock_evaluator, request)
         # Mutate the result object (simulating a careless caller)
         result1.matched_policy = "MUTATED"
 
-        result2 = await authorize(seeded_db, mock_opa, request)
+        result2 = await authorize(seeded_db, mock_evaluator, request)
         assert result2.matched_policy == "test-allow"
-        assert mock_opa.evaluate.await_count == 1
+        assert mock_evaluator.evaluate.await_count == 1
 
 
 class TestResolveAllowedProjectsCache:
@@ -277,11 +277,11 @@ class TestResolveAllowedProjectsCache:
         self,
         seeded_db: AsyncSession,
         test_user: User,
-        mock_opa: AsyncMock,
+        mock_evaluator: AsyncMock,
     ) -> None:
         """resolve_allowed_projects() uses cache on repeated calls."""
-        await resolve_allowed_projects(seeded_db, mock_opa, test_user.id, "workflow", "read")
-        assert mock_opa.evaluate.await_count == 1
+        await resolve_allowed_projects(seeded_db, mock_evaluator, test_user.id, "workflow", "read")
+        assert mock_evaluator.evaluate.await_count == 1
 
-        await resolve_allowed_projects(seeded_db, mock_opa, test_user.id, "workflow", "read")
-        assert mock_opa.evaluate.await_count == 1
+        await resolve_allowed_projects(seeded_db, mock_evaluator, test_user.id, "workflow", "read")
+        assert mock_evaluator.evaluate.await_count == 1

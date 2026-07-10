@@ -27,6 +27,13 @@ logger = structlog.stdlib.get_logger(__name__)
 AUTHENTICATED_GROUP_NAME = "authenticated"
 
 
+def _action_matches(stmt: dict[str, Any], action_accept: set[str] | None) -> bool:
+    """Return True if the statement should be included given the action filter."""
+    if not action_accept or stmt.get("effect") == "deny":
+        return True
+    return bool(action_accept.intersection(stmt.get("actions", ())))
+
+
 async def _resolve_roles_to_policies(
     db: AsyncSession,
     role_names: list[str],
@@ -34,11 +41,15 @@ async def _resolve_roles_to_policies(
     result: list[dict[str, Any]],
     project: str = "",
     project_id: UUID | None = None,
+    action_accept: set[str] | None = None,
 ) -> None:
     """Resolve role names to policy statements and add to result.
 
     Built-in roles are resolved entirely from code (zero DB queries).
     Custom roles are resolved via the roles table + role_policies join.
+
+    When *action_accept* is provided, only statements whose actions
+    intersect with the accept set (or that have deny effect) are included.
     """
     if not role_names:
         return
@@ -47,12 +58,12 @@ async def _resolve_roles_to_policies(
     for rn in role_names:
         builtin = get_builtin_role(rn)
         if builtin:
-            _add_builtin_role_statements(rn, seen, result, project)
+            _add_builtin_role_statements(rn, seen, result, project, action_accept)
         else:
             custom_role_names.append(rn)
 
     if custom_role_names:
-        await _resolve_custom_roles(db, custom_role_names, seen, result, project, project_id)
+        await _resolve_custom_roles(db, custom_role_names, seen, result, project, project_id, action_accept)
 
 
 def _add_builtin_role_statements(
@@ -60,12 +71,15 @@ def _add_builtin_role_statements(
     seen: set[str],
     result: list[dict[str, Any]],
     project: str,
+    action_accept: set[str] | None = None,
 ) -> None:
     """Add statements for a built-in role from code registry."""
     from nexus.authz.role_conventions import builtin_role_policy_names  # noqa: PLC0415
 
     for policy_name in builtin_role_policy_names(role_name):
         for stmt in resolve_builtin_policy_statements(policy_name):
+            if not _action_matches(stmt, action_accept):
+                continue
             entry = {**stmt, "name": policy_name}
             name = policy_name
             if project:
@@ -111,6 +125,7 @@ async def _resolve_custom_roles(
     result: list[dict[str, Any]],
     project: str,
     project_id: UUID | None = None,
+    action_accept: set[str] | None = None,
 ) -> None:
     """Resolve custom (non-builtin) roles via DB.
 
@@ -135,13 +150,29 @@ async def _resolve_custom_roles(
     custom_policies = await _load_custom_policies(db, custom_policy_names, project_id)
 
     for role in roles:
-        for pn in role.policy_names:
-            if is_builtin_policy(pn):
-                for stmt in resolve_builtin_policy_statements(pn):
-                    _add_stmt(stmt, pn, seen, result, project)
-            elif pn in custom_policies:
-                for stmt in custom_policies[pn].to_statement_dicts():
-                    _add_stmt(stmt, "", seen, result, project)
+        _expand_role_policies(role, custom_policies, seen, result, project, action_accept)
+
+
+def _expand_role_policies(
+    role: Role,
+    custom_policies: dict[str, Policy],
+    seen: set[str],
+    result: list[dict[str, Any]],
+    project: str,
+    action_accept: set[str] | None,
+) -> None:
+    """Expand a single role's policy names into statement entries."""
+    for pn in role.policy_names:
+        if is_builtin_policy(pn):
+            for stmt in resolve_builtin_policy_statements(pn):
+                if not _action_matches(stmt, action_accept):
+                    continue
+                _add_stmt(stmt, pn, seen, result, project)
+        elif pn in custom_policies:
+            for stmt in custom_policies[pn].to_statement_dicts():
+                if not _action_matches(stmt, action_accept):
+                    continue
+                _add_stmt(stmt, "", seen, result, project)
 
 
 def _add_stmt(
@@ -165,7 +196,7 @@ def _add_stmt(
 
 
 async def get_user_group_ids(db: AsyncSession, user_id: UUID) -> list[UUID]:
-    """Return group IDs for a user."""
+    """Return group IDs for a user, including the implicit 'authenticated' group."""
     result = await db.exec(
         select(user_groups.c.group_id)
         .join(Group, Group.id == user_groups.c.group_id)  # type: ignore[arg-type]
@@ -174,14 +205,37 @@ async def get_user_group_ids(db: AsyncSession, user_id: UUID) -> list[UUID]:
             Group.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
-    return list(result.all())
+    group_ids = list(result.all())
+
+    auth_group_result = await db.exec(
+        select(Group).where(
+            Group.name == AUTHENTICATED_GROUP_NAME,
+            Group.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    auth_group = auth_group_result.first()
+    if auth_group and auth_group.id not in group_ids:
+        group_ids.append(auth_group.id)
+
+    return group_ids
 
 
 async def resolve_effective_policies(
     db: AsyncSession,
     principal_id: UUID,
+    *,
+    action_filter: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Resolve all effective policies for a principal (user or service account).
+    """Resolve effective policies for a principal (user or service account).
+
+    When *action_filter* is provided (e.g. ``"workflow:read"``), only
+    project-scoped policies whose actions include the requested action (or
+    its wildcard ``resource:*``) are expanded.  Global and deny-effect
+    policies are always included.  This avoids O(projects x policies_per_role)
+    expansion for users with roles across many projects.
+
+    When *action_filter* is ``None``, all policies are expanded (needed by
+    introspection endpoints like ``what_can_i``).
 
     Resolution order:
     1. Global: principal → groups (including "authenticated") → roles → policies
@@ -237,9 +291,24 @@ async def resolve_effective_policies(
         )
         project_map = {p.id: p.name for p in projects_result.all()}
 
+        if action_filter:
+            resource_type, _, _ = action_filter.partition(":")
+            wildcard = f"{resource_type}:*"
+            accept = {action_filter, wildcard}
+        else:
+            accept = None
+
         for pid, names in project_role_names.items():
             project_name = project_map.get(pid, str(pid))
-            await _resolve_roles_to_policies(db, names, seen, result, project=project_name, project_id=pid)
+            await _resolve_roles_to_policies(
+                db,
+                names,
+                seen,
+                result,
+                project=project_name,
+                project_id=pid,
+                action_accept=accept,
+            )
 
     return result
 
@@ -250,7 +319,7 @@ async def resolve_user_groups(
 ) -> list[dict[str, Any]]:
     """Resolve group memberships for a user.
 
-    Returns group info in the format expected by OPA:
+    Returns group info in the format expected by the evaluator:
     [{"name": "group-name", "id": "uuid", "labels": {"key": "value"}}]
     """
     group_ids = await get_user_group_ids(db, user_id)

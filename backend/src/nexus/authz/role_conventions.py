@@ -44,7 +44,7 @@ class PolicyInfo:
 
     @property
     def statements(self) -> list[dict[str, object]]:
-        """OPA policy statement list."""
+        """Rego policy statement list."""
         return [
             {
                 "effect": "allow",
@@ -315,13 +315,13 @@ def builtin_role_uuid(name: str) -> UUID:
 
 
 def resolve_builtin_policy_statements(name: str) -> list[dict[str, Any]]:
-    """Return OPA statement dicts for a built-in policy, or empty list."""
+    """Return Rego statement dicts for a built-in policy, or empty list."""
     p = _POLICY_MAP.get(name)
     return list(p.statements) if p else []
 
 
 def resolve_builtin_role_statements(role_name: str) -> list[dict[str, Any]]:
-    """Return all OPA statement dicts for a built-in role's policies."""
+    """Return all Rego statement dicts for a built-in role's policies."""
     policy_names = _ROLE_POLICY_NAMES.get(role_name, [])
     result: list[dict[str, Any]] = []
     for pn in policy_names:

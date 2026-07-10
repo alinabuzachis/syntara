@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import ctypes
 import ctypes.util
+import gc
 import sys
 from typing import TYPE_CHECKING
 
@@ -36,18 +37,12 @@ if sys.platform == "linux":
         _libc = ctypes.CDLL(_libc_name, use_errno=True)
 
 
-def _release_memory_to_os() -> None:
+def release_memory_to_os() -> None:
     """Ask glibc to return freed heap pages to the OS.
 
     On Linux, CPython's allocator (pymalloc) and glibc can both retain
     freed pages in the process address space.  ``malloc_trim(0)`` nudges
     glibc to release them.  This is a no-op on non-Linux platforms.
-
-    **Caution**: ``malloc_trim`` acquires the glibc arena lock, which
-    momentarily blocks any concurrent ``malloc``/``free`` in the same
-    process.  This is safe at our call frequency (at most once per
-    cleanup cycle, default 5 min) but should *not* be called on a hot
-    path or in a tight loop.
     """
     if _libc is not None and hasattr(_libc, "malloc_trim"):
         _libc.malloc_trim(0)
@@ -61,12 +56,17 @@ async def cleanup_stale_metrics(
     This is the callback invoked by :class:`PeriodicWorker` each cycle.
     The ``session_factory`` parameter is required by the worker interface
     but unused here since the metrics store is purely in-memory.
+
+    Always calls ``gc.collect()`` and ``malloc_trim`` regardless of whether
+    records were pruned, to combat glibc per-thread arena fragmentation
+    that can otherwise retain hundreds of MB of freed heap pages.
     """
     recorder = get_metrics_recorder()
     removed = await asyncio.to_thread(recorder.cleanup)
     if removed:
-        _release_memory_to_os()
         logger.debug("metrics_cleanup_completed", records_removed=removed)
+    gc.collect()
+    release_memory_to_os()
 
 
 def get_metrics_cleanup_worker() -> PeriodicWorker:

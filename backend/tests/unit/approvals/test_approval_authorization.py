@@ -34,16 +34,16 @@ from tests.helpers.workflow import ExecutionsFactory
 
 
 @pytest.fixture(autouse=True)
-def _mock_opa_for_approver_tests(monkeypatch: pytest.MonkeyPatch, request) -> None:
-    """Auto-mock OPA authorization for approver list tests.
+def _mock_evaluator_for_approver_tests(monkeypatch: pytest.MonkeyPatch, request) -> None:
+    """Auto-mock authz evaluator authorization for approver list tests.
 
-    This fixture automatically provides a mock OPA client that allows all
+    This fixture automatically provides a mock authz evaluator that allows all
     approval:decide permissions for tests that check approver list logic.
 
-    Only applies to test classes that need it (not OPA-specific tests).
+    Only applies to test classes that need it (not Rego-specific tests).
     """
-    # Skip for OPA-specific test class (it has its own mocking)
-    if hasattr(request, "instance") and isinstance(request.instance, TestApprovalServiceOPAAuthorization):
+    # Skip for Rego-specific test class (it has its own mocking)
+    if hasattr(request, "instance") and isinstance(request.instance, TestApprovalServiceEvaluatorAuthorization):
         return
 
     # Skip if not in a test class that uses ApprovalService
@@ -57,11 +57,11 @@ def _mock_opa_for_approver_tests(monkeypatch: pytest.MonkeyPatch, request) -> No
     ):
         return
 
-    # Create mock OPA client using AsyncMock
+    # Create mock authz evaluator using AsyncMock
     from unittest.mock import Mock
 
     mock_client = Mock()
-    mock_client.__bool__ = Mock(return_value=True)  # Truthy check for "if self.opa_client"
+    mock_client.__bool__ = Mock(return_value=True)  # Truthy check for "if self.evaluator"
 
     # Mock the authorize function to return allowed
 
@@ -80,13 +80,13 @@ def _mock_opa_for_approver_tests(monkeypatch: pytest.MonkeyPatch, request) -> No
         mock_authorize,
     )
 
-    # Patch ApprovalService.__init__ to inject mock_client when opa_client is None
+    # Patch ApprovalService.__init__ to inject mock_client when evaluator is None
     original_init = ApprovalService.__init__
 
-    def patched_init(self, session, user, opa_client=None) -> None:
-        if opa_client is None:
-            opa_client = mock_client
-        original_init(self, session, user, opa_client)
+    def patched_init(self, session, user, evaluator=None) -> None:
+        if evaluator is None:
+            evaluator = mock_client
+        original_init(self, session, user, evaluator)
 
     monkeypatch.setattr(ApprovalService, "__init__", patched_init)
 
@@ -490,17 +490,17 @@ class TestApprovalServiceBatchDecideAuthorization(TestApprovalAuthorizationBase)
         assert result2.status == ApprovalRequestStatus.REJECTED
 
 
-class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
-    """Test OPA authorization flow in ApprovalService._is_user_authorized_approver.
+class TestApprovalServiceEvaluatorAuthorization(TestApprovalAuthorizationBase):
+    """Test authz evaluator authorization flow in ApprovalService._is_user_authorized_approver.
 
     Tests the critical security check added for project-scoped batch approval.
     """
 
     @pytest.mark.asyncio
-    async def test_opa_client_none_denies_access(
+    async def test_evaluator_none_denies_access(
         self, test_db_session: AsyncSession, users: dict[str, User], executions_factory: ExecutionsFactory
     ) -> None:
-        """Test that when opa_client is None, authorization is denied (fail closed)."""
+        """Test that when evaluator is None, authorization is denied (fail closed)."""
         user = users["user_1"]
         executions = await executions_factory.create_executions(count=1)
         execution = executions[0]
@@ -512,14 +512,14 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
             project_id=execution.project_id,
         )
 
-        # Create service WITHOUT opa_client (None)
-        service = ApprovalService(test_db_session, user, opa_client=None)
+        # Create service WITHOUT evaluator (None)
+        service = ApprovalService(test_db_session, user, evaluator=None)
         approval_read = await service.create(request)
 
         approval = await self._get_approval_with_relationships(test_db_session, approval_read.id)
         assert approval is not None
 
-        # Should deny access when OPA client is None (fail closed)
+        # Should deny access when authz evaluator is None (fail closed)
         is_authorized = await service._is_user_authorized_approver(approval)
         assert is_authorized is False
 
@@ -531,7 +531,7 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
         executions_factory: ExecutionsFactory,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that OPA denial blocks access even if user is in the approver list."""
+        """Test that evaluator denial blocks access even if user is in the approver list."""
         user = users["user_1"]
         executions = await executions_factory.create_executions(count=1)
         execution = executions[0]
@@ -543,10 +543,10 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
             project_id=execution.project_id,
         )
 
-        # Mock OPA client to deny permission
+        # Mock authz evaluator to deny permission
         from unittest.mock import Mock
 
-        mock_opa_client = Mock()
+        mock_evaluator = Mock()
 
         async def mock_authorize(*args: object, **kwargs: object) -> AuthzResult:
             return AuthzResult(
@@ -560,13 +560,13 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
 
         monkeypatch.setattr("nexus.authz.engine.authorize", mock_authorize)
 
-        service = ApprovalService(test_db_session, user, opa_client=mock_opa_client)
+        service = ApprovalService(test_db_session, user, evaluator=mock_evaluator)
         approval_read = await service.create(request)
 
         approval = await self._get_approval_with_relationships(test_db_session, approval_read.id)
         assert approval is not None
 
-        # OPA denies, so authorization fails despite being in approver list
+        # evaluator denies, so authorization fails despite being in approver list
         is_authorized = await service._is_user_authorized_approver(approval)
         assert is_authorized is False
 
@@ -578,7 +578,7 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
         executions_factory: ExecutionsFactory,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that OPA allow + approver list membership grants access."""
+        """Test that evaluator allow + approver list membership grants access."""
         user = users["user_1"]
         executions = await executions_factory.create_executions(count=1)
         execution = executions[0]
@@ -590,10 +590,10 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
             project_id=execution.project_id,
         )
 
-        # Mock OPA client to allow permission
+        # Mock authz evaluator to allow permission
         from unittest.mock import Mock
 
-        mock_opa_client = Mock()
+        mock_evaluator = Mock()
 
         async def mock_authorize(*args: object, **kwargs: object) -> AuthzResult:
             return AuthzResult(
@@ -607,13 +607,13 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
 
         monkeypatch.setattr("nexus.authz.engine.authorize", mock_authorize)
 
-        service = ApprovalService(test_db_session, user, opa_client=mock_opa_client)
+        service = ApprovalService(test_db_session, user, evaluator=mock_evaluator)
         approval_read = await service.create(request)
 
         approval = await self._get_approval_with_relationships(test_db_session, approval_read.id)
         assert approval is not None
 
-        # OPA allows AND user in approver list = authorized
+        # evaluator allows AND user in approver list = authorized
         is_authorized = await service._is_user_authorized_approver(approval)
         assert is_authorized is True
 
@@ -625,7 +625,7 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
         executions_factory: ExecutionsFactory,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that OPA allow without approver list membership denies access."""
+        """Test that evaluator allow without approver list membership denies access."""
         user = users["user_1"]
         other_user = users["user_2"]
         executions = await executions_factory.create_executions(count=1)
@@ -638,10 +638,10 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
             project_id=execution.project_id,
         )
 
-        # Mock OPA client to allow permission
+        # Mock authz evaluator to allow permission
         from unittest.mock import Mock
 
-        mock_opa_client = Mock()
+        mock_evaluator = Mock()
 
         async def mock_authorize(*args: object, **kwargs: object) -> AuthzResult:
             return AuthzResult(
@@ -655,13 +655,13 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
 
         monkeypatch.setattr("nexus.authz.engine.authorize", mock_authorize)
 
-        service = ApprovalService(test_db_session, user, opa_client=mock_opa_client)
+        service = ApprovalService(test_db_session, user, evaluator=mock_evaluator)
         approval_read = await service.create(request)
 
         approval = await self._get_approval_with_relationships(test_db_session, approval_read.id)
         assert approval is not None
 
-        # OPA allows but user NOT in approver list = not authorized
+        # evaluator allows but user NOT in approver list = not authorized
         is_authorized = await service._is_user_authorized_approver(approval)
         assert is_authorized is False
 
@@ -673,7 +673,7 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
         executions_factory: ExecutionsFactory,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that OPA allow with empty approver list grants access (AC5 fallback)."""
+        """Test that evaluator allow with empty approver list grants access (AC5 fallback)."""
         user = users["user_1"]
         executions = await executions_factory.create_executions(count=1)
         execution = executions[0]
@@ -685,10 +685,10 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
             project_id=execution.project_id,
         )
 
-        # Mock OPA client to allow permission
+        # Mock authz evaluator to allow permission
         from unittest.mock import Mock
 
-        mock_opa_client = Mock()
+        mock_evaluator = Mock()
 
         async def mock_authorize(*args: object, **kwargs: object) -> AuthzResult:
             return AuthzResult(
@@ -702,12 +702,12 @@ class TestApprovalServiceOPAAuthorization(TestApprovalAuthorizationBase):
 
         monkeypatch.setattr("nexus.authz.engine.authorize", mock_authorize)
 
-        service = ApprovalService(test_db_session, user, opa_client=mock_opa_client)
+        service = ApprovalService(test_db_session, user, evaluator=mock_evaluator)
         approval_read = await service.create(request)
 
         approval = await self._get_approval_with_relationships(test_db_session, approval_read.id)
         assert approval is not None
 
-        # OPA allows + empty approver list = authorized (AC5 fallback)
+        # evaluator allows + empty approver list = authorized (AC5 fallback)
         is_authorized = await service._is_user_authorized_approver(approval)
         assert is_authorized is True

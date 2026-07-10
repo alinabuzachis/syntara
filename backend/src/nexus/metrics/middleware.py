@@ -9,6 +9,7 @@ Records per-request metrics:
 
 from __future__ import annotations
 
+import gc
 import time
 from typing import TYPE_CHECKING
 
@@ -16,6 +17,7 @@ import structlog
 
 from nexus.api.constants import EXCLUDED_PATH_PREFIXES, EXCLUDED_PATHS
 from nexus.audit.emitter import request_id_context_var
+from nexus.metrics.cleanup import release_memory_to_os
 from nexus.metrics.interface_tag import detect_interface, interface_context_var
 from nexus.metrics.types import ComponentLabel, MetricType
 
@@ -99,6 +101,7 @@ class MetricsMiddleware:
     """
 
     _UPTIME_SAMPLE_INTERVAL: int = 100
+    _MEMORY_TRIM_INTERVAL: int = 50
 
     def __init__(self, app: ASGIApp, recorder: MetricsRecorder) -> None:
         """Initialise the middleware.
@@ -263,6 +266,10 @@ class MetricsMiddleware:
                     time.monotonic() - self._start_time,
                     component=component,
                 )
+
+            if self._request_count % self._MEMORY_TRIM_INTERVAL == 0:
+                gc.collect()
+                release_memory_to_os()
         except Exception:  # noqa: BLE001
             logger.warning(
                 "metrics_recording_failed",

@@ -6,7 +6,7 @@ Tests the full HTTP cycle: auth → router → service → DB → response seria
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
@@ -45,9 +45,9 @@ async def admin_settings_client(
         session_app.dependency_overrides[get_db] = override_get_db
         session_app.dependency_overrides[get_current_user] = override_get_current_user
 
-        # Mock OPA to always allow — integration tests validate API behavior, not authz.
-        mock_opa = AsyncMock()
-        mock_opa.evaluate = AsyncMock(
+        # Mock evaluator to always allow — integration tests validate API behavior, not authz.
+        mock_evaluator = AsyncMock()
+        mock_evaluator.evaluate = MagicMock(
             return_value={
                 "allow": True,
                 "deny": False,
@@ -57,9 +57,12 @@ async def admin_settings_client(
         )
 
         def _mock_getter(request: Any = None) -> AsyncMock:  # noqa: ANN401
-            return mock_opa
+            return mock_evaluator
 
-        with patch("nexus.authz.dependencies.get_opa_client", _mock_getter):
+        with (
+            patch("nexus.authz.dependencies.get_authz_evaluator", _mock_getter),
+            patch("nexus.authz.dependencies.get_authz_evaluator", _mock_getter),
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=session_app),
                 base_url="http://test",

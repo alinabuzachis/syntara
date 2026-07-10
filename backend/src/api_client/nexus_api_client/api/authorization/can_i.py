@@ -99,8 +99,8 @@ def sync_detailed(
 ) -> Response[CanIResponse | ErrorData]:
     """Check if the current user can perform an action
 
-     Evaluates the current user's effective policies against OPA to determine if a specific action is
-    allowed on a resource.
+     Evaluates the current user's effective policies to determine if a specific action is allowed on a
+    resource.
 
     Args:
         body (CanIRequest): Request body for the Can I? authorization check.
@@ -131,8 +131,8 @@ def sync(
 ) -> CanIResponse | ErrorData | None:
     """Check if the current user can perform an action
 
-     Evaluates the current user's effective policies against OPA to determine if a specific action is
-    allowed on a resource.
+     Evaluates the current user's effective policies to determine if a specific action is allowed on a
+    resource.
 
     Args:
         body (CanIRequest): Request body for the Can I? authorization check.
@@ -158,8 +158,8 @@ async def asyncio_detailed(
 ) -> Response[CanIResponse | ErrorData]:
     """Check if the current user can perform an action
 
-     Evaluates the current user's effective policies against OPA to determine if a specific action is
-    allowed on a resource.
+     Evaluates the current user's effective policies to determine if a specific action is allowed on a
+    resource.
 
     Args:
         body (CanIRequest): Request body for the Can I? authorization check.
@@ -188,8 +188,8 @@ async def asyncio(
 ) -> CanIResponse | ErrorData | None:
     """Check if the current user can perform an action
 
-     Evaluates the current user's effective policies against OPA to determine if a specific action is
-    allowed on a resource.
+     Evaluates the current user's effective policies to determine if a specific action is allowed on a
+    resource.
 
     Args:
         body (CanIRequest): Request body for the Can I? authorization check.

@@ -389,7 +389,7 @@ SELF_SCOPED_CASES: list[PolicyTestCase] = [
 #
 # System-scoped e2e tests use a representative subset — not every policy
 # needs a full-stack round-trip.  Policies listed here are verified via
-# OPA/Rego unit tests and are excluded from the e2e coverage check in
+# Rego/Rego unit tests and are excluded from the e2e coverage check in
 # test_role_conventions.py::TestRegistryIntegrity.
 #
 # When adding a NEW built-in policy, either:

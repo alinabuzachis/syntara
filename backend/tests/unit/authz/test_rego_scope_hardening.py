@@ -33,7 +33,7 @@ class TestSelfScopeBypass:
 
         This is a known Rego behavior — empty strings are equal.  The
         application layer must ensure user_id is never empty before
-        reaching OPA.
+        reaching Rego.
         """
         policies = [
             allow_policy("user:read:self", ["user:read"], scope="self"),
@@ -134,7 +134,7 @@ class TestProjectScopeBypass:
     def test_project_scope_both_empty_denied(self, opa_evaluate):
         """When policy project is empty, allow_policy() omits the key entirely.
 
-        OPA treats missing ``policy.project`` as undefined, so the
+        Rego treats missing ``policy.project`` as undefined, so the
         comparison ``policy.project == input.resource.project`` fails.
         Result: deny.  This is safe — a project-scoped policy without
         a project field cannot match anything.

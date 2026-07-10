@@ -7,7 +7,6 @@ Provides three query patterns:
 - Resource actions — List all available resource types and their valid actions
 """
 
-import asyncio
 import re
 from collections.abc import Sequence
 from typing import Annotated, Any, ClassVar, Literal
@@ -22,10 +21,10 @@ from sqlmodel import Field, SQLModel, col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.dependencies import get_current_user
-from nexus.authz.dependencies import PermissionChecker, get_opa_client
+from nexus.authz.dependencies import PermissionChecker, get_authz_evaluator
 from nexus.authz.engine import AuthzRequest, authorize, resolve_readable_project_ids
+from nexus.authz.evaluator import AuthzEvaluator
 from nexus.authz.models.project import Project
-from nexus.authz.opa_client import OPAClient
 from nexus.authz.resolver import resolve_effective_policies, resolve_user_groups
 from nexus.core.constants import NAME_PATTERN, FieldLimits
 from nexus.core.database.session import get_db
@@ -34,6 +33,7 @@ from nexus.core.models.base.query_params import BasePaginatedRequest
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.models.user import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
+from nexus.core.services.base import BaseService
 from nexus.core.utils.cursor import (
     CursorData,
     PaginationDirection,
@@ -41,8 +41,9 @@ from nexus.core.utils.cursor import (
     create_cursor_data,
     decode_cursor,
     encode_cursor,
-    extract_pagination_from_cursor,
+    extract_keyset_from_cursor,
     extract_sort_from_cursor,
+    serialize_sort_value,
 )
 from nexus.core.utils.sorting import apply_sorting, parse_sort
 
@@ -314,29 +315,16 @@ def _paginate_in_memory(
 # ============================================================================
 
 # who_can can't use BaseService for pagination because authorization is determined
-# per-user via OPA, not by SQL filters. We must scan users in batches, check each
-# against OPA, and paginate the filtered results manually.
+# per-user via the evaluator, not by SQL filters. We must scan users in batches,
+# check each against the evaluator, and paginate the filtered results manually.
 _WHO_CAN_SORTABLE_FIELDS: list[str] = ["id", "username"]
 _WHO_CAN_DB_BATCH_SIZE = 200
 _WHO_CAN_MAX_TOTAL_SCAN = 10_000
-_WHO_CAN_OPA_CONCURRENCY = 20
-
-
-def _flip_sort_direction(sort_direction: SortDirection) -> SortDirection:
-    """Return the opposite sort direction."""
-    return SortDirection.ASC if sort_direction == SortDirection.DESC else SortDirection.DESC
-
-
-def _extract_batch_sort_value(item: User, sort_field: str) -> str | None:
-    """Get the sort field value from a user row for cursor positioning."""
-    if sort_field == "id":
-        return None
-    return str(getattr(item, sort_field))
 
 
 async def _check_user_authorized(
     db: AsyncSession,
-    opa_client: OPAClient,
+    evaluator: AuthzEvaluator,
     user: User,
     body: WhoCanRequest,
     resource_project: str,
@@ -344,7 +332,7 @@ async def _check_user_authorized(
     """Check if a single user is authorized for the requested action."""
     result = await authorize(
         db,
-        opa_client,
+        evaluator,
         AuthzRequest(
             user_id=user.id,
             action=body.action,
@@ -369,40 +357,30 @@ def _apply_who_can_cursor_filter(
     cursor_id: UUID,
     cursor_sort_value: str | None,
 ) -> Select[tuple[User]]:
-    """Apply cursor boundary filter for who_can pagination.
-
-    Uses keyset pagination: filters on (sort_field, id) so we resume
-    exactly where the previous page left off without offset-based skipping.
-    For example, sorting by username ASC with a forward cursor produces:
-        WHERE (username > cursor_val) OR (username = cursor_val AND id > cursor_id)
-    """
-    sort_attr = getattr(User, sort_field)
-
-    # When sorting by id alone, the compound comparison simplifies to a single condition.
-    # forward + ASC or backward + DESC → use ">", otherwise "<"
+    """Apply cursor boundary filter for who_can pagination."""
     if sort_field == "id":
         if (direction == PaginationDirection.NEXT) == (sort_direction == SortDirection.ASC):
             return query.where(col(User.id) > cursor_id)
         return query.where(col(User.id) < cursor_id)
 
-    # No sort value means we can't position the cursor on the secondary field
     if cursor_sort_value is None:
         return query
 
-    # Compound comparison: use the sort field as primary, id as tiebreaker.
-    # This ensures stable ordering even when multiple rows share the same sort value.
-    if (direction == PaginationDirection.NEXT) == (sort_direction == SortDirection.ASC):
-        return query.where(
-            (col(sort_attr) > cursor_sort_value) | ((col(sort_attr) == cursor_sort_value) & (col(User.id) > cursor_id))
-        )
-    return query.where(
-        (col(sort_attr) < cursor_sort_value) | ((col(sort_attr) == cursor_sort_value) & (col(User.id) < cursor_id))
+    filtered, _needs_reverse = BaseService._apply_keyset_filter(  # noqa: SLF001
+        query,
+        col(getattr(User, sort_field)),
+        cursor_sort_value,
+        col(User.id),
+        cursor_id,
+        sort_direction,
+        direction,
     )
+    return filtered  # type: ignore[return-value]
 
 
 async def _check_batch_authorization(
     db: AsyncSession,
-    opa_client: OPAClient,
+    evaluator: AuthzEvaluator,
     batch: Sequence[User],
     body: WhoCanRequest,
     resource_project: str,
@@ -413,7 +391,7 @@ async def _check_batch_authorization(
     """Check each user in a batch against OPA, appending authorized ones."""
     for user in batch:
         checked_ids.add(user.id)
-        if await _check_user_authorized(db, opa_client, user, body, resource_project):
+        if await _check_user_authorized(db, evaluator, user, body, resource_project):
             authorized.append(WhoCanUser(id=user.id, username=user.username))
             if len(authorized) >= target_count:
                 return
@@ -421,7 +399,7 @@ async def _check_batch_authorization(
 
 async def _scan_authorized_users(
     db: AsyncSession,
-    opa_client: OPAClient,
+    evaluator: AuthzEvaluator,
     body: WhoCanRequest,
     resource_project: str,
     *,
@@ -449,7 +427,11 @@ async def _scan_authorized_users(
     batch_cursor_id = cursor_id
     batch_sort_value = cursor_sort_value
     is_backward = direction == PaginationDirection.PREV
-    actual_direction = _flip_sort_direction(sort_direction) if is_backward else sort_direction
+    actual_direction = (
+        (SortDirection.ASC if sort_direction == SortDirection.DESC else SortDirection.DESC)
+        if is_backward
+        else sort_direction
+    )
 
     while len(authorized) < target_count:
         query = select(User).where(
@@ -478,44 +460,21 @@ async def _scan_authorized_users(
             break
 
         await _check_batch_authorization(
-            db, opa_client, batch, body, resource_project, authorized, checked_ids, target_count
+            db, evaluator, batch, body, resource_project, authorized, checked_ids, target_count
         )
 
         last = batch[-1]
         batch_cursor_id = last.id
-        batch_sort_value = _extract_batch_sort_value(last, sort_field)
+        batch_sort_value = serialize_sort_value(getattr(last, sort_field)) if sort_field != "id" else None
 
     if is_backward:
         authorized.reverse()
     return authorized, checked_ids
 
 
-def _build_opa_input(
-    user: User,
-    body: WhoCanRequest,
-    resource_project: str,
-    groups: list[dict[str, Any]],
-    effective: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Build the OPA evaluation input for a single user."""
-    return {
-        "user": {"id": str(user.id), "metadata": user.authz_metadata, "labels": user.labels},
-        "action": body.action,
-        "resource": {
-            "type": body.resource_type,
-            "id": body.resource_id,
-            "project": resource_project,
-            "metadata": body.resource_metadata,
-            "labels": body.resource_labels,
-        },
-        "groups": groups,
-        "effective_policies": effective,
-    }
-
-
 async def _count_authorized_users(
     db: AsyncSession,
-    opa_client: OPAClient,
+    evaluator: AuthzEvaluator,
     body: WhoCanRequest,
     resource_project: str,
     *,
@@ -524,29 +483,19 @@ async def _count_authorized_users(
 ) -> int | None:
     """Count all users authorized for the action.
 
-    Scans all active users and checks each against OPA. Capped at
+    Scans all active users and checks each against the evaluator. Capped at
     _WHO_CAN_MAX_TOTAL_SCAN users to prevent runaway queries on
     large user bases. Returns None when the cap is reached, signaling
     that the total is indeterminate.
 
-    Each DB batch is processed in two phases: policy and group
-    resolution runs sequentially (DB-bound), then OPA evaluations
-    run concurrently bounded by ``_WHO_CAN_OPA_CONCURRENCY``.
-
     When ``skip_ids`` is provided, users already evaluated by a prior
-    scan are skipped to avoid redundant OPA calls. ``initial_count``
+    scan are skipped to avoid redundant evaluator calls. ``initial_count``
     seeds the counter with authorized users already known.
     """
     count = initial_count
     users_scanned = 0
     scan_cursor: UUID | None = None
     already_checked = skip_ids or set()
-    semaphore = asyncio.Semaphore(_WHO_CAN_OPA_CONCURRENCY)
-
-    async def _eval_opa(opa_input: dict[str, Any]) -> bool:
-        async with semaphore:
-            result = await opa_client.evaluate(opa_input)
-            return bool(result.get("allow", False))
 
     while True:
         query = (
@@ -566,7 +515,6 @@ async def _count_authorized_users(
         if not batch:
             break
 
-        opa_inputs: list[dict[str, Any]] = []
         for user in batch:
             users_scanned += 1
             if users_scanned > _WHO_CAN_MAX_TOTAL_SCAN:
@@ -578,13 +526,8 @@ async def _count_authorized_users(
                 return None
             if user.id in already_checked:
                 continue
-            effective = await resolve_effective_policies(db, user.id)
-            groups = await resolve_user_groups(db, user.id)
-            opa_inputs.append(_build_opa_input(user, body, resource_project, groups, effective))
-
-        if opa_inputs:
-            results = await asyncio.gather(*[_eval_opa(inp) for inp in opa_inputs])
-            count += sum(1 for allowed in results if allowed)
+            if await _check_user_authorized(db, evaluator, user, body, resource_project):
+                count += 1
 
         scan_cursor = batch[-1].id
 
@@ -613,13 +556,11 @@ def _build_page_cursors(
     is_forward = direction == PaginationDirection.NEXT
 
     def _make_cursor(boundary: WhoCanUser, nav_direction: PaginationDirection) -> str:
-        # created_at carries the sort value (e.g. username) — this is a CursorData
-        # convention where created_at is the generic secondary sort value field
-        sort_value = str(getattr(boundary, sort_field)) if sort_field != "id" else None
+        sv = serialize_sort_value(getattr(boundary, sort_field)) if sort_field != "id" else None
         return encode_cursor(
             create_cursor_data(
                 resource_id=boundary.id,
-                created_at=sort_value,
+                sort_value=sv,
                 direction=nav_direction,
                 sort_field=sort_field,
                 sort_direction=sort_direction,
@@ -657,8 +598,7 @@ _authz_query_perm = PermissionChecker("authz", "query")
     operation_id="can_i",
     summary="Check if the current user can perform an action",
     description=(
-        "Evaluates the current user's effective policies against OPA to determine if a specific action"
-        " is allowed on a resource."
+        "Evaluates the current user's effective policies to determine if a specific action is allowed on a resource."
     ),
     response_description="Authorization decision",
 )
@@ -666,17 +606,17 @@ async def can_i(
     body: CanIRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    opa_client: Annotated[OPAClient, Depends(get_opa_client)],
+    evaluator: Annotated[AuthzEvaluator, Depends(get_authz_evaluator)],
 ) -> CanIResponse:
     """Check if the current user can perform a specific action.
 
-    Evaluates the user's effective policies against OPA.
+    Evaluates the user's effective policies against the configured authz evaluator.
 
     Args:
         body: The authorization query.
         current_user: The authenticated user.
         db: Database session.
-        opa_client: OPA client.
+        evaluator: Authorization evaluator.
 
     Returns:
         Authorization decision.
@@ -686,7 +626,7 @@ async def can_i(
 
     result = await authorize(
         db,
-        opa_client,
+        evaluator,
         AuthzRequest(
             user_id=current_user.id,
             action=body.action,
@@ -715,7 +655,7 @@ async def can_i(
     operation_id="who_can",
     summary="List users who can perform an action",
     description=(
-        "Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging endpoint."
+        "Iterates all active users, resolves their policies, and checks each against the configured authz evaluator."
     ),
     response_description="List of authorized users",
 )
@@ -723,16 +663,17 @@ async def who_can(
     body: WhoCanRequest,
     _current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    opa_client: Annotated[OPAClient, Depends(get_opa_client)],
+    evaluator: Annotated[AuthzEvaluator, Depends(get_authz_evaluator)],
 ) -> WhoCanResponse:
     """List users who can perform a specific action."""
     resource_project = await _resolve_project_input(db, body.resource_project)
 
     if body.cursor:
         cursor_data = decode_cursor(body.cursor)
-        resource_id, cursor_sort_value, direction = extract_pagination_from_cursor(cursor_data)
+        sort_field_c, cursor_sort_value, resource_id, _created_at, direction = extract_keyset_from_cursor(cursor_data)
         cursor_id = UUID(resource_id) if resource_id else None
-        sort_field, sort_direction = extract_sort_from_cursor(cursor_data)
+        _, sort_direction = extract_sort_from_cursor(cursor_data)
+        sort_field = sort_field_c or "id"
         if sort_field not in _WHO_CAN_SORTABLE_FIELDS:
             msg = f"Invalid sort field in cursor: {sort_field}"
             raise SafeValueError(msg)
@@ -744,7 +685,7 @@ async def who_can(
 
     results, checked_ids = await _scan_authorized_users(
         db,
-        opa_client,
+        evaluator,
         body,
         resource_project,
         cursor_id=cursor_id,
@@ -779,7 +720,7 @@ async def who_can(
         )
         total_count = await _count_authorized_users(
             db,
-            opa_client,
+            evaluator,
             body,
             resource_project,
             skip_ids=checked_ids,
@@ -800,8 +741,8 @@ async def who_can(
     operation_id="what_can_i",
     summary="List all permissions for the current user",
     description=(
-        "Resolves the current user's effective policies and returns them as a paginated list of"
-        " permission entries. No OPA call needed."
+        "Resolves the current user's effective policies and returns them as a flat list of permission entries."
+        " No runtime policy evaluation call is needed."
     ),
     response_description="Paginated list of permission entries",
 )
@@ -811,14 +752,28 @@ async def what_can_i(
     db: Annotated[AsyncSession, Depends(get_db)],
     body: WhatCanIRequest,
 ) -> WhatCanIResponse:
-    """List all permissions for the current user. No OPA call needed."""
+    """List all permissions for the current user.
+
+    Resolves the user's effective policies and returns them as a
+    flat list of permission entries. No policy evaluation call is needed.
+
+    Args:
+        request: The HTTP request.
+        current_user: The authenticated user.
+        db: Database session.
+        body: Request body specifying query parameters.
+
+    Returns:
+        List of permission entries.
+
+    """
     effective = await resolve_effective_policies(db, current_user.id)
     groups = await resolve_user_groups(db, current_user.id)
 
-    opa_client = get_opa_client(request)
+    evaluator = get_authz_evaluator(request)
     readable_ids = await resolve_readable_project_ids(
         db,
-        opa_client,
+        evaluator,
         current_user.id,
         effective,
         groups,

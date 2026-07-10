@@ -26,11 +26,11 @@ from nexus.core.models import User
 
 
 @pytest.fixture(autouse=True)
-def _mock_opa_for_concurrency_tests(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Auto-mock OPA authorization for concurrency tests.
+def _mock_evaluator_for_concurrency_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Auto-mock authz evaluator authorization for concurrency tests.
 
     Concurrency tests focus on locking behavior, not authorization,
-    so we mock OPA to always allow.
+    so we mock evaluator to always allow.
     """
     from unittest.mock import Mock
 
@@ -52,13 +52,13 @@ def _mock_opa_for_concurrency_tests(monkeypatch: pytest.MonkeyPatch) -> None:
         mock_authorize,
     )
 
-    # Patch ApprovalService.__init__ to inject mock_client when opa_client is None
+    # Patch ApprovalService.__init__ to inject mock_client when evaluator is None
     original_init = ApprovalService.__init__
 
-    def patched_init(self, session, user, opa_client=None) -> None:
-        if opa_client is None:
-            opa_client = mock_client
-        original_init(self, session, user, opa_client)
+    def patched_init(self, session, user, evaluator=None) -> None:
+        if evaluator is None:
+            evaluator = mock_client
+        original_init(self, session, user, evaluator)
 
     monkeypatch.setattr(ApprovalService, "__init__", patched_init)
 

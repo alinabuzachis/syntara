@@ -46,10 +46,9 @@ WORKER_BASE_URL = https://localhost:8000/api/v1
 
 # UV environment setup
 # ========================================================
-OPA_VERSION := v1.4.2
 
 .PHONY: install
-install: _deps-install-dev _deps-install-pre-commit _install-opa ## Complete setup from scratch
+install: _deps-install-dev _deps-install-pre-commit ## Complete setup from scratch
 	@echo ""
 	@echo "🎉 Nexus setup complete!"
 	@echo ""
@@ -77,28 +76,6 @@ _deps-install-pre-commit:
 	@echo "✅ Pre-commit hooks installed successfully"
 	@echo "  To bypass hooks: git commit --no-verify"
 	@echo "  To update hooks: make update-hooks"
-
-.PHONY: install-opa
-install-opa: _install-opa ## Install OPA CLI binary into .venv/bin
-
-_install-opa:
-	@if [ -x .venv/bin/opa ] && .venv/bin/opa version 2>/dev/null | grep -q "$(patsubst v%,%,$(OPA_VERSION))"; then \
-		echo "✅ OPA $(OPA_VERSION) already installed"; \
-	else \
-		echo "📦 Installing OPA $(OPA_VERSION)..."; \
-		OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
-		ARCH=$$(uname -m); \
-		case "$${OS}_$${ARCH}" in \
-			darwin_arm64)  BINARY="opa_darwin_arm64_static" ;; \
-			darwin_x86_64) BINARY="opa_darwin_amd64" ;; \
-			linux_x86_64)  BINARY="opa_linux_amd64_static" ;; \
-			linux_aarch64) BINARY="opa_linux_arm64_static" ;; \
-			*) echo "❌ Unsupported platform: $${OS}/$${ARCH}"; exit 1 ;; \
-		esac; \
-		curl -fsSL "https://github.com/open-policy-agent/opa/releases/download/$(OPA_VERSION)/$${BINARY}" -o .venv/bin/opa; \
-		chmod +x .venv/bin/opa; \
-		echo "✅ OPA $(OPA_VERSION) installed to .venv/bin/opa"; \
-	fi
 
 _check-uv:
 	@if ! command -v uv >/dev/null 2>&1; then \
@@ -203,7 +180,7 @@ test-all: check-deps ## Run all tests
 	$(call run-tests,tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml)
 
 # _e2e-run: shared infrastructure setup for all e2e targets.
-# Starts mock Segment, database, Temporal, OPA, and the API server,
+# Starts mock Segment, database, Temporal, and the API server,
 # then runs the pytest command passed as $(1).
 # Usage: $(call _e2e-run,<pytest-args>)
 define _e2e-run
@@ -388,27 +365,6 @@ temporal-clean: ## Stop Temporal and remove data
 	@echo "✅ Temporal stopped"
 
 
-# OPA (Authorization)
-# ========================================================
-.PHONY: opa-run
-opa-run: ## Start OPA server (foreground, Ctrl+C to stop)
-	@echo "Starting OPA server..."
-	@echo "OPA API: http://localhost:$${NEXUS_OPA_PORT:-8181}"
-	@echo "Press Ctrl+C to stop"
-	@echo ""
-	$(COMPOSE_FINAL_CMD) up opa
-
-.PHONY: opa-clean
-opa-clean: ## Stop OPA server
-	@echo "Stopping OPA server..."
-	$(COMPOSE_FINAL_CMD) stop opa || true
-	@echo "OPA stopped"
-
-.PHONY: opa-logs
-opa-logs: ## View OPA server logs
-	@echo "Viewing OPA logs (project: $(PODMAN_PROJECT))..."
-	$(COMPOSE_FINAL_CMD) logs -f opa
-
 .PHONY: build-images
 build-images: ## Build container images for nexus and temporal-worker
 	@echo "🔨 Building container images..."
@@ -454,8 +410,7 @@ _ensure-certs:
 
 .PHONY: generate-token
 generate-token: _ensure-secrets ## Generate a JWT token for testing (ROLE=creator|approver|administrator|viewer KEY=primary|backup)
-	@# -T disables TTY so uv progress bars and ANSI escapes stay on stderr instead of merging into stdout
-	@$(COMPOSE_FINAL_CMD) exec -T nexus -- sh -c 'uv run python tools/generate_jwt.py --json $(if $(ROLE),--role "$(ROLE)") $(if $(KEY),--key "$(KEY)")' | jq -r .access_token
+	@$(COMPOSE_FINAL_CMD) exec nexus -- sh -c 'uv run python tools/generate_jwt.py --json $(if $(ROLE),--role $(ROLE)) $(if $(KEY),--key $(KEY))' | jq -r .access_token
 
 .PHONY: _ensure-secrets
 _ensure-secrets:
@@ -486,7 +441,7 @@ services-run: _ensure-secrets _ensure-certs ## Start all services (database + ca
 	@echo "📍 Temporal Server: localhost:$${APP_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${APP_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
-	$(COMPOSE_FINAL_CMD) up --build --force-recreate -d database redis temporal temporal-ui temporal-worker temporal-background-worker mcp-server opa moto
+	$(COMPOSE_FINAL_CMD) up --build --force-recreate -d database redis temporal temporal-ui temporal-worker temporal-background-worker mcp-server moto
 	@echo "✅ All services started in background"
 	@echo "   Use 'make services-logs' to view logs"
 	@echo "   Use 'make services-stop' to stop services"
@@ -673,6 +628,8 @@ reachability: ## Verify all standards docs are reachable from CLAUDE.md
 sync-requirements: ## Check/sync requirements.txt with uv.lock
 	@echo "🔍 Syncing requirements.txt with uv.lock..."
 	uv export --frozen --python=3.12 --no-dev --no-editable --no-emit-package pywin32 --no-emit-package colorama --no-emit-workspace --output-file requirements.txt
+	@echo "🔧 Filtering hashes to Linux x86_64/aarch64 only (for Hermeto prefetch)..."
+	uv run python tools/ci/filter_requirements_hashes.py
 	@echo "✅ requirements.txt is in sync"
 
 .PHONY: format

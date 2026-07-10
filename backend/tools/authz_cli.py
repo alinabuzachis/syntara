@@ -44,7 +44,7 @@ The ``--username`` flag authenticates as a specific user. Requires ``--password`
     # View effective permissions (as a specific user)
     uv run tools/authz_cli.py --username alice --password secret what-can-i
 
-    # Check access (requires OPA)
+    # Check access (uses the in-process authz evaluator)
     uv run tools/authz_cli.py --username alice --password secret can-i read workflow wf-1
 
     # Machine-readable JSON output for scripting

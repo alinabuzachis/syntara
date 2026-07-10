@@ -101,12 +101,12 @@ class TestResolveReadableProjectIds:
     @pytest.mark.asyncio
     async def test_returns_none_when_all_readable(self) -> None:
         mock_db = AsyncMock()
-        mock_opa = AsyncMock()
-        mock_opa.evaluate = AsyncMock(return_value={"allowed_projects": ["*"]})
+        mock_evaluator = AsyncMock()
+        mock_evaluator.evaluate = MagicMock(return_value={"allowed_projects": ["*"]})
 
         result = await resolve_readable_project_ids(
             mock_db,
-            mock_opa,
+            mock_evaluator,
             uuid4(),
             [],
             [],
@@ -118,12 +118,12 @@ class TestResolveReadableProjectIds:
     @pytest.mark.asyncio
     async def test_returns_empty_set_when_no_projects(self) -> None:
         mock_db = AsyncMock()
-        mock_opa = AsyncMock()
-        mock_opa.evaluate = AsyncMock(return_value={"allowed_projects": []})
+        mock_evaluator = AsyncMock()
+        mock_evaluator.evaluate = MagicMock(return_value={"allowed_projects": []})
 
         result = await resolve_readable_project_ids(
             mock_db,
-            mock_opa,
+            mock_evaluator,
             uuid4(),
             [],
             [],
@@ -140,12 +140,12 @@ class TestResolveReadableProjectIds:
         mock_exec_result.all.return_value = [MagicMock(id=pid1), MagicMock(id=pid2)]
         mock_db.exec = AsyncMock(return_value=mock_exec_result)
 
-        mock_opa = AsyncMock()
-        mock_opa.evaluate = AsyncMock(return_value={"allowed_projects": ["alpha", "beta"]})
+        mock_evaluator = AsyncMock()
+        mock_evaluator.evaluate = MagicMock(return_value={"allowed_projects": ["alpha", "beta"]})
 
         result = await resolve_readable_project_ids(
             mock_db,
-            mock_opa,
+            mock_evaluator,
             uuid4(),
             [],
             [],

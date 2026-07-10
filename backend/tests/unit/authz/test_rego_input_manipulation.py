@@ -130,7 +130,7 @@ class TestWildcardInRequest:
 
 
 class TestLongStrings:
-    """SEC-018: Extremely long strings do not cause OPA to crash or allow."""
+    """SEC-018: Extremely long strings do not cause Rego to crash or allow."""
 
     def test_long_action_denied(self, opa_evaluate):
         result = opa_evaluate(

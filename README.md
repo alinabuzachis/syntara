@@ -60,7 +60,7 @@ This reads specs from `backend/src/nexus/schemas/` and generates types in `front
 
 ## Container Development
 
-The root `podman-compose.yml` provides the full stack: PostgreSQL, Redis, Temporal, OPA, the Nexus API, and the UI. The UI service builds from `frontend/` instead of pulling a pre-built image.
+The root `podman-compose.yml` provides the full stack: PostgreSQL, Redis, Temporal, the Nexus API, and the UI. The UI service builds from `frontend/` instead of pulling a pre-built image.
 
 ```bash
 # Start all services

@@ -839,7 +839,7 @@ async def _check_websocket_authorization(
             logger.warning("No resource ID in path params", channel=channel_name)
             return False
 
-        opa_client = websocket.app.state.opa_client
+        evaluator = websocket.app.state.authz_evaluator
 
         authz_request = AuthzRequest(
             user_id=user.id,
@@ -849,7 +849,7 @@ async def _check_websocket_authorization(
         )
 
         async with AsyncSessionLocal() as db:
-            result = await authorize(db, opa_client, authz_request)
+            result = await authorize(db, evaluator, authz_request)
 
         return result.allowed and not result.denied
     except Exception:

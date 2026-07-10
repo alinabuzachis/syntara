@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start the full E2E stack (mock Segment, database, Temporal, OPA, API server),
+# Start the full E2E stack (mock Segment, database, Temporal, API server),
 # run pytest, then tear everything down.
 #
 # Usage:
@@ -49,7 +49,7 @@ APP_SEGMENT_ENDPOINT="http://mock-segment:9999" \
 APP_SEGMENT_MAX_RETRIES=2 \
 APP_SEGMENT_TIMEOUT=5 \
 APP_COLLECTION_INTERVAL_SECONDS=10 \
-${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate temporal temporal-worker mock-segment opa mcp-server nexus \
+${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate temporal temporal-worker mock-segment mcp-server nexus \
     >> /tmp/nexus-e2e-infra.log 2>&1
 
 echo "⏳ Waiting for mock Segment server..."

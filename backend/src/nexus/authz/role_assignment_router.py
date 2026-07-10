@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.audit.decorators import audit
 from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_opa_client
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_authz_evaluator
 from nexus.authz.engine import VisibilityResult, resolve_visibility
 from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
@@ -137,10 +137,10 @@ async def _resolve_role_assignment_visibility(
     db: AsyncSession,
 ) -> "VisibilityResult":
     """Resolve role-assignment:read visibility for the current user."""
-    opa_client = get_opa_client(request)
+    evaluator = get_authz_evaluator(request)
     return await resolve_visibility(
         db=db,
-        opa_client=opa_client,
+        evaluator=evaluator,
         user_id=current_user.id,
         resource_type="role-assignment",
         action="read",

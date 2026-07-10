@@ -186,7 +186,7 @@ async def test_get_workflows_empty_list(base_client: AsyncClient) -> None:
 - Tests error cases and edge cases comprehensively
 - Uses real or test database
 - Fast feedback on API breaking changes
-- OPA mocking provided automatically by root integration conftest
+- Authz evaluator mocking provided automatically by root integration conftest
 
 **Marker:** None (location-based)
 

@@ -1,7 +1,7 @@
 """Integration tests for project-scoped visibility on integration endpoints.
 
 These tests require direct database interaction (creating Project and
-IntegrationProjectAssignment rows) and OPA mock swapping. CRUD happy-path
+IntegrationProjectAssignment rows) and Rego mock swapping. CRUD happy-path
 and error-case tests live in tests/e2e/test_integration_endpoints.py.
 """
 

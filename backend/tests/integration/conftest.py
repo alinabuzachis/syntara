@@ -1,7 +1,7 @@
 """Shared fixtures for all integration tests.
 
-Provides OPA mocking so that integration tests outside ``tests/integration/api/``
-(which has its own richer OPA mock using the CLI) can still run without an OPA
+Provides Rego mocking so that integration tests outside ``tests/integration/api/``
+(which has its own richer Rego mock using the CLI) can still run without an Rego
 server.
 
 Overrides ``test_db_session`` to use real commits (not rollback-based
@@ -15,7 +15,7 @@ import sys
 from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import boto3
@@ -29,7 +29,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from uvicorn import Config, Server
 
-from nexus.authz.engine import clear_opa_cache, init_opa_cache
+from nexus.authz.engine import clear_authz_cache, init_authz_cache
 from nexus.authz.models.project import Project
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.models.group import Group
@@ -138,26 +138,26 @@ async def _seed_integration_data(test_db_session: AsyncSession) -> None:
 
 @pytest.fixture(autouse=True)
 def _reset_opa_cache() -> Generator[None, None, None]:
-    """Reset OPA cache between integration tests."""
-    init_opa_cache(enabled=True, ttl_seconds=300)
+    """Reset Rego cache between integration tests."""
+    init_authz_cache(enabled=True, ttl_seconds=300)
     yield
-    clear_opa_cache()
+    clear_authz_cache()
 
 
 @pytest.fixture(autouse=True)
-def _mock_opa_allow_all(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Replace OPA client with one that always allows requests.
+def _mock_evaluator_allow_all(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace authz evaluator with one that always allows requests.
 
     This is a lightweight fallback for integration tests that don't live
     under ``tests/integration/api/`` (those use the CLI-based mock).
-    The ``api`` conftest's ``_mock_opa`` fixture overrides this one for
+    The ``api`` conftest's ``_mock_evaluator`` fixture overrides this one for
     tests in that directory because pytest uses the most-specific conftest.
     """
     from nexus.api.main import app
-    from nexus.authz.dependencies import get_opa_client
+    from nexus.authz.dependencies import get_authz_evaluator
 
-    mock_opa = AsyncMock()
-    mock_opa.evaluate = AsyncMock(
+    mock_evaluator = AsyncMock()
+    mock_evaluator.evaluate = MagicMock(
         return_value={
             "allow": True,
             "deny": False,
@@ -167,12 +167,13 @@ def _mock_opa_allow_all(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     def _mock_getter(request: Any = None) -> AsyncMock:  # noqa: ANN401
-        return mock_opa
+        return mock_evaluator
 
-    monkeypatch.setattr("nexus.authz.dependencies.get_opa_client", _mock_getter)
-    monkeypatch.setattr("nexus.workflows.executions_router.get_opa_client", _mock_getter)
+    monkeypatch.setattr("nexus.authz.dependencies.get_authz_evaluator", _mock_getter)
+    monkeypatch.setattr("nexus.authz.dependencies.get_authz_evaluator", _mock_getter)
+    monkeypatch.setattr("nexus.workflows.executions_router.get_authz_evaluator", _mock_getter)
 
-    app.dependency_overrides[get_opa_client] = lambda: mock_opa
+    app.dependency_overrides[get_authz_evaluator] = lambda: mock_evaluator
 
 
 @pytest.fixture

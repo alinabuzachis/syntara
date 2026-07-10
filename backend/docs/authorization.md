@@ -1,17 +1,17 @@
 # Authorization
 
-Nexus uses [Open Policy Agent (OPA)](https://www.openpolicyagent.org/) for policy-based authorization. The system supports both Role-Based Access Control (RBAC) and Attribute-Based Access Control (ABAC) with project-scoped multi-tenancy.
+Nexus uses an in-process `regopy` evaluator for policy-based authorization. The system supports both Role-Based Access Control (RBAC) and Attribute-Based Access Control (ABAC) with project-scoped multi-tenancy.
 
 ## Architecture
 
 ```
-Request → Authentication → PermissionChecker → Policy Resolver → OPA → Allow/Deny
+Request → Authentication → PermissionChecker → Policy Resolver → Rego Evaluator → Allow/Deny
 ```
 
 1. **Authentication**: Identifies the user via `get_current_user()`
 2. **PermissionChecker**: FastAPI dependency that extracts resource type, action, and project context from the request
 3. **Policy Resolver**: Resolves the user's effective policies from role assignments and built-in role definitions (via roles, groups, and project assignments)
-4. **OPA**: Evaluates the Rego policy against the resolved policies and request context
+4. **Rego evaluator**: Evaluates the Rego policy against the resolved policies and request context
 5. **Decision**: Allow (200) or deny (403 Forbidden)
 
 Authorization is **deny-by-default** — requests are denied unless an explicit allow policy matches.
@@ -232,7 +232,7 @@ async def create_workflow_in_project(...):
 
 ### Filtering List Endpoints with VisibilityFilter
 
-Use `VisibilityFilter` to restrict list queries based on the user's effective policies. It resolves project-scoped access, self-scope access, and unrestricted access in a single OPA call:
+Use `VisibilityFilter` to restrict list queries based on the user's effective policies. It resolves project-scoped access, self-scope access, and unrestricted access in a single policy evaluation:
 
 ```python
 from nexus.authz.dependencies import VisibilityFilter
@@ -320,7 +320,7 @@ Policies support optional conditions for attribute-based matching. All specified
 
 If a condition key is absent from the policy, it is not checked (backward compatible).
 
-## OPA Policy Logic
+## Policy Logic
 
 The Rego policy (`src/nexus/authz/rego/authz.rego`) implements deny-first evaluation:
 
@@ -328,7 +328,7 @@ The Rego policy (`src/nexus/authz/rego/authz.rego`) implements deny-first evalua
 2. **Allow check**: If no deny matched AND any policy with `effect: "allow"` matches → **allowed**
 3. **Default**: If neither matched → **denied** (deny-by-default)
 
-The OPA response includes:
+The evaluator response includes:
 - `allow` / `deny` — boolean decision
 - `matched_policy` — name of the first allow policy that matched
 - `denied_by` — name of the first deny policy that fired
@@ -532,23 +532,19 @@ uv run tools/authz_cli.py --username alice --password secret what-can-i
 
 ## Local Development Setup
 
-Authorization requires OPA running alongside the API:
+Authorization is evaluated in-process, so local development does not require a separate policy sidecar:
 
 ```bash
-# Start all services (includes OPA)
+# Start all services
 make run-all
-
-# Or start just OPA
-podman-compose up opa
 ```
 
-OPA runs on port 8181 and loads Rego policies from `src/nexus/authz/rego/`.
+The evaluator loads Rego policies from `src/nexus/authz/rego/`.
 
 ### Configuration
 
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
-| `APP_OPA_URL` | `http://localhost:8181` | OPA server URL |
 | `APP_AUTHZ_DEFAULT_PROJECT` | `default` | Default project name |
 
 ## Testing
@@ -557,11 +553,11 @@ OPA runs on port 8181 and loads Rego policies from `src/nexus/authz/rego/`.
 # Run all authz tests
 make test-all
 
-# Unit tests (Rego policy logic via opa eval)
+# Unit tests (Rego policy logic via regopy)
 uv run pytest tests/unit/authz/ -v
 
 # Integration tests (API-level authz enforcement)
 uv run pytest tests/integration/api/test_authz*.py -v
 ```
 
-Unit tests validate the Rego policy directly using `opa eval`. Integration tests exercise the full stack with a mock OPA client.
+Unit tests validate the Rego policy directly using the `regopy` evaluator. Integration tests exercise the full stack with mocked evaluator dependencies where appropriate.

@@ -32,7 +32,7 @@ jobs:
       - name: Start services with podman-compose
         timeout-minutes: 5
         run: |
-          uvx podman-compose -p nexus-ci up --build -d database redis temporal opa nexus
+          uvx podman-compose -p nexus-ci up --build -d database redis temporal nexus
         working-directory: backend
 
       - name: Verify services are healthy
@@ -42,7 +42,6 @@ jobs:
           podman wait --condition=healthy \
             nexus-ci_database_1 \
             nexus-ci_temporal_1 \
-            nexus-ci_opa_1 \
             nexus-ci_nexus_1
           echo "All services are healthy"
 
@@ -80,7 +79,7 @@ jobs:
         if: failure()
         run: |
           echo "=== Compose logs ==="
-          uvx podman-compose -p nexus-ci logs database redis temporal opa nexus
+          uvx podman-compose -p nexus-ci logs database redis temporal nexus
         working-directory: backend
 
       - name: Cleanup

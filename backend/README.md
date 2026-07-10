@@ -140,10 +140,7 @@ make db-run
 # Start the cache/Redis (Terminal 2 — required for authentication)
 make cache-run
 
-# Start OPA authorization server (Terminal 3 — required for API startup)
-make opa-run
-
-# Start the development server (Terminal 4)
+# Start the development server (Terminal 3)
 make dev
 
 # Run tests
@@ -153,7 +150,7 @@ make test-all
 make lint
 ```
 
-> **Note:** The API server requires both Redis (`make cache-run`) and OPA (`make opa-run`) to be running before `make dev` can start. Without Redis, authentication endpoints will hang. Without OPA, the server will refuse to start.
+> **Note:** The API server requires Redis (`make cache-run`) for authentication and streaming. Authorization is evaluated in-process via regopy from `src/nexus/authz/rego/authz.rego`.
 
 ### Database Setup
 

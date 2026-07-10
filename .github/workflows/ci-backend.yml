@@ -462,7 +462,6 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           python-version: ${{ matrix.python-version }}
-          install-opa: 'false'
 
       - name: Run CLI tests with coverage
         run: make test-cli-coverage
@@ -570,7 +569,7 @@ jobs:
           APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS: '["host.containers.internal"]'
         run: |
           # Start core services + mock-segment (exclude nexus-ui which is private)
-          uvx podman-compose -p nexus-ci --profile telemetry-e2e up --build -d database temporal nexus temporal-worker temporal-background-worker mcp-server opa mock-segment
+          uvx podman-compose -p nexus-ci --profile telemetry-e2e up --build -d database temporal nexus temporal-worker temporal-background-worker mcp-server mock-segment
 
       - name: Verify services are healthy
         timeout-minutes: 5
@@ -586,7 +585,6 @@ jobs:
             nexus-ci_nexus_1 \
             nexus-ci_temporal-background-worker_1 \
             nexus-ci_mcp-server_1 \
-            nexus-ci_opa_1 \
             nexus-ci_mock-segment_1
           echo "All services are healthy"
 
@@ -619,7 +617,7 @@ jobs:
         if: failure()
         run: |
           echo "=== Compose logs ==="
-          uvx podman-compose -p nexus-ci --profile telemetry-e2e logs database temporal nexus temporal-worker temporal-background-worker mcp-server opa mock-segment
+          uvx podman-compose -p nexus-ci --profile telemetry-e2e logs database temporal nexus temporal-worker temporal-background-worker mcp-server mock-segment
 
       - name: Cleanup
         if: always()

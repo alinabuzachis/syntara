@@ -1,15 +1,11 @@
 ---
 name: Setup Test Environment
-description: Common setup steps for test jobs (Python, uv, dependencies, secrets, OPA)
+description: Common setup steps for test jobs (Python, uv, dependencies, secrets)
 
 inputs:
   python-version:
     description: Python version to use
     required: true
-  install-opa:
-    description: Whether to install OPA CLI
-    required: false
-    default: 'true'
   working-directory:
     description: Working directory for make commands (relative to repo root)
     required: false
@@ -35,16 +31,16 @@ runs:
           uv-${{ runner.os }}-${{ inputs.python-version }}-
           uv-${{ runner.os }}-
 
+    - name: Install regopy build toolchain (aarch64)
+      if: runner.arch == 'ARM64'
+      shell: bash
+      run: |
+        sudo apt-get update && sudo apt-get install -y cmake g++ git libssl-dev
+
     - name: Install dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: make install
-
-    - name: Install OPA CLI
-      if: inputs.install-opa == 'true'
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: make install-opa
 
     - name: Generate secrets
       shell: bash

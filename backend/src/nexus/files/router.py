@@ -300,7 +300,7 @@ async def download_file(
     """Download a file by ID from S3 storage.
 
     Authorization is handled entirely by PermissionChecker (dependency),
-    which verifies files:download permission via project-scoped OPA policies.
+    which verifies files:download permission via project-scoped Rego policies.
 
     Args:
         file_id: UUID of the file to download

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
     from nexus.authz.engine import AllowedProjectsResult
-    from nexus.authz.opa_client import OPAClient
+    from nexus.authz.evaluator import AuthzEvaluator
     from nexus.core.models import User
 
 from nexus.approvals.audit.approval import ApprovalDecidedEvent, ApprovalRequestedEvent
@@ -133,7 +133,7 @@ class ApprovalService(BaseService):
     including CRUD operations, decision processing, and workflow integration.
     """
 
-    def __init__(self, session: AsyncSession, user: User, opa_client: OPAClient | None = None) -> None:
+    def __init__(self, session: AsyncSession, user: User, evaluator: AuthzEvaluator | None = None) -> None:
         """Initialize ApprovalService with database session and user context."""
         super().__init__(
             session,
@@ -142,7 +142,7 @@ class ApprovalService(BaseService):
             enrich_query_mixin=ApprovalEnrichQuery(),
         )
         self.group_membership_service = GroupMembershipService(session)
-        self.opa_client = opa_client
+        self.evaluator = evaluator
 
     async def list(
         self,
@@ -269,12 +269,12 @@ class ApprovalService(BaseService):
 
         Authorization logic:
         1. Service principals (cert-authenticated S2S callers) are always authorized
-        2. Check OPA for approval:decide permission (project-scoped or system-level)
+        2. Check evaluator for approval:decide permission (project-scoped or system-level)
         3. If no approvers configured, any user with approval:decide permission can approve
         4. If approver_users configured, current user's username must be in the list
         5. If approver_groups configured, current user must be a member of at least one group
 
-        SECURITY: This method performs BOTH OPA permission check AND approver list check.
+        SECURITY: This method performs BOTH authz permission check AND approver list check.
         Used by batch_decide endpoint which doesn't have endpoint-level permission dependency
         to support users with project-scoped (not system-level) approval:decide permission.
 
@@ -305,11 +305,11 @@ class ApprovalService(BaseService):
         if self.user.id in {service_principal_id(cn) for cn in KNOWN_SERVICE_CNS}:
             return True
 
-        # SECURITY: Check OPA for approval:decide permission (project-scoped or system-level)
+        # SECURITY: Check evaluator for approval:decide permission (project-scoped or system-level)
         # This is required for batch_decide which doesn't have endpoint-level permission check.
-        if self.opa_client is None:
+        if self.evaluator is None:
             return False
-        if self.opa_client is not None:
+        if self.evaluator is not None:
             from nexus.authz.engine import AuthzRequest, authorize  # noqa: PLC0415
             from nexus.authz.models.project import Project  # noqa: PLC0415
 
@@ -329,12 +329,12 @@ class ApprovalService(BaseService):
                 user_metadata=self.user.authz_metadata,
             )
 
-            authz_result = await authorize(self.session, self.opa_client, authz_request)
+            authz_result = await authorize(self.session, self.evaluator, authz_request)
             if not authz_result.allowed:
                 return False
 
         # SECURITY: When no specific approvers configured (both lists empty), allow if user
-        # has approval:decide permission (checked above via OPA or at endpoint level).
+        # has approval:decide permission (checked above via evaluator or at endpoint level).
         # Empty lists = AC5 fallback (any user with approval:decide permission can approve).
         if not approval.approver_user_records and not approval.approver_group_records:
             return True

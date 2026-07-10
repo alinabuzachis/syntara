@@ -12,7 +12,7 @@ Run with:
 """
 
 import asyncio
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -59,10 +59,10 @@ class TestApprovalEdgeCases:
 
     def _create_test_service(self, session: AsyncSession, user: User) -> ApprovalService:
         """Create ApprovalService with mocked OPA client for integration testing."""
-        mock_opa_client = AsyncMock()
-        mock_opa_client.__bool__ = AsyncMock(return_value=True)
-        mock_opa_client.evaluate = AsyncMock(return_value={"allow": True})
-        return ApprovalService(session=session, user=user, opa_client=mock_opa_client)
+        mock_evaluator = AsyncMock()
+        mock_evaluator.__bool__ = AsyncMock(return_value=True)
+        mock_evaluator.evaluate = MagicMock(return_value={"allow": True})
+        return ApprovalService(session=session, user=user, evaluator=mock_evaluator)
 
     def _create_approval_request(
         self,

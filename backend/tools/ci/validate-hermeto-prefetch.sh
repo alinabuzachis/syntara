@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate hermetic prefetch parity with Konflux (pip + rpm).
+# Validate hermetic prefetch parity with Konflux (pip + rpm + generic).
 set -euo pipefail
 
 BACKEND_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -9,7 +9,7 @@ OUTPUT_DIR="${BACKEND_ROOT}/.hermeto-output"
 PREFETCH_OUTPUT_DIR="${OUTPUT_DIR}/output"
 PREFETCH_MODE="${PREFETCH_MODE:-permissive}"
 ENABLE_PACKAGE_REGISTRY_PROXY="${ENABLE_PACKAGE_REGISTRY_PROXY:-false}"
-PREFETCH_INPUT_DEFAULT='[{"type":"pip","path":"backend"},{"type":"rpm","path":"backend"}]'
+PREFETCH_INPUT_DEFAULT='[{"type":"pip","path":"backend"},{"type":"rpm","path":"backend"},{"type":"generic","path":"backend"}]'
 PREFETCH_INPUT="${PREFETCH_INPUT:-${PREFETCH_INPUT_DEFAULT}}"
 PIP_ONLY=false
 LOG_FILE="${BACKEND_ROOT}/.hermeto-prefetch.log"
@@ -37,10 +37,10 @@ require_rhsm() {
 	: "${RHSM_ACTIVATION_KEY:?missing RHSM_ACTIVATION_KEY}"
 }
 
-declare -a REQUIRED_BACKENDS=("pip" "rpm")
+declare -a REQUIRED_BACKENDS=("pip" "rpm" "generic")
 if [ "${PIP_ONLY}" = true ]; then
-	REQUIRED_BACKENDS=("pip")
-	PREFETCH_INPUT='[{"type":"pip","path":"backend"}]'
+	REQUIRED_BACKENDS=("pip" "generic")
+	PREFETCH_INPUT='[{"type":"pip","path":"backend"},{"type":"generic","path":"backend"}]'
 fi
 
 # Remove stale prefetch output from previous runs. Hermeto may generate

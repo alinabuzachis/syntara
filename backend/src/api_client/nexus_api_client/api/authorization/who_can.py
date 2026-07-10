@@ -99,8 +99,8 @@ def sync_detailed(
 ) -> Response[ErrorData | WhoCanResponse]:
     """List users who can perform an action
 
-     Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging
-    endpoint.
+     Iterates all active users, resolves their policies, and checks each against the configured authz
+    evaluator.
 
     Args:
         body (WhoCanRequest): Request body for the Who can? endpoint.
@@ -131,8 +131,8 @@ def sync(
 ) -> ErrorData | WhoCanResponse | None:
     """List users who can perform an action
 
-     Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging
-    endpoint.
+     Iterates all active users, resolves their policies, and checks each against the configured authz
+    evaluator.
 
     Args:
         body (WhoCanRequest): Request body for the Who can? endpoint.
@@ -158,8 +158,8 @@ async def asyncio_detailed(
 ) -> Response[ErrorData | WhoCanResponse]:
     """List users who can perform an action
 
-     Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging
-    endpoint.
+     Iterates all active users, resolves their policies, and checks each against the configured authz
+    evaluator.
 
     Args:
         body (WhoCanRequest): Request body for the Who can? endpoint.
@@ -188,8 +188,8 @@ async def asyncio(
 ) -> ErrorData | WhoCanResponse | None:
     """List users who can perform an action
 
-     Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging
-    endpoint.
+     Iterates all active users, resolves their policies, and checks each against the configured authz
+    evaluator.
 
     Args:
         body (WhoCanRequest): Request body for the Who can? endpoint.

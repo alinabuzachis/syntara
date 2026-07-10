@@ -217,6 +217,28 @@ cffi==2.0.0 \
     # via
     #   argon2-cffi-bindings
     #   cryptography
+    #   zstandard
+cmake==4.3.4 \
+    --hash=sha256:03ba364755daf56c279df01da15a0cabdb8cfe87adae991d01e91ac08ab44a31 \
+    --hash=sha256:189a38a194b669e2d2c8419240abb28c68293bb4779cb4505106fe97b06b77f5 \
+    --hash=sha256:1a5ed4d38ab184422ff393afa1893eadfc732c42cdc4b8364f93fdd00e39fe09 \
+    --hash=sha256:1ab14fad08f03e85a1fc837f18e12f72acb215c44eff91231dbe7f871cb5112e \
+    --hash=sha256:1b57929957ec779a55f00607e68e76f69e22701f42b0ac96502cf212e3953783 \
+    --hash=sha256:232523e606c2089fc15bdc1e8f759268ca0dd03b9ccd31f30980dc723ace1d7e \
+    --hash=sha256:250deb91d4a25427b67624b6b1ec2b52a995995797549d552bda1025e5b6d8da \
+    --hash=sha256:269884c73a0710f07b006efbf5ba8ba2211e744302c79d02c9178333e0c91463 \
+    --hash=sha256:2751beafd188d4eca8cfcef06ad3812728d10aa2686df82dfe85e071957f28a4 \
+    --hash=sha256:3abe3d85f94804053eb192d735ea4d86d9ff2ee41f709a47d686d5bbf5037f10 \
+    --hash=sha256:3c052ee4414a431bd8d4e01b3e7b6ddedfa2007430303aa5e442a4579e4db39e \
+    --hash=sha256:5afc11495431a23d446b82fdb5f2aeeb8bde3a967c1f4fff278bdf4383422e54 \
+    --hash=sha256:61a34a746853b3740c6ad494e51faf4d457b9ef82099e19974148808c31cc2eb \
+    --hash=sha256:6372aa6565e3b38afbd634a7d4171ff1f0e4cd5a4bd92c948797cf721012e7b5 \
+    --hash=sha256:757959349d216712bc311e7cd87f345f9143a90168294678f7017afe4dcae4e5 \
+    --hash=sha256:c97e84a62cf71aaa4f012da5aea411b432b1361d78e6421f987679869aa0fa7a \
+    --hash=sha256:ce0a77faf0a5c480616a29b778fe07dd19bba2d15b0b3d0e97798f12d1db7eff \
+    --hash=sha256:ec21974344e7073dea495a961645316dc51bc7d38a8d8f29b0e19e4930d11f65 \
+    --hash=sha256:fd2a9894a9aa798674a273d1e230b5ba9d1ab855d437ad86bf52f1cef29271b7
+    # via regopy
 coherent-licensed==0.5.2 \
     --hash=sha256:d8071403ce742d3ac3592ddc4fb7057a46caffb415b928b4d52802e5f208416d \
     --hash=sha256:edccc5193ca2786f8fb3f0c7374637a143985f781f7eaa21aca3af2bd634b82f
@@ -1147,6 +1169,7 @@ scikit-build-core==0.12.2 \
     --hash=sha256:562e0bbc9de1a354c87825ccf732080268d6582a0200f648e8c4a2dcb1e3736d \
     --hash=sha256:6ea4730da400f9a998ec3287bd3ebc1d751fe45ad0a93451bead8618adbc02b1
     # via
+    #   cmake
     #   pybind11
     #   rapidfuzz
 scipy==1.16.3 \
@@ -1379,6 +1402,7 @@ wheel==0.47.0 \
     #   meson
     #   pycparser
     #   python-dateutil
+    #   regopy
     #   shellingham
     #   tiktoken
     #   uvloop
@@ -1412,6 +1436,7 @@ setuptools==82.0.0 \
     #   distro
     #   googleapis-common-protos
     #   greenlet
+    #   httptools
     #   httpx-sse
     #   importlib-metadata
     #   joblib
@@ -1430,6 +1455,7 @@ setuptools==82.0.0 \
     #   pythran
     #   pyyaml
     #   regex
+    #   regopy
     #   requests
     #   setuptools-rust
     #   setuptools-scm

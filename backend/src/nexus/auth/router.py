@@ -75,7 +75,7 @@ from nexus.auth.services.idp_group_sync import sync_idp_groups
 from nexus.auth.services.oidc_service import OIDCError, OIDCService, _is_ssl_verification_error
 from nexus.auth.services.token_service import TokenPayload
 from nexus.auth.session import SessionInfo, create_session_store
-from nexus.authz.dependencies import get_opa_client
+from nexus.authz.dependencies import get_authz_evaluator
 from nexus.authz.engine import AuthzRequest, authorize
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.config.base import get_encryption_key, get_settings
@@ -1062,10 +1062,10 @@ async def _verify_idp_test_permission(request: Request, db: AsyncSession) -> Non
         raise OIDCError(msg)
 
     # Run the same authz check as the identity-provider:test permission
-    opa_client = get_opa_client(request)
+    evaluator = get_authz_evaluator(request)
     authz_result = await authorize(
         db,
-        opa_client,
+        evaluator,
         AuthzRequest(
             user_id=user.id,
             action="test",

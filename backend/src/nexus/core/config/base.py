@@ -185,6 +185,18 @@ class FileStorageSettings(BaseSettings):
         ge=1,
     )
 
+    file_cleanup_interval_seconds: float = Field(
+        default=3600.0,
+        description="Seconds between periodic file cleanup cycles",
+        gt=0,
+    )
+
+    file_cleanup_batch_size: int = Field(
+        default=1000,
+        description="Maximum number of expired files to process per cleanup batch",
+        ge=1,
+    )
+
     @field_validator("s3_endpoint_url", "s3_ca_bundle", mode="before")
     @classmethod
     def _empty_s3_string_to_none(cls, v: str | None) -> str | None:
@@ -1612,8 +1624,8 @@ class MetricsSettings(BaseSettings):
     )
 
     metrics_cleanup_interval_seconds: float = Field(
-        default=300.0,
-        description="Seconds between periodic in-memory metrics store cleanup cycles",
+        default=30.0,
+        description="Seconds between periodic in-memory metrics store cleanup and malloc_trim cycles",
         gt=0,
     )
 
@@ -1758,33 +1770,28 @@ class CredentialEncryptionSettings(BaseSettings):
 
 
 class AuthzSettings(BaseSettings):
-    """Authorization and OPA configuration settings."""
-
-    opa_url: str = Field(
-        default="http://localhost:8181",
-        description="OPA server URL for policy evaluation",
-    )
+    """Authorization configuration settings."""
 
     authz_default_project: str = Field(
         default="default",
         description="Default project name for resources without a project",
     )
 
-    opa_cache_enabled: bool = Field(
+    authz_cache_enabled: bool = Field(
         default=True,
-        description="Enable in-process TTL cache for OPA evaluation results",
+        description="Enable in-process TTL cache for authorization evaluation results",
     )
 
-    opa_cache_ttl_seconds: int = Field(
+    authz_cache_ttl_seconds: int = Field(
         default=300,
         ge=1,
-        description="TTL in seconds for the OPA result cache",
+        description="TTL in seconds for the authorization result cache",
     )
 
-    opa_cache_maxsize: int = Field(
+    authz_cache_maxsize: int = Field(
         default=2048,
         ge=1,
-        description="Maximum number of entries in the OPA result cache (LRU eviction)",
+        description="Maximum number of entries in the authorization result cache (LRU eviction)",
     )
 
 

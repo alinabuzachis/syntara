@@ -1149,7 +1149,7 @@ class TestVerifyIdpTestPermission:
             await _verify_idp_test_permission(request, db)
 
     @pytest.mark.asyncio
-    @patch("nexus.auth.router.get_opa_client")
+    @patch("nexus.auth.router.get_authz_evaluator")
     @patch("nexus.auth.router.authorize", new_callable=AsyncMock)
     @patch("nexus.auth.router._find_non_deleted_user", new_callable=AsyncMock)
     @patch("nexus.auth.router.create_session_store")
@@ -1162,7 +1162,7 @@ class TestVerifyIdpTestPermission:
         mock_session_store_cls: MagicMock,
         mock_find_user: AsyncMock,
         mock_authorize: AsyncMock,
-        mock_opa: MagicMock,
+        mock_evaluator: MagicMock,
     ) -> None:
         """Should not raise when session is active and user has permission."""
         from nexus.auth.router import _verify_idp_test_permission

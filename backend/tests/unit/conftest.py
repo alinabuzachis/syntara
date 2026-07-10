@@ -14,7 +14,7 @@ import pytest_asyncio
 from fastapi import FastAPI
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.engine import clear_opa_cache, init_opa_cache
+from nexus.authz.engine import clear_authz_cache, init_authz_cache
 from nexus.authz.models.project import Project
 from nexus.authz.resource_actions import _registry, build_resource_actions
 from nexus.core.models import User
@@ -42,11 +42,11 @@ def _set_encryption_key(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def _reset_opa_cache() -> Generator[None, None, None]:
-    """Disable OPA cache between unit tests to prevent cross-test pollution."""
-    init_opa_cache(enabled=False)
+    """Disable Rego cache between unit tests to prevent cross-test pollution."""
+    init_authz_cache(enabled=False)
     yield
-    clear_opa_cache()
-    init_opa_cache(enabled=False)
+    clear_authz_cache()
+    init_authz_cache(enabled=False)
 
 
 @pytest_asyncio.fixture

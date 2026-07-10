@@ -1,17 +1,13 @@
 """Shared fixtures for integration API tests.
 
-Provides automatic OPA CLI-based evaluation and authz data seeding so that
-all API tests work with authorization always enabled, using the real rego
-policy instead of a Python reimplementation.
+Provides automatic regopy-based evaluation and authz data seeding so that all
+API tests work with authorization always enabled, using the real rego policy
+instead of a Python reimplementation.
 """
 
-import json
-import shutil
-import subprocess
 from collections.abc import Awaitable, Callable
-from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -23,7 +19,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
-from nexus.authz.dependencies import get_opa_client
+from nexus.authz.dependencies import get_authz_evaluator
+from nexus.authz.evaluator import evaluate_policy_input
 from nexus.authz.models import Project, RoleAssignment, RolePrincipalType
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
@@ -32,43 +29,10 @@ from nexus.core.models.group import Group, user_groups
 # Name for the test group that grants the 'user' role
 _TEST_GROUP_NAME = "test-users"
 
-# Path to the rego policy file (relative to project root)
-_REGO_POLICY_PATH = Path(__file__).resolve().parents[3] / "src" / "nexus" / "authz" / "rego" / "authz.rego"
-
-# Fields we care about from OPA evaluation
-_OPA_RESULT_FIELDS = {"allow", "deny", "matched_policy", "denial_reason", "denied_by", "allowed_projects"}
-
 
 def _opa_evaluate_cli(opa_input: dict[str, Any]) -> dict[str, Any]:
-    """Evaluate authz using the OPA CLI against the real rego policy.
-
-    Shells out to ``opa eval`` so the integration tests exercise the actual
-    rego rules rather than a Python approximation.
-    """
-    result = subprocess.run(  # noqa: S603
-        [  # noqa: S607
-            "opa",
-            "eval",
-            "-d",
-            str(_REGO_POLICY_PATH),
-            "-I",
-            "--format",
-            "json",
-            "data.nexus.authz",
-        ],
-        input=json.dumps(opa_input),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        msg = f"opa eval failed (rc={result.returncode}): {result.stderr}"
-        raise RuntimeError(msg)
-
-    raw = json.loads(result.stdout)
-    value: dict[str, Any] = raw["result"][0]["expressions"][0]["value"]
-    # Strip internal fields (prefixed with _) that aren't part of the public API
-    return {k: v for k, v in value.items() if k in _OPA_RESULT_FIELDS}
+    """Evaluate authz using regopy against the real rego policy."""
+    return evaluate_policy_input(opa_input)
 
 
 @pytest.fixture(autouse=True)
@@ -255,29 +219,20 @@ async def test_project_id(test_db_session: AsyncSession) -> str:
 
 
 @pytest.fixture(autouse=True)
-def _mock_opa(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Replace OPA client with one that uses the OPA CLI.
-
-    Instead of hitting an OPA server over HTTP, this evaluates the real
-    authz.rego policy via ``opa eval`` so that integration tests exercise
-    the actual rego rules.
-
-    Patches every module that has imported ``get_opa_client`` so that
-    the mock is used regardless of how the function was resolved.
-    """
-    if not shutil.which("opa"):
-        pytest.skip("opa CLI not found on PATH")
-
-    mock_opa = AsyncMock()
-    mock_opa.evaluate = AsyncMock(side_effect=_opa_evaluate_cli)
+def _mock_evaluator(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the authz evaluator with one that uses regopy directly."""
+    mock_evaluator = AsyncMock()
+    mock_evaluator.evaluate = MagicMock(side_effect=_opa_evaluate_cli)
 
     def _mock_getter(request: Any = None) -> AsyncMock:  # noqa: ANN401
-        return mock_opa
+        return mock_evaluator
 
-    monkeypatch.setattr("nexus.authz.dependencies.get_opa_client", _mock_getter)
-    monkeypatch.setattr("nexus.authz.router.get_opa_client", _mock_getter)
-    monkeypatch.setattr("nexus.authz.role_assignment_router.get_opa_client", _mock_getter)
-    monkeypatch.setattr("nexus.workflows.executions_router.get_opa_client", _mock_getter)
+    monkeypatch.setattr("nexus.authz.dependencies.get_authz_evaluator", _mock_getter)
+    monkeypatch.setattr("nexus.authz.dependencies.get_authz_evaluator", _mock_getter)
+    monkeypatch.setattr("nexus.authz.router.get_authz_evaluator", _mock_getter)
+    monkeypatch.setattr("nexus.authz.role_assignment_router.get_authz_evaluator", _mock_getter)
+    monkeypatch.setattr("nexus.workflows.executions_router.get_authz_evaluator", _mock_getter)
 
-    # Also override via FastAPI dependency_overrides so Depends(get_opa_client) resolves correctly
-    app.dependency_overrides[get_opa_client] = lambda: mock_opa
+    # Also override via FastAPI dependency_overrides so Depends(...) resolves correctly.
+    app.dependency_overrides[get_authz_evaluator] = lambda: mock_evaluator
+    app.dependency_overrides[get_authz_evaluator] = lambda: mock_evaluator

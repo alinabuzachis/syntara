@@ -9,8 +9,8 @@ Nexus uses three layers, each enforced via FastAPI dependency injection:
 | Layer | Mechanism | What it does |
 |-------|-----------|-------------|
 | **Authentication** | `get_current_user` / `get_token_payload` | Validates the JWT and identifies the caller. Does NOT restrict access — any valid token passes. |
-| **Authorization (RBAC)** | `PermissionChecker` | Checks whether the user has permission to perform a specific action on a specific resource (e.g. `workflow:create`). Delegates to OPA. |
-| **Visibility filtering** | `VisibilityFilter` / `ProjectScopeFilter` | Filters list query results to only resources the user is allowed to see. Also delegates to OPA. |
+| **Authorization (RBAC)** | `PermissionChecker` | Checks whether the user has permission to perform a specific action on a specific resource (e.g. `workflow:create`). Delegates to the Rego evaluator. |
+| **Visibility filtering** | `VisibilityFilter` / `ProjectScopeFilter` | Filters list query results to only resources the user is allowed to see. Also delegates to the Rego evaluator. |
 
 ### How to protect a route
 
@@ -72,7 +72,7 @@ The compliance tests run as part of `make test-unit` and `make test-coverage`. T
 | File | Role |
 |------|------|
 | `src/nexus/auth/dependencies.py` | `get_current_user`, `get_token_payload` — JWT validation |
-| `src/nexus/authz/dependencies.py` | `PermissionChecker`, `VisibilityFilter`, `ProjectScopeFilter` — OPA-based RBAC |
+| `src/nexus/authz/dependencies.py` | `PermissionChecker`, `VisibilityFilter`, `ProjectScopeFilter` — Rego-based RBAC |
 | `src/nexus/core/nexus_router.py` | `NO_PERMISSION` sentinel, `NexusRouter` base class |
 | `src/nexus/authz/resource_actions.py` | Route introspection helpers (`_iter_route_deps`, `_get_dep_instance`) |
 | `tests/unit/api/test_auth_compliance.py` | Compliance test suite |

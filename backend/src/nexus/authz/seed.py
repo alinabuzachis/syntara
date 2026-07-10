@@ -104,7 +104,7 @@ async def _seed_groups_and_project(
         auth_group = Group(
             id=uuid4(),
             name="authenticated",
-            description="All authenticated users.",
+            description="Implicit group for all authenticated users.",
             is_builtin=True,
             labels={},
         )

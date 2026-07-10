@@ -55,4 +55,7 @@ if [[ -f requirements-build-extras.in ]]; then
 	rm -f "${extras_tmp}"
 fi
 
+echo "Filtering requirements-build.txt to target platforms..." >&2
+python tools/ci/filter_requirements_hashes.py requirements-build.txt
+
 echo "Wrote requirements-build.txt ($(wc -l < requirements-build.txt) lines)" >&2

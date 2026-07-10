@@ -28,6 +28,7 @@ from nexus.audit.registration import discover_and_register_all_handlers
 from nexus.auth.cert_middleware import ClientCertAuthMiddleware
 from nexus.auth.middleware import StaleTokenMiddleware
 from nexus.auth.session.cleanup import get_session_cleanup_worker
+from nexus.authz.evaluator import RegoEvaluator
 from nexus.authz.exceptions import (  # noqa: F401
     BuiltinProtectionError,
     PolicyNameConflictError,
@@ -35,7 +36,6 @@ from nexus.authz.exceptions import (  # noqa: F401
     RoleNameConflictError,
     RoleNotFoundError,
 )
-from nexus.authz.opa_client import OPAClient
 from nexus.core.config.base import get_settings, validate_encryption_key_at_startup
 from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (
@@ -53,7 +53,6 @@ from nexus.core.logging.logging import apply_runtime_log_level, build_uvicorn_lo
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
-from nexus.files.health import check_file_storage_health, validate_file_storage_at_startup
 from nexus.files.workers.file_cleanup import get_multipart_cleanup_worker
 from nexus.metrics.cleanup import get_metrics_cleanup_worker
 from nexus.metrics.completion_poller import get_completion_poller
@@ -160,25 +159,22 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
 
     app.state.resource_actions = build_resource_actions(app)
 
-    # Initialize OPA client for authorization
-    opa_client = OPAClient(base_url=settings.opa_url)
-    opa_client.start()
-    if await opa_client.health():
-        logger.info("OPA client connected", opa_url=settings.opa_url)
+    authz_evaluator = RegoEvaluator()
+    authz_evaluator.start()
+    if await authz_evaluator.health():
+        logger.info("Authorization evaluator ready")
     else:
-        logger.error("OPA server not reachable — cannot start without OPA", opa_url=settings.opa_url)
-        msg = f"OPA server not reachable at {settings.opa_url}"
+        logger.error("Authorization evaluator failed startup healthcheck")
+        msg = "Authorization evaluator failed startup healthcheck"
         raise RuntimeError(msg)
-    app.state.opa_client = opa_client
+    app.state.authz_evaluator = authz_evaluator
 
-    await validate_file_storage_at_startup(settings)
+    from nexus.authz.engine import init_authz_cache  # noqa: PLC0415
 
-    from nexus.authz.engine import init_opa_cache  # noqa: PLC0415
-
-    init_opa_cache(
-        enabled=settings.opa_cache_enabled,
-        ttl_seconds=settings.opa_cache_ttl_seconds,
-        maxsize=settings.opa_cache_maxsize,
+    init_authz_cache(
+        enabled=settings.authz_cache_enabled,
+        ttl_seconds=settings.authz_cache_ttl_seconds,
+        maxsize=settings.authz_cache_maxsize,
     )
 
     # Initialize telemetry (reads installation ID from database)
@@ -214,7 +210,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     logger.info("Periodic analytics collector started")
 
     return {
-        "opa_client": opa_client,
+        "authz_evaluator": authz_evaluator,
         "lifecycle_manager": lifecycle_manager,
         "periodic_collector": periodic_collector,
         "completion_poller": completion_poller,
@@ -245,7 +241,10 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
     # Stop settings watcher (also disconnects Redis) before disposing DB connections
     await resources["runtime_settings"].stop_watching()
 
-    await resources["opa_client"].stop()
+    await resources["authz_evaluator"].stop()
+
+    # Flush and stop audit subsystems before DB dispose so the outbox drain can still query the database
+    await stop_audit_subsystems()
 
     await engine.dispose()
     logger.info("Database engine disposed")
@@ -256,9 +255,6 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
         logger.debug("Cleaned up lock file", lock_file=lock_file)
     except OSError as e:
         logger.warning("Failed to clean up lock file", lock_file=lock_file, error=str(e))
-
-    # Flush and stop audit and logging subsystems (last to capture all events)
-    await stop_audit_subsystems()
 
 
 @asynccontextmanager
@@ -394,14 +390,11 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
             },
         ) from e
 
-    file_storage_status = await check_file_storage_health()
-
     return {
         "status": "healthy",
         "timestamp": timestamp,
         "checks": {
             "database": db_status,
-            "file_storage": file_storage_status,
         },
     }
 

@@ -75,7 +75,7 @@ class PolicyService(BaseService):
 
         Deny-effect policies are not yet supported. A project-scoped deny
         can lock out higher-privileged users because deny unconditionally
-        overrides allow in OPA. Re-enable when scoped deny controls are
+        overrides allow in Rego. Re-enable when scoped deny controls are
         implemented (e.g. admin-only via policy:create-deny permission).
         """
         if any(s.get("effect") == "deny" for s in statements):

@@ -5,7 +5,7 @@ from uuid import UUID
 import structlog
 from fastapi import Depends, Request
 from fastapi.exceptions import RequestValidationError
-from sqlmodel import SQLModel, select
+from sqlmodel import SQLModel, col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.dependencies import get_current_user
@@ -18,32 +18,32 @@ from nexus.authz.engine import (
     resolve_allowed_projects,
     resolve_visibility,
 )
+from nexus.authz.evaluator import AuthzEvaluator
 from nexus.authz.exceptions import AuthorizationDeniedError
 from nexus.authz.models.project import Project
-from nexus.authz.opa_client import OPAClient
 from nexus.core.database.session import get_db
-from nexus.core.models.base import BaseResource, NamedResource
+from nexus.core.models.base import NamedResource
 from nexus.core.models.user import User
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-def get_opa_client(request: Request) -> OPAClient:
-    """Get the OPA client from app state.
+def get_authz_evaluator(request: Request) -> AuthzEvaluator:
+    """Get the authorization evaluator from app state.
 
     Args:
         request: FastAPI request.
 
     Returns:
-        OPA client instance.
+        Authorization evaluator instance.
 
     """
-    client: OPAClient = request.app.state.opa_client
-    return client
+    evaluator: AuthzEvaluator = request.app.state.authz_evaluator
+    return evaluator
 
 
 class PermissionChecker:
-    """FastAPI dependency that checks authorization via OPA.
+    """FastAPI dependency that checks authorization via the authz evaluator.
 
     Usage:
         @router.post("", dependencies=[Depends(PermissionChecker("workflow", "create"))])
@@ -95,7 +95,6 @@ class PermissionChecker:
         self.resource_id_param = resource_id_param
         self.body_project_field = body_project_field
         self.form_project_field = form_project_field
-        self.resource_id: str = ""
 
     async def _resolve_project_name(self, db: AsyncSession, project_id: str | UUID) -> str:
         """Look up project name by ID, returning empty string if not found."""
@@ -107,21 +106,21 @@ class PermissionChecker:
         )
         return result.first() or ""
 
-    async def _resolve_project_from_resource(self, db: AsyncSession) -> str:
+    async def _resolve_project_from_resource(self, db: AsyncSession, resource_id: str) -> str:
         """Look up project name from a resource's project_id field."""
-        if not self.resource_model or not self.resource_id:
+        if not self.resource_model or not resource_id:
             return ""
         model = self.resource_model
         try:
-            rid = UUID(str(self.resource_id))
+            rid = UUID(str(resource_id))
         except ValueError:
             raise RequestValidationError(
                 [
                     {
                         "type": "uuid_parsing",
                         "loc": ("path", self.resource_id_param or "id"),
-                        "msg": f"Invalid UUID format: {self.resource_id}",
-                        "input": self.resource_id,
+                        "msg": f"Invalid UUID format: {resource_id}",
+                        "input": resource_id,
                     }
                 ]
             ) from None
@@ -133,53 +132,50 @@ class PermissionChecker:
             return ""
         return await self._resolve_project_name(db, proj_id)
 
-    async def _resolve_resource_labels(self, db: AsyncSession) -> dict[str, str]:
+    async def _resolve_resource_labels(self, db: AsyncSession, resource_id: str) -> dict[str, str]:
         """Look up resource labels by ID."""
-        if not self.resource_model or not self.resource_id:
+        if not self.resource_model or not resource_id:
             return {}
         model = self.resource_model
-        if not issubclass(model, BaseResource):
-            return {}
-
         try:
-            rid = UUID(str(self.resource_id))
+            rid = UUID(str(resource_id))
         except ValueError:
             raise RequestValidationError(
                 [
                     {
                         "type": "uuid_parsing",
                         "loc": ("path", self.resource_id_param or "id"),
-                        "msg": f"Invalid UUID format: {self.resource_id}",
-                        "input": self.resource_id,
+                        "msg": f"Invalid UUID format: {resource_id}",
+                        "input": resource_id,
                     }
                 ]
             ) from None
-        res = await db.exec(select(model.labels).where(model.id == rid))
-        labels = res.first()
-        return dict(labels) if labels else {}
+        res = await db.exec(
+            select(model.labels).where(model.id == rid)  # type: ignore[attr-defined]
+        )
+        return res.first() or {}
 
-    async def _resolve_resource_name(self, db: AsyncSession) -> str:
-        """Look up resource name by ID."""
-        if not self.resource_model or not self.resource_id:
+    async def _resolve_resource_name(self, db: AsyncSession, resource_id: str) -> str:
+        """Look up resource name by ID for audit logging."""
+        if not self.resource_model or not resource_id:
             return ""
         model = self.resource_model
         if not issubclass(model, NamedResource):
             return ""
-
         try:
-            rid = UUID(str(self.resource_id))
+            rid = UUID(str(resource_id))
         except ValueError:
             raise RequestValidationError(
                 [
                     {
                         "type": "uuid_parsing",
                         "loc": ("path", self.resource_id_param or "id"),
-                        "msg": f"Invalid UUID format: {self.resource_id}",
-                        "input": self.resource_id,
+                        "msg": f"Invalid UUID format: {resource_id}",
+                        "input": resource_id,
                     }
                 ]
             ) from None
-        res = await db.exec(select(model.name).where(model.id == rid))
+        res = await db.exec(select(col(model.name)).where(model.id == rid))
         return res.first() or ""
 
     async def _resolve_project_from_path(self, request: Request, db: AsyncSession) -> str:
@@ -197,19 +193,20 @@ class PermissionChecker:
             raise ProjectNotFoundError(msg)
         return resource_project
 
-    async def _resolve_resource_project(self, request: Request, db: AsyncSession) -> tuple[str, str, dict[str, str]]:
-        """Resolve resource_id, resource_project, and resource_labels from the request context.
+    async def _resolve_resource_project(
+        self, request: Request, db: AsyncSession
+    ) -> tuple[str, str, str, dict[str, str]]:
+        """Resolve resource_id, resource_name, resource_project, and resource_labels from the request context.
 
         Returns:
-            Tuple of (resource_project, resource_labels).
+            Tuple of (resource_id, resource_name, resource_project, resource_labels).
 
         """
         if self.resource_id_param:
-            self.resource_id = str(request.path_params.get(self.resource_id_param, ""))
+            resource_id = request.path_params.get(self.resource_id_param, "")
         else:
-            self.resource_id = str(request.path_params.get("id", request.path_params.get("workflow_id", "")))
+            resource_id = request.path_params.get("id", request.path_params.get("workflow_id", ""))
 
-        resource_name = ""
         resource_project = ""
         resource_labels: dict[str, str] = {}
 
@@ -218,18 +215,15 @@ class PermissionChecker:
             if resource_project and self.resource_type == "project":
                 # Project endpoints (e.g. PUT /projects/{project_id}) don't set
                 # resource_id_param, so resource_id would be empty. Use project_id
-                # from the path as the resource ID for OPA scope matching.
+                # from the path as the resource ID for scope matching.
                 resource_id_from_project_path = request.path_params.get(self.project_param, "")
-                self.resource_id = resource_id_from_project_path
+                resource_id = resource_id_from_project_path
 
-        if not resource_project and self.resource_model and self.resource_id_param and self.resource_id:
-            resource_project = await self._resolve_project_from_resource(db)
+        if not resource_project and self.resource_model and self.resource_id_param and resource_id:
+            resource_project = await self._resolve_project_from_resource(db, resource_id)
 
-        if self.resource_model and self.resource_id:
-            resource_labels = await self._resolve_resource_labels(db)
-
-        if self.resource_model and self.resource_id:
-            resource_name = await self._resolve_resource_name(db)
+        if self.resource_model and resource_id:
+            resource_labels = await self._resolve_resource_labels(db, resource_id)
 
         if not resource_project and self.body_project_field:
             resource_project = await self._resolve_project_from_body(request, db)
@@ -237,7 +231,10 @@ class PermissionChecker:
         if not resource_project and self.form_project_field:
             resource_project = await self._resolve_project_from_form(request, db)
 
-        return resource_name, resource_project, resource_labels
+        resource_id_str = str(resource_id) if resource_id else ""
+        resource_name = await self._resolve_resource_name(db, resource_id_str)
+
+        return resource_id_str, resource_name, resource_project, resource_labels
 
     async def _resolve_project_from_body(self, request: Request, db: AsyncSession) -> str:
         """Extract and resolve project from the request body.
@@ -310,21 +307,23 @@ class PermissionChecker:
         if getattr(request.state, "is_cert_authenticated", False):
             return
 
-        opa_client = get_opa_client(request)
-        resource_name, resource_project, resource_labels = await self._resolve_resource_project(request, db)
+        evaluator = get_authz_evaluator(request)
+        resource_id, resource_name, resource_project, resource_labels = await self._resolve_resource_project(
+            request, db
+        )
 
         authz_request = AuthzRequest(
             user_id=current_user.id,
             action=self.action,
             resource_type=self.resource_type,
-            resource_id=self.resource_id,
+            resource_id=resource_id,
             resource_project=resource_project,
             resource_labels=resource_labels,
             user_labels=current_user.labels,
             user_metadata=current_user.authz_metadata,
         )
 
-        authz_result: AuthzResult = await authorize(db, opa_client, authz_request)
+        authz_result: AuthzResult = await authorize(db, evaluator, authz_request)
 
         if not authz_result.allowed:
             from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
@@ -334,7 +333,7 @@ class PermissionChecker:
                 AuthorizationDeniedEvent(
                     user_id=current_user.id,
                     username=current_user.username,
-                    resource_id=self.resource_id,
+                    resource_id=resource_id,
                     resource_type=self.resource_type,
                     resource_name=resource_name,
                     action=self.action,
@@ -400,11 +399,11 @@ class ProjectScopeFilter:
         if getattr(request.state, "is_cert_authenticated", False):
             return AllowedProjectsResult(all_projects=True, project_ids=[])
 
-        opa_client = get_opa_client(request)
+        evaluator = get_authz_evaluator(request)
 
         return await resolve_allowed_projects(
             db=db,
-            opa_client=opa_client,
+            evaluator=evaluator,
             user_id=current_user.id,
             resource_type=self.resource_type,
             action=self.action,
@@ -431,11 +430,11 @@ class VisibilityFilter:
         if getattr(request.state, "is_cert_authenticated", False):
             return VisibilityResult(unrestricted=True)
 
-        opa_client = get_opa_client(request)
+        evaluator = get_authz_evaluator(request)
 
         return await resolve_visibility(
             db=db,
-            opa_client=opa_client,
+            evaluator=evaluator,
             user_id=current_user.id,
             resource_type=self.resource_type,
             action=self.action,

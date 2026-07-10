@@ -1,7 +1,7 @@
 """Integration tests for auditor read-only access to settings endpoints.
 
 Verifies that users with the auditor role can read settings but cannot
-modify them, using the real OPA rego policy evaluation.
+modify them, using the real Rego rego policy evaluation.
 """
 
 from collections.abc import Awaitable, Callable

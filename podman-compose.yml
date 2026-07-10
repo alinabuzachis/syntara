@@ -165,7 +165,6 @@ services:
       - APP_JWT_BACKUP_KEYS=[{"key_id":"nexus-backup","key_path":"/run/secrets/jwt-backup.pem"}]
       - APP_CORS_ALLOW_ORIGINS=${APP_CORS_ALLOW_ORIGINS:-["http://localhost:8080","https://localhost:8080","http://localhost:5173","https://localhost:5173"]}
       - APP_ADMIN_PASSWORD_PATH=/run/secrets/admin-password
-      - APP_OPA_URL=${APP_OPA_URL:-http://opa:8181}
       - APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key
       - APP_AUDIT_EXPORT_DIR=/data/audit-exports
       - APP_S2S_TLS_ENABLED=${APP_S2S_TLS_ENABLED:-true}
@@ -347,19 +346,6 @@ services:
       retries: 3
       start_period: 10s
 
-  opa:
-    image: mirror.gcr.io/openpolicyagent/opa:1.4.2-static
-    restart: unless-stopped
-    command: [run, --server, --addr, ':8181', /policies]
-    ports:
-      - ${APP_OPA_PORT:-8181}:8181
-    volumes:
-      - ./backend/src/nexus/authz/rego:/policies:z
-    healthcheck:
-      test: [CMD, /opa, eval, 'true']
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   mcp-server:
     build:

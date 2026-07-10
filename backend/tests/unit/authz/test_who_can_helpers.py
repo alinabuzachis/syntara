@@ -11,89 +11,12 @@ from nexus.authz.router import (
     WhoCanRequest,
     WhoCanUser,
     _apply_who_can_cursor_filter,
-    _build_opa_input,
     _build_page_cursors,
     _check_batch_authorization,
     _check_user_authorized,
-    _extract_batch_sort_value,
-    _flip_sort_direction,
 )
 from nexus.core.models.user import User
 from nexus.core.utils.cursor import PaginationDirection, SortDirection
-
-# ---------------------------------------------------------------------------
-# _flip_sort_direction
-# ---------------------------------------------------------------------------
-
-
-class TestFlipSortDirection:
-    """Tests for _flip_sort_direction."""
-
-    def test_desc_to_asc(self) -> None:
-        assert _flip_sort_direction(SortDirection.DESC) == SortDirection.ASC
-
-    def test_asc_to_desc(self) -> None:
-        assert _flip_sort_direction(SortDirection.ASC) == SortDirection.DESC
-
-
-# ---------------------------------------------------------------------------
-# _extract_batch_sort_value
-# ---------------------------------------------------------------------------
-
-
-class TestExtractBatchSortValue:
-    """Tests for _extract_batch_sort_value."""
-
-    def _make_user(self, **kwargs: object) -> User:
-        defaults = {
-            "id": uuid4(),
-            "username": "alice",
-            "email": "alice@example.com",
-            "first_name": "Alice",
-            "hashed_password": "x",
-            "is_enabled": True,
-        }
-        defaults.update(kwargs)
-        return User(**defaults)
-
-    def test_id_field_returns_none(self) -> None:
-        user = self._make_user()
-        assert _extract_batch_sort_value(user, "id") is None
-
-    def test_username_field(self) -> None:
-        user = self._make_user(username="bob")
-        assert _extract_batch_sort_value(user, "username") == "bob"
-
-
-# ---------------------------------------------------------------------------
-# _build_opa_input
-# ---------------------------------------------------------------------------
-
-
-class TestBuildOpaInput:
-    """Tests for _build_opa_input."""
-
-    def test_builds_correct_structure(self) -> None:
-        user = MagicMock(spec=User)
-        user.id = uuid4()
-        user.authz_metadata = {"role": "admin"}
-        user.labels = {"team": "infra"}
-
-        body = WhoCanRequest(action="read", resource_type="workflow")
-        groups = [{"name": "g1"}]
-        effective = [{"name": "p1"}]
-
-        result = _build_opa_input(user, body, "my-project", groups, effective)
-
-        assert result["user"]["id"] == str(user.id)
-        assert result["user"]["metadata"] == {"role": "admin"}
-        assert result["user"]["labels"] == {"team": "infra"}
-        assert result["action"] == "read"
-        assert result["resource"]["type"] == "workflow"
-        assert result["resource"]["project"] == "my-project"
-        assert result["groups"] == groups
-        assert result["effective_policies"] == effective
-
 
 # ---------------------------------------------------------------------------
 # _apply_who_can_cursor_filter
@@ -326,7 +249,7 @@ class TestCheckUserAuthorized:
     @pytest.mark.asyncio
     async def test_returns_allowed_from_authorize(self) -> None:
         db = AsyncMock()
-        opa_client = AsyncMock()
+        evaluator = AsyncMock()
         user = MagicMock(spec=User)
         user.id = uuid4()
         user.labels = {}
@@ -337,14 +260,14 @@ class TestCheckUserAuthorized:
         mock_result.allowed = True
 
         with patch("nexus.authz.router.authorize", return_value=mock_result) as mock_auth:
-            result = await _check_user_authorized(db, opa_client, user, body, "proj")
+            result = await _check_user_authorized(db, evaluator, user, body, "proj")
             assert result is True
             mock_auth.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_returns_false_when_denied(self) -> None:
         db = AsyncMock()
-        opa_client = AsyncMock()
+        evaluator = AsyncMock()
         user = MagicMock(spec=User)
         user.id = uuid4()
         user.labels = {}
@@ -355,7 +278,7 @@ class TestCheckUserAuthorized:
         mock_result.allowed = False
 
         with patch("nexus.authz.router.authorize", return_value=mock_result):
-            result = await _check_user_authorized(db, opa_client, user, body, "")
+            result = await _check_user_authorized(db, evaluator, user, body, "")
             assert result is False
 
 
@@ -378,7 +301,7 @@ class TestCheckBatchAuthorization:
     @pytest.mark.asyncio
     async def test_collects_authorized_users(self) -> None:
         db = AsyncMock()
-        opa_client = AsyncMock()
+        evaluator = AsyncMock()
         u1 = self._make_user("alice")
         u2 = self._make_user("bob")
         body = WhoCanRequest(action="read", resource_type="workflow")
@@ -386,7 +309,7 @@ class TestCheckBatchAuthorization:
         checked: set[UUID] = set()
 
         with patch("nexus.authz.router._check_user_authorized", side_effect=[True, False]):
-            await _check_batch_authorization(db, opa_client, [u1, u2], body, "", authorized, checked, 10)
+            await _check_batch_authorization(db, evaluator, [u1, u2], body, "", authorized, checked, 10)
 
         assert len(authorized) == 1
         assert authorized[0].username == "alice"
@@ -396,7 +319,7 @@ class TestCheckBatchAuthorization:
     @pytest.mark.asyncio
     async def test_stops_at_target_count(self) -> None:
         db = AsyncMock()
-        opa_client = AsyncMock()
+        evaluator = AsyncMock()
         u1 = self._make_user("alice")
         u2 = self._make_user("bob")
         u3 = self._make_user("charlie")
@@ -405,7 +328,7 @@ class TestCheckBatchAuthorization:
         checked: set[UUID] = set()
 
         with patch("nexus.authz.router._check_user_authorized", return_value=True):
-            await _check_batch_authorization(db, opa_client, [u1, u2, u3], body, "", authorized, checked, 2)
+            await _check_batch_authorization(db, evaluator, [u1, u2, u3], body, "", authorized, checked, 2)
 
         assert len(authorized) == 2
         assert len(checked) == 2

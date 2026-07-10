@@ -3,11 +3,14 @@ contentOrigin:
   repofiles:
     - repositories/ubi-9.repo
 packages:
+  - name: libatomic
   - name: python3.12
   - name: python3.12-pip
   - name: python3.12-cffi
 context:
-  containerfile: containers/nexus/Containerfile
+  containerfile:
+    file: containers/nexus/Containerfile
+    stageName: builder
 arches:
   - x86_64
   - aarch64

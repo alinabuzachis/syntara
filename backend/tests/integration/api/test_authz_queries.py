@@ -5,13 +5,9 @@ Covers the can-i, who-can, and what-can-i endpoints defined in
 evaluation with full explainability (matched policy, denial reason, etc.).
 """
 
-import json
-import shutil
-import subprocess
 from collections.abc import Awaitable, Callable, Generator
-from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -22,16 +18,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
-from nexus.authz.dependencies import get_opa_client
+from nexus.authz.dependencies import get_authz_evaluator
+from nexus.authz.evaluator import evaluate_policy_input
 from nexus.authz.models import RoleAssignment, RolePrincipalType
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.role import Role
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from tests.integration.api.conftest import make_admin, make_auditor, make_user_role
-
-_REGO_POLICY_PATH = Path(__file__).resolve().parents[3] / "src" / "nexus" / "authz" / "rego" / "authz.rego"
-_OPA_RESULT_FIELDS = {"allow", "deny", "matched_policy", "denial_reason", "denied_by", "allowed_projects"}
 
 
 async def _fetch_all_what_can_i(client: AsyncClient) -> list[dict[str, Any]]:
@@ -53,48 +47,25 @@ async def _fetch_all_what_can_i(client: AsyncClient) -> list[dict[str, Any]]:
 
 
 def _opa_evaluate_cli(opa_input: dict[str, Any]) -> dict[str, Any]:
-    """Evaluate authz using the OPA CLI against the real rego policy."""
-    result = subprocess.run(  # noqa: S603
-        [  # noqa: S607
-            "opa",
-            "eval",
-            "-d",
-            str(_REGO_POLICY_PATH),
-            "-I",
-            "--format",
-            "json",
-            "data.nexus.authz",
-        ],
-        input=json.dumps(opa_input),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        msg = f"opa eval failed (rc={result.returncode}): {result.stderr}"
-        raise RuntimeError(msg)
-
-    raw = json.loads(result.stdout)
-    value: dict[str, Any] = raw["result"][0]["expressions"][0]["value"]
-    return {k: v for k, v in value.items() if k in _OPA_RESULT_FIELDS}
+    """Evaluate authz against the real rego policy through regopy."""
+    return evaluate_policy_input(opa_input)
 
 
 @pytest.fixture(autouse=True)
 def _override_opa_dependency() -> Generator[None, None, None]:
-    """Override get_opa_client via app.dependency_overrides.
+    """Override the authz evaluator dependency via app.dependency_overrides.
 
-    The conftest _mock_opa uses monkeypatch.setattr which doesn't affect
-    Depends(get_opa_client) in router.py (already imported reference).
+    The conftest _mock_evaluator uses monkeypatch.setattr which doesn't affect
+    Depends(...) in router.py when it imports its own dependency reference.
     This fixture uses dependency_overrides which FastAPI resolves at call time.
     """
-    if not shutil.which("opa"):
-        pytest.skip("opa CLI not found on PATH")
-
-    mock_opa = AsyncMock()
-    mock_opa.evaluate = AsyncMock(side_effect=_opa_evaluate_cli)
-    app.dependency_overrides[get_opa_client] = lambda: mock_opa
+    mock_evaluator = AsyncMock()
+    mock_evaluator.evaluate = MagicMock(side_effect=_opa_evaluate_cli)
+    app.dependency_overrides[get_authz_evaluator] = lambda: mock_evaluator
+    app.dependency_overrides[get_authz_evaluator] = lambda: mock_evaluator
     yield
-    app.dependency_overrides.pop(get_opa_client, None)
+    app.dependency_overrides.pop(get_authz_evaluator, None)
+    app.dependency_overrides.pop(get_authz_evaluator, None)
 
 
 # ============================================================================

@@ -90,11 +90,11 @@ Credential type endpoints are read-only for GA — authenticated users can list 
 
 ## RBAC
 
-Credential access is controlled by OPA-based policy evaluation. Authorization is deny-by-default — requests are denied unless an explicit allow policy matches.
+Credential access is controlled by Rego policy evaluation. Authorization is deny-by-default — requests are denied unless an explicit allow policy matches.
 
 ### Credential Actions
 
-The credential system declares four resource actions, evaluated by OPA at request time:
+The credential system declares four resource actions, evaluated by the Rego evaluator at request time:
 
 | Action | Description |
 |--------|-------------|
@@ -108,7 +108,7 @@ Each action can be granted at two scopes:
 - **System-scoped** — applies to credentials in all projects
 - **Project-scoped** — applies only to credentials within the assigned project
 
-Which roles grant which credential actions is managed by the authorization system (`role_conventions.py`). The credential system does not enforce roles directly — it declares resource:action pairs and delegates the decision to OPA.
+Which roles grant which credential actions is managed by the authorization system (`role_conventions.py`). The credential system does not enforce roles directly — it declares resource:action pairs and delegates the decision to the Rego evaluator.
 
 ### Credential Type Endpoints
 
@@ -135,7 +135,7 @@ Each endpoint uses `PermissionChecker` with resource-aware configuration:
 | DELETE /credentials/{id} | credential | delete | `resource_model=Credential, resource_id_param="credential_id"` |
 | GET /credentials/{id}/workflows | credential | read | `resource_model=Credential, resource_id_param="credential_id"` |
 
-For `POST /credentials`, the `body_project_field="project_id"` config extracts the target project from the request body so OPA can evaluate project-scoped create permissions.
+For `POST /credentials`, the `body_project_field="project_id"` config extracts the target project from the request body so the evaluator can check project-scoped create permissions.
 
 For item endpoints (GET/PATCH/DELETE), the `resource_model` and `resource_id_param` config allows the checker to load the credential from the database and check its `project_id` against the user's project-scoped roles.
 

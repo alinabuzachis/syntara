@@ -1,7 +1,7 @@
 """Unit tests for the authorization engine.
 
 Tests cover:
-- authorize() with mocked OPA client
+- authorize() with mocked authz evaluator
 - resolve_allowed_projects() for global and project-scoped access
 - resolve_visibility() for unified list-endpoint visibility
 - VisibilityResult conversion methods
@@ -35,30 +35,30 @@ from nexus.core.models.group import Group
 async def test_authorize_allowed(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
-    """authorize() returns allowed=True when OPA allows."""
+    """authorize() returns allowed=True when evaluator allows."""
     request = AuthzRequest(
         user_id=test_user.id,
         action="read",
         resource_type="workflow",
         resource_id="wf-1",
     )
-    result = await authorize(seeded_db, mock_opa, request)
+    result = await authorize(seeded_db, mock_evaluator, request)
     assert result.allowed is True
     assert result.denied is False
     assert result.matched_policy == "test-allow"
-    mock_opa.evaluate.assert_awaited_once()
+    mock_evaluator.evaluate.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_authorize_denied(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
-    """authorize() returns denied=True when OPA denies."""
-    mock_opa.evaluate.return_value = {
+    """authorize() returns denied=True when evaluator denies."""
+    mock_evaluator.evaluate.return_value = {
         "allow": False,
         "deny": True,
         "matched_policy": "",
@@ -71,7 +71,7 @@ async def test_authorize_denied(
         resource_type="workflow",
         resource_id="wf-1",
     )
-    result = await authorize(seeded_db, mock_opa, request)
+    result = await authorize(seeded_db, mock_evaluator, request)
     assert result.allowed is False
     assert result.denied is True
     assert result.denial_reason == "no matching policy"
@@ -81,7 +81,7 @@ async def test_authorize_denied(
 async def test_authorize_with_preresolved_groups(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
     """authorize() uses pre-resolved groups when provided."""
     groups = [{"name": "custom-group", "labels": {}}]
@@ -92,10 +92,10 @@ async def test_authorize_with_preresolved_groups(
         resource_id="wf-1",
         groups=groups,
     )
-    result = await authorize(seeded_db, mock_opa, request)
+    result = await authorize(seeded_db, mock_evaluator, request)
     assert result.allowed is True
-    # Verify groups were passed to OPA
-    call_args = mock_opa.evaluate.call_args[0][0]
+    # Verify groups were passed to Rego
+    call_args = mock_evaluator.evaluate.call_args[0][0]
     assert call_args["groups"] == groups
 
 
@@ -103,10 +103,10 @@ async def test_authorize_with_preresolved_groups(
 async def test_resolve_allowed_projects_global(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
     """resolve_allowed_projects() with '*' returns all_projects=True."""
-    result = await resolve_allowed_projects(seeded_db, mock_opa, test_user.id, "workflow", "read")
+    result = await resolve_allowed_projects(seeded_db, mock_evaluator, test_user.id, "workflow", "read")
     assert result.all_projects is True
     assert result.project_ids == []
 
@@ -115,7 +115,7 @@ async def test_resolve_allowed_projects_global(
 async def test_resolve_allowed_projects_specific(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
     """resolve_allowed_projects() maps project names to IDs."""
     # Get the default project name
@@ -123,13 +123,13 @@ async def test_resolve_allowed_projects_specific(
     default_project = result.first()
     assert default_project is not None
 
-    mock_opa.evaluate.return_value = {
+    mock_evaluator.evaluate.return_value = {
         "allow": True,
         "deny": False,
         "matched_policy": "test",
         "allowed_projects": ["default"],
     }
-    allowed = await resolve_allowed_projects(seeded_db, mock_opa, test_user.id, "workflow", "read")
+    allowed = await resolve_allowed_projects(seeded_db, mock_evaluator, test_user.id, "workflow", "read")
     assert allowed.all_projects is False
     assert default_project.id in allowed.project_ids
 
@@ -138,16 +138,16 @@ async def test_resolve_allowed_projects_specific(
 async def test_resolve_allowed_projects_empty(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
     """resolve_allowed_projects() with empty list returns no project IDs."""
-    mock_opa.evaluate.return_value = {
+    mock_evaluator.evaluate.return_value = {
         "allow": False,
         "deny": False,
         "matched_policy": "",
         "allowed_projects": [],
     }
-    allowed = await resolve_allowed_projects(seeded_db, mock_opa, test_user.id, "workflow", "read")
+    allowed = await resolve_allowed_projects(seeded_db, mock_evaluator, test_user.id, "workflow", "read")
     assert allowed.all_projects is False
     assert allowed.project_ids == []
 
@@ -251,10 +251,10 @@ class TestVisibilityResult:
 async def test_resolve_visibility_unrestricted(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
-    """resolve_visibility() returns unrestricted=True when OPA returns '*'."""
-    result = await resolve_visibility(seeded_db, mock_opa, test_user.id, "workflow", "read")
+    """resolve_visibility() returns unrestricted=True when Rego returns '*'."""
+    result = await resolve_visibility(seeded_db, mock_evaluator, test_user.id, "workflow", "read")
     assert result.unrestricted is True
 
 
@@ -262,18 +262,18 @@ async def test_resolve_visibility_unrestricted(
 async def test_resolve_visibility_project_scoped(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
     """resolve_visibility() maps project names to IDs."""
     proj_result = await seeded_db.exec(select(Project).where(Project.name == "default"))
     default_project = proj_result.first()
     assert default_project is not None
 
-    mock_opa.evaluate.return_value = {
+    mock_evaluator.evaluate.return_value = {
         "allow": True,
         "allowed_projects": ["default"],
     }
-    result = await resolve_visibility(seeded_db, mock_opa, test_user.id, "workflow", "read")
+    result = await resolve_visibility(seeded_db, mock_evaluator, test_user.id, "workflow", "read")
     assert result.unrestricted is False
     assert default_project.id in result.allowed_project_ids
 
@@ -282,14 +282,14 @@ async def test_resolve_visibility_project_scoped(
 async def test_resolve_visibility_self_scope(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
     """resolve_visibility() detects self-scope policies in effective policies."""
-    mock_opa.evaluate.return_value = {
+    mock_evaluator.evaluate.return_value = {
         "allow": True,
         "allowed_projects": [],
     }
-    result = await resolve_visibility(seeded_db, mock_opa, test_user.id, "user", "read")
+    result = await resolve_visibility(seeded_db, mock_evaluator, test_user.id, "user", "read")
     assert result.unrestricted is False
     assert result.has_self_scope is True
     assert result.self_user_id == test_user.id
@@ -299,14 +299,14 @@ async def test_resolve_visibility_self_scope(
 async def test_resolve_visibility_no_access(
     seeded_db: AsyncSession,
     test_user: User,
-    mock_opa: AsyncMock,
+    mock_evaluator: AsyncMock,
 ) -> None:
     """resolve_visibility() returns empty result when no policies match."""
-    mock_opa.evaluate.return_value = {
+    mock_evaluator.evaluate.return_value = {
         "allow": False,
         "allowed_projects": [],
     }
-    result = await resolve_visibility(seeded_db, mock_opa, test_user.id, "nonexistent", "read")
+    result = await resolve_visibility(seeded_db, mock_evaluator, test_user.id, "nonexistent", "read")
     assert result.unrestricted is False
     assert result.allowed_project_ids == []
     assert result.has_self_scope is False

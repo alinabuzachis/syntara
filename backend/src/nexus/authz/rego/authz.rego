@@ -67,6 +67,7 @@ _conditions_match(policy) if {
 }
 _conditions_match(policy) if {
     policy.conditions
+    not policy.conditions.__not_condition_failed__
     _resource_labels_match(policy)
     _resource_labels_not_match(policy)
     _user_labels_match(policy)

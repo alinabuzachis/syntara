@@ -17,7 +17,7 @@ make lint           # Lint both codebases
 make format         # Format both codebases
 make typecheck      # Type-check both codebases
 make gen-contracts  # Regenerate frontend TypeScript types from backend OpenAPI specs
-make services-up    # Start infrastructure (DB, Redis, Temporal, Temporal UI/worker, OPA, MCP)
+make services-up    # Start infrastructure (DB, Redis, Temporal, Temporal UI/worker, MCP)
 ```
 
 ## Rules

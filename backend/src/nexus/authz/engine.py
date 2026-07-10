@@ -1,4 +1,4 @@
-"""Authorization engine: combines policy resolution and OPA evaluation."""
+"""Authorization engine: combines policy resolution and Rego evaluation."""
 
 import hashlib
 import json
@@ -11,53 +11,54 @@ from cachetools import TTLCache
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.evaluator import AuthzEvaluator
 from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.models.project import Project
-from nexus.authz.opa_client import OPAClient
-from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME, resolve_effective_policies, resolve_user_groups
+from nexus.authz.resolver import resolve_effective_policies, resolve_user_groups
 from nexus.core.models.group import Group
 
 logger = structlog.stdlib.get_logger(__name__)
 
 PROJECT_ADMIN_ROLE_NAME = "project-admin"
 PROJECT_USER_ROLE_NAME = "project-user"
+AUTHENTICATED_GROUP_NAME = "authenticated"
 
 # ---------------------------------------------------------------------------
-# In-process TTL cache for OPA evaluation results
+# In-process TTL cache for authorization evaluation results
 # ---------------------------------------------------------------------------
-# Keyed by SHA-256 of the canonical OPA input.  Because the key includes
+# Keyed by SHA-256 of the canonical authorization input. Because the key includes
 # effective_policies and groups (resolved fresh from the DB on every
 # request), a permission change produces a different hash and automatically
 # misses the cache — no explicit invalidation is needed.
 
-_opa_cache: TTLCache[str, dict[str, Any]] | None = None
+_authz_cache: TTLCache[str, dict[str, Any]] | None = None
 
 
-def init_opa_cache(*, enabled: bool = True, ttl_seconds: int = 300, maxsize: int = 2048) -> None:
-    """Initialize the OPA result cache.  Called once at app startup."""
-    global _opa_cache  # noqa: PLW0603
+def init_authz_cache(*, enabled: bool = True, ttl_seconds: int = 300, maxsize: int = 2048) -> None:
+    """Initialize the authorization result cache. Called once at app startup."""
+    global _authz_cache  # noqa: PLW0603
     if enabled:
-        _opa_cache = TTLCache(maxsize=maxsize, ttl=ttl_seconds)
-        logger.info("OPA result cache initialized", ttl_seconds=ttl_seconds, maxsize=maxsize)
+        _authz_cache = TTLCache(maxsize=maxsize, ttl=ttl_seconds)
+        logger.info("Authorization result cache initialized", ttl_seconds=ttl_seconds, maxsize=maxsize)
     else:
-        _opa_cache = None
-        logger.info("OPA result cache disabled")
+        _authz_cache = None
+        logger.info("Authorization result cache disabled")
 
 
-def clear_opa_cache() -> None:
-    """Clear the OPA result cache."""
-    if _opa_cache is not None:
-        _opa_cache.clear()
+def clear_authz_cache() -> None:
+    """Clear the authorization result cache."""
+    if _authz_cache is not None:
+        _authz_cache.clear()
 
 
-def _hash_opa_input(opa_input: dict[str, Any]) -> str:
-    """Produce a stable hash key for an OPA input dict.
+def _hash_authz_input(authz_input: dict[str, Any]) -> str:
+    """Produce a stable hash key for an authorization input dict.
 
     Lists inside the input (e.g. effective_policies, groups) are sorted
     before serialisation so that key stability does not depend on DB query
     ordering.
     """
-    stabilised = _sort_lists(opa_input)
+    stabilised = _sort_lists(authz_input)
     canonical = json.dumps(stabilised, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
 
@@ -75,20 +76,20 @@ def _sort_lists(obj: object) -> object:
     return obj
 
 
-async def _evaluate_opa(
-    opa_client: OPAClient,
-    opa_input: dict[str, Any],
+async def _evaluate_authz_policy(
+    evaluator: AuthzEvaluator,
+    authz_input: dict[str, Any],
 ) -> dict[str, Any]:
-    """Evaluate OPA input, using the cache when available."""
-    if _opa_cache is not None:
-        key = _hash_opa_input(opa_input)
-        cached = _opa_cache.get(key)
+    """Evaluate an authorization input, using the cache when available."""
+    if _authz_cache is not None:
+        key = _hash_authz_input(authz_input)
+        cached = _authz_cache.get(key)
         if cached is not None:
             return dict(cached)
-        result = await opa_client.evaluate(opa_input)
-        _opa_cache[key] = result
+        result = evaluator.evaluate(authz_input)
+        _authz_cache[key] = result
         return result
-    return await opa_client.evaluate(opa_input)
+    return evaluator.evaluate(authz_input)
 
 
 @dataclass
@@ -109,7 +110,7 @@ class AuthzRequest:
 
 @dataclass
 class AuthzResult:
-    """Authorization decision from OPA."""
+    """Authorization decision from the evaluator."""
 
     allowed: bool
     denied: bool
@@ -121,31 +122,32 @@ class AuthzResult:
 
 async def authorize(
     db: AsyncSession,
-    opa_client: OPAClient,
+    evaluator: AuthzEvaluator,
     request: AuthzRequest,
 ) -> AuthzResult:
     """Evaluate an authorization request.
 
     1. Resolves effective policies from the database
     2. Optionally resolves group memberships
-    3. Sends input to OPA for evaluation
+    3. Sends input to the evaluator for policy evaluation
 
     Args:
         db: Database session.
-        opa_client: OPA client for policy evaluation.
+        evaluator: Authorization evaluator for policy evaluation.
         request: The authorization request.
 
     Returns:
         Authorization result with allow/deny decision.
 
     """
-    effective = await resolve_effective_policies(db, request.user_id)
+    action_filter = f"{request.resource_type}:{request.action}"
+    effective = await resolve_effective_policies(db, request.user_id, action_filter=action_filter)
 
     groups = request.groups
     if groups is None:
         groups = await resolve_user_groups(db, request.user_id)
 
-    opa_input: dict[str, Any] = {
+    authz_input: dict[str, Any] = {
         "user": {
             "id": str(request.user_id),
             "metadata": request.user_metadata,
@@ -163,7 +165,7 @@ async def authorize(
         "effective_policies": effective,
     }
 
-    opa_result = await _evaluate_opa(opa_client, opa_input)
+    opa_result = await _evaluate_authz_policy(evaluator, authz_input)
 
     result = AuthzResult(
         allowed=opa_result.get("allow", False),
@@ -199,21 +201,22 @@ class AllowedProjectsResult:
 
 async def _evaluate_list_scope(
     db: AsyncSession,
-    opa_client: OPAClient,
+    evaluator: AuthzEvaluator,
     user_id: UUID,
     resource_type: str,
     action: str,
     user_labels: dict[str, str] | None = None,
     user_metadata: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
-    """Shared OPA evaluation for list-scope resolution.
+    """Shared policy evaluation for list-scope resolution.
 
     Returns (effective_policies, groups, allowed_project_names).
     """
-    effective = await resolve_effective_policies(db, user_id)
+    action_filter = f"{resource_type}:{action}"
+    effective = await resolve_effective_policies(db, user_id, action_filter=action_filter)
     groups = await resolve_user_groups(db, user_id)
 
-    opa_input: dict[str, Any] = {
+    authz_input: dict[str, Any] = {
         "user": {
             "id": str(user_id),
             "metadata": user_metadata or {},
@@ -231,7 +234,7 @@ async def _evaluate_list_scope(
         "effective_policies": effective,
     }
 
-    opa_result = await _evaluate_opa(opa_client, opa_input)
+    opa_result = await _evaluate_authz_policy(evaluator, authz_input)
     allowed_projects: list[str] = list(opa_result.get("allowed_projects", []))
     return effective, groups, allowed_projects
 
@@ -251,7 +254,7 @@ async def _resolve_project_ids(db: AsyncSession, project_names: list[str]) -> li
 
 async def resolve_allowed_projects(
     db: AsyncSession,
-    opa_client: OPAClient,
+    evaluator: AuthzEvaluator,
     user_id: UUID,
     resource_type: str,
     action: str,
@@ -260,12 +263,12 @@ async def resolve_allowed_projects(
 ) -> AllowedProjectsResult:
     """Resolve which projects a user can access for a given resource type and action.
 
-    Calls OPA once to get the set of allowed project names, then maps them to project IDs.
+    Calls the evaluator once to get the set of allowed project names, then maps them to project IDs.
     If the user has a scope="any" policy, returns all_projects=True (no filtering needed).
 
     Args:
         db: Database session.
-        opa_client: OPA client for policy evaluation.
+        evaluator: Authorization evaluator for policy evaluation.
         user_id: The user to resolve projects for.
         resource_type: The resource type (e.g., "credential", "workflow").
         action: The action (e.g., "read").
@@ -278,7 +281,7 @@ async def resolve_allowed_projects(
     """
     _, _, allowed_projects = await _evaluate_list_scope(
         db,
-        opa_client,
+        evaluator,
         user_id,
         resource_type,
         action,
@@ -329,7 +332,7 @@ class VisibilityResult:
 
 async def resolve_readable_project_ids(
     db: AsyncSession,
-    opa_client: OPAClient,
+    evaluator: AuthzEvaluator,
     user_id: UUID,
     effective: list[dict[str, Any]],
     groups: list[dict[str, Any]],
@@ -343,14 +346,14 @@ async def resolve_readable_project_ids(
 
     Returns None when the user can read all projects.
     """
-    opa_input: dict[str, Any] = {
+    authz_input: dict[str, Any] = {
         "user": {"id": str(user_id), "metadata": user_metadata or {}, "labels": user_labels or {}},
         "action": "read",
         "resource": {"type": "project", "id": "", "project": "", "metadata": {}, "labels": {}},
         "groups": groups,
         "effective_policies": effective,
     }
-    opa_result = await _evaluate_opa(opa_client, opa_input)
+    opa_result = await _evaluate_authz_policy(evaluator, authz_input)
     readable_names: list[str] = list(opa_result.get("allowed_projects", []))
 
     if "*" in readable_names:
@@ -361,7 +364,7 @@ async def resolve_readable_project_ids(
 
 async def resolve_visibility(
     db: AsyncSession,
-    opa_client: OPAClient,
+    evaluator: AuthzEvaluator,
     user_id: UUID,
     resource_type: str,
     action: str,
@@ -371,7 +374,7 @@ async def resolve_visibility(
     """Resolve what a user is allowed to see for a list endpoint."""
     effective, groups, allowed_projects = await _evaluate_list_scope(
         db,
-        opa_client,
+        evaluator,
         user_id,
         resource_type,
         action,
@@ -380,13 +383,18 @@ async def resolve_visibility(
     )
 
     if "*" in allowed_projects:
+        project_read_effective = await resolve_effective_policies(
+            db,
+            user_id,
+            action_filter="project:read",
+        )
         return VisibilityResult(
             unrestricted=True,
             readable_project_ids=await resolve_readable_project_ids(
                 db,
-                opa_client,
+                evaluator,
                 user_id,
-                effective,
+                project_read_effective,
                 groups,
                 user_labels,
                 user_metadata,
@@ -408,11 +416,16 @@ async def resolve_visibility(
     if resource_type == "project" and action == "read":
         readable = set(project_ids)
     else:
+        project_read_effective = await resolve_effective_policies(
+            db,
+            user_id,
+            action_filter="project:read",
+        )
         readable = await resolve_readable_project_ids(
             db,
-            opa_client,
+            evaluator,
             user_id,
-            effective,
+            project_read_effective,
             groups,
             user_labels,
             user_metadata,

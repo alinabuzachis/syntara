@@ -1,12 +1,8 @@
-"""Integration test: can-i consistency with real OPA HTTP server.
+"""Integration test: can-i consistency with the real regopy evaluator.
 
-Exercises the actual ``OPAClient.evaluate()`` HTTP path that all other
-tests mock out (via CLI or allow-all stubs).  Verifies that the real
-OPA server returns ``allow: true`` for permissions the user actually has.
-
-Requires: OPA server running on localhost:8181 (``make opa-run``).
-
-Related: https://github.com/syntara-orchestration/syntara/issues/621
+Exercises the actual in-process evaluator path that all other tests mock out.
+Verifies that the embedded evaluator returns ``allow: true`` for permissions
+the user actually has.
 """
 
 from collections.abc import AsyncGenerator
@@ -17,8 +13,8 @@ from sqlalchemy import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import AuthzRequest, authorize
+from nexus.authz.evaluator import RegoEvaluator
 from nexus.authz.models import RoleAssignment, RolePrincipalType
-from nexus.authz.opa_client import OPAClient
 from nexus.authz.resolver import resolve_effective_policies
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
@@ -30,15 +26,13 @@ from nexus.core.models.group import Group, user_groups
 
 
 @pytest.fixture
-async def real_opa_client() -> AsyncGenerator[OPAClient, None]:
-    """Create a real OPA HTTP client; skip if server is not reachable."""
-    client = OPAClient(base_url="http://localhost:8181")
-    client.start()
-    if not await client.health():
-        await client.stop()
-        pytest.skip("OPA server not available at localhost:8181 (run `make opa-run`)")
-    yield client
-    await client.stop()
+async def real_authz_evaluator() -> AsyncGenerator[RegoEvaluator, None]:
+    """Create the real in-process authz evaluator."""
+    evaluator = RegoEvaluator()
+    evaluator.start()
+    assert await evaluator.health() is True
+    yield evaluator
+    await evaluator.stop()
 
 
 @pytest.fixture(autouse=True)
@@ -80,27 +74,27 @@ async def _assign_role(
 
 
 # ---------------------------------------------------------------------------
-# Tests — these call authorize() with a REAL OPAClient, not the CLI mock.
+# Tests — these call authorize() with the real evaluator, not the mock.
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_admin_policy_create_allowed(
     test_db_session: AsyncSession,
-    real_opa_client: OPAClient,
+    real_authz_evaluator: RegoEvaluator,
 ) -> None:
-    """Admin user + policy:create must be allowed via real OPA HTTP."""
+    """Admin user + policy:create must be allowed via the real evaluator."""
     user = await _make_user(test_db_session, "test-admin")
     await _assign_role(test_db_session, user, "admin")
 
     result = await authorize(
         test_db_session,
-        real_opa_client,
+        real_authz_evaluator,
         AuthzRequest(user_id=user.id, action="create", resource_type="policy", resource_id=""),
     )
 
     assert result.allowed is True, (
-        f"real OPA returned allowed={result.allowed} for admin+policy:create "
+        f"real evaluator returned allowed={result.allowed} for admin+policy:create "
         f"(matched_policy='{result.matched_policy}', denied={result.denied})"
     )
 
@@ -108,20 +102,20 @@ async def test_admin_policy_create_allowed(
 @pytest.mark.asyncio
 async def test_user_directory_read_allowed(
     test_db_session: AsyncSession,
-    real_opa_client: OPAClient,
+    real_authz_evaluator: RegoEvaluator,
 ) -> None:
-    """Regular user + user-directory:read must be allowed via real OPA HTTP."""
+    """Regular user + user-directory:read must be allowed via the real evaluator."""
     user = await _make_user(test_db_session, "test-user")
     await _assign_role(test_db_session, user, "user")
 
     result = await authorize(
         test_db_session,
-        real_opa_client,
+        real_authz_evaluator,
         AuthzRequest(user_id=user.id, action="read", resource_type="user-directory", resource_id=""),
     )
 
     assert result.allowed is True, (
-        f"real OPA returned allowed={result.allowed} for user+user-directory:read "
+        f"real evaluator returned allowed={result.allowed} for user+user-directory:read "
         f"(matched_policy='{result.matched_policy}', denied={result.denied})"
     )
 
@@ -129,9 +123,9 @@ async def test_user_directory_read_allowed(
 @pytest.mark.asyncio
 async def test_can_i_consistent_with_what_can_i(
     test_db_session: AsyncSession,
-    real_opa_client: OPAClient,
+    real_authz_evaluator: RegoEvaluator,
 ) -> None:
-    """Every scope=any allow from what-can-i must match can-i via real OPA.
+    """Every scope=any allow from what-can-i must match can-i via the real evaluator.
 
     This is the core assertion from issue #621: what-can-i works but can-i
     returns allowed=false for the same permissions.
@@ -149,7 +143,7 @@ async def test_can_i_consistent_with_what_can_i(
             resource_type, action = action_str.split(":", 1)
             result = await authorize(
                 test_db_session,
-                real_opa_client,
+                real_authz_evaluator,
                 AuthzRequest(
                     user_id=user.id,
                     action=action,
@@ -162,5 +156,5 @@ async def test_can_i_consistent_with_what_can_i(
 
     assert not failures, (
         f"can-i disagrees with what-can-i for {len(failures)} permission(s) "
-        f"via real OPA HTTP:\n  " + "\n  ".join(failures)
+        f"via the real evaluator:\n  " + "\n  ".join(failures)
     )

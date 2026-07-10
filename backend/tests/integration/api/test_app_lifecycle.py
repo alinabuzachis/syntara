@@ -23,11 +23,12 @@ async def _test_lifespan_context(test_db_engine: AsyncEngine) -> AsyncGenerator[
     # Create test session factory from the test database engine
     test_session_factory = async_sessionmaker(test_db_engine, class_=AsyncSession, expire_on_commit=False)
 
-    # Mock OPA client so the lifespan health check passes
-    mock_opa_client = AsyncMock()
-    mock_opa_client.health = AsyncMock(return_value=True)
-    mock_opa_client.start = MagicMock()
-    mock_opa_client.stop = AsyncMock()
+    # Mock authz evaluator so the lifespan health check passes
+    mock_evaluator = AsyncMock()
+    mock_evaluator.health = AsyncMock(return_value=True)
+    mock_evaluator.start = MagicMock()
+    mock_evaluator.stop = AsyncMock()
+    mock_evaluator.evaluate = MagicMock(return_value={"allow": True})
 
     # Patch all database connections to use the test database
     # This ensures _check_settings_catalog() and other startup code use the migrated test DB
@@ -37,7 +38,7 @@ async def _test_lifespan_context(test_db_engine: AsyncEngine) -> AsyncGenerator[
         patch("nexus.api.main.engine", test_db_engine),
         patch("nexus.api.main.AsyncSessionLocal", test_session_factory),
         patch("nexus.audit.outbox.worker.AuditWorkerAsyncSessionLocal", test_session_factory),
-        patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
+        patch("nexus.api.main.RegoEvaluator", return_value=mock_evaluator),
     ):
         # Seed required data before app startup
         from nexus.core.seed import run_seeders

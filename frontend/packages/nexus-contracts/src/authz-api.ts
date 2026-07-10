@@ -15,7 +15,7 @@ export interface paths {
     put?: never
     /**
      * Check if the current user can perform an action
-     * @description Evaluates the current user's effective policies against OPA to determine if a specific action is allowed on a resource.
+     * @description Evaluates the current user's effective policies to determine if a specific action is allowed on a resource.
      */
     post: operations['can_i']
     delete?: never
@@ -35,7 +35,7 @@ export interface paths {
     put?: never
     /**
      * List users who can perform an action
-     * @description Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging endpoint.
+     * @description Iterates all active users, resolves their policies, and checks each against the configured authz evaluator.
      */
     post: operations['who_can']
     delete?: never
@@ -55,7 +55,7 @@ export interface paths {
     put?: never
     /**
      * List all permissions for the current user
-     * @description Resolves the current user's effective policies and returns them as a paginated list of permission entries. No OPA call needed.
+     * @description Resolves the current user's effective policies and returns them as a flat list of permission entries. No runtime policy evaluation call is needed.
      */
     post: operations['what_can_i']
     delete?: never

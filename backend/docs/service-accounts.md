@@ -248,7 +248,7 @@ All rejection responses use the same generic error to avoid leaking whether a `c
 
 > **Status:** Not yet implemented (AAP-78741)
 
-When the auth middleware encounters a JWT with `token_type: "service_account"`, it builds a **virtual principal** for the OPA policy engine rather than loading a user from the database.
+When the auth middleware encounters a JWT with `token_type: "service_account"`, it builds a **virtual principal** for the Rego policy evaluator rather than loading a user from the database.
 
 ```
 Incoming request with Bearer token
@@ -257,7 +257,7 @@ Incoming request with Bearer token
      Yes -> Build virtual principal:
             { type: "service_account", id: sub, client_id, project_id, roles: [...] }
      No  -> Normal user auth flow (existing behavior)
-  -> OPA evaluates policies against the principal
+  -> Rego evaluator checks policies against the principal
   -> Request proceeds or is denied
 ```
 

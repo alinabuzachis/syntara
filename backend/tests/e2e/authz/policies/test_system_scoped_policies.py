@@ -1,7 +1,7 @@
 """Policy coverage: system-scoped (any) policies — representative subset.
 
 Unit tests in tests/unit/authz/ exhaustively cover all 53 system-scoped
-policies through OPA/Rego evaluation. These e2e tests verify a
+policies through Rego/Rego evaluation. These e2e tests verify a
 representative sample (~13 policies) through the full HTTP stack.
 """
 

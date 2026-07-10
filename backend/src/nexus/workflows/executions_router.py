@@ -10,7 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError
 
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_opa_client
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_authz_evaluator
 from nexus.authz.engine import AuthzRequest, VisibilityResult, authorize
 from nexus.authz.exceptions import AuthorizationDeniedError
 from nexus.authz.models.project import Project
@@ -166,7 +166,7 @@ async def create_execution(
 
     Args:
         request: Execution creation request with workflow_id and input_data
-        http_request: FastAPI request for OPA client access
+        http_request: FastAPI request for authz evaluator access
         service: Execution service (injected by FastAPI)
         current_user: Current authenticated user
         db: Database session for permission checks
@@ -193,10 +193,10 @@ async def create_execution(
         )
         resource_project = proj_result.first() or ""
 
-    opa_client = get_opa_client(http_request)
+    evaluator = get_authz_evaluator(http_request)
     authz_result = await authorize(
         db,
-        opa_client,
+        evaluator,
         AuthzRequest(
             user_id=current_user.id,
             action="run",

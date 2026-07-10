@@ -7,7 +7,7 @@ from fastapi import Depends, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 if TYPE_CHECKING:
-    from nexus.authz.opa_client import OPAClient
+    from nexus.authz.evaluator import AuthzEvaluator
 
 from nexus.approvals.models import ApprovalRequestRead
 from nexus.approvals.models.api_models import (
@@ -20,7 +20,7 @@ from nexus.approvals.models.batch_response import BatchApprovalResponse
 from nexus.approvals.models.query_params import ApprovalListParams
 from nexus.approvals.services.approval_service import ApprovalService
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_opa_client
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_authz_evaluator
 from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
@@ -55,7 +55,7 @@ _approval_perm_decide = PermissionChecker(
 def get_approval_service(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-    opa_client: Annotated["OPAClient", Depends(get_opa_client)],
+    evaluator: Annotated["AuthzEvaluator", Depends(get_authz_evaluator)],
 ) -> ApprovalService:
     """Dependency provider for ApprovalService.
 
@@ -65,13 +65,13 @@ def get_approval_service(
     Args:
         db: Database session
         current_user: Current authenticated user
-        opa_client: OPA client for authorization checks
+        evaluator: Authorization evaluator for policy checks
 
     Returns:
         ApprovalService configured with database session and user
 
     """
-    return ApprovalService(db, current_user, opa_client)
+    return ApprovalService(db, current_user, evaluator)
 
 
 # ============================================================================
