@@ -1,14 +1,13 @@
 import { type Page, type Request, test, expect, toAppUrl } from './fixtures'
+import { addManualTrigger, addConditionNodeWithBranch } from './helpers/v2-nodes'
 import {
   addConvergeNodeWithAllStrategy,
   addConvergeNodeWithAnyStrategy,
   addConvergeNodeWithTimeout,
-  addManualTrigger,
-  addConditionNodeWithBranch,
   createWorkflowWithBranchesForConverge,
   expectConvergeNodeConfig,
   openConvergeFormOnNewWorkflow,
-} from './helpers/v2-nodes'
+} from './helpers/v2-nodes-converge'
 import {
   addNodePanel,
   selectProjectIfRequired,

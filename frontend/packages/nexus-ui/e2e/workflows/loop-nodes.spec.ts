@@ -11,20 +11,19 @@
  */
 
 import { test, expect } from '../fixtures'
+import { openAddNodePanel, selectCategoryAndType } from '../helpers/v2-nodes'
 import {
   addChildScriptToLoop,
   addForEachLoopNode,
   addWhileLoopNode,
   configureLoopNode,
-  openAddNodePanel,
-  openNodeForEditing,
   saveAndCloseNodeForm,
-  selectCategoryAndType,
-} from '../helpers/v2-nodes'
+} from '../helpers/v2-nodes-loop'
 import {
   buildUniqueName,
   closeNodeEditorPanel,
   deleteWorkflow,
+  openNodeForEditing,
   saveWorkflow,
   startWorkflowWithTrigger,
   verifyNodeVisible,

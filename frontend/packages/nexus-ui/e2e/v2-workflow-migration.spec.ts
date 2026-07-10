@@ -31,8 +31,8 @@ import {
   addApprovalNodeWithBranch,
   addConditionNodeWithBranch,
   addLoopNodeWithBody,
-  addConvergeNode,
 } from './helpers/v2-nodes'
+import { addConvergeNode } from './helpers/v2-nodes-converge'
 import { buildUniqueName, selectProjectIfRequired } from './helpers/workflows'
 
 /** Inline v2 schema type (formerly in toV2Definition.ts stub, now replaced by generated contracts). */

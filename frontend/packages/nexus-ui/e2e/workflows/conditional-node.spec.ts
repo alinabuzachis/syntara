@@ -77,7 +77,6 @@ test.skip('user reopens Conditional node to verify configuration persists', asyn
 
     // Act - Reopen the Conditional node to verify configuration persists
     await verifyNodeVisible(app, 'Initial condition')
-    // Double-click on the node to open its configuration
     await openNodeForEditing(app, 'Initial condition')
 
     // Assert - Verify all configuration fields persisted
