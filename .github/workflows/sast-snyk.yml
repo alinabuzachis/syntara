@@ -1,0 +1,25 @@
+---
+name: SAST Snyk Code
+
+on:
+  schedule:
+    - cron: '23 14 * * *'
+  push:
+    branches:
+      - 'devel'
+  workflow_dispatch:
+
+jobs:
+  snyk-sast:
+    name: Snyk SAST (Code Analysis)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1
+
+      - name: Scan for code vulnerabilities
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk code test --severity-threshold=high --project-name="${{ github.repository }}" --report .
