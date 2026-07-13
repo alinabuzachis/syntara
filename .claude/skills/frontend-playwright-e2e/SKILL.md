@@ -329,6 +329,41 @@ test('user creates and verifies a workflow', async ({ app }) => {
 - ✅ Use `buildUniqueName(prefix)` for unique test data
 - ✅ Use existing helpers (`createBasicWorkflow`, `addNodePanel` for the **Add step** panel, etc.)
 
+**Asserting API calls**
+
+
+```typescript
+// Register the response waiter BEFORE the action that triggers it
+const responsePromise = app.waitForResponse('**/api/v1/workflows')
+await app.getByRole('button', { name: 'Save' }).click()
+const response = await responsePromise
+expect(response.status()).toBe(200)
+
+// Also useful for asserting request payload
+const requestPromise = app.waitForRequest('**/api/v1/workflows')
+await app.getByRole('button', { name: 'Save' }).click()
+const request = await requestPromise
+expect(request.postDataJSON()).toMatchObject({ name: workflowName })
+```
+
+**Parameterized Tests**
+
+
+```typescript
+// Run the same test block for multiple roles using forEach + describe
+// Each describe gets its own beforeEach scope
+;(['admin', 'viewer', 'auditor'] as const).forEach(role => {
+  test.describe(`${role}: workflow list`, () => {
+    test(`sees the workflows table`, async ({ app }) => {
+      await app.goto(toAppUrl('/workflows'))
+      await expect(app.getByRole('grid', { name: 'Workflows table' })).toBeVisible()
+    })
+  })
+})
+```
+
+Note: placing `beforeEach` inside the `forEach`'s `describe` block scopes it per-iteration. Placing it outside runs it globally for all iterations.
+
 **Grouping related tests:**
 
 ```typescript
@@ -351,6 +386,18 @@ const hasRunning = await runningRow
   .then(() => true)
   .catch(() => false)
 test.skip(!hasRunning, 'Mock API has no running execution; seed data required')
+```
+
+**When `test.skip()` is and is not acceptable:**
+
+```typescript
+// ✅ ACCEPTABLE — data that is impossible to create programmatically
+// (e.g., an approval that must have been approved by a human via the real backend)
+test.skip(!hasApprovalData, 'Requires pre-existing human-approved records')
+
+// ❌ NOT ACCEPTABLE — if the test can create the data itself, it must do so
+// Do not skip because setup is complex; use beforeAll + API helpers instead
+test.skip(!hasWorkflows, 'No workflows exist') // ❌ create them via API instead
 ```
 
 ---
@@ -448,6 +495,57 @@ expect(heading).toBe('Workflows')
 | `toHaveCount()`     | Number of matching elements     |
 | `not.toBeVisible()` | Element disappeared             |
 
+**Additional assertions teams commonly miss**
+
+
+```typescript
+// Accessibility assertions — critical for a11y-focused teams
+await expect(locator).toHaveAccessibleName('Submit form')
+await expect(locator).toHaveAccessibleDescription('Opens a modal dialog')
+await expect(locator).toHaveRole('button')
+
+// Viewport and layout
+await expect(locator).toBeInViewport()
+
+// Multi-select
+await expect(locator).toHaveValues(['option-a', 'option-b'])
+
+// ARIA snapshot — assert full accessibility tree structure
+await expect(locator).toMatchAriaSnapshot(`
+  - button "Save"
+  - button "Cancel"
+`)
+
+// API responses
+await expect(response).toBeOK() // status in 200–299
+```
+
+**Soft assertions — collect all failures before stopping**
+
+
+```typescript
+// Use when you want to see all broken fields at once (e.g., form validation)
+await expect.soft(app.getByRole('textbox', { name: 'Name' })).toHaveValue('')
+await expect.soft(app.getByRole('alert', { name: 'Name is required' })).toBeVisible()
+await expect.soft(app.getByRole('alert', { name: 'Email is required' })).toBeVisible()
+// All three failures are reported; the test doesn't stop at the first
+```
+
+**`expect.poll` — retry any async value until it passes**
+
+
+```typescript
+// Use instead of waitForTimeout when waiting for an external condition
+await expect.poll(async () => {
+  const response = await app.request.get('/api/v1/workflows')
+  return response.status()
+}, {
+  message: 'API should return 200 after processing',
+  timeout: 10_000,
+  intervals: [1_000, 2_000, 5_000],
+}).toBe(200)
+```
+
 ---
 
 ### Auto-Waiting — Let Playwright Handle It
@@ -470,6 +568,31 @@ await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVi
 
 ```typescript
 await expect(app.getByText(/completed/i)).toBeVisible({ timeout: 30_000 })
+```
+
+**`test.slow()` — triple the configured timeout without hardcoding milliseconds**
+
+
+```typescript
+// test.slow() triples the configured timeout — simpler than hardcoding ms
+// Use for tests that exercise genuinely slow operations without picking a magic number
+test('executes a long-running workflow', async ({ app }) => {
+  test.slow()
+  // now has 3× the configured test timeout
+})
+```
+
+**Critical: missing `await` causes silent test passes**
+
+
+Forgetting `await` on a Playwright assertion means the assertion never runs — the test passes vacuously. Enable the ESLint rule `@typescript-eslint/no-floating-promises` to catch this at write time.
+
+```typescript
+// ❌ BAD — no await; assertion is never evaluated; test always passes
+expect(app.getByText('Success')).toBeVisible()
+
+// ✅ GOOD
+await expect(app.getByText('Success')).toBeVisible()
 ```
 
 ---
@@ -733,6 +856,25 @@ test('shareable URLs: filters restored from URL', async ({ app, context }) => {
 | **Accessibility**    | WCAG compliance                 | axe-core scans on each page                      |
 | **Multi-tab**        | Shareable URLs                  | Open filtered URL in new tab                     |
 
+### Accessibility Testing with axe-core
+
+
+**Scan components after interaction (modals, flyouts, dropdowns):**
+
+```typescript
+// Hidden content is not scanned — always trigger the state first
+await app.getByRole('button', { name: 'Open settings' }).click()
+await app.getByRole('dialog', { name: 'Settings' }).waitFor() // wait for it to render
+
+const results = await new AxeBuilder({ page })
+  .include('[role="dialog"]')   // scope to just the opened element
+  .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+  .analyze()
+expect(results.violations).toEqual([])
+```
+
+**Note on axe-core limitations:** axe-core catches approximately 30% of real WCAG violations automatically. The rest — keyboard navigation flow, screen reader announcement quality, cognitive accessibility, color contrast in jsdom — requires manual testing. Automated scans are a floor, not a ceiling.
+
 ---
 
 ## Phase 3 — Execution
@@ -845,6 +987,73 @@ export const mockAdminUser = { id: '1', username: 'admin', ... }
 import { mockAdminUser } from './fixtures/mock-users'
 ```
 
+### Route handlers: `page.route()` vs `browserContext.route()`
+
+
+```typescript
+// page.route() — intercepts requests on this page only
+await page.route('**/api/**', handler)
+
+// browserContext.route() — intercepts requests on ALL pages in this context
+// including popups and child pages opened from links
+await app.context().route('**/api/**', handler)
+// Use this when testing flows that open new tabs or popup windows
+```
+
+### Service Worker Interference
+
+
+If the project uses Mock Service Worker (MSW) or any service worker, `page.route()` handlers may silently never fire because the service worker intercepts first. Block service workers in tests that use route interception:
+
+```typescript
+// playwright.config.ts or specific test
+const context = await browser.newContext({ serviceWorkers: 'block' })
+```
+
+### Modifying Real API Responses (Partial Mocking)
+
+
+When you need to patch one field rather than fully mock an endpoint:
+
+```typescript
+await app.route('**/api/v1/workflows', async route => {
+  const response = await route.fetch()       // fetch the real response
+  const json = await response.json()
+  json.items.push({ id: 'injected', name: 'Extra workflow' }) // patch
+  await route.fulfill({ response, json })    // original headers preserved
+})
+```
+
+### WebSocket Testing
+
+
+**Observing WebSocket traffic (without blocking):**
+```typescript
+app.on('websocket', ws => {
+  ws.on('framesent',     e => console.log('→', e.payload))
+  ws.on('framereceived', e => console.log('←', e.payload))
+  ws.on('close', () => console.log('WebSocket closed'))
+})
+```
+
+**Mocking WebSocket responses:**
+```typescript
+await app.routeWebSocket('wss://example.com/ws', ws => {
+  ws.onMessage(message => {
+    if (message === 'ping') ws.send('pong')
+  })
+})
+```
+
+**Intercepting and relaying to real server:**
+```typescript
+await app.routeWebSocket('wss://example.com/ws', ws => {
+  const server = ws.connectToServer()
+  ws.onMessage(msg => server.send(msg === 'status' ? 'status-v2' : msg))
+  server.onMessage(msg => ws.send(msg))
+})
+```
+
 ---
 
 ## Constraints
@@ -857,7 +1066,7 @@ import { mockAdminUser } from './fixtures/mock-users'
 - ❌ Hardcode resource names (use `buildUniqueName()`)
 - ❌ Hardcode expected counts or assume a clean database (filter to find your data)
 - ❌ Assert on rows being visible without filtering first (other data may push them off-page)
-- ❌ Use `test.skip()` for missing seed data -- tests must create their own resources
+- ❌ Use `test.skip()` for data the test can create programmatically — create resources via API in `beforeAll` instead (see Data-Dependent Tests for the narrow exception: data impossible to create programmatically)
 - ❌ Depend on pre-existing data from the mock API or any external source
 - ❌ Share state between tests
 - ❌ Use `page.waitForTimeout()` -- rely on auto-waiting and web-first assertions
@@ -946,3 +1155,4 @@ npm run tsc
 2. **Helpers** — Reusable functions in `frontend/packages/nexus-ui/e2e/helpers/`
 3. **Resource utilities** — `frontend/packages/nexus-ui/e2e/utils/` (if creating API-based setup/teardown)
 4. **Coverage summary** — Brief comment documenting features, edge cases, and known gaps
+5. **Visual regression** — If the PR changes any UI layout or visual appearance, check whether a visual regression snapshot exists. See [`packages/nexus-ui/VISUAL_REGRESSION.md`](../packages/nexus-ui/VISUAL_REGRESSION.md) for the page registry, baseline update workflow, and CI screenshot comparison. Run `npm run e2e:visual-regression` to verify; run with `--update-snapshots` to update baselines.

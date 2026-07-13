@@ -38,6 +38,34 @@ npm run test:coverage        # Check coverage (see CI for per-file threshold enf
 
 CI automatically runs this check and **blocks PRs** where any changed source file falls below 80% on any of the four metrics (lines, statements, functions, branches). All new and modified source files must meet the threshold to merge.
 
+**Critical: files never imported are silently excluded from coverage reports**
+
+Without an explicit `include` glob, modules that are never imported in any test won't appear in coverage output at all — making overall numbers look better than they are:
+
+```typescript
+// vitest.config.ts
+coverage: {
+  provider: 'v8',
+  include: ['src/**/*.{ts,tsx}'],           // required — include all source files
+  exclude: ['src/**/*.stories.tsx', 'src/**/*.d.ts'],
+  thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
+}
+```
+
+**TypeScript strips bare `istanbul ignore` comments — use `@preserve`:**
+
+```typescript
+// ❌ Stripped by esbuild before coverage instrumentation sees it
+/* istanbul ignore next */
+/* v8 ignore next */
+
+// ✅ Survives the TypeScript → JS transform
+/* istanbul ignore next -- @preserve */
+/* v8 ignore next -- @preserve */
+/* v8 ignore start -- @preserve */
+/* v8 ignore stop -- @preserve */
+```
+
 ---
 
 ## AAA Pattern (Arrange-Act-Assert)
@@ -290,6 +318,32 @@ screen.getByRole('alert') // for error states
 
 Rules with many pre-existing violations are set to `warn` (not `error`) to allow gradual migration. **New test code must produce zero warnings** -- these rules will be promoted to `error` once existing violations are cleaned up. See [.claude/skills/frontend-coding-standards/SKILL.md section 8 -- Zero New Warnings Policy](../frontend-coding-standards/SKILL.md).
 
+**Async queries: use `findBy*` instead of `waitFor + getBy*`**
+
+`findBy*` is the async equivalent of `getBy*` — it retries until the element appears and gives better error messages:
+
+```typescript
+// ❌ Redundant — waitFor wrapping getBy* is what findBy* already does
+const button = await waitFor(() => screen.getByRole('button', { name: 'Save' }))
+
+// ✅ Correct — findBy* handles the wait internally with better error output
+const button = await screen.findByRole('button', { name: 'Save' })
+await userEvent.click(button)
+```
+
+Also: use `query*` **only** for asserting absence. Using `query*` when the element should exist produces poor error messages:
+
+```typescript
+// ❌ Poor error message when element is missing
+expect(screen.queryByRole('alert')).toBeInTheDocument()
+
+// ✅ Clear failure message
+expect(screen.getByRole('alert')).toBeInTheDocument()
+
+// ✅ query* is correct only for asserting absence
+expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+```
+
 **Scope assertions with `within()`:** When asserting on elements inside a specific container (dialog footer, form group, select dropdown), use `within()` to scope queries. This prevents false positives from matching elements elsewhere on the page.
 
 ```typescript
@@ -338,7 +392,7 @@ it('has no accessibility violations when rows are expanded', async () => {
 })
 ```
 
-**Important**: vitest-axe requires `jsdom` as the test environment (not happy-dom).
+**Important**: vitest-axe requires `jsdom` as the test environment — `happy-dom` has a known bug that causes axe to silently pass even when violations exist. See the full explanation in the Accessibility Testing section below.
 
 ### 3. Every New Custom Hook Must Have a Dedicated Test File
 
@@ -457,6 +511,112 @@ render(<ProviderIcon idpType="custom" />)
 expect(screen.queryByTestId('globe-icon')).not.toBeInTheDocument()
 ```
 
+### 11. Guard Against Tests That Silently Never Assert
+
+When a test exercises an async code path (Promise, callback, conditional), assertions may never run — the test passes vacuously. Add a guard at the top:
+
+```typescript
+it('calls error handler on rejection', async () => {
+  expect.hasAssertions() // fails if zero assertions fire
+
+  await doThing().catch(err => {
+    expect(err.message).toMatch(/network error/i)
+  })
+})
+
+// Or when you know the exact count:
+it('validates three required fields', async () => {
+  expect.assertions(3)
+  // ... 3 assertions must fire or the test fails
+})
+```
+
+### 12. Use `toStrictEqual` When `undefined` Keys Matter
+
+`toEqual` ignores `undefined` properties; `toStrictEqual` treats them as significant. Use `toStrictEqual` for API response shapes and data objects where presence/absence of a key is meaningful:
+
+```typescript
+// Passes with toEqual — may mask a missing field bug
+expect({ a: undefined, b: 2 }).toEqual({ b: 2 })
+
+// Fails with toStrictEqual — correctly catches the extra undefined key
+expect({ a: undefined, b: 2 }).toStrictEqual({ b: 2 }) // ❌
+
+// Practical use: asserting an API response shape
+expect(workflowResponse).toStrictEqual({
+  id: expect.any(String),
+  name: 'My Workflow',
+  description: undefined, // field must be explicitly absent
+})
+```
+
+### 13. Avoid Three `waitFor` Anti-Patterns
+
+```typescript
+// ❌ Anti-pattern 1: Empty callback — next assertion runs at the wrong time
+await waitFor(() => {})
+expect(window.fetch).toHaveBeenCalledWith('/api') // race condition
+
+// ✅ Correct: assertion belongs inside waitFor
+await waitFor(() => expect(window.fetch).toHaveBeenCalledWith('/api'))
+
+
+// ❌ Anti-pattern 2: Side effects inside waitFor — callback runs multiple times on retry
+await waitFor(() => {
+  fireEvent.keyDown(input, { key: 'ArrowDown' }) // fires multiple times!
+  expect(screen.getAllByRole('option')).toHaveLength(3)
+})
+
+// ✅ Correct: side effect outside, assertion inside
+fireEvent.keyDown(input, { key: 'ArrowDown' })
+await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(3))
+
+
+// ❌ Anti-pattern 3: Multiple assertions in one waitFor — hides which one failed
+// and waits the full timeout before reporting
+await waitFor(() => {
+  expect(window.fetch).toHaveBeenCalledWith('/api')
+  expect(window.fetch).toHaveBeenCalledTimes(1)
+})
+
+// ✅ Correct: only the async assertion inside; synchronous ones follow
+await waitFor(() => expect(window.fetch).toHaveBeenCalledWith('/api'))
+expect(window.fetch).toHaveBeenCalledTimes(1)
+```
+
+### 14. `vi.mock` Is Hoisted — Avoid Referencing Outer Variables in the Factory
+
+Vitest hoists `vi.mock()` calls to the top of the file before any other code runs. Variables declared above `vi.mock()` are `undefined` when the factory executes:
+
+```typescript
+// ❌ WRONG — myMock is undefined when the factory runs
+const myMock = vi.fn()
+vi.mock('./api', () => ({ fetchWorkflows: myMock }))
+
+// ✅ CORRECT option 1 — use vi.hoisted() to create refs before hoisting
+const { myMock } = vi.hoisted(() => ({ myMock: vi.fn() }))
+vi.mock('./api', () => ({ fetchWorkflows: myMock }))
+
+// ✅ CORRECT option 2 — partial mock, preserving real exports
+vi.mock('./api', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('./api')>()
+  return { ...mod, fetchWorkflows: vi.fn() }
+})
+```
+
+**Also: mocks do not auto-reset between tests.** Add `clearMocks: true` to `vitest.config.ts` to prevent cross-test contamination from stale `mockReturnValue` calls:
+
+```typescript
+// vitest.config.ts
+export default defineConfig({
+  test: {
+    clearMocks: true,    // clears mock.calls and mock.results between tests
+    unstubGlobals: true, // restores vi.stubGlobal() stubs between tests
+    unstubEnvs: true,    // restores vi.stubEnv() stubs between tests
+  },
+})
+```
+
 ---
 
 ## Permission Gating Tests
@@ -522,6 +682,141 @@ When testing pages that call `useCanI` (which queries the mock API asynchronousl
 
 ---
 
+## Zod Schema Testing
+
+Test Zod schemas as pure functions — independently from forms and API handlers. A schema test has no DOM, no render, no network: just input → output or input → error.
+
+### `safeParse` vs `parse`
+
+Use `safeParse` for invalid-input tests — no try/catch needed:
+
+```typescript
+// ✅ Use safeParse for asserting on errors
+const result = cronTriggerSchema.safeParse({ scheduleType: 'cron', cron: '' })
+expect(result.success).toBe(false)
+if (!result.success) {
+  expect(result.error.issues[0].path).toEqual(['cron'])
+  expect(result.error.issues[0].message).toMatch(/invalid/i)
+}
+
+// ✅ Use parse (or safeParse) for asserting valid input
+const valid = cronTriggerSchema.safeParse({ scheduleType: 'cron', cron: '0 9 * * 1-5' })
+expect(valid.success).toBe(true)
+```
+
+Always assert `.path` alongside `.message` — the same message can appear on different fields.
+
+### What to Test Per Schema
+
+Test each rule in isolation. Do not pass multiple invalid fields at once — it masks which rule triggered:
+
+```typescript
+describe('workflowSchema', () => {
+  it('accepts a valid workflow', () => {
+    expect(workflowSchema.safeParse(validWorkflow).success).toBe(true)
+  })
+
+  it('rejects missing name', () => {
+    const result = workflowSchema.safeParse({ ...validWorkflow, name: undefined })
+    expect(result.success).toBe(false)
+    expect(result.error!.issues[0].path).toEqual(['name'])
+  })
+
+  it('rejects empty name', () => {
+    const result = workflowSchema.safeParse({ ...validWorkflow, name: '' })
+    expect(result.success).toBe(false)
+    expect(result.error!.issues[0].path).toEqual(['name'])
+  })
+})
+```
+
+### Boundary Values: `undefined` vs `null` vs Empty String
+
+Zod treats these differently — test all three when a field could legitimately be any of them:
+
+```typescript
+// .optional() allows undefined but NOT null
+// .nullable() allows null but NOT undefined
+// .min(1) rejects empty string but allows whitespace — consider .trim()
+
+it('distinguishes null from undefined', () => {
+  expect(schema.safeParse({ field: undefined }).success).toBe(true)  // .optional()
+  expect(schema.safeParse({ field: null }).success).toBe(false)      // not .nullable()
+  expect(schema.safeParse({ field: '' }).success).toBe(false)        // .min(1)
+})
+```
+
+### Testing `.refine()` and `.superRefine()`
+
+Test both the passing and failing branch:
+
+```typescript
+describe('cron expression refinement', () => {
+  it('passes for valid 5-field cron', () => {
+    expect(schema.safeParse({ cron: '0 9 * * 1-5' }).success).toBe(true)
+  })
+
+  it('fails for 3-field cron', () => {
+    const result = schema.safeParse({ cron: '* * *' })
+    expect(result.success).toBe(false)
+    expect(result.error!.issues[0].message).toMatch(/invalid cron/i)
+  })
+})
+```
+
+### Testing `.transform()`
+
+Test input type and output type separately using `z.input<>` and `z.output<>`:
+
+```typescript
+type SchemaInput = z.input<typeof mySchema>    // pre-transform shape
+type SchemaOutput = z.output<typeof mySchema>  // post-transform shape
+
+it('transforms string to Date', () => {
+  const result = dateSchema.safeParse('2026-06-23')
+  expect(result.success).toBe(true)
+  expect(result.data).toBeInstanceOf(Date)
+})
+```
+
+### Fixture Drift Detection
+
+Prevent mock data from silently diverging from the schema as the schema evolves:
+
+```typescript
+import { mockWorkflows } from '../mocks/mockData'
+
+it.each(mockWorkflows)('mock fixture #%# conforms to workflowSchema', (fixture) => {
+  expect(() => workflowSchema.parse(fixture)).not.toThrow()
+})
+```
+
+### Async Schemas
+
+If a schema uses `.refine(async fn)`, you must use `safeParseAsync()`. Calling `safeParse()` on an async schema throws synchronously — it does not skip the refinement silently:
+
+```typescript
+it('rejects non-unique names', async () => {
+  const result = await asyncWorkflowSchema.safeParseAsync({ name: 'existing-name' })
+  expect(result.success).toBe(false)
+})
+```
+
+### Using `expect.schemaMatching` in Assertions
+
+Vitest supports inline schema validation via `expect.schemaMatching`:
+
+```typescript
+// Assert a Zod schema inline without a separate test
+expect(apiResponse).toEqual({
+  id: expect.any(String),
+  email: expect.schemaMatching(z.string().email()),
+  createdAt: expect.schemaMatching(z.string().datetime()),
+})
+```
+
+---
+
 ## Quick Reference
 
 - **Components**: `render()`, `screen`, `userEvent` from Testing Library
@@ -575,6 +870,56 @@ test('page has no a11y violations', async ({ app }) => {
 npm run e2e                          # All E2E tests including accessibility
 npm run e2e -- accessibility.spec.ts # Only accessibility tests
 npm run e2e:ui                       # With Playwright UI for debugging
+```
+
+**Critical: `vitest-axe` does not work with `happy-dom`**
+
+`happy-dom` has a known bug in its `Node.prototype.isConnected` implementation that breaks axe-core. Tests run silently with no violations even when violations exist. Always use `jsdom` as the Vitest environment for files that include axe tests:
+
+```typescript
+// vitest.config.ts
+test: {
+  environment: 'jsdom', // required for vitest-axe — happy-dom silently breaks axe
+}
+
+// Or per-file override at the top of the test file:
+// @vitest-environment jsdom
+```
+
+**axe-core catches approximately 30% of real WCAG violations**
+
+Automated scans are a floor, not a ceiling. The following require manual testing beyond vitest-axe and @axe-core/playwright:
+
+| Check | vitest-axe (jsdom) | @axe-core/playwright | Manual required |
+|---|---|---|---|
+| ARIA roles and labels | ✅ | ✅ | — |
+| Color contrast | ❌ (jsdom has no CSS) | ✅ | Supplement |
+| Focus management (modals) | ❌ | Partial | ✅ |
+| Keyboard navigation flow | ❌ | ❌ | ✅ |
+| Screen reader announcement quality | ❌ | ❌ | ✅ |
+| Dynamic/hidden content (post-interaction) | Only if pre-rendered | ✅ | — |
+| Touch targets, WCAG 2.5.x | ❌ | ❌ | ✅ |
+
+**Also inspect `results.incomplete`** — axe flags these as "needs manual review":
+
+```typescript
+const results = await axe(container)
+expect(results).toHaveNoViolations()
+// Optionally review ambiguous findings:
+if (results.incomplete.length > 0) {
+  console.warn('axe incomplete checks (need manual review):', results.incomplete.map(r => r.id))
+}
+```
+
+**Suppress known jsdom false positives with `configureAxe`:**
+
+```typescript
+import { configureAxe } from 'vitest-axe'
+
+// color-contrast always passes in jsdom (no CSS) — test it via Playwright instead
+const axe = configureAxe({
+  rules: { 'color-contrast': { enabled: false } },
+})
 ```
 
 ---
