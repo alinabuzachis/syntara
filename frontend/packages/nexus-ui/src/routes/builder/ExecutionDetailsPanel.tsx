@@ -17,7 +17,7 @@ import {
 } from '@patternfly/react-core'
 import { TimesIcon } from '@patternfly/react-icons'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { executionsClient } from '../../client'
 import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
@@ -265,6 +265,15 @@ function ThreePanelLayout({
   )
 }
 
+function resolveErrorDetails(errorDetails: string | null | undefined, nameMap: Map<string, string>): string | null {
+  if (!errorDetails || nameMap.size === 0) return errorDetails ?? null
+  let resolved = errorDetails
+  for (const [id, name] of nameMap) {
+    resolved = resolved.replaceAll(`${id}: `, `${name}: `)
+  }
+  return resolved
+}
+
 type SinglePanelLayoutProps = {
   execution: {
     started_at?: string | null
@@ -277,6 +286,7 @@ type SinglePanelLayoutProps = {
   isRunning: boolean
   activityStates: Map<string, ActivityState>
   activityOrder: ActivityOrderItem[]
+  nameMap: Map<string, string>
   now: number
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
@@ -292,6 +302,7 @@ function SinglePanelLayout({
   isRunning,
   activityStates,
   activityOrder,
+  nameMap,
   now,
   viewMode,
   onViewModeChange,
@@ -300,6 +311,10 @@ function SinglePanelLayout({
   headerLabel,
   onClosePanel,
 }: Readonly<SinglePanelLayoutProps>) {
+  const resolvedError = useMemo(
+    () => resolveErrorDetails(execution.error_details, nameMap),
+    [execution.error_details, nameMap]
+  )
   return (
     <NxPanel
       hasNoPadding
@@ -324,10 +339,10 @@ function SinglePanelLayout({
           />
         </StackItem>
 
-        {execution.status === 'failed' && execution.error_details && (
+        {execution.status === 'failed' && resolvedError && (
           <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--sm)' }}>
             <Alert variant="danger" isInline isPlain title="Execution failed">
-              {execution.error_details}
+              {resolvedError}
             </Alert>
           </StackItem>
         )}
@@ -337,7 +352,7 @@ function SinglePanelLayout({
             activityStates={activityStates}
             activityOrder={activityOrder}
             now={now}
-            executionError={execution.error_details}
+            executionError={resolvedError}
             onRowClick={onRowClick}
             selectedNodeId={selectedNodeId}
           />
@@ -468,6 +483,7 @@ export function ExecutionDetailsPanel({
       isRunning={isRunning}
       activityStates={activityStates}
       activityOrder={activityOrder}
+      nameMap={nameMap}
       now={now}
       viewMode={viewMode}
       onViewModeChange={setViewMode}
