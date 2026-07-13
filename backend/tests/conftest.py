@@ -37,7 +37,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from langchain_core.messages import AIMessage
-from sqlalchemy.engine import make_url
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlmodel import select
@@ -122,6 +122,12 @@ _ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata, Group
 configure_app_logging()
 
 logger = structlog.stdlib.get_logger(__name__)
+
+# Password for the postgres superuser in sclorg containers.
+# The sclorg image creates POSTGRESQL_USER as a regular (non-superuser) account;
+# DDL operations that require CREATEDB (template creation/restore) must connect
+# as postgres instead.  Set via POSTGRESQL_ADMIN_PASSWORD before container start.
+_SCLORG_ADMIN_PASSWORD = "pg-admin-test"  # noqa: S105
 
 
 # ============================================================================
@@ -558,11 +564,14 @@ async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
     logger.debug("Starting PostgreSQL container for worker '%s'", worker_id)
     postgres_image = os.getenv("POSTGRES_IMAGE", "quay.io/sclorg/postgresql-15-c9s")
     pg_container = PostgresContainer(postgres_image)
-    # sclorg images require POSTGRESQL_* env vars instead of POSTGRES_*
+    # sclorg images require POSTGRESQL_* env vars instead of POSTGRES_*.
+    # POSTGRESQL_ADMIN_PASSWORD sets the postgres superuser password so DDL
+    # fixtures (CREATE/DROP DATABASE) can connect with full privileges over TCP.
     if "sclorg" in postgres_image:
         pg_container.with_env("POSTGRESQL_USER", pg_container.username)
         pg_container.with_env("POSTGRESQL_PASSWORD", pg_container.password)
         pg_container.with_env("POSTGRESQL_DATABASE", pg_container.dbname)
+        pg_container.with_env("POSTGRESQL_ADMIN_PASSWORD", _SCLORG_ADMIN_PASSWORD)
     with pg_container as pg:
         test_database_url = pg.get_connection_url(driver="asyncpg")
         engine = create_async_engine(test_database_url, echo=False, poolclass=NullPool)
@@ -584,6 +593,24 @@ async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
         finally:
             os.environ.pop("APP_ADMIN_PASSWORD_PATH", None)
             Path(pw_path).unlink(missing_ok=True)
+
+
+@pytest.fixture(scope="session")
+def test_db_admin_url(test_db_engine: AsyncEngine) -> URL:
+    """Admin database URL with CREATEDB/DROPDB privilege for DDL fixtures.
+
+    The sclorg PostgreSQL image creates POSTGRESQL_USER as a regular (non-superuser)
+    account.  DDL operations such as DROP DATABASE / CREATE DATABASE TEMPLATE must
+    connect as the postgres superuser, whose password is set via
+    POSTGRESQL_ADMIN_PASSWORD when the container starts.
+
+    For standard postgres Docker images POSTGRES_USER is already a superuser, so
+    the test credentials are sufficient.
+    """
+    postgres_image = os.getenv("POSTGRES_IMAGE", "quay.io/sclorg/postgresql-15-c9s")
+    if "sclorg" in postgres_image:
+        return test_db_engine.url.set(username="postgres", password=_SCLORG_ADMIN_PASSWORD, database="postgres")
+    return test_db_engine.url.set(database="postgres")
 
 
 @pytest.fixture(scope="session")

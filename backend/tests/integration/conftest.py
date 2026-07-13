@@ -24,7 +24,9 @@ import pytest_asyncio
 import sqlalchemy
 from fastapi import FastAPI
 from moto import mock_aws
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
+from sqlalchemy.engine import URL
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from uvicorn import Config, Server
@@ -39,33 +41,92 @@ _MOTO_BUCKET = "nexus-integration-test"
 _MOTO_REGION = "us-east-1"
 
 
-async def _truncate_all_tables(engine: AsyncEngine) -> None:
-    """Remove all data from user tables without touching migration state."""
-    preparer = engine.dialect.identifier_preparer
-    async with engine.begin() as conn:
+@pytest_asyncio.fixture(scope="session")
+async def test_db_template(
+    test_db_engine: AsyncEngine, test_db_admin_url: URL
+) -> AsyncGenerator[tuple[URL, str, str, AsyncEngine], None]:
+    """Snapshot the post-seeding database as a PostgreSQL template.
+
+    Calls run_seeders() directly (same seeders that session_app runs) so the
+    template contains runtime_settings, installation, and setting_categories
+    data.  Each test restore returns to this seeded state instead of an empty
+    post-migration state.  NullPool guarantees all connections are closed before
+    CREATE DATABASE … TEMPLATE (which requires zero active sessions on the
+    source database).
+
+    Yields:
+        (admin_url, db_name, template_name) used by _restore_from_template.
+
+    """
+    from nexus.core.seed import run_seeders
+
+    seeder_factory = async_sessionmaker(test_db_engine, class_=AsyncSession, expire_on_commit=False)
+    await run_seeders(seeder_factory)
+
+    # run_seeders also populates users, workflows, groups, etc.  Those must NOT be
+    # in the template because tests seed their own per-test data and assume an empty
+    # DB.  Truncate the same tables the old TRUNCATE-based cleanup truncated, leaving
+    # only the four tables that were previously excluded from truncation.
+    preserved = frozenset({"alembic_version", "installation", "runtime_settings", "setting_categories"})
+    preparer = test_db_engine.dialect.identifier_preparer
+    async with test_db_engine.begin() as conn:
         result = await conn.execute(
             sqlalchemy.text(
-                """
-                SELECT table_schema, table_name
-                FROM information_schema.tables
-                WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
-                ORDER BY table_schema, table_name
-                """
+                "SELECT table_schema, table_name FROM information_schema.tables "
+                "WHERE table_schema NOT IN ('information_schema', 'pg_catalog') "
+                "ORDER BY table_schema, table_name"
             )
         )
-        tables = [
-            f"{preparer.quote_schema(schema)}.{preparer.quote(table_name)}"
-            if schema and schema != "public"
-            else preparer.quote(table_name)
-            for schema, table_name in result
-            if table_name not in ("alembic_version", "installation", "runtime_settings", "setting_categories")
+        to_truncate = [
+            f"{preparer.quote_schema(s)}.{preparer.quote(t)}" if s and s != "public" else preparer.quote(t)
+            for s, t in result
+            if t not in preserved
         ]
+    if to_truncate:
+        async with test_db_engine.begin() as conn:
+            await conn.execute(sqlalchemy.text(f"TRUNCATE {', '.join(to_truncate)} RESTART IDENTITY CASCADE"))
 
-        if not tables:
-            return
+    db_name = test_db_engine.url.database or "test"
+    template_name = f"{db_name}_tpl"
 
-        truncate_stmt = sqlalchemy.text(f"TRUNCATE {', '.join(tables)} RESTART IDENTITY CASCADE")
-        await conn.execute(truncate_stmt)
+    admin_engine = create_async_engine(test_db_admin_url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
+    try:
+        async with admin_engine.connect() as conn:
+            await conn.execute(
+                sqlalchemy.text(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE datname = :db AND pid != pg_backend_pid()"
+                ).bindparams(db=db_name)
+            )
+            await conn.execute(sqlalchemy.text(f'CREATE DATABASE "{template_name}" TEMPLATE "{db_name}"'))
+        yield test_db_admin_url, db_name, template_name, admin_engine
+    finally:
+        async with admin_engine.connect() as conn:
+            await conn.execute(
+                sqlalchemy.text(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE datname = :db AND pid != pg_backend_pid()"
+                ).bindparams(db=template_name)
+            )
+            await conn.execute(sqlalchemy.text(f'DROP DATABASE IF EXISTS "{template_name}"'))
+        await admin_engine.dispose()
+
+
+async def _restore_from_template(admin_engine: AsyncEngine, db_name: str, template_name: str) -> None:
+    """Reset the test database to the clean post-migration snapshot.
+
+    Uses PostgreSQL's template-database mechanism (filesystem-level copy)
+    instead of per-table TRUNCATE.  pg_terminate_backend evicts any stray
+    connections before the DROP so it never blocks.
+    """
+    async with admin_engine.connect() as conn:
+        await conn.execute(
+            sqlalchemy.text(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :db AND pid != pg_backend_pid()"
+            ).bindparams(db=db_name)
+        )
+        await conn.execute(sqlalchemy.text(f'DROP DATABASE "{db_name}"'))
+        await conn.execute(sqlalchemy.text(f'CREATE DATABASE "{db_name}" TEMPLATE "{template_name}"'))
 
 
 @pytest_asyncio.fixture
@@ -76,15 +137,18 @@ async def test_db_session_factory(test_db_engine: AsyncEngine) -> async_sessionm
 
 @pytest_asyncio.fixture
 async def test_db_session(
-    test_db_engine: AsyncEngine, test_db_session_factory: async_sessionmaker[AsyncSession]
+    test_db_session_factory: async_sessionmaker[AsyncSession],
+    test_db_template: tuple[URL, str, str, AsyncEngine],
 ) -> AsyncGenerator[AsyncSession, None]:
-    """Create an integration test database session with real commits.
+    """Integration test database session with template-based per-test isolation.
 
-    Integration tests need data visible across multiple connections (API
-    clients, concurrent sessions).  Uses TRUNCATE before each test for
-    isolation instead of the rollback approach used by unit tests.
+    Restores the database to the clean post-migration snapshot before each
+    test instead of issuing a TRUNCATE.  This is faster because PostgreSQL
+    copies the data directory at the filesystem level rather than walking
+    every table's rows and WAL-logging their deletion.
     """
-    await _truncate_all_tables(test_db_engine)
+    _admin_url, db_name, template_name, admin_engine = test_db_template
+    await _restore_from_template(admin_engine, db_name, template_name)
 
     session = test_db_session_factory()
     try:
