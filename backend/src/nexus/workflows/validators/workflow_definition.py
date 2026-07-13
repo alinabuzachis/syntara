@@ -527,6 +527,21 @@ class WorkflowValidator:
         findings.extend(_check_cycles_findings(workflow_definition, node_ids))
         findings.extend(_check_orphaned_nodes_findings(workflow_definition, node_ids))
         findings.extend(_check_converge_node_findings(workflow_definition))
+
+        # Check template expressions (${...}) for invalid variable references
+        template_issues = check_template_expressions(workflow_definition, node_ids)
+        findings.extend(
+            [
+                ValidationFinding(
+                    severity=ValidationSeverity.error,
+                    category=ValidationCategory.invalid_reference,
+                    message=issue.message,
+                    node_id=issue.node_id,
+                )
+                for issue in template_issues
+            ]
+        )
+
         return findings
 
     def _collect_schema_findings(self, workflow_definition: dict[str, Any]) -> list[ValidationFinding]:
