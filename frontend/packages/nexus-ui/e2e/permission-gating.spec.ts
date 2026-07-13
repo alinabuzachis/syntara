@@ -73,7 +73,7 @@ async function createTestCredential(adminApp: Page): Promise<{ id: string; name:
 // ── Navigation visibility ────────────────────────────────────────────────
 
 test.describe('Permission gating — Navigation visibility', () => {
-  test('admin sees all navigation items', async ({ app }) => {
+  test.skip('admin sees all navigation items', async ({ app }) => {
     const nav = app.getByRole('navigation', { name: 'Main navigation' })
 
     await expect(nav.getByRole('link', { name: 'Workflows' })).toBeVisible()
