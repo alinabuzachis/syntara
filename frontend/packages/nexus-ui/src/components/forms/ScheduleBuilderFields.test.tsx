@@ -228,6 +228,16 @@ describe('ScheduleBuilderFields', () => {
     expect(screen.getByLabelText('End date', { selector: 'input' })).toHaveAttribute('min', '2024-06-15')
   })
 
+  it('calls onChange with a non-empty interval when no start date is set', async () => {
+    const onChange = vi.fn()
+    render(<ScheduleBuilderFields onChange={onChange} />)
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled()
+      expect(onChange.mock.calls.at(-1)?.[0]).toMatch(/^R1\/\d{4}-\d{2}-\d{2}/)
+    })
+  })
+
   it('has no accessibility violations when end date is invalid', async () => {
     const { container } = render(<ScheduleBuilderFields value="R/2024-06-15T10:00:00Z/P1D/2024-06-01T23:59:59Z" />)
     const results = await axe(container)

@@ -145,13 +145,13 @@ function useScheduleBuilder(value: string, timezone: string, onChange?: (interva
   const { startDate, startTime, endDate, frequency, intervalCount } = state
 
   useEffect(() => {
-    if (!startDate) {
-      onChange?.('')
-      return
-    }
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const effectiveDate = startDate || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const effectiveTime = startDate ? startTime || '00:00' : `${pad(now.getHours())}:${pad(now.getMinutes())}`
 
-    const tzOffset = getTimezoneOffset(timezone, startDate)
-    const start = buildISOString(startDate, `${startTime || '00:00'}:00`, tzOffset)
+    const tzOffset = getTimezoneOffset(timezone, effectiveDate)
+    const start = buildISOString(effectiveDate, `${effectiveTime}:00`, tzOffset)
     if (!start) return
 
     const duration = frequencyAndIntervalToDuration(frequency, intervalCount)

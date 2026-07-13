@@ -5,6 +5,9 @@ import {
   WEBHOOK_TRIGGER_TYPES,
 } from '@ansible/nexus-contracts'
 import {
+  Alert,
+  Content,
+  ContentVariants,
   FormGroup,
   FormHelperText,
   FormSelect,
@@ -28,7 +31,7 @@ import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { ScheduleBuilderFields } from '../../../components/forms/ScheduleBuilderFields'
 import {
   CRON_EXPRESSION_HELP,
-  MISSED_SCHEDULE_HELP,
+  EXECUTION_CONFLICT_HELP,
   SCHEDULE_EXPRESSION_HELP,
 } from '../../../components/forms/scheduleHelpText'
 import { generateWebhookPath } from '../../../utils/webhookPath'
@@ -52,17 +55,29 @@ type TriggerNodeFormProps = Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
 }>
 
-// ── Missed schedule behavior options ─────────────────────────────────────
+// ── Execution conflict policy options ────────────────────────────────────
 
-const missedPolicyOptions = [
-  { value: MissedSchedulePolicyEnum.SKIP, label: 'Skip' },
-  { value: MissedSchedulePolicyEnum.RUN_ONCE, label: 'Run once' },
-  { value: MissedSchedulePolicyEnum.RUN_ALL, label: 'Run all' },
+const conflictPolicyOptions = [
+  {
+    value: MissedSchedulePolicyEnum.SKIP,
+    label: 'Skip',
+    description: 'Only one run at a time; skip if the previous run is still in progress',
+  },
+  {
+    value: MissedSchedulePolicyEnum.RUN_ONCE,
+    label: 'Run once',
+    description: 'Queue one catch-up execution if runs were skipped',
+  },
+  {
+    value: MissedSchedulePolicyEnum.RUN_ALL,
+    label: 'Run all',
+    description: 'Queue every scheduled run, even if previous runs are still in progress',
+  },
 ]
 
 // ── Sub-components (module-scoped per S6478) ─────────────────────────────
 
-function MissedScheduleBehaviorField({
+function ExecutionConflictPolicyField({
   value,
   onChange,
   isDisabled,
@@ -72,7 +87,7 @@ function MissedScheduleBehaviorField({
   isDisabled: boolean
 }>) {
   const [isOpen, setIsOpen] = useState(false)
-  const selectedLabel = missedPolicyOptions.find((o) => o.value === value)?.label ?? 'Skip'
+  const selectedLabel = conflictPolicyOptions.find((o) => o.value === value)?.label ?? 'Skip'
 
   const handleSelect = useCallback(
     (_event: React.MouseEvent | undefined, val: string | number | undefined) => {
@@ -91,7 +106,7 @@ function MissedScheduleBehaviorField({
         isExpanded={isOpen}
         isFullWidth
         isDisabled={isDisabled}
-        aria-label="Missed schedule behavior"
+        aria-label="Execution conflict policy"
       >
         {selectedLabel}
       </MenuToggle>
@@ -102,12 +117,12 @@ function MissedScheduleBehaviorField({
   return (
     <StackItem>
       <FormGroup
-        label={<FormLabelWithHelp label="Missed schedule behavior" helpText={MISSED_SCHEDULE_HELP} />}
-        fieldId="missed-schedule-behavior"
+        label={<FormLabelWithHelp label="Execution conflict policy" helpText={EXECUTION_CONFLICT_HELP} />}
+        fieldId="execution-conflict-policy"
         isRequired
       >
         <Select
-          id="missed-schedule-behavior"
+          id="execution-conflict-policy"
           isOpen={isOpen}
           selected={value}
           onSelect={handleSelect}
@@ -115,9 +130,9 @@ function MissedScheduleBehaviorField({
           shouldFocusToggleOnSelect
           toggle={renderToggle}
         >
-          <SelectList aria-label="Missed schedule behavior options">
-            {missedPolicyOptions.map((option) => (
-              <SelectOption key={option.value} value={option.value}>
+          <SelectList aria-label="Execution conflict policy options">
+            {conflictPolicyOptions.map((option) => (
+              <SelectOption key={option.value} value={option.value} description={option.description}>
                 {option.label}
               </SelectOption>
             ))}
@@ -196,6 +211,15 @@ function TriggerFormFields({
       {triggerType === TriggerTypeEnum.SCHEDULED && (
         <>
           <StackItem>
+            <Alert variant="info" isInline title="Schedule activation" component="h4">
+              <Content component={ContentVariants.p}>
+                This schedule will only take effect once the workflow is published. Changes to the schedule are applied
+                on the next publish.
+              </Content>
+            </Alert>
+          </StackItem>
+
+          <StackItem>
             <FormGroup
               label={<FormLabelWithHelp label="Schedule expression" helpText={SCHEDULE_EXPRESSION_HELP} />}
               fieldId="schedule-expression"
@@ -237,7 +261,7 @@ function TriggerFormFields({
                             onChange={intervalField.onChange}
                             timezone={tzField.value ?? 'UTC'}
                             onTimezoneChange={tzField.onChange}
-                            required
+                            required={false}
                             error={!!errors.interval && !isEndDateError}
                             errorMessage={errors.interval?.message}
                           />
@@ -251,7 +275,7 @@ function TriggerFormFields({
                   control={control}
                   name="missedSchedulePolicy"
                   render={({ field }) => (
-                    <MissedScheduleBehaviorField
+                    <ExecutionConflictPolicyField
                       value={field.value ?? MissedSchedulePolicyEnum.SKIP}
                       onChange={field.onChange}
                       isDisabled={isVersionView}
@@ -300,7 +324,7 @@ function TriggerFormFields({
                   control={control}
                   name="missedSchedulePolicy"
                   render={({ field }) => (
-                    <MissedScheduleBehaviorField
+                    <ExecutionConflictPolicyField
                       value={field.value ?? MissedSchedulePolicyEnum.SKIP}
                       onChange={field.onChange}
                       isDisabled={isVersionView}

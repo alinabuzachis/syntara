@@ -1,7 +1,7 @@
 import { Content, List, ListItem } from '@patternfly/react-core'
 
 export const START_DATE_HELP =
-  'This defines the first calendar day and time your automation is eligible to run once the workflow is published.'
+  'The first calendar day and time your automation is eligible to run. If this field is left empty, the schedule will start upon publishing.'
 
 export const END_DATE_HELP = (
   <>
@@ -77,25 +77,22 @@ export const SCHEDULE_EXPRESSION_HELP = 'Set a schedule by using a visual schedu
 export const CRON_EXPRESSION_HELP =
   'A cron expression defines a time-based schedule using five fields. Each field specifies a unit of time.'
 
-export const MISSED_SCHEDULE_HELP = (
+export const EXECUTION_CONFLICT_HELP = (
   <>
     <Content component="p">
-      Select how the system should handle scheduled runs that are delayed or overlap with an ongoing execution.
+      Select what happens when a scheduled run overlaps with a run that is still in progress.
     </Content>
     <List>
       <ListItem>
-        <strong>Skip</strong> (Default): If the previous run is still in progress when the next one is scheduled to
-        start, the new run is ignored. This ensures only one instance of the workflow is active at a time and prevents
-        backlogs.
+        <strong>Skip</strong> (Default): If the previous run is still in progress, the new run is ignored. Only one
+        instance of the workflow runs at a time.
       </ListItem>
       <ListItem>
-        <strong>Run once</strong>: If multiple scheduled runs were missed (ex: during system maintenance) or are
-        overlapping, the system will trigger exactly one catch-up execution immediately and then resume the normal
-        schedule.
+        <strong>Run once</strong>: If runs were skipped because the previous one was still in progress, the system will
+        queue one catch-up execution and then resume the normal schedule.
       </ListItem>
       <ListItem>
-        <strong>Run all</strong>: The system will immediately trigger every missed execution that should have occurred
-        during the downtime or overlap period. Use this with caution, as it can cause a sudden spike in resource usage.
+        <strong>Run all</strong>: Every scheduled run is queued, even if previous runs are still in progress.
       </ListItem>
     </List>
   </>
