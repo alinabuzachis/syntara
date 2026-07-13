@@ -18,7 +18,7 @@ Usage:
 Environment Variables:
     APP_TEMPORAL_ADDRESS: Temporal server address (default: localhost:7233)
     APP_TEMPORAL_NAMESPACE: Temporal namespace (default: default)
-    APP_BACKGROUND_TASK_QUEUE: Background task queue name (required — no default; raises RuntimeError if unset)
+    APP_BACKGROUND_TASK_QUEUE: Background task queue name (default: nexus-background-queue)
     APP_FALLBACK_LOG_LEVEL: Logging level before runtime settings load (default: INFO)
 
 """
@@ -40,15 +40,9 @@ async def main() -> None:
     validate_encryption_key_at_startup()
     settings = get_settings()
 
-    if settings.background_task_queue is None:
-        msg = "APP_BACKGROUND_TASK_QUEUE must be set to run the background worker"
-        raise RuntimeError(msg)
-
-    background_task_queue = settings.background_task_queue
-
     async def _start() -> TemporalWorkerService:
         return await start_worker(
-            task_queue=background_task_queue,
+            task_queue=settings.background_task_queue,
             activity_registry=BACKGROUND_ACTIVITY_REGISTRY,
         )
 

@@ -92,9 +92,9 @@ services:
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CORS_ORIGINS=http://localhost:3000
-      - TEMPORAL_TLS_CA_PATH=/etc/temporal/config/certs/ca.pem
-      - TEMPORAL_TLS_CERT_PATH=/etc/temporal/config/certs/temporal.crt
-      - TEMPORAL_TLS_KEY_PATH=/etc/temporal/config/certs/temporal.key
+      - TEMPORAL_TLS_CA=/etc/temporal/config/certs/ca.pem
+      - TEMPORAL_TLS_CERT=/etc/temporal/config/certs/temporal.crt
+      - TEMPORAL_TLS_KEY=/etc/temporal/config/certs/temporal.key
       - TEMPORAL_TLS_ENABLE_HOST_VERIFICATION=true
       - TEMPORAL_TLS_SERVER_NAME=temporal
     volumes:

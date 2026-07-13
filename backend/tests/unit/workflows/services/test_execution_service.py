@@ -164,6 +164,7 @@ class TestCreateExecution:
         workflow.id = workflow_id
         workflow.name = "test-workflow"
         workflow.is_enabled = True
+        workflow.is_builtin = False
         workflow.project_id = uuid4()
 
         workflow_version = Mock(spec=WorkflowVersion)
@@ -220,10 +221,61 @@ class TestCreateExecution:
         assert call_kwargs["workflow_name"] == "test-workflow"
         assert call_kwargs["input_data"] == {"key": "value"}
         assert "workflow_def" in call_kwargs
+        assert call_kwargs["is_builtin"] is False
 
         # Verify database operations
         mock_session.add.assert_called_once()
         mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_create_execution_passes_is_builtin_for_builtin_workflow(self) -> None:
+        """Builtin workflows pass is_builtin=True so they route to the background queue."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_temporal = Mock()
+
+        workflow_id = uuid4()
+        version_id = uuid4()
+        user_id = uuid4()
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = workflow_id
+        workflow.name = "Document Conversion"
+        workflow.is_enabled = True
+        workflow.is_builtin = True
+        workflow.project_id = uuid4()
+
+        workflow_version = Mock(spec=WorkflowVersion)
+        workflow_version.id = version_id
+        workflow_version.version = 1
+        workflow_version.schema_version = "2.0.0"
+        workflow_version.workflow_definition = {
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=(workflow, workflow_version))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        temporal_result = Mock()
+        temporal_result.execution_id = str(uuid4())
+        temporal_result.temporal_workflow_id = "exec-builtin"
+        temporal_result.temporal_run_id = "run-builtin"
+        mock_temporal.start_workflow = AsyncMock(return_value=temporal_result)
+
+        mock_user = Mock(spec=User)
+        mock_user.id = user_id
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
+
+        await service.create_execution(workflow_id=workflow_id, input_data={})
+
+        call_kwargs = mock_temporal.start_workflow.call_args.kwargs
+        assert call_kwargs["is_builtin"] is True
 
     @pytest.mark.asyncio
     async def test_create_execution_success_without_temporal(self) -> None:

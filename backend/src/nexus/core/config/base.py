@@ -1151,6 +1151,9 @@ class OpenTelemetrySettings(BaseSettings):
 # Temporal Configuration
 # =============================================================================
 
+TEMPORAL_DEFAULT_TASK_QUEUE = "nexus-workflow-queue"
+TEMPORAL_DEFAULT_BACKGROUND_TASK_QUEUE = "nexus-background-queue"
+
 
 class TemporalSettings(BaseSettings):
     """Temporal workflow engine configuration settings.
@@ -1171,16 +1174,16 @@ class TemporalSettings(BaseSettings):
     )
 
     task_queue: str = Field(
-        default="nexus-workflow-queue",
+        default=TEMPORAL_DEFAULT_TASK_QUEUE,
         description="Temporal task queue name for workflow routing",
     )
 
-    background_task_queue: str | None = Field(
-        default=None,
+    background_task_queue: str = Field(
+        default=TEMPORAL_DEFAULT_BACKGROUND_TASK_QUEUE,
         description=(
             "Temporal task queue name for builtin/background workflow executions. "
-            "When None (default), built-in workflows fall back to the main task_queue. "
-            "Set APP_BACKGROUND_TASK_QUEUE to activate dedicated background worker routing."
+            "Built-in workflows (Document Conversion, Agent Execution) are always "
+            "routed to this queue. Override APP_BACKGROUND_TASK_QUEUE to change the name."
         ),
     )
 

@@ -69,7 +69,7 @@ async def _ao_test_client(
         email=test_user.email or "",
     )
 
-    _svc = TemporalExecutionService(temporal_env.client, "test-workflow-queue")
+    _svc = TemporalExecutionService(temporal_env.client, "test-workflow-queue", "test-workflow-queue")
 
     async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
         async with test_db_session_factory() as session:

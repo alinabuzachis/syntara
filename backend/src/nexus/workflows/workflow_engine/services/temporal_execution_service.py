@@ -14,7 +14,7 @@ from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilter
 from temporalio.exceptions import TemporalError
 from temporalio.service import RPCError
 
-from nexus.core.config.base import get_settings
+from nexus.core.config.base import TEMPORAL_DEFAULT_BACKGROUND_TASK_QUEUE, get_settings
 from nexus.core.exceptions import SafeValueError
 from nexus.core.tls.temporal import build_temporal_tls_config
 from nexus.metrics.dependencies import get_metrics_recorder
@@ -38,7 +38,7 @@ class TemporalExecutionService:
         self,
         temporal_client: Client,
         task_queue: str,
-        background_task_queue: str | None = None,
+        background_task_queue: str = TEMPORAL_DEFAULT_BACKGROUND_TASK_QUEUE,
     ) -> None:
         """Initialize temporal execution service.
 
@@ -50,8 +50,6 @@ class TemporalExecutionService:
             temporal_client: Temporal client for workflow operations
             task_queue: Task queue name for user workflow execution
             background_task_queue: Task queue name for builtin workflow execution.
-                When None (default), built-in workflows route to the main task_queue instead,
-                preserving pre-background-worker behavior. Set to activate dedicated routing.
 
         """
         self.temporal_client = temporal_client
@@ -200,9 +198,7 @@ class TemporalExecutionService:
                         workflow_metadata,
                     ],
                     id=temporal_workflow_id,
-                    task_queue=self.background_task_queue
-                    if (is_builtin and self.background_task_queue is not None)
-                    else self.task_queue,
+                    task_queue=self.background_task_queue if is_builtin else self.task_queue,
                 )
 
             logger.info(
