@@ -9,7 +9,7 @@ export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${ra
 
 export const addNodePanel = (page: Page) =>
   page.getByRole('region', {
-    name: /add step|select a node|select an action node|select a trigger node|select a logic node|select an aap execution node/i,
+    name: /add step|select an action node|select a trigger node|select a logic node|select an aap execution node/i,
   })
 
 /**
@@ -86,7 +86,7 @@ export async function closeNodeEditorPanel(page: Page) {
   // The node editor cancel button has different aria-labels depending on mode:
   //   edit mode  → "Cancel without saving"
   //   add mode   → "Cancel step creation"
-  //   read-only  → "Close"
+  //   read-only  → "Close node editor"
   // Try each in order.
   const cancelEditButton = page.getByRole('button', { name: 'Cancel without saving' })
   if ((await cancelEditButton.count()) > 0) {
