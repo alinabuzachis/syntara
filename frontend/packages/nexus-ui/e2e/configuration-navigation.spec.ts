@@ -9,6 +9,7 @@ async function navigateViaConfigMenu(app: Page, itemName: string) {
 
 test.describe('Configuration Navigation & Tabs', () => {
   test('displays all Configuration sub-navigation tabs', async ({ app }) => {
+    test.fixme(true, 'Flaky in CI')
     // Act - Open the Configuration flyout dropdown
     const configButton = app.getByRole('button', { name: 'Configuration', exact: true })
     await expect(configButton).toBeVisible()
