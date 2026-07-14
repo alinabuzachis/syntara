@@ -129,7 +129,7 @@ export function validateVariableReferences(
   const seenIds = new Set<string>()
   const activityIds = new Set(activities.map((a) => a.id))
   const schemaFields = getWorkflowInputNames(context?.triggers)
-  const available = [...schemaFields].sort().join(', ')
+  const available = [...schemaFields].sort((a, b) => a.localeCompare(b)).join(', ')
   const schemaSuggestion = available ? `Available fields: ${available}` : 'Define fields in the trigger configuration'
 
   for (const activity of activities) {
