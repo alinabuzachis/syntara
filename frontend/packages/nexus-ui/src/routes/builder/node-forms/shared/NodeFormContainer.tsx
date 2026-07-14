@@ -15,6 +15,7 @@ export function NodeFormContainer({ children, formId, onSubmit }: NodeFormContai
     <Form
       id={formId}
       data-testid={formId}
+      data-step-editor-form
       onSubmit={onSubmit}
       role="form"
       style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}

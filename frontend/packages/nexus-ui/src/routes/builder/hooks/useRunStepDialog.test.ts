@@ -23,7 +23,7 @@ const mockDialogOpen = vi.fn()
 const mockDialogClose = vi.fn()
 const mockDialogState = {
   isOpen: false,
-  item: null as { nodeId: string; predecessors?: { id: string; name: string }[] } | null,
+  item: null as { nodeId: string; nodeName?: string; predecessors?: { id: string; name: string }[] } | null,
   open: mockDialogOpen,
   close: mockDialogClose,
 }
@@ -194,6 +194,36 @@ describe('useRunStepDialog', () => {
 
       expect(handleSaveWorkflow).not.toHaveBeenCalled()
       expect(mockDialogOpen).toHaveBeenCalled()
+    })
+
+    it('submits active node form before checking isDirty', async () => {
+      const mockRequestSubmit = vi.fn()
+      const mockForm = { requestSubmit: mockRequestSubmit } as unknown as HTMLFormElement
+      vi.spyOn(document, 'querySelector').mockReturnValue(mockForm)
+      mockGetNode.mockReturnValue({ id: 'node-1', data: { name: 'Step' } })
+
+      const { result } = renderRunStepDialog()
+
+      await act(async () => {
+        await result.current.handleRunStep('node-1')
+      })
+
+      expect(mockRequestSubmit).toHaveBeenCalledTimes(1)
+      vi.restoreAllMocks()
+    })
+
+    it('skips form submit when no step editor form is in the DOM', async () => {
+      vi.spyOn(document, 'querySelector').mockReturnValue(null)
+      mockGetNode.mockReturnValue({ id: 'node-1', data: { name: 'Step' } })
+
+      const { result } = renderRunStepDialog()
+
+      await act(async () => {
+        await result.current.handleRunStep('node-1')
+      })
+
+      expect(mockDialogOpen).toHaveBeenCalled()
+      vi.restoreAllMocks()
     })
 
     it('passes edges and nodes to getAncestorNodes', async () => {
@@ -431,6 +461,7 @@ describe('useRunStepDialog', () => {
       expect(result.current).toHaveProperty('lastRunStepNodeIdRef')
       expect(result.current).toHaveProperty('pinnedMockDataForDialog')
       expect(result.current).toHaveProperty('handleRunStep')
+      expect(result.current).toHaveProperty('suppressPanelCloseRef')
     })
   })
 })

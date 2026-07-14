@@ -242,15 +242,15 @@ export function useBuilderSaveWorkflow(
   } = params
 
   const getWorkflowDefinition = useCallback(() => {
-    const { edges, nodePositions } = useWorkflowStore.getState()
-    const activities = currentWorkflow?.workflow.activities ?? []
-    const triggers = currentWorkflow?.triggers ?? []
+    const { edges, nodePositions, currentWorkflow: freshWorkflow } = useWorkflowStore.getState()
+    const activities = freshWorkflow?.workflow.activities ?? []
+    const triggers = freshWorkflow?.triggers ?? []
 
     return buildWorkflowDefinition(workflowName, workflowDescription, activities, triggers, {
       edges,
       nodePositions,
     })
-  }, [currentWorkflow, workflowName, workflowDescription])
+  }, [workflowName, workflowDescription])
 
   return useCallback(
     async (options?: { expectedVersionOverride?: number }): Promise<boolean> => {

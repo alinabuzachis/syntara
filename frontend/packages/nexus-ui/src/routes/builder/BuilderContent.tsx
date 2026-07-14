@@ -257,10 +257,12 @@ export function BuilderContent(props: BuilderContentProps) {
     onClosePanel: () => dispatch({ type: 'CLOSE_MOST_RECENT_RUN_PANEL' }),
   })
 
-  const { runStepDialog, lastRunStepNodeIdRef, pinnedMockDataForDialog, handleRunStep } = useRunStepDialog(
-    handleSaveWorkflow,
-    isTerminalStatus
-  )
+  const { runStepDialog, lastRunStepNodeIdRef, pinnedMockDataForDialog, handleRunStep, suppressPanelCloseRef } =
+    useRunStepDialog(handleSaveWorkflow, isTerminalStatus)
+  const handleCloseNodeEditor = useCallback(() => {
+    if (suppressPanelCloseRef.current) return
+    dispatch({ type: 'CLOSE_NODE_EDITOR' })
+  }, [dispatch, suppressPanelCloseRef])
   const [pendingImport, setPendingImport] = useState<import('./useWorkflowImportExport').PendingImportData | null>(null)
   const {
     handleRunWorkflow,
@@ -628,7 +630,7 @@ export function BuilderContent(props: BuilderContentProps) {
                       executionId={mostRecentExecutionId}
                       workflowId={workflowId}
                       onConnect={handleConnectFromPanel}
-                      onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
+                      onClose={handleCloseNodeEditor}
                       onNavigateToNode={handleNavigateToNode}
                       onAddStep={handleAddStepFromPanel}
                       projectId={(workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id}

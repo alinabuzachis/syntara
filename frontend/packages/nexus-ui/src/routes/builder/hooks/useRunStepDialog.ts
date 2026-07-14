@@ -12,6 +12,7 @@ export function useRunStepDialog(handleSaveWorkflow: () => Promise<boolean>, isT
   const runStepDialog = useDialogState<RunStepDialogData>()
   const openRunStepDialog = runStepDialog.open
   const lastRunStepNodeIdRef = useRef<string | null>(null)
+  const suppressPanelCloseRef = useRef(false)
 
   const itemNodeId = runStepDialog.item?.nodeId
   const predecessors = runStepDialog.item?.predecessors
@@ -35,7 +36,19 @@ export function useRunStepDialog(handleSaveWorkflow: () => Promise<boolean>, isT
     async (nodeId: string) => {
       const node = reactFlowInstance.getNode(nodeId)
       if (!node?.data) return
-      if (useWorkflowStore.getState().isDirty && !(await handleSaveWorkflow())) return
+
+      const activeForm = document.querySelector<HTMLFormElement>('[data-step-editor-form]')
+      if (activeForm) {
+        suppressPanelCloseRef.current = true
+        try {
+          activeForm.requestSubmit()
+          if (!(await handleSaveWorkflow())) return
+        } finally {
+          suppressPanelCloseRef.current = false
+        }
+      } else if (useWorkflowStore.getState().isDirty && !(await handleSaveWorkflow())) {
+        return
+      }
       const edges = reactFlowInstance.getEdges()
       const nodes = reactFlowInstance.getNodes()
       const predecessors: RunStepDialogData['predecessors'] = getAncestorNodes(nodeId, edges, nodes, {
@@ -57,5 +70,5 @@ export function useRunStepDialog(handleSaveWorkflow: () => Promise<boolean>, isT
     if (!isTerminalStatus) hasCleanedUpRef.current = false
   }, [isTerminalStatus])
 
-  return { runStepDialog, lastRunStepNodeIdRef, pinnedMockDataForDialog, handleRunStep }
+  return { runStepDialog, lastRunStepNodeIdRef, pinnedMockDataForDialog, handleRunStep, suppressPanelCloseRef }
 }
