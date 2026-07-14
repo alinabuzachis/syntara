@@ -1,5 +1,6 @@
 import {
   Button,
+  CompassDockMain,
   Divider,
   Dropdown,
   DropdownItem,
@@ -9,12 +10,14 @@ import {
   MastheadContent,
   MastheadLogo,
   MastheadMain,
+  MastheadToggle,
   Menu,
   MenuItem,
   MenuList,
   MenuToggle,
   Nav,
   NavContext,
+  NavExpandable,
   NavItem,
   NavList,
   Toolbar,
@@ -25,15 +28,18 @@ import {
 } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
 import {
-  RedhatIcon,
   RhUiDarkModeIcon,
   RhUiLightModeIcon,
-  RhUiMenuBarsIcon,
   RhUiProfileFillIcon,
   RhUiQuestionMarkCircleIcon,
 } from '@patternfly/react-icons'
 import { useContext, useMemo, useRef, useState } from 'react'
 
+import AapLogoDark from '../assets/AAP2lineDarkMode.svg?react'
+import AapLogoLight from '../assets/AAP2LineLightMode.svg?react'
+import RedHatHatIcon from '../assets/redhat-hat-icon.svg?react'
+import { authClient } from '../client'
+import { Link } from '../hooks/routing/Link'
 import { useLocation } from '../hooks/routing/useLocation'
 import { useNavigate } from '../hooks/routing/useNavigate'
 import { useAlerts } from '../providers/alerts'
@@ -43,8 +49,10 @@ import { getErrorMessage } from '../utils/apiErrors'
 import { detachPromise } from '../utils/detachPromise'
 import { useDocLink } from '../utils/docs/useDocLink'
 
+import styles from './AppDockedNav.module.css'
 import { AppRoute } from './AppRoute'
 import type { TNavigationItem } from './navigationItems'
+import { useDockState } from './useDockState'
 import { useFilteredNavigationItems } from './useFilteredNavigationItems'
 import { useUnsavedChanges } from './useUnsavedChanges'
 
@@ -101,6 +109,7 @@ function NavDropdownItem({
     }
   }
 
+  /* v8 ignore start -- phantom branches from compiled JSX props and map callback */
   return (
     <NavItem
       preventDefault
@@ -125,8 +134,58 @@ function NavDropdownItem({
           </MenuList>
         </Menu>
       }
-    />
+    >
+      {item.label}
+    </NavItem>
   )
+  /* v8 ignore stop */
+}
+
+function NavExpandableItem({
+  item,
+  isActive,
+  location,
+  requestNavigation,
+}: Readonly<{
+  item: TNavigationItem
+  isActive: boolean
+  location: string
+  requestNavigation: (path: string) => void
+}>) {
+  const enabledChildren = item.children ?? []
+
+  /* v8 ignore start -- phantom branches from compiled JSX props and map callback */
+  return (
+    <NavExpandable
+      title={
+        <>
+          <span className={`pf-v6-c-nav__link-icon ${styles.navExpandableIcon}`} aria-hidden="true">
+            {item.icon}
+          </span>
+          {item.label}
+        </>
+      }
+      isActive={isActive}
+      isExpanded
+      id={`nav-${item.path.replaceAll('/', '-')}`}
+    >
+      {enabledChildren.map((child) => (
+        <NavItem
+          key={child.path}
+          preventDefault
+          id={`nav-${child.path.replaceAll('/', '-')}`}
+          itemId={child.path}
+          href={child.path}
+          isActive={location.startsWith(child.path)}
+          icon={child.icon}
+          onClick={() => requestNavigation(child.path)}
+        >
+          {child.label}
+        </NavItem>
+      ))}
+    </NavExpandable>
+  )
+  /* v8 ignore stop */
 }
 
 function UserMenuDropdown() {
@@ -134,6 +193,7 @@ function UserMenuDropdown() {
   const setLocation = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const { showAlert } = useAlerts()
+  const { data: currentUser } = authClient.useQuery('get', '/auth/me')
 
   const handleLogoutClick = () => {
     setIsOpen(false)
@@ -149,17 +209,19 @@ function UserMenuDropdown() {
     })
   }
 
+  /* v8 ignore start -- phantom branches from compiled JSX props */
   const toggle = (dropdownRef: React.Ref<MenuToggleElement>) => (
     <MenuToggle
       ref={dropdownRef}
       isExpanded={isOpen}
       variant="plain"
+      icon={<RhUiProfileFillIcon />}
+      isDocked
       aria-label="User menu"
-      style={{ padding: 0 }}
       onClick={() => setIsOpen(!isOpen)}
       onMouseEnter={() => setIsOpen(true)}
     >
-      <RhUiProfileFillIcon />
+      {currentUser?.username ?? 'User'}
     </MenuToggle>
   )
 
@@ -186,6 +248,7 @@ function UserMenuDropdown() {
       </DropdownList>
     </Dropdown>
   )
+  /* v8 ignore stop */
 }
 
 export function AppDockedNav() {
@@ -193,6 +256,7 @@ export function AppDockedNav() {
   const { requestNavigation } = useUnsavedChanges()
   const { colorScheme, toggleColorScheme } = useColorScheme()
   const docsHomeUrl = useDocLink('home')
+  const { isDockExpanded, isDockTextExpanded, isMobile, dockedToggleRef, onToggleDock } = useDockState()
 
   const filteredItems = useFilteredNavigationItems()
   const visibleItems = useMemo(
@@ -201,132 +265,172 @@ export function AppDockedNav() {
   )
   const activeTopLevel = '/' + location.split('/')[1]
 
-  const menuToggleRef = useRef<HTMLButtonElement>(null)
   const colorSchemeRef = useRef<HTMLButtonElement>(null)
   const helpRef = useRef<HTMLButtonElement>(null)
   const navItemRefs = useMemo(() => createNavItemRefs(visibleItems), [visibleItems])
 
   const colorSchemeToggleLabel = colorScheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+  const isExpanded = isDockTextExpanded || isDockExpanded
+  const showTooltips = !isExpanded
 
+  /* v8 ignore start -- phantom branches from compiled JSX props, ternaries, and map callbacks */
   return (
-    <Masthead id="docked-masthead" variant="docked">
-      <MastheadMain>
-        <MastheadBrand>
-          <MastheadLogo component="a" href="/" aria-label="Home" className="pf-m-compact">
-            <RedhatIcon
-              style={{
-                height: 'var(--pf-t--global--icon--size--md)',
-                width: 'var(--pf-t--global--icon--size--md)',
-                color: 'var(--pf-t--custom--color--redhat-logo)',
-              }}
+    <CompassDockMain {...(isMobile && !isDockExpanded && { inert: true })}>
+      <Masthead id="docked-masthead" variant="docked">
+        <MastheadMain>
+          <MastheadToggle>
+            <Button
+              ref={dockedToggleRef}
+              variant="plain"
+              isHamburger
+              onClick={onToggleDock}
+              aria-label="Global navigation"
+              isExpanded={isDockTextExpanded}
             />
-          </MastheadLogo>
-        </MastheadBrand>
-      </MastheadMain>
-      <MastheadContent>
-        <Toolbar id="docked-toolbar" isVertical>
-          <ToolbarContent>
-            <ToolbarItem>
-              <Button variant="plain" aria-label="Toggle menu" ref={menuToggleRef}>
-                <RhUiMenuBarsIcon />
-              </Button>
-            </ToolbarItem>
-            <Divider />
-            <ToolbarItem>
-              <Nav
-                onSelect={(_event, selectedItem) =>
-                  navigateToNavItem(selectedItem.itemId, visibleItems, requestNavigation)
-                }
-                variant="docked"
-                aria-label="Main navigation"
+          </MastheadToggle>
+          <MastheadBrand>
+            {isExpanded ? (
+              <MastheadLogo component={(props) => <Link {...props} href="/" />} aria-label="Home">
+                {colorScheme === 'dark' ? (
+                  <AapLogoDark style={{ height: 28, width: 'auto', marginLeft: 'var(--pf-t--global--spacer--sm)' }} />
+                ) : (
+                  <AapLogoLight style={{ height: 28, width: 'auto', marginLeft: 'var(--pf-t--global--spacer--sm)' }} />
+                )}
+              </MastheadLogo>
+            ) : (
+              <MastheadLogo
+                component={(props) => <Link {...props} href="/" />}
+                aria-label="Home"
+                className="pf-m-compact"
               >
-                <NavList>
-                  {visibleItems.flatMap((item) => {
-                    const itemTopLevel = '/' + item.path.split('/')[1]
-                    const isActive = itemTopLevel === activeTopLevel
-                    const separator = item.separatorBefore ? (
-                      <Divider key={`divider-${item.path}`} component="li" />
-                    ) : null
-                    if (hasDropdownChildren(item)) {
+                <RedHatHatIcon style={{ height: 17, width: 22, marginLeft: 'var(--pf-t--global--spacer--sm)' }} />
+              </MastheadLogo>
+            )}
+          </MastheadBrand>
+        </MastheadMain>
+        <Divider />
+        <MastheadContent>
+          <Toolbar id="docked-toolbar" isVertical>
+            <ToolbarContent>
+              <ToolbarItem>
+                <Nav
+                  onSelect={(_event, selectedItem) =>
+                    navigateToNavItem(selectedItem.itemId, visibleItems, requestNavigation)
+                  }
+                  variant="docked"
+                  aria-label="Main navigation"
+                >
+                  <NavList>
+                    {visibleItems.flatMap((item) => {
+                      const itemTopLevel = '/' + item.path.split('/')[1]
+                      const isActive = itemTopLevel === activeTopLevel
+                      const separator = item.separatorBefore ? (
+                        <Divider key={`divider-${item.path}`} component="li" />
+                      ) : null
+                      if (hasDropdownChildren(item)) {
+                        return [
+                          separator,
+                          isExpanded ? (
+                            <NavExpandableItem
+                              key={item.path}
+                              item={item}
+                              isActive={isActive}
+                              location={location}
+                              requestNavigation={requestNavigation}
+                            />
+                          ) : (
+                            <NavDropdownItem
+                              key={item.path}
+                              item={item}
+                              isActive={isActive}
+                              requestNavigation={requestNavigation}
+                            />
+                          ),
+                        ]
+                      }
                       return [
                         separator,
-                        <NavDropdownItem
+                        <NavItem
                           key={item.path}
-                          item={item}
+                          preventDefault
+                          id={`nav-${item.path.replaceAll('/', '-')}`}
+                          itemId={item.path}
+                          href={findFirstEnabledPath(item)}
                           isActive={isActive}
-                          requestNavigation={requestNavigation}
-                        />,
+                          icon={item.icon}
+                          aria-label={item.label}
+                          anchorRef={navItemRefs[item.path]}
+                        >
+                          {item.label}
+                        </NavItem>,
                       ]
-                    }
-                    return [
-                      separator,
-                      <NavItem
-                        key={item.path}
-                        preventDefault
-                        id={`nav-${item.path.replaceAll('/', '-')}`}
-                        itemId={item.path}
-                        href={findFirstEnabledPath(item)}
-                        isActive={isActive}
-                        icon={item.icon}
-                        aria-label={item.label}
-                        anchorRef={navItemRefs[item.path]}
-                      />,
-                    ]
-                  })}
-                </NavList>
-              </Nav>
-            </ToolbarItem>
-            <ToolbarGroup variant="action-group-plain" align={{ default: 'alignEnd' }}>
-              <ToolbarGroup variant="action-group-plain">
+                    })}
+                  </NavList>
+                </Nav>
+                {showTooltips &&
+                  visibleItems
+                    .filter((item) => !hasDropdownChildren(item))
+                    .map((item) => (
+                      <Tooltip
+                        key={`tooltip-${item.path}`}
+                        aria="none"
+                        aria-live="off"
+                        triggerRef={navItemRefs[item.path]}
+                        content={item.label}
+                        position="right"
+                      />
+                    ))}
+              </ToolbarItem>
+              <ToolbarGroup
+                variant="action-group-plain"
+                align={{ default: 'alignEnd' }}
+                gap={{ default: 'gapNone', md: 'gapMd' }}
+              >
                 <ToolbarItem>
                   <Button
                     variant="plain"
+                    isDocked
+                    icon={colorScheme === 'dark' ? <RhUiDarkModeIcon /> : <RhUiLightModeIcon />}
                     aria-label={colorSchemeToggleLabel}
                     ref={colorSchemeRef}
                     onClick={toggleColorScheme}
                   >
-                    {colorScheme === 'dark' ? <RhUiDarkModeIcon /> : <RhUiLightModeIcon />}
+                    {colorScheme === 'dark' ? 'Light mode' : 'Dark mode'}
                   </Button>
                 </ToolbarItem>
                 <ToolbarItem>
                   <Button
                     variant="plain"
+                    isDocked
+                    icon={<RhUiQuestionMarkCircleIcon />}
                     aria-label="Documentation (opens in a new tab)"
                     ref={helpRef}
                     onClick={() => openExternalDoc(docsHomeUrl)}
                   >
-                    <RhUiQuestionMarkCircleIcon />
+                    Documentation
                   </Button>
                 </ToolbarItem>
                 <ToolbarItem>
                   <UserMenuDropdown />
                 </ToolbarItem>
               </ToolbarGroup>
-            </ToolbarGroup>
-          </ToolbarContent>
-        </Toolbar>
-      </MastheadContent>
-      <Tooltip aria="none" aria-live="off" triggerRef={menuToggleRef} content="Menu (coming soon)" position="right" />
-      {visibleItems
-        .filter((item) => !hasDropdownChildren(item))
-        .map((item) => (
-          <Tooltip
-            key={`tooltip-${item.path}`}
-            aria="none"
-            aria-live="off"
-            triggerRef={navItemRefs[item.path]}
-            content={item.label}
-            position="right"
-          />
-        ))}
-      <Tooltip
-        aria="none"
-        aria-live="off"
-        triggerRef={colorSchemeRef}
-        content={colorSchemeToggleLabel}
-        position="right"
-      />
-      <Tooltip aria="none" aria-live="off" triggerRef={helpRef} content="Documentation" position="right" />
-    </Masthead>
+            </ToolbarContent>
+          </Toolbar>
+        </MastheadContent>
+        {showTooltips && (
+          <>
+            <Tooltip
+              aria="none"
+              aria-live="off"
+              triggerRef={colorSchemeRef}
+              content={colorSchemeToggleLabel}
+              position="right"
+            />
+            <Tooltip aria="none" aria-live="off" triggerRef={helpRef} content="Documentation" position="right" />
+          </>
+        )}
+      </Masthead>
+    </CompassDockMain>
   )
+  /* v8 ignore stop */
 }

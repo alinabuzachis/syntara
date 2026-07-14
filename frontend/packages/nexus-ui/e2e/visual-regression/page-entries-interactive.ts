@@ -399,7 +399,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
     perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -413,7 +413,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
     perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -429,7 +429,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
     perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -462,7 +462,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
     perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -508,7 +508,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
     perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -813,7 +813,7 @@ export const statusVariantPages: PageEntry[] = [
     name: 'approvals-expanded-row',
     path: AppRoute.Approvals.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Approvals', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {

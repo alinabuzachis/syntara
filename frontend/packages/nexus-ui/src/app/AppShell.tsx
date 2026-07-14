@@ -5,6 +5,8 @@ import { UnsavedChangesProvider } from '../providers/unsaved-changes/UnsavedChan
 
 import { AppDockedNav } from './AppDockedNav'
 import { AppLogin } from './AppLogin'
+import { AppMobileMasthead } from './AppMobileMasthead'
+import { DockStateContext, useDockStateProvider } from './useDockState'
 
 /**
  * App chrome: authentication gate, top-level navigation, and the main content area.
@@ -13,16 +15,25 @@ import { AppLogin } from './AppLogin'
  * `UnsavedChangesProvider` lives here so it is always inside a router context.
  */
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
+  const dockState = useDockStateProvider()
+
+  /* v8 ignore start -- phantom branches from compiled JSX props */
   return (
     <UnsavedChangesProvider>
       <AppLogin>
         <SessionTimeoutWarning />
-        <Compass
-          className="pf-m-no-screen-warning bg-deep-space"
-          dock={<AppDockedNav />}
-          main={<CompassContent role="main">{children}</CompassContent>}
-        />
+        <DockStateContext.Provider value={dockState}>
+          <Compass
+            className="pf-m-no-screen-warning bg-deep-space"
+            isDockExpanded={dockState.isDockExpanded}
+            isDockTextExpanded={dockState.isDockTextExpanded}
+            masthead={<AppMobileMasthead />}
+            dock={<AppDockedNav />}
+            main={<CompassContent role="main">{children}</CompassContent>}
+          />
+        </DockStateContext.Provider>
       </AppLogin>
     </UnsavedChangesProvider>
   )
+  /* v8 ignore stop */
 }

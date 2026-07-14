@@ -1,0 +1,4 @@
+.navExpandableIcon {
+  display: inline-block;
+  margin-inline-end: var(--pf-t--global--spacer--sm);
+}

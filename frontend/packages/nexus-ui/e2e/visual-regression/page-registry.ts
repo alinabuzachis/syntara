@@ -91,7 +91,7 @@ export const pages: PageEntry[] = [
     perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
   },
@@ -101,7 +101,7 @@ export const pages: PageEntry[] = [
     perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -115,7 +115,7 @@ export const pages: PageEntry[] = [
     perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -154,7 +154,7 @@ export const pages: PageEntry[] = [
     name: 'executions-list',
     path: AppRoute.Executions.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Workflow Runs', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflow Runs' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
   },
@@ -178,7 +178,7 @@ export const pages: PageEntry[] = [
     name: 'approvals-list',
     path: AppRoute.Approvals.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Approvals', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
   },
@@ -187,7 +187,7 @@ export const pages: PageEntry[] = [
     name: 'approvals-list-empty-filter',
     path: AppRoute.Approvals.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Approvals', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -870,7 +870,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.Workflows.Root,
     role: 'viewer',
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.getByRole('row').nth(1)).toBeVisible()
     },
   },
@@ -929,7 +929,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.Workflows.Root,
     role: 'user',
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.getByRole('row').nth(1)).toBeVisible()
     },
   },
@@ -939,7 +939,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.Workflows.Root,
     role: 'viewer',
     waitFor: async (page) => {
-      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
       await expect(page.getByRole('row').nth(1)).toBeVisible()
     },
     setup: async (page) => {
@@ -954,7 +954,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.Executions.Root,
     role: 'viewer',
     waitFor: async (page) => {
-      await expect(page.getByText('Workflow Runs', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Workflow Runs' })).toBeVisible()
       await expect(page.getByRole('row').nth(1)).toBeVisible()
     },
   },
@@ -964,7 +964,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.Approvals.Root,
     role: 'viewer',
     waitFor: async (page) => {
-      await expect(page.getByText('Approvals', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
       await expect(page.getByRole('row').nth(1)).toBeVisible()
     },
   },

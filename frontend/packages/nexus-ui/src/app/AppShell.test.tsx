@@ -22,6 +22,23 @@ vi.mock('./AppDockedNav', () => ({
   AppDockedNav: () => <nav data-testid="app-docked-nav" />,
 }))
 
+vi.mock('./AppMobileMasthead', () => ({
+  AppMobileMasthead: () => <div data-testid="mobile-masthead" />,
+}))
+
+vi.mock('./useDockState', () => ({
+  DockStateContext: { Provider: ({ children }: { children: React.ReactNode }) => children },
+  useDockStateProvider: () => ({
+    isDockExpanded: false,
+    isDockTextExpanded: false,
+    isMobile: false,
+    dockedToggleRef: { current: null },
+    mobileToggleRef: { current: null },
+    onToggleDock: vi.fn(),
+    onMobileToggle: vi.fn(),
+  }),
+}))
+
 vi.mock('@patternfly/react-core', async () => {
   const actual = await vi.importActual<typeof import('@patternfly/react-core')>('@patternfly/react-core')
   return {

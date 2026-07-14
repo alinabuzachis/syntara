@@ -4,11 +4,21 @@ import { describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 
+vi.mock('../assets/redhat-hat-icon.svg?react', () => ({
+  default: () => <span data-testid="mock-redhat-hat-icon" />,
+}))
+vi.mock('../assets/AAP2lineDarkMode.svg?react', () => ({
+  default: () => <span data-testid="mock-aap-logo-dark" />,
+}))
+vi.mock('../assets/AAP2LineLightMode.svg?react', () => ({
+  default: () => <span data-testid="mock-aap-logo-light" />,
+}))
+
 // Stub out the real TanStack router instance (avoids building the full route tree).
 vi.mock('./tanstackRouter', () => ({ tanstackRouter: {} }))
 
 // Override RouterProvider so we can control rendering per-test without building
-// a real router. Default behaviour (vi.fn with no implementation) renders nothing;
+// a real router. Default behavior (vi.fn with no implementation) renders nothing;
 // individual tests call mockReturnValue/mockImplementation as needed.
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>()
@@ -53,13 +63,9 @@ describe('App', () => {
     vi.mocked(RouterProvider).mockReturnValue(null as never)
     render(<App />)
     expect(vi.mocked(RouterProvider)).toHaveBeenCalled()
-    // Verify the router prop is passed (tanstackRouter instance is mocked as {})
     expect(vi.mocked(RouterProvider).mock.lastCall?.[0]).toHaveProperty('router')
   })
 
-  // Landmark smoke tests — RouterProvider renders AppShell in production (banner, nav, main).
-  // Full per-element landmark coverage lives in AppShell.test.tsx and AppDockedNav.test.tsx;
-  // these tests verify the App passes landmarks through when RouterProvider is active.
   it('renders the main application structure', async () => {
     vi.mocked(RouterProvider).mockImplementation(() => (
       <>

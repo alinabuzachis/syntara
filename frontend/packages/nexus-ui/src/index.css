@@ -93,25 +93,20 @@ html {
   overflow-x: hidden;
 }
 
-/* Docked masthead glass background: PF prerelease.45 sets the docked masthead background
-   to transparent (expecting Compass dock to provide it), but Compass dock has no background
-   styles. Restore the glass effect using PF's own design tokens.
-   Note: backdrop-filter is set to none to prevent creating a stacking context that would
-   trap NavItem flyout menus behind the main content panel. */
+/* Docked masthead glass background: PF sets the docked masthead background to
+   transparent (expecting Compass dock to provide it), but Compass dock has no
+   background styles. Restore the glass effect using PF's own design tokens.
+   Note: backdrop-filter is set to none to prevent creating a stacking context
+   that would trap NavItem flyout menus behind the main content panel. */
 .pf-v6-c-masthead.pf-m-docked {
   background-color: var(--pf-v6-c-masthead--m-docked--BackgroundColor);
   backdrop-filter: none !important;
 }
 
-/* Docked masthead logo: PF prerelease.45 hides the full logo at ≥62rem in favour of
-   a compact variant. Since this app only uses a single icon logo, always treat it as
-   compact so it stays visible and centered. The brand flex container also needs
-   justify-content so the logo is horizontally centered within the bar. */
-.pf-v6-c-masthead.pf-m-docked .pf-v6-c-masthead__main {
-  align-items: center;
-}
-.pf-v6-c-masthead.pf-m-docked .pf-v6-c-masthead__brand {
-  justify-content: center;
+/* Keep the compact hat icon visible in the docked masthead when collapsed.
+   PF normally hides .pf-m-compact at wider breakpoints. */
+.pf-v6-c-compass .pf-v6-c-masthead.pf-m-docked .pf-v6-c-masthead__logo.pf-m-compact {
+  display: flex !important;
 }
 
 /* Sticky header background: fix for `isPlain` setting thead background to transparent,
@@ -169,10 +164,20 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
 }
 
 /**
- * Hide the flyout arrow indicator in the docked nav.
- * The docked nav uses icon-only items where the arrow disrupts alignment.
+ * Align docked toolbar button icons with nav item icons. PF buttons use
+ * justify-content:center which offsets icons 3.5px right of the nav icons.
  */
-.pf-v6-c-nav.pf-m-docked .pf-v6-c-nav__toggle {
+.pf-v6-c-masthead.pf-m-docked .pf-v6-c-button.pf-m-docked,
+.pf-v6-c-masthead.pf-m-docked .pf-v6-c-menu-toggle.pf-m-docked {
+  justify-content: flex-start;
+}
+
+/**
+ * Hide the flyout arrow in the docked nav only when the dock is collapsed.
+ * When text-expanded, NavExpandable items replace flyouts and need their
+ * expand/collapse carets visible.
+ */
+.pf-v6-c-compass__dock:not(.pf-m-text-expanded) .pf-v6-c-nav.pf-m-docked .pf-v6-c-nav__toggle {
   display: none;
 }
 
