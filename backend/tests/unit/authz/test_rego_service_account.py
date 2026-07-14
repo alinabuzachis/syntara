@@ -4,10 +4,12 @@ from typing import Any
 
 import pytest
 
+from nexus.authz.role_conventions import BUILTIN_POLICIES
 from tests.unit.authz.conftest import allow_policy, build_opa_input, policies_for_role
 
-SA_ACTIONS = ["create", "read", "update", "delete", "rotate_secret", "disable", "enable"]
-SA_WRITE_ACTIONS = ["create", "update", "delete", "rotate_secret", "disable", "enable"]
+SA_ACTIONS = sorted({p.action for p in BUILTIN_POLICIES if p.resource == "service_account"})
+assert {"create", "read", "update", "delete", "rotate_secret", "disable", "enable"} <= set(SA_ACTIONS)
+SA_WRITE_ACTIONS = sorted(set(SA_ACTIONS) - {"read"})
 
 PROJECT_ID = "proj-sa-test"
 OTHER_PROJECT_ID = "proj-other"
