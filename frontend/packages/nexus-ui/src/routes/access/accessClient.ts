@@ -11,6 +11,7 @@ import type {
   ProjectsAPI,
   RoleAssignmentsAPI,
   RolesAPI,
+  ServiceAccountsAPI,
   UsersAPI,
 } from '@ansible/nexus-contracts'
 import createFetchClient from 'openapi-fetch'
@@ -18,16 +19,13 @@ import createClient from 'openapi-react-query'
 
 import { authMiddleware, interfaceTagMiddleware } from '../../client'
 
-// Merge all RBAC-related path types into a single type.
-// Each spec covers distinct URL paths so there are no key collisions.
-// UsersAPI.paths is included for backward compat (users/groups CRUD is
-// used alongside RBAC endpoints in access-management components).
 type AccessPaths = ProjectsAPI.paths &
   RoleAssignmentsAPI.paths &
   AuthzAPI.paths &
   RolesAPI.paths &
   PoliciesAPI.paths &
-  UsersAPI.paths
+  UsersAPI.paths &
+  ServiceAccountsAPI.paths
 
 export const accessFetchClient = createFetchClient<AccessPaths>({ baseUrl: '/api/v1/' })
 accessFetchClient.use(interfaceTagMiddleware)

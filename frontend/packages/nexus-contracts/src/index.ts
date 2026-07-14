@@ -17,6 +17,7 @@ import * as ToolManagerAPI from './tool-manager.js'
 import * as ToolManagerMetricsAPI from './tool-manager-metrics.js'
 import * as SettingsAPI from './settings-api.js'
 import * as UsersAPI from './users-api.js'
+import * as ServiceAccountsAPI from './service-accounts-api.js'
 import * as WorkflowAPI from './workflow-api.js'
 
 export {
@@ -35,6 +36,7 @@ export {
   ProjectsAPI,
   RoleAssignmentsAPI,
   RolesAPI,
+  ServiceAccountsAPI,
   SettingsAPI,
   ToolManagerAPI,
   ToolManagerMetricsAPI,

@@ -74,6 +74,7 @@ const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
 const MOCK_PROJECT_ID = 'p-001'
 const MOCK_CREDENTIAL_ID = 'cred-001'
 const MOCK_CREDENTIAL_DISABLED_ID = 'cred-003'
+const MOCK_SERVICE_ACCOUNT_ID = 'sa-001'
 // ---------------------------------------------------------------------------
 // Transfer Identity Wizard states
 // ---------------------------------------------------------------------------
@@ -944,6 +945,30 @@ export const detailTabPages: PageEntry[] = [
       ':tab',
       'role-assignments'
     ),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Assignments/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/service-accounts',
+    name: 'service-account-detail-credentials-tab',
+    path: AppRoute.AccessManagement.ServiceAccountDetailTab.replace(
+      ':serviceAccountId',
+      MOCK_SERVICE_ACCOUNT_ID
+    ).replace(':tab', 'credentials'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Credentials/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/service-accounts',
+    name: 'service-account-detail-assignments-tab',
+    path: AppRoute.AccessManagement.ServiceAccountDetailTab.replace(
+      ':serviceAccountId',
+      MOCK_SERVICE_ACCOUNT_ID
+    ).replace(':tab', 'assignments'),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByRole('tab', { name: /Assignments/i, selected: true })).toBeVisible()

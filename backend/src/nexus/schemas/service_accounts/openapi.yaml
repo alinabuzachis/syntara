@@ -34,91 +34,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServiceAccountRead'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: create
@@ -200,91 +128,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServiceAccountListResponse'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: read
@@ -313,91 +169,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServiceAccountRead'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: read
@@ -431,91 +215,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServiceAccountRead'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: update
@@ -539,91 +251,19 @@ paths:
         '204':
           description: Service account deleted
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: delete
@@ -652,91 +292,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServiceAccountRead'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: disable
@@ -765,91 +333,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServiceAccountRead'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: enable
@@ -884,91 +380,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/SACredentialCreateResponse'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: update
@@ -1057,91 +481,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/SACredentialListResponse'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: read
@@ -1177,91 +529,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/SACredentialRead'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: read
@@ -1292,91 +572,19 @@ paths:
         '204':
           description: Credential deleted
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: delete
@@ -1418,91 +626,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/SACredentialRotateResponse'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: rotate_secret
@@ -1538,91 +674,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/SACredentialRead'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: disable
@@ -1658,91 +722,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/SACredentialRead'
         '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       x-app-permission:
         resource: service_account
         action: enable

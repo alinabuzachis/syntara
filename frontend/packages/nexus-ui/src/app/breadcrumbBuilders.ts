@@ -232,6 +232,29 @@ export function breadcrumbsUserDetailEarlyShell(): AppBreadcrumbItem[] {
   return [crumbAccessManagement(), crumbUsersList(), { label: 'User details' }]
 }
 
+function crumbServiceAccountsList(): AppBreadcrumbItem {
+  return { label: 'Service Accounts', href: AppRoute.AccessManagement.ServiceAccounts }
+}
+
+function serviceAccountDetailTabLabel(tab: string): string {
+  if (tab === 'details') return 'Details'
+  if (tab === 'credentials') return 'Credentials'
+  if (tab === 'assignments') return 'Assignments'
+  return tab
+}
+
+export function breadcrumbsServiceAccountDetail(name: string, basePath: string, tab: string): AppBreadcrumbItem[] {
+  const prefix = [crumbAccessManagement(), crumbServiceAccountsList()]
+  if (tab === DEFAULT_ENTITY_TAB) {
+    return [...prefix, { label: name }]
+  }
+  return [...prefix, { label: name, href: basePath }, { label: serviceAccountDetailTabLabel(tab) }]
+}
+
+export function breadcrumbsServiceAccountDetailEarlyShell(): AppBreadcrumbItem[] {
+  return [crumbAccessManagement(), crumbServiceAccountsList(), { label: 'Service account details' }]
+}
+
 export function breadcrumbsGroupDetailEarlyShell(): AppBreadcrumbItem[] {
   return [crumbAccessManagement(), crumbGroupsList(), { label: 'Group details' }]
 }

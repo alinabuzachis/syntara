@@ -474,3 +474,30 @@ export async function deleteWorkflowViaApi(app: Page, workflowId: string): Promi
     // Best-effort cleanup
   }
 }
+
+/** Create a service account via the API. Returns the created resource. */
+export async function createServiceAccountViaApi(app: Page, name: string): Promise<{ id: string; name: string }> {
+  const project = await ensureProject(app)
+  if (!project) throw new Error('createServiceAccountViaApi: could not ensure project')
+
+  const resp = await apiRequest(app, 'post', '/service_accounts', {
+    data: { name, description: 'E2E test service account', project_id: project.id },
+  })
+  if (!resp.ok()) {
+    const body = await resp.text().catch(() => '(unreadable)')
+    throw new Error(`POST /service_accounts returned ${resp.status()}: ${body}`)
+  }
+  const body = (await resp.json()) as { id: string; name: string }
+  return body
+}
+
+/** Delete a service account by ID via the API (best-effort cleanup). */
+export async function deleteServiceAccountViaApi(app: Page, serviceAccountId: string): Promise<void> {
+  if (app.isClosed()) return
+  try {
+    const token = await getAuthToken(app)
+    if (token) await apiRequest(app, 'delete', `/service_accounts/${serviceAccountId}`, { token })
+  } catch {
+    // Best-effort cleanup
+  }
+}

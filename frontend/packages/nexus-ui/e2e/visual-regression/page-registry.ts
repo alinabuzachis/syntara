@@ -76,6 +76,7 @@ const MOCK_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
 const MOCK_PROJECT_ID = 'p-001'
 const MOCK_CREDENTIAL_ID = 'cred-001'
+const MOCK_SERVICE_ACCOUNT_ID = 'sa-001'
 
 // ---------------------------------------------------------------------------
 // Page entries — organized by section matching route directories
@@ -384,6 +385,73 @@ export const pages: PageEntry[] = [
     section: 'access-management/projects',
     name: 'project-detail',
     path: AppRoute.AccessManagement.ProjectDetail.replace(':projectId', MOCK_PROJECT_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ACCESS MANAGEMENT — Service Accounts
+  // ══════════════════════════════════════════════════════════════════════════
+  {
+    section: 'access-management/service-accounts',
+    name: 'service-accounts-list',
+    path: AppRoute.AccessManagement.ServiceAccounts,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/service-accounts',
+    name: 'service-accounts-list-empty-filter',
+    path: AppRoute.AccessManagement.ServiceAccounts,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
+      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
+      await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/service-accounts',
+    name: 'service-accounts-create-modal',
+    path: AppRoute.AccessManagement.ServiceAccounts,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Create service account' }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Create/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/service-accounts',
+    name: 'service-accounts-delete-dialog',
+    path: AppRoute.AccessManagement.ServiceAccounts,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      await page.getByRole('menuitem', { name: /Delete/i }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Delete/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/service-accounts',
+    name: 'service-account-detail',
+    path: AppRoute.AccessManagement.ServiceAccountDetail.replace(':serviceAccountId', MOCK_SERVICE_ACCOUNT_ID),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
@@ -994,6 +1062,7 @@ export const excludedDynamic: string[] = [
   AppRoute.AccessManagement.Root,
   AppRoute.Auth.TestSignInCallback,
   AppRoute.AccessManagement.TransferIdentity, // covered by transferIdentityWizardPages (interactive entries)
+  AppRoute.AccessManagement.ServiceAccountDetailTab, // covered by detailTabPages (interactive entries)
   AppRoute.MyProfile.Root, // covered via user detail component — My Profile is a wrapper
   AppRoute.MyProfile.Tab, // tab variant of the above
 ]

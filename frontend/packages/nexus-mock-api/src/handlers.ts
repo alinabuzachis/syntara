@@ -36,6 +36,8 @@ import {
   getUserName,
   getGroupName,
   getRoleName,
+  mockServiceAccounts,
+  mockServiceAccountCredentials,
 } from './resources/access'
 import {
   organizations,
@@ -4334,6 +4336,203 @@ export const handlers = [
     return HttpResponse.json({ count: filtered.length, results: filtered })
   }),
 
+  // ── Service Accounts ───────────────────────────────────────────────
+
+  http.get('/api/v1/service_accounts', ({ request }) => {
+    const url = new URL(request.url)
+    const limit = Math.min(Number(url.searchParams.get('limit') ?? '20'), 50)
+    const cursor = url.searchParams.get('cursor') ?? undefined
+    const sort = url.searchParams.get('sort') ?? 'name'
+    const nameFilter = url.searchParams.get('name__contains')?.toLowerCase()
+    const statusFilter = url.searchParams.get('status')?.toLowerCase()
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let results = [...mockServiceAccounts]
+
+    if (nameFilter) results = results.filter((sa) => sa.name.toLowerCase().includes(nameFilter))
+    if (statusFilter) results = results.filter((sa) => sa.status === statusFilter)
+
+    const desc = sort.startsWith('-')
+    const field = (desc ? sort.slice(1) : sort) as keyof (typeof results)[0]
+    results.sort((a, b) => {
+      const va = a[field] ?? ''
+      const vb = b[field] ?? ''
+      const cmp = String(va).localeCompare(String(vb))
+      return desc ? -cmp : cmp
+    })
+
+    let startIdx = 0
+    if (cursor) {
+      const idx = results.findIndex((sa) => sa.id === cursor)
+      if (idx >= 0) startIdx = idx + 1
+    }
+
+    const page = results.slice(startIdx, startIdx + limit)
+    const nextCursor = startIdx + limit < results.length ? (results[startIdx + limit - 1]?.id ?? null) : null
+
+    return HttpResponse.json({
+      resources: page,
+      next_cursor: nextCursor,
+      ...(includeTotal ? { total: results.length } : {}),
+    })
+  }),
+
+  http.post('/api/v1/service_accounts', async ({ request }) => {
+    const body = (await request.json()) as { name?: string; description?: string | null; project_id?: string } | null
+    if (!body?.name || !body?.project_id) {
+      return HttpResponse.json({ detail: 'name and project_id are required' }, { status: 422 })
+    }
+    const id = `sa-new-${mockServiceAccounts.length + 1}`
+
+    const sa = {
+      id,
+      name: body.name,
+      description: body.description ?? null,
+      status: 'active' as const,
+      project_id: body.project_id,
+      last_authenticated_at: null,
+      created_by: 'u-001',
+      updated_by: null,
+      created_at: mockDate.now,
+      updated_at: mockDate.now,
+      labels: {},
+    }
+    mockServiceAccounts.push(sa)
+    return HttpResponse.json(sa, { status: 201 })
+  }),
+
+  http.get('/api/v1/service_accounts/:service_account_id', ({ params }) => {
+    const sa = mockServiceAccounts.find((s) => s.id === params.service_account_id)
+    if (!sa) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    return HttpResponse.json(sa)
+  }),
+
+  http.patch('/api/v1/service_accounts/:service_account_id', async ({ params, request }) => {
+    const sa = mockServiceAccounts.find((s) => s.id === params.service_account_id)
+    if (!sa) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    const body = (await request.json()) as { name?: string; description?: string | null } | null
+    if (body?.name !== undefined) sa.name = body.name
+    if (body?.description !== undefined) sa.description = body.description
+    sa.updated_by = 'u-001'
+    sa.updated_at = mockDate.now
+    return HttpResponse.json(sa)
+  }),
+
+  http.delete('/api/v1/service_accounts/:service_account_id', ({ params }) => {
+    const idx = mockServiceAccounts.findIndex((s) => s.id === params.service_account_id)
+    if (idx < 0) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    mockServiceAccounts.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post('/api/v1/service_accounts/:service_account_id/enable', ({ params }) => {
+    const sa = mockServiceAccounts.find((s) => s.id === params.service_account_id)
+    if (!sa) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    sa.status = 'active'
+    sa.updated_at = mockDate.now
+    return HttpResponse.json(sa)
+  }),
+
+  http.post('/api/v1/service_accounts/:service_account_id/disable', ({ params }) => {
+    const sa = mockServiceAccounts.find((s) => s.id === params.service_account_id)
+    if (!sa) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    sa.status = 'disabled'
+    sa.updated_at = mockDate.now
+    return HttpResponse.json(sa)
+  }),
+
+  http.get('/api/v1/service_accounts/:service_account_id/credentials', ({ params, request }) => {
+    const sa = mockServiceAccounts.find((s) => s.id === params.service_account_id)
+    if (!sa) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    const url = new URL(request.url)
+    const statusFilter = url.searchParams.get('status')
+    let resources = mockServiceAccountCredentials.filter((c) => c.service_account_id === sa.id)
+    if (statusFilter) resources = resources.filter((c) => c.status === statusFilter)
+    const sort = url.searchParams.get('sort')
+    if (sort) {
+      const desc = sort.startsWith('-')
+      const field = desc ? sort.slice(1) : sort
+      resources = [...resources].sort((a, b) => {
+        const aVal = String((a as Record<string, unknown>)[field] ?? '')
+        const bVal = String((b as Record<string, unknown>)[field] ?? '')
+        return desc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal)
+      })
+    }
+    return HttpResponse.json({ resources, next: null, prev: null })
+  }),
+
+  http.post('/api/v1/service_accounts/:service_account_id/credentials', ({ params }) => {
+    const sa = mockServiceAccounts.find((s) => s.id === params.service_account_id)
+    if (!sa) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    const credIndex = mockServiceAccountCredentials.length + 1
+    const identifier = `nx_sa_${sa.name.replace(/-/g, '_')}_new${String(credIndex).padStart(3, '0')}`
+    const clientSecret = `nxs_mock_secret_${sa.name}_${credIndex}`
+    const newCred = {
+      id: `cred-new-${credIndex}`,
+      service_account_id: sa.id,
+      credential_type: 'client_credentials' as const,
+      identifier,
+      status: 'active' as const,
+      grace_period_seconds: 3600,
+      expires_at: null,
+      last_used_at: null,
+      created_by: 'u-001',
+      updated_by: null,
+      created_at: mockDate.now,
+      updated_at: mockDate.now,
+    }
+    mockServiceAccountCredentials.push(newCred)
+    return HttpResponse.json({ ...newCred, client_secret: clientSecret }, { status: 201 })
+  }),
+
+  http.get('/api/v1/service_accounts/:service_account_id/credentials/:credential_id', ({ params }) => {
+    const cred = mockServiceAccountCredentials.find(
+      (c) => c.id === params.credential_id && c.service_account_id === params.service_account_id
+    )
+    if (!cred) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    return HttpResponse.json(cred)
+  }),
+
+  http.delete('/api/v1/service_accounts/:service_account_id/credentials/:credential_id', ({ params }) => {
+    const idx = mockServiceAccountCredentials.findIndex(
+      (c) => c.id === params.credential_id && c.service_account_id === params.service_account_id
+    )
+    if (idx === -1) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    mockServiceAccountCredentials.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post('/api/v1/service_accounts/:service_account_id/credentials/:credential_id/rotate', ({ params }) => {
+    const cred = mockServiceAccountCredentials.find(
+      (c) => c.id === params.credential_id && c.service_account_id === params.service_account_id
+    )
+    if (!cred) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    cred.updated_at = mockDate.now
+    cred.updated_by = 'u-001'
+    const clientSecret = `nxs_rotated_${cred.identifier}`
+    return HttpResponse.json({ ...cred, client_secret: clientSecret })
+  }),
+
+  http.post('/api/v1/service_accounts/:service_account_id/credentials/:credential_id/enable', ({ params }) => {
+    const cred = mockServiceAccountCredentials.find(
+      (c) => c.id === params.credential_id && c.service_account_id === params.service_account_id
+    )
+    if (!cred) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    cred.status = 'active'
+    cred.updated_at = mockDate.now
+    return HttpResponse.json(cred)
+  }),
+
+  http.post('/api/v1/service_accounts/:service_account_id/credentials/:credential_id/disable', ({ params }) => {
+    const cred = mockServiceAccountCredentials.find(
+      (c) => c.id === params.credential_id && c.service_account_id === params.service_account_id
+    )
+    if (!cred) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    cred.status = 'disabled'
+    cred.updated_at = mockDate.now
+    return HttpResponse.json(cred)
+  }),
+
   // ── Authz ──────────────────────────────────────────────────────────
   // Returns role-appropriate permissions based on the user's access token.
   http.post('/api/v1/authz/can_i', async ({ request }) => {
@@ -4366,6 +4565,7 @@ export const handlers = [
       'test',
       'run',
       'decide',
+      'rotate_secret',
     ])
 
     let allowed = true

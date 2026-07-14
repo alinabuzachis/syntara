@@ -24,9 +24,11 @@ import {
   createCredentialViaApi,
   createGroupViaApi,
   createIdentityProviderViaApi,
+  createServiceAccountViaApi,
   deleteCredentialViaApi,
   deleteGroupViaApi,
   deleteIdentityProviderViaApi,
+  deleteServiceAccountViaApi,
   ensureProject,
 } from './utils/api'
 
@@ -784,6 +786,38 @@ test.describe('Permission gating — Access Management actions', () => {
 
     await createButton.hover()
     await expect(userApp.getByRole('tooltip')).toContainText('user:create')
+  })
+})
+
+// ── Action gating — Service Accounts ───────────────────────────────────
+
+test.describe('Permission gating — Service Account actions', () => {
+  test('auditor: Create service account button is disabled', async ({ app, auditorApp }) => {
+    const sa = await createServiceAccountViaApi(app, buildUniqueName('e2e-perm-sa'))
+
+    try {
+      await auditorApp.goto(toAppUrl(`${AM_URL}/service-accounts`))
+      await expect(auditorApp.getByRole('tab', { name: /Service Accounts/i })).toBeVisible()
+
+      const createButton = auditorApp.getByRole('button', { name: /Create service account/i })
+      await expect(createButton).toBeVisible({ timeout: 15_000 })
+      await expect(createButton).toHaveAttribute('aria-disabled', 'true')
+    } finally {
+      await deleteServiceAccountViaApi(app, sa.id)
+    }
+  })
+
+  test('user: Service Accounts tab is not visible', async ({ userApp }) => {
+    await userApp.goto(toAppUrl(`${AM_URL}/users`))
+    await expect(userApp.getByRole('tab', { name: /Users/i })).toBeVisible()
+
+    await expect(userApp.getByRole('tab', { name: /Service Accounts/i })).not.toBeVisible()
+  })
+
+  test('viewer: direct URL to Service Accounts shows access denied', async ({ viewerApp }) => {
+    await viewerApp.goto(toAppUrl(`${AM_URL}/service-accounts`))
+
+    await expect(viewerApp.getByRole('heading', { name: 'Access denied', level: 2 })).toBeVisible()
   })
 })
 

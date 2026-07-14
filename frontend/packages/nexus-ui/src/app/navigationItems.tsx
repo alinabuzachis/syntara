@@ -117,6 +117,7 @@ export const NAV_ITEMS: TNavigationItem[] = [
           { action: 'read', resourceType: 'group' },
           { action: 'read', resourceType: 'project' },
           { action: 'read', resourceType: 'role-assignment' },
+          { action: 'read', resourceType: 'service_account' },
         ],
         children: [
           {
@@ -149,6 +150,21 @@ export const NAV_ITEMS: TNavigationItem[] = [
           {
             label: 'Project Detail Tab',
             path: AppRoute.AccessManagement.ProjectDetailTab,
+            hidden: true,
+          },
+          {
+            label: 'Service Accounts',
+            path: AppRoute.AccessManagement.ServiceAccounts,
+            requiredPermissions: [{ action: 'read', resourceType: 'service_account' }],
+          },
+          {
+            label: 'Service Account Detail',
+            path: AppRoute.AccessManagement.ServiceAccountDetail,
+            hidden: true,
+          },
+          {
+            label: 'Service Account Detail Tab',
+            path: AppRoute.AccessManagement.ServiceAccountDetailTab,
             hidden: true,
           },
           {

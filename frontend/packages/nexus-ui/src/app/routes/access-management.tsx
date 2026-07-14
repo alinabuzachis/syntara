@@ -6,6 +6,7 @@ import {
   EditUser,
   GroupDetail,
   ProjectDetail,
+  ServiceAccountDetail,
   TransferIdentityWizard,
   UserDetail,
 } from '../lazyRoutes'
@@ -96,6 +97,22 @@ export const accessManagementRoutes = [
     getParentRoute: () => rootRoute,
     path: '/system-administration/access-management/projects/$projectId/$tab',
     component: makeRouteComponent(<ProjectDetail />),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/system-administration/access-management/service-accounts',
+    validateSearch: accessMgmtSearch,
+    component: makeRouteComponent(<AccessManagement />),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/system-administration/access-management/service-accounts/$serviceAccountId',
+    component: makeRouteComponent(<ServiceAccountDetail />),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/system-administration/access-management/service-accounts/$serviceAccountId/$tab',
+    component: makeRouteComponent(<ServiceAccountDetail />),
   }),
   createRoute({
     getParentRoute: () => rootRoute,

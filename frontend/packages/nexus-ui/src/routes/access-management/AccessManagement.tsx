@@ -19,6 +19,7 @@ import { RolesTab } from '../access/RolesTab'
 
 import { GroupsTab } from './GroupsTab'
 import { ProjectsTab } from './ProjectsTab'
+import { ServiceAccountsTab } from './service-accounts/ServiceAccountsTab'
 import { TokenRevocationTab } from './token-revocation/TokenRevocation'
 import { useAccessManagementPermissions } from './useAccessManagementPermissions'
 import { UsersTab } from './UsersTab'
@@ -29,6 +30,7 @@ type AccessTab =
   | 'projects'
   | 'policies'
   | 'roles'
+  | 'service-accounts'
   | 'assignments'
   | 'check-access'
   | 'token-revocation'
@@ -41,6 +43,7 @@ const allTabDefs: TabDef[] = [
   { key: 'projects', label: 'Projects' },
   { key: 'policies', label: 'Policies' },
   { key: 'roles', label: 'Roles' },
+  { key: 'service-accounts', label: 'Service Accounts' },
   { key: 'assignments', label: 'Assignments' },
   { key: 'check-access', label: 'Check access' },
   { key: 'token-revocation', label: 'Token Revocation' },
@@ -59,6 +62,7 @@ export function AccessManagement() {
     canReadGroups,
     canReadProjects,
     canReadAssignments,
+    canReadServiceAccounts,
     canQueryAuthz,
     canReadTokenRevocation,
     canAccessPage,
@@ -73,6 +77,7 @@ export function AccessManagement() {
     if (!canReadUsers) hiddenKeys.add('users')
     if (!canReadGroups) hiddenKeys.add('groups')
     if (!canReadProjects) hiddenKeys.add('projects')
+    if (!canReadServiceAccounts) hiddenKeys.add('service-accounts')
     if (!canReadAssignments) hiddenKeys.add('assignments')
     if (!canQueryAuthz) hiddenKeys.add('check-access')
     if (!canReadTokenRevocation) hiddenKeys.add('token-revocation')
@@ -82,6 +87,7 @@ export function AccessManagement() {
     canReadUsers,
     canReadGroups,
     canReadProjects,
+    canReadServiceAccounts,
     canReadAssignments,
     canQueryAuthz,
     canReadTokenRevocation,
@@ -132,6 +138,7 @@ export function AccessManagement() {
           {activeTab === 'projects' && <ProjectsTab />}
           {activeTab === 'policies' && <PoliciesTab />}
           {activeTab === 'roles' && <RolesTab />}
+          {activeTab === 'service-accounts' && <ServiceAccountsTab />}
           {activeTab === 'assignments' && <AssignmentsTab />}
           {activeTab === 'check-access' && (
             <NxListPanelView

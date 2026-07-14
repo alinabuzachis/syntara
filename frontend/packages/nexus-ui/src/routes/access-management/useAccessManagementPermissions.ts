@@ -7,6 +7,7 @@ type AccessManagementPermissions = {
   canReadGroups: boolean
   canReadProjects: boolean
   canReadAssignments: boolean
+  canReadServiceAccounts: boolean
   canQueryAuthz: boolean
   canReadTokenRevocation: boolean
   /** `true` when the user has at least one of the AM permissions. */
@@ -19,9 +20,14 @@ const AM_CHECKS = [
   { action: 'read', resource_type: 'group' },
   { action: 'read', resource_type: 'project' },
   { action: 'read', resource_type: 'role-assignment' },
+  { action: 'read', resource_type: 'service_account' },
   { action: 'query', resource_type: 'authz' },
   { action: 'read', resource_type: 'admin:revocation' },
 ] as const
+
+function isAllowed(result: { data?: { data?: { allowed?: boolean } } }): boolean {
+  return result.data?.data?.allowed === true
+}
 
 export function useAccessManagementPermissions(): AccessManagementPermissions {
   const results = useQueries({
@@ -33,23 +39,31 @@ export function useAccessManagementPermissions(): AccessManagementPermissions {
     })),
   })
 
-  const [usersResult, groupsResult, projectsResult, assignmentsResult, authzResult, tokenRevocationResult] = results
+  const [users, groups, projects, assignments, serviceAccounts, authz, tokenRevocation] = results
 
-  const canReadUsers = usersResult.data?.data?.allowed === true
-  const canReadGroups = groupsResult.data?.data?.allowed === true
-  const canReadProjects = projectsResult.data?.data?.allowed === true
-  const canReadAssignments = assignmentsResult.data?.data?.allowed === true
-  const canQueryAuthz = authzResult.data?.data?.allowed === true
-  const canReadTokenRevocation = tokenRevocationResult.data?.data?.allowed === true
+  const canReadUsers = isAllowed(users)
+  const canReadGroups = isAllowed(groups)
+  const canReadProjects = isAllowed(projects)
+  const canReadAssignments = isAllowed(assignments)
+  const canReadServiceAccounts = isAllowed(serviceAccounts)
+  const canQueryAuthz = isAllowed(authz)
+  const canReadTokenRevocation = isAllowed(tokenRevocation)
 
   return {
     canReadUsers,
     canReadGroups,
     canReadProjects,
     canReadAssignments,
+    canReadServiceAccounts,
     canQueryAuthz,
     canReadTokenRevocation,
-    canAccessPage: canReadUsers || canReadGroups || canReadProjects || canReadAssignments || canReadTokenRevocation,
+    canAccessPage:
+      canReadUsers ||
+      canReadGroups ||
+      canReadProjects ||
+      canReadAssignments ||
+      canReadServiceAccounts ||
+      canReadTokenRevocation,
     isLoading: results.some((r) => r.isLoading),
   }
 }

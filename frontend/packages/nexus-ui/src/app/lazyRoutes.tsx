@@ -77,5 +77,10 @@ export const ProjectDetail = lazy(() =>
     default: m.ProjectDetail,
   }))
 )
+export const ServiceAccountDetail = lazy(() =>
+  import('../routes/access-management/service-accounts/ServiceAccountDetail').then((m) => ({
+    default: m.ServiceAccountDetail,
+  }))
+)
 export const Credentials = lazy(() => import('../routes/configuration/credentials/Credentials'))
 export const CredentialDetail = lazy(() => import('../routes/configuration/credentials/CredentialDetail'))

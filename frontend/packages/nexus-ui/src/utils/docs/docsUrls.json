@@ -62,5 +62,9 @@
   "identityProviders": {
     "upstream": "TODO_UPSTREAM_PATH/identity-providers",
     "product": "TODO_PRODUCT_PATH/identity-providers"
+  },
+  "serviceAccounts": {
+    "upstream": "TODO_UPSTREAM_PATH/service-accounts",
+    "product": "TODO_PRODUCT_PATH/service-accounts"
   }
 }
