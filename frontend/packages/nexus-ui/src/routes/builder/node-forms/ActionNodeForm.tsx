@@ -12,14 +12,12 @@ import {
   Stack,
   StackItem,
   TextArea,
-  TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { CredentialSelector } from '../components/CredentialSelector'
 import {
   ExpandableCodeEditor,
   type CodeLanguage,
@@ -30,7 +28,7 @@ import { DroppableField } from '../panels/fields/DroppableField'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { actionFormSchema, type ActionFormData, type ActionFormValues } from './actionFormSchema'
-import { credentialHelpText } from './credentialSelectorHelpText'
+import { HttpCredentialSection, HttpUrlField, type ActionFormMethods } from './httpCredentialSection'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
@@ -39,6 +37,8 @@ import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
 // Re-export schema type for form state; registry uses useNodeCreation.ActionFormData
 export type { ActionFormData }
+export { HttpUrlField }
+export type { HttpUrlFieldProps } from './httpCredentialSection'
 export type ExecutorType = ActionFormData['executor']
 export type ScriptLanguage = 'python' | 'bash'
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -99,10 +99,10 @@ function ScriptInputParameters({ register, getValues, setValue, isDisabled }: Sc
 
 /** Script + API form fields (Stack content) for action node. */
 type ActionParametersContentProps = Readonly<{
-  register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
-  control: ReturnType<typeof useFormContext<ActionFormValues>>['control']
-  getValues: ReturnType<typeof useFormContext<ActionFormValues>>['getValues']
-  setValue: ReturnType<typeof useFormContext<ActionFormValues>>['setValue']
+  register: ActionFormMethods['register']
+  control: ActionFormMethods['control']
+  getValues: ActionFormMethods['getValues']
+  setValue: ActionFormMethods['setValue']
   errors: { code?: { message?: string }; url?: { message?: string } }
   executor: ActionFormValues['executor']
   scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
@@ -113,6 +113,7 @@ type ActionParametersContentProps = Readonly<{
 function ActionParametersContent(props: ActionParametersContentProps) {
   const { register, control, getValues, setValue, errors, executor, scriptEditorRef, editorLanguage, projectId } = props
   const isVersionView = useIsVersionView()
+
   return (
     <Stack hasGutter style={{ paddingInline: 'var(--pf-t--global--spacer--xs)' }}>
       <input type="hidden" {...register('executor')} />
@@ -195,56 +196,15 @@ function ActionParametersContent(props: ActionParametersContentProps) {
       )}
       {executor === ExecutorTypeEnum.HTTP_REQUEST && (
         <>
-          <StackItem>
-            <Controller
-              control={control}
-              name="credential_id"
-              render={({ field }) => (
-                <CredentialSelector
-                  value={field.value ?? undefined}
-                  onChange={field.onChange}
-                  compatibleTypeNames={['HTTP Bearer Token', 'HTTP Basic Auth']}
-                  label="Authentication credential"
-                  fieldId="action-credential"
-                  placeholder="Select credential"
-                  allowCreate
-                  isDisabled={isVersionView}
-                  projectId={projectId}
-                  helpText={credentialHelpText(
-                    'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
-                  )}
-                />
-              )}
-            />
-          </StackItem>
-          <StackItem>
-            <FormGroup label="URL" isRequired fieldId="action-url">
-              <DroppableField
-                onDropText={(text) => {
-                  const current = getValues('url')
-                  setValue('url', (current ?? '') + text)
-                }}
-              >
-                <TextInput
-                  {...register('url')}
-                  id="action-url"
-                  type="url"
-                  placeholder="https://api.example.com/endpoint"
-                  validated={errors.url ? 'error' : 'default'}
-                  isDisabled={isVersionView}
-                />
-              </DroppableField>
-              {errors.url && (
-                <FormHelperText>
-                  <HelperText>
-                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                      {errors.url.message}
-                    </HelperTextItem>
-                  </HelperText>
-                </FormHelperText>
-              )}
-            </FormGroup>
-          </StackItem>
+          <HttpCredentialSection
+            control={control}
+            register={register}
+            getValues={getValues}
+            setValue={setValue}
+            urlError={errors.url}
+            isVersionView={isVersionView}
+            projectId={projectId}
+          />
           <StackItem>
             <FormGroup label="HTTP Method" fieldId="action-method">
               <Controller

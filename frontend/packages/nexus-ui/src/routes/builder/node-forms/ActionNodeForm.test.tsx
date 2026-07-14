@@ -1,11 +1,14 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { render, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useForm } from 'react-hook-form'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../client'
 import { useAllProjects } from '../../access/useAllProjects'
 
-import { ActionNodeForm } from './ActionNodeForm'
+import type { ActionFormValues } from './actionFormSchema'
+import { ActionNodeForm, HttpUrlField } from './ActionNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
 // Mock credentialsClient used by CredentialSelector
@@ -269,5 +272,286 @@ describe('ActionNodeForm', () => {
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
 
     expect(screen.queryByText('Developer Preview')).not.toBeInTheDocument()
+  })
+
+  describe('Secret URL credential — URL field locking', () => {
+    const mockSecretUrlType = {
+      id: 'type-secret-url',
+      name: 'Secret URL',
+      description: 'Stores a URL as an encrypted secret',
+      inputs: {},
+      injectors: {},
+      managed: true,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    }
+    const mockSecretUrlCredential = {
+      id: 'cred-webhook',
+      name: 'Webhook Endpoint — Prod',
+      description: 'Production webhook URL',
+      credential_type_id: 'type-secret-url',
+      enabled: true,
+      inputs: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      created_by: 'user-1',
+    }
+    const mockBearerType = {
+      id: 'type-bearer',
+      name: 'HTTP Bearer Token',
+      description: 'Bearer token authentication',
+      inputs: {},
+      injectors: {},
+      managed: true,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    }
+    const mockBearerCredential = {
+      id: 'cred-bearer',
+      name: 'Bearer Token Credential',
+      description: null,
+      credential_type_id: 'type-bearer',
+      enabled: true,
+      inputs: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      created_by: 'user-1',
+    }
+
+    function setupSecretUrlMocks() {
+      vi.mocked(credentialsClient.useQuery).mockImplementation(
+        (_method: string, path: string): ReturnType<(typeof credentialsClient)['useQuery']> => {
+          if (path === '/credential_types') {
+            return {
+              data: { resources: [mockSecretUrlType] },
+              isPending: false,
+              isError: false,
+              error: null,
+              refetch: vi.fn(),
+            } as never
+          }
+          return {
+            data: { resources: [mockSecretUrlCredential] },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+      )
+    }
+
+    function setupMixedCredentialMocks() {
+      vi.mocked(credentialsClient.useQuery).mockImplementation(
+        (_method: string, path: string): ReturnType<(typeof credentialsClient)['useQuery']> => {
+          if (path === '/credential_types') {
+            return {
+              data: { resources: [mockSecretUrlType, mockBearerType] },
+              isPending: false,
+              isError: false,
+              error: null,
+              refetch: vi.fn(),
+            } as never
+          }
+          return {
+            data: { resources: [mockSecretUrlCredential, mockBearerCredential] },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+      )
+    }
+
+    it('disables URL field and shows locked placeholder when Secret URL credential is selected', async () => {
+      const user = userEvent.setup()
+      setupSecretUrlMocks()
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+      await user.click(screen.getByRole('button', { name: 'Authentication credential' }))
+      await user.click(screen.getByRole('option', { name: /Webhook Endpoint/i }))
+
+      const urlInput = screen.getByRole('textbox', { name: 'URL' })
+      expect(urlInput).toBeDisabled()
+      expect(urlInput).toHaveAttribute('placeholder', 'URL managed by credential')
+    })
+
+    it('shows helper text explaining the URL is injected at runtime when Secret URL credential is selected', async () => {
+      const user = userEvent.setup()
+      setupSecretUrlMocks()
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+      await user.click(screen.getByRole('button', { name: 'Authentication credential' }))
+      await user.click(screen.getByRole('option', { name: /Webhook Endpoint/i }))
+
+      expect(
+        screen.getByText(
+          'This value will be injected at execution time and is never stored in the workflow definition.'
+        )
+      ).toBeInTheDocument()
+    })
+
+    it('URL field is not marked required when Secret URL credential is selected', async () => {
+      const user = userEvent.setup()
+      setupSecretUrlMocks()
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+      await user.click(screen.getByRole('button', { name: 'Authentication credential' }))
+      await user.click(screen.getByRole('option', { name: /Webhook Endpoint/i }))
+
+      expect(screen.getByRole('textbox', { name: 'URL' })).not.toBeRequired()
+    })
+
+    it('URL field is enabled and shows normal placeholder with no credential selected', () => {
+      vi.mocked(credentialsClient.useQuery).mockReturnValue({
+        data: { resources: [] },
+        isPending: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+      const urlInput = screen.getByRole('textbox', { name: 'URL' })
+      expect(urlInput).not.toBeDisabled()
+      expect(urlInput).toHaveAttribute('placeholder', 'https://api.example.com/endpoint')
+    })
+
+    it('URL field is immediately locked on initial render when initialData includes a Secret URL credential', () => {
+      setupSecretUrlMocks()
+      renderWithHeader(
+        <ActionNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ executor: 'http_request', credential_id: 'cred-webhook' }}
+        />
+      )
+
+      const urlInput = screen.getByRole('textbox', { name: 'URL' })
+      expect(urlInput).toBeDisabled()
+      expect(urlInput).toHaveAttribute('placeholder', 'URL managed by credential')
+    })
+
+    it('submits credential_id in the form payload when Secret URL credential is selected', async () => {
+      const user = userEvent.setup()
+      setupSecretUrlMocks()
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+      await user.click(screen.getByRole('button', { name: 'Authentication credential' }))
+      await user.click(screen.getByRole('option', { name: /Webhook Endpoint/i }))
+      fireEvent.submit(screen.getByTestId('action-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            executor: 'http_request',
+            credential_id: 'cred-webhook',
+          })
+        )
+      })
+    })
+
+    it('URL field remains enabled when a non-Secret-URL credential is selected', async () => {
+      const user = userEvent.setup()
+      vi.mocked(credentialsClient.useQuery).mockImplementation(
+        (_method: string, path: string): ReturnType<(typeof credentialsClient)['useQuery']> => {
+          if (path === '/credential_types') {
+            return {
+              data: { resources: [mockBearerType] },
+              isPending: false,
+              isError: false,
+              error: null,
+              refetch: vi.fn(),
+            } as never
+          }
+          return {
+            data: { resources: [mockBearerCredential] },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+      )
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+      await user.click(screen.getByRole('button', { name: 'Authentication credential' }))
+      await user.click(screen.getByRole('option', { name: /Bearer Token Credential/i }))
+
+      const urlInput = screen.getByRole('textbox', { name: 'URL' })
+      expect(urlInput).not.toBeDisabled()
+      expect(urlInput).toHaveAttribute('placeholder', 'https://api.example.com/endpoint')
+    })
+
+    it('URL field re-enables when switching from a Secret URL to a non-Secret-URL credential', async () => {
+      const user = userEvent.setup()
+      setupMixedCredentialMocks()
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+      // Select Secret URL — URL locks
+      await user.click(screen.getByRole('button', { name: 'Authentication credential' }))
+      await user.click(screen.getByRole('option', { name: /Webhook Endpoint/i }))
+      expect(screen.getByRole('textbox', { name: 'URL' })).toBeDisabled()
+
+      // Switch to Bearer Token — URL unlocks
+      await user.click(screen.getByRole('button', { name: 'Authentication credential' }))
+      await user.click(screen.getByRole('option', { name: /Bearer Token Credential/i }))
+      expect(screen.getByRole('textbox', { name: 'URL' })).not.toBeDisabled()
+      expect(screen.getByRole('textbox', { name: 'URL' })).toHaveAttribute(
+        'placeholder',
+        'https://api.example.com/endpoint'
+      )
+    })
+
+    it('URL field is locked immediately when loading and credential_id is pre-set', () => {
+      vi.mocked(credentialsClient.useQuery).mockReturnValue({
+        data: undefined,
+        isPending: true,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+      renderWithHeader(
+        <ActionNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ executor: 'http_request', credential_id: 'cred-webhook' }}
+        />
+      )
+      expect(screen.getByRole('textbox', { name: 'URL' })).toBeDisabled()
+    })
+
+    it('clears the URL value when a Secret URL credential is selected after typing a URL', async () => {
+      const user = userEvent.setup()
+      setupSecretUrlMocks()
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+      await user.type(screen.getByRole('textbox', { name: 'URL' }), 'https://old.example.com')
+      await user.click(screen.getByRole('button', { name: 'Authentication credential' }))
+      await user.click(screen.getByRole('option', { name: /Webhook Endpoint/i }))
+
+      expect(screen.getByRole('textbox', { name: 'URL' })).toHaveValue('')
+    })
+
+    it('has no accessibility violations in the locked URL state (HttpUrlField in isolation)', async () => {
+      // Render HttpUrlField directly — avoids the PatternFly tab aria-controls/id
+      // mismatch that occurs in JSDOM when testing the full ActionNodeForm.
+      function Wrapper() {
+        const { register, getValues, setValue } = useForm<ActionFormValues>({
+          defaultValues: { executor: 'http_request', url: '' },
+        })
+        return (
+          <form>
+            <HttpUrlField
+              register={register}
+              getValues={getValues}
+              setValue={setValue}
+              isUrlManagedByCredential
+              isDisabled={false}
+            />
+          </form>
+        )
+      }
+      const { container } = render(<Wrapper />)
+      expect(await axe(container)).toHaveNoViolations()
+    })
   })
 })

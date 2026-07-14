@@ -109,6 +109,16 @@ const mockCredentialTypes = [
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   },
+  {
+    id: 'type-3',
+    name: 'Secret URL',
+    description: 'Stores a URL as an encrypted secret',
+    inputs: {},
+    injectors: {},
+    managed: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
 ]
 
 function mockUseQuery(

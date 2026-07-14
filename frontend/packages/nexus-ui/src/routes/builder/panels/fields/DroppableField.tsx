@@ -4,6 +4,8 @@ import { DROP_TARGET_OUTLINE_ROUNDED } from '../utils/dragTypes'
 type DroppableFieldProps = {
   children: React.ReactNode
   onDropText: (text: string) => void
+  /** When true, drop handling is suppressed and children are rendered as-is. */
+  isDisabled?: boolean
 }
 
 /**
@@ -11,8 +13,12 @@ type DroppableFieldProps = {
  * When text/plain data is dropped, calls onDropText with the dropped text.
  * Shows a blue outline highlight during drag-over for visual feedback.
  */
-function DroppableField({ children, onDropText }: Readonly<DroppableFieldProps>) {
+function DroppableField({ children, onDropText, isDisabled = false }: Readonly<DroppableFieldProps>) {
   const { isDropTarget, handleDragOver, handleDragLeave, handleDrop } = useDropTarget({ onDropText })
+
+  if (isDisabled) {
+    return <>{children}</>
+  }
 
   return (
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions, nexus/prefer-pf-text-components -- drag-and-drop drop zone; not keyboard-accessible by design; child inputs retain their own focus and keyboard interaction

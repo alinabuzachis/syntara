@@ -76,6 +76,29 @@ describe('DroppableField', () => {
     expect(onDropText).not.toHaveBeenCalled()
   })
 
+  it('does not call onDropText when isDisabled is true', () => {
+    const onDropText = vi.fn()
+    render(
+      <DroppableField onDropText={onDropText} isDisabled>
+        <input aria-label="Test input" />
+      </DroppableField>
+    )
+
+    const input = screen.getByRole('textbox', { name: 'Test input' })
+
+    fireEvent.drop(input, {
+      dataTransfer: {
+        getData: (type: string) => {
+          if (type === 'application/json') return '{"type":"nexus/input-field"}'
+          if (type === 'text/plain') return '${node1.output}'
+          return ''
+        },
+      },
+    })
+
+    expect(onDropText).not.toHaveBeenCalled()
+  })
+
   it('has no accessibility violations', async () => {
     const { container } = render(
       <DroppableField onDropText={vi.fn()}>
