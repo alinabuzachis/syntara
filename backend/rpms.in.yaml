@@ -7,10 +7,11 @@ packages:
   - name: python3.12
   - name: python3.12-pip
   - name: python3.12-cffi
+  - name: openblas-serial
+  - name: libgomp
 context:
   containerfile:
     file: containers/nexus/Containerfile
-    stageName: builder
 arches:
   - x86_64
   - aarch64

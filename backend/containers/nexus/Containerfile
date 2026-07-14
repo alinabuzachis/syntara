@@ -87,6 +87,8 @@ RUN microdnf install --setopt=install_weak_deps=0 --nodocs -y \
         python3.12 \
         python3.12-pip \
         python3.12-cffi \
+        openblas-serial \
+        libgomp \
     && microdnf clean all
 
 # Set python3 symlink via alternatives
