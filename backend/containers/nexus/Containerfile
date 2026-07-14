@@ -67,7 +67,7 @@ RUN if [ -n "${PIP_FIND_LINKS:-}" ]; then \
         REGOCPP_REPO=/tmp/rego-cpp-1.5.1 \
         REGOCPP_TAG=main \
         UV_FIND_LINKS="${PIP_FIND_LINKS}" \
-        uv sync --frozen --no-dev --no-editable --no-index --find-links "${PIP_FIND_LINKS}" --offline --no-binary-package regopy; \
+        uv sync --frozen --no-dev --no-editable --no-index --find-links "${PIP_FIND_LINKS}" --offline; \
     else \
         # --- Local (non-hermetic) build ---
         uv sync --frozen --no-dev; \
