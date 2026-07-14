@@ -44,6 +44,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
+@pytest.mark.performance
 class TestConcurrentRequestPerformance:
     """Performance tests for concurrent request handling."""
 

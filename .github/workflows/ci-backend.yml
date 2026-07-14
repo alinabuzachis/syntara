@@ -483,7 +483,7 @@ jobs:
     name: (Backend) Integration Tests
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
@@ -493,6 +493,7 @@ jobs:
       UV_PYTHON: ${{ matrix.python-version }}
       DOCKER_HOST: unix:///var/run/docker.sock
       TESTCONTAINERS_RYUK_DISABLED: "true"
+      PYTEST_XDIST_AUTO_NUM_WORKERS: "8"
 
     steps:
       - name: Checkout code
