@@ -191,6 +191,71 @@ class TestUsersPatchContract:
         assert response.status_code == 401
 
 
+class TestUsersPatchSelfScope:
+    """AAP-78918: non-admin users must be able to PATCH their own profile.
+
+    The authenticated role grants user:update:self, which should allow any
+    logged-in user to update their own record.  These tests use a user that
+    has *only* the authenticated role (no admin), so user:update:self is the
+    sole permission path.
+    """
+
+    @pytest.mark.asyncio
+    async def test_non_admin_can_patch_own_profile(
+        self,
+        base_client: AsyncClient,
+        user_factory: Callable[..., Awaitable[User]],
+    ) -> None:
+        """A non-admin user with user:update:self can update their own profile."""
+        from nexus.api.main import app
+
+        regular_user = await user_factory(
+            username="selfpatch-user",
+            email="selfpatch@example.com",
+            first_name="Original",
+        )
+
+        async def override() -> User:
+            return regular_user
+
+        app.dependency_overrides[get_current_user] = override
+
+        response = await base_client.patch(
+            f"{USERS_URL}/{regular_user.id}",
+            json={"first_name": "Updated"},
+        )
+
+        assert response.status_code == 200, (
+            f"Non-admin user should be able to PATCH own profile via user:update:self. "
+            f"Got {response.status_code}: {response.json()}"
+        )
+        assert response.json()["first_name"] == "Updated"
+
+    @pytest.mark.asyncio
+    async def test_non_admin_cannot_patch_other_user(
+        self,
+        base_client: AsyncClient,
+        user_factory: Callable[..., Awaitable[User]],
+    ) -> None:
+        """A non-admin user cannot update someone else's profile."""
+        from nexus.api.main import app
+
+        acting_user = await user_factory(username="actor-user", email="actor@example.com")
+        target_user = await user_factory(username="target-user", email="target@example.com")
+
+        async def override() -> User:
+            return acting_user
+
+        app.dependency_overrides[get_current_user] = override
+
+        response = await base_client.patch(
+            f"{USERS_URL}/{target_user.id}",
+            json={"first_name": "Hacked"},
+        )
+
+        assert response.status_code == 403
+
+
 class TestUsersPatchAdminRestrictions:
     """Tests for admin self-disable restriction."""
 

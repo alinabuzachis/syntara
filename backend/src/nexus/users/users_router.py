@@ -43,7 +43,7 @@ router = NexusRouter(prefix="/users", tags=["Users"])
 
 _user_create = PermissionChecker("user", "create")
 _user_read = PermissionChecker("user", "read", resource_id_param="user_id")
-_user_update = PermissionChecker("user", "update")
+_user_update = PermissionChecker("user", "update", resource_id_param="user_id")
 _user_delete = PermissionChecker("user", "delete")
 _identity_read = PermissionChecker("user_identity", "read", resource_id_param="user_id")
 _identity_attach = PermissionChecker("user_identity", "attach")
