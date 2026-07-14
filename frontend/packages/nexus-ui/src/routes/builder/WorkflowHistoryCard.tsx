@@ -23,11 +23,12 @@ import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
 import { NxLabel } from '../../components/labels/NxLabel'
-import pageMainSlotStyles from '../../components/layout/NxPage.module.css'
 import { NxPanel } from '../../components/layout/NxPanel'
 import type { KebabAction } from '../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
+import { PaginationFooter } from '../../components/table/PaginationFooter'
 import { permissionTooltip } from '../../hooks/permissionUtils'
 import { Link } from '../../hooks/routing/Link'
 import { useNavigate } from '../../hooks/routing/useNavigate'
@@ -135,9 +136,8 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
         justifyContent={{ default: 'justifyContentSpaceBetween' }}
         alignItems={{ default: 'alignItemsFlexStart' }}
         gap={{ default: 'gapSm' }}
-        fullWidth={{ default: 'fullWidth' }}
       >
-        <FlexItem>
+        <FlexItem flex={{ default: 'flex_1' }} style={{ minWidth: 0 }}>
           <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)' }}>
             {execution.created_at && (
               <Content component={ContentVariants.p} style={{ whiteSpace: 'nowrap', fontWeight: 600, margin: 0 }}>
@@ -172,9 +172,9 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
             )}
           </Stack>
         </FlexItem>
-        <FlexItem style={{ flexShrink: 0 }}>
+        <FlexItem style={{ flexShrink: 0, alignSelf: 'flex-start' }}>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-            <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)' }}>
+            <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)', alignItems: 'flex-end' }}>
               {execution.status && <StatusLabel status={execution.status} />}
               <ApprovalPendingBadge approvalPending={execution.approval_pending} />
               {isTestRun && <NxLabel color="purple">Test run</NxLabel>}
@@ -194,10 +194,19 @@ type WorkflowHistoryCardProps = {
   selectedExecutionId?: string | null
   filters?: FilterConfig[]
   onFilterChange?: (filters: FilterConfig[]) => void
+  paginationFooterProps?: PaginationFooterProps
 }
 
 export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
-  const { executions, onClose, onExecutionSelect, selectedExecutionId, filters = [], onFilterChange } = props
+  const {
+    executions,
+    onClose,
+    onExecutionSelect,
+    selectedExecutionId,
+    filters = [],
+    onFilterChange,
+    paginationFooterProps,
+  } = props
 
   const historyFilterFields = useMemo(
     (): FilterFieldDefinition[] => [
@@ -210,7 +219,6 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
   const groups = useMemo(() => groupExecutionsByDate(executions), [executions])
 
   const simpleListStyle = {
-    paddingBottom: 'var(--pf-t--global--spacer--lg)',
     '--pf-v6-c-simple-list__item-link--PaddingBlockStart': 'var(--pf-t--global--spacer--md)',
     '--pf-v6-c-simple-list__item-link--PaddingBlockEnd': 'var(--pf-t--global--spacer--md)',
     '--pf-v6-c-simple-list__item-link--PaddingInlineStart': 'var(--pf-t--global--spacer--xl)',
@@ -271,72 +279,101 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
       hasNoPadding
       isFullHeight
       style={{
-        height: '100%',
-        maxHeight: '100%',
         width: '20rem',
         flexShrink: 0,
       }}
     >
-      <div
+      <Stack
         style={{
+          height: '100%',
           flex: 1,
           minHeight: 0,
-          display: 'flex',
-          flexDirection: 'column',
+          minWidth: 0,
+          maxHeight: '100%',
           overflow: 'hidden',
+          width: '100%',
         }}
       >
-        <Stack style={{ height: '100%', minHeight: 0 }}>
-          <StackItem
+        <StackItem
+          style={{
+            flexShrink: 0,
+            padding: 'var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--md)',
+          }}
+        >
+          <Flex
+            justifyContent={{ default: 'justifyContentSpaceBetween' }}
+            alignItems={{ default: 'alignItemsFlexStart' }}
+          >
+            <FlexItem>
+              <Stack hasGutter>
+                <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+                  <Icon>
+                    <RhUiHistoryIcon />
+                  </Icon>
+                  <Title headingLevel="h2" size={TitleSizes.md}>
+                    Run History
+                  </Title>
+                </Flex>
+                <Content component={ContentVariants.small}>View past runs of this workflow.</Content>
+              </Stack>
+            </FlexItem>
+            <FlexItem>
+              <Button variant="plain" onClick={onClose} aria-label="Close run history">
+                <Icon>
+                  <RhUiCloseIcon />
+                </Icon>
+              </Button>
+            </FlexItem>
+          </Flex>
+        </StackItem>
+
+        {onFilterChange && (
+          <StackItem style={{ flexShrink: 0, minWidth: 0, overflow: 'hidden' }}>
+            <FilterBar
+              fieldDefinitions={historyFilterFields}
+              filters={filters}
+              onFilterChange={onFilterChange}
+              isCompact
+            />
+          </StackItem>
+        )}
+
+        <div
+          style={{
+            position: 'relative',
+            flex: '1 1 auto',
+            minHeight: 0,
+            overflow: 'hidden',
+            borderRadius: 'var(--pf-t--global--border--radius--medium)',
+          }}
+        >
+          <div
             style={{
-              flexShrink: 0,
-              padding:
-                'var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--md)',
+              minHeight: 0,
+              height: '100%',
+              overflow: 'auto',
+              width: '100%',
+              position: 'relative',
             }}
           >
-            <Flex
-              justifyContent={{ default: 'justifyContentSpaceBetween' }}
-              alignItems={{ default: 'alignItemsFlexStart' }}
-            >
-              <FlexItem>
-                <Stack hasGutter>
-                  <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-                    <Icon>
-                      <RhUiHistoryIcon />
-                    </Icon>
-                    <Title headingLevel="h2" size={TitleSizes.md}>
-                      Run History
-                    </Title>
-                  </Flex>
-                  <Content component={ContentVariants.small}>View past runs of this workflow.</Content>
-                </Stack>
-              </FlexItem>
-              <FlexItem>
-                <Button variant="plain" onClick={onClose} aria-label="Close run history">
-                  <Icon>
-                    <RhUiCloseIcon />
-                  </Icon>
-                </Button>
-              </FlexItem>
-            </Flex>
-          </StackItem>
-
-          {onFilterChange && (
-            <StackItem style={{ flexShrink: 0, minWidth: 0, overflow: 'hidden' }}>
-              <FilterBar
-                fieldDefinitions={historyFilterFields}
-                filters={filters}
-                onFilterChange={onFilterChange}
-                isCompact
-              />
-            </StackItem>
-          )}
-
-          <StackItem isFilled className={pageMainSlotStyles.main} style={{ overflowY: 'auto', overflowX: 'hidden' }}>
             {executionListBody}
+          </div>
+        </div>
+
+        {paginationFooterProps && (
+          <StackItem
+            style={{
+              flex: '0 0 auto',
+              width: '100%',
+              borderTop:
+                'var(--pf-t--global--border--width--divider--default) solid var(--pf-t--global--border--color--default)',
+              paddingBottom: 'var(--pf-t--global--spacer--sm)',
+            }}
+          >
+            <PaginationFooter {...paginationFooterProps} />
           </StackItem>
-        </Stack>
-      </div>
+        )}
+      </Stack>
     </NxPanel>
   )
 }

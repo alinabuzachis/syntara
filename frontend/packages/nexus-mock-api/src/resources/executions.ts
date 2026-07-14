@@ -197,4 +197,58 @@ export const executions: Execution[] = [
     started_by: 'user-1',
     input_data: { environment: 'production', version: '3.2.0' },
   },
+  // Additional executions for workflow '1' (conditional-demo) to test pagination
+  // Using deterministic timestamps from mockDates to prevent visual regression baseline drift
+  ...(
+    [
+      { hours: 7, status: 'completed' as const },
+      { hours: 8, status: 'failed' as const },
+      { hours: 9, status: 'running' as const },
+      { hours: 10, status: 'cancelled' as const },
+      { hours: 11, status: 'completed' as const },
+      { hours: 13, status: 'failed' as const },
+      { hours: 14, status: 'running' as const },
+      { hours: 15, status: 'cancelled' as const },
+      { hours: 16, status: 'completed' as const },
+      { hours: 17, status: 'failed' as const },
+      { hours: 18, status: 'running' as const },
+      { hours: 19, status: 'cancelled' as const },
+      { hours: 20, status: 'completed' as const },
+      { hours: 21, status: 'failed' as const },
+      { hours: 22, status: 'running' as const },
+      { hours: 23, status: 'cancelled' as const },
+      { hours: 24, status: 'completed' as const },
+      { hours: 25, status: 'failed' as const },
+      { hours: 26, status: 'running' as const },
+      { hours: 27, status: 'cancelled' as const },
+      { hours: 28, status: 'completed' as const },
+      { hours: 29, status: 'failed' as const },
+      { hours: 30, status: 'running' as const },
+      { hours: 31, status: 'cancelled' as const },
+      { hours: 32, status: 'completed' as const },
+    ] as const
+  ).map((config, i) => {
+    const timeKey = `hoursAgo${config.hours}` as keyof typeof mockDate
+    const created = mockDate[timeKey]
+    return {
+      id: `exec-paginated-${i + 1}`,
+      created_at: created,
+      updated_at: created,
+      workflow_id: '1',
+      status: config.status,
+      started_at: created,
+      completed_at: config.status === 'running' ? null : created,
+      started_by: `user-${(i % 3) + 1}`,
+      input_data: { value: i * 10 },
+      ...(config.status === 'running' && {
+        current_activities: [
+          {
+            activity_name: 'check_temperature',
+            temporal_activity_id: `activity-${i}`,
+            iteration: null,
+          },
+        ],
+      }),
+    }
+  }),
 ]

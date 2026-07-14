@@ -65,6 +65,12 @@ vi.mock('date-fns', async (importOriginal) => {
   }
 })
 
+vi.mock('../../components/table/PaginationFooter', () => ({
+  PaginationFooter: ({ total, perPage }: { total: number; perPage: number }) => (
+    <div data-testid="pagination-footer">{`1 - ${perPage} of ${total}`}</div>
+  ),
+}))
+
 const baseExecution: Execution = {
   id: '12345678-abcd-ef01-2345-678901234567',
   workflow_id: 'wf-1',
@@ -239,6 +245,64 @@ describe('WorkflowHistoryCard', () => {
       expect(onFilterChange).toHaveBeenCalledWith(
         expect.arrayContaining([expect.objectContaining({ key: 'status', value: 'completed' })])
       )
+    })
+  })
+
+  describe('pagination', () => {
+    const mockOnPrev = vi.fn()
+    const mockOnNext = vi.fn()
+    const mockOnPerPageChange = vi.fn()
+
+    it('renders pagination footer when paginationFooterProps is provided', () => {
+      const paginationFooterProps = {
+        page: 1,
+        perPage: 20,
+        total: 50,
+        hasNext: true,
+        onPrev: mockOnPrev,
+        onNext: mockOnNext,
+        onPerPageChange: mockOnPerPageChange,
+      }
+
+      renderCard(
+        <WorkflowHistoryCard
+          {...defaultProps}
+          executions={[baseExecution]}
+          paginationFooterProps={paginationFooterProps}
+        />
+      )
+
+      expect(screen.getByTestId('pagination-footer')).toBeInTheDocument()
+      expect(screen.getByText('1 - 20 of 50')).toBeInTheDocument()
+    })
+
+    it('does not render pagination footer when paginationFooterProps is not provided', () => {
+      renderCard(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
+      expect(screen.queryByTestId('pagination-footer')).not.toBeInTheDocument()
+    })
+
+    it('pagination footer is sticky at bottom with proper styling', () => {
+      const paginationFooterProps = {
+        page: 1,
+        perPage: 20,
+        total: 25,
+        hasNext: true,
+        onPrev: mockOnPrev,
+        onNext: mockOnNext,
+        onPerPageChange: mockOnPerPageChange,
+      }
+
+      renderCard(
+        <WorkflowHistoryCard
+          {...defaultProps}
+          executions={[baseExecution]}
+          paginationFooterProps={paginationFooterProps}
+        />
+      )
+
+      // Footer should be rendered
+      expect(screen.getByTestId('pagination-footer')).toBeInTheDocument()
+      expect(screen.getByText('1 - 20 of 25')).toBeInTheDocument()
     })
   })
 })

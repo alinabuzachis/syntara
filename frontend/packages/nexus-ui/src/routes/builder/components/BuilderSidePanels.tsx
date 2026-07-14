@@ -2,6 +2,7 @@ import type { ExecutionsAPI, WorkflowAPI } from '@ansible/nexus-contracts'
 import { FlexItem } from '@patternfly/react-core'
 import { memo } from 'react'
 
+import type { PaginationFooterProps } from '../../../components/table/PaginationFooter'
 import type { FilterConfig } from '../../../types/filters'
 import { AddNodePanel } from '../AddNodePanel'
 import type { BuilderAction } from '../builderReducer'
@@ -25,6 +26,7 @@ type BuilderSidePanelsProps = {
   onExecutionNavigate: (id: string) => void
   executionFilters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
+  executionPaginationFooterProps: PaginationFooterProps
   detailsOpen: boolean
   workflow?: WorkflowWithVersion
   workflowName: string
@@ -46,6 +48,7 @@ export const BuilderSidePanels = memo(function BuilderSidePanels({
   onExecutionNavigate,
   executionFilters,
   onFilterChange,
+  executionPaginationFooterProps,
   detailsOpen,
   workflow,
   workflowName,
@@ -79,6 +82,7 @@ export const BuilderSidePanels = memo(function BuilderSidePanels({
             onExecutionSelect={onExecutionNavigate}
             filters={executionFilters}
             onFilterChange={onFilterChange}
+            paginationFooterProps={executionPaginationFooterProps}
           />
         </FlexItem>
       )}

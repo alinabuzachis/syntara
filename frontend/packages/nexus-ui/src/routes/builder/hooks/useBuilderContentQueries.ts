@@ -11,14 +11,31 @@ export function useBuilderContentQueries(options: {
   executionFilters: FilterConfig[]
   mostRecentExecutionId: string | null
   mostRecentRunPanelOpen: boolean
+  executionsCursor: string | null
+  executionsPerPage: number
 }) {
-  const { workflowId, isNew, executionFilters, mostRecentExecutionId, mostRecentRunPanelOpen } = options
+  const {
+    workflowId,
+    isNew,
+    executionFilters,
+    mostRecentExecutionId,
+    mostRecentRunPanelOpen,
+    executionsCursor,
+    executionsPerPage,
+  } = options
 
   const executionsQueryParams = useMemo(() => {
-    const params: Record<string, unknown> = { workflow_id: workflowId ?? '' }
+    const params: Record<string, unknown> = {
+      workflow_id: workflowId ?? '',
+      limit: executionsPerPage,
+      include_total: true,
+    }
     Object.assign(params, buildFilterParams(executionFilters))
+    if (executionsCursor) {
+      params.cursor = executionsCursor
+    }
     return params
-  }, [workflowId, executionFilters])
+  }, [workflowId, executionFilters, executionsCursor, executionsPerPage])
 
   const executionsQuery = executionsClient.useQuery(
     'get',

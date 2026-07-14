@@ -489,6 +489,21 @@ export const workflowDialogPages: CanvasPageEntry[] = [
   },
   {
     section: 'workflows',
+    name: 'builder-edit-run-history-panel',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    perceptual: true,
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 })
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: /Run history/i }).click()
+      await expect(page.getByRole('heading', { name: 'Run History' })).toBeVisible()
+      // Wait for pagination footer to ensure full render
+      await expect(page.getByRole('navigation', { name: /pagination/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'workflows',
     name: 'workflows-import-dialog',
     perceptual: true,
     path: AppRoute.Workflows.Root,

@@ -11,10 +11,10 @@ import { NxPanel } from '../../components/layout/NxPanel'
 import { NxReactFlowViewportGuard } from '../../components/layout/NxReactFlowViewportGuard'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useSearchParams } from '../../hooks/routing/useSearchParams'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
-import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { ApprovalSidePanel } from '../executions/ApprovalSidePanel'
@@ -93,7 +93,14 @@ export function BuilderContent(props: BuilderContentProps) {
     [requestNavigation]
   )
 
-  const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
+  const {
+    filters: executionFilters,
+    cursor: executionsCursor,
+    perPage: executionsPerPage,
+    handleFilterChange: handleExecutionFilterChange,
+    handleClearAllFilters: clearExecutionFilters,
+    getFooterProps: getExecutionPaginationFooterProps,
+  } = useCursorPagination({ limit: 20 })
   const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
   const {
     confirmDialogOpen,
@@ -136,6 +143,8 @@ export function BuilderContent(props: BuilderContentProps) {
     executionFilters,
     mostRecentExecutionId,
     mostRecentRunPanelOpen,
+    executionsCursor,
+    executionsPerPage,
   })
 
   useBuilderWorkflowLifecycle({
@@ -163,9 +172,11 @@ export function BuilderContent(props: BuilderContentProps) {
       dispatch({ type: 'SET_VIEWING_VERSION', payload: initialViewVersion })
       dispatch({ type: 'SET_VERSION_HISTORY_OPEN', payload: true })
       dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })
-      queueMicrotask(() => setExecutionFilters([]))
+      queueMicrotask(() => {
+        clearExecutionFilters()
+      })
     }
-  }, [initialViewVersion, dispatch])
+  }, [initialViewVersion, dispatch, clearExecutionFilters])
   const { handleForceSaveSuccess } = useBuilderValidation({
     dispatch,
     hasValidationIssues: workflow?.has_validation_issues,
@@ -293,17 +304,20 @@ export function BuilderContent(props: BuilderContentProps) {
     return map
   }, [executionsQuery.data?.resources])
 
-  const clearExecutionFilters = useCallback(() => setExecutionFilters([]), [])
+  const executionPaginationFooterProps = useMemo(
+    () => getExecutionPaginationFooterProps(executionsQuery.data),
+    [getExecutionPaginationFooterProps, executionsQuery.data]
+  )
 
   const handleOpenRunHistory = useCallback(
     (versionNumber: number) => {
       const versionId = executionsByVersion.get(versionNumber)
       if (versionId) {
-        setExecutionFilters([{ key: 'workflow_version_id', value: versionId, operator: 'eq' }])
+        handleExecutionFilterChange([{ key: 'workflow_version_id', value: versionId, operator: 'eq' }])
       }
       dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: true })
     },
-    [dispatch, executionsByVersion]
+    [dispatch, executionsByVersion, handleExecutionFilterChange]
   )
 
   const { mutate: duplicateWorkflow, isPending: isDuplicating } = workflowClient.useMutation('post', '/workflows')
@@ -574,7 +588,8 @@ export function BuilderContent(props: BuilderContentProps) {
                       executions={executionsQuery.data?.resources ?? []}
                       onExecutionNavigate={handleExecutionNavigate}
                       executionFilters={executionFilters}
-                      onFilterChange={setExecutionFilters}
+                      onFilterChange={handleExecutionFilterChange}
+                      executionPaginationFooterProps={executionPaginationFooterProps}
                       detailsOpen={detailsOpen}
                       workflow={workflow}
                       workflowName={workflowName}

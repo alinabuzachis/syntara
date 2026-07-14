@@ -10,14 +10,15 @@ import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxReactFlowViewportGuard } from '../../components/layout/NxReactFlowViewportGuard'
 import { ResizableDivider } from '../../components/ResizableDivider'
+import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useParams } from '../../hooks/routing/useParams'
 import { useSearch } from '../../hooks/routing/useSearch'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useAlerts } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
 import { useDocLink } from '../../utils/docs/useDocLink'
-import { buildFilterParams } from '../../utils/filterUtils'
 import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
 import { useActivityNameMap } from '../builder/useActivityNameMap'
@@ -84,6 +85,7 @@ function ExecutionDetailContent({
   setLocation,
   filters,
   onFilterChange,
+  paginationFooterProps,
   onNodeClick,
   selectedNodeId,
   selectedNodeName,
@@ -106,6 +108,7 @@ function ExecutionDetailContent({
   setLocation: (path: string) => void
   filters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
+  paginationFooterProps: PaginationFooterProps
   onNodeClick?: (event: React.MouseEvent, node: { id: string; type?: string; data: Record<string, unknown> }) => void
   selectedNodeId: string | null
   selectedNodeName: string | null
@@ -234,6 +237,7 @@ function ExecutionDetailContent({
             }}
             filters={filters}
             onFilterChange={onFilterChange}
+            paginationFooterProps={paginationFooterProps}
           />
         </FlexItem>
       )}
@@ -275,13 +279,15 @@ export default function ExecutionDetail() {
     return params.get('history') !== 'closed'
   }, [searchParams])
 
-  const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
-
-  const executionsQueryParams = useMemo(() => {
-    const params: Record<string, unknown> = { workflow_id: execution?.workflow_id ?? '' }
-    Object.assign(params, buildFilterParams(executionFilters))
-    return params
-  }, [execution?.workflow_id, executionFilters])
+  const {
+    filters: executionFilters,
+    queryParams: executionsQueryParams,
+    handleFilterChange: handleExecutionFilterChange,
+    getFooterProps: getExecutionPaginationFooterProps,
+  } = useCursorPagination({
+    limit: 20,
+    extraParams: { workflow_id: execution?.workflow_id ?? '' },
+  })
 
   const executionsQuery = executionsClient.useQuery(
     'get',
@@ -292,6 +298,11 @@ export default function ExecutionDetail() {
     {
       enabled: !!execution?.workflow_id,
     }
+  )
+
+  const executionPaginationFooterProps = useMemo(
+    () => getExecutionPaginationFooterProps(executionsQuery.data),
+    [getExecutionPaginationFooterProps, executionsQuery.data]
   )
 
   const { workflow, activities } = useExecutionWorkflow(execution)
@@ -406,7 +417,8 @@ export default function ExecutionDetail() {
             searchParams={searchParams}
             setLocation={setLocation}
             filters={executionFilters}
-            onFilterChange={setExecutionFilters}
+            onFilterChange={handleExecutionFilterChange}
+            paginationFooterProps={executionPaginationFooterProps}
             onNodeClick={handleNodeClick}
             selectedNodeId={selectedNodeId}
             selectedNodeName={selectedNodeName}
