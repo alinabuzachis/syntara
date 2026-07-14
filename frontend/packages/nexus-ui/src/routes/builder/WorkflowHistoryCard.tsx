@@ -49,6 +49,7 @@ import type { ExecutionMetadata } from '../workflows/stores/useExecutionStore'
 
 import { StatusLabel } from './ExecutionStatus'
 import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
+import styles from './WorkflowHistoryCard.module.css'
 
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 
@@ -167,7 +168,7 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
               </Content>
             )}
             {execution.retried_from_execution_id && (
-              <Content component={ContentVariants.small} style={{ margin: 0, fontStyle: 'italic' }}>
+              <Content component={ContentVariants.small} className={styles.retriedFrom}>
                 {`Retried from: ${execution.retried_from_execution_id.slice(0, TRUNCATED_ID_LENGTH)}`}
               </Content>
             )}
