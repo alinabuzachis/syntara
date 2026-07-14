@@ -1,0 +1,258 @@
+---
+name: SCA - Snyk Dependencies
+
+on:
+  schedule:
+    - cron: '23 14 * * *'
+  push:
+    branches:
+      - 'devel'
+    paths:
+      - 'backend/pyproject.toml'
+      - 'backend/requirements*.txt'
+      - 'backend/src/*/pyproject.toml'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/packages/*/package.json'
+      - '.github/workflows/sca-snyk.yml'
+  pull_request:
+    paths:
+      - 'backend/pyproject.toml'
+      - 'backend/requirements*.txt'
+      - 'backend/src/*/pyproject.toml'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/packages/*/package.json'
+      - '.github/workflows/sca-snyk.yml'
+  workflow_dispatch:
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/pyproject.toml'
+              - 'backend/requirements*.txt'
+              - 'backend/src/*/pyproject.toml'
+              - '.github/workflows/sca-snyk.yml'
+            frontend:
+              - 'frontend/package.json'
+              - 'frontend/package-lock.json'
+              - 'frontend/packages/*/package.json'
+              - '.github/workflows/sca-snyk.yml'
+
+  snyk-sca-backend:
+    name: Snyk SCA (Backend)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request'
+    steps:
+      # Checkout PR branch first
+      - name: Checkout PR branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          path: pr
+
+      - name: Set up Python for PR scan
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install protobuf compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1
+
+      - name: Install PR dependencies
+        working-directory: pr/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Scan PR branch dependencies
+        working-directory: pr/backend
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --json-file-output=../../snyk-pr-backend.json \
+            --project-name="${{ github.repository }}/python" \
+            --file=requirements.txt \
+            --package-manager=pip || true
+
+      # Only scan base branch for pull requests (not for push/schedule)
+      - name: Checkout base branch
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: Install base dependencies
+        if: github.event_name == 'pull_request'
+        working-directory: base/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Scan base branch dependencies
+        if: github.event_name == 'pull_request'
+        working-directory: base/backend
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --json-file-output=../../snyk-base-backend.json \
+            --project-name="${{ github.repository }}/python" \
+            --file=requirements.txt \
+            --package-manager=pip || true
+
+      # Compare results and fail only on NEW HIGH/CRITICAL vulnerabilities
+      - name: Compare and filter vulnerabilities
+        if: github.event_name == 'pull_request'
+        run: bash pr/.github/scripts/compare-snyk-results.sh snyk-base-backend.json snyk-pr-backend.json
+
+      # For push/schedule events, use traditional blocking behavior
+      - name: Block on any HIGH/CRITICAL (non-PR events)
+        if: github.event_name != 'pull_request'
+        working-directory: pr/backend
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --severity-threshold=high \
+            --project-name="${{ github.repository }}/python" \
+            --file=requirements.txt \
+            --package-manager=pip \
+            --sarif-file-output=snyk-python.sarif \
+            --json-file-output=snyk-python.json
+
+      - name: Upload Snyk results to GitHub Security
+        uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
+        if: always() && hashFiles('pr/backend/snyk-python.sarif') != ''
+        # continue-on-error: GitHub Advanced Security (required for SARIF upload)
+        # is only available for public repos or paid Enterprise plan.
+        # This allows the workflow to succeed even when Advanced Security is unavailable,
+        # while still uploading SARIF if the feature becomes available later.
+        continue-on-error: true
+        with:
+          sarif_file: pr/backend/snyk-python.sarif
+          category: snyk-sca-python
+
+      - name: Upload Snyk JSON report as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && (hashFiles('snyk-pr-backend.json') != '' || hashFiles('snyk-base-backend.json') != '' || hashFiles('pr/backend/snyk-python.json') != '')
+        with:
+          name: snyk-python-report
+          path: |
+            snyk-pr-backend.json
+            snyk-base-backend.json
+            pr/backend/snyk-python.json
+          retention-days: 90
+
+  snyk-sca-frontend:
+    name: Snyk SCA (Frontend)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name != 'pull_request'
+    steps:
+      # Checkout PR branch first
+      - name: Checkout PR branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          path: pr
+
+      - name: Set up Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
+        with:
+          node-version: '20'
+
+      - uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1
+
+      - name: Install PR dependencies
+        working-directory: pr/frontend
+        run: npm ci
+
+      - name: Scan PR branch dependencies
+        working-directory: pr/frontend
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --json-file-output=../../snyk-pr-frontend.json \
+            --project-name="${{ github.repository }}/frontend" \
+            --file=package.json || true
+
+      # Only scan base branch for pull requests (not for push/schedule)
+      - name: Checkout base branch
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: Install base dependencies
+        if: github.event_name == 'pull_request'
+        working-directory: base/frontend
+        run: npm ci
+
+      - name: Scan base branch dependencies
+        if: github.event_name == 'pull_request'
+        working-directory: base/frontend
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --json-file-output=../../snyk-base-frontend.json \
+            --project-name="${{ github.repository }}/frontend" \
+            --file=package.json || true
+
+      # Compare results and fail only on NEW HIGH/CRITICAL vulnerabilities
+      - name: Compare and filter vulnerabilities
+        if: github.event_name == 'pull_request'
+        run: bash pr/.github/scripts/compare-snyk-results.sh snyk-base-frontend.json snyk-pr-frontend.json
+
+      # For push/schedule events, use traditional blocking behavior
+      - name: Block on any HIGH/CRITICAL (non-PR events)
+        if: github.event_name != 'pull_request'
+        working-directory: pr/frontend
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --severity-threshold=high \
+            --project-name="${{ github.repository }}/frontend" \
+            --file=package.json \
+            --sarif-file-output=snyk-npm.sarif \
+            --json-file-output=snyk-npm.json
+
+      - name: Upload Snyk results to GitHub Security
+        uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
+        if: always() && hashFiles('pr/frontend/snyk-npm.sarif') != ''
+        # continue-on-error: GitHub Advanced Security (required for SARIF upload)
+        # is only available for public repos or paid Enterprise plan.
+        # This allows the workflow to succeed even when Advanced Security is unavailable,
+        # while still uploading SARIF if the feature becomes available later.
+        continue-on-error: true
+        with:
+          sarif_file: pr/frontend/snyk-npm.sarif
+          category: snyk-sca-npm
+
+      - name: Upload Snyk JSON report as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && (hashFiles('snyk-pr-frontend.json') != '' || hashFiles('snyk-base-frontend.json') != '' || hashFiles('pr/frontend/snyk-npm.json') != '')
+        with:
+          name: snyk-npm-report
+          path: |
+            snyk-pr-frontend.json
+            snyk-base-frontend.json
+            pr/frontend/snyk-npm.json
+          retention-days: 90

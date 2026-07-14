@@ -185,27 +185,80 @@ When adding a new Python version:
 
 ## Vulnerability Scanning
 
-### Snyk SCA (Software Composition Analysis)
+### Snyk Security Scanning
 
-All dependency updates are automatically scanned for known vulnerabilities using Snyk SCA:
+Nexus uses Snyk for two types of security scanning:
 
-**When it runs:**
-- On every pull request (Python and npm dependencies)
+**SAST (Static Application Security Testing):**
+- Analyzes application code for security vulnerabilities (SQL injection, XSS, hardcoded secrets, etc.)
+- Workflow file: `.github/workflows/sast-snyk.yml` (scans both backend and frontend)
+- Does NOT run on pull requests (informational only on push to devel)
 - Scheduled daily at 2:23 PM UTC
+
+**When SAST runs:**
+- Scheduled daily at 2:23 PM UTC (catches newly-disclosed code vulnerabilities)
+- On pushes to `devel` branch (post-merge verification)
+- On-demand via workflow_dispatch
+
+**Severity thresholds:**
+- **HIGH/CRITICAL**: Fails the workflow with `--severity-threshold=high`
+- **MEDIUM/LOW**: Not reported when using high threshold
+- Note: Since SAST runs post-merge (not on PRs), it does not block PR merges
+
+**SCA (Software Composition Analysis):**
+- Scans dependencies for known CVEs
+- Uses differential scanning: only blocks PRs on NEW vulnerabilities introduced by the PR
+- Runs only when dependency files change (to reduce noise on feature PRs)
+- Workflow file: `.github/workflows/sca-snyk.yml` (two jobs: Python and npm)
+- Smart conditionals: only runs relevant job based on which dependency files changed
+
+**When SCA runs:**
+- On pull requests that modify dependency files:
+  - Backend: `backend/pyproject.toml`, `backend/requirements*.txt`, `backend/src/*/pyproject.toml`
+  - Frontend: `frontend/package.json`, `frontend/package-lock.json`, `frontend/packages/*/package.json`
+- Scheduled daily at 2:23 PM UTC (catches newly-disclosed CVEs)
 - On pushes to `devel` branch
 - On-demand via workflow_dispatch
+
+**How SCA works for pull requests (differential scanning):**
+
+For each PR that modifies dependency files:
+1. Scans dependencies in the **base branch** (target branch state)
+2. Scans dependencies in the **PR branch** (proposed changes)
+3. Compares results and **blocks only on NEW HIGH/CRITICAL vulnerabilities**
+
+This means:
+- ✅ PR passes if it doesn't introduce new vulnerabilities
+- ❌ PR fails if bumping a dependency introduces new HIGH/CRITICAL vulnerabilities
+- ✅ Pre-existing vulnerabilities in base branch don't block the PR
+- ✅ Metadata-only changes (e.g., updating `description` in pyproject.toml) pass
+- ✅ Handles transitive dependencies correctly (if bumping B brings in vulnerable C, PR is blocked)
+
+**Examples:**
+
+*Example 1: Pre-existing vulnerability doesn't block*
+- Base: Library A has CVE-2024-1234 (HIGH), Library B v1.0
+- PR: Bumps Library B v1.0 → v2.0 (clean)
+- Result: ✅ **PR passes** (CVE-2024-1234 existed before this PR)
+
+*Example 2: New vulnerability blocks*
+- Base: Library B v1.0 (no known vulnerabilities)
+- PR: Bumps Library B v1.0 → v2.0 (has CVE-2024-5678 HIGH)
+- Result: ❌ **PR blocked** (new vulnerability introduced)
+
+*Example 3: Transitive dependency vulnerability blocks*
+- Base: Library B v1.0 (no vulnerable dependencies)
+- PR: Bumps Library B v1.0 → v2.0 (brings in Library C with CVE-2024-9999 HIGH)
+- Result: ❌ **PR blocked** (transitive vulnerability introduced)
 
 **What it checks:**
 - Python dependencies (via `requirements.txt`)
 - npm dependencies (via `package.json` in `frontend/`)
 
 **Severity thresholds:**
-- **HIGH/CRITICAL**: Blocks PR merge (CI fails)
+- **HIGH/CRITICAL**: Blocks PR merge only if NEW (not pre-existing)
 - **MEDIUM/LOW**: Reported but does not block merge
-
-**Workflow files:**
-- `.github/workflows/sast-snyk-backend.yml` - Backend SAST & SCA
-- `.github/workflows/sast-snyk-frontend.yml` - Frontend SAST & SCA
+- **For push/schedule events**: Blocks on ANY HIGH/CRITICAL (traditional behavior)
 
 ### Manual Review Policy
 
