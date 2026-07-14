@@ -116,7 +116,11 @@ class TestRetryExecution:
         )
 
         with (
-            patch.object(service, "_resolve_user_display_name", new_callable=AsyncMock, return_value="Author"),
+            patch(
+                "nexus.workflows.services.execution_service.resolve_user_display_name",
+                new_callable=AsyncMock,
+                return_value="Author",
+            ),
             patch.object(service, "convert_resource_mixin") as mock_convert,
         ):
             mock_convert.convert_resource.return_value = Mock()
@@ -225,7 +229,11 @@ class TestRetryExecution:
         )
 
         with (
-            patch.object(service, "_resolve_user_display_name", new_callable=AsyncMock, return_value="Author"),
+            patch(
+                "nexus.workflows.services.execution_service.resolve_user_display_name",
+                new_callable=AsyncMock,
+                return_value="Author",
+            ),
             patch.object(service, "convert_resource_mixin") as mock_convert,
         ):
             mock_convert.convert_resource.return_value = Mock()
@@ -309,7 +317,11 @@ class TestRetryExecution:
         )
 
         with (
-            patch.object(service, "_resolve_user_display_name", new_callable=AsyncMock, return_value="Author"),
+            patch(
+                "nexus.workflows.services.execution_service.resolve_user_display_name",
+                new_callable=AsyncMock,
+                return_value="Author",
+            ),
             pytest.raises(Exception, match="DB commit failed"),
         ):
             await service.retry_execution(execution.id)

@@ -52,6 +52,7 @@ from nexus.workflows.models.execution import (
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_definition import WorkflowDefinition
 from nexus.workflows.models.workflow_version import WorkflowVersion
+from nexus.workflows.utils.workflow_metadata import build_workflow_metadata, resolve_user_display_name
 from nexus.workflows.workflow_engine.models.workflow_definition import NodeType, resolve_trigger_node
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
@@ -190,17 +191,6 @@ class ExecutionService(BaseService):
                 error_type=error_type,
             )
         )
-
-    async def _resolve_user_display_name(self, user_id: UUID) -> str:
-        """Resolve a user ID to a display name, falling back to UUID string."""
-        try:
-            result = await self.session.exec(select(User).where(User.id == user_id))
-            user = result.first()
-            if user and hasattr(user, "display_name"):
-                return user.display_name
-        except Exception:  # noqa: BLE001
-            logger.debug("Could not resolve user display name", user_id=str(user_id))
-        return str(user_id)
 
     @staticmethod
     def _apply_trigger_schema_defaults(
@@ -370,27 +360,21 @@ class ExecutionService(BaseService):
         # Users who need the execution start time can reference ${workflow_context.execution.created_at}.
         pre_generated_execution_id = str(uuid4())
         now = datetime.now(UTC)
-        workflow_author = await self._resolve_user_display_name(workflow.created_by)
-        workflow_metadata: dict[str, Any] = {
-            "workflow_context": {
-                "workflow": {
-                    "name": workflow.name,
-                    "id": str(workflow.id),
-                    "version": workflow_version.version,
-                    "published": workflow.published_version is not None,
-                    "author": workflow_author,
-                    "project_id": str(workflow.project_id),
-                },
-                "execution": {
-                    "id": pre_generated_execution_id,
-                    "mode": "standard",
-                    "created_by": self.user.display_name,
-                    "created_by_user_id": str(self.user.id),
-                    "created_at": now.isoformat(),
-                    "workflow_version_id": str(workflow_version.id),
-                },
-            },
-        }
+        workflow_author = await resolve_user_display_name(self.session, workflow.created_by)
+        workflow_metadata = build_workflow_metadata(
+            workflow_name=workflow.name,
+            workflow_id=workflow.id,
+            workflow_version=workflow_version.version,
+            workflow_published=workflow.published_version is not None,
+            workflow_author=workflow_author,
+            project_id=workflow.project_id,
+            execution_id=pre_generated_execution_id,
+            execution_mode="standard",
+            created_by=self.user.display_name,
+            created_by_user_id=str(self.user.id),
+            created_at=now.isoformat(),
+            workflow_version_id=workflow_version.id,
+        )
 
         # Start Temporal workflow FIRST (if temporal_service is available)
         from nexus.audit.emitter import request_id_context_var  # noqa: PLC0415
@@ -703,27 +687,21 @@ class ExecutionService(BaseService):
         # "now" and "today" are resolved dynamically per-node by the workflow engine.
         pre_generated_execution_id = str(uuid4())
         now = datetime.now(UTC)
-        workflow_author = await self._resolve_user_display_name(workflow.created_by)
-        workflow_metadata: dict[str, Any] = {
-            "workflow_context": {
-                "workflow": {
-                    "name": workflow.name,
-                    "id": str(workflow.id),
-                    "version": workflow_version.version,
-                    "published": workflow.published_version is not None,
-                    "author": workflow_author,
-                    "project_id": str(workflow.project_id),
-                },
-                "execution": {
-                    "id": pre_generated_execution_id,
-                    "mode": "test",
-                    "created_by": self.user.display_name,
-                    "created_by_user_id": str(self.user.id),
-                    "created_at": now.isoformat(),
-                    "workflow_version_id": str(workflow_version.id),
-                },
-            },
-        }
+        workflow_author = await resolve_user_display_name(self.session, workflow.created_by)
+        workflow_metadata = build_workflow_metadata(
+            workflow_name=workflow.name,
+            workflow_id=workflow.id,
+            workflow_version=workflow_version.version,
+            workflow_published=workflow.published_version is not None,
+            workflow_author=workflow_author,
+            project_id=workflow.project_id,
+            execution_id=pre_generated_execution_id,
+            execution_mode="test",
+            created_by=self.user.display_name,
+            created_by_user_id=str(self.user.id),
+            created_at=now.isoformat(),
+            workflow_version_id=workflow_version.id,
+        )
 
         # Step 4: Start Temporal workflow with test parameters (if temporal_service is available)
         from nexus.audit.emitter import request_id_context_var  # noqa: PLC0415

@@ -52,9 +52,12 @@ class TestExecutionMetadata:
 
         mock_workflow = MagicMock()
         mock_workflow.id = workflow_id
+        mock_workflow.name = "test-workflow"
         mock_workflow.project_id = uuid4()
+        mock_workflow.created_by = uuid4()
         mock_version = MagicMock()
         mock_version.id = uuid4()
+        mock_version.version = 1
         mock_version.workflow_definition = {
             "schema_version": "2.0.0",
             "triggers": [],
@@ -69,6 +72,10 @@ class TestExecutionMetadata:
         with (
             patch.object(launcher, "_load_published_workflow", return_value=(mock_workflow, mock_version)),
             patch("nexus.workflows.workflow_engine.scheduled_launcher.get_settings") as mock_get_settings,
+            patch(
+                "nexus.workflows.workflow_engine.scheduled_launcher.resolve_user_display_name",
+                return_value="Author Name",
+            ),
             patch(
                 "nexus.workflows.workflow_engine.scheduled_launcher.create_temporal_execution_service"
             ) as mock_create_svc,
@@ -104,6 +111,13 @@ class TestExecutionMetadata:
 
         assert result["execution_id"] is not None
         assert result["temporal_workflow_id"] == "temporal-wf-123"
+
+        # Verify workflow_metadata was passed to start_workflow
+        call_kwargs = mock_svc.start_workflow.call_args[1]
+        wf_meta = call_kwargs["workflow_metadata"]
+        assert wf_meta["workflow_context"]["workflow"]["project_id"] == str(mock_workflow.project_id)
+        assert wf_meta["workflow_context"]["workflow"]["name"] == "test-workflow"
+        assert wf_meta["workflow_context"]["execution"]["mode"] == "scheduled"
 
 
 class TestMetricsRecording:

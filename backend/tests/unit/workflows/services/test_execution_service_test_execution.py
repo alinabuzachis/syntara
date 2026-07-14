@@ -155,6 +155,12 @@ class TestCreateTestExecution:
         assert call_kwargs["pre_resolved_outputs"] == {"node_1": {"output": {"v": 1}, "control": None}}
         assert call_kwargs["stop_after_nodes"] == ["target_node"]
 
+        # Verify workflow_metadata includes project_id (prevents approval activity regression)
+        wf_meta = call_kwargs["workflow_metadata"]
+        assert wf_meta is not None
+        assert wf_meta["workflow_context"]["workflow"]["project_id"] == str(wf.project_id)
+        assert wf_meta["workflow_context"]["execution"]["mode"] == "test"
+
     @pytest.mark.asyncio
     async def test_success_without_temporal_uses_stub_id(self) -> None:
         """When Temporal is unavailable, a stub workflow ID is generated."""

@@ -278,6 +278,54 @@ class TestCreateExecution:
         assert call_kwargs["is_builtin"] is True
 
     @pytest.mark.asyncio
+    async def test_create_execution_passes_workflow_metadata_with_project_id(self) -> None:
+        """workflow_metadata with project_id is passed to Temporal (prevents approval regression)."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_temporal = Mock()
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = uuid4()
+        workflow.name = "test-workflow"
+        workflow.is_enabled = True
+        workflow.project_id = uuid4()
+
+        workflow_version = Mock(spec=WorkflowVersion)
+        workflow_version.id = uuid4()
+        workflow_version.version = 1
+        workflow_version.schema_version = "2.0.0"
+        workflow_version.workflow_definition = {
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=(workflow, workflow_version))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        temporal_result = Mock()
+        temporal_result.execution_id = str(uuid4())
+        temporal_result.temporal_workflow_id = "exec-abc"
+        temporal_result.temporal_run_id = "run-xyz"
+        mock_temporal.start_workflow = AsyncMock(return_value=temporal_result)
+
+        mock_user = Mock(spec=User)
+        mock_user.id = uuid4()
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
+
+        await service.create_execution(workflow_id=workflow.id, input_data={})
+
+        call_kwargs = mock_temporal.start_workflow.call_args.kwargs
+        wf_meta = call_kwargs["workflow_metadata"]
+        assert wf_meta is not None
+        assert wf_meta["workflow_context"]["workflow"]["project_id"] == str(workflow.project_id)
+        assert wf_meta["workflow_context"]["execution"]["mode"] == "standard"
+
+    @pytest.mark.asyncio
     async def test_create_execution_success_without_temporal(self) -> None:
         """Test successful execution creation without Temporal (stub mode)."""
         mock_session = Mock(spec=AsyncSession)
@@ -463,7 +511,11 @@ class TestCreateExecution:
         )
 
         with (
-            patch.object(service, "_resolve_user_display_name", new_callable=AsyncMock, return_value="Author"),
+            patch(
+                "nexus.workflows.services.execution_service.resolve_user_display_name",
+                new_callable=AsyncMock,
+                return_value="Author",
+            ),
             pytest.raises(Exception, match="DB commit failed"),
         ):
             await service.create_execution(workflow_id=workflow_id, input_data={})

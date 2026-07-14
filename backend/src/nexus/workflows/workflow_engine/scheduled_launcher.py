@@ -9,7 +9,7 @@ NexusWorkflow via Temporal, and creates the Execution record in the database.
 
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from temporalio import activity, workflow
 
@@ -27,6 +27,7 @@ with workflow.unsafe.imports_passed_through():
     from nexus.workflows.models.workflow import Workflow
     from nexus.workflows.models.workflow_version import WorkflowVersion
     from nexus.workflows.utils.schedule_parser import build_schedule_id
+    from nexus.workflows.utils.workflow_metadata import build_workflow_metadata, resolve_user_display_name
     from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
     from nexus.workflows.workflow_engine.services.temporal_execution_service import (
         create_temporal_execution_service,
@@ -196,7 +197,25 @@ class ScheduledExecutionLauncher:
             wf_version_id = wf_version.id
             workflow_def = wf_version.workflow_definition
 
+            author_name = await resolve_user_display_name(session, wf_workflow.created_by)
+
         # Phase 2: Start NexusWorkflow via Temporal (no DB session held)
+        pre_generated_execution_id = str(uuid4())
+        workflow_metadata = build_workflow_metadata(
+            workflow_name=wf_name,
+            workflow_id=wf_id,
+            workflow_version=wf_version.version,
+            workflow_published=True,
+            workflow_author=author_name,
+            project_id=wf_project_id,
+            execution_id=pre_generated_execution_id,
+            execution_mode="scheduled",
+            created_by=author_name,
+            created_by_user_id=str(wf_workflow.created_by),
+            created_at=triggered_at.isoformat(),
+            workflow_version_id=wf_version_id,
+        )
+
         temporal_service = await create_temporal_execution_service(task_queue=self._task_queue)
         temporal_result = await temporal_service.start_workflow(
             workflow_def=workflow_def,
@@ -207,6 +226,8 @@ class ScheduledExecutionLauncher:
             },
             workflow_id=str(workflow_id),
             trigger_node_id=trigger_node_id,
+            workflow_metadata=workflow_metadata,
+            execution_id=pre_generated_execution_id,
         )
 
         execution_id = UUID(temporal_result.execution_id)
