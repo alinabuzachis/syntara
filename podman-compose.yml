@@ -1,10 +1,13 @@
 ---
+# All infrastructure ports are bound to 127.0.0.1 (loopback only).
+# They are reachable from localhost but not from external network interfaces,
+# making this file safe to use on cloud VMs without additional hardening.
 services:
   database:
     image: ${POSTGRES_IMAGE:-quay.io/sclorg/postgresql-15-c9s}
     restart: unless-stopped
     ports:
-      - ${APP_DB_PORT:-5432}:5432
+      - "127.0.0.1:${APP_DB_PORT:-5432}:5432"
     environment:
       POSTGRESQL_USER: ${APP_DB_USER:-admin}
       POSTGRESQL_PASSWORD: ${APP_DB_PASSWORD:-admin}
@@ -19,11 +22,11 @@ services:
       retries: 5
 
   redis:
-    image: ${APP_CACHE_IMAGE:-mirror.gcr.io/library/redis:6}
+    image: ${APP_CACHE_IMAGE:-mirror.gcr.io/library/redis:6.2.22@sha256:da7091440b2b4d9456603be812dba895cd75bedd66564d7f01f1f010521f8467}
     restart: unless-stopped
     command: sh -c "redis-server --requirepass $${REDIS_PASSWORD:-cache}"
     ports:
-      - ${APP_CACHE_PORT:-6379}:6379
+      - "127.0.0.1:${APP_CACHE_PORT:-6379}:6379"
     environment:
       REDIS_PASSWORD: ${APP_CACHE_PASSWORD:-cache}
     healthcheck:
@@ -50,7 +53,7 @@ services:
     image: mirror.gcr.io/temporalio/auto-setup:1.25.1
     restart: unless-stopped
     ports:
-      - ${APP_TEMPORAL_PORT:-7233}:7233
+      - "127.0.0.1:${APP_TEMPORAL_PORT:-7233}:7233"
     environment:
       - DB=postgres12
       - DB_PORT=5432
@@ -88,7 +91,7 @@ services:
     image: mirror.gcr.io/temporalio/ui:2.31.2
     restart: unless-stopped
     ports:
-      - ${APP_TEMPORAL_UI_PORT:-8081}:8080
+      - "127.0.0.1:${APP_TEMPORAL_UI_PORT:-8081}:8080"
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CORS_ORIGINS=http://localhost:3000
@@ -106,10 +109,10 @@ services:
         condition: service_healthy
 
   moto:
-    image: docker.io/motoserver/moto:latest
+    image: docker.io/motoserver/moto:5.2.2@sha256:d8ae5edc2bf080e7e4c13f9bd4b29b53ac3b4427e92956318db3dbe23ec43eb7
     restart: unless-stopped
     ports:
-      - ${APP_MOTO_PORT:-5555}:5000
+      - "127.0.0.1:${APP_MOTO_PORT:-5555}:5000"
     healthcheck:
       test: [CMD-SHELL, 'curl -sf http://localhost:5000/moto-api/ > /dev/null']
       interval: 5s
@@ -354,7 +357,7 @@ services:
     image: ${MCP_IMAGE:-localhost/nexus-mcp:latest}
     restart: unless-stopped
     ports:
-      - ${MCP_PORT:-8765}:8765
+      - "127.0.0.1:${MCP_PORT:-8765}:8765"
     environment:
       - APP_FALLBACK_LOG_LEVEL=${APP_FALLBACK_LOG_LEVEL:-INFO}
       - MCP_HOST=0.0.0.0
