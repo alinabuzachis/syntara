@@ -291,6 +291,7 @@ function ApprovalFormFields({
   const settingsContent = (
     <NodeSettingsForm
       supportsTimeout={false}
+      supportsRetryPolicy={false}
       continueOnFailureHelp="When enabled and the approval cannot complete (decision window expired or send failure), the workflow proceeds. The outcome is determined by the fallback decision in the approval config."
     />
   )

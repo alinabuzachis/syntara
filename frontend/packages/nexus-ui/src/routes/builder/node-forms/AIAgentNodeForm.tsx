@@ -428,7 +428,7 @@ function AIAgentFormFields({
     </Stack>
   )
 
-  const settingsContent = <NodeSettingsForm timeoutNodeType="agentic" />
+  const settingsContent = <NodeSettingsForm timeoutNodeType="agentic" supportsRetryPolicy={false} />
 
   return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }

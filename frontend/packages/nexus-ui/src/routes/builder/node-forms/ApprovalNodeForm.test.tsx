@@ -618,6 +618,17 @@ describe('ApprovalNodeForm', () => {
     })
   })
 
+  describe('retry policy visibility', () => {
+    it('hides retry policy for approval nodes', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
+
+      await user.click(screen.getByRole('tab', { name: 'Settings' }))
+
+      expect(screen.queryByRole('switch', { name: 'Override retry policy' })).not.toBeInTheDocument()
+    })
+  })
+
   describe('Accessibility', () => {
     it('has no accessibility violations', async () => {
       const { container } = renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)

@@ -586,4 +586,48 @@ describe('ActionNodeForm', () => {
       expect(await axe(container)).toHaveNoViolations()
     })
   })
+
+  describe('retry policy visibility', () => {
+    it('hides retry policy for script executor', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'script' }} />)
+
+      await user.click(screen.getByRole('tab', { name: 'Settings' }))
+
+      expect(screen.queryByRole('switch', { name: 'Override retry policy' })).not.toBeInTheDocument()
+    })
+
+    it('shows retry policy for HTTP request executor', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+      await user.click(screen.getByRole('tab', { name: 'Settings' }))
+
+      expect(screen.getByRole('switch', { name: 'Override retry policy' })).toBeInTheDocument()
+    })
+
+    it('strips retry_policy from submitted data when executor is script', async () => {
+      renderWithHeader(
+        <ActionNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            executor: 'script',
+            code: 'print("hello")',
+            settings: { retry_policy: { max_retries: 3, initial_interval: 10 } },
+          }}
+        />
+      )
+
+      fireEvent.submit(screen.getByTestId('action-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            executor: 'script',
+            settings: expect.objectContaining({ retry_policy: undefined }) as unknown,
+          })
+        )
+      })
+    })
+  })
 })

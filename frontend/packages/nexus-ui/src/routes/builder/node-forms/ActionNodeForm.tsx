@@ -346,8 +346,9 @@ function ActionFormFields({
     />
   )
 
-  const timeoutNodeType = executor === ExecutorTypeEnum.HTTP_REQUEST ? 'http_request' : 'script'
-  const settingsContent = <NodeSettingsForm timeoutNodeType={timeoutNodeType} />
+  const isHttpRequest = executor === ExecutorTypeEnum.HTTP_REQUEST
+  const timeoutNodeType = isHttpRequest ? 'http_request' : 'script'
+  const settingsContent = <NodeSettingsForm timeoutNodeType={timeoutNodeType} supportsRetryPolicy={isHttpRequest} />
 
   return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }
@@ -380,7 +381,10 @@ export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
       parameters: data.parameters ?? undefined,
       requiresApproval: props.initialData?.requiresApproval,
       credential_id: data.credential_id ?? undefined,
-      settings: data.settings,
+      settings: {
+        ...data.settings,
+        retry_policy: data.executor === ExecutorTypeEnum.HTTP_REQUEST ? data.settings?.retry_policy : undefined,
+      },
     }
     props.onSubmit(cleanedData)
   }

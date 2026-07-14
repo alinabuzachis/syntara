@@ -614,6 +614,17 @@ describe('AIAgentNodeForm', () => {
     })
   })
 
+  describe('retry policy visibility', () => {
+    it('hides retry policy for AI agent nodes', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      await user.click(screen.getByRole('tab', { name: 'Settings' }))
+
+      expect(screen.queryByRole('switch', { name: 'Override retry policy' })).not.toBeInTheDocument()
+    })
+  })
+
   describe('Accessibility', () => {
     it('has no accessibility violations (excluding known PatternFly Tabs issue)', async () => {
       const { container } = renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
