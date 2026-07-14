@@ -13,9 +13,11 @@ import sys
 from collections.abc import Callable, Coroutine
 from typing import Any
 
+import prometheus_client
 import structlog
 
 from nexus.audit.registration import discover_and_register_all_handlers
+from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.logging.logging import apply_runtime_log_level
 from nexus.settings.cache.settings_cache import SettingsCache, get_runtime_settings, set_runtime_settings
@@ -52,6 +54,22 @@ async def run_worker(start_fn: StartFn, *, worker_name: str) -> None:
 
     set_runtime_settings(SettingsCache(session_factory=AsyncSessionLocal))
     await apply_runtime_log_level()
+
+    # Expose a Prometheus HTTP endpoint so ServiceMonitors can scrape worker-side metrics.
+    # Uses a daemon thread — does not block the event loop. Port conflicts (two workers on
+    # the same host, or Prometheus already bound to the port) are logged and ignored —
+    # a missing metrics endpoint must never prevent the worker from starting.
+    _metrics_port = get_settings().metrics_worker_port
+    try:
+        prometheus_client.start_http_server(_metrics_port)
+        logger.info("Worker metrics server started", port=_metrics_port, worker=worker_name)
+    except OSError as exc:
+        logger.warning(
+            "Worker metrics server could not bind — skipping",
+            port=_metrics_port,
+            worker=worker_name,
+            error=str(exc),
+        )
 
     # Ensure @watch_setting("telemetry.segment_write_key") is registered before
     # start_watching() applies pending watchers.

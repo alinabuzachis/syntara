@@ -1632,6 +1632,17 @@ class MetricsSettings(BaseSettings):
         gt=0,
     )
 
+    metrics_worker_port: int = Field(
+        default=9090,
+        description=(
+            "TCP port on which Temporal workers expose a Prometheus metrics HTTP endpoint. "
+            "Set via APP_METRICS_WORKER_PORT. Used by both nexus-workflow-worker and "
+            "nexus-background-worker so Prometheus can scrape worker-side metrics."
+        ),
+        ge=1,
+        le=65535,
+    )
+
 
 # =============================================================================
 # Workflow Client Configuration
