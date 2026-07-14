@@ -13,10 +13,11 @@ The poller reuses the same deduplication set as the on-read path, so
 executions are never double-counted regardless of which path fires first.
 
 Agent metrics (AGENT_ROUTING_DURATION, AGENT_INVOCATION_DURATION,
-AGENT_STATUS) are recorded by the Temporal worker process which has a
-separate in-memory MetricsRecorder.  This poller bridges them into the
-API server's store by reading persisted timing data from completed
-invocations.
+AGENT_STATUS) and LLM metrics (LLM_DURATION, LLM_TOKENS_INPUT,
+LLM_TOKENS_OUTPUT, LLM_STATUS) are recorded by the Temporal worker
+process which has a separate in-memory MetricsRecorder.  This poller
+bridges them into the API server's store by reading persisted timing
+data from completed invocations and token usage records.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from nexus.agent_orchestrator.models.invocation import Invocation, InvocationStatus
+from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.workers.periodic import PeriodicWorker
@@ -38,6 +40,8 @@ from nexus.metrics.types import MetricType
 from nexus.workflows.models.execution import TERMINAL_EXECUTION_STATUSES, Execution
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from sqlalchemy.ext.asyncio import async_sessionmaker
     from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -54,12 +58,23 @@ TERMINAL_INVOCATION_STATUSES = frozenset(
 )
 
 
-def _emit_invocation_agent_metrics(invocation: Invocation, recorder: MetricsRecorder) -> bool:
-    """Emit agent metrics for a completed invocation.
+def _emit_invocation_agent_metrics(
+    invocation: Invocation,
+    recorder: MetricsRecorder,
+    token_record: TokenUsageRecord | None = None,
+) -> bool:
+    """Emit agent and LLM metrics for a completed invocation.
 
     Reads ``routing_duration_ms`` and invocation timing from the
     persisted result metadata and records AGENT_ROUTING_DURATION,
     AGENT_INVOCATION_DURATION, and AGENT_STATUS.
+
+    When a *token_record* is provided, also bridges LLM metrics
+    (LLM_TOKENS_INPUT, LLM_TOKENS_OUTPUT, LLM_DURATION, LLM_STATUS)
+    from the persisted ``TokenUsageRecord`` into the API server's
+    in-memory store.  The Temporal worker records these metrics in its
+    own process memory; this poller makes them visible to the internal
+    metrics API.
 
     Returns True if metrics were emitted, False if skipped.
     """
@@ -104,11 +119,70 @@ def _emit_invocation_agent_metrics(invocation: Invocation, recorder: MetricsReco
             labels={"invocation_id": inv_id, "status": status},
         )
         emitted_any = True
+    elif invocation.status == InvocationStatus.CANCELLED and invocation.completed_at:
+        recorder.record(
+            MetricType.AGENT_STATUS,
+            value=1,
+            labels={"invocation_id": inv_id, "status": "cancelled"},
+        )
+        emitted_any = True
+
+    # LLM metrics bridged from TokenUsageRecord
+    if token_record is not None:
+        emitted_any = _emit_llm_metrics(invocation, token_record, recorder) or emitted_any
 
     if emitted_any:
         emitted_invocations.add(invocation.id)
 
     return emitted_any
+
+
+def _emit_llm_metrics(
+    invocation: Invocation,
+    token_record: TokenUsageRecord,
+    recorder: MetricsRecorder,
+) -> bool:
+    """Bridge LLM token and duration metrics from the database.
+
+    The Temporal worker records these via ``record_llm_call`` in its own
+    process memory.  This function re-emits them from persisted data so
+    they appear in the API server's internal metrics store.
+    """
+    prompt_tokens = token_record.prompt_tokens or 0
+    completion_tokens = token_record.completion_tokens or 0
+
+    if prompt_tokens == 0 and completion_tokens == 0:
+        return False
+
+    model = invocation.model_name or "unknown"
+    provider = model.split("/", 1)[0] if "/" in model else "unknown"
+    status = "success" if invocation.status == InvocationStatus.COMPLETED else invocation.status.value
+    llm_labels = {"model": model, "provider": provider, "status": status}
+
+    if prompt_tokens > 0:
+        recorder.record(
+            MetricType.LLM_TOKENS_INPUT,
+            float(prompt_tokens),
+            unit="tokens",
+            labels=llm_labels,
+        )
+
+    if completion_tokens > 0:
+        recorder.record(
+            MetricType.LLM_TOKENS_OUTPUT,
+            float(completion_tokens),
+            unit="tokens",
+            labels=llm_labels,
+        )
+
+    # LLM_DURATION approximated from invocation wall-clock time
+    if invocation.started_at and invocation.completed_at:
+        duration_ms = (invocation.completed_at - invocation.started_at).total_seconds() * 1000
+        recorder.record(MetricType.LLM_DURATION, duration_ms, unit="ms", labels=llm_labels)
+
+    recorder.record(MetricType.LLM_STATUS, 1.0, labels=llm_labels)
+    recorder.increment("llm_calls")
+    return True
 
 
 async def poll_completed_executions(
@@ -141,7 +215,8 @@ async def poll_completed_executions(
             if await emit_completion_metrics(session, execution, recorder):
                 exec_emitted += 1
 
-    # --- Agent metrics (bridged from Temporal worker) ---
+    # --- Agent & LLM metrics (bridged from Temporal worker) ---
+    token_by_invocation: dict[UUID, TokenUsageRecord] = {}
     async with session_factory() as session:
         inv_result = await session.exec(
             select(Invocation)
@@ -150,9 +225,19 @@ async def poll_completed_executions(
         )
         invocations = inv_result.all()
 
+        inv_ids = [inv.id for inv in invocations if inv.id not in emitted_invocations]
+        if inv_ids:
+            token_result = await session.exec(
+                select(TokenUsageRecord).where(
+                    TokenUsageRecord.invocation_id.in_(inv_ids)  # type: ignore[union-attr]
+                )
+            )
+            token_by_invocation = {r.invocation_id: r for r in token_result.all() if r.invocation_id is not None}
+
     inv_emitted = 0
     for invocation in invocations:
-        if _emit_invocation_agent_metrics(invocation, recorder):
+        token_record = token_by_invocation.get(invocation.id)
+        if _emit_invocation_agent_metrics(invocation, recorder, token_record):
             inv_emitted += 1
 
     if exec_emitted or inv_emitted:

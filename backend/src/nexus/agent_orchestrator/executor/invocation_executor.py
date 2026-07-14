@@ -494,7 +494,11 @@ class InvocationExecutor:
                 error_type=type(e).__name__,
             )
 
-            if await self._fail_invocation_if_not_cancelled(invocation.id, completed_at=datetime.now(UTC)):
+            if await self._fail_invocation_if_not_cancelled(
+                invocation.id,
+                completed_at=datetime.now(UTC),
+                error_message=f"{type(e).__name__}: {e}",
+            ):
                 # Dispatch FAILED event
                 AuditEventDispatcher.dispatch(
                     InvocationLifecycleEvent(
