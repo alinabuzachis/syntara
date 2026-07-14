@@ -14,6 +14,12 @@
 /frontend/.claude/skills/patternfly-ux-design-system.md @syntara-orchestration/uxd-team
 /frontend/.cursor/rules/patternfly-ux-design-system.mdc @syntara-orchestration/uxd-team
 
+# CI/CD — workflows, custom actions, and CI-adjacent config
+/.github/workflows/ @syntara-orchestration/syntara-ci-stability
+/.github/actions/ @syntara-orchestration/syntara-ci-stability
+/.github/actionlint.yaml @syntara-orchestration/syntara-ci-stability
+/.github/dependabot.yml @syntara-orchestration/syntara-ci-stability
+
 # Release
 /.tekton @syntara-orchestration/release-team
 /backend/containers/ @syntara-orchestration/release-team
