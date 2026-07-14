@@ -670,7 +670,7 @@ test.describe('Permission gating — Credential actions', () => {
       await expect(createButton).toHaveAttribute('aria-disabled', 'true')
 
       await createButton.hover()
-      await expect(viewerApp.getByRole('tooltip')).toContainText('credential:create')
+      await expect(viewerApp.getByRole('tooltip', { name: /credential:create/i })).toBeVisible()
     } finally {
       await deleteCredentialViaApi(app, credId)
     }

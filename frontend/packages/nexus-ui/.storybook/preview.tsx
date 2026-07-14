@@ -47,9 +47,9 @@ const preview: Preview = {
     colorScheme: 'system',
   },
   decorators: [
-    (Story, context) => {
+    (Story, context: { globals: Record<string, string> }) => {
       const client = useMemo(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }), [])
-      const colorScheme = String(context.globals['colorScheme'] ?? 'system')
+      const colorScheme = context.globals['colorScheme'] ?? 'system'
       return (
         <ColorSchemeProvider>
           <ThemeSync toolbarValue={colorScheme}>
