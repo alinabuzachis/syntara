@@ -61,50 +61,14 @@ class TestValidateClientCert:
     def test_valid_cert_returns_cn(self) -> None:
         cn = _validate_client_cert(
             _make_peercert("backend.ao.svc"),
-            cn_allowlist=None,
             revoked_serials=None,
         )
         assert cn == "backend.ao.svc"
-
-    def test_cn_in_allowlist_accepted(self) -> None:
-        cn = _validate_client_cert(
-            _make_peercert("backend.ao.svc"),
-            cn_allowlist=frozenset({"backend.ao.svc", "worker.ao.svc"}),
-            revoked_serials=None,
-        )
-        assert cn == "backend.ao.svc"
-
-    def test_cn_not_in_allowlist_rejected(self) -> None:
-        with pytest.raises(CertificateValidationError, match="not in the allowlist") as exc_info:
-            _validate_client_cert(
-                _make_peercert("rogue.evil.svc"),
-                cn_allowlist=frozenset({"backend.ao.svc"}),
-                revoked_serials=None,
-            )
-        assert exc_info.value.reason == "cn_not_allowed"
-
-    def test_empty_allowlist_rejects_all(self) -> None:
-        with pytest.raises(CertificateValidationError) as exc_info:
-            _validate_client_cert(
-                _make_peercert("backend.ao.svc"),
-                cn_allowlist=frozenset(),
-                revoked_serials=None,
-            )
-        assert exc_info.value.reason == "cn_not_allowed"
-
-    def test_none_allowlist_accepts_all(self) -> None:
-        cn = _validate_client_cert(
-            _make_peercert("anything.svc"),
-            cn_allowlist=None,
-            revoked_serials=None,
-        )
-        assert cn == "anything.svc"
 
     def test_revoked_serial_rejected(self) -> None:
         with pytest.raises(CertificateValidationError, match="revoked") as exc_info:
             _validate_client_cert(
                 _make_peercert(serial="0A"),
-                cn_allowlist=None,
                 revoked_serials=frozenset({0x0A}),
             )
         assert exc_info.value.reason == "certificate_revoked"
@@ -112,7 +76,6 @@ class TestValidateClientCert:
     def test_non_revoked_serial_accepted(self) -> None:
         cn = _validate_client_cert(
             _make_peercert(serial="0B"),
-            cn_allowlist=None,
             revoked_serials=frozenset({0x0A}),
         )
         assert cn == "worker.ao.svc"
@@ -120,16 +83,14 @@ class TestValidateClientCert:
     def test_none_revoked_serials_skips_check(self) -> None:
         cn = _validate_client_cert(
             _make_peercert(serial="0A"),
-            cn_allowlist=None,
             revoked_serials=None,
         )
         assert cn == "worker.ao.svc"
 
-    def test_revoked_and_allowed_cn_still_rejected(self) -> None:
+    def test_revoked_cert_rejected_regardless_of_cn(self) -> None:
         with pytest.raises(CertificateValidationError) as exc_info:
             _validate_client_cert(
                 _make_peercert("backend.ao.svc", serial="0A"),
-                cn_allowlist=frozenset({"backend.ao.svc"}),
                 revoked_serials=frozenset({0x0A}),
             )
         assert exc_info.value.reason == "certificate_revoked"
@@ -139,7 +100,6 @@ class TestValidateClientCert:
         with pytest.raises(CertificateValidationError) as exc_info:
             _validate_client_cert(
                 peercert,
-                cn_allowlist=None,
                 revoked_serials=None,
             )
         assert exc_info.value.reason == "missing_cn"
@@ -218,10 +178,24 @@ class TestClientCertAuthMiddleware:
             mock.return_value.s2s_tls_crl_path = str(crl_path)
             yield
 
+    @pytest.mark.usefixtures("_tls_with_allowlist")
+    @pytest.mark.asyncio
+    async def test_cert_on_allowlist_sets_service_identity(self) -> None:
+        """Valid client cert on allowlist sets is_cert_authenticated and cert_cn."""
+        app = AsyncMock()
+        middleware = ClientCertAuthMiddleware(app)
+        scope = _make_scope(peercert=_make_peercert("worker.ao.svc"))
+
+        await middleware(scope, AsyncMock(), AsyncMock())
+
+        assert scope["state"]["is_cert_authenticated"] is True
+        assert scope["state"]["cert_cn"] == "worker.ao.svc"
+        app.assert_called_once()
+
     @pytest.mark.usefixtures("_tls_enabled")
     @pytest.mark.asyncio
-    async def test_cert_sets_state(self) -> None:
-        """Valid client cert sets is_cert_authenticated and cert_cn in state."""
+    async def test_cert_without_allowlist_accepts_all(self) -> None:
+        """Valid cert with no allowlist configured: accepts all CNs (backwards compatible)."""
         app = AsyncMock()
         middleware = ClientCertAuthMiddleware(app)
         scope = _make_scope(peercert=_make_peercert("worker.ao.svc"))
@@ -246,14 +220,14 @@ class TestClientCertAuthMiddleware:
         assert scope["state"]["cert_cn"] is None
         app.assert_called_once()
 
-    @pytest.mark.usefixtures("_tls_enabled")
+    @pytest.mark.usefixtures("_tls_with_allowlist")
     @pytest.mark.asyncio
     async def test_on_behalf_of_trusted_with_cert(self) -> None:
         """X-On-Behalf-Of header is preserved when cert-authenticated."""
         app = AsyncMock()
         middleware = ClientCertAuthMiddleware(app)
         headers = [(b"x-on-behalf-of", b"user@example.com")]
-        scope = _make_scope(peercert=_make_peercert(), headers=headers)
+        scope = _make_scope(peercert=_make_peercert("worker.ao.svc"), headers=headers)
 
         await middleware(scope, AsyncMock(), AsyncMock())
 
@@ -318,23 +292,37 @@ class TestClientCertAuthMiddleware:
 
     @pytest.mark.usefixtures("_tls_with_allowlist")
     @pytest.mark.asyncio
-    async def test_cn_not_in_allowlist_returns_403(self) -> None:
-        """CN not in allowlist returns 403, app not called."""
+    async def test_cn_not_in_allowlist_passes_without_service_identity(self) -> None:
+        """CN not in allowlist passes through but without service identity."""
         app = AsyncMock()
         middleware = ClientCertAuthMiddleware(app)
-        scope = _make_scope(peercert=_make_peercert("rogue.evil.svc"))
-        send = AsyncMock()
+        scope = _make_scope(peercert=_make_peercert("ui.ao.svc"))
 
-        await middleware(scope, AsyncMock(), send)
+        await middleware(scope, AsyncMock(), AsyncMock())
 
-        app.assert_not_called()
-        start_call = send.call_args_list[0]
-        assert start_call[0][0]["status"] == 403
+        assert scope["state"]["is_cert_authenticated"] is False
+        assert scope["state"]["cert_cn"] is None
+        app.assert_called_once()
+
+    @pytest.mark.usefixtures("_tls_with_allowlist")
+    @pytest.mark.asyncio
+    async def test_cn_not_in_allowlist_strips_on_behalf_of(self) -> None:
+        """X-On-Behalf-Of is stripped for CNs not in allowlist."""
+        app = AsyncMock()
+        middleware = ClientCertAuthMiddleware(app)
+        headers = [(b"x-on-behalf-of", b"user@example.com"), (b"content-type", b"application/json")]
+        scope = _make_scope(peercert=_make_peercert("ui.ao.svc"), headers=headers)
+
+        await middleware(scope, AsyncMock(), AsyncMock())
+
+        header_names = [k for k, v in scope["headers"]]
+        assert b"x-on-behalf-of" not in header_names
+        assert b"content-type" in header_names
 
     @pytest.mark.usefixtures("_tls_with_allowlist")
     @pytest.mark.asyncio
     async def test_cn_in_allowlist_passes(self) -> None:
-        """CN in allowlist is accepted."""
+        """CN in allowlist is accepted with service identity."""
         app = AsyncMock()
         middleware = ClientCertAuthMiddleware(app)
         scope = _make_scope(peercert=_make_peercert("worker.ao.svc"))
@@ -360,13 +348,13 @@ class TestClientCertAuthMiddleware:
         start_call = send.call_args_list[0]
         assert start_call[0][0]["status"] == 403
 
-    @pytest.mark.usefixtures("_tls_with_allowlist")
+    @pytest.mark.usefixtures("_tls_with_revocation")
     @pytest.mark.asyncio
     async def test_403_body_is_valid_problem_json(self) -> None:
         """403 response body is valid RFC 9457 problem+json."""
         app = AsyncMock()
         middleware = ClientCertAuthMiddleware(app)
-        scope = _make_scope(peercert=_make_peercert("rogue.evil.svc"))
+        scope = _make_scope(peercert=_make_peercert("revoked.svc", serial=self._revoked_serial))
         send = AsyncMock()
 
         await middleware(scope, AsyncMock(), send)
@@ -384,7 +372,7 @@ class TestClientCertAuthMiddleware:
     @pytest.mark.usefixtures("_tls_with_allowlist")
     @pytest.mark.asyncio
     async def test_no_cert_passes_through_with_allowlist(self) -> None:
-        """No cert still passes through even when allowlist is set (backwards compat)."""
+        """No cert still passes through even when allowlist is set."""
         app = AsyncMock()
         middleware = ClientCertAuthMiddleware(app)
         scope = _make_scope()

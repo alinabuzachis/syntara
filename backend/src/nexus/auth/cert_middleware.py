@@ -52,12 +52,13 @@ def _load_revoked_serials(crl_path: str) -> frozenset[int]:
 def _validate_client_cert(
     peercert: dict[str, Any],
     *,
-    cn_allowlist: frozenset[str] | None,
     revoked_serials: frozenset[int] | None,
 ) -> str:
-    """Validate a client certificate against allowlist and revocation list.
+    """Extract and validate a client certificate's CN and revocation status.
 
     Returns the CN on success, raises CertificateValidationError on failure.
+    Allowlist checking is handled by the middleware to distinguish between
+    hard rejection (revoked cert) and soft fallthrough (untrusted CN).
     """
     cn = _extract_cn(peercert)
     if cn is None:
@@ -73,12 +74,6 @@ def _validate_client_cert(
                 reason="certificate_revoked",
                 detail=f"Client certificate serial {peercert['serialNumber']} has been revoked",
             )
-
-    if cn_allowlist is not None and cn not in cn_allowlist:
-        raise CertificateValidationError(
-            reason="cn_not_allowed",
-            detail=f"Client certificate CN '{cn}' is not in the allowlist",
-        )
 
     return cn
 
@@ -137,28 +132,32 @@ class ClientCertAuthMiddleware:
             return
 
         state = scope.setdefault("state", {})
-        # The peercert is already CA-verified by the TLS handshake
-        # (ssl_cert_reqs=CERT_OPTIONAL in uvicorn config; see api/main.py).
+        # The peercert is already CA-verified by the TLS handshake when present.
         peercert = scope.get("extensions", {}).get("tls", {}).get("peercert")
+
+        cert_cn = None
+        is_service = False
 
         if peercert:
             try:
                 cert_cn = _validate_client_cert(
                     peercert,
-                    cn_allowlist=self._cn_allowlist,
                     revoked_serials=self._revoked_serials,
                 )
             except CertificateValidationError as exc:
                 logger.warning("Client certificate rejected: %s", exc.detail)
                 await _send_403(send, exc.detail)
                 return
-        else:
-            cert_cn = None
 
-        state["is_cert_authenticated"] = cert_cn is not None
+            is_service = self._cn_allowlist is None or cert_cn in self._cn_allowlist
+            if not is_service:
+                logger.debug("Client certificate CN '%s' not in allowlist; treating as proxy", cert_cn)
+                cert_cn = None
+
+        state["is_cert_authenticated"] = is_service
         state["cert_cn"] = cert_cn
 
-        if not cert_cn:
+        if not is_service:
             self._strip_header(scope, _ON_BEHALF_OF_HEADER)
 
         await self.app(scope, receive, send)

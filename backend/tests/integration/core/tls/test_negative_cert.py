@@ -24,7 +24,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from nexus.auth.cert_middleware import CertificateValidationError, ClientCertAuthMiddleware, _validate_client_cert
+from nexus.auth.cert_middleware import ClientCertAuthMiddleware, _validate_client_cert
 from nexus.core.tls.protocol import TLSH11Protocol
 from tests.helpers.tls import generate_ca, generate_service_cert
 from tests.integration.core.tls.conftest import _health
@@ -134,31 +134,17 @@ def neg_server(neg_certs: dict[str, Path]) -> Generator[str, None, None]:
 
 
 class TestNEG1WrongCN:
-    """NEG-1: A cert with an unrecognized CN is rejected at the middleware layer."""
+    """NEG-1: A cert with an unrecognized CN gets no service identity (soft fallthrough)."""
 
-    def ***REMOVED***(self, neg_server: str, neg_certs: dict[str, Path]) -> None:
-        """TLS handshake succeeds because the cert IS validly signed by the trusted CA."""
+    def test_wrong_cn_gets_no_service_identity(self, neg_server: str, neg_certs: dict[str, Path]) -> None:
+        """TLS handshake succeeds but non-allowlisted CN gets 401 (no service identity, no JWT)."""
         ctx = ssl.create_default_context(cafile=str(neg_certs["ca"]))
         ctx.load_cert_chain(certfile=str(neg_certs["rogue_cert"]), keyfile=str(neg_certs["rogue_key"]))
 
         with httpx.Client(verify=ctx) as client:
             resp = client.get(f"{neg_server}/api/v1/test")
 
-        assert resp.status_code == 403
-
-    def test_middleware_rejects_wrong_cn_with_problem_json(self, neg_server: str, neg_certs: dict[str, Path]) -> None:
-        """Middleware returns RFC 9457 problem+json with 403 for unrecognized CN."""
-        ctx = ssl.create_default_context(cafile=str(neg_certs["ca"]))
-        ctx.load_cert_chain(certfile=str(neg_certs["rogue_cert"]), keyfile=str(neg_certs["rogue_key"]))
-
-        with httpx.Client(verify=ctx) as client:
-            resp = client.get(f"{neg_server}/api/v1/test")
-
-        assert resp.status_code == 403
-        body = resp.json()
-        assert body["status"] == 403
-        assert "rogue-service" in body["detail"]
-        assert body["type"] == "https://api.nexus.com/errors/certificate-validation-failed"
+        assert resp.status_code == 401
 
     def test_valid_cn_accepted(self, neg_server: str, neg_certs: dict[str, Path]) -> None:
         """Control: a cert with an allowed CN passes the middleware."""
@@ -172,19 +158,17 @@ class TestNEG1WrongCN:
         body = resp.json()
         assert body["cn"] == "backend.nexus.svc"
 
-    def test_validate_client_cert_raises_for_wrong_cn(self) -> None:
-        """Unit-level: _validate_client_cert raises CertificateValidationError."""
+    def test_validate_client_cert_extracts_cn_without_allowlist_check(self) -> None:
+        """Unit-level: _validate_client_cert returns CN (allowlist is checked by middleware)."""
         peercert: dict[str, object] = {
             "subject": ((("commonName", "rogue-service"),),),
             "serialNumber": "01",
         }
-        with pytest.raises(CertificateValidationError, match="not in the allowlist") as exc_info:
-            _validate_client_cert(
-                peercert,
-                cn_allowlist=_ALLOWED_CNS,
-                revoked_serials=None,
-            )
-        assert exc_info.value.reason == "cn_not_allowed"
+        cn = _validate_client_cert(
+            peercert,
+            revoked_serials=None,
+        )
+        assert cn == "rogue-service"
 
 
 # ---------------------------------------------------------------------------

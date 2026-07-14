@@ -472,8 +472,8 @@ def main() -> None:
         uvicorn_kwargs["ssl_certfile"] = settings.s2s_tls_cert_path
         uvicorn_kwargs["ssl_keyfile"] = settings.s2s_tls_key_path
         uvicorn_kwargs["ssl_ca_certs"] = settings.s2s_tls_ca_cert_path
-        # CERT_OPTIONAL: kubelet health probes don't present client certs.
-        # Client cert enforcement on non-health routes is handled by auth middleware.
+        # CERT_OPTIONAL for local dev; the operator overrides to CERT_REQUIRED
+        # via --ssl-cert-reqs 2 in production where all clients present certs.
         uvicorn_kwargs["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
         uvicorn_kwargs["ssl_context_factory"] = _ssl_context_factory
         uvicorn_kwargs["http"] = "nexus.core.tls.protocol:TLSAutoProtocol"
