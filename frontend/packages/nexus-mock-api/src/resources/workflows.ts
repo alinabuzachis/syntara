@@ -58,6 +58,7 @@ const yamlFiles = [
   'timeout-retry/retry-policy.yaml',
   'timeout-retry/timeout-with-retry.yaml',
   'agentic/simple-research.yaml',
+  'agentic/task-agent-with-files.yaml',
   'api/simple-get-request.yaml',
   'api/post-with-body.yaml',
   'mixed/sequential-mixed-types.yaml',

@@ -216,6 +216,7 @@ type AIAgentFormFieldsProps = Readonly<{
   isLoadingIntegrations: boolean
   isToolsError: boolean
   onRetryTools: () => void
+  hasExistingFiles: boolean
 }>
 
 function useFileUploadState(fileContext: FileContextType, projectId: string | undefined) {
@@ -295,6 +296,7 @@ function AIAgentFormFields({
   isLoadingIntegrations,
   isToolsError,
   onRetryTools,
+  hasExistingFiles,
 }: AIAgentFormFieldsProps) {
   const isVersionView = useIsVersionView()
   const { register, control, getValues, setValue } = useFormContext<AIAgentFormData>()
@@ -418,6 +420,7 @@ function AIAgentFormFields({
                   ? FILE_STORAGE_UNCONFIGURED_MESSAGE
                   : FILE_STORAGE_UNAVAILABLE_MESSAGE
               }
+              defaultStatusExpanded={!hasExistingFiles}
             />
           </fieldset>
         </FormGroup>
@@ -544,6 +547,7 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
             isLoadingIntegrations={isLoadingIntegrations}
             isToolsError={isAnyToolsError}
             onRetryTools={handleRetryTools}
+            hasExistingFiles={!!props.existingFileIds?.length}
           />
         </NodeFormContainer>
       </FormProvider>

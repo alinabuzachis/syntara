@@ -3098,13 +3098,33 @@ export const handlers = [
   http.get('/api/v1/files/metadata', ({ request }) => {
     const url = new URL(request.url)
     const fileIds = url.searchParams.getAll('file_ids')
-    const files = fileIds.map((id) => ({
-      file_id: id,
-      filename: `mock-file-${id.slice(0, 8)}.txt`,
-      size_bytes: 1024,
-      mime_type: 'text/plain',
-      status: 'pending_conversion',
-    }))
+    const knownFiles: Record<string, { filename: string; size_bytes: number; mime_type: string }> = {
+      'a1b2c3d4-0001-0001-0001-000000000001': {
+        filename: 'server-config.txt',
+        size_bytes: 2048,
+        mime_type: 'text/plain',
+      },
+      'a1b2c3d4-0001-0001-0001-000000000002': {
+        filename: 'api-docs.md',
+        size_bytes: 15360,
+        mime_type: 'text/markdown',
+      },
+      'a1b2c3d4-0001-0001-0001-000000000003': {
+        filename: 'deploy-runbook.txt',
+        size_bytes: 4096,
+        mime_type: 'text/plain',
+      },
+    }
+    const files = fileIds.map((id) => {
+      const known = knownFiles[id]
+      return {
+        file_id: id,
+        filename: known?.filename ?? `file-${id.slice(0, 8)}.txt`,
+        size_bytes: known?.size_bytes ?? 1024,
+        mime_type: known?.mime_type ?? 'text/plain',
+        status: 'ready',
+      }
+    })
     return HttpResponse.json({ files })
   }),
 

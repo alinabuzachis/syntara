@@ -30,20 +30,29 @@ type AAPWorkflowTemplateConfig = {
   inventory_name?: string
 }
 
+/** Parameters for an agentic (Task Agent) node on the canvas. */
 type AgenticConfig = {
+  /** UUIDs of selected tools when strategy is SELECTED. */
   tool_selections?: string[]
+  /** Tool availability: ALL, NONE, or SELECTED. */
   tool_selection_strategy?: string
+  /** UUID of the LLM provider credential. */
   credential_id?: string
+  /** LLM model identifier (e.g. "anthropic/claude-haiku-4.5"). */
   model?: string
+  /** Attached context file UUIDs. */
+  file_ids?: string[]
 }
 
 function AgenticNodeDetails({ config, toolsText }: { config: AgenticConfig; toolsText?: string }) {
   const { name: credentialName } = useCredentialName(config.credential_id)
+  const fileCount = config.file_ids?.length ?? 0
   return (
     <>
       {renderText('Model', config.model)}
       {renderText('Credential', credentialName)}
       {renderText('Tools', toolsText)}
+      {fileCount > 0 && renderText('Files', `${fileCount} attached`)}
     </>
   )
 }

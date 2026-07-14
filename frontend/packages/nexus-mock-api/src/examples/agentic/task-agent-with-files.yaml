@@ -1,0 +1,51 @@
+---
+schema_version: '2.0.0'
+name: task-agent-file-context-demo
+description: Task Agent workflow with context files and tool selection for testing file upload UI
+metadata:
+  tags:
+    - agentic
+    - files
+    - demo
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: analyze_docs
+    type: agentic
+    name: Analyze Documents
+    parameters:
+      agent: production://doc-analyst
+      model: anthropic/claude-haiku-4.5
+      prompt: |
+        Analyze the attached context files and provide a summary of:
+        1. Key topics covered
+        2. Action items found
+        3. Any security concerns mentioned
+      credential_id: cred-001
+      tool_selection_strategy: ALL
+      file_ids:
+        - 'a1b2c3d4-0001-0001-0001-000000000001'
+        - 'a1b2c3d4-0001-0001-0001-000000000002'
+        - 'a1b2c3d4-0001-0001-0001-000000000003'
+    outputs:
+      analysis: $.result.content
+
+  - id: generate_report
+    type: script
+    name: Generate Report
+    parameters:
+      language: python
+      code: |
+        import json
+        analysis = json.loads('${analyze_docs.analysis}')
+        print(f"Report generated from {len(analysis)} documents")
+    inputs:
+      analysis: ${analyze_docs.analysis}
+
+edges:
+  - source: trigger_manual
+    target: analyze_docs
+  - source: analyze_docs
+    target: generate_report

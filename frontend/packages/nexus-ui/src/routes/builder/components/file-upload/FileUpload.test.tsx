@@ -38,13 +38,21 @@ describe('computeUploadStatusProps', () => {
     expect(result.statusToggleIcon).toBe('danger')
   })
 
-  it('returns success icon when all files succeeded', () => {
+  it('returns success icon and plural text when all files succeeded', () => {
     const files: UploadedFile[] = [
       { id: '1', file: createFile('a.png'), progress: 100, status: 'success' },
       { id: '2', file: createFile('b.png'), progress: 100, status: 'success' },
     ]
     const result = computeUploadStatusProps(files)
     expect(result.statusToggleIcon).toBe('success')
+    expect(result.statusToggleText).toBe('2 files attached')
+  })
+
+  it('returns singular text when one file attached', () => {
+    const files: UploadedFile[] = [{ id: '1', file: createFile('a.png'), progress: 100, status: 'success' }]
+    const result = computeUploadStatusProps(files)
+    expect(result.statusToggleIcon).toBe('success')
+    expect(result.statusToggleText).toBe('1 file attached')
   })
 
   it('returns inProgress icon when upload in progress', () => {
@@ -119,7 +127,7 @@ describe('FileUpload', () => {
         { id: '2', file: createFile('test2.png'), progress: 100, status: 'success' },
       ]
       render(<FileUpload files={allSuccess} />)
-      expect(screen.getByText('2/2 files uploaded')).toBeInTheDocument()
+      expect(screen.getByText('2 files attached')).toBeInTheDocument()
     })
 
     it('shows error icon when any file has error', () => {
@@ -181,13 +189,13 @@ describe('FileUpload', () => {
     it('uses internal state when files prop is not provided', () => {
       render(<FileUpload />)
       // Internal state starts empty
-      expect(screen.queryByText(/files uploaded/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/files (uploaded|attached)/)).not.toBeInTheDocument()
     })
 
     it('uses controlled files when provided', () => {
       const files: UploadedFile[] = [{ id: '1', file: new File([''], 'test.png'), progress: 100, status: 'success' }]
       render(<FileUpload files={files} />)
-      expect(screen.getByText('1/1 files uploaded')).toBeInTheDocument()
+      expect(screen.getByText('1 file attached')).toBeInTheDocument()
     })
 
     it('adds files to internal state when dropped in uncontrolled mode', async () => {
@@ -246,22 +254,36 @@ describe('FileUpload', () => {
   })
 
   describe('accessibility', () => {
-    it('applies aria-label to status section', () => {
-      const files: UploadedFile[] = [{ id: '1', file: new File([''], 'test.png'), progress: 100, status: 'success' }]
-      render(<FileUpload files={files} aria-label="Custom label" />)
-      expect(screen.getByLabelText('Custom label')).toBeInTheDocument()
-    })
-
-    it('has default aria-label when not provided', () => {
+    it('has toggle aria label for file list', () => {
       const files: UploadedFile[] = [{ id: '1', file: new File([''], 'test.png'), progress: 100, status: 'success' }]
       render(<FileUpload files={files} />)
-      expect(screen.getByLabelText('Uploaded files')).toBeInTheDocument()
+      expect(screen.getByLabelText('Toggle file list')).toBeInTheDocument()
     })
 
     it('has no accessibility violations when disabled with tooltip', async () => {
       const { container } = render(<FileUpload disabled disabledTooltip="S3 not configured" />)
       const results = await axe(container)
       expect(results).toHaveNoViolations()
+    })
+  })
+
+  describe('collapsed by default', () => {
+    it('starts with file list collapsed when defaultStatusExpanded is false', () => {
+      const files: UploadedFile[] = [{ id: '1', file: new File([''], 'test.png'), progress: 100, status: 'success' }]
+      render(<FileUpload files={files} defaultStatusExpanded={false} />)
+      expect(screen.getByText('1 file attached')).toBeInTheDocument()
+      expect(screen.getByText('test.png')).not.toBeVisible()
+    })
+
+    it('expands file list when toggle is clicked', async () => {
+      const user = userEvent.setup()
+      const files: UploadedFile[] = [{ id: '1', file: new File([''], 'test.png'), progress: 100, status: 'success' }]
+      render(<FileUpload files={files} defaultStatusExpanded={false} />)
+      expect(screen.getByText('test.png')).not.toBeVisible()
+
+      await user.click(screen.getByText('1 file attached'))
+
+      expect(screen.getByText('test.png')).toBeVisible()
     })
   })
 

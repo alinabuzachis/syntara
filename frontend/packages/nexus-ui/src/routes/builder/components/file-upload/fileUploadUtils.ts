@@ -11,17 +11,24 @@ export function computeUploadStatusProps(files: UploadedFile[]): {
   statusToggleText: string | undefined
   statusToggleIcon: 'danger' | 'success' | 'inProgress'
 } {
+  if (files.length === 0) {
+    return { statusToggleText: undefined, statusToggleIcon: 'inProgress' }
+  }
+
   const successCount = files.filter((f) => f.status === 'success').length
   const hasErrors = files.some((f) => f.status === 'error')
-  const allSuccess = files.length > 0 && files.every((f) => f.status === 'success')
-  const statusToggleText = files.length > 0 ? `${successCount}/${files.length} files uploaded` : undefined
-  let statusToggleIcon: 'danger' | 'success' | 'inProgress' = 'inProgress'
+  const isAllAttached = files.every((f) => f.status === 'success' && f.progress === 100)
+
   if (hasErrors) {
-    statusToggleIcon = 'danger'
-  } else if (allSuccess) {
-    statusToggleIcon = 'success'
+    return { statusToggleText: `${successCount}/${files.length} files uploaded`, statusToggleIcon: 'danger' }
   }
-  return { statusToggleText, statusToggleIcon }
+
+  if (isAllAttached) {
+    const label = files.length === 1 ? 'file' : 'files'
+    return { statusToggleText: `${files.length} ${label} attached`, statusToggleIcon: 'success' }
+  }
+
+  return { statusToggleText: `${successCount}/${files.length} files uploaded`, statusToggleIcon: 'inProgress' }
 }
 
 export type FileRejection = { file: File; errors: readonly { code: string; message: string }[] }

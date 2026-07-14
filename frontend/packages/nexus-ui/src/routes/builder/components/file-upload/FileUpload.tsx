@@ -1,14 +1,15 @@
 import {
   type DropEvent,
+  ExpandableSection,
   HelperText,
   HelperTextItem,
+  Icon,
   MultipleFileUpload,
   MultipleFileUploadMain,
-  MultipleFileUploadStatus,
   Tooltip,
 } from '@patternfly/react-core'
-import { RhUiUploadIcon } from '@patternfly/react-icons'
-import { useState } from 'react'
+import { RhUiCheckCircleIcon, RhUiCloseCircleIcon, RhUiSyncIcon, RhUiUploadIcon } from '@patternfly/react-icons'
+import { useCallback, useState } from 'react'
 
 import { generateUUID } from '../../../../utils/generateUUID'
 
@@ -40,6 +41,8 @@ export type FileUploadProps = {
   disabled?: boolean
   /** Tooltip text shown when hovering over the disabled dropzone. Only displayed when `disabled` is true. */
   disabledTooltip?: string
+  /** When false, the file list starts collapsed. Default: true. */
+  defaultStatusExpanded?: boolean
 }
 
 function formatAcceptProp(acceptedMimeTypes?: string[]): Record<string, string[]> | undefined {
@@ -59,6 +62,38 @@ function formatAcceptProp(acceptedMimeTypes?: string[]): Record<string, string[]
   return acceptObj
 }
 
+function UploadStatusToggle({ variant, text }: { variant: 'danger' | 'success' | 'inProgress'; text?: string }) {
+  switch (variant) {
+    case 'danger':
+      return (
+        <>
+          <Icon status="danger">
+            <RhUiCloseCircleIcon />
+          </Icon>{' '}
+          {text}
+        </>
+      )
+    case 'success':
+      return (
+        <>
+          <Icon status="success">
+            <RhUiCheckCircleIcon />
+          </Icon>{' '}
+          {text}
+        </>
+      )
+    case 'inProgress':
+      return (
+        <>
+          <Icon>
+            <RhUiSyncIcon />
+          </Icon>{' '}
+          {text}
+        </>
+      )
+  }
+}
+
 export function FileUpload({
   onFilesSelected,
   onFileRemove,
@@ -71,12 +106,16 @@ export function FileUpload({
   infoText,
   browseButtonText = 'Upload',
   className,
-  'aria-label': ariaLabel,
   disabled = false,
   disabledTooltip,
+  defaultStatusExpanded = true,
 }: FileUploadProps) {
   const [internalFiles, setInternalFiles] = useState<UploadedFile[]>([])
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isStatusExpanded, setIsStatusExpanded] = useState(defaultStatusExpanded)
+  const handleToggleStatus = useCallback(() => {
+    setIsStatusExpanded((prev) => !prev)
+  }, [])
 
   const uploadedFiles = controlledFiles ?? internalFiles
   const isControlled = controlledFiles !== undefined
@@ -91,6 +130,7 @@ export function FileUpload({
   const handleFileDrop = (_event: DropEvent, droppedFiles: File[]) => {
     setErrorMessage(null)
     if (droppedFiles.length === 0) return
+    setIsStatusExpanded(true)
 
     const currentFileNames = new Set(uploadedFiles.map((f) => f.file.name))
     const reUploadNames = new Set(droppedFiles.filter((file) => currentFileNames.has(file.name)).map((f) => f.name))
@@ -135,12 +175,7 @@ export function FileUpload({
   }
 
   const fileUploadContent = (
-    <MultipleFileUpload
-      onFileDrop={handleFileDrop}
-      dropzoneProps={dropzoneProps}
-      isHorizontal
-      className={resolvedClassName}
-    >
+    <MultipleFileUpload onFileDrop={handleFileDrop} dropzoneProps={dropzoneProps} className={resolvedClassName}>
       <MultipleFileUploadMain
         titleIcon={<RhUiUploadIcon />}
         titleText={titleText}
@@ -154,10 +189,11 @@ export function FileUpload({
         </HelperText>
       )}
       {uploadedFiles.length > 0 && (
-        <MultipleFileUploadStatus
-          statusToggleText={statusToggleText}
-          statusToggleIcon={statusToggleIcon}
-          aria-label={ariaLabel ?? 'Uploaded files'}
+        <ExpandableSection
+          toggleContent={<UploadStatusToggle variant={statusToggleIcon} text={statusToggleText} />}
+          isExpanded={isStatusExpanded}
+          onToggle={handleToggleStatus}
+          toggleAriaLabel="Toggle file list"
         >
           {uploadedFiles.map((uploadedFile) => (
             <FileUploadItem
@@ -171,7 +207,7 @@ export function FileUpload({
               onRemove={() => handleFileRemove(uploadedFile.id)}
             />
           ))}
-        </MultipleFileUploadStatus>
+        </ExpandableSection>
       )}
     </MultipleFileUpload>
   )
