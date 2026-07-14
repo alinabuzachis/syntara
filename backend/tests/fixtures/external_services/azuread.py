@@ -17,9 +17,13 @@ import logging
 import os
 from collections.abc import Generator
 
+import httpx
 import pytest
 from azure.identity import ClientSecretCredential
 from kiota_abstractions.base_request_configuration import RequestConfiguration
+from kiota_authentication_azure.azure_identity_authentication_provider import (
+    AzureIdentityAuthenticationProvider,
+)
 from msgraph.generated.models.application import Application
 from msgraph.generated.models.o_auth2_permission_grant import OAuth2PermissionGrant
 from msgraph.generated.models.password_credential import PasswordCredential
@@ -30,6 +34,7 @@ from msgraph.generated.models.web_application import WebApplication
 from msgraph.generated.service_principals.service_principals_request_builder import (
     ServicePrincipalsRequestBuilder,
 )
+from msgraph.graph_request_adapter import GraphRequestAdapter
 from msgraph.graph_service_client import GraphServiceClient
 
 logger = logging.getLogger(__name__)
@@ -56,7 +61,13 @@ def azure_ad_ext_service_client() -> GraphServiceClient:
         client_id=os.environ["AZURE_AD_CLIENT_ID"],
         client_secret=os.environ["AZURE_AD_CLIENT_SECRET"],
     )
-    return GraphServiceClient(credentials=credentials, scopes=["https://graph.microsoft.com/.default"])
+    scopes = ["https://graph.microsoft.com/.default"]
+    auth_provider = AzureIdentityAuthenticationProvider(credentials, scopes=scopes)
+    adapter = GraphRequestAdapter(
+        auth_provider=auth_provider,
+        client=httpx.AsyncClient(verify=False),  # noqa: S501
+    )
+    return GraphServiceClient(request_adapter=adapter)
 
 
 @pytest.fixture(scope="session")
