@@ -36,6 +36,11 @@
     {
       "matchPackageNames": ["quay.io/aap-ci/*"],
       "automerge": true
+    },
+    {
+      "description": "Disable all renovate updates on the early-access branch",
+      "matchBaseBranches": ["early-access"],
+      "enabled": false
     }
   ]
 }
