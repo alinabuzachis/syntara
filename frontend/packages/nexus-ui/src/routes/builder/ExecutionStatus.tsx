@@ -15,7 +15,7 @@ import type React from 'react'
 
 import { NxLabel } from '../../components/labels/NxLabel'
 
-import { executionStatusDisplayLabels } from './executionStatusConstants'
+import { activityStatusDisplayLabels, executionStatusDisplayLabels } from './executionStatusConstants'
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 type ActivityStatus = ExecutionsAPI.components['schemas']['ActivityStatus']
@@ -70,17 +70,6 @@ const activityStatusIcons: Record<ActivityStatus, React.ComponentType<{ classNam
   retrying: RhUiSyncIcon,
   skipped: RhUiMinusCircleFillIcon,
   cancelled: RhUiStopCircleFillIcon,
-}
-
-const activityStatusDisplayLabels: Record<ActivityStatus, string> = {
-  pending: 'Pending',
-  running: 'Running',
-  waiting: 'Waiting for approval',
-  completed: 'Successful',
-  failed: 'Failed',
-  retrying: 'Retrying',
-  skipped: 'Skipped',
-  cancelled: 'Cancelled',
 }
 
 export function ActivityStatusLabel({ status, nodeType }: Readonly<{ status: ActivityStatus; nodeType?: string }>) {

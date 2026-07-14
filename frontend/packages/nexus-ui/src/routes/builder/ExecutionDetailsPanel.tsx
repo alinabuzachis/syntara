@@ -1,30 +1,15 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import {
-  Alert,
-  Button,
-  Content,
-  ContentVariants,
-  Divider,
-  Flex,
-  FlexItem,
-  Stack,
-  StackItem,
-  Tab,
-  Tabs,
-  TabTitleText,
-  Title,
-  TitleSizes,
-} from '@patternfly/react-core'
-import { TimesIcon } from '@patternfly/react-icons'
-import type React from 'react'
+import { Alert, Divider, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useEffect, useMemo, useState } from 'react'
 
 import { executionsClient } from '../../client'
-import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
+import { FilterBar } from '../../components/filters/FilterBar'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
-import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
+import type { FilterConfig } from '../../types/filters'
+import { formatElapsedTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 import { NodeExecutionDetailsPanel } from '../executions/NodeExecutionDetailsPanel'
 import type { ActivityState } from '../workflows/execution/types'
@@ -35,16 +20,20 @@ import {
   type ExecutionMetadata,
 } from '../workflows/stores/useExecutionStore'
 
+import { ACTIVITY_FILTER_DEFINITIONS } from './activityFilterDefinitions'
 import { CompactActivityList } from './CompactActivityList'
 import { ExecutionActivityTable } from './ExecutionActivityTable'
 import type { ActivityOrderItem } from './ExecutionActivityTable'
 import styles from './ExecutionDetailsPanel.module.css'
-import { StatusLabel } from './ExecutionStatus'
+import { HeaderMetadata, LoadingErrorState, NoSelectionState, type ViewMode } from './ExecutionDetailsPanelHeader'
+import { useActivityFilters } from './useActivityFilters'
 import { useActivityNameMap, resolveNodeName, type WorkflowDefShape } from './useActivityNameMap'
 
 export type { WorkflowDefShape } from './useActivityNameMap'
 
-type ViewMode = 'overview' | 'details'
+type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
+
+const ACTIVE_STATUSES = new Set<ExecutionStatus>(['running', 'pending', 'paused'])
 
 type ExecutionDetailsPanelProps = {
   executionId: string
@@ -54,117 +43,6 @@ type ExecutionDetailsPanelProps = {
   onNodeSelect?: (nodeId: string, nodeName: string) => void
   headerLabel?: string
   onClosePanel?: () => void
-}
-
-type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
-
-type HeaderMetadataProps = {
-  execution: {
-    started_at?: string | null
-    created_at?: string | null
-    completed_at?: string | null
-    status?: ExecutionStatus | null
-    approval_pending?: boolean
-  }
-  elapsedLabel?: string
-  isRunning: boolean
-  viewMode: ViewMode
-  onViewModeChange: (mode: ViewMode) => void
-  headerLabel?: string
-  onClosePanel?: () => void
-}
-
-function HeaderMetadata({
-  execution,
-  elapsedLabel,
-  isRunning,
-  viewMode,
-  onViewModeChange,
-  headerLabel,
-  onClosePanel,
-}: Readonly<HeaderMetadataProps>) {
-  const startDisplay = execution.started_at ?? execution.created_at
-
-  const title = headerLabel ?? (isRunning ? 'Current run details' : 'Run details')
-
-  return (
-    <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
-      <FlexItem>
-        <Flex gap={{ default: 'gapLg' }} alignItems={{ default: 'alignItemsCenter' }}>
-          <FlexItem>
-            <Title headingLevel="h2" size={TitleSizes.md} style={{ margin: 0 }}>
-              {title}
-            </Title>
-          </FlexItem>
-          <FlexItem>
-            <Tabs activeKey={viewMode} onSelect={(_e, key) => onViewModeChange(key as ViewMode)} variant="secondary">
-              <Tab eventKey="overview" title={<TabTitleText>Overview</TabTitleText>} />
-              <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-            </Tabs>
-          </FlexItem>
-        </Flex>
-      </FlexItem>
-      <FlexItem>
-        <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
-          {startDisplay && (
-            <Content
-              component={ContentVariants.small}
-              style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
-            >
-              {formatExecutionDateTime(startDisplay)}
-              {execution.completed_at && ` - ${formatExecutionDateTime(execution.completed_at)}`}
-            </Content>
-          )}
-          {elapsedLabel && (
-            <Content
-              component={ContentVariants.small}
-              style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
-            >
-              Elapsed time: {elapsedLabel}
-            </Content>
-          )}
-          {execution.status && (
-            <FlexItem>
-              <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-                <FlexItem>
-                  <StatusLabel status={execution.status} />
-                </FlexItem>
-                {execution.approval_pending && (
-                  <FlexItem>
-                    <ApprovalPendingBadge approvalPending={execution.approval_pending} />
-                  </FlexItem>
-                )}
-              </Flex>
-            </FlexItem>
-          )}
-          {onClosePanel && (
-            <FlexItem>
-              <Button
-                variant="plain"
-                aria-label="Close run details panel"
-                onClick={onClosePanel}
-                icon={<TimesIcon />}
-              />
-            </FlexItem>
-          )}
-        </Flex>
-      </FlexItem>
-    </Flex>
-  )
-}
-
-function NoSelectionState() {
-  return (
-    <Flex
-      justifyContent={{ default: 'justifyContentCenter' }}
-      alignItems={{ default: 'alignItemsCenter' }}
-      style={{ height: '100%' }}
-    >
-      <Content component={ContentVariants.p} style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
-        Select a step from the list or canvas to view its input and output data.
-      </Content>
-    </Flex>
-  )
 }
 
 type ThreePanelLayoutProps = {
@@ -178,10 +56,15 @@ type ThreePanelLayoutProps = {
   isRunning: boolean
   activityStates: Map<string, ActivityState>
   activityOrder: ActivityOrderItem[]
+  hasFilteredOutActivities: boolean
+  showFilters: boolean
+  filters: FilterConfig[]
+  onFilterChange: (filters: FilterConfig[]) => void
   selectedNodeId: string | null
   displayNodeName: string | null
   executionId: string
   selectedNodeState?: ActivityState
+  selectedNodeType?: string
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
   onRowClick?: (nodeId: string, nodeName: string) => void
@@ -195,10 +78,15 @@ function ThreePanelLayout({
   isRunning,
   activityStates,
   activityOrder,
+  hasFilteredOutActivities,
+  showFilters,
+  filters,
+  onFilterChange,
   selectedNodeId,
   displayNodeName,
   executionId,
   selectedNodeState,
+  selectedNodeType,
   viewMode,
   onViewModeChange,
   onRowClick,
@@ -235,13 +123,27 @@ function ThreePanelLayout({
         className={styles.contentFlex}
       >
         <FlexItem className={styles.activityList}>
+          {showFilters && (
+            <div className={styles.filterBarWrapper}>
+              <FilterBar
+                fieldDefinitions={ACTIVITY_FILTER_DEFINITIONS}
+                filters={filters}
+                onFilterChange={onFilterChange}
+                isCompact
+              />
+            </div>
+          )}
           <div className={styles.activityListScrollWrapper}>
-            <CompactActivityList
-              activityStates={activityStates}
-              activityOrder={activityOrder}
-              onRowClick={onRowClick}
-              selectedNodeId={selectedNodeId}
-            />
+            {activityOrder.length === 0 && hasFilteredOutActivities ? (
+              <NxEmptyStateFilter clearAllFilters={() => onFilterChange([])} />
+            ) : (
+              <CompactActivityList
+                activityStates={activityStates}
+                activityOrder={activityOrder}
+                onRowClick={onRowClick}
+                selectedNodeId={selectedNodeId}
+              />
+            )}
           </div>
         </FlexItem>
 
@@ -254,7 +156,7 @@ function ThreePanelLayout({
               nodeName={displayNodeName}
               executionId={executionId}
               nodeState={selectedNodeState}
-              nodeType={activityOrder.find((a) => a.id === selectedNodeId)?.type}
+              nodeType={selectedNodeType}
             />
           ) : (
             <NoSelectionState />
@@ -287,6 +189,10 @@ type SinglePanelLayoutProps = {
   activityStates: Map<string, ActivityState>
   activityOrder: ActivityOrderItem[]
   nameMap: Map<string, string>
+  hasFilteredOutActivities: boolean
+  showFilters: boolean
+  filters: FilterConfig[]
+  onFilterChange: (filters: FilterConfig[]) => void
   now: number
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
@@ -303,6 +209,10 @@ function SinglePanelLayout({
   activityStates,
   activityOrder,
   nameMap,
+  hasFilteredOutActivities,
+  showFilters,
+  filters,
+  onFilterChange,
   now,
   viewMode,
   onViewModeChange,
@@ -339,6 +249,17 @@ function SinglePanelLayout({
           />
         </StackItem>
 
+        {showFilters && (
+          <StackItem className={styles.filterBarWrapper}>
+            <FilterBar
+              fieldDefinitions={ACTIVITY_FILTER_DEFINITIONS}
+              filters={filters}
+              onFilterChange={onFilterChange}
+              isCompact
+            />
+          </StackItem>
+        )}
+
         {execution.status === 'failed' && resolvedError && (
           <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--sm)' }}>
             <Alert variant="danger" isInline isPlain title="Execution failed">
@@ -348,40 +269,18 @@ function SinglePanelLayout({
         )}
 
         <StackItem isFilled style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <ExecutionActivityTable
-            activityStates={activityStates}
-            activityOrder={activityOrder}
-            now={now}
-            executionError={resolvedError}
-            onRowClick={onRowClick}
-            selectedNodeId={selectedNodeId}
-          />
-        </StackItem>
-      </Stack>
-    </NxPanel>
-  )
-}
-
-function LoadingErrorState({ queryState }: Readonly<{ queryState: React.ReactNode }>) {
-  return (
-    <NxPanel
-      style={{
-        height: '100%',
-        maxHeight: '100%',
-        width: '24rem',
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Stack>
-        <StackItem style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
-          <Title headingLevel="h2" size={TitleSizes.lg}>
-            Current run details
-          </Title>
-        </StackItem>
-        <StackItem isFilled style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
-          {queryState}
+          {activityOrder.length === 0 && hasFilteredOutActivities ? (
+            <NxEmptyStateFilter clearAllFilters={() => onFilterChange([])} />
+          ) : (
+            <ExecutionActivityTable
+              activityStates={activityStates}
+              activityOrder={activityOrder}
+              now={now}
+              executionError={resolvedError}
+              onRowClick={onRowClick}
+              selectedNodeId={selectedNodeId}
+            />
+          )}
         </StackItem>
       </Stack>
     </NxPanel>
@@ -409,8 +308,7 @@ export function ExecutionDetailsPanel({
   })
 
   const execution = useExecutionWithLiveStatus(executionQuery.data)
-  const executionStatus = execution?.status
-  const isRunning = executionStatus === 'running' || executionStatus === 'pending' || executionStatus === 'paused'
+  const isRunning = execution?.status != null && ACTIVE_STATUSES.has(execution.status)
   const startedAtValue = execution?.created_at ?? null
 
   const { elapsedMs, now } = useElapsedTime(startedAtValue, execution?.completed_at, isRunning)
@@ -438,9 +336,17 @@ export function ExecutionDetailsPanel({
 
   const { nameMap, activityOrder } = useActivityNameMap(workflowDefinition, activityStates)
 
+  const { filters, filteredActivityOrder, handleFilterChange, hasActiveFilters } = useActivityFilters(
+    activityOrder,
+    activityStates
+  )
+  const hasFilteredOutActivities = hasActiveFilters && activityOrder.length > 0
+  const showFilters = activityOrder.length > 0 || hasActiveFilters
+
   const resolvedNodeId = selectedNodeId ?? null
   const displayNodeName = selectedNodeNameProp ?? resolveNodeName(nameMap, selectedNodeId) ?? null
   const selectedNodeState = selectedNodeId ? activityStates.get(selectedNodeId) : undefined
+  const selectedNodeType = selectedNodeId ? activityOrder.find((a) => a.id === selectedNodeId)?.type : undefined
 
   const handleRowClick = (nodeId: string, nodeName: string) => {
     onNodeSelect?.(nodeId, nodeName)
@@ -462,11 +368,16 @@ export function ExecutionDetailsPanel({
         elapsedLabel={elapsedLabel}
         isRunning={isRunning}
         activityStates={activityStates}
-        activityOrder={activityOrder}
+        activityOrder={filteredActivityOrder}
+        hasFilteredOutActivities={hasFilteredOutActivities}
+        showFilters={showFilters}
+        filters={filters}
+        onFilterChange={handleFilterChange}
         selectedNodeId={resolvedNodeId}
         displayNodeName={displayNodeName}
         executionId={executionId}
         selectedNodeState={selectedNodeState}
+        selectedNodeType={selectedNodeType}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onRowClick={handleRowClick}
@@ -482,8 +393,12 @@ export function ExecutionDetailsPanel({
       elapsedLabel={elapsedLabel}
       isRunning={isRunning}
       activityStates={activityStates}
-      activityOrder={activityOrder}
+      activityOrder={filteredActivityOrder}
       nameMap={nameMap}
+      hasFilteredOutActivities={hasFilteredOutActivities}
+      showFilters={showFilters}
+      filters={filters}
+      onFilterChange={handleFilterChange}
       now={now}
       viewMode={viewMode}
       onViewModeChange={setViewMode}

@@ -19,10 +19,17 @@
   flex-grow: 0;
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.filterBarWrapper {
+  flex-shrink: 0;
 }
 
 .activityListScrollWrapper {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 

@@ -24,6 +24,17 @@ const statusColors: Record<ExecutionStatus, string> = {
   cancelled: 'var(--pf-t--global--color--nonstatus--gray--300)',
 }
 
+export const activityStatusDisplayLabels: Record<ActivityStatus, string> = {
+  pending: 'Pending',
+  running: 'Running',
+  waiting: 'Waiting for approval',
+  completed: 'Successful',
+  failed: 'Failed',
+  retrying: 'Retrying',
+  skipped: 'Skipped',
+  cancelled: 'Cancelled',
+}
+
 export const activityStatusColors: Record<ActivityStatus, string> = {
   pending: statusColors.pending,
   running: statusColors.running,

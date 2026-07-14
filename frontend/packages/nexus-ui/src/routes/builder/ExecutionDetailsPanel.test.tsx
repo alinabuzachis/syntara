@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -263,6 +263,62 @@ describe('ExecutionDetailsPanel', () => {
 
       expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByText('Process data')).toBeInTheDocument()
+    })
+  })
+
+  describe('activity filters', () => {
+    it('renders a filter toolbar in overview mode', () => {
+      renderPanel(WORKFLOW_DEF)
+
+      expect(screen.getByRole('search', { name: 'Filters' })).toBeInTheDocument()
+    })
+
+    it('renders a filter toolbar in details mode', async () => {
+      const user = userEvent.setup()
+      renderPanel(WORKFLOW_DEF)
+
+      await user.click(screen.getByRole('tab', { name: 'Details' }))
+
+      expect(screen.getByRole('search', { name: 'Filters' })).toBeInTheDocument()
+    })
+
+    it('shows empty state when filters match no activities', async () => {
+      const user = userEvent.setup()
+      renderPanel(WORKFLOW_DEF)
+
+      const toolbar = screen.getByRole('search', { name: 'Filters' })
+      const filterInput = within(toolbar).getByRole('textbox')
+      await user.type(filterInput, 'nonexistent-activity-xyz{Enter}')
+
+      expect(screen.getByText('No results found')).toBeInTheDocument()
+    })
+
+    it('shows clear all button in empty state', async () => {
+      const user = userEvent.setup()
+      renderPanel(WORKFLOW_DEF)
+
+      const toolbar = screen.getByRole('search', { name: 'Filters' })
+      const filterInput = within(toolbar).getByRole('textbox')
+      await user.type(filterInput, 'nonexistent-activity-xyz{Enter}')
+
+      expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeInTheDocument()
+    })
+
+    it('persists filters when switching between Overview and Details tabs', async () => {
+      const user = userEvent.setup()
+      renderPanel(WORKFLOW_DEF)
+
+      const toolbar = screen.getByRole('search', { name: 'Filters' })
+      const filterInput = within(toolbar).getByRole('textbox')
+      await user.type(filterInput, 'Process{Enter}')
+
+      expect(screen.getByText('Process data')).toBeInTheDocument()
+      expect(screen.queryByText('Send notification')).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('tab', { name: 'Details' }))
+
+      expect(screen.getByText('Process data')).toBeInTheDocument()
+      expect(screen.queryByText('Send notification')).not.toBeInTheDocument()
     })
   })
 
