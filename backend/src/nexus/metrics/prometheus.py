@@ -113,7 +113,7 @@ class NexusPrometheusMetrics:
         self.request_duration_seconds = Histogram(
             "nexus_request_duration_seconds",
             "Request duration in seconds",
-            ["endpoint", "interface"],
+            ["endpoint", "method", "interface"],
             buckets=LATENCY_BUCKETS_MEDIUM,
             registry=self.registry,
         )
@@ -258,6 +258,23 @@ class NexusPrometheusMetrics:
         self.context_duration_seconds = Histogram(
             "nexus_context_duration_seconds",
             "Context preparation overhead duration in seconds",
+            buckets=LATENCY_BUCKETS_FAST,
+            registry=self.registry,
+        )
+
+        # ---- Authorization Histograms ----
+        self.authz_duration_seconds = Histogram(
+            "nexus_authz_duration_seconds",
+            "Authorization check duration including OPA evaluation in seconds",
+            ["resource_type", "action"],
+            buckets=LATENCY_BUCKETS_FAST,
+            registry=self.registry,
+        )
+
+        self.opa_request_duration_seconds = Histogram(
+            "nexus_opa_request_duration_seconds",
+            "OPA policy evaluation HTTP round trip duration in seconds",
+            ["resource_type", "action"],
             buckets=LATENCY_BUCKETS_FAST,
             registry=self.registry,
         )

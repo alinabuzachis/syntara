@@ -315,7 +315,7 @@ class MetricsRecorder:
         except Exception:  # noqa: BLE001
             logger.debug("Failed to update Prometheus metric", metric_type=metric_type, exc_info=True)
 
-    def _dispatch_prometheus(  # noqa: C901
+    def _dispatch_prometheus(  # noqa: C901, PLR0912
         self,
         metric_type: MetricType,
         value: float,
@@ -388,6 +388,12 @@ class MetricsRecorder:
             p.context_duration_seconds.observe(value / 1000)
 
         elif metric_type in {
+            MetricType.AUTHZ_DURATION,
+            MetricType.OPA_REQUEST_DURATION,
+        }:
+            MetricsRecorder._dispatch_authz(metric_type, value, labels, p)
+
+        elif metric_type in {
             MetricType.SCHEDULED_TRIGGER_FIRES,
             MetricType.SCHEDULED_TRIGGER_LATENCY,
         }:
@@ -406,9 +412,12 @@ class MetricsRecorder:
         """Handle request, LLM, and TTFT latency metrics."""
         if metric_type == MetricType.REQUEST_DURATION:
             endpoint = labels.get("endpoint", "unknown")
+            method = labels.get("method", "unknown")
             status_label = labels.get("status", "unknown")
             interface = labels.get("interface", "api")
-            p.request_duration_seconds.labels(endpoint=endpoint, interface=interface).observe(value / 1000)
+            p.request_duration_seconds.labels(endpoint=endpoint, method=method, interface=interface).observe(
+                value / 1000
+            )
             p.requests_total.labels(status=status_label, endpoint=endpoint, interface=interface).inc()
 
         elif metric_type == MetricType.LLM_DURATION:
@@ -522,6 +531,29 @@ class MetricsRecorder:
             ).inc()
         elif metric_type == MetricType.SCHEDULED_TRIGGER_LATENCY:
             p.scheduled_trigger_latency_seconds.observe(value / 1000)
+
+    @staticmethod
+    def _dispatch_authz(
+        metric_type: MetricType,
+        value: float,
+        labels: dict[str, str],
+        p: NexusPrometheusMetrics,
+    ) -> None:
+        """Handle authorization metrics (authz duration, OPA request duration)."""
+        resource_type = labels.get("resource_type", "unknown")
+        action = labels.get("action", "unknown")
+
+        if metric_type == MetricType.AUTHZ_DURATION:
+            p.authz_duration_seconds.labels(
+                resource_type=resource_type,
+                action=action,
+            ).observe(value / 1000)
+
+        elif metric_type == MetricType.OPA_REQUEST_DURATION:
+            p.opa_request_duration_seconds.labels(
+                resource_type=resource_type,
+                action=action,
+            ).observe(value / 1000)
 
     @staticmethod
     def _dispatch_component(

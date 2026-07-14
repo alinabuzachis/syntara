@@ -50,6 +50,8 @@ class TestMetricDefinitions:
         assert prom.tool_execution_duration_seconds is not None
         assert prom.database_query_response_time_seconds is not None
         assert prom.system_e2e_latency_seconds is not None
+        assert prom.authz_duration_seconds is not None
+        assert prom.opa_request_duration_seconds is not None
 
     def test_gauges_defined(self, prom: NexusPrometheusMetrics) -> None:
         """All required gauges are present."""
@@ -224,7 +226,7 @@ class TestInterfaceLabelInPrometheusOutput:
 
     def ***REMOVED***(self, prom: NexusPrometheusMetrics) -> None:
         """nexus_request_duration_seconds samples include interface label."""
-        prom.request_duration_seconds.labels(endpoint="/api/v1/test", interface="ui").observe(0.1)
+        prom.request_duration_seconds.labels(endpoint="/api/v1/test", method="GET", interface="ui").observe(0.1)
 
         output = generate_latest(prom.registry).decode("utf-8")
 

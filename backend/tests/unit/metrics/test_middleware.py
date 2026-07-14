@@ -464,6 +464,7 @@ class TestMetricsMiddlewarePrometheus:
 
         sample_sum = recorder.prometheus.request_duration_seconds.labels(
             endpoint="/api/v1/test",
+            method="GET",
             interface="api",
         )._sum.get()
         assert sample_sum > 0

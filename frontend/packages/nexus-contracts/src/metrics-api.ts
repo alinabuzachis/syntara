@@ -227,6 +227,8 @@ export interface components {
       | 'system_e2e_latency_ms'
       | 'system_error_rate'
       | 'auth_failure'
+      | 'authz_duration_ms'
+      | 'opa_request_duration_ms'
     /**
      * MetricsCategoryType
      * @description Metric category names used to group :class:`MetricType` members.
@@ -246,6 +248,7 @@ export interface components {
       | 'database'
       | 'tool'
       | 'system_wide'
+      | 'authorization'
     /**
      * MetricsRecordPage
      * @description Paginated list of raw metric records.

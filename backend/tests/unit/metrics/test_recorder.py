@@ -315,7 +315,7 @@ class TestRecorderPrometheus:
             labels={"endpoint": "/api/v1/chat", "interface": "api"},
         )
         sample_value = recorder.prometheus.request_duration_seconds.labels(
-            endpoint="/api/v1/chat", interface="api"
+            endpoint="/api/v1/chat", method="unknown", interface="api"
         )._sum.get()
         assert sample_value == pytest.approx(0.25, rel=0.01)
 

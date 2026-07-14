@@ -1,5 +1,6 @@
 """Authorization dependencies for FastAPI endpoints."""
 
+import time
 from uuid import UUID
 
 import structlog
@@ -26,6 +27,23 @@ from nexus.core.models.base import NamedResource
 from nexus.core.models.user import User
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+def _record_authz_duration(start: float, resource_type: str, action: str) -> None:
+    """Record authz check duration via the metrics recorder (fire-and-forget)."""
+    try:
+        from nexus.metrics.dependencies import get_metrics_recorder  # noqa: PLC0415
+        from nexus.metrics.types import MetricType  # noqa: PLC0415
+
+        duration_ms = (time.perf_counter() - start) * 1000
+        get_metrics_recorder().record(
+            MetricType.AUTHZ_DURATION,
+            duration_ms,
+            unit="ms",
+            labels={"resource_type": resource_type, "action": action},
+        )
+    except Exception:  # noqa: BLE001
+        logger.debug("authz_metrics_recording_failed", exc_info=True)
 
 
 def get_authz_evaluator(request: Request) -> AuthzEvaluator:
@@ -307,6 +325,7 @@ class PermissionChecker:
         if getattr(request.state, "is_cert_authenticated", False):
             return
 
+        start = time.perf_counter()
         evaluator = get_authz_evaluator(request)
         resource_id, resource_name, resource_project, resource_labels = await self._resolve_resource_project(
             request, db
@@ -324,6 +343,7 @@ class PermissionChecker:
         )
 
         authz_result: AuthzResult = await authorize(db, evaluator, authz_request)
+        _record_authz_duration(start, self.resource_type, self.action)
 
         if not authz_result.allowed:
             from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
@@ -399,9 +419,10 @@ class ProjectScopeFilter:
         if getattr(request.state, "is_cert_authenticated", False):
             return AllowedProjectsResult(all_projects=True, project_ids=[])
 
+        start = time.perf_counter()
         evaluator = get_authz_evaluator(request)
 
-        return await resolve_allowed_projects(
+        result = await resolve_allowed_projects(
             db=db,
             evaluator=evaluator,
             user_id=current_user.id,
@@ -410,6 +431,8 @@ class ProjectScopeFilter:
             user_labels=current_user.labels,
             user_metadata=current_user.authz_metadata,
         )
+        _record_authz_duration(start, self.resource_type, self.action)
+        return result
 
 
 class VisibilityFilter:
@@ -430,9 +453,10 @@ class VisibilityFilter:
         if getattr(request.state, "is_cert_authenticated", False):
             return VisibilityResult(unrestricted=True)
 
+        start = time.perf_counter()
         evaluator = get_authz_evaluator(request)
 
-        return await resolve_visibility(
+        result = await resolve_visibility(
             db=db,
             evaluator=evaluator,
             user_id=current_user.id,
@@ -441,3 +465,5 @@ class VisibilityFilter:
             user_labels=current_user.labels,
             user_metadata=current_user.authz_metadata,
         )
+        _record_authz_duration(start, self.resource_type, self.action)
+        return result

@@ -99,6 +99,10 @@ class MetricType(StrEnum):
     # Authentication Metrics
     AUTH_FAILURE = "auth_failure"
 
+    # Authorization Metrics
+    AUTHZ_DURATION = "authz_duration_ms"
+    OPA_REQUEST_DURATION = "opa_request_duration_ms"
+
 
 class MetricsCategoryType(StrEnum):
     """Metric category names used to group :class:`MetricType` members."""
@@ -117,6 +121,7 @@ class MetricsCategoryType(StrEnum):
     DATABASE = "database"
     TOOL = "tool"
     SYSTEM_WIDE = "system_wide"
+    AUTHORIZATION = "authorization"
 
 
 METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
@@ -188,6 +193,10 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
         MetricType.SYSTEM_UPTIME,
         MetricType.SYSTEM_E2E_LATENCY,
         MetricType.SYSTEM_ERROR_RATE,
+    ],
+    MetricsCategoryType.AUTHORIZATION: [
+        MetricType.AUTHZ_DURATION,
+        MetricType.OPA_REQUEST_DURATION,
     ],
 }
 

@@ -83,6 +83,9 @@ class TestMetricType:
             "SYSTEM_UPTIME",
             "SYSTEM_E2E_LATENCY",
             "SYSTEM_ERROR_RATE",
+            # Authorization
+            "AUTHZ_DURATION",
+            "OPA_REQUEST_DURATION",
         }
         actual = {m.name for m in MetricType}
         assert actual == expected
@@ -128,6 +131,7 @@ class TestMetricType:
             "tool",
             "database",
             "system_wide",
+            "authorization",
         }
         assert set(METRIC_CATEGORIES.keys()) == expected_categories
 

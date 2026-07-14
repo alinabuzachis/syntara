@@ -352,6 +352,8 @@ components:
         - system_e2e_latency_ms
         - system_error_rate
         - auth_failure
+        - authz_duration_ms
+        - opa_request_duration_ms
       title: MetricType
       description: "Categories of metrics recorded by Nexus.\n\nEach value corresponds to a specific measurable quantity exposed via the\nmetrics REST API and (where applicable) Prometheus endpoint."
     MetricsCategoryType:
@@ -370,6 +372,7 @@ components:
         - database
         - tool
         - system_wide
+        - authorization
       title: MetricsCategoryType
       description: Metric category names used to group :class:`MetricType` members.
     MetricsRecordPage:

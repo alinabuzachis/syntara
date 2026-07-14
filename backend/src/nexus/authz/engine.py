@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
@@ -76,9 +77,29 @@ def _sort_lists(obj: object) -> object:
     return obj
 
 
+def _record_authz_eval_duration(start: float, resource_type: str, action: str) -> None:
+    """Record policy evaluation duration (fire-and-forget)."""
+    try:
+        from nexus.metrics.dependencies import get_metrics_recorder  # noqa: PLC0415
+        from nexus.metrics.types import MetricType  # noqa: PLC0415
+
+        duration_ms = (time.perf_counter() - start) * 1000
+        get_metrics_recorder().record(
+            MetricType.OPA_REQUEST_DURATION,
+            duration_ms,
+            unit="ms",
+            labels={"resource_type": resource_type, "action": action},
+        )
+    except Exception:  # noqa: BLE001
+        logger.debug("authz_eval_metrics_recording_failed", exc_info=True)
+
+
 async def _evaluate_authz_policy(
     evaluator: AuthzEvaluator,
     authz_input: dict[str, Any],
+    *,
+    resource_type: str = "unknown",
+    action: str = "unknown",
 ) -> dict[str, Any]:
     """Evaluate an authorization input, using the cache when available."""
     if _authz_cache is not None:
@@ -86,10 +107,15 @@ async def _evaluate_authz_policy(
         cached = _authz_cache.get(key)
         if cached is not None:
             return dict(cached)
+        start = time.perf_counter()
         result = evaluator.evaluate(authz_input)
+        _record_authz_eval_duration(start, resource_type, action)
         _authz_cache[key] = result
         return result
-    return evaluator.evaluate(authz_input)
+    start = time.perf_counter()
+    result = evaluator.evaluate(authz_input)
+    _record_authz_eval_duration(start, resource_type, action)
+    return result
 
 
 @dataclass
@@ -165,7 +191,9 @@ async def authorize(
         "effective_policies": effective,
     }
 
-    opa_result = await _evaluate_authz_policy(evaluator, authz_input)
+    opa_result = await _evaluate_authz_policy(
+        evaluator, authz_input, resource_type=request.resource_type, action=request.action
+    )
 
     result = AuthzResult(
         allowed=opa_result.get("allow", False),
@@ -234,7 +262,7 @@ async def _evaluate_list_scope(
         "effective_policies": effective,
     }
 
-    opa_result = await _evaluate_authz_policy(evaluator, authz_input)
+    opa_result = await _evaluate_authz_policy(evaluator, authz_input, resource_type=resource_type, action=action)
     allowed_projects: list[str] = list(opa_result.get("allowed_projects", []))
     return effective, groups, allowed_projects
 
@@ -353,7 +381,7 @@ async def resolve_readable_project_ids(
         "groups": groups,
         "effective_policies": effective,
     }
-    opa_result = await _evaluate_authz_policy(evaluator, authz_input)
+    opa_result = await _evaluate_authz_policy(evaluator, authz_input, resource_type="project", action="read")
     readable_names: list[str] = list(opa_result.get("allowed_projects", []))
 
     if "*" in readable_names:

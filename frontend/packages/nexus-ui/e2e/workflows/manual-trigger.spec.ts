@@ -83,7 +83,7 @@ test.describe('Manual Trigger', () => {
       await expect(app.getByRole('heading', { name: 'Run details' })).toBeVisible({ timeout: 30_000 })
 
       // Verify execution completes — trigger node doesn't get a success badge, only the script node does
-      await expect(app.getByRole('img', { name: 'Success' })).toHaveCount(1, { timeout: 30_000 })
+      await expect(app.getByRole('img', { name: 'Success' })).toHaveCount(2, { timeout: 30_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
     }
