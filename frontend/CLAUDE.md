@@ -240,7 +240,7 @@ Use date utilities in `packages/nexus-ui/src/utils/dateUtils.ts`:
 
 - `formatDate(isoString)` — "Jan 15, 2024"
 - `formatTime(isoString)` — "2:30 PM"
-- `formatDateTime(isoString?)` — medium date + short time
+- `formatDateTime(isoString?)` — medium date + time with seconds (e.g. "May 27, 2026, 9:55:01 AM")
 - `formatElapsedTime(elapsedMs)` — "1h 2m 3s"
 
 Use for UI display only, not in logic (per i18n guidelines). Trigger-specific interval formatting stays in `utils/triggerFormatting.ts`.
