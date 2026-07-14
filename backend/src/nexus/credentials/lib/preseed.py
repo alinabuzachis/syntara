@@ -135,6 +135,17 @@ GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
                 },
             ],
             "required": ["host"],
+            "mutually_exclusive": [
+                ["oauth_token"],
+                ["username", "password"],
+            ],
+            "required_one_of": [
+                ["oauth_token"],
+                ["username", "password"],
+            ],
+            "required_together": [
+                ["username", "password"],
+            ],
         },
         "injectors": {
             "extra_vars": {

@@ -121,6 +121,55 @@ def _validate_field_value(field_id: str, value: Any, field_def: dict[str, Any]) 
             raise CredentialValidationError(msg)
 
 
+def _validate_field_constraints(inputs: dict[str, Any], type_inputs: dict[str, Any]) -> None:
+    """Enforce inter-field constraints: mutually_exclusive, required_one_of, required_together.
+
+    Schema keys (all optional, declared in type_inputs):
+        mutually_exclusive: list[list[str]] — groups that cannot be populated simultaneously.
+            A group is "populated" when ALL of its fields are present and non-empty.
+            (Note: False and 0 count as populated — only None, "", and absent are excluded.)
+        required_one_of: list[list[str]] — at least one of these groups must be populated.
+        required_together: list[list[str]] — if any field in a sublist is provided,
+            all others in that sublist must also be provided.
+
+    Raises:
+        CredentialValidationError: On constraint violation.
+
+    """
+    _missing = object()
+
+    def _is_provided(field: str) -> bool:
+        # Sentinel-based: treats False/0 as provided, but not None/""/absent
+        return inputs.get(field, _missing) not in (_missing, None, "")
+
+    def _group_is_populated(group: list[str]) -> bool:
+        return bool(group) and all(_is_provided(f) for f in group)
+
+    # required_together: if any field in a group is provided, all must be
+    for group in type_inputs.get("required_together", []):
+        provided_in_group = [f for f in group if _is_provided(f)]
+        if provided_in_group and len(provided_in_group) != len(group):
+            missing = [f for f in group if not _is_provided(f)]
+            msg = f"Fields must be provided together: {', '.join(group)}. Missing: {', '.join(missing)}"
+            raise CredentialValidationError(msg)
+
+    # mutually_exclusive: no two groups can be populated at the same time
+    exclusive_groups: list[list[str]] = type_inputs.get("mutually_exclusive", [])
+    if exclusive_groups:
+        populated = [g for g in exclusive_groups if _group_is_populated(g)]
+        if len(populated) > 1:
+            labels = [" + ".join(g) for g in populated]
+            msg = f"These field groups are mutually exclusive: {' and '.join(labels)}"
+            raise CredentialValidationError(msg)
+
+    # required_one_of: at least one group must be fully populated
+    required_one_of: list[list[str]] = type_inputs.get("required_one_of", [])
+    if required_one_of and not any(_group_is_populated(g) for g in required_one_of):
+        labels = [" + ".join(g) for g in required_one_of]
+        msg = f"At least one field group required: {' or '.join(labels)}"
+        raise CredentialValidationError(msg)
+
+
 def _validate_inputs(
     inputs: dict[str, Any],
     type_inputs: dict[str, Any],
@@ -171,6 +220,10 @@ def _validate_inputs(
         if missing:
             msg = f"Missing required field(s): {', '.join(sorted(missing))}"
             raise CredentialValidationError(msg)
+
+    # Enforce inter-field constraints (mutually_exclusive, required_one_of, required_together)
+    if not allow_sentinel:
+        _validate_field_constraints(inputs, type_inputs)
 
     # Validate choices, types, and format
     for field_id, value in inputs.items():
@@ -450,7 +503,9 @@ class CredentialService(BaseService):
         decrypted_inputs: dict[str, Any] = {}
         try:
             if data.inputs is not None:
-                credential.secret_id, decrypted_inputs = await self._merge_and_store_inputs(credential, data.inputs)
+                decrypted_inputs = await self._merge_inputs(credential, data.inputs)
+                _validate_field_constraints(decrypted_inputs, credential_type.inputs)
+                credential.secret_id = await self._store_inputs(credential, decrypted_inputs)
             else:
                 decrypted_inputs = await self._retrieve_or_empty(credential.secret_id)
         except CredentialDecryptionError:
@@ -747,26 +802,24 @@ class CredentialService(BaseService):
         result = await self.session.exec(stmt)
         return result.all()  # type: ignore[no-any-return]
 
-    async def _merge_and_store_inputs(
-        self, credential: Credential, new_inputs: dict[str, Any]
-    ) -> tuple[UUID, dict[str, Any]]:
-        """Merge new inputs with existing (preserving $encrypted$) and store via SecretService.
+    async def _merge_inputs(self, credential: Credential, new_inputs: dict[str, Any]) -> dict[str, Any]:
+        """Merge new inputs with existing (preserving $encrypted$) without persisting.
 
-        Returns (secret_id, merged_plaintext) to avoid a redundant retrieve for the response.
+        Returns the merged plaintext for validation before storage.
         """
         existing_inputs = await self._retrieve_or_empty(credential.secret_id)
 
-        # Merge: keep existing for $encrypted$, use new for changed fields
-        updated_inputs = {
+        return {
             **existing_inputs,
             **{k: v for k, v in new_inputs.items() if v != ENCRYPTED_SENTINEL},
         }
 
+    async def _store_inputs(self, credential: Credential, merged_inputs: dict[str, Any]) -> UUID:
+        """Persist already-validated merged inputs to SecretService."""
         if credential.secret_id:
-            await self._secret_service.update_secret(credential.secret_id, updated_inputs)
-            return credential.secret_id, updated_inputs
-        secret_id = await self._secret_service.create_secret(updated_inputs)
-        return secret_id, updated_inputs
+            await self._secret_service.update_secret(credential.secret_id, merged_inputs)
+            return credential.secret_id
+        return await self._secret_service.create_secret(merged_inputs)
 
     async def _get_or_raise(self, credential_id: UUID) -> Credential:
         """Get credential by ID or raise CredentialNotFoundError."""
