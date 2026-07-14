@@ -25,7 +25,9 @@ describe('ScheduleBuilderFields', () => {
     const onChange = vi.fn()
     render(<ScheduleBuilderFields onChange={onChange} />)
 
-    await userEvent.setup().type(screen.getByLabelText('Start date'), '2026-01-15')
+    const user = userEvent.setup()
+    await user.clear(screen.getByLabelText('Start date'))
+    await user.type(screen.getByLabelText('Start date'), '2026-01-15')
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled()
@@ -200,6 +202,21 @@ describe('ScheduleBuilderFields', () => {
     })
   })
 
+  it('clears end date when input is emptied', async () => {
+    const onChange = vi.fn()
+    render(<ScheduleBuilderFields value="R/2024-01-15T10:00:00Z/P1D/2024-12-31T23:59:59Z" onChange={onChange} />)
+
+    expect(screen.getByLabelText('End date', { selector: 'input' })).toHaveValue('2024-12-31')
+
+    await userEvent.setup().clear(screen.getByLabelText('End date', { selector: 'input' }))
+
+    await waitFor(() => {
+      const lastCall = onChange.mock.calls.at(-1)?.[0] as string
+      expect(lastCall).not.toContain('2024-12-31')
+      expect(lastCall).toMatch(/^R\/2024-01-15T10:00:00\+00:00\/P1D$/)
+    })
+  })
+
   it('shows error when end date is before start date', () => {
     render(<ScheduleBuilderFields value="R/2024-06-15T10:00:00Z/P1D/2024-06-01T23:59:59Z" />)
 
@@ -220,12 +237,6 @@ describe('ScheduleBuilderFields', () => {
 
     expect(screen.queryByText('End date must be on or after the start date.')).not.toBeInTheDocument()
     expect(screen.getByText('If this field is left empty, the schedule will not have an end date.')).toBeInTheDocument()
-  })
-
-  it('sets min attribute on end date input to start date', () => {
-    render(<ScheduleBuilderFields value="R/2024-06-15T10:00:00Z/P1D" />)
-
-    expect(screen.getByLabelText('End date', { selector: 'input' })).toHaveAttribute('min', '2024-06-15')
   })
 
   it('calls onChange with a non-empty interval when no start date is set', async () => {

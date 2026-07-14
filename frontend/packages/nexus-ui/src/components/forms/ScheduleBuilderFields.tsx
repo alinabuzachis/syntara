@@ -1,4 +1,6 @@
 import {
+  Button,
+  DatePicker,
   FormGroup,
   FormHelperText,
   HelperText,
@@ -15,10 +17,9 @@ import {
   TextInputGroup,
   TextInputGroupMain,
   TextInputGroupUtilities,
-  Button,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiErrorIcon } from '@patternfly/react-icons'
-import { type Dispatch, useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { type Dispatch, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import {
   durationToFrequencyAndInterval,
@@ -76,6 +77,15 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
     default:
       return state
   }
+}
+
+function formatDateYMD(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function parseDateYMD(val: string): Date {
+  const d = new Date(`${val}T00:00:00`)
+  return Number.isNaN(d.getTime()) ? new Date() : d
 }
 
 function toDateOnly(isoString: string): string {
@@ -264,18 +274,23 @@ function StartDateTimeField({
         isRequired={required}
       >
         <div className={styles.startDateTimeRow}>
-          <div className={styles.dateInput}>
-            <TextInput
-              id="schedule-start-date"
-              type="date"
-              value={startDate}
-              onChange={(_event, val) => dispatch({ type: 'SET_START_DATE', payload: val })}
-              aria-label="Start date"
-              aria-required={required || undefined}
-              aria-invalid={error}
-              validated={error ? 'error' : 'default'}
-            />
-          </div>
+          <DatePicker
+            value={startDate}
+            onChange={(_event, value) => {
+              if (value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                dispatch({ type: 'SET_START_DATE', payload: value })
+              }
+            }}
+            dateFormat={formatDateYMD}
+            dateParse={parseDateYMD}
+            aria-label="Start date"
+            inputProps={{
+              id: 'schedule-start-date',
+              validated: error ? 'error' : 'default',
+              'aria-required': required || undefined,
+            }}
+            appendTo={() => document.body}
+          />
           <div className={styles.timeInput}>
             <TextInput
               id="schedule-start-time"
@@ -336,38 +351,56 @@ function StartDateTimeField({
   )
 }
 
+function buildEndDateValidators(startDate: string): ((date: Date) => string)[] {
+  return [
+    (date: Date) => {
+      if (!startDate) return ''
+      const start = new Date(`${startDate}T00:00:00`)
+      return date < start ? 'End date must be on or after the start date.' : ''
+    },
+  ]
+}
+
 function EndDateField({
   endDate,
   startDate,
   dispatch,
 }: Readonly<{ endDate: string; startDate: string; dispatch: DispatchBuilder }>) {
+  const validators = useMemo(() => buildEndDateValidators(startDate), [startDate])
   const endBeforeStart = Boolean(endDate && startDate && endDate < startDate)
 
   return (
     <StackItem>
       <FormGroup label={<FormLabelWithHelp label="End date" helpText={END_DATE_HELP} />} fieldId="schedule-end-date">
-        <TextInput
-          id="schedule-end-date"
-          type="date"
+        <DatePicker
           value={endDate}
-          min={startDate || undefined}
-          onChange={(_event, val) => dispatch({ type: 'SET_END_DATE', payload: val })}
+          onChange={(_event, value) => {
+            if (value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+              dispatch({ type: 'SET_END_DATE', payload: value })
+            }
+          }}
+          dateFormat={formatDateYMD}
+          dateParse={parseDateYMD}
           aria-label="End date"
-          validated={endBeforeStart ? 'error' : 'default'}
-          aria-invalid={endBeforeStart || undefined}
+          validators={validators}
+          inputProps={{
+            id: 'schedule-end-date',
+            validated: endBeforeStart ? 'error' : 'default',
+          }}
+          appendTo={() => document.body}
+          helperText={
+            <HelperText>
+              <HelperTextItem
+                variant={endBeforeStart ? 'error' : 'default'}
+                icon={endBeforeStart ? <RhUiErrorIcon /> : undefined}
+              >
+                {endBeforeStart
+                  ? 'End date must be on or after the start date.'
+                  : 'If this field is left empty, the schedule will not have an end date.'}
+              </HelperTextItem>
+            </HelperText>
+          }
         />
-        <FormHelperText>
-          <HelperText>
-            <HelperTextItem
-              variant={endBeforeStart ? 'error' : 'default'}
-              icon={endBeforeStart ? <RhUiErrorIcon /> : undefined}
-            >
-              {endBeforeStart
-                ? 'End date must be on or after the start date.'
-                : 'If this field is left empty, the schedule will not have an end date.'}
-            </HelperTextItem>
-          </HelperText>
-        </FormHelperText>
       </FormGroup>
     </StackItem>
   )
