@@ -97,6 +97,24 @@ vi.mock('../../../app/useUnsavedChanges', () => ({
   }),
 }))
 
+const mockPermissions = {
+  canCreate: true,
+  canUpdate: true,
+  canDelete: true,
+  isLoading: false,
+  tooltips: {
+    create: 'No create permission',
+    update: 'No update permission',
+    enable: 'No enable permission',
+    validate: 'No validate permission',
+    delete: 'No delete permission',
+  },
+}
+
+vi.mock('./useIntegrationPermissions', () => ({
+  useIntegrationPermissions: () => mockPermissions,
+}))
+
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 
 const queryClient = new QueryClient({
@@ -207,6 +225,12 @@ describe('IntegrationDetail', () => {
     vi.clearAllMocks()
     setupDefaultMocks()
     mockActiveTab = 'details'
+    Object.assign(mockPermissions, {
+      canCreate: true,
+      canUpdate: true,
+      canDelete: true,
+      isLoading: false,
+    })
     mockUseAllIntegrationTools.mockReturnValue({
       tools: [],
       isLoading: false,
@@ -390,8 +414,8 @@ describe('IntegrationDetail', () => {
       await user.click(await screen.findByRole('menuitem', { name: /validate integration/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Validate integration')).toBeInTheDocument()
-        expect(screen.getByText(/validate the connection/i)).toBeInTheDocument()
+        expect(screen.getByText('Validate integration?')).toBeInTheDocument()
+        expect(screen.getByText(/test the connection/i)).toBeInTheDocument()
       })
     })
 
@@ -753,6 +777,54 @@ describe('IntegrationDetail', () => {
       render(<IntegrationDetail />, { wrapper })
 
       expect(screen.queryByText('Provider type')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Permission gating', () => {
+    it('disables Edit button when canUpdate is false', () => {
+      mockPermissions.canUpdate = false
+      render(<IntegrationDetail />, { wrapper })
+
+      const editButton = screen.getByRole('button', { name: 'Edit integration' })
+      expect(editButton).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables toggle switch with correct label when canUpdate is false', () => {
+      mockPermissions.canUpdate = false
+      render(<IntegrationDetail />, { wrapper })
+
+      const toggle = screen.getByRole('switch')
+      expect(toggle).toBeDisabled()
+      expect(screen.getByText('Enabled')).toBeInTheDocument()
+    })
+
+    it('disables validate kebab action when canUpdate is false', async () => {
+      mockPermissions.canUpdate = false
+      const user = userEvent.setup()
+      render(<IntegrationDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Integration actions' }))
+
+      const validateItem = await screen.findByRole('menuitem', { name: /Validate integration/i })
+      expect(validateItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables delete kebab action when canDelete is false', async () => {
+      mockPermissions.canDelete = false
+      const user = userEvent.setup()
+      render(<IntegrationDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Integration actions' }))
+
+      const deleteItem = await screen.findByRole('menuitem', { name: /Delete integration/i })
+      expect(deleteItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables switch during permission loading', () => {
+      mockPermissions.isLoading = true
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByRole('switch')).toBeDisabled()
     })
   })
 })

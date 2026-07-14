@@ -74,15 +74,18 @@ export const NAV_ITEMS: TNavigationItem[] = [
         label: 'Integrations',
         path: AppRoute.Configuration.Integrations.Root,
         icon: <RhUiConnectedIcon />,
+        requiredPermissions: [{ action: 'read', resourceType: 'integration' }],
         children: [
           {
             label: 'Configure',
             path: AppRoute.Configuration.Integrations.Configure,
+            routePermission: { action: 'create', resourceType: 'integration' },
           },
           {
             label: 'Edit Integration',
             path: AppRoute.Configuration.Integrations.Edit,
             hidden: true,
+            routePermission: { action: 'update', resourceType: 'integration' },
           },
           {
             label: 'Integration Detail',

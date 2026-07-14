@@ -28,10 +28,13 @@ export function IntegrationDialogs({
         isOpen={validateDialog.isOpen}
         onClose={validateDialog.close}
         onConfirm={onValidate}
-        title="Validate integration"
+        title="Validate integration?"
         confirmLabel="Validate"
       >
-        Are you sure you want to validate the connection for &quot;{validateDialog.item?.name}&quot;?
+        <Content component={ContentVariants.p}>
+          This will test the connection to <strong>{validateDialog.item?.name}</strong> and update its validation
+          status.
+        </Content>
       </NxConfirmationDialog>
 
       <NxConfirmationDialog

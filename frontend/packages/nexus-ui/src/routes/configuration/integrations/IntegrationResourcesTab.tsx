@@ -37,6 +37,7 @@ type IntegrationResourcesTabProps = Readonly<{
   enabledCount: number
   handleSelectTool: (toolId: string, checked: boolean) => void
   lastRefreshedAt: string | null | undefined
+  canUpdate: boolean
   onRefreshed: () => Promise<IntegrationRead | undefined>
   refetchTools: () => Promise<unknown>
 }>
@@ -48,6 +49,7 @@ export function IntegrationResourcesTab({
   enabledCount,
   handleSelectTool,
   lastRefreshedAt,
+  canUpdate,
   onRefreshed,
   refetchTools,
 }: IntegrationResourcesTabProps) {
@@ -112,7 +114,7 @@ export function IntegrationResourcesTab({
           title="No resources discovered yet"
           description="Click Refresh tools to discover available tools from this integration."
           buttonText="Refresh tools"
-          addData={() => detachPromise(handleRefresh())}
+          addData={canUpdate ? () => detachPromise(handleRefresh()) : undefined}
         />
       </NxPageBody>
     )
@@ -143,7 +145,8 @@ export function IntegrationResourcesTab({
                 aria-label="Refresh resources"
                 icon={<RhUiSyncIcon />}
                 isLoading={isRefreshing}
-                onClick={() => detachPromise(handleRefresh())}
+                isAriaDisabled={!canUpdate || isRefreshing}
+                onClick={canUpdate ? () => detachPromise(handleRefresh()) : undefined}
               />
             </ToolbarItem>
             <ToolbarItem>
@@ -164,7 +167,7 @@ export function IntegrationResourcesTab({
               select={{
                 onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
                 isSelected: allSelected,
-                isHeaderSelectDisabled: filteredTools.length === 0,
+                isHeaderSelectDisabled: !canUpdate || filteredTools.length === 0,
               }}
               screenReaderText="Select all tools"
             />
@@ -179,6 +182,7 @@ export function IntegrationResourcesTab({
                   rowIndex: index,
                   onSelect: (_event, isSelecting) => handleSelectTool(tool.id, isSelecting),
                   isSelected: enabledToolIds.has(tool.id),
+                  isDisabled: !canUpdate,
                 }}
               />
               <Td dataLabel="Name">

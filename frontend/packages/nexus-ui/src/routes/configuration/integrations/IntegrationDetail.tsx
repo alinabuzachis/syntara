@@ -1,5 +1,15 @@
 import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
-import { ActionGroup, Badge, Button, DescriptionList, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
+import {
+  ActionGroup,
+  Badge,
+  Button,
+  DescriptionList,
+  Stack,
+  StackItem,
+  Switch,
+  Tab,
+  Tooltip,
+} from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -13,6 +23,7 @@ import {
 import { useUnsavedChanges } from '../../../app/useUnsavedChanges'
 import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
 import { NxDetail } from '../../../components/details/NxDetail'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
@@ -49,6 +60,7 @@ import { StatusLabel } from './StatusLabel'
 import { useAllIntegrationTools } from './useAllIntegrationTools'
 import { useIntegrationActions } from './useIntegrationActions'
 import { useIntegrationModelsState } from './useIntegrationModelsState'
+import { type IntegrationPermissions, useIntegrationPermissions } from './useIntegrationPermissions'
 import { useItemSelection } from './useItemSelection'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
@@ -105,24 +117,45 @@ function IntegrationToolbar({
   kebabActions,
   onToggleEnabled,
   onEdit,
+  permissions,
 }: Readonly<{
   integration: IntegrationRead
   kebabActions: KebabAction[]
   onToggleEnabled: () => void
   onEdit: () => void
+  permissions: IntegrationPermissions
 }>) {
   return (
     <>
-      <Switch
-        id="integration-enabled-toggle"
-        label={integration.enabled ? 'Enabled' : 'Disabled'}
-        isChecked={integration.enabled ?? true}
-        onChange={onToggleEnabled}
-        aria-label={`Toggle ${integration.name}`}
-      />
-      <Button variant="primary" icon={<RhUiEditIcon />} onClick={onEdit}>
-        Edit integration
-      </Button>
+      {permissions.isLoading || !permissions.canUpdate ? (
+        <Tooltip content={permissions.tooltips.enable}>
+          <Switch
+            id="integration-enabled-toggle"
+            label={integration.enabled ? 'Enabled' : 'Disabled'}
+            isChecked={integration.enabled ?? true}
+            isDisabled
+            aria-label={`Toggle ${integration.name}`}
+          />
+        </Tooltip>
+      ) : (
+        <Switch
+          id="integration-enabled-toggle"
+          label={integration.enabled ? 'Enabled' : 'Disabled'}
+          isChecked={integration.enabled ?? true}
+          onChange={onToggleEnabled}
+          aria-label={`Toggle ${integration.name}`}
+        />
+      )}
+      <DisabledWithTooltip isDisabled={!permissions.canUpdate} content={permissions.tooltips.update}>
+        <Button
+          variant="primary"
+          icon={<RhUiEditIcon />}
+          isAriaDisabled={!permissions.canUpdate}
+          onClick={permissions.canUpdate ? onEdit : undefined}
+        >
+          Edit integration
+        </Button>
+      </DisabledWithTooltip>
       <NxKebabMenu actions={kebabActions} aria-label="Integration actions" />
     </>
   )
@@ -131,24 +164,33 @@ function IntegrationToolbar({
 function buildKebabActions(
   integration: IntegrationRead | undefined,
   validateDialog: { open: (item: IntegrationRead) => void },
-  deleteDialog: { open: (item: IntegrationRead) => void }
+  deleteDialog: { open: (item: IntegrationRead) => void },
+  permissions: IntegrationPermissions
 ): KebabAction[] {
   return [
     {
       key: 'validate',
       title: <IconLabel icon={<RhUiCheckCircleIcon />}>Validate integration</IconLabel>,
-      onClick: () => {
-        if (integration) validateDialog.open(integration)
-      },
+      isAriaDisabled: !permissions.canUpdate,
+      tooltipProps: permissions.canUpdate ? undefined : { content: permissions.tooltips.validate },
+      onClick: permissions.canUpdate
+        ? () => {
+            if (integration) validateDialog.open(integration)
+          }
+        : undefined,
     },
     { key: 'separator', isSeparator: true },
     {
       key: 'delete',
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete integration</IconLabel>,
       isDanger: true,
-      onClick: () => {
-        if (integration) deleteDialog.open(integration)
-      },
+      isAriaDisabled: !permissions.canDelete,
+      tooltipProps: permissions.canDelete ? undefined : { content: permissions.tooltips.delete },
+      onClick: permissions.canDelete
+        ? () => {
+            if (integration) deleteDialog.open(integration)
+          }
+        : undefined,
     },
   ]
 }
@@ -267,6 +309,7 @@ export function IntegrationDetail() {
   const editPath = AppRoute.Configuration.Integrations.Edit.replace(':integrationId', integrationId)
   const [activeTab] = useUrlTab<IntegrationDetailBreadcrumbTab | 'edit'>(integrationBasePath)
   const docLink = useDocLink('integrations')
+  const permissions = useIntegrationPermissions()
 
   const query = integrationsClient.useQuery(
     'get',
@@ -294,7 +337,7 @@ export function IntegrationDetail() {
     handleDisable,
   } = useIntegrationActions(() => query.refetch())
 
-  const kebabActions = buildKebabActions(integration, validateDialog, deleteDialog)
+  const kebabActions = buildKebabActions(integration, validateDialog, deleteDialog, permissions)
 
   const enabledResourceCount = integration ? getEnabledResourceCount(integration) : 0
   const isLLM = integration ? isLLMProvider(integration) : false
@@ -364,6 +407,7 @@ export function IntegrationDetail() {
             kebabActions={kebabActions}
             onToggleEnabled={() => handleToggleEnabled(integration)}
             onEdit={() => navigate(editPath)}
+            permissions={permissions}
           />
         }
       />
@@ -413,7 +457,8 @@ export function IntegrationDetail() {
                     resetSelectionToServer={modelsState.resetSelectionToServer}
                     resetDefault={modelsState.resetDefault}
                     lastRefreshedAt={integration.last_refreshed_at}
-                    canUpdate={true}
+                    canUpdate={permissions.canUpdate}
+                    updateTooltip={permissions.tooltips.update}
                     onRefreshed={async () => {
                       const result = await query.refetch()
                       return result.data
@@ -427,6 +472,7 @@ export function IntegrationDetail() {
                     enabledCount={toolEnabledCount}
                     handleSelectTool={handleSelectTool}
                     lastRefreshedAt={integration.last_refreshed_at}
+                    canUpdate={permissions.canUpdate}
                     onRefreshed={async () => {
                       const result = await query.refetch()
                       return result.data

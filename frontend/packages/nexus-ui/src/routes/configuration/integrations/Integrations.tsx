@@ -1,12 +1,12 @@
 import type { IntegrationsAPI } from '@ansible/nexus-contracts'
-import { Badge, Button, Content, ContentVariants, Switch, Truncate } from '@patternfly/react-core'
+import { Badge, Button, Switch, Tooltip, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiCheckCircleIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useMemo } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { integrationsClient } from '../../../client'
-import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
@@ -26,6 +26,7 @@ import type { FilterFieldDefinition } from '../../../types/filters'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 
+import { IntegrationDialogs } from './IntegrationDialogs'
 import { IntegrationEmptyState } from './IntegrationEmptyState'
 import {
   INTEGRATION_TYPE_LABELS,
@@ -33,35 +34,35 @@ import {
   getIntegrationStatusFilterDefinition,
   getIntegrationTypeFilterDefinition,
 } from './integrationFilters'
-import {
-  getBaseUrl,
-  getEnabledResourceCount,
-  getResourceNoun,
-  getTotalResourceCount,
-  isLLMProvider,
-} from './integrationUtils'
+import { getBaseUrl, getEnabledResourceCount } from './integrationUtils'
 import { StatusLabel } from './StatusLabel'
 import { useIntegrationActions } from './useIntegrationActions'
+import { useIntegrationPermissions } from './useIntegrationPermissions'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 
 function buildRowActions(
   integration: IntegrationRead,
   validateDialog: { open: (item: IntegrationRead) => void },
-  deleteDialog: { open: (item: IntegrationRead) => void }
+  deleteDialog: { open: (item: IntegrationRead) => void },
+  permissions: ReturnType<typeof useIntegrationPermissions>
 ): KebabAction[] {
   return [
     {
       key: 'validate',
       title: <IconLabel icon={<RhUiCheckCircleIcon />}>Validate integration</IconLabel>,
-      onClick: () => validateDialog.open(integration),
+      isAriaDisabled: !permissions.canUpdate,
+      tooltipProps: permissions.canUpdate ? undefined : { content: permissions.tooltips.validate },
+      onClick: permissions.canUpdate ? () => validateDialog.open(integration) : undefined,
     },
     { key: 'separator', isSeparator: true },
     {
       key: 'delete',
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete integration</IconLabel>,
       isDanger: true,
-      onClick: () => deleteDialog.open(integration),
+      isAriaDisabled: !permissions.canDelete,
+      tooltipProps: permissions.canDelete ? undefined : { content: permissions.tooltips.delete },
+      onClick: permissions.canDelete ? () => deleteDialog.open(integration) : undefined,
     },
   ]
 }
@@ -72,12 +73,14 @@ function IntegrationsTableContent({
   validateDialog,
   deleteDialog,
   handleToggleEnabled,
+  permissions,
 }: Readonly<{
   results: IntegrationRead[]
   getSortParams: (index: number) => ReturnType<ReturnType<typeof useTableSort>['getSortParams']>
   validateDialog: { open: (item: IntegrationRead) => void }
   deleteDialog: { open: (item: IntegrationRead) => void }
   handleToggleEnabled: (integration: IntegrationRead) => void
+  permissions: ReturnType<typeof useIntegrationPermissions>
 }>) {
   return (
     <>
@@ -115,17 +118,29 @@ function IntegrationsTableContent({
               <Badge isRead>{getEnabledResourceCount(integration)}</Badge>
             </Td>
             <Td dataLabel="State">
-              <Switch
-                id={`toggle-${integration.id}`}
-                label={integration.enabled ? 'Enabled' : 'Disabled'}
-                isChecked={integration.enabled ?? true}
-                onChange={() => handleToggleEnabled(integration)}
-                aria-label={`Toggle ${integration.name}`}
-              />
+              {permissions.isLoading || !permissions.canUpdate ? (
+                <Tooltip content={permissions.tooltips.enable}>
+                  <Switch
+                    id={`toggle-${integration.id}`}
+                    label={integration.enabled ? 'Enabled' : 'Disabled'}
+                    isChecked={integration.enabled ?? true}
+                    isDisabled
+                    aria-label={`Toggle ${integration.name}`}
+                  />
+                </Tooltip>
+              ) : (
+                <Switch
+                  id={`toggle-${integration.id}`}
+                  label={integration.enabled ? 'Enabled' : 'Disabled'}
+                  isChecked={integration.enabled ?? true}
+                  onChange={() => handleToggleEnabled(integration)}
+                  aria-label={`Toggle ${integration.name}`}
+                />
+              )}
             </Td>
             <Td isActionCell>
               <NxKebabMenu
-                actions={buildRowActions(integration, validateDialog, deleteDialog)}
+                actions={buildRowActions(integration, validateDialog, deleteDialog, permissions)}
                 aria-label={`Actions for ${integration.name}`}
               />
             </Td>
@@ -139,6 +154,7 @@ function IntegrationsTableContent({
 export default function Integrations() {
   const navigate = useNavigate()
   const docLink = useDocLink('integrations')
+  const permissions = useIntegrationPermissions()
 
   const {
     cursor,
@@ -211,13 +227,18 @@ export default function Integrations() {
         docLink={docLink}
         toolbar={
           !isEmpty || hasActiveFilters ? (
-            <Button
-              variant="primary"
-              icon={<RhUiAddIcon />}
-              onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}
-            >
-              Configure integration
-            </Button>
+            <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+              <Button
+                variant="primary"
+                icon={<RhUiAddIcon />}
+                isAriaDisabled={!permissions.canCreate}
+                onClick={
+                  permissions.canCreate ? () => navigate(AppRoute.Configuration.Integrations.Configure) : undefined
+                }
+              >
+                Configure integration
+              </Button>
+            </DisabledWithTooltip>
           ) : undefined
         }
       />
@@ -231,7 +252,7 @@ export default function Integrations() {
             isEmpty={isEmpty}
             hasActiveFilters={hasActiveFilters}
             onClearAllFilters={handleClearAllFilters}
-            noDataState={<IntegrationEmptyState />}
+            noDataState={<IntegrationEmptyState canCreate={permissions.canCreate} />}
             toolbar={
               !isEmpty || hasActiveFilters ? (
                 <NxListPanelToolbar
@@ -250,6 +271,7 @@ export default function Integrations() {
                   validateDialog={validateDialog}
                   deleteDialog={deleteDialog}
                   handleToggleEnabled={handleToggleEnabled}
+                  permissions={permissions}
                 />
               </NxListPanelTable>
             }
@@ -257,58 +279,14 @@ export default function Integrations() {
         </NxListPanel>
       </NxPageBody>
 
-      <NxConfirmationDialog
-        isOpen={validateDialog.isOpen}
-        onClose={validateDialog.close}
-        onConfirm={handleValidate}
-        title="Validate integration"
-        confirmLabel="Validate"
-      >
-        Are you sure you want to validate the connection for &quot;{validateDialog.item?.name}&quot;?
-      </NxConfirmationDialog>
-
-      <NxConfirmationDialog
-        isOpen={deleteDialog.isOpen}
-        onClose={deleteDialog.close}
-        onConfirm={handleDelete}
-        title="Delete integration?"
-        confirmLabel="Delete"
-        confirmVariant="danger"
-        titleIconVariant="warning"
-        destructiveAcknowledgement={{
-          checkboxId: 'delete-integration-ack',
-          label: 'I understand this integration and the resources shown above will be permanently deleted.',
-        }}
-      >
-        <Content component={ContentVariants.p}>
-          The integration <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
-        </Content>
-        <Content component={ContentVariants.p}>
-          <strong>Resources that will be deleted</strong>
-        </Content>
-        <Content component={ContentVariants.p}>
-          {deleteDialog.item && isLLMProvider(deleteDialog.item) ? 'Models' : 'Tools'}{' '}
-          <Badge isRead>{deleteDialog.item ? getTotalResourceCount(deleteDialog.item) : 0}</Badge>
-        </Content>
-      </NxConfirmationDialog>
-
-      <NxConfirmationDialog
-        isOpen={disableDialog.isOpen}
-        onClose={disableDialog.close}
-        onConfirm={handleDisable}
-        title="Disable integration?"
-        confirmLabel="Disable"
-        confirmVariant="primary"
-      >
-        <Content component={ContentVariants.p}>
-          You are about to disable the following integration: <strong>{disableDialog.item?.name}</strong>
-        </Content>
-        <Content component={ContentVariants.p}>
-          Workflows using this integration will no longer have access to its{' '}
-          {disableDialog.item ? getResourceNoun(disableDialog.item) : 'tools'}. You can re-enable the integration at any
-          time.
-        </Content>
-      </NxConfirmationDialog>
+      <IntegrationDialogs
+        validateDialog={validateDialog}
+        deleteDialog={deleteDialog}
+        disableDialog={disableDialog}
+        onValidate={handleValidate}
+        onDelete={handleDelete}
+        onDisable={handleDisable}
+      />
     </NxPage>
   )
 }

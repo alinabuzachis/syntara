@@ -1,6 +1,6 @@
 import type { Tool } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, act, waitFor } from '@testing-library/react'
+import { render, screen, within, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -86,7 +86,12 @@ describe('IntegrationResourcesTab', () => {
     } as never)
   })
 
-  function renderTab(overrides?: { tools?: typeof mockTools; enabledToolIds?: Set<string>; enabledCount?: number }) {
+  function renderTab(overrides?: {
+    tools?: typeof mockTools
+    enabledToolIds?: Set<string>
+    enabledCount?: number
+    canUpdate?: boolean
+  }) {
     return render(
       <IntegrationResourcesTab
         integrationId="int-1"
@@ -95,6 +100,7 @@ describe('IntegrationResourcesTab', () => {
         enabledCount={overrides?.enabledCount ?? 2}
         handleSelectTool={mockHandleSelectTool}
         lastRefreshedAt="2026-01-01T10:00:00Z"
+        canUpdate={overrides?.canUpdate ?? true}
         onRefreshed={mockOnRefreshed}
         refetchTools={mockRefetchTools}
       />,
@@ -204,6 +210,23 @@ describe('IntegrationResourcesTab', () => {
 
       expect(screen.getByText('No resources discovered yet')).toBeInTheDocument()
       expect(screen.getByText(/click refresh tools/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('Permission gating (canUpdate: false)', () => {
+    it('disables the refresh button', () => {
+      renderTab({ canUpdate: false })
+      expect(screen.getByRole('button', { name: 'Refresh resources' })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables row checkboxes', () => {
+      renderTab({ canUpdate: false })
+      const tbody = screen.getAllByRole('rowgroup')[1]
+      within(tbody)
+        .getAllByRole('checkbox')
+        .forEach((cb) => {
+          expect(cb).toBeDisabled()
+        })
     })
   })
 

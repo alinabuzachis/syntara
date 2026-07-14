@@ -60,6 +60,8 @@ type IntegrationModelsTabProps = Readonly<{
   lastRefreshedAt: string | null | undefined
   /** Whether the user has permission to toggle, refresh, or save models. */
   canUpdate: boolean
+  /** Tooltip explaining why actions are disabled when canUpdate is false. */
+  updateTooltip?: string
   /** Called after a refresh completes to re-fetch the parent integration data. */
   onRefreshed: () => Promise<IntegrationRead | undefined>
 }>
@@ -182,6 +184,7 @@ export function IntegrationModelsTab({
   resetDefault,
   lastRefreshedAt,
   canUpdate,
+  updateTooltip,
   onRefreshed,
 }: IntegrationModelsTabProps) {
   const { showAlert } = useAlerts()
@@ -285,6 +288,7 @@ export function IntegrationModelsTab({
                 isEnabled={enabledModelIds.has(model.id)}
                 isDefault={model.id === defaultModelId}
                 isDisabled={!canUpdate}
+                disabledTooltip={updateTooltip}
                 onSelect={handleSelectWithDefaultClear}
                 onSetDefault={handleSetDefault}
                 onRemoveDefault={handleRemoveDefault}

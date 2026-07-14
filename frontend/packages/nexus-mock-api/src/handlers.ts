@@ -7,7 +7,12 @@ import type * as ExecutionsAPI from '@ansible/nexus-contracts/src/executions-api
 import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
 import type * as WorkflowAPI from '@ansible/nexus-contracts/src/workflow-api.js'
 import type { Approval, Tool, WorkflowWithVersion, WorkflowsResponse } from '@ansible/nexus-contracts'
-import { ExecutionStatusEnum, WorkflowVersionStatusEnum } from '@ansible/nexus-contracts'
+import {
+  ExecutionStatusEnum,
+  IntegrationStatusEnum,
+  IntegrationTypeEnum,
+  WorkflowVersionStatusEnum,
+} from '@ansible/nexus-contracts'
 import { credentials, credentialTypes, credentialWorkflows } from './resources/credentials'
 import { integrations } from './resources/integrations'
 import { models } from './resources/models'
@@ -430,11 +435,11 @@ export const handlers = [
       id: integrationId,
       name: body.name ?? '',
       description: body.description ?? null,
-      integration_type: body.integration_type ?? 'mcp_server',
+      integration_type: body.integration_type ?? IntegrationTypeEnum.MCP_SERVER,
       enabled: true,
-      validation_status: 'unknown',
+      validation_status: IntegrationStatusEnum.UNKNOWN,
       scope: body.scope ?? 'global',
-      configuration: body.configuration ?? { integration_type: 'mcp_server', base_url: '' },
+      configuration: body.configuration ?? { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: '' },
       management_credential_id: (body.management_credential_id as string) ?? null,
       last_validated_at: null,
       validation_error: null,
@@ -484,7 +489,7 @@ export const handlers = [
 
   http.post('/api/v1/integrations/discover', async (req) => {
     const body = (await req.request.json()) as { integration_type?: string }
-    if (body.integration_type === 'llm_provider') {
+    if (body.integration_type === IntegrationTypeEnum.LLM_PROVIDER) {
       return HttpResponse.json({
         success: true,
         checked_at: mockDate.now,
@@ -516,7 +521,7 @@ export const handlers = [
         { status: 404 }
       )
     }
-    integration.validation_status = 'available'
+    integration.validation_status = IntegrationStatusEnum.AVAILABLE
     integration.last_validated_at = mockDate.now
     integration.validation_error = null
     return HttpResponse.json({ success: true, checked_at: mockDate.now, error: null })
@@ -530,7 +535,7 @@ export const handlers = [
         { status: 404 }
       )
     }
-    integration.refresh_status = 'available'
+    integration.refresh_status = IntegrationStatusEnum.AVAILABLE
     integration.last_refreshed_at = mockDate.now
     integration.refresh_error = null
     return HttpResponse.json({
@@ -4312,6 +4317,7 @@ export const handlers = [
         credential: ['create', 'delete', 'read', 'update'],
         execution: ['read', 'run'],
         group: ['create', 'delete', 'manage-members', 'read', 'update'],
+        integration: ['create', 'delete', 'read', 'update'],
         'identity-provider': ['create', 'delete', 'read', 'test', 'update'],
         policy: ['create', 'delete', 'read', 'update'],
         project: ['create', 'delete', 'read', 'update'],

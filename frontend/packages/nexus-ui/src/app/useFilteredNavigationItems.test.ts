@@ -207,7 +207,7 @@ describe('useFilteredNavigationItems', () => {
       expect(findItem(result.current, 'Settings')).toBeDefined()
     })
 
-    it('keeps Configuration visible (no permission-gated children)', () => {
+    it('keeps Configuration visible when Credentials is ungated even if Integrations is denied', () => {
       setPermissions({
         'setting:read': false,
         'identity-provider:read': false,
@@ -215,11 +215,12 @@ describe('useFilteredNavigationItems', () => {
         'group:read': false,
         'project:read': false,
         'role-assignment:read': false,
+        'integration:read': false,
       })
       const { result } = renderHook(() => useFilteredNavigationItems())
 
       expect(findItem(result.current, 'Configuration')).toBeDefined()
-      expect(findItem(result.current, 'Integrations')).toBeDefined()
+      expect(findItem(result.current, 'Integrations')).toBeUndefined()
       expect(findItem(result.current, 'Credentials')).toBeDefined()
     })
   })

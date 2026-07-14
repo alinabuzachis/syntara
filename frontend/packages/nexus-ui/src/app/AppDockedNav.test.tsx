@@ -34,6 +34,7 @@ vi.mock('../hooks/usePermissionChecks', () => ({
       'user:read': true,
       'group:read': true,
       'identity-provider:read': true,
+      'integration:read': true,
       'project:read': true,
       'role-assignment:read': true,
     },

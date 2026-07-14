@@ -40,22 +40,34 @@ export type ModelRowProps = Readonly<{
   onRemoveDefault: (id: string) => void
   /** Whether all row interactions are disabled (e.g., user lacks update permission). */
   isDisabled?: boolean
+  /** Tooltip explaining why actions are disabled. */
+  disabledTooltip?: string
 }>
 
-function buildModelKebabActions(
-  modelId: string,
-  isDefault: boolean,
-  isEnabled: boolean,
-  onSetDefault: (id: string) => void,
+function buildModelKebabActions(opts: {
+  modelId: string
+  isDefault: boolean
+  isEnabled: boolean
+  isDisabled: boolean
+  disabledTooltip: string | undefined
+  onSetDefault: (id: string) => void
   onRemoveDefault: (id: string) => void
-): KebabAction[] {
-  if (!isEnabled) return []
-  if (isDefault) {
+}): KebabAction[] {
+  if (!opts.isEnabled) return []
+  const disabledProps = opts.isDisabled
+    ? {
+        isAriaDisabled: true,
+        tooltipProps: opts.disabledTooltip ? { content: opts.disabledTooltip } : undefined,
+        onClick: undefined,
+      }
+    : {}
+  if (opts.isDefault) {
     return [
       {
         key: 'remove-default',
         title: <IconLabel icon={<RhUiStarIcon />}>Remove default model</IconLabel>,
-        onClick: () => onRemoveDefault(modelId),
+        onClick: () => opts.onRemoveDefault(opts.modelId),
+        ...disabledProps,
       },
     ]
   }
@@ -63,7 +75,8 @@ function buildModelKebabActions(
     {
       key: 'set-default',
       title: <IconLabel icon={<RhUiStarIcon />}>Set as default model</IconLabel>,
-      onClick: () => onSetDefault(modelId),
+      onClick: () => opts.onSetDefault(opts.modelId),
+      ...disabledProps,
     },
   ]
 }
@@ -74,13 +87,20 @@ export function ModelRow({
   isEnabled,
   isDefault,
   isDisabled,
+  disabledTooltip,
   onSelect,
   onSetDefault,
   onRemoveDefault,
 }: ModelRowProps) {
-  const kebabActions = isDisabled
-    ? []
-    : buildModelKebabActions(model.id, isDefault, isEnabled, onSetDefault, onRemoveDefault)
+  const kebabActions = buildModelKebabActions({
+    modelId: model.id,
+    isDefault,
+    isEnabled,
+    isDisabled: !!isDisabled,
+    disabledTooltip,
+    onSetDefault,
+    onRemoveDefault,
+  })
   return (
     <Tr>
       <Td

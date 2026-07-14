@@ -229,16 +229,19 @@ Backend defines `policy:create`, `policy:update`, `policy:delete`. The UI curren
 
 **Note**: Approval permission gating is complete for UI components (list page, nav item, decision actions) with comprehensive unit tests. E2E test coverage in `e2e/permission-gating.spec.ts` for the viewer/auditor/user roles is recommended as a follow-up to verify end-to-end permission flows.
 
-### Integrations — no authz resource type yet
+### Integrations — gated
 
-Backend does not yet define a `tool-provider` or `integration` resource type. When defined:
+Integration permission gating uses `useIntegrationPermissions` hook checking `integration:create`, `integration:update`, `integration:delete`.
 
-| Action                        | Permission                  | Pattern to follow                    |
-| ----------------------------- | --------------------------- | ------------------------------------ |
-| Configure/Disconnect/Validate | new integration permissions | New `useIntegrationPermissions` hook |
-| IntegrationForm create route  | create permission           | `routePermission`                    |
-| Enable/disable tools          | write permission            | `DisabledWithTooltip`                |
-| Nav item                      | read permission             | `requiredPermissions`                |
+| Action                      | Permission           | Implementation                                        |
+| --------------------------- | -------------------- | ----------------------------------------------------- |
+| Configure (create)          | `integration:create` | `DisabledWithTooltip` on list page + route guard      |
+| Edit integration            | `integration:update` | `DisabledWithTooltip` on detail toolbar + route guard |
+| Enable/disable integration  | `integration:update` | `Tooltip` on disabled `Switch`                        |
+| Validate integration        | `integration:update` | `isAriaDisabled` + `tooltipProps` on kebab action     |
+| Delete integration          | `integration:delete` | `isAriaDisabled` + `tooltipProps` on kebab action     |
+| Enable/disable tools/models | `integration:update` | `canUpdate` prop on tab checkboxes + save button      |
+| Refresh tools/models        | `integration:update` | `isAriaDisabled` on refresh button                    |
 
 ### Settings — minor UX gap
 

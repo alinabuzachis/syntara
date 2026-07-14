@@ -51,6 +51,24 @@ vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 
+const mockPermissions = {
+  canCreate: true,
+  canUpdate: true,
+  canDelete: true,
+  isLoading: false,
+  tooltips: {
+    create: 'No create permission',
+    update: 'No update permission',
+    enable: 'No enable permission',
+    validate: 'No validate permission',
+    delete: 'No delete permission',
+  },
+}
+
+vi.mock('./useIntegrationPermissions', () => ({
+  useIntegrationPermissions: () => mockPermissions,
+}))
+
 // Create a QueryClient instance
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -137,6 +155,13 @@ describe('Integrations Component', () => {
     // Reset mocks before each test
     mockNavigate.mockClear()
     mockSetSearchParams.mockClear()
+    // Reset permissions to admin defaults
+    Object.assign(mockPermissions, {
+      canCreate: true,
+      canUpdate: true,
+      canDelete: true,
+      isLoading: false,
+    })
     // Reset useFilterState to its default implementation (not mocked)
     vi.mocked(useFilterState).mockRestore?.()
     // Clear all search params to start with empty state
@@ -1423,6 +1448,77 @@ describe('Integrations Component', () => {
       expect(switches).toHaveLength(2)
       expect(switches[0]).toBeChecked()
       expect(switches[1]).not.toBeChecked()
+    })
+  })
+
+  describe('Permission gating', () => {
+    it('disables Configure integration button when canCreate is false', () => {
+      mockPermissions.canCreate = false
+      render(<Integrations />, { wrapper })
+
+      const button = screen.getByRole('button', { name: 'Configure integration' })
+      expect(button).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('does not navigate when disabled Configure button is clicked', async () => {
+      mockPermissions.canCreate = false
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Configure integration' }))
+
+      expect(mockNavigate).not.toHaveBeenCalled()
+    })
+
+    it('disables toggle switch with correct label when canUpdate is false', () => {
+      mockPermissions.canUpdate = false
+      render(<Integrations />, { wrapper })
+
+      const switches = screen.getAllByRole('switch')
+      switches.forEach((sw) => {
+        expect(sw).toBeDisabled()
+      })
+      expect(screen.getAllByText('Enabled').length).toBeGreaterThan(0)
+    })
+
+    it('disables validate kebab action when canUpdate is false', async () => {
+      mockPermissions.canUpdate = false
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      const kebab = screen.getAllByRole('button', { name: /Actions for/ })[0]
+      await user.click(kebab)
+
+      const validateItem = screen.getByRole('menuitem', { name: /Validate integration/i })
+      expect(validateItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables delete kebab action when canDelete is false', async () => {
+      mockPermissions.canDelete = false
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      const kebab = screen.getAllByRole('button', { name: /Actions for/ })[0]
+      await user.click(kebab)
+
+      const deleteItem = screen.getByRole('menuitem', { name: /Delete integration/i })
+      expect(deleteItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('hides empty state CTA when canCreate is false', () => {
+      mockPermissions.canCreate = false
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
+        data: { resources: [] },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+
+      render(<Integrations />, { wrapper })
+
+      expect(screen.getByText('No integrations yet')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Configure integration' })).not.toBeInTheDocument()
     })
   })
 
