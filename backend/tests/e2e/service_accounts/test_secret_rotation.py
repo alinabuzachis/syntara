@@ -8,6 +8,7 @@ Covers:
 
 from __future__ import annotations
 
+import os
 import time
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
@@ -27,6 +28,9 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
+
+if not os.environ.get("APP_BASE_URL"):
+    pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
 pytestmark = [pytest.mark.e2e]
 

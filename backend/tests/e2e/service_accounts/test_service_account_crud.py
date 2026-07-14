@@ -9,6 +9,7 @@ Covers:
 
 from __future__ import annotations
 
+import os
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -24,6 +25,9 @@ from tests.e2e.service_accounts import create_sa
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
+
+if not os.environ.get("APP_BASE_URL"):
+    pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
 pytestmark = [pytest.mark.e2e]
 

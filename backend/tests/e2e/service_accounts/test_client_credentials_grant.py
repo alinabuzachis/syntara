@@ -15,72 +15,26 @@ Covers:
 
 from __future__ import annotations
 
-import base64
+import os
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import httpx
 import jwt as pyjwt
 import pytest
-from nexus_api_client import Client
-from nexus_api_client.models.body_token import BodyToken
-from nexus_api_client.models.sa_credential_create import SACredentialCreate
-from nexus_api_client.models.service_account_create import ServiceAccountCreate
-from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 
-from tests.e2e.conftest import admin_password, unique_name
+from tests.e2e.conftest import admin_password
+from tests.e2e.service_accounts import create_sa_with_credential, token_request
 
 if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
 
+if not os.environ.get("APP_BASE_URL"):
+    pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
+
 pytestmark = [pytest.mark.e2e]
-
-
-def _create_sa_with_credential(
-    api: NexusApiRegistry,
-    project_id: UUID,
-) -> tuple[Any, str, str]:
-    """Create a service account with a credential. Returns (sa, client_id, client_secret)."""
-    sa = api.service_accounts.create(
-        body=ServiceAccountCreate(name=unique_name("e2e-sa"), project_id=project_id),
-    ).assert_and_get()
-
-    cred = api.service_account_credentials.create(
-        service_account_id=sa.id,
-        body=SACredentialCreate(credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS),
-    ).assert_and_get()
-
-    return sa, cred.identifier, cred.client_secret
-
-
-def _unauth_client(base_url: str) -> Client:
-    """Return an unauthenticated API client for token endpoint calls."""
-    return Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
-
-
-def _token_request(
-    base_url: str,
-    client_id: str,
-    client_secret: str,
-    *,
-    grant_type: str = "client_credentials",
-    use_basic_auth: bool = False,
-) -> Any:  # noqa: ANN401
-    """POST /auth/token via the generated client and return the Response."""
-    body = BodyToken(grant_type=grant_type)
-
-    if use_basic_auth:
-        creds = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-        client = _unauth_client(base_url).with_headers({"Authorization": f"Basic {creds}"})
-    else:
-        body = BodyToken(grant_type=grant_type, client_id=client_id, client_secret=client_secret)
-        client = _unauth_client(base_url)
-
-    from nexus_api_client.api.authentication.token import sync_detailed
-
-    return sync_detailed(client=client, body=body)
 
 
 class TestClientCredentialsGrant:
@@ -90,10 +44,10 @@ class TestClientCredentialsGrant:
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """POST /auth/token returns 200 with valid ES256 JWT and correct claims."""
-        sa, client_id, client_secret = _create_sa_with_credential(nexus_api, first_project_id)
+        sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
 
         try:
-            resp = _token_request(nexus_base_url, client_id, client_secret)
+            resp = token_request(nexus_base_url, client_id, client_secret)
 
             assert resp.status_code == HTTPStatus.OK
             body = resp.parsed
@@ -119,10 +73,10 @@ class TestClientCredentialsGrant:
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """A token with a tampered payload is rejected by protected endpoints."""
-        sa, client_id, client_secret = _create_sa_with_credential(nexus_api, first_project_id)
+        sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
 
         try:
-            resp = _token_request(nexus_base_url, client_id, client_secret)
+            resp = token_request(nexus_base_url, client_id, client_secret)
             assert resp.status_code == HTTPStatus.OK
             valid_token = resp.parsed.access_token
 
@@ -161,10 +115,10 @@ class TestClientCredentialsBasicAuth:
 
     def test_http_basic_auth(self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str) -> None:
         """Credentials via Authorization: Basic header returns a valid token."""
-        sa, client_id, client_secret = _create_sa_with_credential(nexus_api, first_project_id)
+        sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
 
         try:
-            resp = _token_request(nexus_base_url, client_id, client_secret, use_basic_auth=True)
+            resp = token_request(nexus_base_url, client_id, client_secret, use_basic_auth=True)
 
             assert resp.status_code == HTTPStatus.OK
             assert resp.parsed is not None
@@ -181,10 +135,10 @@ class TestClientCredentialsInvalidSecret:
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Correct client_id with wrong secret returns 401."""
-        sa, client_id, _ = _create_sa_with_credential(nexus_api, first_project_id)
+        sa, client_id, _ = create_sa_with_credential(nexus_api, first_project_id)
 
         try:
-            resp = _token_request(nexus_base_url, client_id, "wrong-secret")
+            resp = token_request(nexus_base_url, client_id, "wrong-secret")
             assert resp.status_code == HTTPStatus.UNAUTHORIZED
         finally:
             nexus_api.service_accounts.delete(service_account_id=sa.id)
@@ -195,7 +149,7 @@ class TestClientCredentialsUnknownClientId:
 
     def test_unknown_client_id_returns_401(self, nexus_base_url: str) -> None:
         """Fabricated client_id returns 401 with no enumeration leak."""
-        resp = _token_request(nexus_base_url, "nx_sa_nonexistent", "any-secret")
+        resp = token_request(nexus_base_url, "nx_sa_nonexistent", "any-secret")
         assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
@@ -206,12 +160,12 @@ class TestClientCredentialsDisabledSA:
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Disabled SA cannot obtain a token."""
-        sa, client_id, client_secret = _create_sa_with_credential(nexus_api, first_project_id)
+        sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
 
         try:
             nexus_api.service_accounts.disable(service_account_id=sa.id)
 
-            resp = _token_request(nexus_base_url, client_id, client_secret)
+            resp = token_request(nexus_base_url, client_id, client_secret)
             assert resp.status_code == HTTPStatus.UNAUTHORIZED
         finally:
             nexus_api.service_accounts.delete(service_account_id=sa.id)
@@ -224,10 +178,10 @@ class TestClientCredentialsDeletedSA:
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Deleted SA cannot obtain a token."""
-        sa, client_id, client_secret = _create_sa_with_credential(nexus_api, first_project_id)
+        sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
         nexus_api.service_accounts.delete(service_account_id=sa.id)
 
-        resp = _token_request(nexus_base_url, client_id, client_secret)
+        resp = token_request(nexus_base_url, client_id, client_secret)
         assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
@@ -241,7 +195,7 @@ class TestClientCredentialsBuiltinAdminExcluded:
         not just that a wrong password gets a 401.
         """
         password = admin_password()
-        resp = _token_request(nexus_base_url, "admin", password)
+        resp = token_request(nexus_base_url, "admin", password)
         assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
@@ -255,10 +209,10 @@ class TestSATokenLifetime:
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """SA access token exp - iat matches the configured SA-specific lifetime."""
-        sa, client_id, client_secret = _create_sa_with_credential(nexus_api, first_project_id)
+        sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
 
         try:
-            resp = _token_request(nexus_base_url, client_id, client_secret)
+            resp = token_request(nexus_base_url, client_id, client_secret)
             assert resp.status_code == HTTPStatus.OK
 
             payload = pyjwt.decode(resp.parsed.access_token, options={"verify_signature": False})
@@ -274,7 +228,7 @@ class TestUnsupportedGrantType:
 
     def test_unsupported_grant_type_returns_400(self, nexus_base_url: str) -> None:
         """grant_type=authorization_code returns 400."""
-        resp = _token_request(nexus_base_url, "any", "any", grant_type="authorization_code")
+        resp = token_request(nexus_base_url, "any", "any", grant_type="authorization_code")
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
     def test_missing_grant_type_returns_422(self, nexus_base_url: str) -> None:
