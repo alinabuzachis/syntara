@@ -21,6 +21,7 @@ export default defineConfig({
   testIgnore: [...(useWebServer ? [] : ['**/visual-regression/**']), '**/credential-types.spec.ts'],
   fullyParallel: true,
   workers: process.env.CI ? 3 : undefined,
+  retries: process.env.CI ? 1 : 0,
   timeout: 60_000,
   expect: {
     timeout: 10_000,
