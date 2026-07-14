@@ -207,6 +207,7 @@ def verify_test_structure(repo_root: Path) -> tuple[bool, list[str], list[str]]:
         "cli",
         "models",
         "services",
+        "tls",
         "tools",
         "utils",
         "validators",

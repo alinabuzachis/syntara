@@ -29,6 +29,7 @@
     "nexus/workflows/workflow_engine/activities/execution_tracker.py": "Stub implementation awaiting Phase 3 database integration — not yet wired into the workflow engine",
     "nexus/integrations/lib/credential_resolver.py": "Statically imported by integration_service.py and invocation_executor.py; pyan3 does not trace through session-factory closures into background tasks",
     "nexus/core/tls/protocol.py": "Loaded by uvicorn via --http string import at runtime, not via Python import",
+    "nexus/core/tls/certs.py": "Imported by scripts/generate_local_certs.py and tests/helpers/tls.py — both outside src/",
     "nexus/files/health.py": "File storage health check — registered at app startup via health router",
     "nexus/files/workers/file_cleanup.py": "Background worker — invoked via scheduled task, not direct import",
     "nexus/authz/_rego_runtime.py": "Isolated regopy runtime — imported by evaluator.py; kept separate to avoid C extension memory leak"

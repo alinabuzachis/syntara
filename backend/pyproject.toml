@@ -164,6 +164,7 @@ ignore = [
 "__init__.py" = ["F401", "D104"]
 "src/nexus/core/models/base/resource.py" = ["A005"]  # Allow module name shadowing stdlib
 "tools/**/*.py" = ["T201", "INP001", "PLC0415", "ARG001", "ANN401", "TRY003", "EM102"]  # CLI tools: print, deferred imports, unused args
+"scripts/**/*.py" = ["T201", "INP001", "D103"]  # Standalone scripts: print, no package, no docstrings
 "tests/**/*.py" = [
     "S101",     # Allow assert statements in tests
     "ANN001",   # Don't require type annotations for test function arguments (fixtures)
