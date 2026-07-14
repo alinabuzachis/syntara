@@ -764,7 +764,8 @@ export const statusVariantPages: PageEntry[] = [
     perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByRole('heading', { name: /run failed/i })).toBeVisible()
+      // Heading shows workflow name, not status. Wait for the Failed status badge instead.
+      await expect(page.getByText('Failed', { exact: true }).first()).toBeVisible()
     },
   },
   {

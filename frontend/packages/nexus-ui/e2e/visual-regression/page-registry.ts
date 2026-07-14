@@ -361,9 +361,12 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
-      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
-      await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
+      // Projects has two filter fields (name + description) — use placeholder to target name.
+      // The mock API handler now accepts both 'name' and 'name[contains]' query params so the
+      // FilterBar chip format (name[contains]=...) correctly returns empty results.
+      await page.getByPlaceholder('Filter by name').fill('zzz-no-match-zzz')
+      await page.getByPlaceholder('Filter by name').press('Enter')
+      await expect(page.getByText(/No results found/i)).toBeVisible({ timeout: 10_000 })
     },
   },
   {

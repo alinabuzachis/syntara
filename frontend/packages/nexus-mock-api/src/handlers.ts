@@ -3236,7 +3236,8 @@ export const handlers = [
 
   http.get('/api/v1/projects', ({ request }) => {
     const url = new URL(request.url)
-    const nameContains = url.searchParams.get('name[contains]')
+    // Support both plain 'name' (eq) and 'name[contains]' (FilterBar chip format)
+    const nameContains = url.searchParams.get('name') ?? url.searchParams.get('name[contains]')
     const isDefault = url.searchParams.get('is_default')
     const isBuiltin = url.searchParams.get('is_builtin')
     const cursor = url.searchParams.get('cursor')

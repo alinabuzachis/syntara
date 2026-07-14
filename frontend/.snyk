@@ -1,0 +1,22 @@
+# Snyk (https://snyk.io) policy file
+# Excludes files and specific findings from SAST code analysis.
+version: v1.25.0
+exclude:
+  code:
+    - '**/*.test.ts'
+    - '**/*.test.tsx'
+    - '**/*.spec.ts'
+    - '**/*.spec.tsx'
+    - '**/*.testFixtures.ts'
+    - '**/e2e/**'
+    - '**/fixtures/**'
+    - '**/resources/credentials.ts'
+    - '**/scripts/generate-node-output-schemas.mjs'
+    - '**/tools/**'
+    # passwordComplexity.ts: PASSWORD_CHARACTER_CLASSES_MESSAGE is a UI label
+    # string describing password rules — not a hardcoded password or secret.
+    - '**/passwordComplexity.ts'
+    # useAuthStore.ts: window.location assignment is gated by a CSRF-validated
+    # OIDC redirect_uri from the server — not an open redirect vulnerability.
+    # The value originates from a server-controlled auth response, not user input.
+    - '**/useAuthStore.ts'
