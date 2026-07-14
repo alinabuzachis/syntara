@@ -500,7 +500,7 @@ test.describe('Node editor panels', () => {
     await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    await app.getByRole('button', { name: workflowName, exact: true }).click()
+    await app.getByRole('link', { name: workflowName, exact: true }).click()
     await expect(app.locator('.react-flow__node').filter({ hasText: 'Analyze' })).toBeVisible({ timeout: 15_000 })
 
     // --- Phase 4: Click Analyze node — input should now show REAL values ---
@@ -645,7 +645,7 @@ test.describe('Node editor panels', () => {
     await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    await app.getByRole('button', { name: workflowName, exact: true }).click()
+    await app.getByRole('link', { name: workflowName, exact: true }).click()
     await expect(app.locator('.react-flow__node').filter({ hasText: 'Analyze' })).toBeVisible({ timeout: 15_000 })
 
     // Click Analyze node to see Fetch's output as input
@@ -777,7 +777,7 @@ test.describe('Node editor panels', () => {
     await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    await app.getByRole('button', { name: workflowName, exact: true }).click()
+    await app.getByRole('link', { name: workflowName, exact: true }).click()
     await expect(app.locator('.react-flow__node').filter({ hasText: 'Step C' })).toBeVisible({ timeout: 15_000 })
 
     // Click Step C — it has Step B, Step A, and Trigger as upstream ancestors
@@ -868,7 +868,7 @@ test.describe('Node editor panels', () => {
     await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    await app.getByRole('button', { name: workflowName, exact: true }).click()
+    await app.getByRole('link', { name: workflowName, exact: true }).click()
     await expect(app.locator('.react-flow__node').filter({ hasText: 'Run script' })).toBeVisible({ timeout: 15_000 })
 
     // Click the script node to open the editor

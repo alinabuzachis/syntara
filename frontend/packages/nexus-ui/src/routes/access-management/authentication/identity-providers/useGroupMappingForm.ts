@@ -1,5 +1,6 @@
 import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useNavigate } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { useCallback, useMemo, useState } from 'react'
 import { useFieldArray, useForm, type Control, type UseFormReturn } from 'react-hook-form'
@@ -8,7 +9,6 @@ import { breadcrumbsIdentityProviderGroupMappingForm } from '../../../../app/bre
 import type { AppBreadcrumbItem } from '../../../../app/breadcrumbs/appBreadcrumbItem'
 import { identityProvidersClient } from '../../../../client'
 import { useQueryState } from '../../../../components/states/useQueryState'
-import { navigate } from '../../../../hooks/routing/navigate'
 import { useMutationErrorHandler } from '../../../../hooks/useMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 import { getErrorStatus } from '../../../../utils/apiErrors'
@@ -162,6 +162,7 @@ export function useGroupMappingEditForm({
   groupMappingConfig,
   idpType,
 }: UseGroupMappingEditFormArgs): UseGroupMappingEditFormResult {
+  const navigate = useNavigate()
   const defaultValues = useMemo(
     () => buildGroupMappingFormDefaultValues(groupMappingConfig, defaultExpression),
     [groupMappingConfig, defaultExpression]
@@ -225,8 +226,8 @@ export function useGroupMappingEditForm({
   })
 
   const navigateToTab = useCallback(() => {
-    navigate(identityProviderGroupMappingTabPath(providerId))
-  }, [providerId])
+    detachPromise(navigate({ to: identityProviderGroupMappingTabPath(providerId) }))
+  }, [navigate, providerId])
 
   const handleSave = form.handleSubmit((values) => {
     patchProvider(

@@ -1,5 +1,6 @@
 import { Button, DescriptionList, Switch, Tab, TabTitleText } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useCallback } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -18,8 +19,6 @@ import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { navigate } from '../../../hooks/routing/navigate'
-import { useParams } from '../../../hooks/routing/useParams'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useDialogState } from '../../../hooks/useDialogState'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
@@ -112,7 +111,8 @@ const VALID_TABS = ['details', 'credentials', 'assignments']
 const noop = () => {}
 
 export function ServiceAccountDetail() {
-  const { serviceAccountId } = useParams<{ serviceAccountId: string }>()
+  const { serviceAccountId }: { serviceAccountId: string } = useParams({ strict: false })
+  const navigate = useNavigate()
   const basePath = AppRoute.AccessManagement.ServiceAccountDetail.replace(':serviceAccountId', serviceAccountId ?? '')
   const [activeTab] = useUrlTab<ServiceAccountTab>(basePath)
   const docLink = useDocLink('serviceAccounts')
@@ -131,7 +131,10 @@ export function ServiceAccountDetail() {
   const serviceAccount = saQuery.data
   const refetchSa = saQuery.refetch
 
-  const navigateBack = useCallback(() => navigate(AppRoute.AccessManagement.ServiceAccounts), [])
+  const navigateBack = useCallback(
+    () => detachPromise(navigate({ to: AppRoute.AccessManagement.ServiceAccounts })),
+    [navigate]
+  )
 
   const { mutate: deleteServiceAccount } = accessClient.useMutation('delete', '/service_accounts/{service_account_id}')
 

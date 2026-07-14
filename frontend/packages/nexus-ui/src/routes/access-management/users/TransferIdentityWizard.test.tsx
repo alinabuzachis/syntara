@@ -6,15 +6,9 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-const mockNavigate = vi.fn()
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
-}))
-
 import { usersClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 
 import { TransferIdentityWizard } from './TransferIdentityWizard'
 
@@ -32,6 +26,48 @@ vi.mock('../../access/accessClient', () => ({
   accessClient: {
     useQuery: (...args: unknown[]): unknown => mockAccessClientUseQuery(...args),
   },
+}))
+
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  const React = await import('react')
+  // Import global setup's router mock
+  const { routerTestState } = await import('../../../test/setup')
+  return {
+    ...actual,
+    Link: ({
+      to,
+      children,
+      className,
+      style,
+      ...rest
+    }: {
+      to: string
+      children: React.ReactNode
+      className?: string
+      style?: React.CSSProperties
+    }) => React.createElement('a', { href: String(to), className, style, ...rest }, children),
+    useParams: vi.fn(() => ({ userId: 'target-user' })),
+    useNavigate: () => routerTestState.navigate,
+    useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {
+      const state = { location: { pathname: routerTestState.pathname, searchStr: routerTestState.searchStr } }
+      return opts?.select ? opts.select(state) : state
+    },
+    useRouter: () => ({
+      history: { push: routerTestState.historyPush },
+      state: { location: { pathname: routerTestState.pathname, searchStr: routerTestState.searchStr } },
+    }),
+    useBlocker: () => ({ status: 'idle' }),
+    useMatch: vi.fn(() => ({ params: {} })),
+  }
+})
+
+vi.mock('../../../hooks/routing/Link', () => ({
+  Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode; [key: string]: unknown }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
 }))
 
 vi.mock('../../../utils/generateUUID', () => ({
@@ -326,9 +362,9 @@ describe('TransferIdentityWizard', () => {
       })
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith(
-          '/system-administration/access-management/users/target-user/identities'
-        )
+        expect(routerTestState.navigate).toHaveBeenCalledWith({
+          to: '/system-administration/access-management/users/target-user/identities',
+        })
       })
     })
 

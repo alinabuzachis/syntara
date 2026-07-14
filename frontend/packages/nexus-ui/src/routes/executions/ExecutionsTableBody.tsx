@@ -2,8 +2,10 @@ import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Flex, FlexItem, Truncate } from '@patternfly/react-core'
 import { RhUiRedoIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
+import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { AppRoute } from '../../app/AppRoute'
 import { IconLabel } from '../../components/IconLabel'
 import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
 import type { KebabAction } from '../../components/NxKebabMenu'
@@ -13,9 +15,9 @@ import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { WorkflowName } from '../../components/WorkflowName'
 import { permissionTooltip } from '../../hooks/permissionUtils'
-import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useCanI } from '../../hooks/useCanI'
 import { formatDateTime } from '../../utils/dateUtils'
+import { detachPromise } from '../../utils/detachPromise'
 import type { ProjectRead } from '../access/types'
 import { StatusLabel } from '../builder/ExecutionStatus'
 
@@ -60,7 +62,7 @@ function ExecutionRowRetryAction({ execution }: Readonly<{ execution: Execution 
   } = useIsCurrentVersion(execution.workflow_id, execution.workflow_version_id, retryDialogOpen)
   const retry = useRetryExecution(execution.id, (newId) => {
     setRetryDialogOpen(false)
-    navigate(`/executions/${newId}`)
+    detachPromise(navigate({ to: AppRoute.Executions.Execution.replace(':executionId', newId) }))
   })
   /* v8 ignore stop */
 

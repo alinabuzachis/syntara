@@ -21,9 +21,13 @@ vi.mock('../../../../hooks/routing/useLocation', () => ({
   useLocation: () => '/system-administration/authentication/identity-providers/add',
 }))
 
-vi.mock('../../../../hooks/routing/useParams', () => ({
-  useParams: () => ({}),
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return {
+    ...actual,
+    useParams: () => ({}),
+  }
+})
 
 vi.mock('../../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],

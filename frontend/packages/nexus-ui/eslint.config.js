@@ -77,6 +77,11 @@ export default tseslint.config(
           message:
             'Do not use aria-label on <span> — assistive technologies ignore it on non-interactive elements. The inner text content is sufficient. Use aria-label only on interactive elements, widgets, landmarks, images, or iframes.',
         },
+        {
+          selector:
+            'ImportDeclaration[source.value=/routing\\/(useNavigate|useParams|useSearch|useLocation|navigate|Link)$/]',
+          message: 'Deprecated bridge hook. Use @tanstack/react-router primitives directly.',
+        },
       ],
       // axios restriction merged into the icon/wouter no-restricted-imports block below
       // to avoid flat-config rule shadowing (the last matching block wins for a given rule).
@@ -92,7 +97,10 @@ export default tseslint.config(
       ],
     },
   },
-  // Icon migration: flag non-RhUi icons at warn level (existing legacy imports being phased out incrementally)
+  // Icon migration: flag non-RhUi icons at warn level (existing legacy imports being phased out incrementally).
+  // Wouter ban and bridge hook deprecation use @typescript-eslint/no-restricted-imports (a separate
+  // rule name) to avoid flat-config shadowing — two blocks setting the same rule on the same files
+  // would cause the last one to win and silently drop the other.
   {
     files: ['**/*.{ts,tsx}'],
     rules: {
@@ -106,13 +114,46 @@ export default tseslint.config(
               message:
                 'Use RhUi* icons from @patternfly/react-icons (e.g. RhUiAddIcon, RhUiTrashIcon, RhUiEditIcon). Non-RhUi icons are being phased out.',
             },
+          ],
+        },
+      ],
+    },
+  },
+  // Ban wouter (migration complete) and deprecate bridge hooks in favor of direct @tanstack/react-router imports.
+  // useSearchParams is exempt — it is a supported utility, not a deprecated bridge.
+  {
+    files: ['**/*.{ts,tsx}'],
+    ignores: ['**/hooks/routing/*.{ts,tsx}', '**/hooks/routing/*.test.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'warn',
+        {
+          patterns: [
             {
               group: ['wouter', 'wouter/*'],
-              message: 'Import from src/hooks/routing/ instead. See AAP-78461 for migration details.',
+              message: 'wouter has been removed. Use @tanstack/react-router directly.',
+            },
+            {
+              regex: '(?:\\.{1,2}/)*(?:hooks/)?routing/(?:useNavigate|useParams|useSearch|useLocation|navigate|Link)$',
+              message: 'Deprecated bridge hook. Use @tanstack/react-router primitives directly.',
+            },
+            {
+              group: ['@tanstack/react-router'],
+              importNames: ['Link'],
+              message:
+                'Use NxLink from components/NxLink instead of TanStack Link directly. NxLink provides consistent PatternFly styling.',
             },
           ],
         },
       ],
+    },
+  },
+  // NxLink.tsx is the one file that legitimately imports TanStack Link directly —
+  // it is the app-level wrapper that all other files must use instead.
+  {
+    files: ['**/components/NxLink.tsx'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': 'off',
     },
   },
   {
@@ -241,34 +282,6 @@ export default tseslint.config(
       'reactYouMightNotNeedAnEffect/no-pass-live-state-to-parent': 'warn',
       'reactYouMightNotNeedAnEffect/no-pass-data-to-parent': 'warn',
       'reactYouMightNotNeedAnEffect/no-initialize-state': 'warn',
-    },
-  },
-  {
-    // Bridge hooks are the intended migration destination for wouter — they ARE the allowed
-    // wouter consumers. createTestRouter is the shared test utility for those bridges.
-    // Re-declare with only the icon restriction so the wouter guard is lifted here without
-    // also lifting the @patternfly/react-icons non-RhUi* guard.
-    files: [
-      '**/hooks/routing/*.{ts,tsx}',
-      '**/test/createTestRouter.tsx',
-      '**/test/createTanStackTestRouter.tsx',
-      '**/app/AppRouter.tsx',
-      '**/app/AppRouter.test.tsx',
-    ],
-    rules: {
-      'no-restricted-imports': [
-        'warn',
-        {
-          patterns: [
-            {
-              group: ['@patternfly/react-icons'],
-              importNamePattern: '^(?!RhUi)',
-              message:
-                'Use RhUi* icons from @patternfly/react-icons (e.g. RhUiAddIcon, RhUiTrashIcon, RhUiEditIcon). Non-RhUi icons are being phased out.',
-            },
-          ],
-        },
-      ],
     },
   },
   {

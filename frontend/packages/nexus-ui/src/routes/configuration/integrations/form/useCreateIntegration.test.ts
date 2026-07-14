@@ -1,19 +1,17 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { tanstackRouter } from '../../../../app/tanstackRouter'
+
 import type { IntegrationFormData } from './integrationFormSchema'
 import { useCreateIntegration } from './useCreateIntegration'
-
-const { mockNavigate } = vi.hoisted(() => ({
-  mockNavigate: vi.fn(),
-}))
 
 const mockShowAlert = vi.fn()
 const mockCreateMutation = vi.fn()
 const mockHandleError = vi.fn(() => vi.fn())
 
-vi.mock('../../../../hooks/routing/navigate', () => ({
-  navigate: mockNavigate,
+vi.mock('../../../../app/tanstackRouter', () => ({
+  tanstackRouter: { navigate: vi.fn().mockResolvedValue(undefined) },
 }))
 
 vi.mock('../../../../providers/alerts', () => ({
@@ -43,7 +41,7 @@ function createTestFormData(overrides?: Partial<IntegrationFormData>): Integrati
 
 describe('useCreateIntegration', () => {
   beforeEach(() => {
-    mockNavigate.mockClear()
+    vi.mocked(tanstackRouter.navigate).mockClear()
     mockShowAlert.mockClear()
     mockCreateMutation.mockClear()
     mockHandleError.mockClear()
@@ -95,7 +93,9 @@ describe('useCreateIntegration', () => {
       variant: 'success',
       autoDismiss: true,
     })
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations')
+    expect(vi.mocked(tanstackRouter.navigate)).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/configuration/integrations' })
+    )
   })
 
   it('handles creation error without navigating', () => {
@@ -119,7 +119,7 @@ describe('useCreateIntegration', () => {
       context: 'Integration "Test Integration"',
     })
     expect(mockErrorCallback).toHaveBeenCalledWith(creationError)
-    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(vi.mocked(tanstackRouter.navigate)).not.toHaveBeenCalled()
   })
 
   it('uses undefined context when name is empty', () => {

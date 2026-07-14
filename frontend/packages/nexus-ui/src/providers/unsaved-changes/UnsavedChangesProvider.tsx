@@ -1,10 +1,9 @@
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
-import { useBlocker } from '@tanstack/react-router'
+import { useBlocker, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { useLocation } from '../../hooks/routing/useLocation'
-import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { detachPromise } from '../../utils/detachPromise'
 
 import { UnsavedChangesContext, type DirtyCheckOptions } from './unsavedChangesContext'
 
@@ -49,8 +48,8 @@ function TanStackNavigationBlocker({
 let dirtyCheckIdCounter = 0
 
 export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProviderProps>) {
-  const location = useLocation()
-  const navigate = useNavigate()
+  const location = useRouterState({ select: (s) => s.location.pathname })
+  const tsNavigate = useNavigate()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -90,14 +89,14 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
   const requestNavigation = useCallback(
     (targetPath: string) => {
       if (targetPath.startsWith('/workflow-builder') || !hasUnsavedChanges()) {
-        navigate(targetPath)
+        detachPromise(tsNavigate({ to: targetPath }))
         return
       }
 
       pendingTargetRef.current = targetPath
       setIsModalOpen(true)
     },
-    [hasUnsavedChanges, navigate]
+    [hasUnsavedChanges, tsNavigate]
   )
 
   const registerSaveHandler = useCallback((handler: () => Promise<boolean>) => {
@@ -123,10 +122,10 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
       proceedNavRef.current = null
       resetNavRef.current = null
     } else if (pendingTargetRef.current) {
-      navigate(pendingTargetRef.current)
+      detachPromise(tsNavigate({ to: pendingTargetRef.current }))
       pendingTargetRef.current = null
     }
-  }, [navigate])
+  }, [tsNavigate])
 
   const cancelNavigation = useCallback(() => {
     setIsModalOpen(false)

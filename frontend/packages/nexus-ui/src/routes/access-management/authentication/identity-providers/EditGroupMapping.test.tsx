@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { identityProvidersClient, usersClient } from '../../../../client'
 import { useCanI } from '../../../../hooks/useCanI'
 import { AlertProvider } from '../../../../providers/alerts'
+import { routerTestState } from '../../../../test/setup'
 import { useAllGroups } from '../../../access/useAllGroups'
 
 import { EditGroupMapping } from './EditGroupMapping'
@@ -49,24 +50,21 @@ vi.mock('../../../access/useAllGroups', () => ({
   useAllGroups: vi.fn(),
 }))
 
-const mockNavigate = vi.fn()
-vi.mock('../../../../hooks/routing/useLocation', () => ({
-  useLocation: () => '/',
-}))
-
-vi.mock('../../../../hooks/routing/useParams', () => ({
-  useParams: () => ({ providerId: mockProviderIdRef.current }),
-}))
-
-vi.mock('../../../../hooks/routing/useSearch', () => ({
-  useSearch: () => mockSearchRef.current,
-}))
-
-vi.mock('../../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  const { routerTestState } = await import('../../../../test/setup')
+  return {
+    ...actual,
+    useParams: () => ({ providerId: mockProviderIdRef.current }),
+    useRouterState: vi.fn(
+      (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {
+        const state = { location: { pathname: '/', searchStr: mockSearchRef.current } }
+        return opts?.select ? opts.select(state) : state
+      }
+    ),
+    useNavigate: () => routerTestState.navigate,
+  }
+})
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -100,7 +98,7 @@ describe('EditGroupMapping', () => {
   beforeEach(() => {
     mockSearchRef.current = ''
     mockProviderIdRef.current = VALID_PROVIDER_ID
-    mockNavigate.mockClear()
+    routerTestState.navigate.mockClear()
     vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: false, isError: false })
     vi.mocked(useAllGroups).mockReturnValue({
       groups: mockNexusGroups.map((g) => ({
@@ -182,9 +180,9 @@ describe('EditGroupMapping', () => {
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
-    )
+    expect(routerTestState.navigate).toHaveBeenCalledWith({
+      to: `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`,
+    })
   })
 
   it('shows validation when saving with incomplete entries', async () => {
@@ -316,9 +314,9 @@ describe('EditGroupMapping', () => {
     await user.click(screen.getByRole('button', { name: /save mapping/i }))
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(
-        `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
-      )
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`,
+      })
     })
   })
 
@@ -382,7 +380,9 @@ describe('EditGroupMapping', () => {
       expect(screen.getByRole('button', { name: 'Back to identity providers' })).toBeInTheDocument()
     })
     await user.click(screen.getByRole('button', { name: 'Back to identity providers' }))
-    expect(mockNavigate).toHaveBeenCalledWith('/system-administration/authentication')
+    expect(routerTestState.navigate).toHaveBeenCalledWith({
+      to: '/system-administration/authentication',
+    })
   })
 
   it('shows error state when provider query fails', () => {

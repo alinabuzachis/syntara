@@ -4,10 +4,7 @@ import { useCallback } from 'react'
 import { detachPromise } from '../../utils/detachPromise'
 
 /**
- * Routing bridge: returns an imperative `navigate(path, options?)` function.
- *
- * Thin wrapper over TanStack Router's `useNavigate` that preserves the
- * wouter-compatible `(path, options?)` call signature used by all consumers.
+ * @deprecated Use `useNavigate` from `@tanstack/react-router` directly.
  */
 export function useNavigate() {
   const tsNavigate = useTanStackNavigate()

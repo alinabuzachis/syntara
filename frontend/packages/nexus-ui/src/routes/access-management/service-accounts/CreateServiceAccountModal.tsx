@@ -24,9 +24,10 @@ import { RhUiAddIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import { type Ref, useCallback, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
-import { navigate } from '../../../hooks/routing/navigate'
+import { tanstackRouter } from '../../../app/tanstackRouter'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
+import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { useAllProjects } from '../../access/useAllProjects'
 import { getServiceAccountDetailPath } from '../accessManagementPaths'
@@ -158,7 +159,7 @@ function CredentialsRevealPhase({
           isDisabled={!savedAck}
           onClick={() => {
             onClose()
-            navigate(getServiceAccountDetailPath(credentials.id) + '/assignments')
+            detachPromise(tanstackRouter.navigate({ to: getServiceAccountDetailPath(credentials.id) + '/assignments' }))
           }}
         >
           Proceed to assignments
@@ -250,7 +251,9 @@ function CreateServiceAccountFormPhase({
                   })
                   onListRefresh()
                   onCancel()
-                  navigate(getServiceAccountDetailPath(saResponse.id) + '/credentials')
+                  detachPromise(
+                    tanstackRouter.navigate({ to: getServiceAccountDetailPath(saResponse.id) + '/credentials' })
+                  )
                 },
               }
             )

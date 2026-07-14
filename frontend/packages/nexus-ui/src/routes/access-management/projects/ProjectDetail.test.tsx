@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 import { accessClient, accessFetchClient } from '../../access/accessClient'
 
 import { ProjectDetail } from './ProjectDetail'
@@ -25,17 +26,22 @@ vi.mock('../../../client', () => ({
   interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
-const mockUseParams = vi.fn(() => ({ projectId: 'proj-1' }))
+const { mockUseParams } = vi.hoisted(() => ({
+  mockUseParams: vi.fn(() => ({ projectId: 'proj-1' })),
+}))
+
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  const { routerTestState } = await import('../../../test/setup')
+  return {
+    ...actual,
+    useParams: () => mockUseParams(),
+    useNavigate: () => routerTestState.navigate,
+  }
+})
+
 vi.mock('../../../hooks/routing/useLocation', () => ({
   useLocation: () => '/system-administration/access-management/projects/proj-1/details',
-}))
-
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => mockUseParams(),
-}))
-
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: vi.fn(),
 }))
 
 const mockGoToTab = vi.fn()
@@ -227,7 +233,6 @@ describe('ProjectDetail', () => {
   })
 
   it('calls navigate when back button is clicked in not-found state', async () => {
-    const { navigate } = await import('../../../hooks/routing/navigate')
     const user = userEvent.setup()
     vi.mocked(accessClient.useQuery).mockReturnValue({
       data: undefined,
@@ -241,7 +246,7 @@ describe('ProjectDetail', () => {
 
     await user.click(screen.getByRole('button', { name: 'Back to projects' }))
 
-    expect(navigate).toHaveBeenCalled()
+    expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/system-administration/access-management/projects' })
   })
 
   it('renders "-" for description when project has no description', () => {

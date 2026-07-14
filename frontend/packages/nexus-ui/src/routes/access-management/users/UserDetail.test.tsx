@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 import { accessClient, accessFetchClient } from '../../access/accessClient'
 import { AUTH_TYPE_FEDERATED } from '../adminConstants'
 
@@ -72,38 +73,21 @@ vi.mock('../useUserPermissions', () => ({
 
 const VALID_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
-let mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}`
-const mockSetLocation = vi.fn()
 const mockUseParams = vi.fn((): { userId?: string } => ({ userId: VALID_USER_ID }))
-vi.mock('../../../hooks/routing/useLocation', () => ({
-  useLocation: () => mockLocationValue,
-}))
-
-vi.mock('../../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockSetLocation,
-}))
-
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => mockUseParams(),
-}))
-
-vi.mock('../../../hooks/routing/useSearch', () => ({
-  useSearch: () => '',
-}))
-
-vi.mock('../../../hooks/routing/useSearchParams', async () => {
-  const React = await import('react')
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  // Import global setup's router mock
+  const { routerTestState } = await import('../../../test/setup')
   return {
-    useSearchParams: () => React.useState(new URLSearchParams()),
+    ...actual,
+    useParams: () => mockUseParams(),
+    useNavigate: () => routerTestState.navigate,
+    useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {
+      const state = { location: { pathname: routerTestState.pathname, searchStr: routerTestState.searchStr } }
+      return opts?.select ? opts.select(state) : state
+    },
   }
 })
-
-const mockNavigate = vi.fn()
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
-}))
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -280,9 +264,7 @@ describe('UserDetail', () => {
     mockAuthQuery.mockReturnValue({ data: { id: 'me-id' }, isPending: false, isError: false, error: null })
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
     queryClient.clear()
-    mockNavigate.mockClear()
-    mockSetLocation.mockClear()
-    mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}`
+    routerTestState.pathname = `/system-administration/access-management/users/${VALID_USER_ID}`
     mockUseParams.mockReturnValue({ userId: VALID_USER_ID })
     mockSuccessQueries()
   })
@@ -502,7 +484,9 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByText('Okta'))
 
-      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining('idp-1'))
+      expect(routerTestState.navigate).toHaveBeenCalledWith(
+        expect.objectContaining({ to: expect.stringContaining('idp-1') as string })
+      )
     })
 
     it('shows no provider labels when non-local user has no identities', () => {
@@ -840,7 +824,9 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByRole('button', { name: 'Edit user' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith(`/system-administration/access-management/users/${VALID_USER_ID}/edit`)
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: `/system-administration/access-management/users/${VALID_USER_ID}/edit`,
+      })
     })
 
     it('navigates back to users list when Back to users button in error state is clicked', async () => {
@@ -870,7 +856,9 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByRole('button', { name: 'Back to users' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/access-management/users',
+      })
     })
   })
 
@@ -898,8 +886,11 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByRole('tab', { name: /Identities/i }))
 
-      expect(mockSetLocation).toHaveBeenCalledWith(
-        `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+      // NxListPanelTabs uses useNavigate (via useUrlTab) for tab navigation
+      expect(routerTestState.navigate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: `/system-administration/access-management/users/${VALID_USER_ID}/identities`,
+        })
       )
     })
 
@@ -909,13 +900,16 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByRole('tab', { name: /Groups/i }))
 
-      expect(mockSetLocation).toHaveBeenCalledWith(
-        `/system-administration/access-management/users/${VALID_USER_ID}/groups`
+      // NxListPanelTabs uses useNavigate (via useUrlTab) for tab navigation
+      expect(routerTestState.navigate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: `/system-administration/access-management/users/${VALID_USER_ID}/groups`,
+        })
       )
     })
 
     it('renders Groups tab content when URL is /groups', () => {
-      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/groups`
+      routerTestState.pathname = `/system-administration/access-management/users/${VALID_USER_ID}/groups`
       render(<UserDetail />, { wrapper })
 
       expect(screen.queryByText('Username')).not.toBeInTheDocument()
@@ -943,8 +937,11 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByRole('tab', { name: /Assignments/i }))
 
-      expect(mockSetLocation).toHaveBeenCalledWith(
-        `/system-administration/access-management/users/${VALID_USER_ID}/roles`
+      // NxListPanelTabs uses useNavigate (via useUrlTab) for tab navigation
+      expect(routerTestState.navigate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: `/system-administration/access-management/users/${VALID_USER_ID}/roles`,
+        })
       )
     })
 
@@ -1123,8 +1120,10 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByText('Okta'))
 
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.stringContaining('/system-administration/authentication/identity-providers/idp-1')
+      expect(routerTestState.navigate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: expect.stringContaining('/system-administration/authentication/identity-providers/idp-1') as string,
+        })
       )
     })
 
@@ -1210,7 +1209,7 @@ describe('UserDetail', () => {
 
   describe('Identities and Roles tabs', () => {
     it('renders Identities tab panel when URL includes /identities', () => {
-      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+      routerTestState.pathname = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
       render(<UserDetail />, { wrapper })
 
       expect(screen.queryByText('Username')).not.toBeInTheDocument()
@@ -1218,7 +1217,7 @@ describe('UserDetail', () => {
     })
 
     it('renders Role Assignments tab panel when URL includes /roles', () => {
-      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/roles`
+      routerTestState.pathname = `/system-administration/access-management/users/${VALID_USER_ID}/roles`
       render(<UserDetail />, { wrapper })
 
       expect(screen.queryByText('Username')).not.toBeInTheDocument()
@@ -1226,7 +1225,7 @@ describe('UserDetail', () => {
     })
 
     it('passes isBuiltinUser=true when user is builtin', () => {
-      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+      routerTestState.pathname = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
 
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
@@ -1248,7 +1247,7 @@ describe('UserDetail', () => {
     })
 
     it('passes isLocalUser=false and hasPassword=false for federated user on identities tab', () => {
-      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+      routerTestState.pathname = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
 
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
@@ -1279,7 +1278,7 @@ describe('UserDetail', () => {
         error: null,
       })
 
-      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+      routerTestState.pathname = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
       render(<UserDetail />, { wrapper })
 
       expect(screen.getByTestId('identities-panel')).toHaveAttribute('data-current-user', 'me-user-id')
@@ -1363,7 +1362,7 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByRole('button', { name: 'Back to workflows' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
     })
 
     it('renders tab content correctly', () => {

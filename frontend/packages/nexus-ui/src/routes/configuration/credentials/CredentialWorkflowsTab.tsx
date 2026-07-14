@@ -1,9 +1,9 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Label, Stack, StackItem, Truncate } from '@patternfly/react-core'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
 
-import { AppRoute } from '../../../app/AppRoute'
 import { stackPaddingLgOnlyStyle } from '../../../app/panelContentStackStyle'
 import { credentialsClient } from '../../../client'
 import { NxPageBody } from '../../../components/layout/NxPage'
@@ -11,7 +11,6 @@ import { NxPanelContentStack } from '../../../components/layout/NxPanelContentSt
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
-import { useNavigate } from '../../../hooks/routing/useNavigate'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { StatusLabel } from '../../builder/ExecutionStatus'
@@ -99,7 +98,9 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
               <Tr
                 key={workflow.id}
                 isClickable
-                onRowClick={() => navigate(AppRoute.WorkflowBuilder.Edit.replace(':workflowId', workflow.id))}
+                onRowClick={() => {
+                  detachPromise(navigate({ to: '/workflow-builder/$workflowId', params: { workflowId: workflow.id } }))
+                }}
               >
                 <Td dataLabel="Workflow Name">
                   <Content component={ContentVariants.p} style={nameStyle}>

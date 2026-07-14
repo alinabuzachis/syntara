@@ -6,8 +6,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { adminClient, identityProvidersClient } from '../../../client'
-import { navigate } from '../../../hooks/routing/navigate'
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 
 import { IdentityProvidersTab } from './IdentityProvidersTab'
 
@@ -35,16 +35,8 @@ vi.mock('../../../client', () => ({
 
 let currentSearchParams = new URLSearchParams()
 
-vi.mock('../../../hooks/routing/useLocation', () => ({
-  useLocation: () => '/system-administration/authentication',
-}))
-
 vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [currentSearchParams, vi.fn()],
-}))
-
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: vi.fn(),
 }))
 
 vi.mock('./useIdentityProviderPermissions', () => ({
@@ -200,7 +192,9 @@ describe('IdentityProvidersTab', () => {
 
       await user.click(screen.getByRole('button', { name: /Add OIDC provider/ }))
 
-      expect(navigate).toHaveBeenCalledWith('/system-administration/authentication/identity-providers/add')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/authentication/identity-providers/add',
+      })
     })
 
     it('has no accessibility violations in empty state', async () => {
@@ -292,7 +286,9 @@ describe('IdentityProvidersTab', () => {
 
       await user.click(screen.getByRole('button', { name: 'Azure AD' }))
 
-      expect(navigate).toHaveBeenCalledWith('/system-administration/authentication/identity-providers/provider-1')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/authentication/identity-providers/provider-1',
+      })
     })
 
     it('opens delete confirmation dialog when delete action is clicked', async () => {
@@ -437,7 +433,9 @@ describe('IdentityProvidersTab', () => {
       await user.click(actionsButton)
       await user.click(screen.getByText('Edit provider'))
 
-      expect(navigate).toHaveBeenCalledWith('/system-administration/authentication/identity-providers/provider-1/edit')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/authentication/identity-providers/provider-1/edit',
+      })
     })
 
     it('navigates to group mapping page when edit mapping action is clicked', async () => {
@@ -449,9 +447,9 @@ describe('IdentityProvidersTab', () => {
       await user.click(actionsButton)
       await user.click(screen.getByText('Edit mapping'))
 
-      expect(navigate).toHaveBeenCalledWith(
-        '/system-administration/authentication/identity-providers/provider-1/group-mapping/edit'
-      )
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/authentication/identity-providers/provider-1/group-mapping/edit',
+      })
     })
 
     it('opens revoke confirmation dialog when revoke action is clicked', async () => {

@@ -1,8 +1,8 @@
 import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import { useNavigate } from '@tanstack/react-router'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { integrationsClient } from '../../../client'
-import { useNavigate } from '../../../hooks/routing/useNavigate'
 import { useDialogState } from '../../../hooks/useDialogState'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
@@ -71,7 +71,7 @@ export function useIntegrationActions(refetch: () => Promise<unknown>) {
             autoDismiss: true,
           })
           detachPromise(refetch())
-          navigate(AppRoute.Configuration.Integrations.Root)
+          detachPromise(navigate({ to: AppRoute.Configuration.Integrations.Root }))
         },
         onError: (error: unknown) => {
           showAlert({

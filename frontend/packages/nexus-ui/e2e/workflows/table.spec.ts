@@ -74,7 +74,7 @@ test.describe('Workflows Table - Display and Navigation', () => {
       const workflowRow = table.getByRole('row', { name: new RegExp(workflowName) })
       await expect(workflowRow).toBeVisible()
 
-      await workflowRow.getByRole('button', { name: workflowName, exact: true }).click()
+      await workflowRow.getByRole('link', { name: workflowName, exact: true }).click()
 
       await expect(app).toHaveURL(/workflow-builder\/.+/)
       await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName)

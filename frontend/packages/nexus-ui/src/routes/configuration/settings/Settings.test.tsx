@@ -20,9 +20,17 @@ const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
 const mockShowWarning = vi.fn()
 
-vi.mock('../../../hooks/routing/useLocation', () => ({
-  useLocation: () => mockLocation.value,
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return {
+    ...actual,
+    useNavigate: () => mockSetLocation,
+    useRouterState: vi.fn((opts?: { select?: (s: { location: { pathname: string } }) => unknown }) => {
+      const state = { location: { pathname: mockLocation.value } }
+      return opts?.select ? opts.select(state) : state
+    }),
+  }
+})
 vi.mock('../../../hooks/routing/useNavigate', () => ({
   useNavigate: () => mockSetLocation,
 }))
@@ -208,7 +216,7 @@ describe('Settings', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Application' }))
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/system-administration/settings/application')
+    expect(mockSetLocation).toHaveBeenCalledWith({ to: '/system-administration/settings/application' })
   })
 
   it('renders correct content when URL points to a different tab', () => {

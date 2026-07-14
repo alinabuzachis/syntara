@@ -10,10 +10,6 @@ import { AlertProvider } from '../../../providers/alerts'
 
 import Credentials from './Credentials'
 
-const { mockNavigate } = vi.hoisted(() => ({
-  mockNavigate: vi.fn(),
-}))
-
 const { mockSelectedProject } = vi.hoisted(() => ({
   mockSelectedProject: { current: null as { id: string; name: string } | null },
 }))
@@ -54,9 +50,6 @@ vi.mock('../../../hooks/useProjectSelector', () => ({
 
 vi.mock('../../../hooks/routing/useLocation', () => ({
   useLocation: () => '/configuration/credentials',
-}))
-vi.mock('../../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockNavigate,
 }))
 
 vi.mock('../../../hooks/routing/useSearchParams', () => ({
@@ -321,13 +314,11 @@ describe('Credentials', () => {
     expect(screen.getByText('Credentials')).toBeInTheDocument()
   })
 
-  it('navigates to credential detail when row is clicked', async () => {
-    const user = userEvent.setup()
+  it('navigates to credential detail when row is clicked', () => {
     render(<Credentials />, { wrapper })
 
-    await user.click(screen.getByText('GitHub API Token'))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/credentials/1')
+    const link = screen.getByRole('link', { name: 'GitHub API Token' })
+    expect(link).toHaveAttribute('href', '/configuration/credentials/1')
   })
 
   it('renders formatted dates in table cells', () => {

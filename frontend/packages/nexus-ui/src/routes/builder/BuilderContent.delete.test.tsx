@@ -8,6 +8,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { approvalsClient, executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
+import { routerTestState } from '../../test/setup'
 
 // Mock dependencies
 vi.mock('../../client', () => ({
@@ -27,13 +28,8 @@ vi.mock('../../client', () => ({
   interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
-const mockSetLocation = vi.fn()
-
 vi.mock('../../hooks/routing/useLocation', () => ({
   useLocation: () => '/workflow-builder/workflow-1',
-}))
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockSetLocation,
 }))
 
 vi.mock('../../app/useUnsavedChanges', () => ({
@@ -256,7 +252,7 @@ describe('BuilderContent - Delete Workflow', () => {
         }),
         expect.any(Object)
       )
-      expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
       expect(screen.getByText('Workflow deleted')).toBeInTheDocument()
     })
   })

@@ -28,7 +28,7 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
       await app.goto(toAppUrl('/workflows'))
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('button', { name: workflowName, exact: true }).click()
+      await app.getByRole('link', { name: workflowName, exact: true }).click()
       await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
 
       // Make a change to mark the workflow dirty
@@ -82,7 +82,7 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
       await app.goto(toAppUrl('/workflows'))
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('button', { name: workflowName, exact: true }).click()
+      await app.getByRole('link', { name: workflowName, exact: true }).click()
 
       // Make the workflow dirty
       await app.getByPlaceholder('Workflow name').fill(`${workflowName}-modified`)
@@ -118,7 +118,7 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
       await app.goto(toAppUrl('/workflows'))
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('button', { name: workflowName, exact: true }).click()
+      await app.getByRole('link', { name: workflowName, exact: true }).click()
 
       // Make the workflow dirty
       await app.getByPlaceholder('Workflow name').fill(`${workflowName}-discarded`)
@@ -141,7 +141,7 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
       // The original workflow should still exist with the original name (not discarded name)
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
+      await expect(app.getByRole('link', { name: workflowName, exact: true })).toBeVisible()
     } finally {
       await deleteWorkflow(app, workflowName)
     }
@@ -156,7 +156,7 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
       await app.goto(toAppUrl('/workflows'))
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('button', { name: workflowName, exact: true }).click()
+      await app.getByRole('link', { name: workflowName, exact: true }).click()
 
       // Make the workflow dirty with a new name
       await app.getByPlaceholder('Workflow name').fill(updatedName)
@@ -179,7 +179,7 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
       // The updated name should persist
       await app.getByPlaceholder('Filter by name').fill(updatedName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: updatedName, exact: true })).toBeVisible({ timeout: 15_000 })
+      await expect(app.getByRole('link', { name: updatedName, exact: true })).toBeVisible({ timeout: 15_000 })
     } finally {
       await deleteWorkflow(app, updatedName)
       await deleteWorkflow(app, workflowName)
@@ -195,7 +195,7 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
       await app.goto(toAppUrl('/workflows'))
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('button', { name: workflowName, exact: true }).click()
+      await app.getByRole('link', { name: workflowName, exact: true }).click()
       await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
 
       // Navigate away without making any changes

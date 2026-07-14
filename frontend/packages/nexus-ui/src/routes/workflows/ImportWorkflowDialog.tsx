@@ -16,11 +16,11 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import type { DropEvent } from '@patternfly/react-core'
+import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
 import { workflowFetchClient } from '../../client'
-import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { getErrorMessage, isRetryableValidationError } from '../../utils/apiErrors'
@@ -31,6 +31,25 @@ import { forceCreateWorkflow } from '../../utils/workflowForceSave'
 import { importWorkflowSchema } from './importWorkflowSchema'
 import type { ImportWorkflowFormData } from './importWorkflowSchema'
 
+/**
+ * Builds a full V2WorkflowDefinition from a parsed file and the user-supplied name.
+ */
+function buildFullDefinition(parsed: ReturnType<typeof parseWorkflowFile>, name: string): V2WorkflowDefinition {
+  const description =
+    parsed.description && typeof parsed.description === 'string' && parsed.description.trim()
+      ? parsed.description
+      : undefined
+
+  return {
+    schema_version: '2.0.0',
+    name,
+    triggers: parsed.triggers as V2WorkflowDefinition['triggers'],
+    nodes: parsed.nodes as V2WorkflowDefinition['nodes'],
+    edges: parsed.edges as V2WorkflowDefinition['edges'],
+    ...(description !== undefined && { description }),
+  }
+}
+
 type ImportWorkflowDialogProps = Readonly<{
   isOpen: boolean
   onClose: () => void
@@ -39,7 +58,7 @@ type ImportWorkflowDialogProps = Readonly<{
 
 export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkflowDialogProps) {
   const { showAlert, showError } = useAlerts()
-  const setLocation = useNavigate()
+  const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
   const [filename, setFilename] = useState('')
   const [fileError, setFileError] = useState<string | null>(null)
@@ -90,9 +109,10 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
   const onImportSuccess = (wfName: string, createdId?: string, hasWarnings?: boolean) => {
     const title = hasWarnings ? 'Workflow imported with warnings' : 'Workflow imported'
     const description = hasWarnings ? `Created "${wfName}" (has validation warnings)` : `Created "${wfName}"`
-    const actionLinks = createdId ? (
-      <AlertActionLink onClick={() => setLocation(`/workflow-builder/${createdId}`)}>Open workflow</AlertActionLink>
-    ) : undefined
+    const openInEditor = createdId
+      ? () => detachPromise(navigate({ to: '/workflow-builder/$workflowId', params: { workflowId: createdId } }))
+      : undefined
+    const actionLinks = createdId ? <AlertActionLink onClick={openInEditor}>Open workflow</AlertActionLink> : undefined
     showAlert({ variant: 'success', autoDismiss: true, title, description, actionLinks })
     handleClose()
     onSuccess()
@@ -131,22 +151,8 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
     try {
       validateFileSize(file)
       const content = await file.text()
-      const definition = parseWorkflowFile(content, file.name)
-
-      const description =
-        definition.description && typeof definition.description === 'string' && definition.description.trim()
-          ? definition.description
-          : undefined
-
-      // parseWorkflowFile runtime-validates structure; assert the validated shape
-      const fullDefinition: V2WorkflowDefinition = {
-        schema_version: '2.0.0',
-        name: data.name,
-        triggers: definition.triggers as V2WorkflowDefinition['triggers'],
-        nodes: definition.nodes as V2WorkflowDefinition['nodes'],
-        edges: definition.edges as V2WorkflowDefinition['edges'],
-        ...(description !== undefined && { description }),
-      }
+      const parsed = parseWorkflowFile(content, file.name)
+      const fullDefinition = buildFullDefinition(parsed, data.name)
 
       const { data: result, error } = await workflowFetchClient.POST('/workflows', {
         body: {

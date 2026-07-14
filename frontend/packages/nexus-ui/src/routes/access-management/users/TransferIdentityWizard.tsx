@@ -14,6 +14,7 @@ import {
   WizardStep,
   type WizardStepType,
 } from '@patternfly/react-core'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -22,11 +23,9 @@ import { usersClient } from '../../../client'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxLink } from '../../../components/NxLink'
 import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { Link } from '../../../hooks/routing/Link'
-import { navigate } from '../../../hooks/routing/navigate'
-import { useParams } from '../../../hooks/routing/useParams'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -62,9 +61,7 @@ function WizardFooterStep1({ isNextDisabled, cancelHref }: Readonly<{ isNextDisa
             </Button>
           </ActionListItem>
           <ActionListItem>
-            <Link href={cancelHref} className="pf-v6-c-button pf-m-link">
-              Cancel
-            </Link>
+            <NxLink to={cancelHref}>Cancel</NxLink>
           </ActionListItem>
         </ActionListGroup>
       </ActionList>
@@ -100,9 +97,7 @@ function WizardFooterStep2({
             </Button>
           </ActionListItem>
           <ActionListItem>
-            <Link href={cancelHref} className="pf-v6-c-button pf-m-link">
-              Cancel
-            </Link>
+            <NxLink to={cancelHref}>Cancel</NxLink>
           </ActionListItem>
         </ActionListGroup>
       </ActionList>
@@ -112,7 +107,8 @@ function WizardFooterStep2({
 
 /** Full-page wizard for transferring a federated identity from one user to another. */
 export function TransferIdentityWizard() {
-  const { userId } = useParams<{ userId: string }>()
+  const navigate = useNavigate()
+  const { userId }: { userId: string } = useParams({ strict: false })
   const safeUserId = userId ?? ''
   const isValidId = !!userId && isValidUUID(userId)
 
@@ -161,7 +157,7 @@ export function TransferIdentityWizard() {
     onRetry: () => detachPromise(userIdentitiesQuery.refetch()),
   })
 
-  const navigateBack = () => navigate(getNavigateBackPath(safeUserId))
+  const navigateBack = () => detachPromise(navigate({ to: getNavigateBackPath(safeUserId) }))
 
   const handleSelectUser = (user: UserSummary) => {
     if (selectedUser?.id !== user.id) {

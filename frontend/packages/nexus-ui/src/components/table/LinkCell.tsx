@@ -1,15 +1,12 @@
-import { Button } from '@patternfly/react-core'
-
-import { useNavigate } from '../../hooks/routing/useNavigate'
+import { NxLink } from '../NxLink'
 
 import styles from './LinkCell.module.css'
 
+/** Renders a table cell value as a client-side router link. */
 export function LinkCell(props: Readonly<{ href: string; children: React.ReactNode }>) {
-  const navigate = useNavigate()
-
   return (
-    <Button variant="link" isInline onClick={() => navigate(props.href)} className={styles.root}>
+    <NxLink to={props.href} className={styles.root}>
       {props.children}
-    </Button>
+    </NxLink>
   )
 }

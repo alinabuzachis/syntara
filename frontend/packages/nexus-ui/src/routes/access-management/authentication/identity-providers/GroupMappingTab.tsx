@@ -1,6 +1,7 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
-import { navigate } from '../../../../hooks/routing/navigate'
+import { detachPromise } from '../../../../utils/detachPromise'
 import { useAllGroups } from '../../../access/useAllGroups'
 import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../../adminConstants'
 
@@ -16,6 +17,7 @@ type GroupMappingTabProps = {
 }
 
 export function GroupMappingTab({ providerId, groupMapping, readOnly = false }: Readonly<GroupMappingTabProps>) {
+  const navigate = useNavigate()
   const { groups: allGroupsRaw } = useAllGroups()
   const nexusGroups = useMemo(
     () => allGroupsRaw.filter((g) => g.name !== BUILTIN_AUTHENTICATED_GROUP_NAME),
@@ -27,7 +29,7 @@ export function GroupMappingTab({ providerId, groupMapping, readOnly = false }: 
 
   const navigateToEdit = (search?: string) => {
     const path = identityProviderGroupMappingEditPath(providerId)
-    navigate(search ? `${path}?${search}` : path)
+    detachPromise(navigate({ to: search ? `${path}?${search}` : path }))
   }
 
   if (!hasEntries) {

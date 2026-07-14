@@ -8,9 +8,9 @@ import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
 import type { KebabAction } from '../../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../../components/NxKebabMenu'
+import { NxLink } from '../../../components/NxLink'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
-import { Link } from '../../../hooks/routing/Link'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useDialogState } from '../../../hooks/useDialogState'
@@ -96,9 +96,9 @@ function ServiceAccountTableBody({
       {serviceAccounts.map((sa) => (
         <Tr key={sa.id}>
           <Td dataLabel="Name">
-            <Link href={getServiceAccountDetailPath(sa.id)}>
+            <NxLink to={getServiceAccountDetailPath(sa.id)}>
               <Truncate content={sa.name} />
-            </Link>
+            </NxLink>
           </Td>
           <Td dataLabel="Created">{formatDateTime(sa.created_at)}</Td>
           <Td dataLabel="Last authenticated">

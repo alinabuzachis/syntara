@@ -8,12 +8,7 @@ type LinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
 type TanStackTo = ComponentProps<typeof TanStackLink>['to']
 
 /**
- * Routing bridge: anchor-based navigation link accepting `href` and standard anchor attributes.
- *
- * Wraps TanStack Router's `<Link>` with the wouter-compatible `href` prop used
- * by all consumers. Route-level type-safety is deferred to the Phase 4 consumer
- * migration; `href` always comes from `AppRoute` constants so it is a valid
- * registered route at runtime.
+ * @deprecated Use `Link` from `@tanstack/react-router` directly.
  */
 export function Link({ href, children, ...rest }: Readonly<LinkProps>) {
   return (

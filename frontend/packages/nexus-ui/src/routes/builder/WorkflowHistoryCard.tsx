@@ -17,7 +17,8 @@ import {
   Truncate,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiHistoryIcon, RhUiRedoIcon } from '@patternfly/react-icons'
-import React, { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
@@ -26,16 +27,16 @@ import { NxLabel } from '../../components/labels/NxLabel'
 import { NxPanel } from '../../components/layout/NxPanel'
 import type { KebabAction } from '../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../components/NxKebabMenu'
+import { NxLink } from '../../components/NxLink'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
 import { PaginationFooter } from '../../components/table/PaginationFooter'
 import { permissionTooltip } from '../../hooks/permissionUtils'
-import { Link } from '../../hooks/routing/Link'
-import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useCanI } from '../../hooks/useCanI'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { formatDateTime, formatElapsedTime } from '../../utils/dateUtils'
+import { detachPromise } from '../../utils/detachPromise'
 import {
   getExecutionStatusFilterDefinition,
   getExecutionVersionFilterFromExecutions,
@@ -89,7 +90,7 @@ function HistoryRowRetryAction({ execution }: Readonly<{ execution: Execution }>
   } = useIsCurrentVersion(execution.workflow_id, execution.workflow_version_id, retryDialogOpen)
   const retryHook = useRetryExecution(execution.id, (newId) => {
     setRetryDialogOpen(false)
-    navigate(`/executions/${newId}`)
+    detachPromise(navigate({ to: `/executions/${newId}` }))
   })
   /* v8 ignore stop */
 
@@ -153,16 +154,16 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
             {execution.workflow_version != null && execution.workflow_id && (
               <Content component={ContentVariants.small} style={{ margin: 0 }}>
                 {'Version: '}
-                <Link
-                  href={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}
-                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                <NxLink
+                  to={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <Truncate
                     content={
                       execution.workflow_version_publish_name ?? formatDateTime(execution.workflow_version_created_at)
                     }
                   />
-                </Link>
+                </NxLink>
               </Content>
             )}
             {execution.retried_from_execution_id && (

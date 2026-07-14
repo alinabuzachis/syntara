@@ -1,6 +1,6 @@
+import { useParams } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
-import { useParams } from '../../../hooks/routing/useParams'
 import { useActiveAdminCount } from '../../../hooks/useActiveAdminCount'
 import { useAuthStore } from '../../../stores/useAuthStore'
 import { isValidUUID } from '../../../utils/generateUUID'
@@ -61,7 +61,7 @@ function useStableFormValues(
 }
 
 export function useUserFormData(isEdit: boolean) {
-  const { userId } = useParams<{ userId: string }>()
+  const { userId }: { userId: string } = useParams({ strict: false })
   const isValidId = !!userId && isValidUUID(userId)
 
   const userQuery = accessClient.useQuery(

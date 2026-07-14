@@ -9,8 +9,10 @@ import {
   RhUiPlayIcon,
   RhUiTrashIcon,
 } from '@patternfly/react-icons'
+import { useNavigate } from '@tanstack/react-router'
 
 import { IconLabel } from '../../components/IconLabel'
+import { detachPromise } from '../../utils/detachPromise'
 
 import type { useWorkflowPermissions } from './useWorkflowPermissions'
 import type { RowAction } from './WorkflowsTableBody'
@@ -18,7 +20,7 @@ import type { RowAction } from './WorkflowsTableBody'
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
 export type WorkflowRowActionCallbacks = {
-  setLocation: (path: string) => void
+  navigate: ReturnType<typeof useNavigate>
   onRun: (wf: Workflow) => void
   onDuplicate: (wf: Workflow) => void
   onExport: (wf: Workflow) => void
@@ -46,7 +48,10 @@ export function buildWorkflowRowActions(
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit workflow</IconLabel>,
       isAriaDisabled: !permissions.canUpdate,
       tooltipProps: noUpdate,
-      onClick: () => callbacks.setLocation(`/workflow-builder/${workflow.id}`),
+      onClick: () => {
+        if (!workflow.id) return
+        detachPromise(callbacks.navigate({ to: '/workflow-builder/$workflowId', params: { workflowId: workflow.id } }))
+      },
     },
     {
       key: 'run',
@@ -58,7 +63,9 @@ export function buildWorkflowRowActions(
     {
       key: 'history',
       title: <IconLabel icon={<RhUiHistoryIcon />}>View run history</IconLabel>,
-      onClick: () => callbacks.setLocation(`/executions?workflow_id=${workflow.id}`),
+      onClick: () => {
+        detachPromise(callbacks.navigate({ to: '/executions', search: { workflow_id: workflow.id } }))
+      },
     },
     {
       key: 'duplicate',

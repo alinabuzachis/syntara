@@ -1,4 +1,5 @@
 import { Tab } from '@patternfly/react-core'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useLayoutEffect, useMemo } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -8,9 +9,8 @@ import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../components/panels/list/NxListPanel'
-import { useLocation } from '../../hooks/routing/useLocation'
-import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useUrlTab } from '../../hooks/useUrlTab'
+import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { AssignmentsTab } from '../access/AssignmentsTab'
 import { CheckAccessTab } from '../access/CheckAccessTab'
@@ -55,7 +55,7 @@ const noop = () => {}
 
 export function AccessManagement() {
   const accessDocLink = useDocLink('accessControl')
-  const location = useLocation()
+  const location = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
   const {
     canReadUsers,
@@ -102,7 +102,7 @@ export function AccessManagement() {
   useLayoutEffect(() => {
     if (isLoading || !canAccessPage) return
     if (location === basePath) {
-      navigate(`${basePath}/${defaultTab}`, { replace: true })
+      detachPromise(navigate({ to: `${basePath}/${defaultTab}`, replace: true }))
     }
   }, [location, navigate, canAccessPage, isLoading, defaultTab])
 

@@ -10,6 +10,7 @@ import {
   Tab,
   TabTitleText,
 } from '@patternfly/react-core'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -18,10 +19,9 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { navigate } from '../../../hooks/routing/navigate'
-import { useParams } from '../../../hooks/routing/useParams'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
+import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 import { accessClient } from '../../access/accessClient'
 import type { ProjectRead } from '../../access/types'
@@ -87,8 +87,9 @@ type ProjectTab = 'details' | 'role-assignments'
 const ALL_PROJECT_TABS: ProjectTab[] = ['details', 'role-assignments']
 
 export function ProjectDetail() {
+  const navigate = useNavigate()
   const projectsDocLink = useDocLink('projects')
-  const { projectId } = useParams<{ projectId: string }>()
+  const { projectId }: { projectId: string } = useParams({ strict: false })
   const basePath = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId ?? '')
   const [activeTab] = useUrlTab<ProjectTab>(basePath)
   const { canReadAssignments, isLoading: permissionsLoading } = useProjectDetailPermissions()
@@ -105,7 +106,7 @@ export function ProjectDetail() {
     { enabled: !!projectId, retry: false }
   )
 
-  const navigateBack = () => navigate(AppRoute.AccessManagement.Projects)
+  const navigateBack = () => detachPromise(navigate({ to: AppRoute.AccessManagement.Projects }))
 
   const projectData = projectQuery.data
   const refetchProject = projectQuery.refetch

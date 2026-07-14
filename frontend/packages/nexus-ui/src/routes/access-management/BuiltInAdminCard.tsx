@@ -1,7 +1,8 @@
 import { Button, Card, CardBody, Flex, FlexItem, Label, Switch, Tooltip } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiLockIcon, RhUiUnlockIcon } from '@patternfly/react-icons'
+import { useNavigate } from '@tanstack/react-router'
 
-import { navigate } from '../../hooks/routing/navigate'
+import { detachPromise } from '../../utils/detachPromise'
 
 import { getUserDetailPath } from './accessManagementPaths'
 import { BUILTIN_ADMIN_TOGGLE_DISABLED_REASON } from './adminConstants'
@@ -14,6 +15,7 @@ type BuiltInAdminCardProps = {
 }
 
 export function BuiltInAdminCard({ userId, isEnabled, canToggle, onToggle }: Readonly<BuiltInAdminCardProps>) {
+  const navigate = useNavigate()
   const adminSwitch = (
     <Switch
       id="admin-enabled"
@@ -31,7 +33,7 @@ export function BuiltInAdminCard({ userId, isEnabled, canToggle, onToggle }: Rea
         <Flex alignItems={{ default: 'alignItemsCenter' }}>
           <FlexItem>{isEnabled ? <RhUiUnlockIcon aria-hidden="true" /> : <RhUiLockIcon aria-hidden="true" />}</FlexItem>
           <FlexItem>
-            <Button variant="link" isInline onClick={() => navigate(getUserDetailPath(userId))}>
+            <Button variant="link" isInline onClick={() => detachPromise(navigate({ to: getUserDetailPath(userId) }))}>
               <strong>Built-in Administrator Account</strong>
             </Button>
           </FlexItem>

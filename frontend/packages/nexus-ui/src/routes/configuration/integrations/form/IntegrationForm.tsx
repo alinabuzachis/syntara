@@ -16,11 +16,11 @@ import { useForm, useWatch, type UseFormTrigger } from 'react-hook-form'
 
 import { AppRoute } from '../../../../app/AppRoute'
 import { breadcrumbsIntegrationConfigure } from '../../../../app/breadcrumbBuilders'
+import { tanstackRouter } from '../../../../app/tanstackRouter'
 import { integrationsClient } from '../../../../client'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
-import { navigate } from '../../../../hooks/routing/navigate'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 import { getErrorMessage } from '../../../../utils/apiErrors'
@@ -107,7 +107,12 @@ function WizardNavFooter({ trigger, onSubmit, credentialId, integrationType, onS
         </ActionListGroup>
         <ActionListGroup>
           <ActionListItem>
-            <Button variant="link" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
+            <Button
+              variant="link"
+              onClick={() => {
+                detachPromise(tanstackRouter.navigate({ to: AppRoute.Configuration.Integrations.Root }))
+              }}
+            >
               Cancel
             </Button>
           </ActionListItem>

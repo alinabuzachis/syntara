@@ -21,6 +21,7 @@ import {
 import { RhUiArrowLeftIcon, RhUiEditIcon, RhUiSearchIcon, RhUiSyncIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState, type ReactNode } from 'react'
 
 import { AppRoute } from '../../../../app/AppRoute'
@@ -37,8 +38,6 @@ import { NxPanel } from '../../../../components/layout/NxPanel'
 import { NxListPanel, NxListPanelTabs } from '../../../../components/panels/list/NxListPanel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
-import { navigate } from '../../../../hooks/routing/navigate'
-import { useParams } from '../../../../hooks/routing/useParams'
 import { useDeleteAction } from '../../../../hooks/useDeleteAction'
 import { useUrlTab } from '../../../../hooks/useUrlTab'
 import { getErrorStatus } from '../../../../utils/apiErrors'
@@ -230,8 +229,9 @@ function buildKebabActions(
 }
 
 export function IdentityProviderDetail() {
+  const navigate = useNavigate()
   const identityProvidersDocLink = useDocLink('identityProviders')
-  const { providerId } = useParams<{ providerId: string }>()
+  const { providerId }: { providerId: string } = useParams({ strict: false })
   const isValidId = !!providerId && isValidUUID(providerId)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const idpPermissions = useIdentityProviderPermissions()
@@ -255,9 +255,13 @@ export function IdentityProviderDetail() {
     '/identity_providers/{provider_id}'
   )
 
-  const navigateBack = () => navigate(AppRoute.SystemAdministration.Authentication.Root)
+  const navigateBack = () => detachPromise(navigate({ to: AppRoute.SystemAdministration.Authentication.Root }))
   const navigateEdit = () =>
-    navigate(AppRoute.SystemAdministration.Authentication.EditIdentityProvider.replace(':providerId', providerId ?? ''))
+    detachPromise(
+      navigate({
+        to: AppRoute.SystemAdministration.Authentication.EditIdentityProvider.replace(':providerId', providerId ?? ''),
+      })
+    )
 
   const providerData = providerQuery.data
   const refetchProvider = providerQuery.refetch
@@ -285,7 +289,7 @@ export function IdentityProviderDetail() {
   const kebabActions = buildKebabActions(
     idpPermissions,
     () => {
-      if (providerId) navigate(identityProviderGroupMappingEditPath(providerId))
+      if (providerId) detachPromise(navigate({ to: identityProviderGroupMappingEditPath(providerId) }))
     },
     () => setDeleteDialogOpen(true)
   )

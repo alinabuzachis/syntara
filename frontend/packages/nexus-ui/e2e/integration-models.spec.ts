@@ -87,7 +87,7 @@ async function navigateToModelsTab(app: Page, integrationName: string) {
   await app.getByRole('button', { name: 'Apply filter' }).click()
   const row = app.getByRole('row', { name: new RegExp(integrationName) })
   await expect(row).toBeVisible()
-  await row.getByRole('button', { name: integrationName, exact: true }).click()
+  await row.getByRole('link', { name: integrationName, exact: true }).click()
   await app.getByRole('tab', { name: /Enabled resources/i }).click()
 }
 

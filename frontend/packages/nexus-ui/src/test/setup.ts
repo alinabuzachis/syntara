@@ -4,25 +4,6 @@ import { cleanup } from '@testing-library/react'
 import React from 'react'
 import { afterEach, beforeAll, beforeEach, afterAll, expect, vi } from 'vitest'
 
-// Global stub: TanStack hooks (useNavigate, useRouterState, useRouter, useBlocker)
-// throw when rendered outside a RouterProvider. Tests that don't test routing use
-// plain render() without a router wrapper, so we provide safe defaults.
-//
-// The mock is **reactive**: calling routerTestState.historyPush(url) or
-// routerTestState.navigate({ to: url }) auto-updates pathname/searchStr and
-// triggers re-renders in components that read useRouterState / useRouter.
-//
-// Tests configure routing state via routerTestState (exported below):
-//   import { routerTestState } from '../../test/setup'
-//   beforeEach(() => {
-//     routerTestState.pathname = '/my/page'
-//     routerTestState.searchStr = ''
-//     routerTestState.navigate.mockClear()
-//     routerTestState.historyPush.mockClear()
-//   })
-//
-// Tests that need special overrides (e.g. useParams) can still define their own
-// vi.mock('@tanstack/react-router', ...) which replaces this global mock.
 const listeners = new Set<() => void>()
 function notifyListeners() {
   listeners.forEach((l) => l())

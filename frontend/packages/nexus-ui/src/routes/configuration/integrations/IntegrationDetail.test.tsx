@@ -62,13 +62,23 @@ vi.mock('./useIntegrationModelsState', () => ({
 
 const mockNavigate = vi.fn()
 
-vi.mock('../../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockNavigate,
-}))
-
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => ({ integrationId: 'int-1' }),
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return {
+    ...actual,
+    Link: ({ to, children, ...rest }: { to: string; children: ReactNode }) => (
+      <a href={String(to)} {...rest}>
+        {children}
+      </a>
+    ),
+    useNavigate: () => mockNavigate,
+    useParams: vi.fn(() => ({ integrationId: 'int-1' })),
+    useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {
+      const state = { location: { pathname: '/configuration/integrations/int-1', searchStr: '' } }
+      return opts?.select ? opts.select(state) : state
+    },
+  }
+})
 
 vi.mock('./IntegrationModelsTab', () => ({
   IntegrationModelsTab: () => <div data-testid="models-tab-content">Models tab content</div>,
@@ -368,7 +378,7 @@ describe('IntegrationDetail', () => {
 
       await user.click(screen.getByRole('button', { name: 'Edit integration' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/int-1/edit')
+      expect(mockNavigate).toHaveBeenCalledWith({ to: '/configuration/integrations/int-1/edit' })
     })
 
     it('shows kebab menu', () => {

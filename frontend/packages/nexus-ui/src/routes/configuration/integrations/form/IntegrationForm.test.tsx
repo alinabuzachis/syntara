@@ -5,8 +5,8 @@ import type { ReactNode } from 'react'
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { tanstackRouter } from '../../../../app/tanstackRouter'
 import { integrationsClient } from '../../../../client'
-import { navigate } from '../../../../hooks/routing/navigate'
 import { AlertProvider } from '../../../../providers/alerts'
 
 import { IntegrationForm } from './IntegrationForm'
@@ -20,8 +20,8 @@ vi.mock('../../../../client', () => ({
   },
 }))
 
-vi.mock('../../../../hooks/routing/navigate', () => ({
-  navigate: vi.fn(),
+vi.mock('../../../../app/tanstackRouter', () => ({
+  tanstackRouter: { navigate: vi.fn().mockResolvedValue(undefined) },
 }))
 
 vi.mock('../../../access/useAllProjects', () => ({
@@ -198,7 +198,9 @@ describe('IntegrationForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    expect(navigate).toHaveBeenCalledWith('/configuration/integrations')
+    expect(vi.mocked(tanstackRouter.navigate)).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/configuration/integrations' })
+    )
   })
 
   it('navigates back to step 1 when Back is clicked on step 2', async () => {

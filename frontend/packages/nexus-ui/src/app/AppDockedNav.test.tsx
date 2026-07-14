@@ -26,15 +26,24 @@ vi.mock('./useDockState', () => ({
   useDockState: (): DockState => mockUseDockState(),
 }))
 
-// Mock wouter
 const mockNavigate = vi.fn()
-const mockUseLocation = vi.fn(() => '/workflows')
-vi.mock('../hooks/routing/useLocation', () => ({
-  useLocation: () => mockUseLocation(),
-}))
-vi.mock('../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockNavigate,
-}))
+let mockLocation = '/workflows'
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return {
+    ...actual,
+    Link: ({ to, children, ...rest }: { to: string; children?: React.ReactNode } & Record<string, unknown>) => (
+      <a href={to} {...rest}>
+        {children}
+      </a>
+    ),
+    useNavigate: () => mockNavigate,
+    useRouterState: vi.fn((opts?: { select?: (s: { location: { pathname: string } }) => unknown }) => {
+      const state = { location: { pathname: mockLocation } }
+      return opts?.select ? opts.select(state) : state
+    }),
+  }
+})
 
 // Mock useUnsavedChanges
 const mockRequestNavigation = vi.fn()
@@ -88,6 +97,7 @@ function renderDockedNav() {
 describe('AppDockedNav', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockLocation = '/workflows'
     vi.mocked(authClient.useQuery).mockReturnValue({
       data: { id: 'user-1', username: 'testuser' },
     } as never)
@@ -174,7 +184,7 @@ describe('AppDockedNav', () => {
     await user.hover(screen.getByRole('button', { name: 'User menu' }))
     await user.click(screen.getByText('My Profile'))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/my-profile')
+    expect(mockNavigate).toHaveBeenCalledWith({ to: '/my-profile' })
   })
 
   it('opens external documentation when documentation button is clicked', async () => {
@@ -323,7 +333,7 @@ describe('AppDockedNav', () => {
     })
 
     it('marks active child item when location matches', () => {
-      mockUseLocation.mockReturnValue('/configuration/integrations')
+      mockLocation = '/configuration/integrations'
       renderDockedNav()
       const activeLink = screen.getByRole('link', { name: 'Integrations' })
       expect(activeLink).toHaveAttribute('href', '/configuration/integrations')
@@ -417,7 +427,7 @@ describe('AppDockedNav', () => {
 
   describe('Expanded with active configuration child', () => {
     beforeEach(() => {
-      mockUseLocation.mockReturnValue('/configuration/integrations')
+      mockLocation = '/configuration/integrations'
       mockUseDockState.mockReturnValue({
         isDockExpanded: false,
         isDockTextExpanded: true,
@@ -444,7 +454,7 @@ describe('AppDockedNav', () => {
 
   describe('Expanded with active system-administration child', () => {
     beforeEach(() => {
-      mockUseLocation.mockReturnValue('/system-administration/access-management')
+      mockLocation = '/system-administration/access-management'
       mockUseDockState.mockReturnValue({
         isDockExpanded: false,
         isDockTextExpanded: true,

@@ -1,8 +1,9 @@
 import { Button, Flex, FlexItem, Label, LabelGroup, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiLockIcon } from '@patternfly/react-icons'
+import { useNavigate } from '@tanstack/react-router'
 
 import { AppRoute } from '../../app/AppRoute'
-import { navigate } from '../../hooks/routing/navigate'
+import { detachPromise } from '../../utils/detachPromise'
 
 import type { PolicyStatement } from './types'
 
@@ -52,6 +53,7 @@ type ProjectLabelProps = {
 }
 
 export function ProjectLabel({ projectId, projectNameMap }: Readonly<ProjectLabelProps>) {
+  const navigate = useNavigate()
   if (!projectId) {
     return <>-</>
   }
@@ -64,7 +66,7 @@ export function ProjectLabel({ projectId, projectNameMap }: Readonly<ProjectLabe
       isInline
       onClick={(e) => {
         e.stopPropagation()
-        navigate(projectUrl)
+        detachPromise(navigate({ to: projectUrl }))
       }}
     >
       {projectNameMap.get(projectId) ?? projectId}

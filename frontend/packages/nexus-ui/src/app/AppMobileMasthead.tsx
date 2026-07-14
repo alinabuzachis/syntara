@@ -9,9 +9,9 @@ import {
   Toolbar,
   ToolbarContent,
 } from '@patternfly/react-core'
+import { Link } from '@tanstack/react-router'
 
 import RedHatHatIcon from '../assets/redhat-hat-icon.svg?react'
-import { Link } from '../hooks/routing/Link'
 
 import { useDockState } from './useDockState'
 
@@ -40,7 +40,7 @@ export function AppMobileMasthead() {
           />
         </MastheadToggle>
         <MastheadBrand>
-          <MastheadLogo component={(props) => <Link {...props} href="/" />} aria-label="Home">
+          <MastheadLogo component={(props) => <Link {...props} to="/" />} aria-label="Home">
             <RedHatHatIcon style={{ height: 28 }} />
           </MastheadLogo>
         </MastheadBrand>

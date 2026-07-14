@@ -2,6 +2,7 @@ import { Button, Content, List, ListItem, Stack, StackItem, Truncate } from '@pa
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
+import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useMemo } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -10,7 +11,6 @@ import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { IconLabel } from '../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { navigate } from '../../hooks/routing/navigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useTableSort } from '../../hooks/useTableSort'
@@ -81,6 +81,7 @@ function ProjectsTable({
   onDelete: (p: ProjectRead) => void
   permissions: ReturnType<typeof useProjectPermissions>
 }>) {
+  const navigate = useNavigate()
   return (
     <>
       <Thead>
@@ -100,7 +101,9 @@ function ProjectsTable({
                 variant="link"
                 isInline
                 onClick={() =>
-                  navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', project.id ?? ''))
+                  detachPromise(
+                    navigate({ to: AppRoute.AccessManagement.ProjectDetail.replace(':projectId', project.id ?? '') })
+                  )
                 }
               >
                 <Truncate content={project.name ?? ''} />

@@ -1,8 +1,17 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import { Flex, FlexItem, TitleSizes } from '@patternfly/react-core'
+import {
+  Alert,
+  AlertActionCloseButton,
+  Content,
+  ContentVariants,
+  Flex,
+  FlexItem,
+  TitleSizes,
+} from '@patternfly/react-core'
+import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type React from 'react'
 import '@xyflow/react/dist/style.css'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
 import { executionsClient } from '../../client'
@@ -11,13 +20,10 @@ import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxReactFlowViewportGuard } from '../../components/layout/NxReactFlowViewportGuard'
 import { ResizableDivider } from '../../components/ResizableDivider'
 import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
-import { useNavigate } from '../../hooks/routing/useNavigate'
-import { useParams } from '../../hooks/routing/useParams'
-import { useSearch } from '../../hooks/routing/useSearch'
 import { useCursorPagination } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
-import { useAlerts } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
+import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
@@ -40,6 +46,9 @@ import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 import { useExecutionStreaming, useSyncActivityStore } from './hooks/useExecutionStreaming'
 import { useExecutionWorkflow } from './hooks/useExecutionWorkflow'
 import { useForkWorkflow } from './hooks/useForkWorkflow'
+
+/** Width constraint for the inline failure alert floating over the execution canvas. */
+const INLINE_ALERT_WIDTH = 'clamp(15rem, 20vw, 22rem)'
 
 /** Build activity name map from workflow definition for resolving approval node names. */
 function useActivityNamesForExecution(
@@ -81,8 +90,7 @@ function ExecutionDetailContent({
   activities,
   executionId,
   executionsQuery,
-  searchParams,
-  setLocation,
+  navigate,
   filters,
   onFilterChange,
   paginationFooterProps,
@@ -104,8 +112,7 @@ function ExecutionDetailContent({
     error: unknown
     refetch: () => Promise<unknown>
   }
-  searchParams: string
-  setLocation: (path: string) => void
+  navigate: ReturnType<typeof useNavigate>
   filters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
   paginationFooterProps: PaginationFooterProps
@@ -117,25 +124,9 @@ function ExecutionDetailContent({
 }>) {
   const isStale = useExecutionStore((state) => state.isStale)
   const isComplete = useExecutionStore((state) => state.isComplete)
-  const { showError } = useAlerts()
-  const prevStatusRef = useRef(execution?.status)
+  const showFailureAlert = execution?.status === 'failed'
+  const [alertDismissed, setAlertDismissed] = useState(false)
   const [panelHeight, setPanelHeight] = useState(300)
-
-  const showFailureToast = useCallback(() => {
-    showError({
-      title: `${workflow?.name ?? 'Automation'} run failed`,
-      description: 'View the run logs and copy to the editor to debug within the editor',
-    })
-  }, [workflow?.name, showError])
-
-  useEffect(() => {
-    const prevStatus = prevStatusRef.current
-    prevStatusRef.current = execution?.status
-
-    if (execution?.status === 'failed' && prevStatus && prevStatus !== 'failed') {
-      showFailureToast()
-    }
-  }, [execution?.status, showFailureToast])
 
   const MIN_PANEL_HEIGHT = 100
   const MAX_PANEL_HEIGHT = 600
@@ -189,6 +180,34 @@ function ExecutionDetailContent({
             </FlexItem>
           </Flex>
         )}
+        {showFailureAlert && !alertDismissed && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 'var(--pf-t--global--spacer--md)',
+              right: 0,
+              zIndex: 10,
+              width: INLINE_ALERT_WIDTH,
+            }}
+          >
+            <div
+              role="none"
+              style={{ pointerEvents: 'auto' }}
+              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Alert
+                variant="danger"
+                title={`${workflow?.name ?? 'Automation'} run failed`}
+                actionClose={<AlertActionCloseButton onClose={() => setAlertDismissed(true)} />}
+              >
+                <Content component={ContentVariants.p} style={{ margin: 0 }}>
+                  View the run logs and copy to the editor to debug within the editor
+                </Content>
+              </Alert>
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           {/* Workflow Canvas */}
           <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
@@ -225,15 +244,22 @@ function ExecutionDetailContent({
             executions={executionsQuery.data?.resources ?? []}
             selectedExecutionId={executionId}
             onClose={() => {
-              const params = new URLSearchParams(searchParams)
-              params.set('history', 'closed')
-              setLocation(`/executions/${executionId}?${params.toString()}`)
+              detachPromise(
+                navigate({
+                  to: '/executions/$executionId',
+                  params: { executionId },
+                  search: (prev: Record<string, unknown>) => ({ ...prev, history: 'closed' }),
+                })
+              )
             }}
             onExecutionSelect={(selectedId) => {
-              const params = new URLSearchParams(searchParams)
-              const newSearch = params.toString()
-              const searchSuffix = newSearch ? `?${newSearch}` : ''
-              setLocation(`/executions/${selectedId}${searchSuffix}`)
+              detachPromise(
+                navigate({
+                  to: '/executions/$executionId',
+                  params: { executionId: selectedId },
+                  search: (prev: Record<string, unknown>) => ({ ...prev }),
+                })
+              )
             }}
             filters={filters}
             onFilterChange={onFilterChange}
@@ -247,10 +273,9 @@ function ExecutionDetailContent({
 
 export default function ExecutionDetail() {
   const executionsDocLink = useDocLink('executions')
-  const params = useParams<{ executionId: string }>()
-  const executionId = params.executionId
-  const setLocation = useNavigate()
-  const searchParams = useSearch()
+  const { executionId }: { executionId: string } = useParams({ strict: false })
+  const navigate = useNavigate()
+  const searchParams = useRouterState({ select: (s) => s.location.searchStr.replace(/^\?/, '') })
 
   const { reset } = useExecutionStore.getState()
 
@@ -349,14 +374,18 @@ export default function ExecutionDetail() {
     if (willOpen) {
       approval.close()
     }
-    const params = new URLSearchParams(searchParams)
-    params.set('history', willOpen ? 'open' : 'closed')
-    setLocation(`/executions/${executionId}?${params.toString()}`)
+    detachPromise(
+      navigate({
+        to: '/executions/$executionId',
+        params: { executionId },
+        search: (prev: Record<string, unknown>) => ({ ...prev, history: willOpen ? 'open' : 'closed' }),
+      })
+    )
   }
 
   return (
     <NxPage>
-      <NxReactFlowViewportGuard onReturn={() => setLocation(AppRoute.Executions.Root)}>
+      <NxReactFlowViewportGuard onReturn={() => detachPromise(navigate({ to: AppRoute.Executions.Root }))}>
         <NxPageHeader
           title={executionDetailPageHeading(execution, executionId)}
           docLink={executionsDocLink}
@@ -378,7 +407,9 @@ export default function ExecutionDetail() {
               onToggleHistory={toggleHistoryCard}
               onBackToEditor={() => {
                 if (execution?.workflow_id) {
-                  setLocation(`/workflow-builder/${execution.workflow_id}`)
+                  detachPromise(
+                    navigate({ to: '/workflow-builder/$workflowId', params: { workflowId: execution.workflow_id } })
+                  )
                 }
               }}
               onCopyToEditor={() => copyToEditorDialog.open(undefined)}
@@ -414,8 +445,7 @@ export default function ExecutionDetail() {
             activities={activities}
             executionId={executionId}
             executionsQuery={executionsQuery}
-            searchParams={searchParams}
-            setLocation={setLocation}
+            navigate={navigate}
             filters={executionFilters}
             onFilterChange={handleExecutionFilterChange}
             paginationFooterProps={executionPaginationFooterProps}
@@ -434,13 +464,25 @@ export default function ExecutionDetail() {
         onReplace={() => {
           copyToEditorDialog.close()
           if (execution?.workflow_id && executionId)
-            setLocation(`/workflow-builder/${execution.workflow_id}?fromExecution=${executionId}`)
+            detachPromise(
+              navigate({
+                to: '/workflow-builder/$workflowId',
+                params: { workflowId: execution.workflow_id },
+                search: { fromExecution: executionId },
+              })
+            )
         }}
         onFork={async () => {
           const id = await forkAsNewWorkflow()
           if (!id || !executionId) return
           copyToEditorDialog.close()
-          setLocation(`/workflow-builder/${id}?linkExecution=${executionId}`)
+          detachPromise(
+            navigate({
+              to: '/workflow-builder/$workflowId',
+              params: { workflowId: id },
+              search: { linkExecution: executionId },
+            })
+          )
         }}
         isForkLoading={isForkLoading}
       />

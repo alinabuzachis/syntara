@@ -2,6 +2,7 @@ import type { Group } from '@ansible/nexus-contracts'
 import { Badge, Button, Content, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
+import { useNavigate } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -11,7 +12,6 @@ import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { IconLabel } from '../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { navigate } from '../../hooks/routing/navigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -31,6 +31,7 @@ const SORT_FIELDS: Record<number, string> = {
 }
 
 export function GroupsTab() {
+  const navigate = useNavigate()
   const permissions = useGroupPermissions()
   const deleteDialog = useDialogState<Group>()
   const formDialog = useDialogState<Group | null>()
@@ -153,7 +154,9 @@ export function GroupsTab() {
                         variant="link"
                         isInline
                         onClick={() =>
-                          navigate(AppRoute.AccessManagement.GroupDetail.replace(':groupId', group.id ?? ''))
+                          detachPromise(
+                            navigate({ to: AppRoute.AccessManagement.GroupDetail.replace(':groupId', group.id ?? '') })
+                          )
                         }
                       >
                         <Truncate content={group.name} />

@@ -9,6 +9,7 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiSearchIcon, RhUiSyncIcon } from '@patternfly/react-icons'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 
@@ -24,8 +25,6 @@ import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
 import { useQueryState } from '../../../../components/states/useQueryState'
-import { navigate } from '../../../../hooks/routing/navigate'
-import { useParams } from '../../../../hooks/routing/useParams'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 import { getErrorMessage, getErrorStatus, isConflictError } from '../../../../utils/apiErrors'
@@ -275,12 +274,13 @@ function ProviderNotFound({ onBack, onRetry }: Readonly<{ onBack: () => void; on
  *   Kept separate from the form because it is display-only and should not be submitted.
  */
 export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProps>) {
+  const navigate = useNavigate()
   const identityProvidersDocLink = useDocLink('identityProviders')
   const isEdit = mode === 'edit'
   const pageTitle = isEdit ? 'Edit OIDC provider' : 'Add OIDC provider'
   const submitLabel = isEdit ? 'Save provider' : 'Add provider'
 
-  const { providerId } = useParams<{ providerId: string }>()
+  const { providerId }: { providerId: string } = useParams({ strict: false })
 
   const providerQuery = identityProvidersClient.useQuery(
     'get',
@@ -320,7 +320,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
   })
   const handleError = useFormMutationErrorHandler<IdentityProviderFormData>(setError)
 
-  const navigateBack = () => navigate(AppRoute.SystemAdministration.Authentication.Root)
+  const navigateBack = () => detachPromise(navigate({ to: AppRoute.SystemAdministration.Authentication.Root }))
 
   const onSubmit = (formData: IdentityProviderFormData) => {
     const context = formData.name ? `Identity provider "${formData.name}"` : undefined

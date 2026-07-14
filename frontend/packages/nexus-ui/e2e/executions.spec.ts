@@ -16,7 +16,7 @@ test('user views executions and opens a running execution', async ({ app }) => {
     .catch(() => false)
   test.skip(!hasRunning, 'Mock API has no running execution; seed data required')
 
-  const runDetailButton = runningRow.getByRole('button').filter({ has: app.locator('code') })
+  const runDetailButton = runningRow.getByRole('link').filter({ has: app.locator('code') })
   await runDetailButton.click()
   await expect(app).toHaveURL((url) => /^\/executions\/[^/]+$/.test(new URL(url).pathname))
   await expect(app.getByRole('heading', { name: 'Current run details' })).toBeVisible()

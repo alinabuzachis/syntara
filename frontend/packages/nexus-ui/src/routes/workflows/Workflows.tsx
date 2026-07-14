@@ -1,14 +1,14 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiImportIcon } from '@patternfly/react-icons'
-import { useMemo, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { useCallback, useMemo, useState } from 'react'
 
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { NxListPanel } from '../../components/panels/list/NxListPanel'
-import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
@@ -85,7 +85,8 @@ function WorkflowsPageToolbar({
 export default function Workflows() {
   const workflowsDocLink = useDocLink('workflows')
   const { showAlert, showSuccess, showError } = useAlerts()
-  const setLocation = useNavigate()
+  const navigate = useNavigate()
+  const setLocation = useCallback((to: string) => detachPromise(navigate({ to })), [navigate])
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector, refetchProjects } =
     useProjectSelector()
   const permissions = useWorkflowPermissions()
@@ -203,7 +204,7 @@ export default function Workflows() {
 
   const getRowActions = (workflow: Workflow) =>
     buildWorkflowRowActions(workflow, permissions, {
-      setLocation,
+      navigate,
       onRun: (wf) => runDialog.open(wf),
       onDuplicate: (wf) => detachPromise(duplicateWorkflow(wf)),
       onExport: (wf) => {
@@ -238,7 +239,7 @@ export default function Workflows() {
                 createTooltip={permissions.tooltips.create}
                 showWorkflowActions={showWorkflowActions}
                 onImportClick={() => setImportDialogOpen(true)}
-                onCreateClick={() => setLocation('/workflow-builder/new')}
+                onCreateClick={() => detachPromise(navigate({ to: '/workflow-builder/new' }))}
               />
             ) : undefined
           }
@@ -257,7 +258,9 @@ export default function Workflows() {
               filterFieldDefinitions={workflowFilterDefinitions}
               onFilterChange={handleFilterChange}
               onClearAllFilters={handleClearAllFilters}
-              onCreateWorkflow={permissions.canCreate ? () => setLocation('/workflow-builder/new') : undefined}
+              onCreateWorkflow={
+                permissions.canCreate ? () => detachPromise(navigate({ to: '/workflow-builder/new' })) : undefined
+              }
               footer={getFooterProps(workflowsQuery.data)}
               isAllProjects={isAllProjects}
               groupedWorkflows={groupedWorkflows}

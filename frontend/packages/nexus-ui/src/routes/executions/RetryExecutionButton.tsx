@@ -1,10 +1,12 @@
 import { Button } from '@patternfly/react-core'
+import { useNavigate } from '@tanstack/react-router'
 
+import { AppRoute } from '../../app/AppRoute'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { permissionTooltip } from '../../hooks/permissionUtils'
-import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useCanI } from '../../hooks/useCanI'
 import { useDialogState } from '../../hooks/useDialogState'
+import { detachPromise } from '../../utils/detachPromise'
 
 import { useIsCurrentVersion } from './hooks/useIsCurrentVersion'
 import { RetryExecutionDialog } from './RetryExecutionDialog'
@@ -35,7 +37,7 @@ export function RetryExecutionButton({ executionId, workflowId, workflowVersionI
 
   const retry = useRetryExecution(executionId, (newExecutionId) => {
     retryDialog.close()
-    navigate(`/executions/${newExecutionId}`)
+    detachPromise(navigate({ to: AppRoute.Executions.Execution.replace(':executionId', newExecutionId) }))
   })
   /* v8 ignore stop */
 

@@ -317,7 +317,7 @@ test.describe('V2 Workflow Schema Migration', () => {
     await expect(targetRow).toBeVisible()
 
     // Reopen the saved workflow
-    await targetRow.getByRole('button', { name: workflowName, exact: true }).click()
+    await targetRow.getByRole('link', { name: workflowName, exact: true }).click()
 
     // Every node name should be visible on the canvas
     const nodeNames = [
@@ -374,7 +374,7 @@ test.describe('V2 Workflow Schema Migration', () => {
     })
 
     // Click the workflow name to open it in the builder
-    await app.getByRole('button', { name: workflowName, exact: true }).click()
+    await app.getByRole('link', { name: workflowName, exact: true }).click()
 
     // Wait for the workflow to fully load in the builder
     await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName, { timeout: 30000 })

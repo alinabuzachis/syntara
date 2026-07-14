@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { identityProvidersClient, usersClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 
 import { useDetachIdentity } from './useDetachIdentity'
 import { UserIdentitiesPanel } from './UserIdentitiesPanel'
@@ -53,13 +54,6 @@ vi.mock('./useUserIdentityPermissions', () => ({
     isLoading: false,
     tooltips: { attach: '', detach: '' },
   }),
-}))
-
-const mockNavigate = vi.fn()
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
 }))
 
 // ---------------------------------------------------------------------------
@@ -152,7 +146,6 @@ describe('UserIdentitiesPanel', () => {
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
-    mockNavigate.mockClear()
     mockMutate.mockClear()
     mockUseAuthProviders.mockReturnValue({ providers: [], isLoading: false })
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
@@ -219,7 +212,7 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const providerLink = screen.getByRole('button', { name: 'Azure' })
+      const providerLink = screen.getByRole('link', { name: 'Azure' })
       expect(providerLink).toBeInTheDocument()
     })
   })
@@ -578,7 +571,7 @@ describe('UserIdentitiesPanel', () => {
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
       expect(screen.getByText('Not connected')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'GitHub' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'GitHub' })).toBeInTheDocument()
     })
 
     it('shows enabled Connect menuitem for unlinked providers when viewing own profile', async () => {
@@ -689,9 +682,9 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      expect(screen.getByRole('button', { name: 'Azure' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Okta' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'GitHub' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Azure' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Okta' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'GitHub' })).toBeInTheDocument()
     })
   })
 
@@ -712,7 +705,7 @@ describe('UserIdentitiesPanel', () => {
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
       // Panel still renders with an empty issuer URL for unlinked rows
-      expect(screen.getByRole('button', { name: 'GitHub' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'GitHub' })).toBeInTheDocument()
       expect(screen.getByText('Not connected')).toBeInTheDocument()
     })
 
@@ -784,26 +777,22 @@ describe('UserIdentitiesPanel', () => {
 
       await user.click(screen.getByRole('button', { name: /transfer identity/i }))
 
-      expect(mockNavigate).toHaveBeenCalledWith(
-        '/system-administration/access-management/users/user-1/transfer-identity'
-      )
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/access-management/users/user-1/transfer-identity',
+      })
     })
   })
 
   // ---- Provider link navigation -------------------------------------------
 
   describe('Provider link navigation', () => {
-    it('navigates via wouter on left-click', async () => {
-      const user = userEvent.setup()
+    it('renders provider link with correct href to provider detail page', () => {
       setupMocks(mockIdentities)
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const providerLink = screen.getByRole('button', { name: 'Azure' })
-      await user.click(providerLink)
-
-      expect(mockNavigate).toHaveBeenCalledTimes(1)
-      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining('provider-1'))
+      const providerLink = screen.getByRole('link', { name: 'Azure' })
+      expect(providerLink).toHaveAttribute('href', expect.stringContaining('provider-1') as string)
     })
   })
 

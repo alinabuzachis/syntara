@@ -442,7 +442,7 @@ export async function openWorkflowInBuilder(page: Page, workflowName: string) {
 
   const table = page.getByRole('grid', { name: 'Workflows table' })
   const row = table.getByRole('row', { name: new RegExp(workflowName) })
-  await row.getByRole('button', { name: workflowName, exact: true }).click()
+  await row.getByRole('link', { name: workflowName, exact: true }).click()
   await expect(page.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
 }
 

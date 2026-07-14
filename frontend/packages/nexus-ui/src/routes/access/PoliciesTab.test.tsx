@@ -11,10 +11,6 @@ import { accessClient } from './accessClient'
 import { PoliciesTab } from './PoliciesTab'
 import type { PolicyRead } from './types'
 
-vi.mock('../../app/routerFlag', () => ({
-  isTanStackRouter: () => false,
-}))
-
 vi.mock('./accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),

@@ -1,4 +1,5 @@
 import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
+import { useParams, useRouterState } from '@tanstack/react-router'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useMemo } from 'react'
@@ -9,16 +10,14 @@ import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxLoadingState } from '../../components/states/NxLoadingState'
-import { useParams } from '../../hooks/routing/useParams'
-import { useSearch } from '../../hooks/routing/useSearch'
 
 import { BuilderContent } from './BuilderContent'
 import type { ExecutionCopyData } from './hooks/useExecutionCopyToEditor'
 
 export default function BuilderEdit() {
-  const params = useParams<{ workflowId: string }>()
-  const workflowId = params.workflowId
-  const searchParams = useSearch()
+  const { workflowId: workflowIdParam }: { workflowId: string } = useParams({ strict: false })
+  const workflowId = workflowIdParam ?? null
+  const searchParams = useRouterState({ select: (s) => s.location.searchStr.replace(/^\?/, '') })
   const parsedParams = useMemo(() => {
     const p = new URLSearchParams(searchParams)
     return {

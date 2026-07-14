@@ -71,7 +71,7 @@ test.skip('workflow auto-saves when clicking Run with unsaved changes', async ({
     // Re-open the workflow to verify changes WERE saved
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    await app.getByRole('button', { name: workflowName, exact: true }).click()
+    await app.getByRole('link', { name: workflowName, exact: true }).click()
 
     // Wait for builder to load
     await expect(app).toHaveURL(/workflow-builder/)

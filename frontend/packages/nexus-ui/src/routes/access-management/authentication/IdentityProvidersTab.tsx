@@ -13,6 +13,7 @@ import {
 import { RhUiAddIcon, RhUiBanIcon, RhUiEditIcon, RhUiSecurityIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
+import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -22,7 +23,6 @@ import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { ProviderIcon } from '../../../components/ProviderIcon'
-import { navigate } from '../../../hooks/routing/navigate'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useDialogState } from '../../../hooks/useDialogState'
@@ -51,7 +51,8 @@ function getRowActions(
   provider: IdentityProvider,
   onDelete: (provider: IdentityProvider) => void,
   onRevoke: (provider: IdentityProvider) => void,
-  permissions: ReturnType<typeof useIdentityProviderPermissions>
+  permissions: ReturnType<typeof useIdentityProviderPermissions>,
+  onNavigate: (path: string) => void
 ): IAction[] {
   const { id } = provider
   const canEdit = permissions.canUpdate && !!id
@@ -64,7 +65,7 @@ function getRowActions(
       isAriaDisabled: !permissions.canUpdate,
       tooltipProps: tooltipWhenDenied(permissions.canUpdate, permissions.tooltips.update),
       onClick: canEdit
-        ? () => navigate(AppRoute.SystemAdministration.Authentication.EditIdentityProvider.replace(':providerId', id))
+        ? () => onNavigate(AppRoute.SystemAdministration.Authentication.EditIdentityProvider.replace(':providerId', id))
         : undefined,
     },
     {
@@ -73,7 +74,7 @@ function getRowActions(
       isAriaDisabled: !permissions.canUpdate,
       tooltipProps: tooltipWhenDenied(permissions.canUpdate, permissions.tooltips.editMapping),
       onClick: canEdit
-        ? () => navigate(AppRoute.SystemAdministration.Authentication.EditGroupMapping.replace(':providerId', id))
+        ? () => onNavigate(AppRoute.SystemAdministration.Authentication.EditGroupMapping.replace(':providerId', id))
         : undefined,
     },
     {
@@ -96,6 +97,7 @@ function getRowActions(
 function AddProviderButton({
   permissions,
 }: Readonly<{ permissions: ReturnType<typeof useIdentityProviderPermissions> }>) {
+  const navigate = useNavigate()
   return (
     <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
       <Button
@@ -104,7 +106,7 @@ function AddProviderButton({
         isAriaDisabled={!permissions.canCreate}
         onClick={
           permissions.canCreate
-            ? () => navigate(AppRoute.SystemAdministration.Authentication.AddIdentityProvider)
+            ? () => detachPromise(navigate({ to: AppRoute.SystemAdministration.Authentication.AddIdentityProvider }))
             : undefined
         }
       >
@@ -166,6 +168,7 @@ function ProviderRow({
   onRevoke: (p: IdentityProvider) => void
   onToggleEnabled: (p: IdentityProvider) => void
 }>) {
+  const navigate = useNavigate()
   return (
     <Tr>
       <Td dataLabel="Name">
@@ -175,7 +178,11 @@ function ProviderRow({
           </FlexItem>
           <FlexItem style={{ minWidth: 0 }}>
             {provider.id ? (
-              <Button variant="link" isInline onClick={() => navigate(providerDetailPath(provider.id ?? ''))}>
+              <Button
+                variant="link"
+                isInline
+                onClick={() => detachPromise(navigate({ to: providerDetailPath(provider.id ?? '') }))}
+              >
                 <Truncate content={provider.name ?? ''} />
               </Button>
             ) : (
@@ -203,7 +210,11 @@ function ProviderRow({
         </DisabledWithTooltip>
       </Td>
       <Td isActionCell>
-        <ActionsColumn items={getRowActions(provider, onDelete, onRevoke, permissions)} />
+        <ActionsColumn
+          items={getRowActions(provider, onDelete, onRevoke, permissions, (path) =>
+            detachPromise(navigate({ to: path }))
+          )}
+        />
       </Td>
     </Tr>
   )

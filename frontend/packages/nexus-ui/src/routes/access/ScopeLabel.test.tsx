@@ -1,15 +1,11 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { navigate } from '../../hooks/routing/navigate'
+import { routerTestState } from '../../test/setup'
 
 import { PolicyTypeLabel, ProjectLabel, ScopeLabel } from './ScopeLabel'
-
-vi.mock('../../hooks/routing/navigate', () => ({
-  navigate: vi.fn(),
-}))
 
 const projectNameMap = new Map([
   ['proj-1', 'Alpha Project'],
@@ -117,6 +113,8 @@ describe('ProjectLabel', () => {
 
     await user.click(screen.getByRole('button', { name: /alpha project/i }))
 
-    expect(navigate).toHaveBeenCalledWith(expect.stringContaining('proj-1'))
+    expect(routerTestState.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: expect.stringContaining('proj-1') as string })
+    )
   })
 })

@@ -3,16 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { routerTestState } from '../../test/setup'
+
 import { BUILTIN_ADMIN_TOGGLE_DISABLED_REASON } from './adminConstants'
 import { BuiltInAdminCard } from './BuiltInAdminCard'
-
-const mockNavigate = vi.fn()
-
-vi.mock('../../hooks/routing/navigate', () => ({
-  navigate: (path: string): void => {
-    mockNavigate(path)
-  },
-}))
 
 describe('BuiltInAdminCard', () => {
   const defaultProps = {
@@ -64,7 +58,9 @@ describe('BuiltInAdminCard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Built-in Administrator Account' }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users/user-123')
+    expect(routerTestState.navigate).toHaveBeenCalledWith({
+      to: '/system-administration/access-management/users/user-123',
+    })
   })
 
   it('shows tooltip when canToggle=false', async () => {

@@ -10,6 +10,7 @@ import { approvalsClient, executionsClient, workflowClient, workflowFetchClient 
 import { AlertProvider } from '../../providers/alerts'
 import { ColorSchemeProvider } from '../../providers/theme/ColorSchemeProvider'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { routerTestState } from '../../test/setup'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
@@ -49,16 +50,6 @@ vi.mock('../../hooks/useProjectSelector', () => ({
     projects: [{ id: 'project-1', name: 'Test Project' }],
     ProjectSelector: null,
   }),
-}))
-
-const mockSetLocation = vi.fn()
-
-vi.mock('../../hooks/routing/useLocation', () => ({
-  useLocation: () => '/workflow-builder/workflow-1',
-}))
-
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockSetLocation,
 }))
 
 const mockRequestNavigation = vi.fn()
@@ -755,7 +746,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
-        expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123?history=closed')
+        expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/executions/exec-123?history=closed' })
       })
     })
 
@@ -1262,7 +1253,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(mockDeleteMutate).toHaveBeenCalled()
-        expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
+        expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
       })
     })
 
@@ -2503,7 +2494,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
-        expect(mockSetLocation).toHaveBeenCalledWith('/executions/execution-123?history=closed')
+        expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/executions/execution-123?history=closed' })
       })
     })
   })
@@ -3292,7 +3283,7 @@ describe('BuilderContent', () => {
       })
 
       await waitFor(() => {
-        expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/duplicated-wf-id')
+        expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflow-builder/duplicated-wf-id' })
       })
     })
 

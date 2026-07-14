@@ -1,9 +1,10 @@
 import { Stack, StackItem } from '@patternfly/react-core'
+import { useNavigate } from '@tanstack/react-router'
 import type { CSSProperties, ReactNode } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
 import { panelContentStackStyle } from '../../app/panelContentStackStyle'
-import { useNavigate } from '../../hooks/routing/useNavigate'
+import { detachPromise } from '../../utils/detachPromise'
 import { NxEmptyStateViewportTooSmall } from '../states/NxEmptyStateViewportTooSmall'
 
 import styles from './NxReactFlowViewportGuard.module.css'
@@ -18,8 +19,8 @@ const guardContentStyle: CSSProperties = { ...panelContentStackStyle, padding: '
 
 /** Hides page content and shows a full-page empty state when the viewport is below 720p (nav bar remains visible). */
 export function NxReactFlowViewportGuard({ children, onReturn }: NxReactFlowViewportGuardProps) {
-  const setLocation = useNavigate()
-  const handleReturn = onReturn ?? (() => setLocation(AppRoute.Workflows.Root))
+  const navigate = useNavigate()
+  const handleReturn = onReturn ?? (() => detachPromise(navigate({ to: AppRoute.Workflows.Root })))
 
   return (
     <Stack style={panelContentStackStyle}>
@@ -28,7 +29,7 @@ export function NxReactFlowViewportGuard({ children, onReturn }: NxReactFlowView
           {children}
         </Stack>
       </StackItem>
-      <StackItem isFilled className={styles.emptyState}>
+      <StackItem isFilled className={styles.emptyState} data-testid="viewport-guard-empty-state">
         <NxEmptyStateViewportTooSmall onReturn={handleReturn} />
       </StackItem>
     </Stack>

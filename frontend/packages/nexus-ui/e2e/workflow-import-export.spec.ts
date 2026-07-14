@@ -156,7 +156,7 @@ test.describe('Workflow Import/Export', () => {
       await importFromWorkflowsList(app, workflowDef, workflowName)
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
+      await expect(app.getByRole('link', { name: workflowName, exact: true })).toBeVisible()
     } finally {
       await deleteWorkflow(app, workflowName)
     }
@@ -514,7 +514,7 @@ test.describe('Workflow Import/Export', () => {
 
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
+      await expect(app.getByRole('link', { name: workflowName, exact: true })).toBeVisible()
     } finally {
       await deleteWorkflow(app, seedName)
       await deleteWorkflow(app, workflowName)

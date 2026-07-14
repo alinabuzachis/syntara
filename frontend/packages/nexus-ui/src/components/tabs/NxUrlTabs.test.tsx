@@ -1,27 +1,16 @@
 import { Tab } from '@patternfly/react-core'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
+
+import { routerTestState } from '../../test/setup'
 
 import { NxUrlTabs } from './NxUrlTabs'
 
-const { mockSetLocation, mockGetLocation } = vi.hoisted(() => ({
-  mockSetLocation: vi.fn(),
-  mockGetLocation: vi.fn().mockReturnValue('/base/tab-a'),
-}))
-
-vi.mock('../../hooks/routing/useLocation', () => ({
-  useLocation: () => mockGetLocation() as string,
-}))
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockSetLocation,
-}))
-
 describe('NxUrlTabs', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    mockGetLocation.mockReturnValue('/base/tab-a')
+    routerTestState.pathname = '/base/tab-a'
   })
 
   it('has no accessibility violations', async () => {
@@ -69,11 +58,11 @@ describe('NxUrlTabs', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Tab B' }))
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/base/tab-b')
+    expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/base/tab-b' })
   })
 
   it('uses defaultTab when URL has no tab segment', () => {
-    mockGetLocation.mockReturnValue('/base')
+    routerTestState.pathname = '/base'
     render(
       <NxUrlTabs basePath="/base" defaultTab="tab-b" aria-label="Test tabs">
         <Tab eventKey="tab-a" title="Tab A">
@@ -89,7 +78,7 @@ describe('NxUrlTabs', () => {
   })
 
   it('redirects to defaultTab when URL tab is not in validTabs', () => {
-    mockGetLocation.mockReturnValue('/base/invalid')
+    routerTestState.pathname = '/base/invalid'
     render(
       <NxUrlTabs basePath="/base" defaultTab="tab-a" validTabs={['tab-a', 'tab-b']} aria-label="Test tabs">
         <Tab eventKey="tab-a" title="Tab A">
@@ -101,7 +90,7 @@ describe('NxUrlTabs', () => {
       </NxUrlTabs>
     )
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/base/tab-a', { replace: true })
+    expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/base/tab-a', replace: true })
   })
 
   it('does not redirect when URL tab is valid', () => {
@@ -116,11 +105,11 @@ describe('NxUrlTabs', () => {
       </NxUrlTabs>
     )
 
-    expect(mockSetLocation).not.toHaveBeenCalled()
+    expect(routerTestState.navigate).not.toHaveBeenCalled()
   })
 
   it('redirects to first validTab when no defaultTab is provided', () => {
-    mockGetLocation.mockReturnValue('/base')
+    routerTestState.pathname = '/base'
     render(
       <NxUrlTabs basePath="/base" validTabs={['first', 'second']} aria-label="Test tabs">
         <Tab eventKey="first" title="First">
@@ -132,7 +121,7 @@ describe('NxUrlTabs', () => {
       </NxUrlTabs>
     )
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/base/first', { replace: true })
+    expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/base/first', replace: true })
   })
 
   it('passes through additional Tabs props', () => {

@@ -1,5 +1,6 @@
 import { Badge, Button, DescriptionList, Label, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -16,8 +17,6 @@ import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
-import { useNavigate } from '../../../hooks/routing/useNavigate'
-import { useParams } from '../../../hooks/routing/useParams'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
@@ -49,7 +48,7 @@ function getTypeDisplayText(typeName: string | undefined, typeLoadError: boolean
 // eslint-disable-next-line max-lines-per-function -- detail page with multiple tabs, dialogs, and toolbar actions
 export default function CredentialDetail() {
   const credentialsDocLink = useDocLink('credentials')
-  const { credentialId } = useParams<{ credentialId: string }>()
+  const { credentialId }: { credentialId: string } = useParams({ strict: false })
   const navigate = useNavigate()
   const credentialBasePath = AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId ?? '')
   const [activeTab] = useUrlTab<CredentialTab>(credentialBasePath)
@@ -171,7 +170,9 @@ export default function CredentialDetail() {
     buildParams: (cred) => ({ params: { path: { credential_id: cred.id! } } }),
     entityLabel: 'credential',
     getItemName: (cred) => cred.name,
-    onSuccess: () => navigate(AppRoute.Configuration.Credentials.Root),
+    onSuccess: () => {
+      detachPromise(navigate({ to: AppRoute.Configuration.Credentials.Root }))
+    },
     onSettled: closeDeleteDialog,
   })
 

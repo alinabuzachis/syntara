@@ -56,10 +56,10 @@ test.describe('EDA Trigger', () => {
       await app.goto(toAppUrl('/workflows'))
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
+      await expect(app.getByRole('link', { name: workflowName, exact: true })).toBeVisible()
 
       // Reopen workflow and verify trigger persists on canvas
-      await app.getByRole('button', { name: workflowName, exact: true }).click()
+      await app.getByRole('link', { name: workflowName, exact: true }).click()
       await expect(app.locator('.react-flow__node').filter({ hasText: 'EDA' })).toBeVisible({ timeout: 15_000 })
     } finally {
       await deleteWorkflow(app, workflowName)

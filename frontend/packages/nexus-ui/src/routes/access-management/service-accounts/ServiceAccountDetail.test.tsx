@@ -1,11 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useParams } from '@tanstack/react-router'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { AppRoute } from '../../../app/AppRoute'
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 import { accessClient } from '../../access/accessClient'
 
 import { ServiceAccountDetail } from './ServiceAccountDetail'
@@ -27,27 +30,6 @@ vi.mock('../../access/accessClient', () => ({
 }))
 
 vi.mock('./useServiceAccountPermissions')
-
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => ({ serviceAccountId: 'sa-1' }),
-}))
-
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: vi.fn(),
-}))
-
-const mockSetSearchParams = vi.fn()
-let mockSearchParams = new URLSearchParams()
-
-let mockLocation = '/system-administration/access-management/service-accounts/sa-1/details'
-
-vi.mock('../../../hooks/routing/useLocation', () => ({
-  useLocation: () => mockLocation,
-}))
-
-vi.mock('../../../hooks/routing/useSearchParams', () => ({
-  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
-}))
 
 vi.mock('./CredentialsTab', () => ({
   CredentialsTab: () => <div data-testid="credentials-tab" />,
@@ -119,8 +101,8 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 describe('ServiceAccountDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSearchParams = new URLSearchParams()
-    mockLocation = '/system-administration/access-management/service-accounts/sa-1/details'
+    routerTestState.pathname = '/system-administration/access-management/service-accounts/sa-1/details'
+    vi.mocked(useParams).mockReturnValue({ serviceAccountId: 'sa-1' })
 
     vi.mocked(useServiceAccountPermissions).mockReturnValue({
       canCreate: true,
@@ -315,7 +297,7 @@ describe('ServiceAccountDetail', () => {
   })
 
   it('shows assignments tab when navigated to', () => {
-    mockLocation = '/system-administration/access-management/service-accounts/sa-1/assignments'
+    routerTestState.pathname = '/system-administration/access-management/service-accounts/sa-1/assignments'
 
     render(<ServiceAccountDetail />, { wrapper })
 
@@ -351,6 +333,7 @@ describe('ServiceAccountDetail', () => {
     await user.click(ackCheckbox)
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(mockDeleteMutate).toHaveBeenCalled()
+    expect(routerTestState.navigate).toHaveBeenCalledWith({ to: AppRoute.AccessManagement.ServiceAccounts })
   })
 
   it('renders loading state while query is pending', () => {

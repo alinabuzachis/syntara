@@ -1,32 +1,26 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { routerTestState } from '../../../test/setup'
 
 import { IntegrationEmptyState } from './IntegrationEmptyState'
 
-// Mock wouter navigation
-const mockNavigate = vi.fn()
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
-}))
-
 describe('IntegrationEmptyState', () => {
   beforeEach(() => {
-    mockNavigate.mockClear()
+    routerTestState.navigate.mockClear()
   })
 
   it('renders empty state message', () => {
     render(<IntegrationEmptyState />)
 
-    expect(screen.getByText('No integrations yet')).toBeInTheDocument()
+    expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
   })
 
   it('renders description text', () => {
     render(<IntegrationEmptyState />)
 
-    expect(screen.getByText(/Configure integrations to connect external tools/i)).toBeInTheDocument()
+    expect(screen.getByText(/Configure integrations to use them in workflows/i)).toBeInTheDocument()
   })
 
   it('renders configure integration button', () => {
@@ -42,12 +36,14 @@ describe('IntegrationEmptyState', () => {
     const addButton = screen.getByRole('button', { name: 'Configure integration' })
     await user.click(addButton)
 
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/configure')
+    expect(routerTestState.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/configuration/integrations/configure' })
+    )
   })
 
   it('renders the PF empty state icon', () => {
     render(<IntegrationEmptyState />)
 
-    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'No integrations configured' })).toBeInTheDocument()
   })
 })

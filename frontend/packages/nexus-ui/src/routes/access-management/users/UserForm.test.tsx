@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { authClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 import { accessClient } from '../../access/accessClient'
 import { COMPLIANT_TEST_PASSWORD } from '../passwordComplexity.testFixtures'
 
@@ -45,24 +46,20 @@ vi.mock('../../access/useAllGroups', () => ({
 }))
 
 const mockUseParams = vi.fn(() => ({}))
-vi.mock('../../../hooks/routing/useLocation', () => ({
-  useLocation: () => '/',
-}))
-
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => mockUseParams(),
-}))
-
-vi.mock('../../../hooks/routing/useSearchParams', () => ({
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
-}))
-
-const mockNavigate = vi.fn()
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  // Import global setup's router mock
+  const { routerTestState } = await import('../../../test/setup')
+  return {
+    ...actual,
+    useParams: () => mockUseParams(),
+    useNavigate: () => routerTestState.navigate,
+    useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {
+      const state = { location: { pathname: routerTestState.pathname, searchStr: routerTestState.searchStr } }
+      return opts?.select ? opts.select(state) : state
+    },
+  }
+})
 
 const VALID_UUID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
@@ -164,7 +161,9 @@ describe('UserForm', () => {
 
       await user.click(cancelButton)
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/access-management/users',
+      })
     })
 
     it('calls createUser mutation with form data on submit', async () => {
@@ -221,7 +220,9 @@ describe('UserForm', () => {
         callbacks.onSuccess()
       })
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/access-management/users',
+      })
     })
 
     it('calls onError handler on create failure', async () => {
@@ -393,7 +394,9 @@ describe('UserForm', () => {
         callbacks.onSuccess()
       })
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/access-management/users',
+      })
     })
 
     it('calls onError handler on update failure', async () => {
@@ -472,7 +475,9 @@ describe('UserForm', () => {
 
       await user.click(screen.getByRole('button', { name: /Back to users/ }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/access-management/users',
+      })
     })
 
     it('calls refetch when Retry button is clicked in error state', async () => {

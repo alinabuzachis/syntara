@@ -2,6 +2,7 @@ import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { Button, EmptyState, EmptyStateBody, Flex, FlexItem, Label, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiKeyIcon, RhUiLinkIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -13,12 +14,12 @@ import { OIDC_AUTHORIZE_PATH, identityProvidersClient, usersClient } from '../..
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxLink } from '../../../components/NxLink'
 import { ProviderIcon } from '../../../components/ProviderIcon'
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
-import { navigate } from '../../../hooks/routing/navigate'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
 import { useAlerts, type AlertConfig } from '../../../providers/alerts'
@@ -84,20 +85,14 @@ function ProviderLink({ name, providerId }: { name: string; providerId: string }
         <ProviderIcon name={name} />
       </FlexItem>
       <FlexItem>
-        <Button
-          variant="link"
-          isInline
-          onClick={() =>
-            navigate(
-              AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
-                ':providerId',
-                providerId
-              ).replace('/:tab?', '')
-            )
-          }
+        <NxLink
+          to={AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+            ':providerId',
+            providerId
+          ).replace('/:tab?', '')}
         >
           {name}
-        </Button>
+        </NxLink>
       </FlexItem>
     </Flex>
   )
@@ -237,6 +232,26 @@ function IdentityDialogsWrapper({
   )
 }
 
+function buildIdentityRows(
+  identities: UserIdentity[],
+  unlinkedProviders: AuthProvider[],
+  fullProviders: IdentityProvider[]
+): IdentityTableRow[] {
+  const connected: IdentityTableRow[] = identities.map((identity) => ({ kind: 'connected', identity }))
+  const disconnected: IdentityTableRow[] = unlinkedProviders.map((provider) => {
+    const fullProvider = fullProviders.find((p) => p.id === provider.id)
+    return { kind: 'disconnected', provider, issuerUrl: fullProvider?.configuration?.issuer_url ?? '' }
+  })
+  return [...connected, ...disconnected]
+}
+
+function getIdentityFilterValue(row: IdentityTableRow, key: string): string {
+  if (key === 'provider_name') {
+    return row.kind === 'connected' ? (row.identity.provider_name ?? '') : row.provider.name
+  }
+  return ''
+}
+
 type UserIdentitiesPanelProps = {
   userId: string
   currentUserId?: string
@@ -258,6 +273,7 @@ export function UserIdentitiesPanel({
   isLocalUser = false,
   hasPassword,
 }: Readonly<UserIdentitiesPanelProps>) {
+  const navigate = useNavigate()
   const identityPermissions = useUserIdentityPermissions()
   const { showAlert } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
@@ -291,21 +307,12 @@ export function UserIdentitiesPanel({
     [providers, linkedProviderIds]
   )
 
-  const allRows = useMemo((): IdentityTableRow[] => {
-    const connected: IdentityTableRow[] = identities.map((identity) => ({ kind: 'connected', identity }))
-    const disconnected: IdentityTableRow[] = unlinkedProviders.map((provider) => {
-      const fullProvider = fullProviders.find((p) => p.id === provider.id)
-      return { kind: 'disconnected', provider, issuerUrl: fullProvider?.configuration?.issuer_url ?? '' }
-    })
-    return [...connected, ...disconnected]
-  }, [identities, unlinkedProviders, fullProviders])
+  const allRows = useMemo(
+    () => buildIdentityRows(identities, unlinkedProviders, fullProviders),
+    [identities, unlinkedProviders, fullProviders]
+  )
 
-  const filteredRows = applyLocalFilters(allRows, identitiesFilter.filters, (row, key) => {
-    if (key === 'provider_name') {
-      return row.kind === 'connected' ? (row.identity.provider_name ?? '') : row.provider.name
-    }
-    return ''
-  })
+  const filteredRows = applyLocalFilters(allRows, identitiesFilter.filters, getIdentityFilterValue)
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({ initialSortIndex: 1, initialDirection: 'asc' })
   const sortedRows = sortData(filteredRows, (row) => getIdentitySortKey(activeSortIndex, row))
@@ -333,6 +340,10 @@ export function UserIdentitiesPanel({
 
   const hasActiveFilters = identitiesFilter.filters.length > 0
   const showTable = identities.length > 0 || (!isBuiltinUser && unlinkedProviders.length > 0) || hasActiveFilters
+
+  const handleTransferIdentity = identityPermissions.canAttach
+    ? () => detachPromise(navigate({ to: AppRoute.AccessManagement.TransferIdentity.replace(':userId', userId) }))
+    : undefined
 
   const dialogs = (
     <IdentityDialogsWrapper
@@ -394,11 +405,7 @@ export function UserIdentitiesPanel({
                   variant="primary"
                   icon={<RhUiLinkIcon />}
                   isAriaDisabled={!identityPermissions.canAttach}
-                  onClick={
-                    identityPermissions.canAttach
-                      ? () => navigate(AppRoute.AccessManagement.TransferIdentity.replace(':userId', userId))
-                      : undefined
-                  }
+                  onClick={handleTransferIdentity}
                 >
                   Transfer identity
                 </Button>

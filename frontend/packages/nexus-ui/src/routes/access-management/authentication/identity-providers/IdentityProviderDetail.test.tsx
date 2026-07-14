@@ -53,13 +53,6 @@ vi.mock('../../../../client', async (importOriginal) => {
 
 const VALID_PROVIDER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
-const mockNavigate = vi.fn()
-vi.mock('../../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
-}))
-
 const { mockIdpPermissions } = vi.hoisted(() => ({
   mockIdpPermissions: {
     canCreate: true,
@@ -187,7 +180,7 @@ describe('IdentityProviderDetail', () => {
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
     await user.click(screen.getByRole('button', { name: /back to identity providers/i }))
-    expect(mockNavigate).toHaveBeenCalled()
+    expect(routerTestState.navigate).toHaveBeenCalled()
   })
 
   it('calls refetch when retry button is clicked in 404 state', async () => {
@@ -241,7 +234,7 @@ describe('IdentityProviderDetail', () => {
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
     await user.click(screen.getByRole('button', { name: /edit provider/i }))
-    expect(mockNavigate).toHaveBeenCalled()
+    expect(routerTestState.navigate).toHaveBeenCalled()
   })
 
   it('shows manual endpoints when auto_discovery is false', () => {
@@ -774,8 +767,10 @@ describe('IdentityProviderDetail', () => {
 
     await user.click(screen.getByText('Edit mapping'))
 
-    expect(mockNavigate).toHaveBeenCalledWith(
-      expect.stringContaining(`/identity-providers/${VALID_PROVIDER_ID}/group-mapping/edit`)
+    expect(routerTestState.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: expect.stringContaining(`/identity-providers/${VALID_PROVIDER_ID}/group-mapping/edit`) as string,
+      })
     )
   })
 

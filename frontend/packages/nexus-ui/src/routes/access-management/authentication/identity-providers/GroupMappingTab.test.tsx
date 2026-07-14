@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { usersClient } from '../../../../client'
 import { AlertProvider } from '../../../../providers/alerts'
+import { routerTestState } from '../../../../test/setup'
 import { useAllGroups } from '../../../access/useAllGroups'
 
 import { GroupMappingTab } from './GroupMappingTab'
@@ -25,13 +26,6 @@ vi.mock('../../../../client', () => ({
 
 vi.mock('../../../access/useAllGroups', () => ({
   useAllGroups: vi.fn(),
-}))
-
-const mockNavigate = vi.fn()
-vi.mock('../../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
 }))
 
 const queryClient = new QueryClient({
@@ -56,7 +50,7 @@ const defaultProps = {
 
 describe('GroupMappingTab', () => {
   beforeEach(() => {
-    mockNavigate.mockClear()
+    routerTestState.navigate.mockClear()
     vi.mocked(useAllGroups).mockReturnValue({
       groups: mockNexusGroups.map((g) => ({
         ...g,
@@ -93,9 +87,9 @@ describe('GroupMappingTab', () => {
 
       await user.click(screen.getByRole('button', { name: /add manually/i }))
 
-      expect(mockNavigate).toHaveBeenCalledWith(
-        '/system-administration/authentication/identity-providers/provider-123/group-mapping/edit?new=1'
-      )
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/authentication/identity-providers/provider-123/group-mapping/edit?new=1',
+      })
     })
 
     it('navigates to edit page with discover=1 when Discover groups is clicked', async () => {
@@ -104,9 +98,9 @@ describe('GroupMappingTab', () => {
 
       await user.click(screen.getByRole('button', { name: /discover groups/i }))
 
-      expect(mockNavigate).toHaveBeenCalledWith(
-        '/system-administration/authentication/identity-providers/provider-123/group-mapping/edit?discover=1'
-      )
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/authentication/identity-providers/provider-123/group-mapping/edit?discover=1',
+      })
     })
   })
 
@@ -133,9 +127,9 @@ describe('GroupMappingTab', () => {
 
       await user.click(screen.getByRole('button', { name: /edit mapping/i }))
 
-      expect(mockNavigate).toHaveBeenCalledWith(
-        '/system-administration/authentication/identity-providers/provider-123/group-mapping/edit'
-      )
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/authentication/identity-providers/provider-123/group-mapping/edit',
+      })
     })
   })
 

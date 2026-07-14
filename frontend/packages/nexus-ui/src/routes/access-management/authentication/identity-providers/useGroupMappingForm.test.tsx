@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { identityProvidersClient } from '../../../../client'
+import { routerTestState } from '../../../../test/setup'
 import { useAllGroups } from '../../../access/useAllGroups'
 
 import { useGroupMappingEditForm, useGroupMappingFormMetadata } from './useGroupMappingForm'
@@ -44,13 +45,6 @@ vi.mock('./useTestSignIn', () => ({
       openTestSignIn: vi.fn(),
       isListening: false,
     }
-  },
-}))
-
-const mockNavigate = vi.fn()
-vi.mock('../../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
   },
 }))
 
@@ -207,7 +201,7 @@ describe('useGroupMappingEditForm', () => {
   beforeEach(() => {
     testSignInCallbacks.onResult = undefined
     testSignInCallbacks.onError = undefined
-    mockNavigate.mockClear()
+    routerTestState.navigate.mockClear()
     mockShowAlert.mockClear()
     vi.mocked(useAllGroups).mockReturnValue({
       groups: [
@@ -346,9 +340,9 @@ describe('useGroupMappingEditForm', () => {
       expect(mockMutate).toHaveBeenCalled()
     })
     expect(mockShowSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Group mapping saved' }))
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
-    )
+    expect(routerTestState.navigate).toHaveBeenCalledWith({
+      to: `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`,
+    })
   })
 
   it('navigates to tab on cancel', () => {
@@ -368,9 +362,9 @@ describe('useGroupMappingEditForm', () => {
       result.current.onCancel()
     })
 
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
-    )
+    expect(routerTestState.navigate).toHaveBeenCalledWith({
+      to: `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`,
+    })
   })
 
   it('sets sign-in error alert when test sign-in fails', () => {

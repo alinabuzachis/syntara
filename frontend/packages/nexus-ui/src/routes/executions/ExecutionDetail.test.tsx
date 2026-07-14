@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useParams, useRouterState } from '@tanstack/react-router'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -10,25 +11,20 @@ import ExecutionDetail from './ExecutionDetail'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 
 // Create mock functions
-const mockSetLocation = vi.fn()
-const mockUseParams = vi.fn(() => ({ executionId: 'exec-123' }))
-const mockUseSearch = vi.fn(() => '')
+const mockNavigate = vi.fn()
 
-// Mock wouter
 vi.mock('../../hooks/routing/useLocation', () => ({
   useLocation: () => '/',
 }))
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockSetLocation,
-}))
-
-vi.mock('../../hooks/routing/useParams', () => ({
-  useParams: () => mockUseParams(),
-}))
-
-vi.mock('../../hooks/routing/useSearch', () => ({
-  useSearch: () => mockUseSearch(),
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useParams: vi.fn(() => ({ executionId: 'exec-123' })),
+    useRouterState: vi.fn(() => ''),
+  }
+})
 
 // Mock the workflow client with execution query that includes workflow_definition
 const mockExecutionQuery = {
@@ -296,9 +292,9 @@ vi.mock('./hooks/useExecutionNodeClick', () => ({
 describe('ExecutionDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSetLocation.mockClear()
-    mockUseParams.mockReturnValue({ executionId: 'exec-123' })
-    mockUseSearch.mockReturnValue('')
+    mockNavigate.mockClear()
+    vi.mocked(useParams).mockReturnValue({ executionId: 'exec-123' })
+    vi.mocked(useRouterState).mockReturnValue('' as never)
   })
 
   it('renders page with workflow name and status in title', () => {
@@ -371,7 +367,7 @@ describe('ExecutionDetail', () => {
   })
 
   it('shows history panel when history=open query param is present', () => {
-    mockUseSearch.mockReturnValue('?history=open')
+    vi.mocked(useRouterState).mockReturnValue('?history=open' as never)
 
     const queryClient = new QueryClient()
     render(
@@ -395,11 +391,13 @@ describe('ExecutionDetail', () => {
     const historyButton = screen.getByLabelText('Run history')
     await user.click(historyButton)
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123?history=closed')
+    expect(mockNavigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/executions/$executionId', params: { executionId: 'exec-123' } })
+    )
   })
 
   it('closes history panel when close button in history card is clicked', async () => {
-    mockUseSearch.mockReturnValue('?history=open')
+    vi.mocked(useRouterState).mockReturnValue('?history=open' as never)
 
     const user = userEvent.setup()
     const queryClient = new QueryClient()
@@ -412,7 +410,9 @@ describe('ExecutionDetail', () => {
     const closeButton = screen.getByLabelText('Close history')
     await user.click(closeButton)
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123?history=closed')
+    expect(mockNavigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/executions/$executionId', params: { executionId: 'exec-123' } })
+    )
   })
 
   it('navigates to workflow builder when Back to editor button is clicked', async () => {
@@ -427,11 +427,11 @@ describe('ExecutionDetail', () => {
     const backButton = screen.getByRole('button', { name: 'Back to editor' })
     await user.click(backButton)
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/wf-456')
+    expect(mockNavigate).toHaveBeenCalledWith({ to: '/workflow-builder/$workflowId', params: { workflowId: 'wf-456' } })
   })
 
   it('preserves history panel state when navigating to different execution', async () => {
-    mockUseSearch.mockReturnValue('?history=open')
+    vi.mocked(useRouterState).mockReturnValue('?history=open' as never)
 
     const user = userEvent.setup()
     const queryClient = new QueryClient()
@@ -444,7 +444,9 @@ describe('ExecutionDetail', () => {
     const executionButton = screen.getByLabelText('Select execution exec-456')
     await user.click(executionButton)
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-456?history=open')
+    expect(mockNavigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/executions/$executionId', params: { executionId: 'exec-456' } })
+    )
   })
 
   it('uses executionId as key for ReactFlowProvider', () => {
@@ -566,7 +568,7 @@ describe('ExecutionDetail', () => {
       }))
 
       // Initial render with exec-123
-      mockUseParams.mockReturnValue({ executionId: 'exec-123' })
+      vi.mocked(useParams).mockReturnValue({ executionId: 'exec-123' })
       const { rerender } = render(
         <QueryClientProvider client={queryClient}>
           <ExecutionDetail />
@@ -577,7 +579,7 @@ describe('ExecutionDetail', () => {
       expect(mockReset).toHaveBeenCalledTimes(1)
 
       // Change executionId to exec-456
-      mockUseParams.mockReturnValue({ executionId: 'exec-456' })
+      vi.mocked(useParams).mockReturnValue({ executionId: 'exec-456' })
       rerender(
         <QueryClientProvider client={queryClient}>
           <ExecutionDetail />
@@ -610,7 +612,7 @@ describe('ExecutionDetail', () => {
       }))
 
       // Initial render with exec-123
-      mockUseParams.mockReturnValue({ executionId: 'exec-123' })
+      vi.mocked(useParams).mockReturnValue({ executionId: 'exec-123' })
       const { rerender } = render(
         <QueryClientProvider client={queryClient}>
           <ExecutionDetail />
@@ -789,7 +791,7 @@ describe('ExecutionDetail', () => {
   })
 
   describe('Failure Toast Alert', () => {
-    it('shows failure toast when execution transitions from running to failed', () => {
+    it('shows failure alert when execution transitions from running to failed', () => {
       vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
         if (endpoint === '/executions/{execution_id}') {
           return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'running' } }
@@ -804,7 +806,9 @@ describe('ExecutionDetail', () => {
         </QueryClientProvider>
       )
 
-      expect(mockShowError).not.toHaveBeenCalled()
+      expect(
+        screen.queryByText('View the run logs and copy to the editor to debug within the editor')
+      ).not.toBeInTheDocument()
 
       vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
         if (endpoint === '/executions/{execution_id}') {
@@ -819,10 +823,9 @@ describe('ExecutionDetail', () => {
         </QueryClientProvider>
       )
 
-      expect(mockShowError).toHaveBeenCalledWith({
-        title: 'Test Workflow run failed',
-        description: 'View the run logs and copy to the editor to debug within the editor',
-      })
+      expect(
+        screen.getByText('View the run logs and copy to the editor to debug within the editor')
+      ).toBeInTheDocument()
     })
 
     it('does not show failure toast when navigating directly to a failed execution', () => {

@@ -19,6 +19,7 @@ import {
   Title,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
@@ -32,8 +33,6 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { useNavigate } from '../../../hooks/routing/useNavigate'
-import { useParams } from '../../../hooks/routing/useParams'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
@@ -325,7 +324,7 @@ function EditIntegrationFormFields({
 }
 
 export function EditIntegrationForm() {
-  const { integrationId } = useParams<{ integrationId: string }>()
+  const { integrationId }: { integrationId: string } = useParams({ strict: false })
   const navigate = useNavigate()
   const { showAlert } = useAlerts()
   const docLink = useDocLink('integrations')
@@ -411,7 +410,7 @@ export function EditIntegrationForm() {
             variant: 'success',
             autoDismiss: true,
           })
-          navigate(detailPath)
+          detachPromise(navigate({ to: detailPath }))
         },
         onError: handleError({
           title: 'Failed to update integration',
@@ -462,7 +461,7 @@ export function EditIntegrationForm() {
               </Button>
               <Button
                 variant="link"
-                onClick={isSaving ? undefined : () => navigate(detailPath)}
+                onClick={isSaving ? undefined : () => detachPromise(navigate({ to: detailPath }))}
                 isAriaDisabled={isSaving}
               >
                 Cancel

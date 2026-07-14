@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useParams } from '@tanstack/react-router'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
@@ -19,8 +20,6 @@ const { mockNavigate } = vi.hoisted(() => ({
 const wouterMock = vi.hoisted(() => ({
   credentialId: '1' as string | undefined,
 }))
-
-const mockUseParams = vi.fn(() => ({ credentialId: '1' }))
 
 const mockCredential = {
   id: '1',
@@ -77,16 +76,20 @@ vi.mock('../../../client', () => ({
   interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
-vi.mock('../../../hooks/routing/useLocation', () => ({
-  useLocation: () => `/configuration/credentials/${wouterMock.credentialId ?? ''}`,
-}))
-vi.mock('../../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockNavigate,
-}))
-
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => mockUseParams(),
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useParams: vi.fn(() => ({ credentialId: '1' })),
+    useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {
+      const state = {
+        location: { pathname: `/configuration/credentials/${wouterMock.credentialId ?? ''}`, searchStr: '' },
+      }
+      return opts?.select ? opts.select(state) : state
+    },
+  }
+})
 
 vi.mock('../../access/accessClient', () => ({
   accessFetchClient: { POST: vi.fn() },
@@ -206,7 +209,7 @@ describe('CredentialDetail', () => {
     vi.clearAllMocks()
     queryClient.clear()
     mockMutate = vi.fn()
-    mockUseParams.mockReturnValue({ credentialId: '1' })
+    vi.mocked(useParams).mockReturnValue({ credentialId: '1' })
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
 
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery())
@@ -447,7 +450,7 @@ describe('CredentialDetail', () => {
 
     await user.click(await screen.findByRole('tab', { name: /Workflows/ }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/credentials/1/workflows')
+    expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({ to: '/configuration/credentials/1/workflows' }))
   })
 
   it('calls patch mutation to enable credential', async () => {
@@ -516,7 +519,7 @@ describe('CredentialDetail', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     expect(mockMutate).toHaveBeenCalled()
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/credentials')
+    expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({ to: '/configuration/credentials' }))
   })
 
   it('handles delete mutation error', async () => {
@@ -546,7 +549,7 @@ describe('CredentialDetail', () => {
 
   it('renders invalid credential shell when route has no credential id', () => {
     wouterMock.credentialId = undefined
-    mockUseParams.mockReturnValueOnce({ credentialId: undefined as unknown as string })
+    vi.mocked(useParams).mockReturnValueOnce({ credentialId: undefined as unknown as string })
 
     render(<CredentialDetail />, { wrapper })
 
@@ -720,7 +723,7 @@ describe('CredentialDetail', () => {
   })
 
   it('renders error state when no credential ID is provided', () => {
-    mockUseParams.mockReturnValue({ credentialId: undefined as unknown as string })
+    vi.mocked(useParams).mockReturnValue({ credentialId: undefined as unknown as string })
 
     render(<CredentialDetail />, { wrapper })
 

@@ -40,8 +40,8 @@ import { AppRoute } from '../../app/AppRoute'
 import { MultiSelectFilter } from '../../components/filters/MultiSelectFilter'
 import pageMainSlotStyles from '../../components/layout/NxPage.module.css'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { NxLink } from '../../components/NxLink'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
-import { Link } from '../../hooks/routing/Link'
 import type { FilterConfig } from '../../types/filters'
 
 import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
@@ -298,13 +298,13 @@ function VersionRow({
           </Flex>
         </Flex>
         {version.created_by_username && (
-          <Link
-            href={AppRoute.AccessManagement.UserDetail.replace(':userId', version.created_by)}
+          <NxLink
+            to={AppRoute.AccessManagement.UserDetail.replace(':userId', version.created_by)}
             className={styles.usernameLink}
             onClick={(e) => e.stopPropagation()}
           >
             {version.created_by_username}
-          </Link>
+          </NxLink>
         )}
       </Stack>
     </SimpleListItem>

@@ -3,6 +3,7 @@ import { Button, Content, Flex, FlexItem, StackItem, Truncate } from '@patternfl
 import { RhUiAddIcon, RhUiBanIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
+import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useMemo } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -10,9 +11,9 @@ import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDia
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { IconLabel } from '../../components/IconLabel'
 import { NxLabel } from '../../components/labels/NxLabel'
+import { NxLink } from '../../components/NxLink'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { navigate } from '../../hooks/routing/navigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -34,6 +35,16 @@ import { userDisplayName } from './users/userDisplayName'
 import { useUserPermissions } from './useUserPermissions'
 
 const SORT_FIELDS = ['username', 'first_name', 'last_name', 'email', 'last_login'] as const
+
+function buildSortedQueryParams(
+  queryParams: Record<string, unknown>,
+  activeSortIndex: number,
+  sortDirection: string
+): Record<string, unknown> {
+  const field = SORT_FIELDS[activeSortIndex] ?? 'username'
+  const sort = sortDirection === 'desc' ? `-${field}` : field
+  return { ...queryParams, sort }
+}
 
 const filterFieldDefinitions: FilterFieldDefinition[] = [
   {
@@ -71,11 +82,21 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
   getAuthSourceFilterDefinition(),
 ]
 
+function buildDeleteParams(user: User) {
+  return { params: { path: { user_id: user.id } } }
+}
+
+const DELETE_USER_ACKNOWLEDGEMENT = {
+  checkboxId: 'delete-user-ack',
+  label: 'I understand this user will be permanently deleted.',
+}
+
 function getRowActions(
   user: User,
   onDelete: (user: User) => void,
   onRevoke: (user: User) => void,
-  permissions: ReturnType<typeof useUserPermissions>
+  permissions: ReturnType<typeof useUserPermissions>,
+  onNavigate: (path: string) => void
 ): IAction[] {
   return [
     {
@@ -83,7 +104,7 @@ function getRowActions(
       isAriaDisabled: !permissions.canUpdate,
       tooltipProps: permissions.canUpdate ? undefined : { content: permissions.tooltips.update },
       onClick: permissions.canUpdate
-        ? () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', user.id))
+        ? () => onNavigate(AppRoute.AccessManagement.EditUser.replace(':userId', user.id))
         : undefined,
     },
     {
@@ -103,6 +124,7 @@ function getRowActions(
 }
 
 export function UsersTab() {
+  const navigate = useNavigate()
   const permissions = useUserPermissions()
 
   const {
@@ -123,11 +145,10 @@ export function UsersTab() {
     onSortChange: resetPagination,
   })
 
-  const finalQueryParams = useMemo(() => {
-    const field = SORT_FIELDS[activeSortIndex] ?? 'username'
-    const sort = sortDirection === 'desc' ? `-${field}` : field
-    return { ...queryParams, sort }
-  }, [activeSortIndex, sortDirection, queryParams])
+  const finalQueryParams = useMemo(
+    () => buildSortedQueryParams(queryParams, activeSortIndex, sortDirection),
+    [activeSortIndex, sortDirection, queryParams]
+  )
 
   const query = accessClient.useQuery('get', '/users', { params: { query: finalQueryParams } })
   const data = query.data
@@ -138,6 +159,11 @@ export function UsersTab() {
 
   useCursorReset(users.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
+  const handleCreateUser = permissions.canCreate
+    ? () => detachPromise(navigate({ to: AppRoute.AccessManagement.CreateUser }))
+    : undefined
+  const handleRowNavigate = (path: string) => detachPromise(navigate({ to: path }))
+
   const adminToggle = useAdminToggle(builtinUser, refetch)
 
   const deleteDialog = useDialogState<User>()
@@ -146,7 +172,7 @@ export function UsersTab() {
 
   const handleDelete = useDeleteAction({
     deleteFn: deleteUser,
-    buildParams: (user: User) => ({ params: { path: { user_id: user.id } } }),
+    buildParams: buildDeleteParams,
     entityLabel: 'user',
     getItemName: (user: User) => user.username,
     onSuccess: refetch,
@@ -170,7 +196,7 @@ export function UsersTab() {
             title="No users"
             description="Create a user to manage access to the platform."
             buttonText="Create user"
-            addData={permissions.canCreate ? () => navigate(AppRoute.AccessManagement.CreateUser) : undefined}
+            addData={handleCreateUser}
           />
         }
         toolbar={
@@ -186,7 +212,7 @@ export function UsersTab() {
                     variant="primary"
                     icon={<RhUiAddIcon />}
                     isAriaDisabled={!permissions.canCreate}
-                    onClick={permissions.canCreate ? () => navigate(AppRoute.AccessManagement.CreateUser) : undefined}
+                    onClick={handleCreateUser}
                   >
                     Create user
                   </Button>
@@ -226,9 +252,9 @@ export function UsersTab() {
                 {users.map((user) => (
                   <Tr key={user.id}>
                     <Td dataLabel="Username">
-                      <Button variant="link" isInline onClick={() => navigate(getUserDetailPath(user.id))}>
+                      <NxLink to={getUserDetailPath(user.id)}>
                         <Truncate content={user.username} />
-                      </Button>
+                      </NxLink>
                       {!user.is_enabled && <DisabledBadge />}
                     </Td>
                     <Td dataLabel="Name">
@@ -249,7 +275,15 @@ export function UsersTab() {
                     <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
                     <Td isActionCell>
                       {!user.is_builtin && (
-                        <ActionsColumn items={getRowActions(user, deleteDialog.open, revokeDialog.open, permissions)} />
+                        <ActionsColumn
+                          items={getRowActions(
+                            user,
+                            deleteDialog.open,
+                            revokeDialog.open,
+                            permissions,
+                            handleRowNavigate
+                          )}
+                        />
                       )}
                     </Td>
                   </Tr>
@@ -268,10 +302,7 @@ export function UsersTab() {
         confirmLabel="Delete"
         confirmVariant="danger"
         titleIconVariant="warning"
-        destructiveAcknowledgement={{
-          checkboxId: 'delete-user-ack',
-          label: 'I understand this user will be permanently deleted.',
-        }}
+        destructiveAcknowledgement={DELETE_USER_ACKNOWLEDGEMENT}
       >
         The user <strong>{deleteDialog.item?.username}</strong> will be deleted. This cannot be undone.
       </NxConfirmationDialog>

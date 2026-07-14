@@ -22,13 +22,10 @@ vi.mock('../../../client', () => ({
 
 const mockNavigate = vi.fn()
 
-vi.mock('../../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockNavigate,
-}))
-
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => ({ integrationId: 'int-1' }),
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return { ...actual, useNavigate: () => mockNavigate, useParams: vi.fn(() => ({ integrationId: 'int-1' })) }
+})
 
 vi.mock('../../builder/components/CredentialSelector', () => ({
   CredentialSelector: ({
@@ -307,7 +304,7 @@ describe('EditIntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/int-1')
+        expect(mockNavigate).toHaveBeenCalledWith({ to: '/configuration/integrations/int-1' })
       })
     })
 
@@ -429,7 +426,7 @@ describe('EditIntegrationForm', () => {
 
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/int-1')
+      expect(mockNavigate).toHaveBeenCalledWith({ to: '/configuration/integrations/int-1' })
     })
   })
 

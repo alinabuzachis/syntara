@@ -118,7 +118,7 @@ test.afterAll(async ({ browser }) => {
 
 /** Workflow rows only — excludes grouped “project” header rows that have no builder link. */
 function workflowNameButtons(app: Page) {
-  return app.getByRole('grid', { name: 'Workflows table' }).locator('tbody').getByRole('button', { name: /.+/ })
+  return app.getByRole('grid', { name: 'Workflows table' }).locator('tbody').getByRole('link', { name: /.+/ })
 }
 
 function isProjectScopedWorkflowsUrl(url: string): boolean {

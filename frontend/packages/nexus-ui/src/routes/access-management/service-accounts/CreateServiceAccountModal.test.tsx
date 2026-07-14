@@ -25,8 +25,8 @@ vi.mock('../../access/useAllProjects', () => ({
   useAllProjects: vi.fn(),
 }))
 
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: vi.fn(),
+vi.mock('../../../app/tanstackRouter', () => ({
+  tanstackRouter: { navigate: vi.fn().mockResolvedValue(undefined) },
 }))
 
 const queryClient = new QueryClient({

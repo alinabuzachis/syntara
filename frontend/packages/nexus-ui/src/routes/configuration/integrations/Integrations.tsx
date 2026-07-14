@@ -2,6 +2,7 @@ import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { Badge, Button, Switch, Tooltip, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiCheckCircleIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { useNavigate } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -19,7 +20,6 @@ import {
   NxListPanelView,
 } from '../../../components/panels/list/NxListPanel'
 import { LinkCell } from '../../../components/table/LinkCell'
-import { useNavigate } from '../../../hooks/routing/useNavigate'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
@@ -233,7 +233,11 @@ export default function Integrations() {
                 icon={<RhUiAddIcon />}
                 isAriaDisabled={!permissions.canCreate}
                 onClick={
-                  permissions.canCreate ? () => navigate(AppRoute.Configuration.Integrations.Configure) : undefined
+                  permissions.canCreate
+                    ? () => {
+                        detachPromise(navigate({ to: AppRoute.Configuration.Integrations.Configure }))
+                      }
+                    : undefined
                 }
               >
                 Configure integration

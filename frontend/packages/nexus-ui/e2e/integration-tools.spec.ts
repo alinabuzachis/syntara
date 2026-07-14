@@ -33,9 +33,9 @@ async function navigateToResourcesTab(app: Page, integrationName: string) {
   await app.getByRole('button', { name: 'Apply filter' }).click()
   const row = app.getByRole('row', { name: new RegExp(integrationName) })
   await expect(row).toBeVisible()
-  // Click the integration name link (rendered as a PatternFly Button variant="link") to navigate to detail page
+  // Click the integration name link to navigate to detail page
   const nameCell = row.locator('td[data-label="Name"]')
-  await nameCell.getByRole('button').click()
+  await nameCell.getByRole('link').click()
   // Navigate to the Enabled resources tab
   await app.getByRole('tab', { name: /Enabled resources/i }).click()
 }

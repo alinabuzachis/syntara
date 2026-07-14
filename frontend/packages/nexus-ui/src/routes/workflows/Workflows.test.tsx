@@ -7,6 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
+import { routerTestState } from '../../test/setup'
 import { accessClient } from '../access/accessClient'
 
 import Workflows from './Workflows'
@@ -71,16 +72,12 @@ vi.mock('./useWorkflowPermissions', () => ({
   useWorkflowPermissions: () => mockWorkflowPermissions.current,
 }))
 
-const mockSetLocation = vi.fn()
 const mockSetSearchParams = vi.fn()
 
 let mockSearchParams = new URLSearchParams()
 
 vi.mock('../../hooks/routing/useLocation', () => ({
   useLocation: () => '/workflows',
-}))
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockSetLocation,
 }))
 
 vi.mock('../../hooks/routing/useSearchParams', () => ({
@@ -363,16 +360,14 @@ describe('Workflows Component', () => {
   })
 
   describe('Table Columns', () => {
-    it('renders name column with clickable links that navigate', async () => {
-      const user = userEvent.setup()
+    it('renders name column with clickable links that navigate', () => {
       render(<Workflows />, { wrapper })
 
-      const workflowNode = screen.getByText('Important Project Workflow')
-      expect(workflowNode).toBeInTheDocument()
+      const workflowLink = screen.getByText('Important Project Workflow')
+      expect(workflowLink).toBeInTheDocument()
 
-      // Click the link button and verify navigation
-      await user.click(workflowNode)
-      expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/1')
+      const link = screen.getByRole('link', { name: 'Important Project Workflow' })
+      expect(link).toHaveAttribute('href', '/workflow-builder/1')
     })
   })
 
@@ -684,7 +679,7 @@ describe('Workflows Component', () => {
     })
 
     it('navigates to executions page filtered by workflow when "View run history" is clicked', async () => {
-      mockSetLocation.mockClear()
+      routerTestState.navigate.mockClear()
 
       const user = userEvent.setup()
       render(<Workflows />, { wrapper })
@@ -711,7 +706,7 @@ describe('Workflows Component', () => {
 
       // Verify navigation to executions page with workflow filter
       await waitFor(() => {
-        expect(mockSetLocation).toHaveBeenCalledWith('/executions?workflow_id=1')
+        expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/executions', search: { workflow_id: '1' } })
       })
     })
   })
@@ -1223,7 +1218,7 @@ describe('Workflows Component', () => {
 
     it('navigates to builder when empty state "Create workflow" button is clicked', async () => {
       const user = userEvent.setup()
-      mockSetLocation.mockClear()
+      routerTestState.navigate.mockClear()
 
       mockWorkflowQuery({
         data: {
@@ -1244,7 +1239,7 @@ describe('Workflows Component', () => {
       const createButton = screen.getByRole('button', { name: 'Create workflow' })
       await user.click(createButton)
 
-      expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/new')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflow-builder/new' })
     })
 
     it('shows EmptyStateFilter when active filters return no results', () => {
@@ -1274,7 +1269,7 @@ describe('Workflows Component', () => {
 
   describe('Run workflow with navigation', () => {
     it('navigates to execution detail page on successful run when response has id', async () => {
-      mockSetLocation.mockClear()
+      routerTestState.navigate.mockClear()
       const mockMutate = vi.fn(
         (
           body: unknown,
@@ -1326,7 +1321,9 @@ describe('Workflows Component', () => {
       await user.click(runButton)
 
       await waitFor(() => {
-        expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123')
+        expect(routerTestState.navigate).toHaveBeenCalledWith({
+          to: '/executions/exec-123',
+        })
       })
     })
   })

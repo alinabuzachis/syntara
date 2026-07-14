@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 import { accessClient } from '../../access/accessClient'
 
 import { ServiceAccountsTab } from './ServiceAccountsTab'
@@ -34,21 +35,6 @@ vi.mock('./CreateServiceAccountModal', () => ({
 
 vi.mock('./EditServiceAccountModal', () => ({
   EditServiceAccountModal: () => <div role="dialog" aria-label="Edit service account" />,
-}))
-
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: vi.fn(),
-}))
-
-const mockSetSearchParams = vi.fn()
-let mockSearchParams = new URLSearchParams()
-
-vi.mock('../../../hooks/routing/useLocation', () => ({
-  useLocation: () => '/system-administration/access-management/service-accounts',
-}))
-
-vi.mock('../../../hooks/routing/useSearchParams', () => ({
-  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 
 const queryClient = new QueryClient({
@@ -128,7 +114,7 @@ function buildMutationResult(mutate = vi.fn()) {
 describe('ServiceAccountsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSearchParams = new URLSearchParams()
+    routerTestState.pathname = '/system-administration/access-management/service-accounts'
 
     vi.mocked(useServiceAccountPermissions).mockReturnValue({
       canCreate: true,

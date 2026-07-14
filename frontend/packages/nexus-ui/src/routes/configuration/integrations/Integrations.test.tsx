@@ -10,6 +10,7 @@ import { integrationsClient } from '../../../client'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { AlertProvider } from '../../../providers/alerts'
 import { assertUrlParam } from '../../../test/filter-test-helpers'
+import { routerTestState } from '../../../test/setup'
 
 import Integrations from './Integrations'
 
@@ -32,19 +33,15 @@ vi.mock('../../../hooks/useFilterState', async (importOriginal) => {
   }
 })
 
-const mockNavigate = vi.fn()
 const mockSearchParams = new URLSearchParams()
 const mockSetSearchParams = vi.fn()
 
 vi.mock('wouter', () => ({
-  useLocation: () => ['/configuration/integrations', mockNavigate],
+  useLocation: () => ['/configuration/integrations', routerTestState.navigate],
 }))
 
 vi.mock('../../../hooks/routing/useLocation', () => ({
   useLocation: () => '/configuration/integrations',
-}))
-vi.mock('../../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockNavigate,
 }))
 
 vi.mock('../../../hooks/routing/useSearchParams', () => ({
@@ -153,7 +150,7 @@ describe('Integrations Component', () => {
 
   beforeEach(() => {
     // Reset mocks before each test
-    mockNavigate.mockClear()
+    routerTestState.navigate.mockClear()
     mockSetSearchParams.mockClear()
     // Reset permissions to admin defaults
     Object.assign(mockPermissions, {
@@ -301,7 +298,7 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Check for empty state message (no filters active, so shows empty state not filter empty)
-      expect(screen.getByText('No integrations yet')).toBeInTheDocument()
+      expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
       // Multiple "Configure integration" buttons exist (header + empty state), so use getAllByText
       expect(screen.getAllByText('Configure integration').length).toBeGreaterThan(0)
     })
@@ -1209,7 +1206,7 @@ describe('Integrations Component', () => {
       await waitFor(() => {
         expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
       })
-      expect(mockNavigate).toHaveBeenCalled()
+      expect(routerTestState.navigate).toHaveBeenCalled()
     })
 
     it('shows error alert on delete failure', async () => {
@@ -1467,7 +1464,7 @@ describe('Integrations Component', () => {
 
       await user.click(screen.getByRole('button', { name: 'Configure integration' }))
 
-      expect(mockNavigate).not.toHaveBeenCalled()
+      expect(routerTestState.navigate).not.toHaveBeenCalled()
     })
 
     it('disables toggle switch with correct label when canUpdate is false', () => {
@@ -1517,7 +1514,7 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      expect(screen.getByText('No integrations yet')).toBeInTheDocument()
+      expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Configure integration' })).not.toBeInTheDocument()
     })
   })

@@ -1,9 +1,10 @@
 import { Tabs, type TabsProps } from '@patternfly/react-core'
+import { useNavigate } from '@tanstack/react-router'
 import React, { useEffect, useId } from 'react'
 
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
-import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useUrlTab } from '../../hooks/useUrlTab'
+import { detachPromise } from '../../utils/detachPromise'
 
 type UrlTabsProps = Omit<TabsProps, 'activeKey' | 'onSelect' | 'ref' | 'children'> & {
   /**
@@ -56,7 +57,7 @@ export function NxUrlTabs({
 }: UrlTabsProps) {
   const uid = useId()
   const [activeTab, goToTab] = useUrlTab(basePath, defaultTab)
-  const setLocation = useNavigate()
+  const navigate = useNavigate()
 
   /* eslint-disable reactYouMightNotNeedAnEffect/no-event-handler, reactYouMightNotNeedAnEffect/no-pass-data-to-parent */
   // validTabs arrives asynchronously (from an API); redirect when the URL tab is absent from the
@@ -65,9 +66,9 @@ export function NxUrlTabs({
     if (!validTabs || validTabs.length === 0) return
     if (!validTabs.includes(activeTab)) {
       const target = validTabs.includes(defaultTab) ? defaultTab : validTabs[0]
-      setLocation(`${basePath}/${target}`, { replace: true })
+      detachPromise(navigate({ to: `${basePath}/${target}`, replace: true }))
     }
-  }, [validTabs, activeTab, defaultTab, basePath, setLocation])
+  }, [validTabs, activeTab, defaultTab, basePath, navigate])
   /* eslint-enable reactYouMightNotNeedAnEffect/no-event-handler, reactYouMightNotNeedAnEffect/no-pass-data-to-parent */
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import type { Execution } from '@ansible/nexus-contracts'
 import { StackItem } from '@patternfly/react-core'
 import { Thead, Tr, Th } from '@patternfly/react-table'
+import { useSearch } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
 import { executionsClient } from '../../client'
@@ -13,7 +14,6 @@ import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
-import { useSearch } from '../../hooks/routing/useSearch'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
@@ -44,9 +44,8 @@ function buildFilterFieldDefinitions(executions: Execution[]): FilterFieldDefini
 export default function Executions() {
   const executionsDocLink = useDocLink('executions')
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
-  const searchParams = useSearch()
-  const urlParams = useMemo(() => new URLSearchParams(searchParams), [searchParams])
-  const workflowIdFilter = urlParams.get('workflow_id')
+  const searchParams: { workflow_id?: string } = useSearch({ strict: false })
+  const workflowIdFilter = searchParams.workflow_id
 
   // Initialize default filter from URL parameter (backwards compatibility)
   const defaultFilters = useMemo(

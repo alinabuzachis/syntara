@@ -117,7 +117,7 @@ test.describe('UI-26: Workflow Runs Table with Filtering', () => {
     // Run ID buttons are the only buttons in the table whose text is rendered
     // inside a <code> element — distinct from the Workflow name button in the
     // same row. Same pattern as executions.spec.ts.
-    const runIdLink = table.getByRole('button').filter({ has: app.locator('code') })
+    const runIdLink = table.getByRole('link').filter({ has: app.locator('code') })
     await expect(runIdLink).toHaveCount(1)
     await runIdLink.click()
 

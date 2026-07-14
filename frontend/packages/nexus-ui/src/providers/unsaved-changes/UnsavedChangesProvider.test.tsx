@@ -4,20 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { routerTestState } from '../../test/setup'
 
 import { UnsavedChangesProvider } from './UnsavedChangesProvider'
-
-// Mock routing bridge hooks
-const mockNavigate = vi.fn()
-let mockLocation = '/workflow-builder/123'
-
-vi.mock('../../hooks/routing/useLocation', () => ({
-  useLocation: () => mockLocation,
-}))
-
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockNavigate,
-}))
 
 // Mock workflow store - needed to control isDirty state and capture state clearing
 vi.mock('../../stores/useWorkflowStore', () => ({
@@ -48,7 +37,7 @@ describe('UnsavedChangesProvider', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockLocation = '/workflow-builder/123'
+    routerTestState.pathname = '/workflow-builder/123'
 
     vi.mocked(useWorkflowStore).mockReturnValue({
       setWorkflow: mockSetWorkflow,
@@ -90,7 +79,7 @@ describe('UnsavedChangesProvider', () => {
 
       expect(mockSetWorkflow).toHaveBeenCalledWith(null)
       expect(mockSetEdges).toHaveBeenCalledWith([])
-      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
     })
 
     it('saves and navigates when save succeeds', async () => {
@@ -109,7 +98,7 @@ describe('UnsavedChangesProvider', () => {
 
       await waitFor(() => {
         expect(saveHandler).toHaveBeenCalled()
-        expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+        expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
       })
     })
 
@@ -132,7 +121,7 @@ describe('UnsavedChangesProvider', () => {
         expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
       })
 
-      expect(mockNavigate).not.toHaveBeenCalled()
+      expect(routerTestState.navigate).not.toHaveBeenCalled()
     })
 
     it('stays on page when modal is closed', async () => {
@@ -147,7 +136,7 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByRole('button', { name: /close/i }))
 
       expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
-      expect(mockNavigate).not.toHaveBeenCalled()
+      expect(routerTestState.navigate).not.toHaveBeenCalled()
     })
 
     it('disables buttons while save is in progress', async () => {
@@ -189,7 +178,7 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByText('Navigate Away'))
 
       expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
-      expect(mockNavigate).toHaveBeenCalledWith('/workflow-builder/456')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflow-builder/456' })
     })
 
     it('navigates without modal when no unsaved changes', async () => {
@@ -205,12 +194,12 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByText('Navigate Away'))
 
       expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
-      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
     })
 
     it('navigates without modal when not on builder route', async () => {
       const user = userEvent.setup()
-      mockLocation = '/workflows'
+      routerTestState.pathname = '/workflows'
 
       render(
         <UnsavedChangesProvider>
@@ -221,7 +210,7 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByText('Navigate Away'))
 
       expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
-      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
     })
   })
 
@@ -308,7 +297,7 @@ describe('UnsavedChangesProvider', () => {
 
     it('shows custom modal when dirty check returns true', async () => {
       const user = userEvent.setup()
-      mockLocation = '/configuration/integrations/1/resources'
+      routerTestState.pathname = '/configuration/integrations/1/resources'
       vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
 
       render(
@@ -326,7 +315,7 @@ describe('UnsavedChangesProvider', () => {
 
     it('navigates without modal when dirty check returns false', async () => {
       const user = userEvent.setup()
-      mockLocation = '/configuration/integrations/1/resources'
+      routerTestState.pathname = '/configuration/integrations/1/resources'
       vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
 
       render(
@@ -339,12 +328,12 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByText('Navigate Away'))
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
     })
 
     it('shows save button with custom label when saveAndExit is provided', async () => {
       const user = userEvent.setup()
-      mockLocation = '/configuration/integrations/1/resources'
+      routerTestState.pathname = '/configuration/integrations/1/resources'
       vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
       const saveAndExit = vi.fn().mockResolvedValue(true)
 
@@ -362,7 +351,7 @@ describe('UnsavedChangesProvider', () => {
 
     it('saves and navigates when save button is clicked', async () => {
       const user = userEvent.setup()
-      mockLocation = '/configuration/integrations/1/resources'
+      routerTestState.pathname = '/configuration/integrations/1/resources'
       vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
       const saveAndExit = vi.fn().mockResolvedValue(true)
 
@@ -378,13 +367,13 @@ describe('UnsavedChangesProvider', () => {
 
       await waitFor(() => {
         expect(saveAndExit).toHaveBeenCalled()
-        expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+        expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
       })
     })
 
     it('exits without saving and navigates when discard is clicked', async () => {
       const user = userEvent.setup()
-      mockLocation = '/configuration/integrations/1/resources'
+      routerTestState.pathname = '/configuration/integrations/1/resources'
       vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
 
       render(
@@ -397,12 +386,12 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByText('Navigate Away'))
       await user.click(screen.getByRole('button', { name: 'Exit without saving' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
     })
 
     it('hides save button when no saveAndExit is provided and not on builder', async () => {
       const user = userEvent.setup()
-      mockLocation = '/configuration/integrations/1/resources'
+      routerTestState.pathname = '/configuration/integrations/1/resources'
       vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
 
       render(
@@ -420,7 +409,7 @@ describe('UnsavedChangesProvider', () => {
 
     it('stays on page when cancel is clicked', async () => {
       const user = userEvent.setup()
-      mockLocation = '/configuration/integrations/1/resources'
+      routerTestState.pathname = '/configuration/integrations/1/resources'
       vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
 
       render(
@@ -434,7 +423,7 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-      expect(mockNavigate).not.toHaveBeenCalled()
+      expect(routerTestState.navigate).not.toHaveBeenCalled()
     })
   })
 })
@@ -445,6 +434,7 @@ describe('UnsavedChangesProvider', () => {
 // useBlocker are controlled per-test. Dynamic imports are used inside each test
 // to get fresh module instances that see the newly registered mocks.
 describe('UnsavedChangesProvider (TanStack router path)', () => {
+  const mockNavigate = vi.fn()
   const mockProceed = vi.fn()
   const mockReset = vi.fn()
   const mockSetWorkflow = vi.fn()
@@ -459,6 +449,11 @@ describe('UnsavedChangesProvider (TanStack router path)', () => {
     vi.resetModules()
     vi.doMock('@tanstack/react-router', () => ({
       useBlocker: vi.fn(() => mockBlockerState),
+      useNavigate: () => mockNavigate,
+      useRouterState: (opts?: { select?: (s: { location: { pathname: string } }) => unknown }) => {
+        const state = { location: { pathname: '/workflow-builder/123' } }
+        return opts?.select ? opts.select(state) : state
+      },
     }))
     vi.doMock('../../stores/useWorkflowStore', () => ({
       useWorkflowStore: Object.assign(
@@ -466,8 +461,6 @@ describe('UnsavedChangesProvider (TanStack router path)', () => {
         { getState: vi.fn().mockReturnValue({ isDirty: true }) }
       ),
     }))
-    vi.doMock('../../hooks/routing/useLocation', () => ({ useLocation: () => '/workflow-builder/123' }))
-    vi.doMock('../../hooks/routing/useNavigate', () => ({ useNavigate: () => mockNavigate }))
   })
 
   afterEach(() => {

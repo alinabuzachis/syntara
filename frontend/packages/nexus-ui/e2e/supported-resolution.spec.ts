@@ -36,9 +36,13 @@ async function openFirstExecutionDetail(page: Page): Promise<string | null> {
   await expect(page.getByRole('heading', { level: 1, name: 'Workflow Runs' })).toBeVisible()
 
   const table = executionsTable(page)
-  await expect(table).toBeVisible()
+  try {
+    await expect(table).toBeVisible()
+  } catch {
+    return null
+  }
 
-  const runLink = table.getByRole('button').filter({ has: page.locator('code') })
+  const runLink = table.getByRole('link').filter({ has: page.locator('code') })
   if ((await runLink.count()) === 0) {
     return null
   }

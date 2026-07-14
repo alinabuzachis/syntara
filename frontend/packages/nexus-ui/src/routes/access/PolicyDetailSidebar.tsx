@@ -17,13 +17,14 @@ import {
   TitleSizes,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPanel } from '../../components/layout/NxPanel'
-import { navigate } from '../../hooks/routing/navigate'
 import { formatDateTime } from '../../utils/dateUtils'
+import { detachPromise } from '../../utils/detachPromise'
 
 import { buildPolicyDefinitionJson } from './policyUtils'
 import { PolicyTypeLabel } from './ScopeLabel'
@@ -40,11 +41,14 @@ function ProjectScopeLink({
   projectId,
   projectName,
 }: Readonly<{ projectId: string; projectName: string | null | undefined }>) {
+  const navigate = useNavigate()
   return (
     <Button
       variant="link"
       isInline
-      onClick={() => navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId))}
+      onClick={() =>
+        detachPromise(navigate({ to: AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId) }))
+      }
     >
       Project: {projectName ?? projectId}
     </Button>

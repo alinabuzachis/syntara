@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { adminClient, authFetchClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
+import { routerTestState, mockUseSearch } from '../../test/setup'
 import { accessClient } from '../access/accessClient'
 
 import { UsersTab } from './UsersTab'
@@ -47,31 +48,6 @@ vi.mock('./useUserPermissions', () => ({
     isLoading: false,
     tooltips: { create: '', update: '', delete: '', revoke: '' },
   }),
-}))
-
-const mockNavigate = vi.fn<(path: string) => void>()
-vi.mock('../../hooks/routing/navigate', () => ({
-  navigate: (path: string): void => {
-    mockNavigate(path)
-  },
-}))
-
-// Stateful mock for useSearchParams so filter changes persist across renders
-let currentSearchParams = new URLSearchParams()
-const mockSetSearchParams = vi.fn((params: URLSearchParams | ((prev: URLSearchParams) => URLSearchParams)) => {
-  if (typeof params === 'function') {
-    currentSearchParams = params(currentSearchParams)
-  } else {
-    currentSearchParams = new URLSearchParams(params.toString())
-  }
-})
-
-vi.mock('../../hooks/routing/useLocation', () => ({
-  useLocation: () => '/system-administration/access-management/users',
-}))
-
-vi.mock('../../hooks/routing/useSearchParams', () => ({
-  useSearchParams: () => [currentSearchParams, mockSetSearchParams],
 }))
 
 // Create a QueryClient instance
@@ -148,9 +124,7 @@ describe('UsersTab Component', () => {
   }
 
   beforeEach(() => {
-    mockNavigate.mockClear()
-    currentSearchParams = new URLSearchParams()
-    mockSetSearchParams.mockClear()
+    mockUseSearch.mockReturnValue({})
 
     vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
       const endpoint = args[1] as string
@@ -495,14 +469,15 @@ describe('UsersTab Component', () => {
       await user.keyboard('{Enter}')
 
       await waitFor(() => {
-        expect(mockSetSearchParams).toHaveBeenCalled()
-        const lastParams = mockSetSearchParams.mock.calls.at(-1)?.[0] as URLSearchParams
-        expect(lastParams.get('username[contains]')).toBe('admin')
+        // useCursorPagination uses history.push to update URL params
+        expect(routerTestState.historyPush).toHaveBeenCalled()
+        const lastCall = routerTestState.historyPush.mock.calls.at(-1)?.[0] as string
+        expect(decodeURIComponent(lastCall)).toContain('username[contains]=admin')
       })
     })
 
     it('sends auth_source query param when authentication source filter is in the URL', async () => {
-      currentSearchParams = new URLSearchParams('auth_source=Local')
+      routerTestState.searchStr = '?auth_source=Local'
       render(<UsersTab />, { wrapper })
 
       await waitFor(() => {
@@ -519,7 +494,7 @@ describe('UsersTab Component', () => {
     })
 
     it('sends auth_source query param for a federated provider filter', async () => {
-      currentSearchParams = new URLSearchParams('auth_source=AAP')
+      routerTestState.searchStr = '?auth_source=AAP'
       render(<UsersTab />, { wrapper })
 
       await waitFor(() => {
@@ -545,7 +520,7 @@ describe('UsersTab Component', () => {
       } as never)
 
       const user = userEvent.setup()
-      const { rerender } = render(<UsersTab />, { wrapper })
+      render(<UsersTab />, { wrapper })
 
       const filterBar = screen.getByRole('search', { name: 'Filters' })
       await user.click(within(filterBar).getByRole('button', { name: 'Username' }))
@@ -556,23 +531,9 @@ describe('UsersTab Component', () => {
       await user.click(await screen.findByRole('option', { name: 'AAP' }))
 
       await waitFor(() => {
-        expect(mockSetSearchParams).toHaveBeenCalled()
-        const lastParams = mockSetSearchParams.mock.calls.at(-1)?.[0] as URLSearchParams
-        expect(lastParams.get('auth_source')).toBe('AAP')
-      })
-
-      // Stateful wouter mock updates currentSearchParams without triggering React; re-render to sync.
-      rerender(<UsersTab />)
-
-      await waitFor(() => {
-        const lastCall = vi
-          .mocked(accessClient.useQuery)
-          .mock.calls.filter((c) => c[1] === '/users')
-          .at(-1)
-        expect(lastCall).toBeDefined()
-        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
-          ?.query
-        expect(queryParams?.auth_source).toBe('AAP')
+        expect(routerTestState.historyPush).toHaveBeenCalled()
+        const lastCall = routerTestState.historyPush.mock.calls.at(-1)?.[0] as string
+        expect(lastCall).toContain('auth_source=AAP')
       })
     })
   })
@@ -678,7 +639,9 @@ describe('UsersTab Component', () => {
 
       await user.click(screen.getByRole('button', { name: /create user/i }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users/create')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/access-management/users/create',
+      })
     })
 
     it('navigates to edit user page when edit action is clicked', async () => {
@@ -691,16 +654,16 @@ describe('UsersTab Component', () => {
       const editOption = await screen.findByRole('menuitem', { name: /edit/i })
       await user.click(editOption)
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users/u2/edit')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: '/system-administration/access-management/users/u2/edit',
+      })
     })
 
-    it('navigates to user detail page when username is clicked', async () => {
-      const user = userEvent.setup()
+    it('renders username as a link to user detail page', () => {
       render(<UsersTab />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'admin' }))
-
-      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users/u1')
+      const usernameLink = screen.getByRole('link', { name: 'admin' })
+      expect(usernameLink).toHaveAttribute('href', '/system-administration/access-management/users/u1')
     })
   })
 
@@ -912,7 +875,7 @@ describe('UsersTab Component', () => {
   describe('Filter Empty State', () => {
     it('shows filter empty state when no results with active filters', () => {
       // Simulate active filters via URL params
-      currentSearchParams = new URLSearchParams({ 'username[contains]': 'nonexistent' })
+      routerTestState.searchStr = '?username%5Bcontains%5D=nonexistent'
 
       vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
         const endpoint = args[1] as string
@@ -950,9 +913,9 @@ describe('UsersTab Component', () => {
       await user.keyboard('{Enter}')
 
       await waitFor(() => {
-        expect(mockSetSearchParams).toHaveBeenCalled()
-        const lastParams = mockSetSearchParams.mock.calls.at(-1)?.[0] as URLSearchParams
-        expect(lastParams.get('username[contains]')).toBe('nonexistent')
+        expect(routerTestState.historyPush).toHaveBeenCalled()
+        const lastCall = routerTestState.historyPush.mock.calls.at(-1)?.[0] as string
+        expect(decodeURIComponent(lastCall)).toContain('username[contains]=nonexistent')
       })
     })
   })

@@ -1,5 +1,6 @@
 import { Button, EmptyState, EmptyStateActions, EmptyStateBody, EmptyStateFooter } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiSearchIcon } from '@patternfly/react-icons'
+import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 
@@ -8,9 +9,6 @@ import { EmptyStateAccessDenied } from '../../../../components/EmptyStateAccessD
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
-import { navigate } from '../../../../hooks/routing/navigate'
-import { useParams } from '../../../../hooks/routing/useParams'
-import { useSearch } from '../../../../hooks/routing/useSearch'
 import { useCanI } from '../../../../hooks/useCanI'
 import { detachPromise } from '../../../../utils/detachPromise'
 
@@ -37,8 +35,9 @@ function GroupMappingPageShell({
 }
 
 export function EditGroupMapping() {
-  const { providerId } = useParams<{ providerId: string }>()
-  const search = useSearch()
+  const navigate = useNavigate()
+  const { providerId }: { providerId: string } = useParams({ strict: false })
+  const search = useRouterState({ select: (s) => s.location.searchStr.replace(/^\?/, '') })
   const metadata = useGroupMappingFormMetadata(providerId, search)
   const { allowed: canUpdate, isChecking: isCheckingPermission } = useCanI('update', 'identity-provider', {
     enabled: metadata.isValidId,
@@ -62,7 +61,7 @@ export function EditGroupMapping() {
   }, [metadata.openDiscoverOnMount, metadata.isReady, canUpdate])
 
   const navigateToAuthentication = () => {
-    navigate(AppRoute.SystemAdministration.Authentication.Root)
+    detachPromise(navigate({ to: AppRoute.SystemAdministration.Authentication.Root }))
   }
 
   if (!metadata.isValidId) {

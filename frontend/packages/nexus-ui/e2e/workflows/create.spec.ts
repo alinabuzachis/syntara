@@ -59,7 +59,7 @@ test.describe('Workflows - Create New Workflow', () => {
       await expect(workflowRow).toBeVisible()
 
       // Verify the workflow name is clickable (navigates to builder)
-      const workflowButton = workflowRow.getByRole('button', { name: workflowName, exact: true })
+      const workflowButton = workflowRow.getByRole('link', { name: workflowName, exact: true })
       await expect(workflowButton).toBeVisible()
     } finally {
       await deleteWorkflow(app, workflowName)

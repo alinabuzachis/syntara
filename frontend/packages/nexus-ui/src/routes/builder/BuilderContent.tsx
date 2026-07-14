@@ -1,6 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { AlertActionLink, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
@@ -9,7 +10,6 @@ import { executionsClient, workflowClient } from '../../client'
 import { NxPage } from '../../components/layout/NxPage'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxReactFlowViewportGuard } from '../../components/layout/NxReactFlowViewportGuard'
-import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useSearchParams } from '../../hooks/routing/useSearchParams'
 import { useCursorPagination } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
@@ -62,7 +62,13 @@ type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionRead']
 // eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId, executionCopy, initialViewVersion } = props
-  const setLocation = useNavigate()
+  const navigate = useNavigate()
+  const setLocation = useCallback(
+    (to: string) => {
+      detachPromise(navigate({ to }))
+    },
+    [navigate]
+  )
   const [searchParams, setSearchParams] = useSearchParams()
   const { showAlert, showSuccess, showError } = useAlerts()
   const [saveAttemptedWithoutProject, setSaveAttemptedWithoutProject] = useState(false)

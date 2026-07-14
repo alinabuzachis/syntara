@@ -8,7 +8,7 @@ import { ImportWorkflowDialog } from './ImportWorkflowDialog'
 const mockShowAlert = vi.fn()
 const mockShowError = vi.fn()
 const mockPost = vi.fn<(...args: unknown[]) => Promise<{ data?: unknown; error?: unknown }>>()
-const mockSetLocation = vi.fn()
+const mockNavigate = vi.fn()
 
 vi.mock('../../providers/alerts', () => ({
   useAlerts: () => ({ showAlert: mockShowAlert, showError: mockShowError }),
@@ -17,9 +17,10 @@ vi.mock('../../providers/alerts', () => ({
 vi.mock('../../hooks/routing/useLocation', () => ({
   useLocation: () => '/',
 }))
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockSetLocation,
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return { ...actual, useNavigate: () => mockNavigate }
+})
 
 vi.mock('../../client', () => ({
   workflowFetchClient: { POST: (...args: unknown[]) => mockPost(...args) },

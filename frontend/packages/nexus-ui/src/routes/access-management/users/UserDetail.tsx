@@ -13,6 +13,7 @@ import {
   TabTitleText,
 } from '@patternfly/react-core'
 import { RhUiEditIcon } from '@patternfly/react-icons'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -24,8 +25,6 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxListPanel, NxListPanelTabs } from '../../../components/panels/list/NxListPanel'
 import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { navigate } from '../../../hooks/routing/navigate'
-import { useParams } from '../../../hooks/routing/useParams'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -106,6 +105,7 @@ function UserDetailsTab({
   user: User
   identities: Pick<UserIdentity, 'provider_name' | 'identity_provider_id'>[]
 }) {
+  const navigate = useNavigate()
   const { first_name, last_name } = user
 
   const isLocal = user.auth_type === AUTH_TYPE_LOCAL
@@ -159,11 +159,13 @@ function UserDetailsTab({
                       key={id}
                       isCompact
                       onClick={() =>
-                        navigate(
-                          AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
-                            ':providerId',
-                            id
-                          ).replace('/:tab?', '')
+                        detachPromise(
+                          navigate({
+                            to: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+                              ':providerId',
+                              id
+                            ).replace('/:tab?', ''),
+                          })
                         )
                       }
                     >
@@ -337,7 +339,7 @@ export type UserDetailProps = {
 }
 
 function useUserDetailRouting(isMyProfile: boolean | undefined) {
-  const { userId: urlUserId } = useParams<{ userId: string }>()
+  const { userId: urlUserId }: { userId: string } = useParams({ strict: false })
   const meQuery = authClient.useQuery('get', '/auth/me')
   const meUserId = meQuery.data?.id
 
@@ -350,6 +352,7 @@ function useUserDetailRouting(isMyProfile: boolean | undefined) {
 }
 
 export function UserDetail({ isMyProfile }: Readonly<UserDetailProps> = {}) {
+  const navigate = useNavigate()
   const usersDocLink = useDocLink('users')
   const docLink = isMyProfile ? undefined : usersDocLink
   const { userId, basePath, meQuery } = useUserDetailRouting(isMyProfile)
@@ -371,8 +374,10 @@ export function UserDetail({ isMyProfile }: Readonly<UserDetailProps> = {}) {
     [canReadGroups, canReadIdentities, canReadAssignments, isOwnProfile, permissionsLoading]
   )
 
-  const navigateBack = () => navigate(isMyProfile ? AppRoute.Workflows.Root : AppRoute.AccessManagement.Users)
-  const navigateEdit = () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', userId ?? ''))
+  const navigateBack = () =>
+    detachPromise(navigate({ to: isMyProfile ? AppRoute.Workflows.Root : AppRoute.AccessManagement.Users }))
+  const navigateEdit = () =>
+    detachPromise(navigate({ to: AppRoute.AccessManagement.EditUser.replace(':userId', userId ?? '') }))
 
   const refetchUser = userQuery.refetch
   const queryState = useQueryState(userQuery, {

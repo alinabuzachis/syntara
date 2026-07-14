@@ -5,6 +5,11 @@ import { buildFilterParams, parseFiltersFromUrl } from '../utils/filterUtils'
 
 import { useSearchParams } from './routing/useSearchParams'
 
+// Stable empty array so the `defaultFilters` parameter never gets a new reference
+// on every call when callers omit it (function default `[]` creates a new array each call,
+// which causes `useMemo([searchParams, defaultFilters])` to recompute every render).
+const EMPTY_DEFAULT_FILTERS: FilterConfig[] = []
+
 /**
  * Result from useFilterState hook
  */
@@ -70,7 +75,7 @@ export type UseFilterStateResult = {
  * // URL will show: ?is_enabled=true
  * ```
  */
-export function useFilterState(defaultFilters: FilterConfig[] = []): UseFilterStateResult {
+export function useFilterState(defaultFilters: FilterConfig[] = EMPTY_DEFAULT_FILTERS): UseFilterStateResult {
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Parse current filters from URL

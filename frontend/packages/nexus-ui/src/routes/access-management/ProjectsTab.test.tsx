@@ -12,10 +12,6 @@ import type { ProjectRead } from '../access/types'
 import { PROJECT_NAME_PLACEHOLDER } from './projectFormSchema'
 import { ProjectsTab } from './ProjectsTab'
 
-vi.mock('../../app/routerFlag', () => ({
-  isTanStackRouter: () => false,
-}))
-
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
   interfaceTagMiddleware: { onRequest: vi.fn() },

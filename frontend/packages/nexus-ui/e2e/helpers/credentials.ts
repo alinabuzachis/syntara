@@ -178,7 +178,7 @@ export async function navigateToCredentialDetail(app: Page, credentialName: stri
   await app.getByRole('button', { name: 'Apply filter' }).click()
 
   const table = app.getByRole('grid', { name: 'Credentials table' })
-  await table.getByRole('button', { name: credentialName, exact: true }).click()
+  await table.getByRole('link', { name: credentialName, exact: true }).click()
   await expect(app).toHaveURL(/configuration\/credentials\//)
   // Wait for the credential data to load — confirms the detail API responded
   await expect(app.locator('h1').filter({ hasText: credentialName })).toBeVisible({ timeout: 15_000 })

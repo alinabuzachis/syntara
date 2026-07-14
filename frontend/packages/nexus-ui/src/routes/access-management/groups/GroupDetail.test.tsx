@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
+import { routerTestState } from '../../../test/setup'
 import { accessClient, accessFetchClient } from '../../access/accessClient'
 
 import { GroupDetail } from './GroupDetail'
@@ -43,20 +44,20 @@ vi.mock('../useGroupPermissions', () => ({
 const VALID_GROUP_ID = 'g-1234-5678-abcd'
 
 let mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}`
-const mockSetLocation = vi.fn()
 const mockUseParams = vi.fn(() => ({ groupId: VALID_GROUP_ID }))
 
-vi.mock('../../../hooks/routing/useLocation', () => ({
-  useLocation: () => mockLocationValue,
-}))
-
-vi.mock('../../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockSetLocation,
-}))
-
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => mockUseParams(),
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return {
+    ...actual,
+    useParams: () => mockUseParams(),
+    useNavigate: () => routerTestState.navigate,
+    useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {
+      const state = { location: { pathname: mockLocationValue, searchStr: '' } }
+      return opts?.select ? opts.select(state) : state
+    },
+  }
+})
 
 vi.mock('../../../hooks/routing/useSearchParams', async () => {
   const React = await import('react')
@@ -64,13 +65,6 @@ vi.mock('../../../hooks/routing/useSearchParams', async () => {
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })
-
-const mockNavigate = vi.fn()
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
-}))
 
 vi.mock('../../../utils/dateUtils', () => ({
   formatDateTime: (v: string | null | undefined) => v ?? 'N/A',
@@ -225,8 +219,7 @@ function mockSuccessQueries(group = mockGroup, members = mockMembersData, roleAs
 describe('GroupDetail', () => {
   beforeEach(() => {
     queryClient.clear()
-    mockNavigate.mockClear()
-    mockSetLocation.mockClear()
+    routerTestState.navigate.mockClear()
     mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}`
     mockUseParams.mockReturnValue({ groupId: VALID_GROUP_ID })
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
@@ -382,7 +375,7 @@ describe('GroupDetail', () => {
 
       await user.click(screen.getByRole('button', { name: 'Back to groups' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/groups')
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/system-administration/access-management/groups' })
     })
 
     it('calls refetch when Retry is clicked in error state', async () => {
@@ -508,9 +501,9 @@ describe('GroupDetail', () => {
 
       await user.click(screen.getByRole('tab', { name: /Members/i }))
 
-      expect(mockSetLocation).toHaveBeenCalledWith(
-        `/system-administration/access-management/groups/${VALID_GROUP_ID}/members`
-      )
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: `/system-administration/access-management/groups/${VALID_GROUP_ID}/members`,
+      })
     })
 
     it('navigates to roles URL when Assignments tab is clicked', async () => {
@@ -519,9 +512,9 @@ describe('GroupDetail', () => {
 
       await user.click(screen.getByRole('tab', { name: /Assignments/i }))
 
-      expect(mockSetLocation).toHaveBeenCalledWith(
-        `/system-administration/access-management/groups/${VALID_GROUP_ID}/roles`
-      )
+      expect(routerTestState.navigate).toHaveBeenCalledWith({
+        to: `/system-administration/access-management/groups/${VALID_GROUP_ID}/roles`,
+      })
     })
 
     it('renders Members panel when URL is /members', () => {

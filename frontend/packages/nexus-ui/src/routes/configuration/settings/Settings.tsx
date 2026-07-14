@@ -1,4 +1,5 @@
 import { ActionGroup, Alert, Button, Stack, StackItem, Tab } from '@patternfly/react-core'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -10,8 +11,6 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
-import { useLocation } from '../../../hooks/routing/useLocation'
-import { useNavigate } from '../../../hooks/routing/useNavigate'
 import {
   FILE_STORAGE_UNAVAILABLE_MESSAGE,
   FILE_STORAGE_UNCONFIGURED_MESSAGE,
@@ -73,17 +72,17 @@ export default function Settings() {
   const validTabs = useMemo(() => categories.map((c) => c.slug), [categories])
   const defaultCategory = categories[0]?.slug ?? ''
   const [activeSlug] = useUrlTab(basePath, defaultCategory)
-  const location = useLocation()
-  const setLocation = useNavigate()
+  const location = useRouterState({ select: (s) => s.location.pathname })
+  const navigate = useNavigate()
 
   // UrlTabs only redirects when the URL contains an *invalid* tab slug.
   // When there is *no* slug at all, useUrlTab silently falls back to defaultTab
   // without updating the URL — so we redirect here to keep the URL bookmarkable.
   useEffect(() => {
     if (defaultCategory && location.startsWith(basePath) && !location.startsWith(`${basePath}/`)) {
-      setLocation(`${basePath}/${defaultCategory}`, { replace: true })
+      detachPromise(navigate({ to: `${basePath}/${defaultCategory}`, replace: true }))
     }
-  }, [defaultCategory, location, setLocation])
+  }, [defaultCategory, location, navigate])
 
   const activeIndex = useMemo(() => {
     const idx = categories.findIndex((c) => c.slug === activeSlug)

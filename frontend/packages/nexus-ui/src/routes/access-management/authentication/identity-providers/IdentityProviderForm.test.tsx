@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { identityProvidersClient } from '../../../../client'
 import { AlertProvider } from '../../../../providers/alerts'
+import { routerTestState } from '../../../../test/setup'
 
 import { IdentityProviderForm } from './IdentityProviderForm'
 
@@ -29,25 +30,19 @@ vi.mock('../../../../client', () => ({
   OIDC_REDIRECT_URI: 'http://localhost/api/v1/auth/oidc/callback',
 }))
 
-const mockUseParams = vi.fn(() => ({}))
-vi.mock('../../../../hooks/routing/useLocation', () => ({
-  useLocation: () => '/system-administration/authentication/identity-providers/add',
+const { mockUseParams } = vi.hoisted(() => ({
+  mockUseParams: vi.fn(() => ({})),
 }))
 
-vi.mock('../../../../hooks/routing/useParams', () => ({
-  useParams: () => mockUseParams(),
-}))
-
-vi.mock('../../../../hooks/routing/useSearchParams', () => ({
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
-}))
-
-const mockNavigate = vi.fn()
-vi.mock('../../../../hooks/routing/navigate', () => ({
-  navigate: (...args: unknown[]): void => {
-    mockNavigate(...args)
-  },
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  const { routerTestState } = await import('../../../../test/setup')
+  return {
+    ...actual,
+    useParams: () => mockUseParams(),
+    useNavigate: () => routerTestState.navigate,
+  }
+})
 
 vi.mock('../../../access/useAllGroups', () => ({
   useAllGroups: vi.fn(() => ({
@@ -87,6 +82,7 @@ describe('IdentityProviderForm', () => {
     vi.clearAllMocks()
     queryClient.clear()
     mockUseParams.mockReturnValue({})
+    routerTestState.navigate.mockClear()
   })
 
   describe('add mode', () => {
@@ -275,7 +271,7 @@ describe('IdentityProviderForm', () => {
       act(() => {
         getMutationCallbacks(mockPatch).onSuccess?.()
       })
-      expect(mockNavigate).toHaveBeenCalled()
+      expect(routerTestState.navigate).toHaveBeenCalled()
     })
 
     it('includes aap_role_mapping_enabled in patch payload for AAP provider', async () => {
@@ -412,7 +408,7 @@ describe('IdentityProviderForm', () => {
       act(() => {
         getMutationCallbacks(mockCreate).onSuccess?.()
       })
-      expect(mockNavigate).toHaveBeenCalled()
+      expect(routerTestState.navigate).toHaveBeenCalled()
     })
 
     it('includes aap_role_mapping_enabled in create payload for AAP template', async () => {

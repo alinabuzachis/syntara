@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ActionGroup, Alert, Button, Form, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
+import { useNavigate } from '@tanstack/react-router'
 import type { BaseSyntheticEvent, ReactNode } from 'react'
 import type { Control } from 'react-hook-form'
 import { useForm, useWatch } from 'react-hook-form'
@@ -12,7 +13,6 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { navigate } from '../../../hooks/routing/navigate'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 import { userFormSchema, userCreateSchema, type UserFormData } from '../userFormSchema'
@@ -168,6 +168,7 @@ function UserFormEditBusyPage({ pageTitle, children }: Readonly<{ pageTitle: str
 }
 
 export function UserForm({ mode }: Readonly<UserFormProps>) {
+  const navigate = useNavigate()
   const usersDocLink = useDocLink('users')
   const isEdit = mode === 'edit'
   const pageTitle = isEdit ? 'Edit User' : 'Create User'
@@ -191,7 +192,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
     values: isEdit && formValues ? formValues : undefined,
   })
 
-  const navigateBack = () => navigate(AppRoute.AccessManagement.Users)
+  const navigateBack = () => detachPromise(navigate({ to: AppRoute.AccessManagement.Users }))
 
   const { onSubmit, isSaving } = useUserFormSubmit({
     isEdit,

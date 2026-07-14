@@ -33,15 +33,13 @@ import {
   RhUiProfileFillIcon,
   RhUiQuestionMarkCircleIcon,
 } from '@patternfly/react-icons'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useContext, useMemo, useRef, useState } from 'react'
 
 import AapLogoDark from '../assets/AAP2lineDarkMode.svg?react'
 import AapLogoLight from '../assets/AAP2LineLightMode.svg?react'
 import RedHatHatIcon from '../assets/redhat-hat-icon.svg?react'
 import { authClient } from '../client'
-import { Link } from '../hooks/routing/Link'
-import { useLocation } from '../hooks/routing/useLocation'
-import { useNavigate } from '../hooks/routing/useNavigate'
 import { useAlerts } from '../providers/alerts'
 import { useColorScheme } from '../providers/theme/useColorScheme'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -190,7 +188,7 @@ function NavExpandableItem({
 
 function UserMenuDropdown() {
   const [isOpen, setIsOpen] = useState(false)
-  const setLocation = useNavigate()
+  const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const { showAlert } = useAlerts()
   const { data: currentUser } = authClient.useQuery('get', '/auth/me')
@@ -236,7 +234,7 @@ function UserMenuDropdown() {
         <DropdownItem
           key="profile"
           onClick={() => {
-            setLocation(AppRoute.MyProfile.Root)
+            detachPromise(navigate({ to: AppRoute.MyProfile.Root }))
             setIsOpen(false)
           }}
         >
@@ -252,7 +250,7 @@ function UserMenuDropdown() {
 }
 
 export function AppDockedNav() {
-  const location = useLocation()
+  const location = useRouterState({ select: (s) => s.location.pathname })
   const { requestNavigation } = useUnsavedChanges()
   const { colorScheme, toggleColorScheme } = useColorScheme()
   const docsHomeUrl = useDocLink('home')
@@ -290,7 +288,7 @@ export function AppDockedNav() {
           </MastheadToggle>
           <MastheadBrand>
             {isExpanded ? (
-              <MastheadLogo component={(props) => <Link {...props} href="/" />} aria-label="Home">
+              <MastheadLogo component={(props) => <Link {...props} to="/" />} aria-label="Home">
                 {colorScheme === 'dark' ? (
                   <AapLogoDark style={{ height: 28, width: 'auto', marginLeft: 'var(--pf-t--global--spacer--sm)' }} />
                 ) : (
@@ -299,7 +297,7 @@ export function AppDockedNav() {
               </MastheadLogo>
             ) : (
               <MastheadLogo
-                component={(props) => <Link {...props} href="/" />}
+                component={(props) => <Link {...props} to="/" />}
                 aria-label="Home"
                 className="pf-m-compact"
               >

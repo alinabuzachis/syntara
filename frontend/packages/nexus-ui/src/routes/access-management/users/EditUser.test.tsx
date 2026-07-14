@@ -33,9 +33,13 @@ vi.mock('../../../hooks/routing/useLocation', () => ({
   useLocation: () => '/',
 }))
 
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => ({ userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-}))
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return {
+    ...actual,
+    useParams: () => ({ userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  }
+})
 
 vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],

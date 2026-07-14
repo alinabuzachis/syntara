@@ -13,6 +13,7 @@ import {
   TabTitleText,
 } from '@patternfly/react-core'
 import { RhUiEditIcon } from '@patternfly/react-icons'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -22,8 +23,6 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxListPanel, NxListPanelTabs } from '../../../components/panels/list/NxListPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { navigate } from '../../../hooks/routing/navigate'
-import { useParams } from '../../../hooks/routing/useParams'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -171,8 +170,9 @@ function useGroupQueries(groupId: string | undefined) {
 }
 
 export function GroupDetail() {
+  const navigate = useNavigate()
   const groupsDocLink = useDocLink('groups')
-  const { groupId } = useParams<{ groupId: string }>()
+  const { groupId }: { groupId: string } = useParams({ strict: false })
   const basePath = AppRoute.AccessManagement.GroupDetail.replace(':groupId', groupId ?? '')
   type GroupTab = 'details' | 'members' | 'roles'
   const [activeTab] = useUrlTab<GroupTab>(basePath)
@@ -185,7 +185,7 @@ export function GroupDetail() {
   const showMembers = !isAuthenticated && (permissionsLoading || canReadMembers)
   const showAssignments = permissionsLoading || canReadAssignments
 
-  const navigateBack = () => navigate(AppRoute.AccessManagement.Groups)
+  const navigateBack = () => detachPromise(navigate({ to: AppRoute.AccessManagement.Groups }))
 
   const groupData = groupQuery.data
   const refetchGroup = groupQuery.refetch

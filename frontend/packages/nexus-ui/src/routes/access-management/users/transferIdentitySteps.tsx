@@ -7,10 +7,10 @@ import { AppRoute } from '../../../app/AppRoute'
 import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxLink } from '../../../components/NxLink'
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import type { PaginationFooterProps } from '../../../components/table/PaginationFooter'
-import { Link } from '../../../hooks/routing/Link'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
@@ -125,13 +125,9 @@ export function SelectUserStep({
                     }}
                   />
                   <Td dataLabel="Username">
-                    <Link
-                      href={getUserDetailPath(user.id)}
-                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                      className="pf-v6-c-button pf-m-link pf-m-inline"
-                    >
+                    <NxLink to={getUserDetailPath(user.id)} onClick={(e) => e.stopPropagation()}>
                       {user.username}
-                    </Link>
+                    </NxLink>
                   </Td>
                   <Td dataLabel="Email">{user.email}</Td>
                   <Td dataLabel="Authentication">
@@ -257,16 +253,15 @@ export function SelectIdentityStep({
                     }}
                   />
                   <Td dataLabel="Provider">
-                    <Link
-                      href={AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+                    <NxLink
+                      to={AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
                         ':providerId',
                         identity.identity_provider_id
                       ).replace('/:tab?', '')}
-                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                      className="pf-v6-c-button pf-m-link pf-m-inline"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {identity.provider_name}
-                    </Link>
+                    </NxLink>
                   </Td>
                   <Td dataLabel="Subject">{identity.subject}</Td>
                   <Td dataLabel="Linked">{formatDateTime(identity.created_at)}</Td>

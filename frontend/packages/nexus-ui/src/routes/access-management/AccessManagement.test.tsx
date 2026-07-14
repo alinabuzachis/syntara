@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AppRoute } from '../../app/AppRoute'
 import { adminClient, usersClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
+import { routerTestState } from '../../test/setup'
 import { accessClient, accessFetchClient } from '../access/accessClient'
 
 import { AccessManagement } from './AccessManagement'
@@ -21,29 +22,6 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     <AlertProvider>{children}</AlertProvider>
   </QueryClientProvider>
 )
-
-const mockNavigate = vi.fn()
-const wouterLocation = { path: AppRoute.AccessManagement.Users }
-
-vi.mock('../../hooks/routing/useLocation', () => ({
-  useLocation: () => wouterLocation.path,
-}))
-
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockNavigate,
-}))
-
-vi.mock('../../hooks/routing/useSearch', () => ({
-  useSearch: () => '',
-}))
-
-vi.mock('../../hooks/routing/useSearchParams', () => ({
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
-}))
-
-vi.mock('../../hooks/routing/navigate', () => ({
-  navigate: vi.fn(),
-}))
 
 vi.mock('../../client', () => ({
   usersClient: {
@@ -102,8 +80,7 @@ describe('AccessManagement', () => {
       isPending: false,
     } as never)
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
-    wouterLocation.path = AppRoute.AccessManagement.Users
-    mockNavigate.mockClear()
+    routerTestState.pathname = AppRoute.AccessManagement.Users
   })
 
   async function renderAndSettle(ui: React.ReactElement) {
@@ -161,11 +138,11 @@ describe('AccessManagement', () => {
   })
 
   it('replaces bare /system-administration/access-management with the Users tab URL', async () => {
-    wouterLocation.path = AppRoute.AccessManagement.Root
+    routerTestState.pathname = AppRoute.AccessManagement.Root
     await renderAndSettle(<AccessManagement />)
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Users, { replace: true })
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: AppRoute.AccessManagement.Users, replace: true })
     })
   })
 
@@ -176,7 +153,7 @@ describe('AccessManagement', () => {
   })
 
   it('renders breadcrumbs on non-default hub tabs', async () => {
-    wouterLocation.path = AppRoute.AccessManagement.Groups
+    routerTestState.pathname = AppRoute.AccessManagement.Groups
     await renderAndSettle(<AccessManagement />)
 
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument()
@@ -184,7 +161,7 @@ describe('AccessManagement', () => {
   })
 
   it('defaults to first tab when location does not match any tab path', async () => {
-    wouterLocation.path = '/access-management/unknown-path'
+    routerTestState.pathname = '/access-management/unknown-path'
     await renderAndSettle(<AccessManagement />)
 
     expect(screen.getByText('No users')).toBeInTheDocument()
@@ -196,7 +173,8 @@ describe('AccessManagement', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Groups' }))
 
-    expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Groups)
+    // NxListPanelTabs uses useNavigate (via useUrlTab) for tab navigation
+    expect(routerTestState.navigate).toHaveBeenCalledWith({ to: AppRoute.AccessManagement.Groups })
   })
 
   it('hides Users tab when user lacks user:read permission', async () => {
@@ -205,7 +183,7 @@ describe('AccessManagement', () => {
       if (body.resource_type === 'user') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
     })
-    wouterLocation.path = AppRoute.AccessManagement.Groups
+    routerTestState.pathname = AppRoute.AccessManagement.Groups
     await renderAndSettle(<AccessManagement />)
 
     await waitFor(() => {
@@ -264,7 +242,7 @@ describe('AccessManagement', () => {
       }
       return Promise.resolve({ data: { allowed: true } } as never)
     })
-    wouterLocation.path = AppRoute.AccessManagement.Policies
+    routerTestState.pathname = AppRoute.AccessManagement.Policies
     await renderAndSettle(<AccessManagement />)
 
     await waitFor(() => {
@@ -284,11 +262,14 @@ describe('AccessManagement', () => {
       if (body.resource_type === 'user') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
     })
-    wouterLocation.path = AppRoute.AccessManagement.Users
+    routerTestState.pathname = AppRoute.AccessManagement.Users
     await renderAndSettle(<AccessManagement />)
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Groups, { replace: true })
+      // useUrlTab uses useNavigate for tab redirects
+      expect(routerTestState.navigate).toHaveBeenCalledWith(
+        expect.objectContaining({ to: AppRoute.AccessManagement.Groups })
+      )
     })
   })
 
@@ -298,11 +279,12 @@ describe('AccessManagement', () => {
       if (body.resource_type === 'project') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
     })
-    wouterLocation.path = AppRoute.AccessManagement.Projects
+    routerTestState.pathname = AppRoute.AccessManagement.Projects
     await renderAndSettle(<AccessManagement />)
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Users, { replace: true })
+      // NxUrlTabs redirects via navigate({ to, replace: true }) when the active tab is hidden
+      expect(routerTestState.navigate).toHaveBeenCalledWith({ to: AppRoute.AccessManagement.Users, replace: true })
     })
   })
 

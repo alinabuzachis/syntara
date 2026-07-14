@@ -1,6 +1,7 @@
 import type { Approval } from '@ansible/nexus-contracts'
 import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { approvalsClient } from '../../client'
@@ -106,6 +107,17 @@ vi.mock('../../hooks/routing/useNavigate', () => ({
 vi.mock('../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
+
+// NxLink (used by LinkCell in ApprovalsTableBody) renders @tanstack/react-router's Link,
+// which requires a router context. Stub it to a plain <a> so tests don't need a provider.
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual('@tanstack/react-router')
+  return {
+    ...actual,
+    Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) =>
+      React.createElement('a', { href: String(to), ...rest }, children),
+  }
+})
 
 describe('Approvals Component', () => {
   const now = Date.now()

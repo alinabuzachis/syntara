@@ -2,10 +2,11 @@ import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { useCallback } from 'react'
 
 import { AppRoute } from '../../../../app/AppRoute'
+import { tanstackRouter } from '../../../../app/tanstackRouter'
 import { integrationsClient } from '../../../../client'
-import { navigate } from '../../../../hooks/routing/navigate'
 import type { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
+import { detachPromise } from '../../../../utils/detachPromise'
 
 import type { IntegrationFormData } from './integrationFormSchema'
 
@@ -40,7 +41,9 @@ export function useCreateIntegration({ handleError }: UseCreateIntegrationOption
       discoveredModels?: InitialModelSelection[]
     ) => {
       const context = formData.name ? `Integration "${formData.name}"` : undefined
-      const navigateToList = () => navigate(AppRoute.Configuration.Integrations.Root)
+      const navigateToList = () => {
+        detachPromise(tanstackRouter.navigate({ to: AppRoute.Configuration.Integrations.Root }))
+      }
 
       createIntegration(
         {

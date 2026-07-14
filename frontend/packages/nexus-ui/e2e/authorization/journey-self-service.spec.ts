@@ -82,7 +82,7 @@ test.describe('Self-service delegation journey', () => {
 
       await app.goto(toAppUrl('/workflows'))
       await selectProject(app, project.name)
-      await expect(app.getByRole('button', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
+      await expect(app.getByRole('link', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
 
       // 5. Team lead logs in and verifies access
       await logoutViaUI(app)
@@ -90,7 +90,7 @@ test.describe('Self-service delegation journey', () => {
 
       await app.goto(toAppUrl('/workflows'))
       await selectProject(app, project.name)
-      await expect(app.getByRole('button', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
+      await expect(app.getByRole('link', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
 
       // Team lead cannot create workflows (no workflow:create) — fresh token to avoid expiry
       let teamLeadToken = await loginAsUserApi(app, teamLead.username)
@@ -119,7 +119,7 @@ test.describe('Self-service delegation journey', () => {
 
       await app.goto(toAppUrl('/workflows'))
       await selectProject(app, project.name)
-      await expect(app.getByRole('button', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
+      await expect(app.getByRole('link', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
 
       // New hire can create workflows (project-user allows CRUD)
       const nhCreate = await tryCreateWorkflow(app, newHireToken, `newhire-wf-${suffix}`, project.id)

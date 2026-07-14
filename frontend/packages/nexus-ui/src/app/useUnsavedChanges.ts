@@ -1,10 +1,11 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useContext, useMemo } from 'react'
 
-import { useNavigate } from '../hooks/routing/useNavigate'
 import {
   UnsavedChangesContext,
   type UnsavedChangesContextType,
 } from '../providers/unsaved-changes/unsavedChangesContext'
+import { detachPromise } from '../utils/detachPromise'
 
 const noop = () => () => {}
 
@@ -14,7 +15,7 @@ export function useUnsavedChanges(): UnsavedChangesContextType {
 
   const fallback = useMemo<UnsavedChangesContextType>(
     () => ({
-      requestNavigation: (path: string) => navigate(path),
+      requestNavigation: (path: string) => detachPromise(navigate({ to: path })),
       registerSaveHandler: noop,
       unregisterSaveHandler: () => {},
       registerDirtyCheck: noop,

@@ -46,7 +46,7 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
     await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
+    await expect(app.getByRole('link', { name: workflowName, exact: true })).toBeVisible()
   } finally {
     await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
@@ -72,7 +72,7 @@ test('user edits an existing workflow and changes persist', async ({ app }) => {
     await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    await app.getByRole('button', { name: workflowName, exact: true }).click()
+    await app.getByRole('link', { name: workflowName, exact: true }).click()
 
     await app.getByPlaceholder('Workflow name').fill(updatedName)
     await app.getByRole('button', { name: 'Save' }).click()
@@ -81,7 +81,7 @@ test('user edits an existing workflow and changes persist', async ({ app }) => {
     await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(updatedName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    await expect(app.getByRole('button', { name: updatedName, exact: true })).toBeVisible()
+    await expect(app.getByRole('link', { name: updatedName, exact: true })).toBeVisible()
   } finally {
     for (const name of [updatedName, workflowName]) {
       await app.goto(toAppUrl('/workflows'))
