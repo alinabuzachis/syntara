@@ -49,7 +49,6 @@ from testcontainers.postgres import PostgresContainer  # type: ignore[import-unt
 from testcontainers.redis import RedisContainer  # type: ignore[import-untyped]
 
 from nexus.agent_orchestrator.models.invocation import Invocation
-from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.auth.services.token_service import TokenService
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
@@ -705,6 +704,8 @@ async def session_app(
         FastAPI application with routers registered
 
     """
+    from nexus.api.main import app
+
     # Mock authz evaluator so the lifespan health check passes without regopy.
     # Individual tests use their own Rego mocks (e.g. CLI-based evaluation).
     mock_evaluator = AsyncMock()
@@ -903,6 +904,7 @@ async def base_client_with_provider_factory(
         AsyncClient for API testing without authentication and MockMCPProvider
 
     """
+    from nexus.api.main import app
 
     async def override_get_provider_factory() -> ProviderFactory:
         return test_provider_factory
@@ -1197,6 +1199,7 @@ async def auth_client(base_client: AsyncClient, test_user: "User") -> AsyncClien
         AsyncClient: Authenticated test client
 
     """
+    from nexus.api.main import app
 
     async def override_get_current_user() -> User:
         return test_user
@@ -1222,6 +1225,7 @@ async def auth_client_with_mocked_llm(base_client_with_mocked_llm: AsyncClient, 
         AsyncClient: Authenticated test client with mocked LLM
 
     """
+    from nexus.api.main import app
 
     async def override_get_current_user() -> User:
         return test_user
@@ -1251,6 +1255,7 @@ def sync_test_client(
         TestClient for synchronous API testing
 
     """
+    from nexus.api.main import app
 
     async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
         yield test_db_session
@@ -1904,6 +1909,7 @@ async def jwt_client_with_provider_factory(
         AsyncClient: JWT-authenticated client with provider factory
 
     """
+    from nexus.api.main import app
 
     async def override_get_provider_factory() -> ProviderFactory:
         return test_provider_factory
@@ -1959,6 +1965,7 @@ async def auth_client_as_admin(base_client: AsyncClient, admin_user: "User") -> 
         AsyncClient: Authenticated test client as admin
 
     """
+    from nexus.api.main import app
 
     async def override_get_current_user() -> User:
         return admin_user
