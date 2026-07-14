@@ -5,10 +5,10 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from nexus_test_sdk.app.files import get_fixtures_dir
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models import Project
-from tests.fixtures import get_fixtures_dir
 
 
 @pytest_asyncio.fixture(autouse=True)

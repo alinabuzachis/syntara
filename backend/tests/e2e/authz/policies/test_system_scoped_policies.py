@@ -15,13 +15,12 @@ import pytest
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
-
-    from tests.fixtures.factories import ProjectFactory, RoleFactory, UserFactory, UserRoleAssignmentFactory
+    from nexus_test_sdk.factories import ProjectFactory, RoleFactory, UserFactory, UserRoleAssignmentFactory
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
-from tests.e2e.conftest import api_for
+from nexus_test_sdk.e2e.auth import api_for
 
 from .conftest import SELF_SCOPED_CASES, SYSTEM_SCOPED_REPRESENTATIVE
 

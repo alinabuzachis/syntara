@@ -3,10 +3,10 @@
 from uuid import uuid4
 
 from httpx import AsyncClient
+from nexus_test_sdk.helpers.integration import IntegrationFactory
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.integrations.models.integration import IntegrationType
-from tests.helpers.integration import IntegrationFactory
 
 BASE_URL = "/api/v1/integrations"
 

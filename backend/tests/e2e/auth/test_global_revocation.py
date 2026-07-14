@@ -22,8 +22,7 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
-
-from tests.e2e.conftest import (
+from nexus_test_sdk.e2e.auth import (
     assert_refresh_succeeds,
     get_current_user_with_token,
     local_login_session,

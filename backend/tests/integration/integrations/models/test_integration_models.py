@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
+from nexus_test_sdk.helpers.integration import IntegrationFactory
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -13,7 +14,6 @@ from nexus.core.models import User
 from nexus.integrations.models.integration import Integration, IntegrationType
 from nexus.integrations.models.integration_configuration import MCPServerConfiguration
 from nexus.tool_manager.models.tool import Tool, ToolParameter, ToolParameterType
-from tests.helpers.integration import IntegrationFactory
 
 
 class TestIntegrationToolsRelationship:

@@ -5,11 +5,11 @@ Tests soft delete functionality and error handling.
 
 import pytest
 from httpx import AsyncClient
+from nexus_test_sdk.helpers.error_data import assert_error_data
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models.group import Group
-from tests.helpers.error_data import assert_error_data
 
 GROUPS_URL = "/api/v1/groups"
 

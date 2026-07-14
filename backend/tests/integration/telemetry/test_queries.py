@@ -5,6 +5,11 @@ All queries are tested against a real PostgreSQL database via test_db_session.
 
 from datetime import UTC, datetime, timedelta
 
+from nexus_test_sdk.helpers.credential import CredentialFactory
+from nexus_test_sdk.helpers.execution import ExecutionFactory
+from nexus_test_sdk.helpers.identity_provider import IdentityProviderCreate
+from nexus_test_sdk.helpers.token_usage import TokenUsageFactory
+from nexus_test_sdk.helpers.workflow import WorkflowFactory
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.telemetry.events.integration_health import (
@@ -29,11 +34,6 @@ from nexus.telemetry.queries import (
     query_workflow_counts,
 )
 from nexus.workflows.models.execution import ExecutionStatus
-from tests.helpers.credential import CredentialFactory
-from tests.helpers.execution import ExecutionFactory
-from tests.helpers.identity_provider import IdentityProviderCreate
-from tests.helpers.token_usage import TokenUsageFactory
-from tests.helpers.workflow import WorkflowFactory
 
 
 class TestQueryWorkflowCounts:

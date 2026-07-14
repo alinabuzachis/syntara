@@ -10,8 +10,7 @@ import pytest
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
-
-    from tests.fixtures.factories import (
+    from nexus_test_sdk.factories import (
         AssignProjectRoleFactory,
         CredentialFactory,
         ProjectFactory,
@@ -24,8 +23,7 @@ if not os.environ.get("APP_BASE_URL"):
 
 from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.user_update import UserUpdate
-
-from tests.e2e.conftest import api_for
+from nexus_test_sdk.e2e.auth import api_for
 
 pytestmark = [pytest.mark.e2e]
 

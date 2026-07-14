@@ -24,7 +24,7 @@ from nexus.core.models import User
 from nexus.tool_manager.models import Tool
 
 if TYPE_CHECKING:
-    from tests.helpers.tool_manager import ToolFactory
+    from nexus_test_sdk.helpers.tool_manager import ToolFactory
 
 
 @pytest_asyncio.fixture

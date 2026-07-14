@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nexus-test-sdk"
+version = "0.1.0"
+description = "Reusable pytest fixtures for Nexus E2E tests"
+requires-python = ">=3.12"
+dependencies = [
+    "nexus-api-client",
+    "pytest>=7.0",
+]
+
+[project.entry-points."pytest11"]
+nexus-test-sdk = "nexus_test_sdk.plugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nexus_test_sdk"]

@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
+from nexus_test_sdk.app import FakeSettingsCache
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
@@ -22,7 +23,6 @@ from nexus.agent_orchestrator.context_manager.retriever_service.services import 
 from nexus.agent_orchestrator.models import Invocation
 from nexus.core.models import User
 from nexus.files.models import FileMetadata
-from tests.conftest import FakeSettingsCache
 
 
 @pytest.fixture(autouse=True)

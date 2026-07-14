@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 import pytest
+from nexus_test_sdk.helpers.credential import CredentialFactory
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -26,7 +27,6 @@ from nexus.integrations.models.integration import (
     IntegrationType,
 )
 from nexus.integrations.services.integration_service import IntegrationService
-from tests.helpers.credential import CredentialFactory
 
 
 @pytest.fixture

@@ -12,9 +12,8 @@ from uuid import UUID, uuid4
 import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
-
-from tests.e2e.conftest import unique_name
-from tests.helpers.workflow import create_minimal_workflow_definition
+from nexus_test_sdk.helpers import unique_name
+from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
 
 if TYPE_CHECKING:
     from collections.abc import Callable

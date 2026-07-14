@@ -8,12 +8,12 @@ from uuid import uuid4
 
 import pytest
 from langchain_core.messages import HumanMessage
+from nexus_test_sdk.app import FakeSettingsCache
 
 from nexus.agent_orchestrator.agents.orchestrator_agent import OrchestratorAgent
 from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.audit.emitter import AuditActorContext
-from tests.conftest import FakeSettingsCache
 
 if TYPE_CHECKING:
     from nexus.agent_orchestrator.models.agent_state import AgentState

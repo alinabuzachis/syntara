@@ -172,7 +172,7 @@ class TestToolServices:
             patch("nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient") as mock_client_class,
             patch("nexus.agent_orchestrator.tool_manager.tool_services.get_provider_factory") as mock_factory_getter,
             patch(
-                "tests.fixtures.mock_mcp_provider.MockMCPProvider.get_base_tools",
+                "nexus_test_sdk.app.mock_mcp_provider.MockMCPProvider.get_base_tools",
                 side_effect=RuntimeError("Connection failed to MCP server"),
             ),
         ):
@@ -214,7 +214,7 @@ class TestToolServices:
         with (
             patch("nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient") as mock_client_class,
             patch(
-                "tests.fixtures.mock_mcp_provider.MockMCPProvider.get_base_tools",
+                "nexus_test_sdk.app.mock_mcp_provider.MockMCPProvider.get_base_tools",
                 side_effect=ValueError("Invalid configuration parameter"),
             ),
         ):

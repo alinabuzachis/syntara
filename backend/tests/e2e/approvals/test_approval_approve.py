@@ -28,9 +28,8 @@ from nexus_api_client.models.approval_decision_request import ApprovalDecisionRe
 from nexus_api_client.models.approval_decision_status import ApprovalDecisionStatus
 from nexus_api_client.models.approval_request_status import ApprovalRequestStatus
 from nexus_api_client.models.execution_status import ExecutionStatus
-
-from tests.e2e.conftest import unique_name
-from tests.e2e.helpers import poll_execution, poll_for_pending_approval
+from nexus_test_sdk.e2e.helpers import poll_execution, poll_for_pending_approval
+from nexus_test_sdk.helpers import unique_name
 
 pytestmark = [pytest.mark.e2e]
 

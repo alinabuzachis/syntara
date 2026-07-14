@@ -12,10 +12,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
+from nexus_test_sdk.app.mock_mcp_provider import MockMCPProvider
 
 from nexus.core.exceptions import SafeValueError
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
-from tests.fixtures.mock_mcp_provider import MockMCPProvider
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine

@@ -13,8 +13,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 from nexus_api_client.models.user_create import UserCreate
-
-from tests.e2e.conftest import generate_test_password, unique_name
+from nexus_test_sdk.helpers import (
+    generate_test_password,
+    unique_name,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable

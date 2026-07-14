@@ -23,9 +23,8 @@ from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.services.execution_service import ExecutionService
 
 if TYPE_CHECKING:
+    from nexus_test_sdk.helpers.workflow import ActivitiesFactory, ExecutionsFactory
     from sqlmodel.ext.asyncio.session import AsyncSession
-
-    from tests.helpers.workflow import ActivitiesFactory, ExecutionsFactory
 
 PATCH_TARGET = "nexus.workflows.services.execution_service.get_metrics_recorder"
 

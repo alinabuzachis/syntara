@@ -200,7 +200,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   temporal-worker:
     image: ${APP_IMAGE:-localhost/nexus:latest}
@@ -278,6 +278,8 @@ services:
         condition: service_healthy
       moto:
         condition: service_healthy
+      nexus:
+        condition: service_healthy
     healthcheck:
       test: [CMD-SHELL, 'cat /proc/[0-9]*/cmdline 2>/dev/null | grep -qa nexus.workflows.worker']
       interval: 30s
@@ -342,6 +344,8 @@ services:
       redis:
         condition: service_healthy
       moto:
+        condition: service_healthy
+      nexus:
         condition: service_healthy
     healthcheck:
       test: [CMD-SHELL, 'cat /proc/[0-9]*/cmdline 2>/dev/null | grep -qa nexus.workflows.background_worker']

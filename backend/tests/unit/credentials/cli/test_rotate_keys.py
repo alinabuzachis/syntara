@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from nexus_test_sdk.helpers.encryption import NEW_KEY, NEW_KEY_HEX, OLD_KEY, OLD_KEY_HEX, WRONG_KEY, ZEROS_KEY_HEX
 
 from nexus.core.lib.encryption import SecretEncryptor
 from nexus.credentials.cli.rotate_keys import (
@@ -17,7 +18,6 @@ from nexus.credentials.cli.rotate_keys import (
     _rotate_single_row,
     rotate_keys,
 )
-from tests.helpers.encryption import NEW_KEY, NEW_KEY_HEX, OLD_KEY, OLD_KEY_HEX, WRONG_KEY, ZEROS_KEY_HEX
 
 
 def _make_encrypted_row(old_encryptor: SecretEncryptor) -> MagicMock:

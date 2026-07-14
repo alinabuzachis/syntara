@@ -18,8 +18,8 @@ from nexus_api_client.models import (
     WorkflowRead,
 )
 from nexus_api_client.models.publish_version_request import PublishVersionRequest
-
-from tests.e2e.conftest import poll_execution_until_complete, unique_name
+from nexus_test_sdk.e2e.helpers import poll_execution_until_complete
+from nexus_test_sdk.helpers import unique_name
 
 pytestmark = [pytest.mark.e2e]
 

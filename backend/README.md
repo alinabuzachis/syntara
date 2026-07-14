@@ -538,6 +538,67 @@ If `APP_BASE_URL` is not set, the target automatically starts the database and d
 
 > **Note:** The E2E tests use an auto-generated Python API client. If you change the OpenAPI schema, regenerate the client with `make generate-api-client` before running E2E tests.
 
+### Nexus Test SDK
+
+Reusable pytest fixtures for integration and E2E tests live in `test-sdk/`. The package is a pytest plugin (`pytest11` entry point), so fixtures are available automatically once installed — no `conftest.py` imports needed.
+
+**Integration/unit test fixtures** (from `nexus_test_sdk.app.*`):
+
+| Fixture | What it provides |
+|---|---|
+| `test_db_engine` / `test_db_session` | PostgreSQL testcontainer + per-test session |
+| `test_cache` | Redis testcontainer |
+| `session_app` / `base_client` / `auth_client` | FastAPI ASGI test clients |
+| `jwt_client` / `jwt_access_token` | Real JWT authentication |
+| `test_user` / `user_factory` / `admin_user` | User model fixtures |
+| `test_group` / `group_with_members` | Group model fixtures |
+| `test_workflow` / `test_execution` | Workflow model fixtures |
+| `temporal_env` / `temporal_worker` | Temporal time-skipping environment |
+| `override_settings` / `override_runtime_settings` | Settings patch helpers |
+| `mock_openrouter_llm` / `mock_websocket` | Mock infrastructure |
+| `credential_factory` / `integration_factory` | DB-backed factory helpers |
+
+**E2E fixtures** (from `nexus_test_sdk.e2e.*` — module-scoped, auto-cleanup):
+
+| Fixture | What it creates |
+|---|---|
+| `create_user` | Local user → `(user_id, username, password)` |
+| `create_group` | Group → `(group_id, name)` |
+| `create_project` | Project → `(project_id, name)` |
+| `create_project_role` | Project-scoped role → role name |
+| `assign_project_role_to_user` / `_to_group` | Project role assignment → assignment id |
+| `create_role` | System-scoped role → role name |
+| `assign_system_role` | System role assignment → assignment id |
+| `create_policy` | Deny policy → policy name |
+| `create_credential` | HTTP Bearer Token credential → `(id, name, dict, secret)` |
+| `create_workflow` | Minimal workflow → `(workflow_id, name)` |
+| `identity_provider_factory` | OIDC identity provider → provider object |
+
+**Installing in a downstream repo** (e.g. `automation-orchestrator-test-suite`):
+
+Both `nexus-api-client` (the generated API client) and `nexus-test-sdk` live in this repo and can be installed directly from git using pip's subdirectory syntax:
+
+```toml
+# pyproject.toml — uv / pip
+dependencies = [
+    "nexus-api-client @ git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/src/api_client",
+    "nexus-test-sdk @ git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/test-sdk",
+]
+```
+
+Or one-off installs:
+
+```bash
+pip install "git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/src/api_client"
+pip install "git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/test-sdk"
+```
+
+To pin to a specific commit or branch, append `@<ref>` before `#subdirectory`:
+
+```
+git+https://github.com/syntara-orchestration/syntara.git@main#subdirectory=backend/test-sdk
+```
+
 ### Code Quality
 
 This project enforces strict code quality standards. All formatting tools are pinned in `.pre-commit-config.yaml`, which is the single source of truth for tool versions. See [Formatting Standards](docs/standards/formatting.md) for details.

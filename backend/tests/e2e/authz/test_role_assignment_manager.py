@@ -11,8 +11,7 @@ import pytest
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
-
-    from tests.fixtures.factories import AssignProjectRoleFactory, ProjectFactory, ProjectRoleFactory, UserFactory
+    from nexus_test_sdk.factories import AssignProjectRoleFactory, ProjectFactory, ProjectRoleFactory, UserFactory
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -21,9 +20,8 @@ from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
 from nexus_api_client.models.role_principal_type import RolePrincipalType
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
-
-from tests.e2e.conftest import api_for
-from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
+from nexus_test_sdk.e2e.auth import api_for
+from nexus_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
 
 pytestmark = [pytest.mark.e2e]
 
@@ -132,7 +130,7 @@ class TestRoleAssignmentManagerDenied:
 
     def test_cannot_create_workflow(self, role_assignment_manager_env):
         """Role assignment manager cannot create workflows (limited to role management only)."""
-        from tests.e2e.conftest import unique_name
+        from nexus_test_sdk.helpers import unique_name
 
         role_env = role_assignment_manager_env
         mgr_api = role_env["mgr_api"]

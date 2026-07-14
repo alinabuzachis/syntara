@@ -16,7 +16,7 @@ from nexus.integrations.models.integration import Integration
 from nexus.tool_manager.models import Tool, ToolStatus
 
 if TYPE_CHECKING:
-    from tests.helpers.tool_manager import ToolFactory
+    from nexus_test_sdk.helpers.tool_manager import ToolFactory
 
 
 @pytest_asyncio.fixture

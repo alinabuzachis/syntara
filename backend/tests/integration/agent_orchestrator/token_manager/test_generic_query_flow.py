@@ -8,8 +8,7 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-
-from tests.helpers.invocations import wait_for_invocation_execution
+from nexus_test_sdk.helpers.invocations import wait_for_invocation_execution
 
 
 class TestGenericQueryFlow:

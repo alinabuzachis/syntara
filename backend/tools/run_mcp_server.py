@@ -3,17 +3,10 @@
 import asyncio
 import os
 import signal
-import sys
 from contextlib import suppress
-from pathlib import Path
 
 import structlog
-
-# Add the project root to the Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
-from tests.fixtures.example_mcp_server import ExampleMCPServer  # noqa: E402
+from nexus_test_sdk.app.mcp_servers import ExampleMCPServer
 
 logger = structlog.stdlib.get_logger(__name__)
 

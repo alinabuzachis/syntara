@@ -13,8 +13,7 @@ from nexus_api_client.models.body_token import BodyToken
 from nexus_api_client.models.sa_credential_create import SACredentialCreate
 from nexus_api_client.models.service_account_create import ServiceAccountCreate
 from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
-
-from tests.e2e.conftest import unique_name
+from nexus_test_sdk.helpers import unique_name
 
 if TYPE_CHECKING:
     from uuid import UUID

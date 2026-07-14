@@ -3,11 +3,11 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from nexus_test_sdk.helpers.temporal import CompleteAsyncError
 from temporalio.exceptions import ApplicationError
 from temporalio.service import RPCError, RPCStatusCode
 
 from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait, wait
-from tests.helpers.temporal import CompleteAsyncError
 
 SETTINGS_PATH = "nexus.workflows.workflow_engine.activities.wait_activity.get_runtime_settings"
 

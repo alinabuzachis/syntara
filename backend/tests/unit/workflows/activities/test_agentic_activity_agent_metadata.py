@@ -15,11 +15,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from nexus_test_sdk.helpers.temporal import CompleteAsyncError
 
 from nexus.workflows.workflow_engine.activities.agentic_activity import (
     execute_agentic_activity,
 )
-from tests.helpers.temporal import CompleteAsyncError
 
 
 @pytest.fixture(autouse=True)

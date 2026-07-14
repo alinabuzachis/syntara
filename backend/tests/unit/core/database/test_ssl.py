@@ -10,8 +10,9 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+from nexus_test_sdk.helpers.tls import generate_ca, generate_self_signed_cert
+
 from nexus.core.database.ssl import build_ssl_connect_args
-from tests.helpers.tls import generate_ca, generate_self_signed_cert
 
 
 class TestBuildSslConnectArgs:

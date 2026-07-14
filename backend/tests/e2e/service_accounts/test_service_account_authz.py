@@ -25,8 +25,7 @@ from nexus_api_client.models.service_account_update import ServiceAccountUpdate
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
-
-    from tests.fixtures.factories import (
+    from nexus_test_sdk.factories import (
         AssignProjectRoleFactory,
         GroupFactory,
         ProjectFactory,
@@ -36,7 +35,9 @@ if TYPE_CHECKING:
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
-from tests.e2e.conftest import api_for, unique_name
+from nexus_test_sdk.e2e.auth import api_for
+from nexus_test_sdk.helpers import unique_name
+
 from tests.e2e.service_accounts import create_sa
 
 pytestmark = [pytest.mark.e2e]

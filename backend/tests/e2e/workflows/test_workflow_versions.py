@@ -13,8 +13,7 @@ import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from nexus_api_client.models.workflow_update import WorkflowUpdate
-
-from tests.helpers.workflow import (
+from nexus_test_sdk.helpers.workflow import (
     create_minimal_workflow_definition,
     create_workflow_definition_with_activities,
 )

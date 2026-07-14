@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from nexus_test_sdk.app import FakeSettingsCache
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.audit.context_planning import (
@@ -28,7 +29,6 @@ from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.core.models import User
-from tests.conftest import FakeSettingsCache
 
 
 class TestContextPlanningEventDispatch:

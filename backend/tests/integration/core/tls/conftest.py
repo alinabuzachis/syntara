@@ -13,13 +13,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 import uvicorn
+from nexus_test_sdk.helpers.tls import generate_ca, generate_service_cert
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from nexus.core.tls.http_client import build_internal_ssl_context
 from nexus.core.tls.temporal import build_temporal_tls_config
-from tests.helpers.tls import generate_ca, generate_service_cert
 
 if TYPE_CHECKING:
     from collections.abc import Generator

@@ -594,8 +594,9 @@ class TestTextConverterWithRealFiles:
 
     @pytest.fixture
     def fixtures_dir(self) -> Path:
-        """Get the path to the test fixtures directory."""
-        return Path(__file__).parent.parent.parent.parent.parent / "fixtures" / "files"
+        from nexus_test_sdk.app.files import get_fixtures_dir
+
+        return get_fixtures_dir()
 
     @pytest.mark.asyncio
     async def test_real_text_conversion(self, fixtures_dir: Path) -> None:

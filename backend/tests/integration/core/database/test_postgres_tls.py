@@ -21,12 +21,12 @@ from typing import TYPE_CHECKING
 import asyncpg
 import pytest
 import sqlalchemy
+from nexus_test_sdk.helpers.tls import generate_ca, generate_server_cert
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 from testcontainers.core.docker_client import DockerClient  # type: ignore[import-untyped]
 
 from nexus.core.database.ssl import build_ssl_connect_args
-from tests.helpers.tls import generate_ca, generate_server_cert
 
 if TYPE_CHECKING:
     from collections.abc import Generator

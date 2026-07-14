@@ -19,8 +19,8 @@ from nexus_api_client.models.sa_credential_create import SACredentialCreate
 from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 from nexus_api_client.models.service_account_status import ServiceAccountStatus
 from nexus_api_client.models.service_account_update import ServiceAccountUpdate
+from nexus_test_sdk.helpers import unique_name
 
-from tests.e2e.conftest import unique_name
 from tests.e2e.service_accounts import create_sa
 
 if TYPE_CHECKING:

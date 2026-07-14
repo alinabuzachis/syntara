@@ -15,8 +15,7 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import WorkflowDefinition
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.workflow_validate_request import WorkflowValidateRequest
-
-from tests.e2e.helpers import create_and_run_workflow
+from nexus_test_sdk.e2e.helpers import create_and_run_workflow
 
 # ---------------------------------------------------------------------------
 # Converge validation

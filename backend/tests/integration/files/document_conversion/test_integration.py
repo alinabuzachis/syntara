@@ -5,17 +5,16 @@ file_ids (UUIDs) instead of full file_metadata. The actual FileMetadata records
 are stored in the FileMetadata database table, not in context_data.
 """
 
-from pathlib import Path
 from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from nexus_test_sdk.app.files import get_fixtures_dir
+from nexus_test_sdk.helpers.invocations import wait_for_invocation_execution
 
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
-from tests.helpers.invocations import wait_for_invocation_execution
 
-# Test fixtures directory
-FIXTURES_DIR = Path(__file__).parent.parent.parent.parent / "fixtures" / "files"
+FIXTURES_DIR = get_fixtures_dir()
 
 
 @pytest.mark.asyncio

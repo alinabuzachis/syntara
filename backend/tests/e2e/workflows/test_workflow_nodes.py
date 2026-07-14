@@ -15,8 +15,7 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
-
-from tests.e2e.helpers import create_and_run_workflow
+from nexus_test_sdk.e2e.helpers import create_and_run_workflow
 
 AGENTIC_POLL_TIMEOUT = 120
 

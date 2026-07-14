@@ -29,10 +29,12 @@ from nexus_api_client.models.role_principal_type import RolePrincipalType
 from nexus_api_client.models.upload_files_body import UploadFilesBody
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
-
-from tests.e2e.conftest import generate_test_password, unique_name
-from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
-from tests.fixtures.factories import get_bearer_token_type_id
+from nexus_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
+from nexus_test_sdk.factories import get_bearer_token_type_id
+from nexus_test_sdk.helpers import (
+    generate_test_password,
+    unique_name,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable

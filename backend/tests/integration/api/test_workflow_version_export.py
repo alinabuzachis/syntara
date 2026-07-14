@@ -8,8 +8,7 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-
-from tests.helpers.workflow import create_minimal_workflow_definition
+from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio

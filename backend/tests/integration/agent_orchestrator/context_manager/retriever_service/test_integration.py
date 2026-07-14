@@ -1,22 +1,21 @@
 """Integration test for RetrieverService with agent invocation workflow."""
 
 import asyncio
-from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
+from nexus_test_sdk.app.files import get_fixtures_dir
+from nexus_test_sdk.helpers.invocations import wait_for_invocation_execution
 
 from nexus.agent_orchestrator.models import Invocation
 from nexus.agent_orchestrator.services.streaming_service import get_invocation_stream_id
 from nexus.core.cache.stream import StreamClient
 from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 from nexus.files.models import FileMetadata
-from tests.helpers.invocations import wait_for_invocation_execution
 
 pytestmark = pytest.mark.integration
 
-# Test fixtures directory
-FIXTURES_DIR = Path(__file__).parent.parent.parent.parent.parent / "fixtures" / "files"
+FIXTURES_DIR = get_fixtures_dir()
 
 
 @pytest.mark.asyncio

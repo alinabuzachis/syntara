@@ -109,7 +109,7 @@ class TestLoadRevokedSerials:
     """Tests for _load_revoked_serials using generate_crl helper."""
 
     def test_loads_empty_crl(self, tmp_path: Path) -> None:
-        from tests.helpers.tls import generate_ca, generate_crl
+        from nexus_test_sdk.helpers.tls import generate_ca, generate_crl
 
         ca_key, ca_cert = generate_ca(tmp_path)
         crl_path = generate_crl(tmp_path, ca_key, ca_cert)
@@ -117,7 +117,7 @@ class TestLoadRevokedSerials:
         assert serials == frozenset()
 
     def test_loads_revoked_serials(self, tmp_path: Path) -> None:
-        from tests.helpers.tls import generate_ca, generate_crl, generate_service_cert
+        from nexus_test_sdk.helpers.tls import generate_ca, generate_crl, generate_service_cert
 
         ca_key, ca_cert = generate_ca(tmp_path)
         cert_path, _ = generate_service_cert(tmp_path, ca_key, ca_cert, common_name="revoked.svc")
@@ -161,7 +161,7 @@ class TestClientCertAuthMiddleware:
 
     @pytest.fixture
     def _tls_with_revocation(self, tmp_path: Path) -> Generator[None]:
-        from tests.helpers.tls import generate_ca, generate_crl, generate_service_cert
+        from nexus_test_sdk.helpers.tls import generate_ca, generate_crl, generate_service_cert
 
         ca_key, ca_cert = generate_ca(tmp_path)
         cert_path, _ = generate_service_cert(tmp_path, ca_key, ca_cert, common_name="revoked.svc")

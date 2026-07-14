@@ -8,6 +8,8 @@ Nexus is a distributed multi-agent automation system. This monorepo contains the
 syntara/
 ├── backend/           # Python 3.12+ / FastAPI API, Temporal workflows, PostgreSQL
 │   ├── src/nexus/     # Main Python package (domain-driven, auto-discovered routers)
+│   ├── src/api_client/# Auto-generated Python API client (nexus-api-client)
+│   ├── test-sdk/      # Shared pytest plugin (nexus-test-sdk) — installable via pip from git
 │   ├── tests/         # pytest: unit, integration, contract, E2E, performance
 │   ├── containers/    # Containerfiles for API and MCP server
 │   └── Makefile       # Backend-specific targets (run make -C backend help)

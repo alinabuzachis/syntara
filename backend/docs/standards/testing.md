@@ -8,7 +8,6 @@ All tests reside under `tests/` and are organized by test type:
 
 ```
 tests/
-├── conftest.py          # Session-level fixtures
 ├── __init__.py
 ├── cli/                 # CLI tests (aap-orchestrator-cli package)
 │   ├── test_spec.py
@@ -18,18 +17,14 @@ tests/
 │   ├── auth/
 │   ├── authz/
 │   ├── credentials/
-│   ├── fixtures/
-│   ├── identity_providers/
 │   ├── integrations/
+│   ├── service_accounts/
 │   ├── settings/
-│   ├── telemetry/
 │   ├── tool_manager/
 │   └── workflows/
-├── fixtures/            # Shared test fixtures and mock resources
-│   ├── external_services/
-│   └── files/
 ├── helpers/             # Test helper utilities
 ├── integration/         # Integration tests (database, services)
+│   ├── admin/
 │   ├── agent_orchestrator/  # Includes context_manager/, services/, token_manager/, tool_manager/
 │   ├── api/             # API endpoint tests
 │   ├── approvals/       # Approvals tests (contract tests for API endpoints)
@@ -41,25 +36,35 @@ tests/
 │   ├── integrations/    # Integration tests
 │   ├── invocations/     # Invocation tests (includes contract tests)
 │   ├── metrics/         # Metrics tests
+│   ├── projects/        # Projects tests
 │   ├── settings/        # Settings tests
 │   ├── telemetry/       # Telemetry tests (includes contract tests)
 │   ├── tool_manager/    # Tool manager tests
+│   ├── users/           # User management tests
+│   ├── websocket/       # WebSocket tests
 │   └── workflows/       # Includes examples/, fixtures/, services/, workflow_engine/
 ├── performance/         # Performance tests (opt-in via --run-performance)
+│   ├── agent_orchestration/
 │   ├── agent_orchestrator/
 │   ├── api_service/
+│   ├── audit/
+│   ├── authentication/
 │   ├── chat_window/
 │   ├── cli/
+│   ├── cost_tracking/
 │   ├── database/
+│   ├── e2e_agentic/
 │   ├── execution_service/
 │   ├── files/
 │   ├── invocation_service/
+│   ├── llm_model/
 │   ├── model_management/
 │   ├── routing_service/
 │   ├── system_wide/
 │   ├── telemetry/
 │   ├── temporal_worker/
 │   ├── tool_manager/
+│   ├── websocket/
 │   └── workflow_engine/
 └── unit/                # Unit tests (isolated, no external deps)
     ├── aap/                 # Includes models/, services/
@@ -69,6 +74,7 @@ tests/
     ├── api/                 # Includes v1/
     ├── approvals/           # Includes clients/, models/
     ├── audit/               # Includes events/, export/, models/, outbox/, retention/, services/
+    ├── auth/
     ├── authz/               # Includes audit/, services/
     ├── core/                # Includes auth/, cache/, config/, database/, lib/, logging/, models/, router/, services/, utils/, websocket/, workers/
     ├── credentials/         # Includes audit/, cli/, lib/, services/
@@ -79,6 +85,7 @@ tests/
     ├── metrics/
     ├── projects/            # Includes services/
     ├── schemas/
+    ├── service_accounts/
     ├── settings/            # Includes audit/, cache/, models/, services/
     ├── telemetry/           # Includes events/, handlers/
     ├── tool_manager/        # Includes audit/, lib/, models/, services/
@@ -91,7 +98,7 @@ tests/
 - Test directory structure mirrors `src/nexus/` hierarchy within each test category
   - Example: `tests/unit/agent_orchestrator/` maps to `src/nexus/agent_orchestrator/`
 - Domain-specific conftest files provide domain-specific fixtures at appropriate hierarchy levels
-- Shared test data goes in `tests/fixtures/`
+- Sample test files (PDFs, images, documents) live in `test-sdk/src/nexus_test_sdk/fixtures/files/` and are accessed via `get_fixtures_dir()` from `nexus_test_sdk.app.files`
 - Reusable test utilities go in `tests/helpers/`
 
 ## File Naming
@@ -269,19 +276,25 @@ async def test_workflow_execution_performance(base_client: AsyncClient) -> None:
 
 ## conftest.py Hierarchy
 
-The project uses a hierarchical conftest.py structure with 14 files at various levels:
+The project uses a two-level conftest structure. Base fixtures come from the `nexus-test-sdk` plugin (installed as a `pytest11` entry point) — no root `tests/conftest.py` is needed.
 
-**Root conftest.py (`tests/conftest.py`):**
-- Session-scoped database engine (testcontainers)
-- Temporal test environment fixtures
-- FastAPI test clients (authenticated and base)
-- Model factories (users, workflows, tools)
-- Mock fixtures (MCP providers, external services)
-- Pytest hooks (collection, performance test filtering)
+**`nexus-test-sdk` plugin (registered via `pytest_plugins` in `plugin.py`):**
+- Session-scoped database engine and Redis cache (testcontainers)
+- Temporal test environment and worker fixtures
+- FastAPI test clients (`base_client`, `auth_client`, `jwt_client`, `session_app`)
+- Model factories: users, workflows, groups, tools, credentials, executions
+- Mock fixtures: `mock_openrouter_llm`, `mock_websocket`, `FakeSettingsCache`
+- Settings overrides: `override_settings`, `override_runtime_settings`
+- Pytest hooks: performance test filtering, lock file cleanup, `worker_id`
+- Shared helpers: `MockMCPProvider`, `ExampleMCPServer`, test fixture files
+
+**Test-type conftest files:**
+- `tests/integration/conftest.py` — template-based DB isolation (PostgreSQL `TEMPLATE` restore per test), authz evaluator mock, moto S3 mock, `test_project_id`
+- `tests/unit/conftest.py` — authz cache reset, encryption key env var, resource-actions registry init
 
 **Domain-level conftest files:**
-- Provide domain-specific fixtures
-- Override or extend root fixtures where needed
+- Provide domain-specific fixtures (e.g., TLS bypass, seeded authz data, credential types)
+- Override SDK fixtures where integration semantics differ (e.g., `test_db_session` uses real commits in integration, rollback in unit)
 - Keep fixtures close to tests that use them
 
 **Fixture Scoping Rules:**

@@ -6,11 +6,11 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from nexus_test_sdk.app.files import get_fixtures_dir
+from nexus_test_sdk.helpers.error_data import assert_error_data
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from tests.fixtures import get_fixtures_dir
-from tests.helpers.error_data import assert_error_data
 
 
 @pytest.fixture

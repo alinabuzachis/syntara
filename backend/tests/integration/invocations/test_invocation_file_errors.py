@@ -9,8 +9,7 @@ These tests validate:
 
 import pytest
 from httpx import AsyncClient
-
-from tests.fixtures import get_fixtures_dir
+from nexus_test_sdk.app.files import get_fixtures_dir
 
 
 @pytest.mark.asyncio

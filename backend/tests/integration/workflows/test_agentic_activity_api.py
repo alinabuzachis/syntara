@@ -13,10 +13,10 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from nexus_test_sdk.helpers.temporal import CompleteAsyncError
 from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
-from tests.helpers.temporal import CompleteAsyncError
 
 
 def create_mock_client_response(**kwargs: object) -> dict[str, Any]:

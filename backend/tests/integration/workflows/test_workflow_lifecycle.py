@@ -14,8 +14,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
-
-from tests.helpers.workflow import (
+from nexus_test_sdk.helpers.workflow import (
     create_minimal_workflow_definition,
     create_workflow_definition_with_activities,
 )

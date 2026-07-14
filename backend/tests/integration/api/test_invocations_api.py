@@ -2,9 +2,9 @@
 
 import pytest
 from httpx import AsyncClient
+from nexus_test_sdk.helpers.invocations import wait_for_invocation_execution
 
 from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
-from tests.helpers.invocations import wait_for_invocation_execution
 
 
 @pytest.mark.asyncio

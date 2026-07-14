@@ -14,9 +14,8 @@ from nexus_api_client.models.test_execution_create import TestExecutionCreate
 from nexus_api_client.models.***REMOVED*** import TestExecutionCreatePreResolvedNodes
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
-
-from tests.e2e.conftest import poll_execution_until_complete, unique_name
-from tests.e2e.helpers import connected_definition
+from nexus_test_sdk.e2e.helpers import connected_definition, poll_execution_until_complete
+from nexus_test_sdk.helpers import unique_name
 
 if TYPE_CHECKING:
     from collections.abc import Callable

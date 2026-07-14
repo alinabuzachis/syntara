@@ -18,8 +18,7 @@ from nexus_api_client.models.publish_version_request import PublishVersionReques
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from nexus_api_client.models.workflow_update import WorkflowUpdate
-
-from tests.e2e.conftest import unique_name
+from nexus_test_sdk.helpers import unique_name
 
 if TYPE_CHECKING:
     from collections.abc import Callable

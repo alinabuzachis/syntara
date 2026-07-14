@@ -16,9 +16,8 @@ from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
-
-from tests.e2e.conftest import poll_execution_until_complete, unique_name
-from tests.e2e.helpers import wait_for_agentic_activity
+from nexus_test_sdk.e2e.helpers import poll_execution_until_complete, wait_for_agentic_activity
+from nexus_test_sdk.helpers import unique_name
 
 if TYPE_CHECKING:
     from collections.abc import Callable

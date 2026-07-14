@@ -9,12 +9,12 @@ from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from nexus_test_sdk.app import FakeSettingsCache
 
 from nexus.agent_orchestrator.context_manager import (
     AssemblerService,
     CompressorService,
 )
-from tests.conftest import FakeSettingsCache
 
 
 class TestCompressorService:

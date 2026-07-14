@@ -62,12 +62,14 @@ check-deps: _check-dependency-binaries _ensure-secrets ## Check if all dependenc
 _deps-install-dev: _check-uv
 	@echo "📦 Installing development dependencies with uv..."
 	uv sync --extra dev
+	uv pip install --editable test-sdk/
 	@echo "✅ Development dependencies installed successfully"
 
 .PHONY: install-integration
-install-integration: _deps-install-dev ## Install integration test dependencies (requires SSH access to private repos)
+install-integration: _deps-install-dev ## Install integration test dependencies
 	@echo "📦 Installing integration dependencies with uv..."
 	uv sync --extra dev --extra integration
+	uv pip install --editable test-sdk/
 	@echo "✅ Integration dependencies installed successfully"
 
 _deps-install-pre-commit:
@@ -208,7 +210,10 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/ -v -m global_revocation)
 else
 	@echo "🧪 Running global revocation E2E tests..."
-	uv run pytest tests/e2e/ -v -m global_revocation
+	uv run pytest tests/e2e/ -v -m global_revocation; \
+	exitcode=$$?; \
+	if [ $$exitcode -eq 5 ]; then echo "⚠️  No global revocation tests found — all migrated downstream"; exit 0; fi; \
+	exit $$exitcode
 endif
 
 # Compatibility aliases for common workflows

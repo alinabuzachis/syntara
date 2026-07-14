@@ -13,8 +13,7 @@ from typing import Any
 import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models.execution_status import ExecutionStatus
-
-from tests.e2e.helpers import create_and_run_workflow
+from nexus_test_sdk.e2e.helpers import create_and_run_workflow
 
 WAIT_POLL_TIMEOUT = 30
 

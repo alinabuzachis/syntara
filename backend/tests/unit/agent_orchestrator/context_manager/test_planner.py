@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
+from nexus_test_sdk.app import FakeSettingsCache
 
 from nexus.agent_orchestrator.context_manager import (
     ContextManagerPlanner,
@@ -19,7 +20,6 @@ from nexus.agent_orchestrator.context_manager import (
 from nexus.agent_orchestrator.context_manager.retriever_service.services import get_retriever_service
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from tests.conftest import FakeSettingsCache
 
 
 class TestContextManagerPlanner:

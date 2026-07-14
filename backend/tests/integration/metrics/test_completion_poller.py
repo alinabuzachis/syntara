@@ -26,8 +26,9 @@ from nexus.workflows.models.activity_execution import ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 
 if TYPE_CHECKING:
+    from nexus_test_sdk.helpers.workflow import ActivitiesFactory, ExecutionsFactory
+
     from nexus.workflows.models.workflow import Workflow
-    from tests.helpers.workflow import ActivitiesFactory, ExecutionsFactory
 
 
 @pytest.fixture

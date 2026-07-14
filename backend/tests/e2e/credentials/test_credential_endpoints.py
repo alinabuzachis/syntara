@@ -25,8 +25,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
-
-    from tests.fixtures.factories.credential_factories import CredentialFactory
+    from nexus_test_sdk.factories.credentials import CredentialFactory
 
 
 if not os.environ.get("APP_BASE_URL"):
@@ -36,9 +35,8 @@ from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.credential_update import CredentialUpdate
 from nexus_api_client.models.credential_update_inputs_type_0 import CredentialUpdateInputsType0
-
-from tests.e2e.conftest import unique_name
-from tests.fixtures.factories import get_bearer_token_type_id
+from nexus_test_sdk.factories import get_bearer_token_type_id
+from nexus_test_sdk.helpers import unique_name
 
 pytestmark = [pytest.mark.e2e]
 
@@ -184,7 +182,7 @@ class TestCredentialScrubbing:
         create_credential: CredentialFactory,
     ) -> None:
         """Script node prints credential value to stdout — must be [REDACTED] in execution history."""
-        from tests.e2e.helpers import create_and_run_workflow
+        from nexus_test_sdk.e2e.helpers import create_and_run_workflow
 
         cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, name="e2e-scrub-stdout")
 

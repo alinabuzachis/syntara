@@ -13,8 +13,7 @@ import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_create_labels import WorkflowCreateLabels
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
-
-from tests.helpers.workflow import create_minimal_workflow_definition
+from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
 
 if TYPE_CHECKING:
     from uuid import UUID

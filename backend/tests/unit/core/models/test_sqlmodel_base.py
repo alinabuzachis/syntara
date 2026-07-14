@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
+from nexus_test_sdk.app.mock_shared_resources import MockBaseResource, MockNamedResource, MockResource
 from pydantic import ValidationError
 
 from nexus.core.models.base import (
@@ -19,7 +20,6 @@ from nexus.core.models.base import (
     UserOwnedResource,
 )
 from nexus.core.models.pagination import ResourcesResponse, ResourcesResponseBase
-from tests.fixtures.mock_shared_resources import MockBaseResource, MockNamedResource, MockResource
 
 
 class TestSQLModelBaseClasses:

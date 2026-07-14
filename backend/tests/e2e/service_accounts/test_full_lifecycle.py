@@ -28,8 +28,7 @@ from tests.e2e.service_accounts import create_sa, create_sa_with_credential, pol
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
-
-    from tests.fixtures.factories import ProjectFactory
+    from nexus_test_sdk.factories import ProjectFactory
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)

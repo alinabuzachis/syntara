@@ -9,6 +9,7 @@ Tests the authorization logic for approvals including:
 from uuid import UUID, uuid4
 
 import pytest
+from nexus_test_sdk.helpers.workflow import ExecutionsFactory
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -30,7 +31,6 @@ from nexus.approvals.services.approval_service import ApprovalService
 from nexus.authz.engine import AuthzResult
 from nexus.core.models import Group, User
 from nexus.core.models.group import user_groups
-from tests.helpers.workflow import ExecutionsFactory
 
 
 @pytest.fixture(autouse=True)
