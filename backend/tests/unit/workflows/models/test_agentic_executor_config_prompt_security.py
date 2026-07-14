@@ -150,7 +150,6 @@ class TestAgenticExecutorParametersPromptValidatorIntegration:
             {
                 "prompt": "Analyze the following data",
                 "agent": "analyzer",
-                "model": "claude-3-5-sonnet",
                 "timeout": 120,
                 "file_ids": ["550e8400-e29b-41d4-a716-446655440000"],
             }

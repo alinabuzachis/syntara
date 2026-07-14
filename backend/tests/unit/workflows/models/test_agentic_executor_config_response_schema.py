@@ -199,13 +199,11 @@ class TestAgenticExecutorParametersResponseSchemaIntegration:
         config = AgenticExecutorParameters(
             prompt="Analyze the data",
             agent="data-analyzer",
-            model="gpt-4",
             responseSchema=schema,
         )
 
         assert config.prompt == "Analyze the data"
         assert config.agent == "data-analyzer"
-        assert config.model == "gpt-4"
         assert config.response_schema == schema
 
     def test_config_from_workflow_yaml_format_with_schema(self) -> None:
@@ -213,7 +211,6 @@ class TestAgenticExecutorParametersResponseSchemaIntegration:
         yaml_config = {
             "prompt": "Extract server info",
             "agent": "server-analyzer",
-            "model": "claude-3-5-sonnet",
             "timeout": 600,
             "responseSchema": {
                 "type": "object",

@@ -26,15 +26,15 @@ import {
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { detachPromise } from '../../../utils/detachPromise'
 import { generateUUID } from '../../../utils/generateUUID'
-import { CredentialSelector } from '../components/CredentialSelector'
 import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
 import { FileUpload, type UploadedFile } from '../components/file-upload'
+import { LLMCredentialStatus } from '../components/LLMCredentialStatus'
+import { LLMModelSelector, type LLMModelSelection } from '../components/LLMModelSelector'
 import { DroppableField } from '../panels/fields/DroppableField'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { aiAgentFormSchema, type AIAgentFormData } from './aiAgentFormSchema'
 import { ConnectionsSection } from './ConnectionsSection'
-import { credentialHelpText } from './credentialSelectorHelpText'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
@@ -169,6 +169,46 @@ function ToolsLoadError({ onRetry }: Readonly<{ onRetry: () => void }>) {
   )
 }
 
+type LLMSectionProps = Readonly<{ isVersionView: boolean; projectId?: string }>
+
+function LLMSection({ isVersionView, projectId }: LLMSectionProps) {
+  const { control, setValue } = useFormContext<AIAgentFormData>()
+
+  // useWatch fires synchronously in the same render as setValue — avoids the stale
+  // closure bug that Controller's render prop had when llm_model_id and credential_id
+  // were updated in the same event handler.
+  const [watchedLlmModelId, watchedCredentialId] = useWatch({
+    control,
+    name: ['llm_model_id', 'credential_id'],
+  })
+
+  const selection: LLMModelSelection | undefined = watchedLlmModelId ? { llm_model_id: watchedLlmModelId } : undefined
+
+  return (
+    <>
+      <StackItem>
+        <LLMModelSelector
+          value={selection}
+          onChange={(newSelection) => {
+            setValue('llm_model_id', newSelection?.llm_model_id ?? '', { shouldDirty: true })
+            if (!newSelection) setValue('credential_id', undefined, { shouldDirty: true })
+          }}
+          isDisabled={isVersionView}
+        />
+      </StackItem>
+      <StackItem>
+        <LLMCredentialStatus
+          modelSelected={!!watchedLlmModelId}
+          credentialId={watchedCredentialId}
+          onChange={(credentialId) => setValue('credential_id', credentialId, { shouldDirty: true })}
+          isDisabled={isVersionView}
+          projectId={projectId}
+        />
+      </StackItem>
+    </>
+  )
+}
+
 type AIAgentFormFieldsProps = Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
@@ -282,28 +322,7 @@ function AIAgentFormFields({
 
   const parametersContent = (
     <Stack hasGutter>
-      <StackItem>
-        <Controller
-          control={control}
-          name="credential_id"
-          render={({ field }) => (
-            <CredentialSelector
-              value={field.value ?? undefined}
-              onChange={field.onChange}
-              compatibleTypeNames={['LLM Provider']}
-              label="LLM provider credential"
-              fieldId="agent-credential"
-              placeholder="Select LLM credential"
-              allowCreate
-              isDisabled={isVersionView}
-              projectId={projectId}
-              helpText={credentialHelpText(
-                'Select a stored credential for the LLM provider. Credentials securely store API keys and authentication tokens.'
-              )}
-            />
-          )}
-        />
-      </StackItem>
+      <LLMSection isVersionView={isVersionView} projectId={projectId} />
       <StackItem>
         <FormGroup label="Prompt" fieldId="agent-prompt" isRequired>
           <DroppableField
@@ -412,9 +431,6 @@ function AIAgentFormFields({
 }
 
 export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
-  const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
-  const defaultModel = envModel || 'anthropic/claude-haiku-4.5'
-
   const {
     data: toolsData,
     isPending: isLoadingTools,
@@ -479,12 +495,12 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
 
   const defaultValues: AIAgentFormData = {
     name: '',
-    model: defaultModel,
+    llm_model_id: '',
     prompt: '',
     tool_selection_strategy: 'NONE',
     tool_selections: [],
     integration_connections: [],
-    credential_id: '',
+    credential_id: undefined,
     settings: {},
     ...props.initialData,
   }

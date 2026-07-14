@@ -49,7 +49,7 @@ class TestWorkflowAgenticSignal:
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
         llm_credential_id: str,
-        llm_model: str,
+        llm_model_id: str,
     ) -> None:
         """API-24: AI Agent node starts, blocks on signal, resumes when completed."""
         # Step 1: Create a workflow with an agentic node and a downstream script
@@ -77,7 +77,7 @@ class TestWorkflowAgenticSignal:
                                         "in the majority of AAP installations. Return ONLY JSON: "
                                         '{"default_job_template": "template_name_here"}'
                                     ),
-                                    "model": llm_model,
+                                    "llm_model_id": llm_model_id,
                                     "credential_id": llm_credential_id,
                                 },
                             },

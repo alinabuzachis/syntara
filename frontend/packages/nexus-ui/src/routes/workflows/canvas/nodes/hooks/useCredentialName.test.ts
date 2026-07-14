@@ -14,12 +14,13 @@ import { useCredentialName } from './useCredentialName'
 const mockUseQuery = vi.mocked(credentialsClient.useQuery)
 
 describe('useCredentialName', () => {
-  it('returns undefined when credentialId is undefined', () => {
+  it('returns undefined name when credentialId is undefined', () => {
     mockUseQuery.mockReturnValue({ data: undefined, isPending: false } as ReturnType<typeof mockUseQuery>)
 
     const { result } = renderHook(() => useCredentialName(undefined))
 
-    expect(result.current).toBeUndefined()
+    expect(result.current.name).toBeUndefined()
+    expect(result.current.isPending).toBe(false)
     expect(mockUseQuery).toHaveBeenCalledWith(
       'get',
       '/credentials/{credential_id}',
@@ -37,8 +38,9 @@ describe('useCredentialName', () => {
     const { result } = renderHook(() => useCredentialName('cred-123'))
 
     await waitFor(() => {
-      expect(result.current).toBe('My OpenAI Key')
+      expect(result.current.name).toBe('My OpenAI Key')
     })
+    expect(result.current.isPending).toBe(false)
     expect(mockUseQuery).toHaveBeenCalledWith(
       'get',
       '/credentials/{credential_id}',
@@ -47,15 +49,16 @@ describe('useCredentialName', () => {
     )
   })
 
-  it('returns undefined when query returns no data', () => {
+  it('returns isPending true when query is loading', () => {
     mockUseQuery.mockReturnValue({ data: undefined, isPending: true } as ReturnType<typeof mockUseQuery>)
 
     const { result } = renderHook(() => useCredentialName('cred-456'))
 
-    expect(result.current).toBeUndefined()
+    expect(result.current.name).toBeUndefined()
+    expect(result.current.isPending).toBe(true)
   })
 
-  it('returns undefined when credential has no name', () => {
+  it('returns undefined name when credential has no name', () => {
     mockUseQuery.mockReturnValue({
       data: { id: 'cred-789' },
       isPending: false,
@@ -63,6 +66,7 @@ describe('useCredentialName', () => {
 
     const { result } = renderHook(() => useCredentialName('cred-789'))
 
-    expect(result.current).toBeUndefined()
+    expect(result.current.name).toBeUndefined()
+    expect(result.current.isPending).toBe(false)
   })
 })

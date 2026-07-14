@@ -18,6 +18,12 @@ import { type Page } from '@playwright/test'
 import { test, expect } from './fixtures'
 import { createCredentialOfTypeViaUI, deleteCredentialByName, isCredentialsResponse } from './helpers/credentials'
 import {
+  type SeededLlmIntegration,
+  deleteLlmIntegration,
+  createLlmIntegration,
+  selectLlmCredential,
+} from './helpers/llm-helpers'
+import {
   buildUniqueName,
   clickAddConnectedStep,
   closeNodeEditorPanel,
@@ -41,8 +47,12 @@ test.describe('Credential Persistence', () => {
   test('Task Agent node credential persists after save/reload', async ({ app }) => {
     const credName = buildUniqueName('e2e-persist-llm')
     const workflowName = buildUniqueName('e2e-persist-ai')
+    const integrationName = buildUniqueName('e2e-llm-integ')
+    let integration: SeededLlmIntegration | undefined
 
     try {
+      integration = await createLlmIntegration(app, integrationName)
+
       await createCredentialOfTypeViaUI(app, {
         name: credName,
         type: 'LLM Provider',
@@ -51,15 +61,15 @@ test.describe('Credential Persistence', () => {
 
       await startWorkflowWithTrigger(app)
 
-      const credentialsLoaded = app.waitForResponse(isCredentialsResponse)
       const panel = await clickAddConnectedStep(app)
       await panel.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Test Task Agent')
       await app.getByLabel('Prompt').fill('Analyze the data')
-      await credentialsLoaded
 
-      await selectCredential(app, 'LLM provider credential', credName)
+      // Select model + credential via the LLM model picker UX
+      // (credentials are fetched when "Set up connection" is clicked after model selection)
+      await selectLlmCredential(app, credName)
 
       await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
@@ -67,18 +77,16 @@ test.describe('Credential Persistence', () => {
 
       await openWorkflowInBuilder(app, workflowName)
 
-      // Set up response listener before the click to avoid race conditions
-      const reloadedCredentialsLoaded = app.waitForResponse(isCredentialsResponse)
       await app.getByText('Test Task Agent').click()
-      await reloadedCredentialsLoaded.catch(() => {
-        // Response may have already fired during openWorkflowInBuilder; ignore timeout
-      })
 
-      const credToggle = app.getByRole('button', { name: 'LLM provider credential', exact: true })
-      await expect(credToggle).toContainText(credName, { timeout: 15_000 })
+      // Wait for the form to render, then for the credential name to resolve
+      const form = app.getByTestId('ai-agent-node-form')
+      await expect(form).toBeVisible({ timeout: 10_000 })
+      await expect(form.getByText(credName)).toBeVisible({ timeout: 30_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
       await deleteCredentialByName(app, credName)
+      if (integration) await deleteLlmIntegration(app, integration.id)
     }
   })
 
@@ -112,14 +120,10 @@ test.describe('Credential Persistence', () => {
 
       await openWorkflowInBuilder(app, workflowName)
 
-      const reloadedCredentialsLoaded = app.waitForResponse(isCredentialsResponse)
       await app.getByText('Test REST API').click()
-      await reloadedCredentialsLoaded.catch(() => {
-        // Response may have already fired during openWorkflowInBuilder; ignore timeout
-      })
 
       const credToggle = app.getByRole('button', { name: 'Authentication credential', exact: true })
-      await expect(credToggle).toContainText(credName, { timeout: 15_000 })
+      await expect(credToggle).toContainText(credName, { timeout: 30_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
       await deleteCredentialByName(app, credName)

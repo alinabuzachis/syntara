@@ -14,3 +14,4 @@ class LLMCredentialConfig:
     api_key: str
     base_url: str
     model: str
+    provider_hint: str | None = None

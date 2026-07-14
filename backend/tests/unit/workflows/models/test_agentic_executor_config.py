@@ -265,13 +265,11 @@ class TestAgenticExecutorParametersIntegration:
         config = AgenticExecutorParameters(
             prompt="Analyze the documents and provide a summary",
             agent="document-analyzer",
-            model="gpt-4",
             file_ids=file_ids,
         )
 
         assert config.prompt == "Analyze the documents and provide a summary"
         assert config.agent == "document-analyzer"
-        assert config.model == "gpt-4"
         assert config.file_ids == file_ids
 
     def test_config_from_workflow_yaml_format(self) -> None:
@@ -279,7 +277,6 @@ class TestAgenticExecutorParametersIntegration:
         yaml_config = {
             "prompt": "Process these files",
             "agent": "file-processor",
-            "model": "claude-3-5-sonnet",
             "file_ids": [
                 "550e8400-e29b-41d4-a716-446655440000",
                 "${input.additional_file}",

@@ -112,7 +112,6 @@ class TestInvocationServiceCreateAuditEvents:
                 "model": "gpt-4",
                 "callback_url": "https://example.com/webhook",
                 "metadata": {
-                    "llm_provider": "openrouter",
                     "response_schema": {"type": "object", "properties": {}},
                 },
             },
@@ -130,7 +129,6 @@ class TestInvocationServiceCreateAuditEvents:
         data_dict = event.structured_data.model_dump()
         metadata = data_dict["metadata"]
         assert "response_schema" not in metadata
-        assert metadata["llm_provider"] == "openrouter"
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")

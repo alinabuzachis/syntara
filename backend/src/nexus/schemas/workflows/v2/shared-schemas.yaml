@@ -1858,11 +1858,12 @@ components:
             - type: string
             - type: 'null'
           title: Agent
-        model:
+        llm_model_id:
           anyOf:
             - type: string
             - type: 'null'
-          title: Model
+          title: Llm Model Id
+          description: UUID of the LLMModel record identifying the provider integration and model.
         credential_id:
           anyOf:
             - type: string

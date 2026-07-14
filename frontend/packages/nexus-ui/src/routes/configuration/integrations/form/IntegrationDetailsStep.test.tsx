@@ -114,7 +114,7 @@ describe('IntegrationDetailsStep', () => {
 
       expect(screen.getByText('Red Hat AI')).toBeInTheDocument()
 
-      const typeToggle2 = screen.getByText('LLM Provider')
+      const typeToggle2 = screen.getByRole('button', { name: 'LLM Provider' })
       await user.click(typeToggle2)
       await user.click(screen.getByRole('option', { name: 'MCP Server' }))
 

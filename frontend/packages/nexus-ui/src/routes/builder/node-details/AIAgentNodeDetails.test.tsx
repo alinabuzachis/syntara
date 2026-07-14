@@ -26,7 +26,7 @@ vi.mock('../../../stores/useWorkflowStore', async (importOriginal) => ({
       toolSelections?: string[]
       integrationConnections?: { integration_id: string; credential_id: string }[]
       prompt?: string
-      model?: string
+      llmModelId?: string
       inputs?: string
       fileIds?: string[]
     }) => ({
@@ -37,7 +37,7 @@ vi.mock('../../../stores/useWorkflowStore', async (importOriginal) => ({
         ...(options.toolSelections && options.toolSelections.length > 0 && { tool_selections: options.toolSelections }),
         ...(options.toolSelections?.length === 0 && { tool_selection_strategy: 'NONE' }),
         ...(options.prompt && { prompt: options.prompt }),
-        ...(options.model && { model: options.model }),
+        ...(options.llmModelId && { llm_model_id: options.llmModelId }),
         ...(options.fileIds && options.fileIds.length > 0 && { file_ids: options.fileIds }),
       },
     })
@@ -66,7 +66,7 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
     onCancel: () => void
     initialData?: {
       name?: string
-      model?: string
+      llm_model_id?: string
       prompt?: string
       tool_selections?: string[]
       integration_connections?: { integration_id: string; credential_id: string }[]
@@ -78,7 +78,7 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
   }) => (
     <div data-testid="ai-agent-form">
       <div data-testid="initial-name">{initialData?.name ?? ''}</div>
-      <div data-testid="initial-model">{initialData?.model ?? ''}</div>
+      <div data-testid="initial-model">{initialData?.llm_model_id ?? ''}</div>
       <div data-testid="initial-prompt">{initialData?.prompt ?? ''}</div>
       <div data-testid="initial-tool-selections">{(initialData?.tool_selections ?? []).join(', ')}</div>
       <div data-testid="initial-credential-id">{initialData?.credential_id ?? ''}</div>
@@ -90,7 +90,7 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
         onClick={() =>
           onSubmit({
             name: 'Updated Agent',
-            model: 'gpt-4',
+            llm_model_id: 'test-model-uuid',
             prompt: 'Updated prompt',
             tool_selections: ['calculator', 'web_search'],
             integration_connections: [],
@@ -122,7 +122,7 @@ describe('AIAgentNodeDetails Component', () => {
       id: 'agent-1',
       name: 'Original Agent',
       parameters: {
-        model: 'anthropic/claude-3.5-sonnet',
+        llm_model_id: 'original-model-uuid',
         prompt: 'Original prompt',
       },
     }
@@ -139,7 +139,7 @@ describe('AIAgentNodeDetails Component', () => {
         name: 'Updated Agent',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         parameters: expect.objectContaining({
-          model: 'gpt-4',
+          llm_model_id: 'test-model-uuid',
           prompt: 'Updated prompt',
           tool_selections: ['calculator', 'web_search'],
         }),

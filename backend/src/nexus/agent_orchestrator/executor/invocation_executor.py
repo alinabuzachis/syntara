@@ -50,6 +50,9 @@ from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.files.file_manager import FileManager, get_file_manager
 from nexus.files.models import FileStatus
+from nexus.integrations.models.integration import Integration
+from nexus.integrations.models.integration_configuration import LLMProviderConfiguration
+from nexus.integrations.models.llm_model import LLMModel
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
@@ -572,29 +575,40 @@ class InvocationExecutor:
 
         Returns the OrchestrationService instance or ``None`` on failure.
         """
+        meta = ctx.metadata
+
         try:
             logger.info("Initializing LLM for invocation", invocation_id=invocation.id)
 
-            meta = ctx.metadata
-            credential_base_url = str(meta.llm_base_url) if meta and meta.llm_base_url else None
-            invocation_model = ctx.model
-
-            # Resolve API key via deferred credential resolution (no plaintext in DB).
             raw_credential_id = meta.credential_id.get_secret_value() if meta and meta.credential_id else None
             credential_api_key: str | None = None
             if raw_credential_id:
                 credential_api_key = await self._resolve_llm_api_key(raw_credential_id)
 
+            resolved_model: str | None = None
+            integration_base_url: str | None = None
+            provider_hint: str | None = None
+            if meta and meta.llm_model_id:
+                resolved_model, integration_base_url, provider_hint = await self._resolve_llm_model_and_integration(
+                    meta.llm_model_id
+                )
+            else:
+                logger.warning(
+                    "No llm_model_id configured, falling back to global LLM settings",
+                    invocation_id=invocation.id,
+                )
+
             llm = get_openrouter_llm(
                 api_key=credential_api_key,
-                base_url=credential_base_url,
-                model=invocation_model,
+                base_url=integration_base_url,
+                model=resolved_model,
             )
 
             llm_credential_config = LLMCredentialConfig(
                 api_key=credential_api_key or "",
                 base_url=str(llm.openai_api_base or ""),
                 model=llm.model_name,
+                provider_hint=provider_hint,
             )
 
             # Pass the credential-configured LLM to the compressor so it doesn't
@@ -613,7 +627,7 @@ class InvocationExecutor:
                 llm=llm,
                 context_manager_planner=context_manager_planner,
                 credential_resolver=self._make_mcp_credential_resolver(meta.integration_connections if meta else None),
-                tool_selection_strategy=meta.tool_selection_strategy if meta else "NONE",
+                tool_selection_strategy=(meta.tool_selection_strategy if meta else None) or "NONE",
                 tool_selections=list(meta.tool_selections) if meta else [],
             )
             logger.info("LLM initialized successfully for invocation", invocation_id=invocation.id)
@@ -786,6 +800,61 @@ class InvocationExecutor:
 
             logger.debug("Execution credential resolved", credential_id=credential_id)
             return resolved.extra_vars.get("bearer_token")
+
+    async def _resolve_llm_model_and_integration(self, llm_model_id: str) -> tuple[str, str | None, str | None]:
+        """Resolve an LLM model UUID to (model_id, base_url, provider_hint) in a single session.
+
+        Fetches the LLMModel record and its parent Integration in one DB session,
+        eliminating a second connection checkout and the TOCTOU window between them.
+
+        Args:
+            llm_model_id: UUID string of the LLMModel record.
+
+        Returns:
+            Tuple of (provider model_id e.g. 'gpt-4o', base_url, provider_hint).
+
+        Raises:
+            LLMConfigurationError: If the model or integration is not found, disabled, or misconfigured.
+
+        """
+        try:
+            model_uuid = UUID(llm_model_id)
+        except ValueError as e:
+            msg = f"Invalid LLM model ID '{llm_model_id}'."
+            raise LLMConfigurationError(msg) from e
+
+        async with self.get_async_session_context() as session:
+            model = await session.get(LLMModel, model_uuid)
+            if not model:
+                msg = f"LLM model '{llm_model_id}' not found."
+                raise LLMConfigurationError(msg)
+            if not model.enabled:
+                msg = f"LLM model '{llm_model_id}' is disabled."
+                raise LLMConfigurationError(msg)
+
+            integration = await session.get(Integration, model.integration_id)
+            integration_id = str(model.integration_id)
+            if not integration:
+                msg = f"LLM provider integration '{integration_id}' not found."
+                raise LLMConfigurationError(msg)
+            if not integration.enabled:
+                msg = f"LLM provider integration '{integration_id}' is disabled."
+                raise LLMConfigurationError(msg)
+            if not isinstance(integration.configuration, LLMProviderConfiguration):
+                msg = f"Integration '{integration_id}' is not an LLM provider."
+                raise LLMConfigurationError(msg)
+
+            config = integration.configuration
+            base_url = str(config.base_url) if config.base_url else None
+            provider_hint = config.provider_hint.value if config.provider_hint else None
+            logger.debug(
+                "Resolved LLM model and integration",
+                llm_model_id=llm_model_id,
+                model_id=model.model_id,
+                integration_id=integration_id,
+                provider_hint=provider_hint,
+            )
+            return model.model_id, base_url, provider_hint
 
     async def _resolve_llm_api_key(self, credential_id: str) -> str:
         """Decrypt LLM API key from credential at execution time.

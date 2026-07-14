@@ -258,7 +258,7 @@ export type CreateAgenticActivityOptions = {
   toolSelections?: string[]
   integrationConnections?: { integration_id: string; credential_id: string }[]
   prompt?: string
-  model?: string
+  llmModelId?: string
   inputs?: string
   fileIds?: string[]
   credentialId?: string
@@ -277,7 +277,7 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ac
     toolSelections,
     integrationConnections,
     prompt,
-    model,
+    llmModelId,
     fileIds,
     credentialId,
     responseSchema,
@@ -286,7 +286,7 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ac
   const config: Record<string, unknown> = {}
 
   if (prompt) config.prompt = prompt
-  if (model) config.model = model
+  if (llmModelId) config.llm_model_id = llmModelId
 
   if (toolSelectionStrategy !== undefined) {
     config.tool_selection_strategy = toolSelectionStrategy

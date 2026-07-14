@@ -9,7 +9,7 @@ import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
 export const aiAgentFormSchema = z
   .object({
     name: z.string(),
-    model: z.string().optional(),
+    llm_model_id: z.string().min(1, 'Model is required'),
     prompt: z.string().optional(),
     tool_selection_strategy: z.enum(['ALL', 'NONE', 'SELECTED']).optional(),
     tool_selections: z.array(z.string()).optional(),

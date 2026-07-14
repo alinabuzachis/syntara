@@ -430,7 +430,11 @@ def test_multi_node_workflow(nexus_api: NexusApiRegistry):
 @pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_script_then_agentic(
-    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
+    nexus_api: NexusApiRegistry,
+    mcp_integration_id: str,
+    llm_credential_id: str,
+    llm_model_id: str,
+    first_project_id: UUID,
 ):
     """A script node feeds into an agentic node."""
     result = create_and_run_workflow(
@@ -462,7 +466,7 @@ def test_script_then_agentic(
                             "Do not answer without calling the tool first."
                         ),
                         "credential_id": llm_credential_id,
-                        "model": llm_model,
+                        "llm_model_id": llm_model_id,
                     },
                 },
             ],
@@ -484,7 +488,11 @@ def test_script_then_agentic(
 @pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_agentic_then_script(
-    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
+    nexus_api: NexusApiRegistry,
+    mcp_integration_id: str,
+    llm_credential_id: str,
+    llm_model_id: str,
+    first_project_id: UUID,
 ):
     """An agentic node feeds into a script node."""
     result = create_and_run_workflow(
@@ -507,7 +515,7 @@ def test_agentic_then_script(
                             "Do not answer without calling the tool first."
                         ),
                         "credential_id": llm_credential_id,
-                        "model": llm_model,
+                        "llm_model_id": llm_model_id,
                     },
                 },
                 {
@@ -538,7 +546,11 @@ def test_agentic_then_script(
 @pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_loop_with_agentic_body(
-    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str, first_project_id: UUID
+    nexus_api: NexusApiRegistry,
+    mcp_integration_id: str,
+    llm_credential_id: str,
+    llm_model_id: str,
+    first_project_id: UUID,
 ):
     """A loop iterates with an agentic node as the loop body."""
     result = create_and_run_workflow(
@@ -570,7 +582,7 @@ def test_loop_with_agentic_body(
                             "Do not answer without calling the tool first."
                         ),
                         "credential_id": llm_credential_id,
-                        "model": llm_model,
+                        "llm_model_id": llm_model_id,
                     },
                 },
             ],
@@ -593,7 +605,7 @@ def test_loop_with_agentic_body(
 @pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_http_request_then_agentic(
-    nexus_api: NexusApiRegistry, llm_credential_id: str, llm_model: str, first_project_id: UUID
+    nexus_api: NexusApiRegistry, llm_credential_id: str, llm_model_id: str, first_project_id: UUID
 ):
     """An HTTP request node feeds into an agentic node.
 
@@ -628,7 +640,7 @@ def test_http_request_then_agentic(
                     "parameters": {
                         "prompt": "Say 'Health check passed' in one sentence.",
                         "credential_id": llm_credential_id,
-                        "model": llm_model,
+                        "llm_model_id": llm_model_id,
                     },
                 },
             ],

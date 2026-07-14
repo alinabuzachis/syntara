@@ -11,7 +11,7 @@ import { useAllProjects } from '../../access/useAllProjects'
 import { AIAgentNodeForm } from './AIAgentNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
-// Mock clients used by CredentialSelector and integrations query
+// Mock clients used by CredentialSelector, LLMModelSelector, and integrations query
 vi.mock('../../../client', () => ({
   credentialsClient: {
     useQuery: vi.fn(),
@@ -20,6 +20,9 @@ vi.mock('../../../client', () => ({
   integrationsClient: {
     useQuery: vi.fn(() => ({ data: { resources: [] }, isPending: false, isError: false, refetch: vi.fn() })),
     useMutation: vi.fn(),
+  },
+  integrationsFetchClient: {
+    GET: vi.fn(() => Promise.resolve({ data: { resources: [] } })),
   },
   toolManagerClient: {
     useQuery: vi.fn(() => ({ data: { resources: [] }, isPending: false, isError: false, refetch: vi.fn() })),
@@ -155,7 +158,7 @@ describe('AIAgentNodeForm', () => {
 
   it('submits form even with empty prompt (permissive schema)', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} initialData={{ name: '', llm_model_id: 'model-1' }} />)
 
     await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
     fireEvent.submit(screen.getByTestId('ai-agent-node-form'))
@@ -175,7 +178,7 @@ describe('AIAgentNodeForm', () => {
         onSubmit={mockOnSubmit}
         initialData={{
           name: 'Existing Agent',
-          model: 'anthropic/claude-haiku-4.5',
+          llm_model_id: '550e8400-e29b-41d4-a716-446655440000',
           prompt: 'Analyze the data',
           tool_selections: [],
         }}
@@ -187,17 +190,12 @@ describe('AIAgentNodeForm', () => {
     expect(screen.getByLabelText('Tools')).toBeInTheDocument()
   })
 
-  it('passes projectId to CredentialSelector', () => {
-    const useQueryMock = vi.mocked(credentialsClient.useQuery)
-    useQueryMock.mockClear()
-
+  it('hides credential section when no model is selected', () => {
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="project-789" />)
 
-    const hasProjectIdCall = useQueryMock.mock.calls.some((call) => {
-      const params = (call[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
-      return params?.project_id === 'project-789'
-    })
-    expect(hasProjectIdCall).toBe(true)
+    // The credential picker is contextual — it is hidden until a model is selected
+    expect(screen.queryByLabelText('LLM provider credential')).not.toBeInTheDocument()
+    expect(screen.queryByText(/LLM credential not configured/i)).not.toBeInTheDocument()
   })
 
   it('renders interactive tools multi-select', () => {
@@ -296,7 +294,7 @@ describe('AIAgentNodeForm', () => {
 
     it('submits form with valid JSON object in response schema', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} initialData={{ name: '', llm_model_id: 'model-1' }} />)
 
       // Fill fields
       await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
@@ -317,7 +315,7 @@ describe('AIAgentNodeForm', () => {
 
     it('rejects non-object response schema', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} initialData={{ name: '', llm_model_id: 'model-1' }} />)
 
       // Fill fields
       await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
@@ -342,7 +340,7 @@ describe('AIAgentNodeForm', () => {
       const initialData = {
         name: 'Existing Agent',
         prompt: 'Existing prompt',
-        model: 'anthropic/claude-haiku-4.5',
+        llm_model_id: '550e8400-e29b-41d4-a716-446655440000',
         tool_selections: [] as string[],
         integration_connections: [] as { integration_id: string; credential_id: string }[],
         responseSchema: JSON.stringify(existingSchema, null, 2),
@@ -558,7 +556,12 @@ describe('AIAgentNodeForm', () => {
       renderWithHeader(
         <AIAgentNodeForm
           onSubmit={mockOnSubmit}
-          initialData={{ name: 'Agent', tool_selection_strategy: 'ALL', tool_selections: [] }}
+          initialData={{
+            name: 'Agent',
+            llm_model_id: 'model-1',
+            tool_selection_strategy: 'ALL',
+            tool_selections: [],
+          }}
         />
       )
 
@@ -644,7 +647,9 @@ describe('AIAgentNodeForm', () => {
 
     it('has no accessibility violations after submitting with response schema (excluding known PatternFly Tabs issue)', async () => {
       const user = userEvent.setup()
-      const { container } = renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+      const { container } = renderWithHeader(
+        <AIAgentNodeForm onSubmit={mockOnSubmit} initialData={{ name: '', llm_model_id: 'model-1' }} />
+      )
 
       // Fill fields
       await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')

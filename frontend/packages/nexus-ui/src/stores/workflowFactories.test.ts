@@ -452,14 +452,14 @@ describe('workflowFactories', () => {
         expect(activity.parameters.prompt).toBe('Do something')
       })
 
-      it('creates an agentic activity with model', () => {
+      it('creates an agentic activity with llmModelId', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
           name: 'Task Agent',
-          model: 'gpt-4',
+          llmModelId: '550e8400-e29b-41d4-a716-446655440000',
         })
 
-        expect(activity.parameters.model).toBe('gpt-4')
+        expect(activity.parameters.llm_model_id).toBe('550e8400-e29b-41d4-a716-446655440000')
       })
 
       it('creates an agentic activity with fileIds', () => {

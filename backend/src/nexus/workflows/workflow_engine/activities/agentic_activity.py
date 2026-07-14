@@ -140,7 +140,6 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
             "Invoking Agent Orchestrator",
             user_id=user_id,
             agent=config.agent,
-            model=config.model,
             file_count=len(file_ids),
         )
 
@@ -160,8 +159,10 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
             if request_id:
                 agent_metadata["request_id"] = request_id
 
-            # Inject LLM credential if resolved from Nexus credential system
+            # Inject LLM credential and integration references
             _inject_llm_credential_metadata(agent_metadata, input_config)
+            if config.llm_model_id:
+                agent_metadata["llm_model_id"] = config.llm_model_id
 
             # Pass per-integration execution credentials (credential UUIDs, not secrets)
             if config.integration_connections:
@@ -182,7 +183,6 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
                 prompt=config.prompt,
                 user_id=user_id,
                 agent=config.agent,
-                model=config.model,
                 input_data={},  # input_data is part of prompt in v2
                 file_ids=file_ids,
                 metadata=agent_metadata,
@@ -240,9 +240,3 @@ def _inject_llm_credential_metadata(metadata: dict[str, Any], input_data: dict[s
     cred_id = resolved_creds.get("credential_id")
     if cred_id:
         metadata["credential_id"] = cred_id
-    # Still pass non-secret fields
-    extra_vars = resolved_creds.get("extra_vars", {})
-    for key in ("llm_provider", "llm_base_url"):
-        value = extra_vars.get(key)
-        if value:
-            metadata[key] = value

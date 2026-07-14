@@ -207,7 +207,7 @@ class TestFullConfigPersistence:
         input_dict = {
             "prompt": "Analyze the incident and classify severity",
             "agent": "incident-triage",
-            "model": "claude-3-5-sonnet",
+            "llm_model_id": VALID_UUID_2,
             "credential_id": VALID_UUID,
             "tool_selection_strategy": "SELECTED",
             "tool_selections": [VALID_UUID_2],
@@ -230,7 +230,7 @@ class TestFullConfigPersistence:
 
         assert output["prompt"] == "Analyze the incident and classify severity"
         assert output["agent"] == "incident-triage"
-        assert output["model"] == "claude-3-5-sonnet"
+        assert output["llm_model_id"] == VALID_UUID_2
         assert output["credential_id"] == VALID_UUID
         assert output["tool_selection_strategy"] == "SELECTED"
         assert output["tool_selections"] == [VALID_UUID_2]
@@ -389,7 +389,6 @@ class TestInvocationMetadataPersistence:
             "integration_connections": [
                 {"integration_id": VALID_UUID, "credential_id": VALID_UUID_2},
             ],
-            "llm_provider": "openrouter",
         }
         meta = InvocationMetadata.model_validate(input_dict)
         output = meta.model_dump()
@@ -398,7 +397,6 @@ class TestInvocationMetadataPersistence:
         assert output["tool_selections"] == []
         assert output["response_schema"] == {"type": "string"}
         assert len(output["integration_connections"]) == 1
-        assert output["llm_provider"] == "openrouter"
 
     def test_defaults_round_trip(self) -> None:
         """Omitted fields default correctly."""

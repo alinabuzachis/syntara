@@ -363,11 +363,11 @@ class TestAgenticExecutorParameters:
         config = AgenticExecutorParameters(prompt="Analyze this data")
         assert config.prompt == "Analyze this data"
 
-    def test_optional_agent_and_model(self) -> None:
-        """Agent and model fields are optional."""
+    def test_optional_agent_and_llm_model_id(self) -> None:
+        """Agent and llm_model_id fields are optional."""
         config = AgenticExecutorParameters(prompt="Do something")
         assert config.agent is None
-        assert config.model is None
+        assert config.llm_model_id is None
 
     def test_rejects_null_bytes_in_prompt(self) -> None:
         """Prompt with null bytes is rejected for security."""

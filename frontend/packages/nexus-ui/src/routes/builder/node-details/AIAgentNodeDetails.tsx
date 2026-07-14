@@ -35,7 +35,7 @@ export function AIAgentNodeDetails({
     tools?: string[]
     integration_connections?: { integration_id: string; credential_id: string }[]
     prompt?: string
-    model?: string
+    llm_model_id?: string
     file_ids?: string[]
     fileIds?: string[]
     credential_id?: string
@@ -47,9 +47,6 @@ export function AIAgentNodeDetails({
   const taskDataExt = taskData as typeof taskData & { config?: AgentConfig }
   const agentConfig = (taskDataExt.config ?? taskData.parameters ?? {}) as AgentConfig
 
-  const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
-  const defaultModel = envModel || 'anthropic/claude-3.5-sonnet'
-
   const toolSelections = agentConfig.tool_selections ?? agentConfig.tools ?? []
   const toolSelectionStrategy = agentConfig.tool_selection_strategy ?? 'NONE'
   const integrationConnections = agentConfig.integration_connections ?? []
@@ -57,12 +54,12 @@ export function AIAgentNodeDetails({
 
   const initialData: AIAgentFormInitialData = {
     name: taskData.name,
-    model: agentConfig.model ?? defaultModel,
+    llm_model_id: agentConfig.llm_model_id ?? '',
     prompt: agentConfig.prompt ?? '',
     tool_selection_strategy: toolSelectionStrategy,
     tool_selections: toolSelections,
     integration_connections: integrationConnections,
-    credential_id: agentConfig.credential_id ?? '',
+    credential_id: agentConfig.credential_id ?? undefined,
     responseSchema: responseSchema ? JSON.stringify(responseSchema, null, 2) : undefined,
     settings: taskData.settings,
   }
@@ -81,7 +78,7 @@ export function AIAgentNodeDetails({
             ? data.integration_connections
             : undefined,
         prompt: data.prompt ?? undefined,
-        model: data.model ?? undefined,
+        llmModelId: data.llm_model_id ?? undefined,
         fileIds: data.fileIds.length > 0 ? data.fileIds : undefined,
         credentialId: data.credential_id ?? undefined,
         responseSchema: data.parsedResponseSchema,

@@ -78,7 +78,7 @@ class TestAgenticActivityExecution:
         input_config = {
             "prompt": "Research and calculate the answer",
             "agent": "nexus-agent://default",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(CompleteAsyncError):
@@ -93,7 +93,7 @@ class TestAgenticActivityExecution:
         input_config = {
             "prompt": "Research and calculate the answer",
             "agent": "nexus-agent://default",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(CompleteAsyncError):
@@ -105,8 +105,8 @@ class TestAgenticActivityExecution:
         # Check agent
         assert call_args.kwargs["agent"] == "nexus-agent://default"
 
-        # Check model
-        assert call_args.kwargs["model"] == "claude-3-5-sonnet-20241022"
+        # Check llm_model_id is forwarded in metadata
+        assert call_args.kwargs["metadata"]["llm_model_id"] == "550e8400-e29b-41d4-a716-446655440000"
 
         # Check prompt
         assert call_args.kwargs["prompt"] == "Research and calculate the answer"
@@ -117,7 +117,7 @@ class TestAgenticActivityExecution:
         input_config = {
             "prompt": "Research and calculate the answer",
             "agent": "nexus-agent://default",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(CompleteAsyncError):
@@ -141,7 +141,7 @@ class TestAgenticActivityErrorHandling:
 
         input_config = {
             "prompt": "Test prompt",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(ApplicationError) as exc_info:
@@ -159,7 +159,7 @@ class TestAgenticActivityErrorHandling:
 
         input_config = {
             "prompt": "Test prompt",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(ApplicationError):
@@ -172,7 +172,7 @@ class TestAgenticActivityErrorHandling:
 
         input_config = {
             "prompt": "Test prompt",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(CompleteAsyncError):
@@ -190,7 +190,7 @@ class TestAgenticActivityEdgeCases:
         """Test that empty prompts are rejected."""
         input_config = {
             "prompt": "",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(ApplicationError) as exc_info:
@@ -202,7 +202,7 @@ class TestAgenticActivityEdgeCases:
         """Test that whitespace-only prompts are rejected."""
         input_config = {
             "prompt": "   \t\n  ",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(ApplicationError) as exc_info:
@@ -218,7 +218,7 @@ class TestAgenticActivityTimeoutConfiguration:
         """Test that default timeout (300s) is used when not specified in config."""
         input_config = {
             "prompt": "Test prompt",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(CompleteAsyncError):
@@ -231,7 +231,7 @@ class TestAgenticActivityTimeoutConfiguration:
         """Test that custom timeout is accepted."""
         input_config = {
             "prompt": "Test prompt",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
             "timeout": 600,
         }
 
@@ -249,7 +249,7 @@ class TestAgenticActivityInputEdgeCases:
         """Test that activity handles config with just required fields."""
         input_config = {
             "prompt": "Static prompt with no variables",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         with pytest.raises(CompleteAsyncError):
@@ -260,7 +260,7 @@ class TestAgenticActivityInputEdgeCases:
         """Test that concurrent invocations can execute without interference."""
         input_config = {
             "prompt": "Test prompt",
-            "model": "claude-3-5-sonnet-20241022",
+            "llm_model_id": "550e8400-e29b-41d4-a716-446655440000",
         }
 
         # All three invocations raise CompleteAsyncError on success

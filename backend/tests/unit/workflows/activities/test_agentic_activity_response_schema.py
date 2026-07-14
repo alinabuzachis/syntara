@@ -175,10 +175,11 @@ class TestAgenticActivityResponseSchema:
     async def test_response_schema_with_other_fields(self, mock_agent_client: AsyncMock) -> None:
         """Test that response_schema works alongside other config fields."""
         schema = {"type": "object", "properties": {"result": {"type": "string"}}}
+        llm_model_id = "550e8400-e29b-41d4-a716-446655440000"
         input_config = {
             "prompt": "Analyze data",
             "agent": "analyzer",
-            "model": "gpt-4",
+            "llm_model_id": llm_model_id,
             "timeout": 300,
             "responseSchema": schema,
         }
@@ -193,8 +194,8 @@ class TestAgenticActivityResponseSchema:
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
         assert call_kwargs["prompt"] == "Analyze data"
         assert call_kwargs["agent"] == "analyzer"
-        assert call_kwargs["model"] == "gpt-4"
         assert call_kwargs["metadata"]["response_schema"] == schema
+        assert call_kwargs["metadata"]["llm_model_id"] == llm_model_id
 
     @pytest.mark.asyncio
     async def test_response_schema_invalid_rejected(self) -> None:
@@ -255,6 +256,6 @@ class TestAgenticActivityResponseSchema:
         call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
         metadata = call_kwargs["metadata"]
         assert "credential_id" in metadata
-        assert "llm_provider" in metadata
+        assert "llm_provider" not in metadata
         assert "response_schema" in metadata
         assert metadata["response_schema"] == schema

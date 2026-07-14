@@ -3,7 +3,7 @@
 from typing import Any
 
 import pytest
-from pydantic import HttpUrl, SecretStr, ValidationError
+from pydantic import SecretStr, ValidationError
 
 from nexus.agent_orchestrator.models.context_data import InvocationContextData, InvocationMetadata, OpaqueResponseSchema
 
@@ -22,14 +22,11 @@ class TestInvocationMetadata:
             credential_id=SecretStr("cred-123"),
             response_schema=OpaqueResponseSchema({"type": "object"}),
             request_id="req-456",
-            llm_base_url=HttpUrl("https://api.example.com"),
-            llm_provider="openrouter",
         )
         assert meta.credential_id is not None
         assert meta.credential_id.get_secret_value() == "cred-123"
         assert meta.response_schema is not None
         assert meta.response_schema.get_data() == {"type": "object"}
-        assert str(meta.llm_base_url) == "https://api.example.com/"
 
     def test_secret_str_from_raw_dict(self) -> None:
         """model_validate auto-wraps plain strings into SecretStr."""
@@ -150,7 +147,6 @@ class TestInvocationContextData:
             "metadata": {
                 "request_id": "req-1",
                 "credential_id": "cred-1",
-                "llm_base_url": "https://api.example.com",
             },
         }
         ctx = InvocationContextData.model_validate(raw)
@@ -210,7 +206,6 @@ class TestInvocationContextData:
                 "credential_id": "c1",
                 "response_schema": {"type": "object"},
                 "request_id": "r1",
-                "llm_base_url": "https://llm.example.com",
             },
         }
         ctx = InvocationContextData.model_validate(raw)
@@ -315,22 +310,6 @@ class TestInvocationContextData:
         # Verify callback_url is revealed (not SecretStr)
         assert state_dict["callback_url"] == "https://example.com/callback"
         assert isinstance(state_dict["callback_url"], str)
-
-    def test_to_state_dict_serializes_http_url_as_string(self) -> None:
-        """to_state_dict must produce JSON-primitive types for LangGraph/msgpack."""
-        ctx = InvocationContextData.model_validate(
-            {
-                "metadata": {
-                    "llm_base_url": "https://api.example.com",
-                    "llm_provider": "openrouter",
-                },
-            }
-        )
-        state_dict = ctx.to_state_dict()
-
-        url_value = state_dict["metadata"]["llm_base_url"]
-        assert isinstance(url_value, str)
-        assert url_value == "https://api.example.com/"
 
 
 class TestOpaqueResponseSchema:

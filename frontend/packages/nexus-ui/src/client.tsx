@@ -136,6 +136,8 @@ settingsFetchClient.use(authMiddleware)
 export { settingsFetchClient }
 export const settingsClient = createClient(settingsFetchClient)
 
+// integrationsFetchClient is exported for use in components that call the API directly inside
+// useQueries queryFn callbacks, where hooks (integrationsClient.useQuery) cannot be used.
 export const integrationsFetchClient = createFetchClient<IntegrationsAPI.paths>({ baseUrl: '/api/v1/' })
 integrationsFetchClient.use(interfaceTagMiddleware)
 integrationsFetchClient.use(authMiddleware)

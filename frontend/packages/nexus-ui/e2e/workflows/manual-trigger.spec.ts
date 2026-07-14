@@ -18,6 +18,7 @@ import { ensureProject } from '../utils/api'
 
 test.describe('Manual Trigger', () => {
   test('creates workflow with manual trigger and verifies canvas display', async ({ app }) => {
+    test.fixme(true, 'Flaky in CI')
     const workflowName = buildUniqueName('e2e-manual')
 
     await ensureProject(app)

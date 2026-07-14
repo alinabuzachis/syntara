@@ -191,7 +191,6 @@ class TestInvocationCreatedHandler:
                 "metadata": {
                     "credential_id": "secret-cred",
                     "response_schema": {"type": "object", "properties": {}},
-                    "llm_provider": "openrouter",
                 },
             }
         )
@@ -216,5 +215,3 @@ class TestInvocationCreatedHandler:
         assert "credential_id" not in metadata
         assert "response_schema" not in metadata
         assert "callback_url" not in metadata
-        # Non-sensitive fields must be preserved
-        assert metadata["llm_provider"] == "openrouter"

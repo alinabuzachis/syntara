@@ -38,7 +38,7 @@ type AgenticConfig = {
 }
 
 function AgenticNodeDetails({ config, toolsText }: { config: AgenticConfig; toolsText?: string }) {
-  const credentialName = useCredentialName(config.credential_id)
+  const { name: credentialName } = useCredentialName(config.credential_id)
   return (
     <>
       {renderText('Model', config.model)}

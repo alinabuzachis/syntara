@@ -291,7 +291,7 @@ test.describe('Node editor panels', () => {
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
     workflowId = app.url().split('/').pop() ?? workflowId
 
     // --- Verify each node's output data ---
@@ -389,7 +389,7 @@ test.describe('Node editor panels', () => {
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
     const builderUrl = app.url()
     const workflowId = builderUrl.split('/').pop()
 
@@ -571,7 +571,7 @@ test.describe('Node editor panels', () => {
     await addScriptNode(app, 'Analyze', 'print("result")')
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 
     await layoutCanvas(app)
     const workflowId = app.url().split('/').pop()
@@ -687,7 +687,7 @@ test.describe('Node editor panels', () => {
     await addScriptNode(app, 'Step C', 'print("gamma")')
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 
     await layoutCanvas(app)
     const workflowId = app.url().split('/').pop()
@@ -946,7 +946,7 @@ test.describe('Node editor panels', () => {
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 
     await clickNode(app, 'Script B')
     await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 15_000 })
@@ -1005,7 +1005,7 @@ test.describe('Node editor panels', () => {
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 
     await clickNode(app, 'Script B')
     await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 15_000 })
@@ -1061,7 +1061,7 @@ test.describe('Node editor panels', () => {
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 
     await clickNode(app, 'Script B')
     await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })
@@ -1109,7 +1109,7 @@ test.describe('Node editor panels', () => {
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 
     await clickNode(app, 'Script B')
     await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })
@@ -1166,7 +1166,7 @@ test.describe('Node editor panels', () => {
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
 
     await clickNode(app, 'Script B')
     await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })

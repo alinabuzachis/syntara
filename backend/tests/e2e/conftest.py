@@ -35,10 +35,13 @@ from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.error_data import ErrorData
+from nexus_api_client.models.initial_model_selection import InitialModelSelection
 from nexus_api_client.models.integration_create import IntegrationCreate
 from nexus_api_client.models.integration_patch import IntegrationPatch
 from nexus_api_client.models.integration_refresh_status import IntegrationRefreshStatus
 from nexus_api_client.models.integration_type import IntegrationType
+from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
+from nexus_api_client.models.llm_provider_hint import LLMProviderHint
 from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
@@ -856,6 +859,52 @@ def llm_credential_id(
 
     try:
         nexus_api.credentials.delete(credential_id=UUID(cred_id))
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="session")
+def llm_model_id(
+    nexus_api: NexusApiRegistry, llm_credential_id: str, llm_model: str, worker_id: str
+) -> Generator[str, None, None]:
+    """Create an LLM provider integration with a model and yield the LLMModel UUID.
+
+    Creates a CUSTOM LLM provider integration pointing at the OpenRouter API,
+    seeds it with the model from APP_OPENROUTER_MODEL, and yields the database
+    UUID of that LLMModel record.  The integration (and its models) are deleted
+    on teardown.
+    """
+    integration = nexus_api.integrations.create(
+        body=IntegrationCreate(
+            name=f"e2e-llm-provider-{worker_id}",
+            description="LLM provider for E2E tests",
+            integration_type=IntegrationType.LLM_PROVIDER,
+            configuration=LLMProviderConfiguration(
+                provider_hint=LLMProviderHint.CUSTOM,
+                base_url="https://openrouter.ai/api/v1",
+            ),
+            management_credential_id=UUID(llm_credential_id),
+            discovered_models=[
+                InitialModelSelection(
+                    model_id=llm_model,
+                    name=llm_model,
+                    enabled=True,
+                    is_default=True,
+                ),
+            ],
+        ),
+    ).assert_and_get()
+    integration_id = integration.id
+
+    models_resp = nexus_api.integrations.list_models(integration_id=integration_id)
+    models = models_resp.assert_and_get()
+    assert models.resources, "LLM provider integration has no models after creation"
+    model_uuid = str(models.resources[0].id)
+
+    yield model_uuid
+
+    try:
+        nexus_api.integrations.delete(integration_id=integration_id)
     except Exception:
         pass
 

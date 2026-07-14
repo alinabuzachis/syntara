@@ -269,8 +269,8 @@ class TestAgenticActivityWorkflowContextMetadata:
 
         # Credential fields
         assert metadata["credential_id"] == "550e8400-e29b-41d4-a716-446655440000"
-        assert metadata["llm_provider"] == "openai"
-        assert metadata["llm_base_url"] == "https://api.openai.com/v1"
+        assert "llm_provider" not in metadata
+        assert "llm_base_url" not in metadata
 
     @pytest.mark.asyncio
     async def test_metadata_combined_with_response_schema(
@@ -394,7 +394,7 @@ class TestAgenticActivityWorkflowContextMetadata:
 
         # Credential
         assert metadata["credential_id"] == "cred-123"
-        assert metadata["llm_provider"] == "anthropic"
+        assert "llm_provider" not in metadata
 
         # Response schema
         assert metadata["response_schema"] == schema

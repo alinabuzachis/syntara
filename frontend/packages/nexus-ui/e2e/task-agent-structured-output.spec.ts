@@ -11,8 +11,9 @@
  * - Empty schema is valid (optional field)
  */
 import { test, expect, toAppUrl } from './fixtures'
+import { type SeededLlmIntegration, deleteLlmIntegration, createLlmIntegration } from './helpers/llm-helpers'
 import { addManualTrigger, ensureLlmCredential, selectLlmCredential } from './helpers/v2-nodes'
-import { addNodePanel, fillCodeEditor } from './helpers/workflows'
+import { addNodePanel, buildUniqueName, fillCodeEditor } from './helpers/workflows'
 
 test.describe('Task Agent Structured Output', () => {
   test('schema editor renders on Task Agent node', async ({ app }) => {
@@ -43,120 +44,141 @@ test.describe('Task Agent Structured Output', () => {
   })
 
   test('schema accepts valid JSON without errors', async ({ app }) => {
-    await app.goto(toAppUrl('/workflow-builder/new'))
-    await addManualTrigger(app)
+    const integrationName = buildUniqueName('e2e-llm-integ')
+    let integration: SeededLlmIntegration | undefined
+    try {
+      integration = await createLlmIntegration(app, integrationName)
+      await app.goto(toAppUrl('/workflow-builder/new'))
+      await addManualTrigger(app)
 
-    // Ensure LLM credential exists (required for AI Agent form submission)
-    const credName = await ensureLlmCredential(app)
+      // Ensure LLM credential exists (required for AI Agent form submission)
+      const credName = await ensureLlmCredential(app)
 
-    const layoutButton = app.getByRole('button', { name: 'Layout' })
-    await layoutButton.click()
+      const layoutButton = app.getByRole('button', { name: 'Layout' })
+      await layoutButton.click()
 
-    const addBtn = app.getByRole('button', { name: 'Add connected step' })
-    await addBtn.click({ force: true })
+      const addBtn = app.getByRole('button', { name: 'Add connected step' })
+      await addBtn.click({ force: true })
 
-    const panel = addNodePanel(app)
-    await panel.getByRole('button', { name: 'Task Agent' }).click()
+      const panel = addNodePanel(app)
+      await panel.getByRole('button', { name: 'Task Agent' }).click()
 
-    // Fill required fields
-    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('TestAgent')
-    await app.getByLabel('Prompt').fill('Analyze the data')
+      // Fill required fields
+      await app.getByRole('textbox', { name: 'Name', exact: true }).fill('TestAgent')
+      await app.getByLabel('Prompt').fill('Analyze the data')
 
-    // Select LLM credential (required by Zod validation)
-    await selectLlmCredential(app, credName)
+      // Select LLM credential (required by Zod validation)
+      await selectLlmCredential(app, credName)
 
-    // Fill valid JSON schema using fillCodeEditor helper
-    const validSchema = JSON.stringify({
-      type: 'object',
-      properties: {
-        summary: { type: 'string' },
-        confidence: { type: 'number' },
-      },
-      required: ['summary'],
-    })
+      // Fill valid JSON schema using fillCodeEditor helper
+      const validSchema = JSON.stringify({
+        type: 'object',
+        properties: {
+          summary: { type: 'string' },
+          confidence: { type: 'number' },
+        },
+        required: ['summary'],
+      })
 
-    await fillCodeEditor(app, { value: validSchema, label: 'Response schema editor' })
+      await fillCodeEditor(app, { value: validSchema, label: 'Response schema editor' })
 
-    // Create should succeed without validation errors
-    await app.getByRole('button', { name: 'Create' }).click()
+      // Create should succeed without validation errors
+      await app.getByRole('button', { name: 'Create' }).click()
 
-    // Verify the Create button is no longer attached (panel closed successfully)
-    await expect(app.getByRole('button', { name: 'Create' })).not.toBeAttached({ timeout: 15_000 })
+      // Verify the Create button is no longer attached (panel closed successfully)
+      await expect(app.getByRole('button', { name: 'Create' })).not.toBeAttached({ timeout: 15_000 })
+    } finally {
+      if (integration) await deleteLlmIntegration(app, integration.id)
+    }
   })
 
   // Skip: ensureLlmCredential fails on real backend in CI — LLM Provider credential creation not supported
   test.skip('can add Task Agent with schema to workflow', async ({ app }) => {
-    await app.goto(toAppUrl('/workflow-builder/new'))
-    await addManualTrigger(app)
+    const integrationName = buildUniqueName('e2e-llm-integ')
+    let integration: SeededLlmIntegration | undefined
+    try {
+      integration = await createLlmIntegration(app, integrationName)
+      await app.goto(toAppUrl('/workflow-builder/new'))
+      await addManualTrigger(app)
 
-    // Ensure LLM credential exists (required for AI Agent form submission)
-    const credName = await ensureLlmCredential(app)
+      // Ensure LLM credential exists (required for AI Agent form submission)
+      const credName = await ensureLlmCredential(app)
 
-    const layoutButton = app.getByRole('button', { name: 'Layout' })
-    await layoutButton.click()
+      const layoutButton = app.getByRole('button', { name: 'Layout' })
+      await layoutButton.click()
 
-    const addBtn = app.getByRole('button', { name: 'Add connected step' })
-    await addBtn.click({ force: true })
+      const addBtn = app.getByRole('button', { name: 'Add connected step' })
+      await addBtn.click({ force: true })
 
-    const panel = addNodePanel(app)
-    await panel.getByRole('button', { name: 'Task Agent' }).click()
+      const panel = addNodePanel(app)
+      await panel.getByRole('button', { name: 'Task Agent' }).click()
 
-    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('SchemaAgent')
-    await app.getByLabel('Prompt').fill('Generate report')
+      await app.getByRole('textbox', { name: 'Name', exact: true }).fill('SchemaAgent')
+      await app.getByLabel('Prompt').fill('Generate report')
 
-    // Select LLM credential (required by Zod validation)
-    await selectLlmCredential(app, credName)
+      // Select LLM credential (required by Zod validation)
+      await selectLlmCredential(app, credName)
 
-    const validSchema = JSON.stringify({
-      type: 'object',
-      properties: {
-        task: { type: 'string' },
-        status: { type: 'string' },
-      },
-      required: ['task'],
-    })
+      const validSchema = JSON.stringify({
+        type: 'object',
+        properties: {
+          task: { type: 'string' },
+          status: { type: 'string' },
+        },
+        required: ['task'],
+      })
 
-    await fillCodeEditor(app, { value: validSchema, label: 'Response schema editor' })
-    await app.getByRole('button', { name: 'Create' }).click()
+      await fillCodeEditor(app, { value: validSchema, label: 'Response schema editor' })
+      await app.getByRole('button', { name: 'Create' }).click()
 
-    // Verify the Create button is no longer attached (panel closed successfully)
-    await expect(app.getByRole('button', { name: 'Create' })).not.toBeAttached({ timeout: 15_000 })
+      // Verify the Create button is no longer attached (panel closed successfully)
+      await expect(app.getByRole('button', { name: 'Create' })).not.toBeAttached({ timeout: 15_000 })
 
-    // Verify the agent node appears on canvas
-    await expect(
-      app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'SchemaAgent' })
-    ).toBeVisible()
+      // Verify the agent node appears on canvas
+      await expect(
+        app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'SchemaAgent' })
+      ).toBeVisible()
+    } finally {
+      if (integration) await deleteLlmIntegration(app, integration.id)
+    }
   })
 
   test('empty schema is valid (optional field)', async ({ app }) => {
-    await app.goto(toAppUrl('/workflow-builder/new'))
-    await addManualTrigger(app)
+    const integrationName = buildUniqueName('e2e-llm-integ')
+    let integration: SeededLlmIntegration | undefined
+    try {
+      integration = await createLlmIntegration(app, integrationName)
+      await app.goto(toAppUrl('/workflow-builder/new'))
+      await addManualTrigger(app)
 
-    // Ensure LLM credential exists (required for AI Agent form submission)
-    const credName = await ensureLlmCredential(app)
+      // Ensure LLM credential exists (required for AI Agent form submission)
+      const credName = await ensureLlmCredential(app)
 
-    const layoutButton = app.getByRole('button', { name: 'Layout' })
-    await layoutButton.click()
+      const layoutButton = app.getByRole('button', { name: 'Layout' })
+      await layoutButton.click()
 
-    const addBtn = app.getByRole('button', { name: 'Add connected step' })
-    await addBtn.click({ force: true })
+      const addBtn = app.getByRole('button', { name: 'Add connected step' })
+      await addBtn.click({ force: true })
 
-    const panel = addNodePanel(app)
-    await panel.getByRole('button', { name: 'Task Agent' }).click()
+      const panel = addNodePanel(app)
+      await panel.getByRole('button', { name: 'Task Agent' }).click()
 
-    // Fill required fields but leave schema empty
-    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('EmptySchemaAgent')
-    await app.getByLabel('Prompt').fill('Test prompt')
+      // Fill required fields but leave schema empty
+      await app.getByRole('textbox', { name: 'Name', exact: true }).fill('EmptySchemaAgent')
+      await app.getByLabel('Prompt').fill('Test prompt')
 
-    // Select LLM credential (required by Zod validation)
-    await selectLlmCredential(app, credName)
+      // Select LLM credential (required by Zod validation)
+      await selectLlmCredential(app, credName)
 
-    // Don't fill the response schema field
+      // Don't fill the response schema field
 
-    // Create should succeed
-    await app.getByRole('button', { name: 'Create' }).click()
+      // Create should succeed
+      await app.getByRole('button', { name: 'Create' }).click()
 
-    // Verify the Create button is no longer attached (panel closed successfully)
-    await expect(app.getByRole('button', { name: 'Create' })).not.toBeAttached({ timeout: 15_000 })
+      // Verify the Create button is no longer attached (panel closed successfully)
+      await expect(app.getByRole('button', { name: 'Create' })).not.toBeAttached({ timeout: 15_000 })
+    } finally {
+      if (integration) await deleteLlmIntegration(app, integration.id)
+    }
   })
 })

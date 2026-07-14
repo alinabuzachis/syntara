@@ -919,8 +919,11 @@ export interface components {
       prompt: string
       /** Agent */
       agent?: string | null
-      /** Model */
-      model?: string | null
+      /**
+       * Llm Model Id
+       * @description UUID of the LLMModel record identifying the provider integration and model.
+       */
+      llm_model_id?: string | null
       /**
        * Credential Id
        * @description Nexus credential UUID for LLM provider authentication

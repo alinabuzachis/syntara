@@ -9,11 +9,19 @@ class TestLLMCredentialConfig:
     """Tests for LLMCredentialConfig frozen dataclass."""
 
     def test_create_config(self) -> None:
-        """Config stores all three fields."""
-        config = LLMCredentialConfig(api_key="sk-123", base_url="https://api.example.com", model="gpt-4")
+        """Config stores all fields."""
+        config = LLMCredentialConfig(
+            api_key="sk-123", base_url="https://api.example.com", model="gpt-4", provider_hint="openai"
+        )
         assert config.api_key == "sk-123"
         assert config.base_url == "https://api.example.com"
         assert config.model == "gpt-4"
+        assert config.provider_hint == "openai"
+
+    def test_provider_hint_defaults_to_none(self) -> None:
+        """provider_hint is optional and defaults to None."""
+        config = LLMCredentialConfig(api_key="sk-123", base_url="https://api.example.com", model="gpt-4")
+        assert config.provider_hint is None
 
     def test_frozen_immutability(self) -> None:
         """Frozen dataclass rejects attribute assignment."""

@@ -15,7 +15,7 @@ vi.mock('./renderNodeIcon', () => ({
 }))
 
 vi.mock('./hooks/useCredentialName', () => ({
-  useCredentialName: () => undefined,
+  useCredentialName: () => ({ name: undefined, isPending: false }),
 }))
 
 import { TaskActivityDetails } from './TaskNode'

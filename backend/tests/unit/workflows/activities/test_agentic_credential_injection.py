@@ -30,10 +30,10 @@ class TestAgenticCredentialMetadata:
         _inject_llm_credential_metadata(metadata, input_data)
 
         assert metadata["credential_id"] == "cred-uuid-123"
-        assert "llm_api_key" not in metadata  # security: never stored in context_data
-        assert metadata["llm_provider"] == "anthropic"
-        assert metadata["llm_base_url"] == "https://api.anthropic.com"
-        assert metadata["activity_name"] == "test"  # preserved
+        assert "llm_api_key" not in metadata
+        assert "llm_provider" not in metadata
+        assert "llm_base_url" not in metadata
+        assert metadata["activity_name"] == "test"
 
     def test_no_credentials_no_metadata(self) -> None:
         """Without resolved credentials, metadata is unchanged."""
@@ -47,7 +47,7 @@ class TestAgenticCredentialMetadata:
         assert metadata["activity_name"] == "test"
 
     def test_partial_credentials_no_credential_id(self) -> None:
-        """Without credential_id, only non-secret fields are added."""
+        """Without credential_id, no credential metadata is added."""
         metadata: dict[str, Any] = {}
         input_data: dict[str, Any] = {
             "_resolved_credentials": {
@@ -61,10 +61,10 @@ class TestAgenticCredentialMetadata:
 
         assert "credential_id" not in metadata
         assert "llm_api_key" not in metadata
-        assert metadata["llm_provider"] == "openrouter"
+        assert "llm_provider" not in metadata
 
     def test_non_secret_fields_only(self) -> None:
-        """Only non-secret fields (provider, base_url) are passed directly."""
+        """Only credential_id is passed; non-secret LLM fields are not injected into metadata."""
         metadata: dict[str, Any] = {}
         input_data: dict[str, Any] = {
             "_resolved_credentials": {
@@ -79,10 +79,7 @@ class TestAgenticCredentialMetadata:
 
         _inject_llm_credential_metadata(metadata, input_data)
 
-        # credential_id passed for deferred resolution
         assert metadata["credential_id"] == "cred-456"
-        # non-secret fields passed directly
-        assert metadata["llm_provider"] == "openai"
-        assert metadata["llm_base_url"] == "https://api.openai.com/v1"
-        # secret field NOT passed
         assert "llm_api_key" not in metadata
+        assert "llm_provider" not in metadata
+        assert "llm_base_url" not in metadata

@@ -21,14 +21,18 @@ def get_openrouter_llm(
     max_tokens: int | None = None,
     base_url: str | None = None,
 ) -> ChatOpenAI:
-    """Get LangChain ChatOpenAI configured for OpenRouter.
+    """Configure LangChain ChatOpenAI for an LLM provider endpoint.
+
+    Despite the name, this function supports any OpenAI-compatible endpoint —
+    not just OpenRouter. It will be renamed as part of a broader refactor of
+    the legacy OpenRouter implementation.
 
     Args:
         api_key: API key from credential system (required).
-        model: OpenRouter model name. If None, uses settings default.
+        model: Model name (e.g. 'gpt-4o', 'anthropic/claude-opus-4'). If None, uses settings default.
         temperature: LLM temperature (0.0-1.0). If None, uses settings default.
         max_tokens: Maximum tokens in response. If None, uses settings default.
-        base_url: Base URL from credential system. If None, uses settings default.
+        base_url: Base URL of the LLM provider endpoint. If None, uses settings default.
 
     Returns:
         Configured ChatOpenAI instance

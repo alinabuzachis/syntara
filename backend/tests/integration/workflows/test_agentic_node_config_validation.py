@@ -190,7 +190,6 @@ class TestEndToEndConfigValidation:
         config = AgenticExecutorParameters(
             prompt="Analyze the data and provide insights",
             agent="data-analyzer",
-            model="claude-3-5-sonnet",
             credential_id=VALID_UUID,
             tool_selection_strategy="SELECTED",
             tool_selections=[VALID_UUID],

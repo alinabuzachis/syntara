@@ -407,9 +407,9 @@ class IntegrationConnectionConfig(BaseModel):
 
     @field_validator("integration_id", "credential_id")
     @classmethod
-    def validate_uuid_format(cls, v: str) -> str:
+    def validate_uuid_format(cls, v: str, info: ValidationInfo) -> str:
         """Validate that each ID is a valid UUID or a template expression."""
-        return validate_uuid_or_template(v, "integration_id/credential_id")
+        return validate_uuid_or_template(v, info.field_name or "unknown")
 
 
 class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
@@ -417,7 +417,10 @@ class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
 
     prompt: str = Field(description="Prompt template for the agent")
     agent: str | None = None
-    model: str | None = None
+    llm_model_id: str | None = Field(
+        default=None,
+        description="UUID of the LLMModel record identifying the provider integration and model.",
+    )
     credential_id: str | None = Field(
         default=None,
         description="Nexus credential UUID for LLM provider authentication",
@@ -448,6 +451,14 @@ class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
         default_factory=list,
         description="Tool UUIDs to make available when tool_selection_strategy is SELECTED",
     )
+
+    @field_validator("llm_model_id", "credential_id")
+    @classmethod
+    def validate_uuid_fields(cls, v: str | None, info: ValidationInfo) -> str | None:
+        """Validate that UUID fields are valid UUIDs or template expressions."""
+        if v is not None:
+            validate_uuid_or_template(v, info.field_name or "unknown")
+        return v
 
     @field_validator("tool_selections")
     @classmethod

@@ -20,7 +20,6 @@ from pydantic import (
     ConfigDict,
     Field,
     GetCoreSchemaHandler,
-    HttpUrl,
     SecretStr,
     field_validator,
     model_validator,
@@ -144,8 +143,7 @@ class InvocationMetadata(BaseModel):
 
     # Non-sensitive
     request_id: str | None = None
-    llm_base_url: HttpUrl | None = None
-    llm_provider: str | None = None
+    llm_model_id: str | None = None
     tool_selection_strategy: Literal["ALL", "NONE", "SELECTED"] | None = None
     tool_selections: list[str] = Field(default_factory=list)
     integration_connections: list[IntegrationConnectionConfig] | None = None

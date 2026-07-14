@@ -16,9 +16,11 @@
 import { type Page } from '@playwright/test'
 
 import { expect } from '../fixtures'
-import { apiRequest, ensureProject } from '../utils/api'
 
+import { ensureLlmCredential, createLlmIntegration, deleteLlmIntegration, selectLlmCredential } from './llm-helpers'
 import { addNodePanel, closeNodeEditorPanel, fillCodeEditor } from './workflows'
+
+export { ensureLlmCredential, createLlmIntegration, deleteLlmIntegration, selectLlmCredential }
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -184,53 +186,10 @@ export async function addHttpRequestNode(page: Page, name: string, url = 'https:
 }
 
 /**
- * Ensure an LLM Provider credential exists via the API.
- * Returns the credential name for selection in the UI dropdown.
+ * Add a Task Agent node (v2 type: "agentic").
+ * Caller must call `createLlmIntegration()` before using this helper
+ * so the model dropdown has selectable options.
  */
-export async function ensureLlmCredential(page: Page): Promise<string> {
-  const project = await ensureProject(page)
-  if (!project) throw new Error('Could not ensure project for credential creation')
-
-  const credName = 'e2e-llm-provider'
-
-  // Check if it already exists
-  const listResp = await apiRequest(page, 'get', `/credentials?name=${encodeURIComponent(credName)}`)
-  if (listResp.ok()) {
-    const body = (await listResp.json()) as { resources?: Array<{ id: string; name: string }> }
-    if (body.resources?.length) return credName
-  }
-
-  // Find LLM Provider credential type
-  const typesResp = await apiRequest(page, 'get', '/credential_types')
-  if (!typesResp.ok()) throw new Error('Could not list credential types')
-  const types = (await typesResp.json()) as { resources?: Array<{ id: string; name: string }> }
-  const llmType = types.resources?.find((t) => t.name === 'LLM Provider')
-  if (!llmType) throw new Error('LLM Provider credential type not found')
-
-  // Create the credential
-  const createResp = await apiRequest(page, 'post', '/credentials', {
-    data: {
-      name: credName,
-      credential_type_id: llmType.id,
-      project_id: project.id,
-      inputs: { provider: 'anthropic', api_key: 'sk-ant-e2e-test-key' },
-    },
-  })
-  if (!createResp.ok()) throw new Error('Could not create LLM credential')
-  return credName
-}
-
-/** Select the LLM credential in the Task Agent form dropdown. */
-export async function selectLlmCredential(page: Page, credName: string) {
-  const credToggle = page.getByRole('button', { name: 'LLM provider credential', exact: true })
-  await expect(credToggle).toBeEnabled({ timeout: 10_000 })
-  await credToggle.click()
-  const credOption = page.getByRole('option', { name: credName })
-  await expect(credOption).toBeVisible({ timeout: 10_000 })
-  await credOption.click()
-}
-
-/** Add a Task Agent node (v2 type: "agentic"). */
 export async function addAgenticNode(page: Page, name: string, prompt = 'Analyze the data') {
   const credName = await ensureLlmCredential(page)
   await openAddNodePanel(page)
