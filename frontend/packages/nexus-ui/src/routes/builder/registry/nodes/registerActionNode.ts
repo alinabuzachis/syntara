@@ -72,6 +72,7 @@ export default function registerActionNode() {
               language: data.language,
               code: data.code,
               credentialId: data.credential_id,
+              environment: data.parameters,
               settings: data.settings,
             })
           })

@@ -1,6 +1,8 @@
 import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
 import { z } from 'zod'
 
+import { parseJsonEnvironment } from '../../../utils/parseJsonEnvironment'
+
 import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
 
 /**
@@ -8,6 +10,17 @@ import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
  * Uses discriminatedUnion on executor: script requires code, api requires url.
  */
 const httpMethodSchema = z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
+
+const optionalJsonObjectSchema = z
+  .string()
+  .optional()
+  .refine(
+    (val) => {
+      if (!val) return true
+      return parseJsonEnvironment(val) !== undefined
+    },
+    { message: 'Must be a valid JSON object with string values, e.g. {"MY_VAR": "value"}' }
+  )
 
 const scriptActionSchema = z.object({
   executor: z.literal(ExecutorTypeEnum.SCRIPT),
@@ -19,7 +32,7 @@ const scriptActionSchema = z.object({
   authentication: z.string().optional(), // backward compat — old workflows may have this
   headers: z.string().optional(),
   body: z.string().optional(),
-  parameters: z.string().optional(),
+  parameters: optionalJsonObjectSchema,
   credential_id: z.string().optional(),
   settings: nodeSettingsSchema.optional(),
 })

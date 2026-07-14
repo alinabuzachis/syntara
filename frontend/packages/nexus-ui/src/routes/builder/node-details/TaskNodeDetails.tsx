@@ -18,6 +18,7 @@ import {
   useWorkflowStoreActions,
 } from '../../../stores/useWorkflowStore'
 import type { AAPJobTemplateConfig } from '../../../stores/workflowFactories'
+import { parseJsonEnvironment } from '../../../utils/parseJsonEnvironment'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 import { AAPJobTemplateForm } from '../node-forms/AAPJobTemplateForm'
 import type { AAPJobTemplateFormData } from '../node-forms/aapJobTemplateSchema'
@@ -210,14 +211,24 @@ function serializeBody(body: unknown): string {
 /**
  * Build script config from form data.
  */
-function buildScriptConfig(data: RegistryActionFormData): { language: string; code: string; credential_id?: string } {
-  const config: { language: string; code: string; credential_id?: string } = {
+function buildScriptConfig(data: RegistryActionFormData): {
+  language: string
+  code: string
+  credential_id?: string
+  environment?: Record<string, string>
+} {
+  const config: { language: string; code: string; credential_id?: string; environment?: Record<string, string> } = {
     language: data.language ?? 'python',
     code: data.code!,
   }
 
   if (data.credential_id) {
     config.credential_id = data.credential_id
+  }
+
+  const env = parseJsonEnvironment(data.parameters)
+  if (env) {
+    config.environment = env
   }
 
   return config
@@ -403,7 +414,33 @@ function renderAAPTaskDetails({
   )
 }
 
-// eslint-disable-next-line complexity
+function buildExecutorInitialData(
+  executor: string,
+  config: Record<string, unknown>,
+  taskData: Activity
+): Partial<RegistryActionFormData> {
+  const isScript = executor === ExecutorTypeEnum.SCRIPT
+  const isHTTP = executor === ExecutorTypeEnum.HTTP_REQUEST
+  const serializedBody = isHTTP && config.body ? serializeBody(config.body) : undefined
+
+  return {
+    name: taskData.name,
+    executor: isScript ? ExecutorTypeEnum.SCRIPT : ExecutorTypeEnum.HTTP_REQUEST,
+    language: isScript ? (config.language as string | undefined) : undefined,
+    code: isScript ? (config.code as string | undefined) : undefined,
+    parameters: isScript && config.environment ? JSON.stringify(config.environment, null, 2) : undefined,
+    method: isHTTP ? (config.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | undefined) : undefined,
+    url: isHTTP ? (config.url as string | undefined) : undefined,
+    headers: isHTTP && config.headers ? JSON.stringify(config.headers, null, 2) : undefined,
+    body: serializedBody,
+    credential_id:
+      (config as { credentialId?: string; credential_id?: string }).credentialId ??
+      (config as { credentialId?: string; credential_id?: string }).credential_id ??
+      undefined,
+    settings: taskData.settings,
+  }
+}
+
 export function TaskNodeDetails({
   taskData,
   nodeId,
@@ -468,30 +505,7 @@ export function TaskNodeDetails({
     return null
   }
 
-  const serializedBody =
-    executor === ExecutorTypeEnum.HTTP_REQUEST && config.body ? serializeBody(config.body) : undefined
-
-  const initialData: Partial<RegistryActionFormData> = {
-    name: taskData.name,
-    executor: executor === ExecutorTypeEnum.SCRIPT ? ExecutorTypeEnum.SCRIPT : ExecutorTypeEnum.HTTP_REQUEST,
-    language: executor === ExecutorTypeEnum.SCRIPT ? (config.language as string | undefined) : undefined,
-    code: executor === ExecutorTypeEnum.SCRIPT ? (config.code as string | undefined) : undefined,
-    method:
-      executor === ExecutorTypeEnum.HTTP_REQUEST
-        ? (config.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | undefined)
-        : undefined,
-    url: executor === ExecutorTypeEnum.HTTP_REQUEST ? (config.url as string | undefined) : undefined,
-    headers:
-      executor === ExecutorTypeEnum.HTTP_REQUEST && config.headers
-        ? JSON.stringify(config.headers, null, 2)
-        : undefined,
-    body: serializedBody,
-    credential_id:
-      (config as { credentialId?: string; credential_id?: string }).credentialId ??
-      (config as { credentialId?: string; credential_id?: string }).credential_id ??
-      undefined,
-    settings: taskData.settings,
-  }
+  const initialData = buildExecutorInitialData(executor, config, taskData)
 
   const handleSubmit = (data: RegistryActionFormData) => {
     try {

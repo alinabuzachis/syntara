@@ -269,6 +269,41 @@ describe('workflowFactories', () => {
 
         expect(activity).not.toHaveProperty('settings')
       })
+
+      it('includes parsed environment when valid JSON provided', () => {
+        const activity = createScriptActivity({
+          id: 'task-6',
+          name: 'Script',
+          language: 'python',
+          code: 'pass',
+          environment: '{"MY_VAR": "hello", "OTHER": "world"}',
+        })
+
+        expect(activity.parameters.environment).toEqual({ MY_VAR: 'hello', OTHER: 'world' })
+      })
+
+      it('omits environment when not provided', () => {
+        const activity = createScriptActivity({
+          id: 'task-7',
+          name: 'Script',
+          language: 'python',
+          code: 'pass',
+        })
+
+        expect(activity.parameters).not.toHaveProperty('environment')
+      })
+
+      it('omits environment when invalid JSON provided', () => {
+        const activity = createScriptActivity({
+          id: 'task-8',
+          name: 'Script',
+          language: 'python',
+          code: 'pass',
+          environment: 'not valid json',
+        })
+
+        expect(activity.parameters).not.toHaveProperty('environment')
+      })
     })
 
     describe('createApiActivity', () => {

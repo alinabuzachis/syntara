@@ -33,6 +33,9 @@ export function renderWithHeader(ui: ReactElement) {
         {cloneElement(ui as ReactElement<{ onHeaderContentChange?: (content: ReactNode | null) => void }>, {
           onHeaderContentChange: setHeaderContent,
         })}
+        <button type="submit" form="action-node-form">
+          Submit
+        </button>
       </QueryClientProvider>
     )
   }

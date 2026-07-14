@@ -167,30 +167,21 @@ def _sanitize_env_value(value: object) -> str:
     return str_value
 
 
-def _prepare_script_env(inputs: dict[str, Any], environment: dict[str, str] | None = None) -> dict[str, str]:
+def _prepare_script_env(environment: dict[str, str] | None = None) -> dict[str, str]:
     """Prepare environment variables for script execution.
 
     Args:
-        inputs: Input parameters to pass as environment variables (with INPUT_ prefix)
-        environment: Optional additional environment variables from config.environment
+        environment: Optional environment variables from parameters.environment
 
     Returns:
-        Environment dict with custom variables and INPUT_<key> variables
+        Environment dict with allowlisted system vars and user-defined vars
 
     """
     env = {k: v for k, v in os.environ.items() if k in SAFE_ENV_ALLOWLIST}
 
-    # Add custom environment variables from config.environment
     if environment:
         for key, value in environment.items():
             env[key] = _sanitize_env_value(value)
-
-    # Add input parameters with INPUT_ prefix
-    # Skip None values to avoid serializing them as "None" strings
-    if inputs:
-        for key, value in inputs.items():
-            if value is not None:
-                env[f"INPUT_{key.upper()}"] = _sanitize_env_value(value)
 
     return env
 
@@ -236,18 +227,14 @@ def _process_script_result(
 
 async def _execute_script_common(
     command: list[str],
-    inputs: dict[str, Any],
     environment: dict[str, str] | None = None,
     timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
     """Execute a script with common subprocess handling logic (DRY).
 
-    This function contains the shared logic for executing both bash and python scripts.
-
     Args:
         command: Command to execute (e.g., ["bash", "-c", script] or ["python", "-c", script])
-        inputs: Input parameters (passed as environment variables with INPUT_ prefix)
-        environment: Optional environment variables from config.environment
+        environment: Optional environment variables from parameters.environment
         timeout_seconds: Optional timeout in seconds (uses default if not provided)
 
     Returns:
@@ -262,7 +249,7 @@ async def _execute_script_common(
         ValueError: If input values contain null bytes or exceed maximum length
 
     """
-    env = _prepare_script_env(inputs, environment)
+    env = _prepare_script_env(environment)
     process = None
 
     try:
@@ -360,18 +347,11 @@ async def execute_script_activity(
 
         timeout = int(input_config.get(constants.ENGINE_TIMEOUT_SECONDS_KEY, 300))
 
-        # Inject TEMPORAL_ATTEMPT for retry-aware scripts
-        attempt_number = activity.info().attempt
-        environment["TEMPORAL_ATTEMPT"] = str(attempt_number)
-
-        # V2 configs are already resolved by the resolver, so we pass empty inputs
-        inputs: dict[str, Any] = {}
-
         # Build command based on language
         command = ["bash", "-c", code] if language == "bash" else [sys.executable, "-c", code]
 
         # Execute script
-        result = await _execute_script_common(command, inputs, environment, timeout)
+        result = await _execute_script_common(command, environment, timeout)
 
         # For Python scripts, try to parse stdout as JSON
         if language == "python" and result["stdout"].strip():

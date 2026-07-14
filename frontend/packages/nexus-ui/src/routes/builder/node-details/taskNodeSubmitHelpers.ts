@@ -1,5 +1,6 @@
 import { ExecutorTypeEnum, type Activity, type TaskActivity } from '@ansible/nexus-contracts'
 
+import { parseJsonEnvironment } from '../../../utils/parseJsonEnvironment'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 
 /**
@@ -61,6 +62,10 @@ export function buildRegistryActionInitialData(
       return typeof parameters.body === 'string' ? parameters.body : JSON.stringify(parameters.body, null, 2)
     })(),
     credential_id: (parameters as { credential_id?: string }).credential_id ?? undefined,
+    parameters:
+      executor === ExecutorTypeEnum.SCRIPT && parameters.environment
+        ? JSON.stringify(parameters.environment, null, 2)
+        : undefined,
   }
 }
 
@@ -77,6 +82,8 @@ export function buildRegistryActivityUpdate(taskData: TaskActivity, data: Regist
     mergedApiHeaders = { Authorization: data.authentication }
   }
 
+  const scriptEnv = data.executor === ExecutorTypeEnum.SCRIPT ? parseJsonEnvironment(data.parameters) : undefined
+
   return {
     ...taskData,
     name: data.name,
@@ -87,6 +94,7 @@ export function buildRegistryActivityUpdate(taskData: TaskActivity, data: Regist
             language: data.language ?? 'python',
             code: data.code!,
             ...(data.credential_id && { credential_id: data.credential_id }),
+            ...(scriptEnv && { environment: scriptEnv }),
           }
         : {
             method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',

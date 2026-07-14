@@ -619,7 +619,7 @@ print(json.dumps(data))
 
 
 # ────────────────────────────────────────────────────────────────────
-# Task 4.1 — Tests for Pydantic validation, sys.executable, TEMPORAL_ATTEMPT
+# Task 4.1 — Tests for Pydantic validation and sys.executable
 # ────────────────────────────────────────────────────────────────────
 
 
@@ -659,16 +659,16 @@ class TestPydanticConfigValidation:
         assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_non_string_environment_values_raises_config_error(self) -> None:
-        """Environment with non-string values is rejected by Pydantic."""
+    async def test_non_string_environment_values_coerced(self) -> None:
+        """Environment with non-string values are coerced to strings."""
         input_config = {
             "language": "bash",
-            "code": "echo hi",
+            "code": "echo $KEY",
             "environment": {"KEY": 123},
         }
-        with pytest.raises(ApplicationError) as exc_info:
-            await execute_script_activity(input_config, None)
-        assert exc_info.value.type == "ConfigError"
+        result = await execute_script_activity(input_config, None)
+        assert result["output"]["return_code"] == 0
+        assert result["output"]["stdout"].strip() == "123"
 
     @pytest.mark.asyncio
     async def test_valid_config_at_boundary_timeout_1(self) -> None:
@@ -723,102 +723,6 @@ print(sys.executable)
         output = result["output"]
         assert output["return_code"] == 0
         assert "bash" in output["stdout"]
-
-
-class TestTemporalAttemptInjection:
-    """Test that TEMPORAL_ATTEMPT env var is injected for retry-aware scripts."""
-
-    @pytest.mark.asyncio
-    async def test_bash_receives_temporal_attempt(self) -> None:
-        """Bash scripts should see TEMPORAL_ATTEMPT in their environment."""
-        input_config = {"language": "bash", "code": 'echo "attempt=$TEMPORAL_ATTEMPT"'}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["return_code"] == 0
-        assert "attempt=1" in output["stdout"]
-
-    @pytest.mark.asyncio
-    async def test_python_receives_temporal_attempt(self) -> None:
-        """Python scripts should see TEMPORAL_ATTEMPT in their environment."""
-        script = """
-import os
-attempt = os.getenv('TEMPORAL_ATTEMPT')
-print(f"attempt={attempt}")
-"""
-        input_config = {"language": "python", "code": script}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["return_code"] == 0
-        assert "attempt=1" in output["stdout"]
-
-    @pytest.mark.asyncio
-    async def test_temporal_attempt_reflects_mock_attempt_number(self, mock_activity_info: MagicMock) -> None:
-        """TEMPORAL_ATTEMPT should reflect the actual attempt number from activity info."""
-        mock_activity_info.return_value.attempt = 3
-
-        input_config = {"language": "bash", "code": 'echo "attempt=$TEMPORAL_ATTEMPT"'}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["return_code"] == 0
-        assert "attempt=3" in output["stdout"]
-
-    @pytest.mark.asyncio
-    async def test_temporal_attempt_is_string(self) -> None:
-        """TEMPORAL_ATTEMPT should be a string representation of the attempt number."""
-        script = """
-import os
-val = os.getenv('TEMPORAL_ATTEMPT')
-print(type(val).__name__)
-print(val)
-"""
-        input_config = {"language": "python", "code": script}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["return_code"] == 0
-        assert "str" in output["stdout"]
-        assert "1" in output["stdout"]
-
-    @pytest.mark.asyncio
-    async def test_temporal_attempt_coexists_with_custom_env(self) -> None:
-        """TEMPORAL_ATTEMPT should be present alongside user-provided env vars."""
-        script = """
-import os
-import json
-data = {
-    'attempt': os.getenv('TEMPORAL_ATTEMPT'),
-    'custom': os.getenv('MY_VAR'),
-}
-print(json.dumps(data))
-"""
-        input_config = {
-            "language": "python",
-            "code": script,
-            "environment": {"MY_VAR": "hello"},
-        }
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["return_code"] == 0
-        assert output["stdout_json"]["attempt"] == "1"
-        assert output["stdout_json"]["custom"] == "hello"
-
-    @pytest.mark.asyncio
-    async def test_temporal_attempt_with_empty_environment(self) -> None:
-        """TEMPORAL_ATTEMPT should be injected even when no user env vars are set."""
-        input_config = {
-            "language": "bash",
-            "code": 'echo "attempt=$TEMPORAL_ATTEMPT"',
-            "environment": {},
-        }
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["return_code"] == 0
-        assert "attempt=1" in output["stdout"]
 
 
 # ---------------------------------------------------------------------------
@@ -953,7 +857,7 @@ class TestScriptEnvironmentSanitization:
         for key, value in self.SENSITIVE_VARS.items():
             monkeypatch.setenv(key, value)
 
-        env = _prepare_script_env({})
+        env = _prepare_script_env()
 
         for key in self.SENSITIVE_VARS:
             assert key not in env, f"{key} leaked into script environment"
@@ -965,7 +869,7 @@ class TestScriptEnvironmentSanitization:
         monkeypatch.setenv("LANG", "en_US.UTF-8")
         monkeypatch.setenv("TZ", "UTC")
 
-        env = _prepare_script_env({})
+        env = _prepare_script_env()
 
         assert env["PATH"] == "/usr/bin:/bin"
         assert env["HOME"] == "/home/testuser"
@@ -974,24 +878,17 @@ class TestScriptEnvironmentSanitization:
 
     def test_custom_environment_vars_still_work(self) -> None:
         """User-defined config.environment variables must pass through."""
-        env = _prepare_script_env({}, {"MY_CUSTOM_VAR": "hello", "ANOTHER_VAR": "world"})
+        env = _prepare_script_env({"MY_CUSTOM_VAR": "hello", "ANOTHER_VAR": "world"})
 
         assert env["MY_CUSTOM_VAR"] == "hello"
         assert env["ANOTHER_VAR"] == "world"
-
-    def test_input_vars_still_work(self) -> None:
-        """INPUT_ prefixed variables from workflow inputs must pass through."""
-        env = _prepare_script_env({"hostname": "web01", "port": 8080})
-
-        assert env["INPUT_HOSTNAME"] == "web01"
-        assert env["INPUT_PORT"] == "8080"
 
     def test_arbitrary_unknown_vars_excluded(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Variables not on the allowlist must not appear — allowlist, not blocklist."""
         monkeypatch.setenv("SOME_INTERNAL_SERVICE_TOKEN", "tok_12345")
         monkeypatch.setenv("OPENROUTER_API_KEY", "or-key-secret")
 
-        env = _prepare_script_env({})
+        env = _prepare_script_env()
 
         assert "SOME_INTERNAL_SERVICE_TOKEN" not in env
         assert "OPENROUTER_API_KEY" not in env
@@ -1004,7 +901,7 @@ class TestScriptEnvironmentSanitization:
         for key, value in self.SENSITIVE_VARS.items():
             monkeypatch.setenv(key, value)
 
-        env = _prepare_script_env({})
+        env = _prepare_script_env()
 
         inherited_keys = set(env.keys())
         assert inherited_keys.issubset(SAFE_ENV_ALLOWLIST), (

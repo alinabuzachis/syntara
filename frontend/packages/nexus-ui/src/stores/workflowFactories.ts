@@ -8,6 +8,7 @@ import {
 } from '@ansible/nexus-contracts'
 
 import { safeJSONReviver } from '../utils/jsonSafeParse'
+import { parseJsonEnvironment } from '../utils/parseJsonEnvironment'
 
 import type { ActivityWithMetadata } from './workflowStoreTypes'
 
@@ -169,6 +170,7 @@ export type CreateScriptActivityOptions = {
   language?: string
   code?: string
   credentialId?: string
+  environment?: string
   settings?: NodeSettings
 }
 
@@ -176,7 +178,9 @@ export type CreateScriptActivityOptions = {
  * Create a script node (v2).
  */
 export function createScriptActivity(options: CreateScriptActivityOptions): Activity {
-  const { id, name, language, code, credentialId, settings } = options
+  const { id, name, language, code, credentialId, environment, settings } = options
+  const parsedEnvironment = parseJsonEnvironment(environment)
+
   return {
     id,
     type: ActivityTypeEnum.SCRIPT,
@@ -185,6 +189,7 @@ export function createScriptActivity(options: CreateScriptActivityOptions): Acti
       ...(language !== undefined && { language }),
       ...(code !== undefined && { code }),
       ...(credentialId && { credential_id: credentialId }),
+      ...(parsedEnvironment && { environment: parsedEnvironment }),
     },
     ...(settings && { settings }),
   }

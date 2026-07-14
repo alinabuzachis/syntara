@@ -224,18 +224,50 @@ describe('ActionNodeForm', () => {
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
     await user.type(screen.getByPlaceholderText(/Enter your code/i), 'code')
-    const paramsInput = screen.getByPlaceholderText('{"key": "value"}')
+    const paramsInput = screen.getByPlaceholderText('{"MY_VAR": "value"}')
     await user.click(paramsInput)
-    await user.paste('{"test": 123}')
-    fireEvent.submit(screen.getByTestId('action-node-form'))
+    await user.paste('{"test": "123"}')
+    await user.click(screen.getByRole('button', { name: 'Submit' }))
 
     await waitFor(() => {
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
-          parameters: '{"test": 123}',
+          parameters: '{"test": "123"}',
         })
       )
     })
+  })
+
+  it('shows validation error for invalid environment JSON', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
+
+    await user.type(screen.getByPlaceholderText(/Enter your code/i), 'code')
+    const paramsInput = screen.getByPlaceholderText('{"MY_VAR": "value"}')
+    await user.click(paramsInput)
+    await user.paste('not valid json')
+    await user.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Must be a valid JSON object/i)).toBeInTheDocument()
+    })
+    expect(mockOnSubmit).not.toHaveBeenCalled()
+  })
+
+  it('shows validation error for non-string environment values', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
+
+    await user.type(screen.getByPlaceholderText(/Enter your code/i), 'code')
+    const paramsInput = screen.getByPlaceholderText('{"MY_VAR": "value"}')
+    await user.click(paramsInput)
+    await user.paste('{"VAR": 123}')
+    await user.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Must be a valid JSON object/i)).toBeInTheDocument()
+    })
+    expect(mockOnSubmit).not.toHaveBeenCalled()
   })
 
   it('renders code editor with drop support for script executor', () => {
@@ -244,10 +276,10 @@ describe('ActionNodeForm', () => {
     expect(screen.getByTestId('code-editor')).toBeInTheDocument()
   })
 
-  it('accepts drop on input parameters field for script executor', () => {
+  it('accepts drop on environment variables field for script executor', () => {
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
-    const parametersField = screen.getByRole('textbox', { name: 'Input parameters' })
+    const parametersField = screen.getByRole('textbox', { name: 'Environment variables' })
 
     fireEvent.drop(parametersField, {
       dataTransfer: {

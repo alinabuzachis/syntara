@@ -50,7 +50,6 @@ type ActionNodeFormProps = {
   projectId?: string
 }
 
-// Constants (Priority 4)
 const SCRIPT_LANGUAGE_OPTIONS: Array<{ label: string; value: ScriptLanguage }> = [
   { label: 'Python', value: 'python' },
   { label: 'Bash', value: 'bash' },
@@ -64,16 +63,23 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
   { label: 'DELETE', value: 'DELETE' },
 ]
 
-type ScriptInputParametersProps = {
+type ScriptEnvironmentVariablesProps = {
   register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
   getValues: ReturnType<typeof useFormContext<ActionFormValues>>['getValues']
   setValue: ReturnType<typeof useFormContext<ActionFormValues>>['setValue']
+  errors: { parameters?: { message?: string } }
   isDisabled: boolean
 }
 
-function ScriptInputParameters({ register, getValues, setValue, isDisabled }: ScriptInputParametersProps) {
+function ScriptEnvironmentVariables({
+  register,
+  getValues,
+  setValue,
+  errors,
+  isDisabled,
+}: ScriptEnvironmentVariablesProps) {
   return (
-    <FormGroup label="Input parameters" fieldId="action-parameters">
+    <FormGroup label="Environment variables" fieldId="action-parameters">
       <DroppableField
         onDropText={(text) => {
           const current = getValues('parameters')
@@ -83,14 +89,17 @@ function ScriptInputParameters({ register, getValues, setValue, isDisabled }: Sc
         <TextArea
           {...register('parameters')}
           id="action-parameters"
-          placeholder='{"key": "value"}'
+          placeholder='{"MY_VAR": "value"}'
           rows={3}
           isDisabled={isDisabled}
+          validated={errors.parameters ? 'error' : 'default'}
         />
       </DroppableField>
       <FormHelperText>
         <HelperText>
-          <HelperTextItem>Define inputs for this task</HelperTextItem>
+          <HelperTextItem {...(errors.parameters && { icon: <RhUiErrorIcon />, variant: 'error' as const })}>
+            {errors.parameters?.message ?? 'Environment variables available during script execution'}
+          </HelperTextItem>
         </HelperText>
       </FormHelperText>
     </FormGroup>
@@ -103,7 +112,7 @@ type ActionParametersContentProps = Readonly<{
   control: ActionFormMethods['control']
   getValues: ActionFormMethods['getValues']
   setValue: ActionFormMethods['setValue']
-  errors: { code?: { message?: string }; url?: { message?: string } }
+  errors: { code?: { message?: string }; url?: { message?: string }; parameters?: { message?: string } }
   executor: ActionFormValues['executor']
   scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
   editorLanguage: CodeLanguage
@@ -173,22 +182,19 @@ function ActionParametersContent(props: ActionParametersContentProps) {
               />
               <FormHelperText>
                 <HelperText>
-                  {errors.code ? (
-                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                      {errors.code.message}
-                    </HelperTextItem>
-                  ) : (
-                    <HelperTextItem>Script code to execute</HelperTextItem>
-                  )}
+                  <HelperTextItem {...(errors.code && { icon: <RhUiErrorIcon />, variant: 'error' as const })}>
+                    {errors.code?.message ?? 'Script code to execute'}
+                  </HelperTextItem>
                 </HelperText>
               </FormHelperText>
             </FormGroup>
           </StackItem>
           <StackItem>
-            <ScriptInputParameters
+            <ScriptEnvironmentVariables
               register={register}
               getValues={getValues}
               setValue={setValue}
+              errors={errors}
               isDisabled={isVersionView}
             />
           </StackItem>

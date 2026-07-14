@@ -4,6 +4,7 @@ This module contains Pydantic models for activity executor configurations.
 These are used by V2 workflow activities for config validation.
 """
 
+import json
 import re
 import uuid
 from enum import Enum, IntEnum, StrEnum
@@ -351,6 +352,20 @@ class ScriptExecutorParameters(TemplateAwareBaseModel):
     code: str = Field(min_length=1, description="Script code to execute")
     environment: dict[str, str] = Field(default_factory=dict, description="Environment variables")
     credential_id: str | None = Field(default=None, description="Nexus credential UUID for credential scrubbing")
+
+    @field_validator("environment", mode="before")
+    @classmethod
+    def coerce_environment_values_to_str(cls, v: Any) -> Any:  # noqa: ANN401
+        """Coerce environment variable values to strings.
+
+        Template-resolved values like return_code may arrive as int/float/bool
+        after namespace resolution, but environment variables are always strings.
+        Uses json.dumps for non-string types to produce valid JSON (lowercase
+        booleans, double-quoted strings in dicts/lists).
+        """
+        if isinstance(v, dict):
+            return {k: val if isinstance(val, str) else json.dumps(val) for k, val in v.items()}
+        return v
 
 
 class Authentication(TemplateAwareBaseModel):

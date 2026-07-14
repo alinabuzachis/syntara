@@ -76,6 +76,25 @@ describe('taskNodeSubmitHelpers', () => {
       )
       expect(data.credential_id).toBe('cred-1')
     })
+
+    it('populates parameters from environment for script executor', () => {
+      const data = buildRegistryActionInitialData(
+        ExecutorTypeEnum.SCRIPT,
+        { language: 'python', code: 'pass', environment: { MY_VAR: 'hello' } },
+        baseTask
+      )
+      expect(data.parameters).toContain('MY_VAR')
+      expect(data.parameters).toContain('hello')
+    })
+
+    it('omits parameters when no environment for script executor', () => {
+      const data = buildRegistryActionInitialData(
+        ExecutorTypeEnum.SCRIPT,
+        { language: 'python', code: 'pass' },
+        baseTask
+      )
+      expect(data.parameters).toBeUndefined()
+    })
   })
 
   describe('buildRegistryActivityUpdate', () => {
@@ -173,6 +192,43 @@ describe('taskNodeSubmitHelpers', () => {
       }
       const activity = buildRegistryActivityUpdate(baseTask, data)
       expect((activity.parameters as { headers?: unknown }).headers).toBeUndefined()
+    })
+
+    it('includes environment when script has valid parameters JSON', () => {
+      const data: ActionFormData = {
+        name: 'S',
+        executor: ExecutorTypeEnum.SCRIPT,
+        language: 'python',
+        code: 'pass',
+        parameters: '{"MY_VAR": "value"}',
+      }
+      const activity = buildRegistryActivityUpdate(baseTask, data)
+      expect((activity.parameters as { environment: Record<string, string> }).environment).toEqual({
+        MY_VAR: 'value',
+      })
+    })
+
+    it('omits environment when script has no parameters', () => {
+      const data: ActionFormData = {
+        name: 'S',
+        executor: ExecutorTypeEnum.SCRIPT,
+        language: 'python',
+        code: 'pass',
+      }
+      const activity = buildRegistryActivityUpdate(baseTask, data)
+      expect((activity.parameters as { environment?: unknown }).environment).toBeUndefined()
+    })
+
+    it('omits environment when script parameters is invalid JSON', () => {
+      const data: ActionFormData = {
+        name: 'S',
+        executor: ExecutorTypeEnum.SCRIPT,
+        language: 'python',
+        code: 'pass',
+        parameters: 'not json',
+      }
+      const activity = buildRegistryActivityUpdate(baseTask, data)
+      expect((activity.parameters as { environment?: unknown }).environment).toBeUndefined()
     })
   })
 })
