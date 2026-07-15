@@ -290,35 +290,11 @@ describe('useBuilderLiveRunPanel', () => {
   })
 
   describe('useExecutionWebSocket enabled flag', () => {
-    it('is enabled when active and status is running', () => {
+    it.each(['running', 'pending', 'paused'] as const)('is enabled when active and status is %s', (executionStatus) => {
       renderHook(
         () =>
           useBuilderLiveRunPanel(
-            defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus: 'running' })
-          ),
-        { wrapper: makeWrapper(queryClient) }
-      )
-
-      expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: true }))
-    })
-
-    it('is enabled when active and status is pending', () => {
-      renderHook(
-        () =>
-          useBuilderLiveRunPanel(
-            defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus: 'pending' })
-          ),
-        { wrapper: makeWrapper(queryClient) }
-      )
-
-      expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: true }))
-    })
-
-    it('is enabled when active and status is paused', () => {
-      renderHook(
-        () =>
-          useBuilderLiveRunPanel(
-            defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus: 'paused' })
+            defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus })
           ),
         { wrapper: makeWrapper(queryClient) }
       )
@@ -341,49 +317,20 @@ describe('useBuilderLiveRunPanel', () => {
       expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: true }))
     })
 
-    it('is disabled when active but status is completed', () => {
-      renderHook(
-        () =>
-          useBuilderLiveRunPanel(
-            defaultParams({
-              mostRecentRunPanelOpen: true,
-              mostRecentExecutionId: 'exec-1',
-              executionStatus: 'completed',
-            })
-          ),
-        { wrapper: makeWrapper(queryClient) }
-      )
+    it.each(['completed', 'failed', 'cancelled'] as const)(
+      'is disabled when active but status is %s',
+      (executionStatus) => {
+        renderHook(
+          () =>
+            useBuilderLiveRunPanel(
+              defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus })
+            ),
+          { wrapper: makeWrapper(queryClient) }
+        )
 
-      expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: false }))
-    })
-
-    it('is disabled when active but status is failed', () => {
-      renderHook(
-        () =>
-          useBuilderLiveRunPanel(
-            defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus: 'failed' })
-          ),
-        { wrapper: makeWrapper(queryClient) }
-      )
-
-      expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: false }))
-    })
-
-    it('is disabled when active but status is cancelled', () => {
-      renderHook(
-        () =>
-          useBuilderLiveRunPanel(
-            defaultParams({
-              mostRecentRunPanelOpen: true,
-              mostRecentExecutionId: 'exec-1',
-              executionStatus: 'cancelled',
-            })
-          ),
-        { wrapper: makeWrapper(queryClient) }
-      )
-
-      expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: false }))
-    })
+        expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: false }))
+      }
+    )
 
     it('is disabled when panel is not active', () => {
       renderHook(
