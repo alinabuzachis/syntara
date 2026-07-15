@@ -25,7 +25,6 @@ from nexus.authz.engine import (
     resolve_allowed_projects,
     resolve_visibility,
 )
-from nexus.authz.models.assignments import RolePrincipalType
 from nexus.authz.models.project import Project
 from nexus.core.models import User
 from nexus.core.models.group import Group
@@ -160,7 +159,6 @@ async def test_assign_project_admin(seeded_db: AsyncSession, test_user: User) ->
     await seeded_db.flush()
 
     assignment = await assign_project_admin(seeded_db, test_user.id, project.id)
-    assert assignment.principal_type == RolePrincipalType.USER
     assert assignment.principal_id == test_user.id
     assert assignment.project_id == project.id
     assert assignment.role_name == "project-admin"
@@ -180,9 +178,7 @@ async def test_assign_authenticated_group_project_user(
     assert assignment.project_id == project.id
     assert assignment.role_name == "project-user"
 
-    # Verify group is "authenticated"
-    assert assignment.principal_type == RolePrincipalType.GROUP
-    group = await seeded_db.get(Group, assignment.principal_id)
+    group = await seeded_db.get(Group, assignment.group_id)
     assert group is not None
     assert group.name == "authenticated"
 

@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 import pytest
 from nexus_api_client.models.group_member_add import GroupMemberAdd
 from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
-from nexus_api_client.models.role_principal_type import RolePrincipalType
 from nexus_api_client.models.service_account_create import ServiceAccountCreate
 from nexus_api_client.models.service_account_update import ServiceAccountUpdate
 
@@ -227,7 +226,6 @@ class TestRoleAssignmentToServiceAccount:
             resp = admin_api.projects.create_role_assignment(
                 project_id=project_id,
                 body=RoleAssignmentCreate(
-                    principal_type=RolePrincipalType.SERVICE_ACCOUNT,
                     principal_id=sa.id,
                     role_name="project-admin",
                 ),

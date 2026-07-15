@@ -2473,7 +2473,6 @@ export const handlers = [
       .filter((a) => a.user_id === (params.userId as string))
       .map((a) => ({
         id: a.id,
-        principal_type: 'user',
         principal_id: a.user_id,
         principal_name: a.username,
         role_name: a.role_name,
@@ -2857,8 +2856,8 @@ export const handlers = [
         const role = mockRoles.find((r) => r.id === a.role_id)
         return {
           id: a.id,
-          principal_type: 'group',
-          principal_id: a.group_id,
+          principal_id: null,
+          group_id: a.group_id,
           principal_name: a.group_name,
           role_name: a.role_name,
           role_description: role?.description ?? null,
@@ -2875,8 +2874,8 @@ export const handlers = [
         const role = mockRoles.find((r) => r.id === a.role_id)
         return {
           id: a.id,
-          principal_type: 'group',
-          principal_id: a.group_id,
+          principal_id: null,
+          group_id: a.group_id,
           principal_name: a.group_name,
           role_name: a.role_name,
           role_description: role?.description ?? null,
@@ -3385,8 +3384,8 @@ export const handlers = [
       .map((a) => ({
         id: a.id,
         principal_id: a.user_id,
+        group_id: null,
         principal_name: a.username,
-        principal_type: 'user' as const,
         role_name: a.role_name,
         role_policies: mockRoles.find((r) => r.name === a.role_name)?.policies ?? [],
         project_id: a.project_id,
@@ -3397,9 +3396,9 @@ export const handlers = [
       .filter((a) => a.project_id === pid)
       .map((a) => ({
         id: a.id,
-        principal_id: a.group_id,
+        principal_id: null,
+        group_id: a.group_id,
         principal_name: a.group_name,
-        principal_type: 'group' as const,
         role_name: a.role_name,
         role_policies: mockRoles.find((r) => r.name === a.role_name)?.policies ?? [],
         project_id: a.project_id,
@@ -3410,14 +3409,14 @@ export const handlers = [
   }),
 
   http.post('/api/v1/projects/:project_id/role_assignments', async ({ params, request }) => {
-    const body = (await request.json()) as { principal_type: 'user' | 'group'; principal_id: string; role_name: string }
+    const body = (await request.json()) as { principal_id?: string; group_id?: string; role_name: string }
     const projectId = params.project_id as string
 
-    if (body.principal_type === 'group') {
+    if (body.group_id) {
       const assignment = {
         id: uuidv4(),
-        group_id: body.principal_id,
-        group_name: groups.find((g) => g.id === body.principal_id)?.name ?? body.principal_id,
+        group_id: body.group_id,
+        group_name: groups.find((g) => g.id === body.group_id)?.name ?? body.group_id,
         project_id: projectId,
         role_name: body.role_name,
         created_at: new Date().toISOString(),
@@ -3426,8 +3425,8 @@ export const handlers = [
       return HttpResponse.json(
         {
           id: assignment.id,
-          principal_type: 'group',
-          principal_id: assignment.group_id,
+          principal_id: null,
+          group_id: assignment.group_id,
           principal_name: assignment.group_name,
           role_name: assignment.role_name,
           project_id: assignment.project_id,
@@ -3437,10 +3436,11 @@ export const handlers = [
       )
     }
 
+    const principalId = body.principal_id!
     const assignment = {
       id: uuidv4(),
-      user_id: body.principal_id,
-      username: users.find((u) => u.id === body.principal_id)?.username ?? body.principal_id,
+      user_id: principalId,
+      username: users.find((u) => u.id === principalId)?.username ?? principalId,
       project_id: projectId,
       role_name: body.role_name,
       created_at: new Date().toISOString(),
@@ -3449,8 +3449,8 @@ export const handlers = [
     return HttpResponse.json(
       {
         id: assignment.id,
-        principal_type: 'user',
         principal_id: assignment.user_id,
+        group_id: null,
         principal_name: assignment.username,
         role_name: assignment.role_name,
         project_id: assignment.project_id,
@@ -3978,7 +3978,7 @@ export const handlers = [
     const cursor = url.searchParams.get('cursor')
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const includeTotal = url.searchParams.get('include_total') === 'true'
-    const principalType = url.searchParams.get('principal_type')
+    const groupId = url.searchParams.get('group_id')
     const principalName = url.searchParams.get('principal_name')
     const roleName = url.searchParams.get('role_name')
     const projectId = url.searchParams.get('project_id')
@@ -3989,8 +3989,8 @@ export const handlers = [
       return {
         id: a.id,
         principal_id: a.user_id,
+        group_id: null,
         principal_name: a.username,
-        principal_type: 'user' as const,
         role_name: a.role_name,
         role_description: role?.description ?? null,
         role_policies: role?.policies ?? [],
@@ -4004,9 +4004,9 @@ export const handlers = [
       const role = mockRoles.find((r) => r.name === a.role_name)
       return {
         id: a.id,
-        principal_id: a.group_id,
+        principal_id: null,
+        group_id: a.group_id,
         principal_name: a.group_name,
-        principal_type: 'group' as const,
         role_name: a.role_name,
         role_description: role?.description ?? null,
         role_policies: role?.policies ?? [],
@@ -4021,8 +4021,8 @@ export const handlers = [
       return {
         id: a.id,
         principal_id: a.user_id,
+        group_id: null,
         principal_name: a.username,
-        principal_type: 'user' as const,
         role_name: a.role_name,
         role_description: role?.description ?? null,
         role_policies: role?.policies ?? [],
@@ -4036,9 +4036,9 @@ export const handlers = [
       const role = mockRoles.find((r) => r.name === a.role_name)
       return {
         id: a.id,
-        principal_id: a.group_id,
+        principal_id: null,
+        group_id: a.group_id,
         principal_name: a.group_name,
-        principal_type: 'group' as const,
         role_name: a.role_name,
         role_description: role?.description ?? null,
         role_policies: role?.policies ?? [],
@@ -4051,7 +4051,9 @@ export const handlers = [
     let all = [...userEntries, ...groupEntries, ...projectUserEntries, ...projectGroupEntries]
 
     // Apply filters
-    if (principalType) all = all.filter((a) => a.principal_type === principalType)
+    if (groupId != null) {
+      all = all.filter((a) => a.group_id === groupId)
+    }
     if (principalName) all = all.filter((a) => a.principal_name.includes(principalName))
     if (roleName) all = all.filter((a) => a.role_name.includes(roleName))
     if (projectId) all = all.filter((a) => a.project_id === projectId)
@@ -4066,7 +4068,7 @@ export const handlers = [
     const cursor = url.searchParams.get('cursor')
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const includeTotal = url.searchParams.get('include_total') === 'true'
-    const principalType = url.searchParams.get('principal_type')
+    const groupId = url.searchParams.get('group_id')
     const principalName = url.searchParams.get('principal_name')
     const roleName = url.searchParams.get('role_name')
     const projectId = url.searchParams.get('project_id')
@@ -4074,8 +4076,8 @@ export const handlers = [
     const userEntries = mockUserRoleAssignments.map((a) => ({
       id: a.id,
       principal_id: a.user_id,
+      group_id: null,
       principal_name: a.username,
-      principal_type: 'user' as const,
       role_name: a.role_name,
       project_id: null,
       project_name: null,
@@ -4084,9 +4086,9 @@ export const handlers = [
 
     const groupEntries = mockGroupRoleAssignments.map((a) => ({
       id: a.id,
-      principal_id: a.group_id,
+      principal_id: null,
+      group_id: a.group_id,
       principal_name: a.group_name,
-      principal_type: 'group' as const,
       role_name: a.role_name,
       project_id: null,
       project_name: null,
@@ -4096,8 +4098,8 @@ export const handlers = [
     const projectUserEntries = mockProjectRoleAssignments.map((a) => ({
       id: a.id,
       principal_id: a.user_id,
+      group_id: null,
       principal_name: a.username,
-      principal_type: 'user' as const,
       role_name: a.role_name,
       project_id: a.project_id,
       project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
@@ -4106,9 +4108,9 @@ export const handlers = [
 
     const projectGroupEntries = mockProjectGroupRoleAssignments.map((a) => ({
       id: a.id,
-      principal_id: a.group_id,
+      principal_id: null,
+      group_id: a.group_id,
       principal_name: a.group_name,
-      principal_type: 'group' as const,
       role_name: a.role_name,
       project_id: a.project_id,
       project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
@@ -4117,7 +4119,9 @@ export const handlers = [
 
     let all = [...userEntries, ...groupEntries, ...projectUserEntries, ...projectGroupEntries]
 
-    if (principalType) all = all.filter((a) => a.principal_type === principalType)
+    if (groupId != null) {
+      all = all.filter((a) => a.group_id === groupId)
+    }
     if (principalName) all = all.filter((a) => a.principal_name.includes(principalName))
     if (roleName) all = all.filter((a) => a.role_name.includes(roleName))
     if (projectId) all = all.filter((a) => a.project_id === projectId)
@@ -4130,7 +4134,7 @@ export const handlers = [
     const cursor = url.searchParams.get('cursor')
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const includeTotal = url.searchParams.get('include_total') === 'true'
-    const principalType = url.searchParams.get('principal_type')
+    const groupId = url.searchParams.get('group_id')
     const principalName = url.searchParams.get('principal_name')
     const roleName = url.searchParams.get('role_name')
 
@@ -4141,8 +4145,8 @@ export const handlers = [
       .map((a) => ({
         id: a.id,
         principal_id: a.user_id,
+        group_id: null,
         principal_name: a.username,
-        principal_type: 'user' as const,
         role_name: a.role_name,
         project_id: a.project_id,
         project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
@@ -4153,9 +4157,9 @@ export const handlers = [
       .filter((a) => a.project_id === pid)
       .map((a) => ({
         id: a.id,
-        principal_id: a.group_id,
+        principal_id: null,
+        group_id: a.group_id,
         principal_name: a.group_name,
-        principal_type: 'group' as const,
         role_name: a.role_name,
         project_id: a.project_id,
         project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
@@ -4164,7 +4168,9 @@ export const handlers = [
 
     let all = [...userEntries, ...groupEntries]
 
-    if (principalType) all = all.filter((a) => a.principal_type === principalType)
+    if (groupId != null) {
+      all = all.filter((a) => a.group_id === groupId)
+    }
     if (principalName) all = all.filter((a) => a.principal_name.includes(principalName))
     if (roleName) all = all.filter((a) => a.role_name.includes(roleName))
 

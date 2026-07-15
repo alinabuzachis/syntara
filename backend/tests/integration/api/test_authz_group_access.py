@@ -13,7 +13,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import Project, RoleAssignment, RolePrincipalType
+from nexus.authz.models import Project, RoleAssignment
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from tests.integration.api.conftest import make_admin
@@ -42,9 +42,7 @@ async def test_group_grants_access(
     group = Group(name="dev-team-gga", description="Dev team", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(
-        RoleAssignment(principal_type=RolePrincipalType.GROUP, principal_id=group.id, role_name="auditor")
-    )
+    test_db_session.add(RoleAssignment(group_id=group.id, role_name="auditor"))
     await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 
@@ -71,18 +69,14 @@ async def test_multiple_groups_additive(
     admin_group = Group(name="admin-group-mga", description="Admin group", labels={})
     test_db_session.add(admin_group)
     await test_db_session.flush()
-    test_db_session.add(
-        RoleAssignment(principal_type=RolePrincipalType.GROUP, principal_id=admin_group.id, role_name="admin")
-    )
+    test_db_session.add(RoleAssignment(group_id=admin_group.id, role_name="admin"))
     await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=admin_group.id))
 
     # Reader group with auditor role
     reader_group = Group(name="reader-group-mga", description="Reader group", labels={})
     test_db_session.add(reader_group)
     await test_db_session.flush()
-    test_db_session.add(
-        RoleAssignment(principal_type=RolePrincipalType.GROUP, principal_id=reader_group.id, role_name="auditor")
-    )
+    test_db_session.add(RoleAssignment(group_id=reader_group.id, role_name="auditor"))
     await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=reader_group.id))
     await test_db_session.commit()
 
@@ -133,8 +127,7 @@ async def test_group_project_role(
     assert project is not None
     test_db_session.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.GROUP,
-            principal_id=group.id,
+            group_id=group.id,
             project_id=project.id,
             role_name="project-user",
         )
@@ -173,9 +166,7 @@ async def test_remove_revokes_access(
     group = Group(name="revoke-team-ga", description="Revoke team", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(
-        RoleAssignment(principal_type=RolePrincipalType.GROUP, principal_id=group.id, role_name="auditor")
-    )
+    test_db_session.add(RoleAssignment(group_id=group.id, role_name="auditor"))
     await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 

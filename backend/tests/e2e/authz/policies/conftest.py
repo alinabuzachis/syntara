@@ -25,7 +25,6 @@ from nexus_api_client.models.project_create import ProjectCreate
 from nexus_api_client.models.project_role_create import ProjectRoleCreate
 from nexus_api_client.models.project_update import ProjectUpdate
 from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
-from nexus_api_client.models.role_principal_type import RolePrincipalType
 from nexus_api_client.models.upload_files_body import UploadFilesBody
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
@@ -149,7 +148,6 @@ def _role_assignment_assign_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str
     return api.projects.create_role_assignment(
         project_id=pid,
         body=RoleAssignmentCreate(
-            principal_type=RolePrincipalType.USER,
             principal_id=ctx["target_user_id"],
             role_name="project-user",
         ),

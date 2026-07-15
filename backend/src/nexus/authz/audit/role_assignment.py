@@ -30,14 +30,21 @@ if TYPE_CHECKING:
 
 @dataclass
 class RoleAssignmentEvent:
-    """Domain event fired when a role is assigned to or revoked from a principal."""
+    """Domain event fired when a role is assigned to or revoked from a principal.
+
+    Exactly one of (principal_id, principal_name, principal_type) or
+    (group_id, group_name) is populated — mirrors the XOR constraint on
+    the RoleAssignment model.
+    """
 
     assignment_id: UUID
-    principal_type: str  # "user" | "group"
-    principal_id: UUID
-    principal_name: str
     role_name: str
     action: str  # "assigned" | "revoked"
+    principal_id: UUID | None = field(default=None)
+    principal_type: str | None = field(default=None)
+    principal_name: str | None = field(default=None)
+    group_id: UUID | None = field(default=None)
+    group_name: str | None = field(default=None)
     project_id: UUID | None = field(default=None)
     error_type: str | None = field(default=None)
 
@@ -53,16 +60,26 @@ class RoleAssignmentHandler(AuditEventHandler[RoleAssignmentEvent]):
     def handle(self, event: RoleAssignmentEvent) -> AuditEvent:
         """Map a RoleAssignmentEvent to a normalized AuditEvent."""
         is_error = event.error_type is not None
-
         severity = EventSeverity.ERROR if is_error else EventSeverity.INFO
+
+        is_group = event.group_id is not None
+        if is_group:
+            target_label = f"group {event.group_name}" if event.group_name else "group"
+        elif event.principal_type and event.principal_name:
+            target_label = f"{event.principal_type} {event.principal_name}"
+        else:
+            target_label = "principal"
 
         data = AuditContextData(
             data_type="role-assignment",
             action=event.action,
-            principal_type=event.principal_type,
-            principal_name=event.principal_name,
             role_name=event.role_name,
         )
+        if is_group:
+            data.group_name = event.group_name
+        elif event.principal_type:
+            data.principal_type = event.principal_type
+            data.principal_name = event.principal_name
         if event.project_id is not None:
             data.project_id = str(event.project_id)
         if is_error:
@@ -73,7 +90,7 @@ class RoleAssignmentHandler(AuditEventHandler[RoleAssignmentEvent]):
             event_severity=severity,
             event_status=EventStatus.ERROR if is_error else EventStatus.SUCCESS,
             event_action=f"role_{event.action}",
-            event_message=f"Role {event.action}: {event.role_name} -> {event.principal_type} {event.principal_name}",
+            event_message=f"Role {event.action}: {event.role_name} -> {target_label}",
             source_component="nexus.authz",
             structured_data=data,
             resource_urn=f"urn:nexus:role-assignment:{event.assignment_id}",

@@ -14,7 +14,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.project import Project
 from nexus.authz.models.role import Role
@@ -109,7 +109,7 @@ async def test_soft_deleted_group_policies_not_resolved(seeded_db: AsyncSession,
     seeded_db.add(group)
     await seeded_db.flush()
 
-    seeded_db.add(RoleAssignment(principal_type=RolePrincipalType.GROUP, principal_id=group.id, role_name=role.name))
+    seeded_db.add(RoleAssignment(group_id=group.id, role_name=role.name))
     await seeded_db.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await seeded_db.commit()
 
@@ -267,9 +267,7 @@ async def test_resolve_effective_policies_direct_user_role(seeded_db: AsyncSessi
     seeded_db.add(role)
     await seeded_db.flush()
 
-    assignment = RoleAssignment(
-        principal_type=RolePrincipalType.USER, principal_id=test_user.id, role_name="direct-role"
-    )
+    assignment = RoleAssignment(principal_id=test_user.id, role_name="direct-role")
     seeded_db.add(assignment)
     await seeded_db.commit()
 
@@ -298,9 +296,7 @@ async def test_resolve_effective_policies_project_scoped(seeded_db: AsyncSession
     seeded_db.add(role)
     await seeded_db.flush()
 
-    assignment = RoleAssignment(
-        principal_type=RolePrincipalType.USER, principal_id=test_user.id, role_name="proj-role", project_id=project.id
-    )
+    assignment = RoleAssignment(principal_id=test_user.id, role_name="proj-role", project_id=project.id)
     seeded_db.add(assignment)
     await seeded_db.commit()
 
@@ -336,8 +332,7 @@ async def test_resolve_effective_policies_group_project_scoped(seeded_db: AsyncS
     # Assign group to project-scoped role
     seeded_db.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.GROUP,
-            principal_id=group.id,
+            group_id=group.id,
             role_name="grp-proj-role",
             project_id=project.id,
         )
@@ -385,7 +380,6 @@ async def test_resolve_effective_policies_cross_project_isolation(seeded_db: Asy
     await seeded_db.flush()
 
     assignment = RoleAssignment(
-        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="shared-role",
         project_id=proj_b.id,
@@ -493,7 +487,6 @@ async def test_resolve_effective_policies_service_account_direct_role(seeded_db:
     await seeded_db.flush()
 
     assignment = RoleAssignment(
-        principal_type=RolePrincipalType.SERVICE_ACCOUNT,
         principal_id=sa.id,
         role_name="sa-direct-role",
         project_id=project.id,

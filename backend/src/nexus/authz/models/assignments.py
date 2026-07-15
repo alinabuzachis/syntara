@@ -1,10 +1,13 @@
 """Unified role assignment model.
 
-RoleAssignment links a principal (user or group) to a role, optionally
-scoped to a project.
+RoleAssignment links a principal (user, service account, or group) to a
+role, optionally scoped to a project.
 
 When project_id is NULL the assignment is system-wide (global).
 When project_id is set the assignment is scoped to that project.
+
+Exactly one of ``principal_id`` (FK → principals) or ``group_id``
+(FK → groups) must be set.  A CHECK constraint enforces mutual exclusion.
 
 Resolution chain:
 - Global: user -> (direct roles + groups -> roles) -> policies
@@ -14,28 +17,15 @@ Roles are referenced by name (not FK) because built-in roles are not
 stored in the database -- they exist only in ``role_conventions.py``.
 """
 
-from enum import StrEnum
 from uuid import UUID
 
-from sqlalchemy import String, text
+from sqlalchemy import CheckConstraint, String, text
 from sqlmodel import Field, Index
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
 
-
-class RolePrincipalType(StrEnum):
-    """Discriminator for role assignment targets."""
-
-    USER = "user"
-    # GROUP is included for backwards compatibility with existing role
-    # assignments but is not a true principal (no row in the principals
-    # table). This may be refactored to avoid calling groups principals.
-    GROUP = "group"
-    SERVICE_ACCOUNT = "service_account"
-
-
-__all__ = ["RoleAssignment", "RolePrincipalType"]
+__all__ = ["RoleAssignment"]
 
 
 class RoleAssignment(BaseResource, table=True):
@@ -43,14 +33,17 @@ class RoleAssignment(BaseResource, table=True):
 
     __tablename__ = "role_assignments"
 
-    principal_type: RolePrincipalType = Field(
-        sa_type=String(FieldLimits.PRINCIPAL_TYPE_MAX_LENGTH),  # type: ignore[call-overload]
-        description="Whether this assignment targets a 'user', 'group', or 'service_account'",
+    principal_id: UUID | None = Field(
+        default=None,
+        foreign_key="principals.id",
+        description="UUID of the user or service account (FK → principals)",
         index=True,
     )
 
-    principal_id: UUID = Field(
-        description="UUID of the user, group, or service account receiving the role",
+    group_id: UUID | None = Field(
+        default=None,
+        foreign_key="groups.id",
+        description="UUID of the group (FK → groups)",
         index=True,
     )
 
@@ -74,29 +67,43 @@ class RoleAssignment(BaseResource, table=True):
     )
 
     __table_args__ = (
+        CheckConstraint(
+            "(principal_id IS NOT NULL) != (group_id IS NOT NULL)",
+            name="ck_ra_principal_xor_group",
+        ),
         Index(
             "ix_ra_principal_role_global",
-            "principal_type",
             "principal_id",
             "role_name",
             unique=True,
-            postgresql_where=text("project_id IS NULL"),
+            postgresql_where=text("project_id IS NULL AND principal_id IS NOT NULL"),
+        ),
+        Index(
+            "ix_ra_group_role_global",
+            "group_id",
+            "role_name",
+            unique=True,
+            postgresql_where=text("project_id IS NULL AND group_id IS NOT NULL"),
         ),
         Index(
             "ix_ra_principal_role_project",
-            "principal_type",
             "principal_id",
             "role_name",
             "project_id",
             unique=True,
-            postgresql_where=text("project_id IS NOT NULL"),
+            postgresql_where=text("project_id IS NOT NULL AND principal_id IS NOT NULL"),
+        ),
+        Index(
+            "ix_ra_group_role_project",
+            "group_id",
+            "role_name",
+            "project_id",
+            unique=True,
+            postgresql_where=text("project_id IS NOT NULL AND group_id IS NOT NULL"),
         ),
     )
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return (
-            f"<RoleAssignment(principal_type={self.principal_type}, "
-            f"principal_id={self.principal_id}, role_name={self.role_name}, "
-            f"project_id={self.project_id})>"
-        )
+        target = f"principal_id={self.principal_id}" if self.principal_id else f"group_id={self.group_id}"
+        return f"<RoleAssignment({target}, role_name={self.role_name}, project_id={self.project_id})>"

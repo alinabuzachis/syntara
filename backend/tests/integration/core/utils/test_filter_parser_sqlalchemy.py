@@ -500,6 +500,90 @@ class TestFilterParserSQLAlchemy:
 
 
 @pytest.mark.asyncio
+class TestIsNullFiltering:
+    """Test ISNULL operator for null/not-null field checks."""
+
+    async def test_isnull_true_filters_to_null_rows(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """``field[isnull]=true`` generates IS NULL and excludes rows with values."""
+        query = select(User)
+        filters = [Filter(field="last_name", operator=FilterOperator.ISNULL, value="true")]
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
+
+        expected = [u for u in test_users if u.last_name is None]
+        assert len(result) == len(expected)
+
+    async def test_isnull_false_filters_to_non_null_rows(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """``field[isnull]=false`` generates IS NOT NULL and returns rows with values."""
+        query = select(User)
+        filters = [Filter(field="last_name", operator=FilterOperator.ISNULL, value="false")]
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
+
+        expected = [u for u in test_users if u.last_name is not None]
+        assert len(result) == len(expected)
+        assert {u.username for u in result} == {u.username for u in expected}
+
+    async def test_isnull_combined_with_equality_filter(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """ISNULL composes with other operators via AND."""
+        query = select(User)
+        filters = [
+            Filter(field="last_name", operator=FilterOperator.ISNULL, value="false"),
+            Filter(field="is_enabled", operator=FilterOperator.EQ, value="true"),
+        ]
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
+
+        expected = [u for u in test_users if u.last_name is not None and u.is_enabled]
+        assert len(result) == len(expected)
+        assert {u.username for u in result} == {u.username for u in expected}
+
+    async def ***REMOVED***(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """End-to-end: parse ``?last_name[isnull]=false`` and apply to query."""
+        params = {"last_name[isnull]": "false"}
+        filters = parse_filters(params, ["last_name"])
+
+        assert len(filters) == 1
+        assert filters[0].operator == FilterOperator.ISNULL
+
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
+
+        expected = [u for u in test_users if u.last_name is not None]
+        assert len(result) == len(expected)
+
+    async def test_isnull_accepts_boolean_string_variants(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """ISNULL accepts all boolean string variants (1, yes, on, etc.)."""
+        query = select(User)
+        non_null_count = len([u for u in test_users if u.last_name is not None])
+
+        for false_variant in ("false", "0", "no", "off", "False", "FALSE"):
+            filters = [Filter(field="last_name", operator=FilterOperator.ISNULL, value=false_variant)]
+            filtered_query = apply_filters(query, filters, User)
+            result = (await test_db_session.exec(filtered_query)).all()
+            assert len(result) == non_null_count, f"Failed for isnull={false_variant}"
+
+    async def test_isnull_invalid_value_raises_error(self) -> None:
+        """ISNULL with a non-boolean string raises SafeValueError."""
+        query = select(User)
+        filters = [Filter(field="last_name", operator=FilterOperator.ISNULL, value="maybe")]
+
+        with pytest.raises(SafeValueError, match="Invalid boolean value"):
+            apply_filters(query, filters, User)
+
+
+@pytest.mark.asyncio
 class TestSQLInjectionProtection:
     """Test SQL injection protection in filter operations with real database."""
 

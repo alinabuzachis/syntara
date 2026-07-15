@@ -401,7 +401,7 @@ export async function deleteRoleViaApi(app: Page, roleId: string): Promise<void>
 /** Create a role assignment via the API. Returns the assignment or null. */
 export async function createRoleAssignmentViaApi(
   app: Page,
-  options: { principal_type: 'user' | 'group'; principal_id: string; role_name: string }
+  options: { principal_id?: string; group_id?: string; role_name: string }
 ): Promise<{ id: string } | null> {
   const token = await getAuthToken(app)
   if (!token) return null

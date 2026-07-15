@@ -287,19 +287,19 @@ describe('AssignProjectRoleModal', () => {
     const user = userEvent.setup()
     renderModal()
 
-    const principalTypeSelect = screen.getByLabelText('Principal type')
-    await user.selectOptions(principalTypeSelect, 'group')
+    const principalOrGroupSelect = screen.getByLabelText('Principal type')
+    await user.selectOptions(principalOrGroupSelect, 'group')
 
     expect(getTypeaheadInput('Group')).toBeInTheDocument()
     expect(queryTypeaheadInput('User')).not.toBeInTheDocument()
   })
 
-  it('submits group assignment with correct principal_type', async () => {
+  it('submits group assignment with correct body', async () => {
     const user = userEvent.setup()
     renderModal()
 
-    const principalTypeSelect = screen.getByLabelText('Principal type')
-    await user.selectOptions(principalTypeSelect, 'group')
+    const principalOrGroupSelect = screen.getByLabelText('Principal type')
+    await user.selectOptions(principalOrGroupSelect, 'group')
 
     const groupInput = getTypeaheadInput('Group')
     await user.click(groupInput)
@@ -326,10 +326,9 @@ describe('AssignProjectRoleModal', () => {
     })
 
     const callArgs = mockMutate.mock.calls[0][0] as {
-      body: { principal_type: string; principal_id: string; role_name: string }
+      body: { group_id: string; role_name: string }
     }
-    expect(callArgs.body.principal_type).toBe('group')
-    expect(callArgs.body.principal_id).toBe('g1')
+    expect(callArgs.body.group_id).toBe('g1')
     expect(callArgs.body.role_name).toBe('project-admin')
   })
 
@@ -342,8 +341,8 @@ describe('AssignProjectRoleModal', () => {
     const aliceOption = await screen.findByRole('option', { name: /alice/i })
     await user.click(aliceOption)
 
-    const principalTypeSelect = screen.getByLabelText('Principal type')
-    await user.selectOptions(principalTypeSelect, 'group')
+    const principalOrGroupSelect = screen.getByLabelText('Principal type')
+    await user.selectOptions(principalOrGroupSelect, 'group')
 
     const groupInput = getTypeaheadInput('Group')
     expect(groupInput).toHaveValue('')

@@ -20,7 +20,7 @@ from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.authz.dependencies import get_authz_evaluator
 from nexus.authz.evaluator import evaluate_policy_input
-from nexus.authz.models import RoleAssignment, RolePrincipalType
+from nexus.authz.models import RoleAssignment
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.role import Role
 from nexus.core.models import User
@@ -240,9 +240,7 @@ async def test_can_i_wildcard_action(
     group = Group(name=f"wildcard-grp-{uuid4()}", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(
-        RoleAssignment(principal_type=RolePrincipalType.GROUP, principal_id=group.id, role_name="wildcard-test-role")
-    )
+    test_db_session.add(RoleAssignment(group_id=group.id, role_name="wildcard-test-role"))
     await test_db_session.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await test_db_session.commit()
 
@@ -290,9 +288,7 @@ async def test_can_i_explicit_deny_overrides_allow(
     group = Group(name=f"deny-grp-{uuid4()}", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(
-        RoleAssignment(principal_type=RolePrincipalType.GROUP, principal_id=group.id, role_name="deny-delete-role")
-    )
+    test_db_session.add(RoleAssignment(group_id=group.id, role_name="deny-delete-role"))
     await test_db_session.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await test_db_session.commit()
 

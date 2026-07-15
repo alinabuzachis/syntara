@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const assignRoleSchema = z
   .object({
-    principalType: z.enum(['user', 'group']),
+    principalOrGroup: z.enum(['principal', 'group']),
     scope: z.enum(['system', 'project']),
     userId: z.string(),
     groupId: z.string(),
@@ -10,10 +10,10 @@ export const assignRoleSchema = z
     roleName: z.string(),
   })
   .superRefine((data, ctx) => {
-    if (data.principalType === 'user' && !data.userId) {
+    if (data.principalOrGroup === 'principal' && !data.userId) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'User is required', path: ['userId'] })
     }
-    if (data.principalType === 'group' && !data.groupId) {
+    if (data.principalOrGroup === 'group' && !data.groupId) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Group is required', path: ['groupId'] })
     }
     if (data.scope === 'project' && !data.projectId) {

@@ -213,8 +213,8 @@ describe('AssignRoleDialog', () => {
     it('renders principal type and scope selectors with default values', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const principalTypeSelect = screen.getByLabelText('Principal type')
-      expect(principalTypeSelect).toBeInTheDocument()
+      const principalOrGroupSelect = screen.getByLabelText('Principal type')
+      expect(principalOrGroupSelect).toBeInTheDocument()
 
       const scopeSelect = screen.getByLabelText('Scope')
       expect(scopeSelect).toBeInTheDocument()
@@ -252,8 +252,8 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const principalTypeSelect = screen.getByLabelText('Principal type')
-      await user.selectOptions(principalTypeSelect, 'group')
+      const principalOrGroupSelect = screen.getByLabelText('Principal type')
+      await user.selectOptions(principalOrGroupSelect, 'group')
 
       expect(screen.getByPlaceholderText('Select a group...')).toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Select a user...')).not.toBeInTheDocument()
@@ -275,8 +275,8 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const principalTypeSelect = screen.getByLabelText('Principal type')
-      await user.selectOptions(principalTypeSelect, 'group')
+      const principalOrGroupSelect = screen.getByLabelText('Principal type')
+      await user.selectOptions(principalOrGroupSelect, 'group')
 
       const scopeSelect = screen.getByLabelText('Scope')
       await user.selectOptions(scopeSelect, 'system')
@@ -340,8 +340,8 @@ describe('AssignRoleDialog', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
       // Switch principal type to group
-      const principalTypeSelect = screen.getByLabelText('Principal type')
-      await user.selectOptions(principalTypeSelect, 'group')
+      const principalOrGroupSelect = screen.getByLabelText('Principal type')
+      await user.selectOptions(principalOrGroupSelect, 'group')
 
       // Select a project FIRST (role dropdown is disabled until project is selected)
       const projectInput = screen.getByPlaceholderText('Select a project...')
@@ -470,10 +470,8 @@ describe('AssignRoleDialog', () => {
         expect(mockMutate).toHaveBeenCalled()
       })
 
-      const callArgs = mockMutate.mock.calls[0] as [
-        { body: { principal_type: string; principal_id: string; role_name: string } },
-      ]
-      expect(callArgs[0]).toEqual({ body: { principal_type: 'user', principal_id: 'u1', role_name: 'Admin' } })
+      const callArgs = mockMutate.mock.calls[0] as [{ body: { principal_id: string; role_name: string } }]
+      expect(callArgs[0]).toEqual({ body: { principal_id: 'u1', role_name: 'Admin' } })
     })
 
     it('calls assignSystemGroupRole mutation for group-system type', async () => {
@@ -487,8 +485,8 @@ describe('AssignRoleDialog', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
       // Switch principal type to group
-      const principalTypeSelect = screen.getByLabelText('Principal type')
-      await user.selectOptions(principalTypeSelect, 'group')
+      const principalOrGroupSelect = screen.getByLabelText('Principal type')
+      await user.selectOptions(principalOrGroupSelect, 'group')
 
       // Switch scope to system
       const scopeSelect = screen.getByLabelText('Scope')
@@ -512,11 +510,9 @@ describe('AssignRoleDialog', () => {
         expect(mockMutate).toHaveBeenCalled()
       })
 
-      const callArgs = mockMutate.mock.calls[0] as [
-        { body: { principal_type: string; principal_id: string; role_name: string } },
-      ]
+      const callArgs = mockMutate.mock.calls[0] as [{ body: { group_id: string; role_name: string } }]
       expect(callArgs[0]).toEqual({
-        body: { principal_type: 'group', principal_id: 'g1', role_name: 'Viewer' },
+        body: { group_id: 'g1', role_name: 'Viewer' },
       })
     })
   })
@@ -620,10 +616,8 @@ describe('AssignRoleDialog', () => {
         expect(mockMutate).toHaveBeenCalled()
       })
 
-      const callArgs = mockMutate.mock.calls[0] as [
-        { body: { principal_type: string; principal_id: string; role_name: string } },
-      ]
-      expect(callArgs[0]).toEqual({ body: { principal_type: 'user', principal_id: 'u2', role_name: 'Viewer' } })
+      const callArgs = mockMutate.mock.calls[0] as [{ body: { principal_id: string; role_name: string } }]
+      expect(callArgs[0]).toEqual({ body: { principal_id: 'u2', role_name: 'Viewer' } })
     })
   })
 

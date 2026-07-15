@@ -209,8 +209,8 @@ const mockAllAssignments = [
   {
     id: 'a1',
     principal_id: 'u1',
+    group_id: null,
     principal_name: 'alice',
-    principal_type: 'user',
     role_name: 'admin',
     role_policies: ['read-all', 'write-all'],
     created_at: '2024-01-01T00:00:00Z',
@@ -219,9 +219,9 @@ const mockAllAssignments = [
   },
   {
     id: 'a2',
-    principal_id: 'g1',
+    principal_id: null,
+    group_id: 'g1',
     principal_name: 'devs',
-    principal_type: 'group',
     role_name: 'editor',
     role_policies: ['read-all'],
     created_at: '2024-02-01T00:00:00Z',
@@ -231,8 +231,8 @@ const mockAllAssignments = [
   {
     id: 'a3',
     principal_id: 'u1',
+    group_id: null,
     principal_name: 'alice',
-    principal_type: 'user',
     role_name: 'viewer',
     role_policies: [],
     created_at: '2024-03-01T00:00:00Z',
@@ -453,26 +453,6 @@ describe('ProjectRoleAssignmentsTab', () => {
     expect(screen.getByText('Failed to unassign role')).toBeInTheDocument()
   })
 
-  it('handles assignment with unknown principal_type as user', () => {
-    setupMocks([
-      {
-        id: 'a-unknown',
-        principal_id: 'u99',
-        principal_name: 'unknown-type',
-        principal_type: 'service_account',
-        role_name: 'editor',
-        role_policies: [],
-        created_at: '2024-05-01T00:00:00Z',
-        project_id: 'proj-1',
-        project_name: 'Test Project',
-      },
-    ])
-
-    render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
-
-    expect(screen.getByText('User')).toBeInTheDocument()
-  })
-
   it('builds assignedRolesByPrincipal map and passes it to modal', async () => {
     const user = userEvent.setup()
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
@@ -598,8 +578,8 @@ describe('ProjectRoleAssignmentsTab', () => {
       {
         id: 'a-no-policies',
         principal_id: 'u5',
+        group_id: null,
         principal_name: 'bob',
-        principal_type: 'user',
         role_name: 'empty-role',
         role_policies: [],
         created_at: '2024-01-01T00:00:00Z',

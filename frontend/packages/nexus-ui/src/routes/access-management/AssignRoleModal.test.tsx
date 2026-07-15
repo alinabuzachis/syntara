@@ -148,10 +148,12 @@ describe('AssignRoleModal', () => {
     setupMocks()
   })
 
-  function renderModal(props: Partial<{ principalType: 'user' | 'group'; principalId: string; isOpen: boolean }> = {}) {
+  function renderModal(
+    props: Partial<{ principalOrGroup: 'principal' | 'group'; principalId: string; isOpen: boolean }> = {}
+  ) {
     return render(
       <AssignRoleModal
-        principalType={props.principalType ?? 'user'}
+        principalOrGroup={props.principalOrGroup ?? 'principal'}
         principalId={props.principalId ?? 'u1'}
         isOpen={props.isOpen ?? true}
         onClose={mockOnClose}
@@ -314,7 +316,7 @@ describe('AssignRoleModal', () => {
       const user = userEvent.setup()
       mockMutateAsync.mockResolvedValue({})
 
-      renderModal({ principalType: 'user', principalId: 'u1' })
+      renderModal({ principalOrGroup: 'principal', principalId: 'u1' })
 
       // Select a role
       // Open the role multi-select via its placeholder/input
@@ -326,7 +328,7 @@ describe('AssignRoleModal', () => {
 
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
-          body: { principal_type: 'user', principal_id: 'u1', role_name: 'admin-role' },
+          body: { principal_id: 'u1', role_name: 'admin-role' },
         })
       })
 
@@ -341,7 +343,7 @@ describe('AssignRoleModal', () => {
       const user = userEvent.setup()
       mockMutateAsync.mockResolvedValue({})
 
-      renderModal({ principalType: 'group', principalId: 'g1' })
+      renderModal({ principalOrGroup: 'group', principalId: 'g1' })
 
       // Open the role multi-select via its placeholder/input
       await user.click(screen.getByPlaceholderText('Search for roles...'))
@@ -351,7 +353,7 @@ describe('AssignRoleModal', () => {
 
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
-          body: { principal_type: 'group', principal_id: 'g1', role_name: 'admin-role' },
+          body: { group_id: 'g1', role_name: 'admin-role' },
         })
       })
     })
@@ -360,7 +362,7 @@ describe('AssignRoleModal', () => {
       const user = userEvent.setup()
       mockMutateAsync.mockResolvedValue({})
 
-      renderModal({ principalType: 'user', principalId: 'u1' })
+      renderModal({ principalOrGroup: 'principal', principalId: 'u1' })
 
       // Switch to project scope
       await user.click(screen.getByText('System'))
@@ -386,7 +388,7 @@ describe('AssignRoleModal', () => {
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
           params: { path: { project_id: 'proj1' } },
-          body: { principal_type: 'user', principal_id: 'u1', role_name: 'project-admin' },
+          body: { principal_id: 'u1', role_name: 'project-admin' },
         })
       })
     })
@@ -395,7 +397,7 @@ describe('AssignRoleModal', () => {
       const user = userEvent.setup()
       mockMutateAsync.mockResolvedValue({})
 
-      renderModal({ principalType: 'group', principalId: 'g1' })
+      renderModal({ principalOrGroup: 'group', principalId: 'g1' })
 
       // Switch to project scope
       await user.click(screen.getByText('System'))
@@ -418,7 +420,7 @@ describe('AssignRoleModal', () => {
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
           params: { path: { project_id: 'proj1' } },
-          body: { principal_type: 'group', principal_id: 'g1', role_name: 'project-admin' },
+          body: { group_id: 'g1', role_name: 'project-admin' },
         })
       })
     })
@@ -461,7 +463,7 @@ describe('AssignRoleModal', () => {
       const user = userEvent.setup()
       mockMutateAsync.mockResolvedValue({})
 
-      renderModal({ principalType: 'user', principalId: 'u1' })
+      renderModal({ principalOrGroup: 'principal', principalId: 'u1' })
 
       // Select a role
       await user.click(screen.getByPlaceholderText('Search for roles...'))
@@ -482,7 +484,7 @@ describe('AssignRoleModal', () => {
       const user = userEvent.setup()
       mockMutateAsync.mockRejectedValue(new Error('Server error'))
 
-      renderModal({ principalType: 'user', principalId: 'u1' })
+      renderModal({ principalOrGroup: 'principal', principalId: 'u1' })
 
       // Select a role
       // Open the role multi-select via its placeholder/input

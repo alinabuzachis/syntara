@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.authz.audit.role_assignment import RoleAssignmentEvent, RoleAssignmentHandler
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.models import User
 
@@ -58,13 +58,17 @@ class TestRoleAssignmentServiceAssignAuditEvents:
         service = RoleAssignmentService(session=mock_session, current_user=test_user)
 
         with (
-            patch.object(service, "_validate_principal", new_callable=AsyncMock, return_value="alice"),
+            patch.object(
+                service,
+                "_validate_principal_id",
+                new_callable=AsyncMock,
+                return_value=("alice", "user"),
+            ),
             patch.object(service, "_validate_role", new_callable=AsyncMock),
             patch.object(service, "_resolve_project_name", new_callable=AsyncMock, return_value=None),
             patch.object(service, "_enrich_with_role_info", new_callable=AsyncMock),
         ):
             await service.assign(
-                principal_type=RolePrincipalType.USER,
                 principal_id=principal_id,
                 role_name="editor",
             )
@@ -93,7 +97,7 @@ class TestRoleAssignmentServiceAssignAuditEvents:
         mock_do_emit: AsyncMock,
         test_user: User,
     ) -> None:
-        """Group role assignment should emit event with principal_type=group."""
+        """Group role assignment should emit event with group_name."""
         assignment_id = uuid4()
         group_id = uuid4()
 
@@ -112,14 +116,13 @@ class TestRoleAssignmentServiceAssignAuditEvents:
         service = RoleAssignmentService(session=mock_session, current_user=test_user)
 
         with (
-            patch.object(service, "_validate_principal", new_callable=AsyncMock, return_value="developers"),
+            patch.object(service, "_validate_group_id", new_callable=AsyncMock, return_value="developers"),
             patch.object(service, "_validate_role", new_callable=AsyncMock),
             patch.object(service, "_resolve_project_name", new_callable=AsyncMock, return_value=None),
             patch.object(service, "_enrich_with_role_info", new_callable=AsyncMock),
         ):
             await service.assign(
-                principal_type=RolePrincipalType.GROUP,
-                principal_id=group_id,
+                group_id=group_id,
                 role_name="viewer",
             )
 
@@ -128,8 +131,7 @@ class TestRoleAssignmentServiceAssignAuditEvents:
 
         assert event.event_action == "role_assigned"
         assert event.event_message == "Role assigned: viewer -> group developers"
-        assert event.structured_data.principal_type == "group"
-        assert event.structured_data.principal_name == "developers"
+        assert event.structured_data.group_name == "developers"
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -158,14 +160,13 @@ class TestRoleAssignmentServiceAssignAuditEvents:
         service = RoleAssignmentService(session=mock_session, current_user=test_user)
 
         with (
-            patch.object(service, "_validate_principal", new_callable=AsyncMock, return_value="bob"),
+            patch.object(service, "_validate_principal_id", new_callable=AsyncMock, return_value=("bob", "user")),
             patch.object(service, "_validate_role", new_callable=AsyncMock),
             patch.object(service, "_resolve_project_name", new_callable=AsyncMock, return_value="my-project"),
             patch.object(service, "_enrich_with_role_info", new_callable=AsyncMock),
             patch("nexus.core.queries.project_queries.assert_project_alive", new_callable=AsyncMock),
         ):
             await service.assign(
-                principal_type=RolePrincipalType.USER,
                 principal_id=principal_id,
                 role_name="editor",
                 project_id=project_id,
@@ -195,7 +196,6 @@ class TestRoleAssignmentServiceRevokeAuditEvents:
 
         assignment = RoleAssignment(
             id=assignment_id,
-            principal_type=RolePrincipalType.USER,
             principal_id=principal_id,
             role_name="editor",
             project_id=None,
@@ -212,7 +212,13 @@ class TestRoleAssignmentServiceRevokeAuditEvents:
 
         service = RoleAssignmentService(session=mock_session, current_user=test_user)
 
-        await service.revoke(assignment_id)
+        with patch.object(
+            service,
+            "_resolve_assignment_identity",
+            new_callable=AsyncMock,
+            return_value=("alice", "user", None),
+        ):
+            await service.revoke(assignment_id)
 
         assert mock_do_emit.call_count == 1
         event: AuditEvent = mock_do_emit.call_args.args[0]
@@ -223,6 +229,8 @@ class TestRoleAssignmentServiceRevokeAuditEvents:
         assert event.event_status == EventStatus.SUCCESS
         assert event.source_component == "nexus.authz"
         assert event.resource_urn == f"urn:nexus:role-assignment:{assignment_id}"
+        assert event.event_message == "Role revoked: editor -> user alice"
         assert event.structured_data.action == "revoked"
-        assert event.structured_data.principal_type == "user"
         assert event.structured_data.role_name == "editor"
+        assert event.structured_data.principal_type == "user"
+        assert event.structured_data.principal_name == "alice"

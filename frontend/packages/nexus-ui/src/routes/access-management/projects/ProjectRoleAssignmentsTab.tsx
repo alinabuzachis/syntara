@@ -25,19 +25,9 @@ import { useRolePermissions } from '../../access/useRolePermissions'
 
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
 
-const SORT_FIELDS = ['principal_name', 'principal_type', 'role_name'] as const
+const SORT_FIELDS = ['principal_name', 'role_name'] as const
 
 const filterFieldDefinitions: FilterFieldDefinition[] = [
-  {
-    key: 'principal_type',
-    label: 'Principal Type',
-    type: FilterTypeEnum.SELECT,
-    options: [
-      { value: 'user', label: 'User' },
-      { value: 'group', label: 'Group' },
-    ],
-    placeholder: 'Filter by principal type',
-  },
   {
     key: 'principal_name',
     label: 'Principal Name',
@@ -87,8 +77,8 @@ function RoleAssignmentsTable({
       <Thead>
         <Tr>
           <Th sort={getSortParams(0)}>Principal Name</Th>
-          <Th sort={getSortParams(1)}>Principal Type</Th>
-          <Th sort={getSortParams(2)}>Role Name</Th>
+          <Th>Principal Type</Th>
+          <Th sort={getSortParams(1)}>Role Name</Th>
           <Th>Policies</Th>
           <Th screenReaderText="Actions" />
         </Tr>
@@ -100,8 +90,8 @@ function RoleAssignmentsTable({
               <Truncate content={assignment.principal_name} />
             </Td>
             <Td dataLabel="Principal Type">
-              <Label isCompact color={assignment.principal_type === 'group' ? 'teal' : 'blue'}>
-                {assignment.principal_type === 'group' ? 'Group' : 'User'}
+              <Label isCompact color={assignment.group_id != null ? 'orange' : 'teal'}>
+                {assignment.group_id != null ? 'Group' : 'User'}
               </Label>
             </Td>
             <Td dataLabel="Role Name">
@@ -178,11 +168,13 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<{ projectId: s
   const assignedRolesByPrincipal = useMemo(() => {
     const map = new Map<string, Set<string>>()
     for (const a of assignments) {
-      const existing = map.get(a.principal_id)
+      const id = a.group_id ?? a.principal_id
+      if (!id) continue
+      const existing = map.get(id)
       if (existing) {
         existing.add(a.role_name)
       } else {
-        map.set(a.principal_id, new Set([a.role_name]))
+        map.set(id, new Set([a.role_name]))
       }
     }
     return map

@@ -19,7 +19,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.core.models import User
 from nexus.core.models.group import Group
@@ -50,7 +50,6 @@ async def test_create_user_role_assignment(
     assert response.status_code == 201
     data = response.json()
     assert data["principal_id"] == str(target_user.id)
-    assert data["principal_type"] == RolePrincipalType.USER.value
     assert data["role_name"] == "auditor"
     assert data["principal_name"] == "assign-target"
     assert "id" in data
@@ -93,7 +92,6 @@ async def test_list_user_role_assignments(
     # All assignments should be for the target user
     for r in resources:
         assert r["principal_id"] == str(target_user.id)
-        assert r["principal_type"] == RolePrincipalType.USER.value
 
 
 @pytest.mark.asyncio
@@ -217,8 +215,7 @@ async def test_create_group_role_assignment(
 
     assert response.status_code == 201
     data = response.json()
-    assert data["principal_id"] == str(group.id)
-    assert data["principal_type"] == RolePrincipalType.GROUP.value
+    assert data["group_id"] == str(group.id)
     assert data["role_name"] == "user"
     assert data["principal_name"] == "role-assign-group"
     assert "id" in data
@@ -263,8 +260,7 @@ async def test_list_group_role_assignments(
 
     # All assignments should be for the group
     for r in resources:
-        assert r["principal_id"] == str(group.id)
-        assert r["principal_type"] == RolePrincipalType.GROUP.value
+        assert r["group_id"] == str(group.id)
 
 
 @pytest.mark.asyncio
@@ -331,7 +327,7 @@ async def test_delete_group_role_assignment_idor_protection(
     response = await admin_client.delete(
         f"{GROUPS_URL}/{group.id}/role_assignments/{user_assignment_id}",
     )
-    # The endpoint validates principal_type and principal_id match
+    # The endpoint validates the assignment belongs to this group
     assert response.status_code == 422
 
     # Verify the user assignment still exists
@@ -339,6 +335,51 @@ async def test_delete_group_role_assignment_idor_protection(
     assert response.status_code == 200
     assignment_ids = [r["id"] for r in response.json()["resources"]]
     assert user_assignment_id in assignment_ids
+
+
+# ============================================================================
+# XOR invariant tests (global endpoint)
+# ============================================================================
+
+ROLE_ASSIGNMENTS_URL = "/api/v1/role_assignments"
+
+
+@pytest.mark.asyncio
+async def test_create_role_assignment_rejects_both_principal_and_group(
+    admin_client: AsyncClient,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+) -> None:
+    """POST /role_assignments with both principal_id and group_id returns 422."""
+    target_user = await user_factory(username="xor-both-user", email="xor-both@example.com")
+
+    group = Group(name="xor-both-group", description="Test group", labels={})
+    test_db_session.add(group)
+    await test_db_session.flush()
+    await test_db_session.commit()
+    await test_db_session.refresh(group)
+
+    response = await admin_client.post(
+        ROLE_ASSIGNMENTS_URL,
+        json={
+            "principal_id": str(target_user.id),
+            "group_id": str(group.id),
+            "role_name": "user",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_role_assignment_rejects_neither_principal_nor_group(
+    admin_client: AsyncClient,
+) -> None:
+    """POST /role_assignments with neither principal_id nor group_id returns 422."""
+    response = await admin_client.post(
+        ROLE_ASSIGNMENTS_URL,
+        json={"role_name": "user"},
+    )
+    assert response.status_code == 422
 
 
 # ============================================================================
@@ -361,7 +402,6 @@ async def test_readable_project_names_shown_in_role_assignments(
 
     test_db_session.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.USER,
             principal_id=user.id,
             project_id=project.id,
             role_name="project-user",
@@ -398,7 +438,6 @@ async def test_admin_sees_all_project_names(
 
     test_db_session.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.USER,
             principal_id=user.id,
             project_id=project.id,
             role_name="project-user",
@@ -430,7 +469,6 @@ async def test_what_can_i_shows_readable_project_names(
 
     test_db_session.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.USER,
             principal_id=user.id,
             project_id=project.id,
             role_name="project-user",
@@ -471,7 +509,7 @@ async def test_revoke_builtin_group_assignment_forbidden(
     builtin_assignment = result.first()
     assert builtin_assignment is not None
 
-    group = await test_db_session.get(Group, builtin_assignment.principal_id)
+    group = await test_db_session.get(Group, builtin_assignment.group_id)
     assert group is not None
 
     response = await admin_client.delete(

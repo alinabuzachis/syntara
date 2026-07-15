@@ -127,7 +127,7 @@ type RoleAssignmentRow = {
 }
 
 type RoleAssignmentsPanelProps = {
-  principalType: 'user' | 'group'
+  principalOrGroup: 'principal' | 'group'
   principalId: string
 }
 
@@ -146,22 +146,22 @@ function getAssignmentActions(
   ]
 }
 
-function useRoleAssignmentData(principalType: 'user' | 'group', principalId: string) {
+function useRoleAssignmentData(principalOrGroup: 'principal' | 'group', principalId: string) {
   const userAssignmentsQuery = accessClient.useQuery(
     'get',
     '/users/{user_id}/role_assignments',
     { params: { path: { user_id: principalId } } },
-    { enabled: principalType === 'user', retry: false }
+    { enabled: principalOrGroup === 'principal', retry: false }
   )
 
   const groupAssignmentsQuery = accessClient.useQuery(
     'get',
     '/groups/{group_id}/role_assignments',
     { params: { path: { group_id: principalId } } },
-    { enabled: principalType === 'group', retry: false }
+    { enabled: principalOrGroup === 'group', retry: false }
   )
 
-  const activeQuery = principalType === 'user' ? userAssignmentsQuery : groupAssignmentsQuery
+  const activeQuery = principalOrGroup === 'principal' ? userAssignmentsQuery : groupAssignmentsQuery
 
   const queryForbidden = useMemo(() => {
     if (!activeQuery.isError) return false
@@ -307,7 +307,7 @@ function RoleAssignmentsTable({
 }
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- permission gating adds necessary branches
-export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<RoleAssignmentsPanelProps>) {
+export function RoleAssignmentsPanel({ principalOrGroup, principalId }: Readonly<RoleAssignmentsPanelProps>) {
   const assignmentPermissions = useAssignmentPermissions()
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const openAssignIfAllowed = assignmentPermissions.canAssign ? () => setAssignModalOpen(true) : undefined
@@ -319,7 +319,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
   const { showAlert } = useAlerts()
 
   const { rows, queryForbidden, activeQuery, isLoading, deleteAssignment, refetch } = useRoleAssignmentData(
-    principalType,
+    principalOrGroup,
     principalId
   )
 
@@ -387,12 +387,12 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
       <>
         <NxEmptyStateNoData
           title="No role assignments"
-          description={`No roles have been assigned to this ${principalType}.`}
+          description={`No roles have been assigned to this ${principalOrGroup === 'group' ? 'group' : 'user'}.`}
           buttonText="Assign role"
           addData={openAssignIfAllowed}
         />
         <AssignRoleModal
-          principalType={principalType}
+          principalOrGroup={principalOrGroup}
           principalId={principalId}
           isOpen={assignModalOpen}
           onClose={() => setAssignModalOpen(false)}
@@ -409,7 +409,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
         <NxPageBody isCentered>
           <NxEmptyStateNoData
             title="No role assignments"
-            description={`No project-scoped roles have been assigned to this ${principalType}.`}
+            description={`No project-scoped roles have been assigned to this ${principalOrGroup === 'group' ? 'group' : 'user'}.`}
             buttonText="Assign role"
             addData={openAssignIfAllowed}
           />
@@ -497,7 +497,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
       </NxPanelContentStack>
 
       <AssignRoleModal
-        principalType={principalType}
+        principalOrGroup={principalOrGroup}
         principalId={principalId}
         isOpen={assignModalOpen}
         onClose={() => setAssignModalOpen(false)}

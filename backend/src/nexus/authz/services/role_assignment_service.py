@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import case, false, func, or_
+from sqlalchemy import false, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.audit.role_assignment import RoleAssignmentEvent
 from nexus.authz.exceptions import BuiltinProtectionError
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.authz.role_conventions import (
     builtin_role_policy_names,
@@ -35,7 +35,7 @@ from nexus.service_accounts.models.service_account import ServiceAccount
 
 logger = structlog.stdlib.get_logger(__name__)
 
-_SORTABLE_FIELDS = {"created_at", "principal_name", "principal_type", "role_name", "project_name"}
+_SORTABLE_FIELDS = {"created_at", "principal_name", "role_name", "project_name"}
 
 
 def _sort_value_from_row(row: Any, sort_field: str) -> str | None:  # noqa: ANN401
@@ -79,12 +79,14 @@ class RoleAssignmentService:
     async def assign(
         self,
         *,
-        principal_type: RolePrincipalType,
-        principal_id: UUID,
+        principal_id: UUID | None = None,
+        group_id: UUID | None = None,
         role_name: str,
         project_id: UUID | None = None,
     ) -> dict[str, Any]:
         """Create a role assignment.
+
+        Exactly one of ``principal_id`` or ``group_id`` must be provided.
 
         Returns:
             Assignment dict with resolved principal_name and project_name.
@@ -93,29 +95,43 @@ class RoleAssignmentService:
             SafeValueError: If principal not found, role unknown, or already assigned.
 
         """
+        if (principal_id is None) == (group_id is None):
+            msg = "Exactly one of principal_id or group_id must be provided"
+            raise SafeValueError(msg)
+
         if project_id is not None:
             from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
 
             await assert_project_alive(self.session, project_id)
 
-        principal_name = await self._validate_principal(principal_type, principal_id)
+        if principal_id is not None:
+            principal_name, principal_type_label = await self._validate_principal_id(principal_id)
+            group_name = None
+        else:
+            group_name = await self._validate_group_id(group_id)  # type: ignore[arg-type]
+            principal_name = None
+            principal_type_label = None
+
         await self._validate_role(role_name, project_id)
 
-        existing = await self.session.exec(
-            select(RoleAssignment).where(
-                RoleAssignment.principal_type == principal_type,
-                RoleAssignment.principal_id == principal_id,
-                RoleAssignment.role_name == role_name,
-                RoleAssignment.project_id == project_id,
-            )
-        )
+        dup_clauses: builtins.list[Any] = [
+            RoleAssignment.role_name == role_name,
+            RoleAssignment.project_id == project_id,
+        ]
+        if principal_id is not None:
+            dup_clauses.append(RoleAssignment.principal_id == principal_id)
+        else:
+            dup_clauses.append(RoleAssignment.group_id == group_id)
+
+        existing = await self.session.exec(select(RoleAssignment).where(*dup_clauses))
+        target_display = group_name if group_name else f"{principal_type_label} '{principal_name}'"
         if existing.first():
-            msg = f"Role '{role_name}' is already assigned to {principal_type.value} '{principal_name}'"
+            msg = f"Role '{role_name}' is already assigned to {target_display}"
             raise SafeValueError(msg)
 
         assignment = RoleAssignment(
-            principal_type=principal_type,
             principal_id=principal_id,
+            group_id=group_id,
             role_name=role_name,
             project_id=project_id,
         )
@@ -124,7 +140,7 @@ class RoleAssignmentService:
             await self.session.commit()
         except IntegrityError:
             await self.session.rollback()
-            msg = f"Role '{role_name}' is already assigned to {principal_type.value} '{principal_name}'"
+            msg = f"Role '{role_name}' is already assigned to {target_display}"
             raise SafeValueError(msg) from None
         await self.session.refresh(assignment)
 
@@ -132,24 +148,29 @@ class RoleAssignmentService:
 
         logger.info(
             "Assigned role",
-            principal_type=principal_type.value,
-            principal_id=str(principal_id),
+            principal_type=principal_type_label,
+            principal_id=str(principal_id) if principal_id else None,
+            group_id=str(group_id) if group_id else None,
             principal_name=principal_name,
+            group_name=group_name,
             role_name=role_name,
             project_id=str(project_id) if project_id else None,
         )
         AuditEventDispatcher.dispatch(
             RoleAssignmentEvent(
                 assignment_id=assignment.id,
-                principal_type=principal_type.value,
+                principal_type=principal_type_label,
                 principal_id=principal_id,
                 principal_name=principal_name,
+                group_id=group_id,
+                group_name=group_name,
                 role_name=role_name,
                 action="assigned",
                 project_id=project_id,
             ),
         )
-        result = self._to_dict(assignment, principal_name, project_name)
+        display_name = principal_name or group_name
+        result = self._to_dict(assignment, display_name, project_name)
         await self._enrich_with_role_info([result])
         return result
 
@@ -176,8 +197,8 @@ class RoleAssignmentService:
         limit: int = 20,
         cursor: str | None = None,
         sort: str | None = None,
-        principal_type: str | None = None,
         principal_id: UUID | None = None,
+        group_id: UUID | None = None,
         principal_name: str | None = None,
         principal_name_contains: str | None = None,
         role_name: str | None = None,
@@ -200,16 +221,10 @@ class RoleAssignmentService:
         if restrict_user_id is not None or restrict_group_ids is not None or allowed_project_ids is not None:
             visibility_clauses: builtins.list[Any] = []
             if restrict_user_id is not None:
-                visibility_clauses.append(
-                    RoleAssignment.principal_type.in_(  # type: ignore[attr-defined]
-                        [RolePrincipalType.USER, RolePrincipalType.SERVICE_ACCOUNT]
-                    )
-                    & (RoleAssignment.principal_id == restrict_user_id)
-                )
+                visibility_clauses.append(RoleAssignment.principal_id == restrict_user_id)
             if restrict_group_ids:
                 visibility_clauses.append(
-                    (RoleAssignment.principal_type == RolePrincipalType.GROUP)
-                    & (RoleAssignment.principal_id.in_(restrict_group_ids))  # type: ignore[attr-defined]
+                    RoleAssignment.group_id.in_(restrict_group_ids)  # type: ignore[union-attr]
                 )
             if allowed_project_ids:
                 visibility_clauses.append(
@@ -218,10 +233,10 @@ class RoleAssignmentService:
             base = base.where(or_(*visibility_clauses)) if visibility_clauses else base.where(false())
 
         # Attribute filters
-        if principal_type is not None:
-            base = base.where(RoleAssignment.principal_type == principal_type)
         if principal_id is not None:
             base = base.where(RoleAssignment.principal_id == principal_id)
+        if group_id is not None:
+            base = base.where(RoleAssignment.group_id == group_id)
         if principal_name is not None:
             base = base.where(principal_name_col == principal_name)
         if principal_name_contains is not None:
@@ -309,14 +324,17 @@ class RoleAssignmentService:
             raise BuiltinProtectionError(msg)
 
         # Capture fields before delete for audit dispatch
-        _principal_type = (
-            assignment.principal_type.value
-            if isinstance(assignment.principal_type, RolePrincipalType)
-            else str(assignment.principal_type)
-        )
         _principal_id = assignment.principal_id
+        _group_id = assignment.group_id
         _role_name = assignment.role_name
         _project_id = assignment.project_id
+
+        # Resolve display names via joined query (outerjoins handle deleted entities
+        # gracefully — returns None instead of raising, so orphaned assignments
+        # can still be revoked).
+        _principal_name, _principal_type, _group_name = await self._resolve_assignment_identity(
+            _principal_id, _group_id
+        )
 
         await self.session.delete(assignment)
         await self.session.commit()
@@ -325,9 +343,11 @@ class RoleAssignmentService:
         AuditEventDispatcher.dispatch(
             RoleAssignmentEvent(
                 assignment_id=assignment_id,
-                principal_type=_principal_type,
                 principal_id=_principal_id,
-                principal_name="",  # not resolved in revoke path
+                principal_type=_principal_type,
+                principal_name=_principal_name,
+                group_id=_group_id,
+                group_name=_group_name,
                 role_name=_role_name,
                 action="revoked",
                 project_id=_project_id,
@@ -350,13 +370,12 @@ class RoleAssignmentService:
         """Check if a single assignment is visible to the caller."""
         if all_projects:
             return True
-        a_principal_type = assignment["principal_type"]
         a_principal_id = assignment["principal_id"]
+        a_group_id = assignment.get("group_id")
         a_project_id = assignment.get("project_id")
-        _direct_types = {RolePrincipalType.USER.value, RolePrincipalType.SERVICE_ACCOUNT.value}
-        if a_principal_type in _direct_types and a_principal_id == user_id:
+        if a_principal_id is not None and a_principal_id == user_id:
             return True
-        if a_principal_type == RolePrincipalType.GROUP.value and a_principal_id in group_ids:
+        if a_group_id is not None and a_group_id in group_ids:
             return True
         return bool(a_project_id and a_project_id in allowed_project_ids)
 
@@ -366,13 +385,8 @@ class RoleAssignmentService:
 
     @staticmethod
     def _principal_name_col() -> Any:  # noqa: ANN401
-        """CASE expression that resolves a principal's display name from joined tables."""
-        return case(
-            (RoleAssignment.principal_type == RolePrincipalType.USER, User.username),  # type: ignore[arg-type]
-            (RoleAssignment.principal_type == RolePrincipalType.GROUP, Group.name),  # type: ignore[arg-type]
-            (RoleAssignment.principal_type == RolePrincipalType.SERVICE_ACCOUNT, ServiceAccount.name),  # type: ignore[arg-type]
-            else_=None,
-        ).label("principal_name")
+        """COALESCE expression that resolves a principal's display name from joined tables."""
+        return func.coalesce(User.username, ServiceAccount.name, Group.name).label("principal_name")
 
     @staticmethod
     def _base_assignment_query() -> Any:  # noqa: ANN401
@@ -389,21 +403,15 @@ class RoleAssignmentService:
             )
             .outerjoin(
                 User,
-                (RoleAssignment.principal_type == RolePrincipalType.USER)
-                & (RoleAssignment.principal_id == User.id)
-                & (User.deleted_at.is_(None)),  # type: ignore[union-attr]
+                (RoleAssignment.principal_id == User.id) & (User.deleted_at.is_(None)),  # type: ignore[union-attr]
             )
             .outerjoin(
                 Group,
-                (RoleAssignment.principal_type == RolePrincipalType.GROUP)
-                & (RoleAssignment.principal_id == Group.id)
-                & (Group.deleted_at.is_(None)),  # type: ignore[union-attr]
+                (RoleAssignment.group_id == Group.id) & (Group.deleted_at.is_(None)),  # type: ignore[union-attr]
             )
             .outerjoin(
                 ServiceAccount,
-                (RoleAssignment.principal_type == RolePrincipalType.SERVICE_ACCOUNT)
-                & (RoleAssignment.principal_id == ServiceAccount.id)
-                & (ServiceAccount.deleted_at.is_(None)),  # type: ignore[union-attr]
+                (RoleAssignment.principal_id == ServiceAccount.id) & (ServiceAccount.deleted_at.is_(None)),  # type: ignore[union-attr]
             )
             .outerjoin(Project, RoleAssignment.project_id == Project.id)  # type: ignore[arg-type]
         )
@@ -418,28 +426,64 @@ class RoleAssignmentService:
         assignment, pn, prn = row
         return self._to_dict(assignment, pn, prn)
 
-    async def _validate_principal(self, principal_type: RolePrincipalType, principal_id: UUID) -> str:
-        """Validate the principal exists and return its name."""
-        if principal_type == RolePrincipalType.USER:
+    async def _validate_principal_id(self, principal_id: UUID) -> tuple[str, str]:
+        """Validate that a principal exists and return (name, label)."""
+        from nexus.core.models.principal import Principal  # noqa: PLC0415
+
+        principal = await self.session.get(Principal, principal_id)
+        if not principal:
+            msg = f"Principal {principal_id} not found"
+            raise SafeValueError(msg)
+
+        ptype = str(principal.principal_type)
+        if ptype == "user":
             entity = await self.session.get(User, principal_id)
             if not entity:
                 msg = f"User {principal_id} not found"
                 raise SafeValueError(msg)
-            return entity.username
-        if principal_type == RolePrincipalType.GROUP:
-            group = await self.session.get(Group, principal_id)
-            if not group:
-                msg = f"Group {principal_id} not found"
-                raise SafeValueError(msg)
-            return group.name
-        if principal_type == RolePrincipalType.SERVICE_ACCOUNT:
+            return entity.username, "user"
+        if ptype == "service_account":
             sa = await self.session.get(ServiceAccount, principal_id)
             if not sa:
                 msg = f"Service account {principal_id} not found"
                 raise SafeValueError(msg)
-            return sa.name
-        msg = f"Unsupported principal type: {principal_type}"  # type: ignore[unreachable]
+            return sa.name, "service_account"
+        msg = f"Unsupported principal type: {principal.principal_type}"
         raise SafeValueError(msg)
+
+    async def _validate_group_id(self, group_id: UUID) -> str:
+        """Validate that a group exists and return its name."""
+        group = await self.session.get(Group, group_id)
+        if not group:
+            msg = f"Group {group_id} not found"
+            raise SafeValueError(msg)
+        return group.name
+
+    async def _resolve_assignment_identity(
+        self, principal_id: UUID | None, group_id: UUID | None
+    ) -> tuple[str | None, str | None, str | None]:
+        """Best-effort resolve (principal_name, principal_type, group_name).
+
+        Uses outerjoins so soft-deleted or missing entities return None
+        instead of raising — critical for revoking orphaned assignments.
+        """
+        if group_id is not None:
+            group = await self.session.get(Group, group_id)
+            return None, None, group.name if group else None
+        if principal_id is not None:
+            from nexus.core.models.principal import Principal  # noqa: PLC0415
+
+            principal = await self.session.get(Principal, principal_id)
+            if not principal:
+                return None, None, None
+            ptype = str(principal.principal_type)
+            if ptype == "user":
+                user = await self.session.get(User, principal_id)
+                return (user.username if user else None), "user", None
+            if ptype == "service_account":
+                sa = await self.session.get(ServiceAccount, principal_id)
+                return (sa.name if sa else None), "service_account", None
+        return None, None, None
 
     async def _enrich_with_role_info(self, resources: builtins.list[dict[str, Any]]) -> None:
         """Batch-resolve role_description and role_policies for a list of assignment dicts."""
@@ -508,10 +552,8 @@ class RoleAssignmentService:
     def _to_dict(assignment: RoleAssignment, principal_name: str | None, project_name: str | None) -> dict[str, Any]:
         return {
             "id": assignment.id,
-            "principal_type": assignment.principal_type.value
-            if isinstance(assignment.principal_type, RolePrincipalType)
-            else str(assignment.principal_type),
             "principal_id": assignment.principal_id,
+            "group_id": assignment.group_id,
             "principal_name": principal_name or "",
             "role_name": assignment.role_name,
             "project_id": assignment.project_id,

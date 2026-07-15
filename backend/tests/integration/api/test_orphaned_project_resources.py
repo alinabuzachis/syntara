@@ -200,7 +200,6 @@ async def test_create_role_assignment_toplevel_against_deleted_project_is_reject
     resp = await admin_client.post(
         "/api/v1/role_assignments",
         json={
-            "principal_type": "user",
             "principal_id": str(test_user.id),
             "role_name": "project-admin",
             "project_id": project_id,
@@ -250,7 +249,6 @@ async def test_permchecker_body_field_deleted_project_returns_404(jwt_client: As
     resp = await jwt_client.post(
         "/api/v1/role_assignments",
         json={
-            "principal_type": "user",
             "principal_id": str(uuid4()),
             "role_name": "project-admin",
             "project_id": project_id,

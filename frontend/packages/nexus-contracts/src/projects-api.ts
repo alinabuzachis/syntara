@@ -704,14 +704,14 @@ export interface components {
     /**
      * RoleAssignmentCreate
      * @description Request body for creating a role assignment.
+     *
+     *     Exactly one of ``principal_id`` or ``group_id`` must be provided.
      */
     RoleAssignmentCreate: {
-      principal_type: components['schemas']['RolePrincipalType']
-      /**
-       * Principal Id
-       * Format: uuid
-       */
-      principal_id: string
+      /** Principal Id */
+      principal_id?: string | null
+      /** Group Id */
+      group_id?: string | null
       /** Role Name */
       role_name: string
       /** Project Id */
@@ -727,13 +727,10 @@ export interface components {
        * Format: uuid
        */
       id: string
-      /** Principal Type */
-      principal_type: string
-      /**
-       * Principal Id
-       * Format: uuid
-       */
-      principal_id: string
+      /** Principal Id */
+      principal_id?: string | null
+      /** Group Id */
+      group_id?: string | null
       /** Principal Name */
       principal_name: string
       /** Role Name */
@@ -1333,12 +1330,6 @@ export interface components {
        */
       decision_notes?: string | null
     }
-    /**
-     * RolePrincipalType
-     * @description Discriminator for role assignment targets.
-     * @enum {string}
-     */
-    RolePrincipalType: 'user' | 'group' | 'service_account'
     UserOwnedResource: components['schemas']['BaseResource'] & {
       /**
        * Created By
@@ -1815,8 +1806,10 @@ export interface operations {
         sort?: components['parameters']['sortParam']
         /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        principal_type?: string | null
+        /** @description Filter by principal ID (user or service account) */
         principal_id?: string | null
+        /** @description Filter by group ID */
+        group_id?: string | null
         principal_name?: string | null
         role_name?: string | null
       }

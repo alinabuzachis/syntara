@@ -12,14 +12,14 @@ from nexus.auth import get_current_user
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
 from nexus.authz.engine import VisibilityResult
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.role_assignment_router import (
     PrincipalRoleAssignmentListParams,
     RoleAssignmentListResponse,
     RoleAssignmentRead,
     SubResourceRoleAssignmentCreate,
-    delete_principal_assignment,
-    list_principal_assignments,
+    delete_sub_resource_assignment,
+    list_sub_resource_assignments,
 )
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.database.session import get_db
@@ -326,7 +326,6 @@ async def create_user_role_assignment(
 ) -> RoleAssignmentRead:
     """Assign a role to this user."""
     result = await service.assign(
-        principal_type=RolePrincipalType.USER,
         principal_id=user_id,
         role_name=body.role_name,
         project_id=body.project_id,
@@ -349,8 +348,7 @@ async def list_user_role_assignments(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> RoleAssignmentListResponse:
     """List role assignments for a specific user."""
-    return await list_principal_assignments(
-        principal_type=RolePrincipalType.USER,
+    return await list_sub_resource_assignments(
         principal_id=user_id,
         request=request,
         params=params,
@@ -383,8 +381,7 @@ async def delete_user_role_assignment(
     service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
 ) -> None:
     """Remove a role assignment from this user."""
-    await delete_principal_assignment(
-        principal_type=RolePrincipalType.USER,
+    await delete_sub_resource_assignment(
         principal_id=user_id,
         assignment_id=assignment_id,
         service=service,

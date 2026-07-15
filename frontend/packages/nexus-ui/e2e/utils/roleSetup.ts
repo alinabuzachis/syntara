@@ -144,7 +144,6 @@ export async function setupRoleUsers(request: APIRequestContext): Promise<RoleSe
       })
 
       const assignment = await postJson(request, api('/role_assignments'), headers, {
-        principal_type: 'user',
         principal_id: user.id,
         role_name: assignRoleName,
       })

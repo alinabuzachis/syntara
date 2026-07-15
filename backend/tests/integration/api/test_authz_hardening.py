@@ -15,7 +15,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import Project, RoleAssignment, RolePrincipalType
+from nexus.authz.models import Project, RoleAssignment
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from tests.integration.api.conftest import (
@@ -49,7 +49,7 @@ class TestPrivilegeEscalation:
 
         resp = await auth_client.post(
             "/api/v1/role_assignments",
-            json={"principal_type": "user", "principal_id": str(limited_user.id), "role_name": "admin"},
+            json={"principal_id": str(limited_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403
 
@@ -431,9 +431,7 @@ class TestGroupMembershipEdgeCases:
         group = Group(name=f"revoke-sec31-{uuid4()}", description="", labels={})
         test_db_session.add(group)
         await test_db_session.flush()
-        role_assignment = RoleAssignment(
-            principal_type=RolePrincipalType.GROUP, principal_id=group.id, role_name="auditor"
-        )
+        role_assignment = RoleAssignment(group_id=group.id, role_name="auditor")
         test_db_session.add(role_assignment)
         await test_db_session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
         await test_db_session.commit()
@@ -511,7 +509,7 @@ class TestPermissionChecker403:
 
         resp = await auth_client.post(
             "/api/v1/role_assignments",
-            json={"principal_type": "user", "principal_id": str(limited_user.id), "role_name": "admin"},
+            json={"principal_id": str(limited_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403
         detail = resp.json()["detail"]

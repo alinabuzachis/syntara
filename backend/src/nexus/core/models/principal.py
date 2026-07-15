@@ -11,8 +11,8 @@ A ``before_flush`` event listener auto-creates Principal rows whenever a
 registered subtype (User, ServiceAccount) is added to the session — no
 special helper is needed, just use ``session.add(entity)``.
 
-Groups are NOT principals — they use ``RoleAssignment.principal_type``
-as a denormalized discriminator without FK integrity to this table.
+Groups are NOT principals — they use ``RoleAssignment.group_id``
+(FK → groups) instead of ``principal_id``.
 """
 
 from __future__ import annotations

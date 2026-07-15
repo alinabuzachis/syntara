@@ -220,8 +220,8 @@ export function AssignmentsTab() {
                       <Truncate content={row.principalName} />
                     </Td>
                     <Td dataLabel="Principal Type">
-                      <Label color={row.principalType === 'user' ? 'blue' : 'teal'} isCompact>
-                        {row.principalType === 'user' ? 'User' : 'Group'}
+                      <Label color={row.groupId == null ? 'teal' : 'orange'} isCompact>
+                        {row.groupId == null ? 'User' : 'Group'}
                       </Label>
                     </Td>
                     <Td dataLabel="Role Name">

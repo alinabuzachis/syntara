@@ -82,9 +82,9 @@ vi.mock('./GroupMembersPanel', () => ({
 }))
 
 vi.mock('../RoleAssignmentsPanel', () => ({
-  RoleAssignmentsPanel: ({ principalType, principalId }: { principalType: string; principalId: string }) => (
+  RoleAssignmentsPanel: ({ principalOrGroup, principalId }: { principalOrGroup: string; principalId: string }) => (
     <div data-testid="role-assignments-panel">
-      Roles for {principalType}:{principalId}
+      Roles for {principalOrGroup}:{principalId}
     </div>
   ),
 }))

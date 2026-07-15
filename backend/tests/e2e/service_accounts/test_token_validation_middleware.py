@@ -21,7 +21,6 @@ import httpx
 import jwt as pyjwt
 import pytest
 from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
-from nexus_api_client.models.role_principal_type import RolePrincipalType
 from nexus_api_client.models.sa_credential_create import SACredentialCreate
 from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 from nexus_test_sdk.helpers import unique_name
@@ -153,7 +152,6 @@ class TestProjectRoleAssignment:
         admin_api.projects.create_role_assignment(
             project_id=project_id,
             body=RoleAssignmentCreate(
-                principal_type=RolePrincipalType.SERVICE_ACCOUNT,
                 principal_id=sa.id,
                 role_name="project-admin",
             ),

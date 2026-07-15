@@ -17,8 +17,8 @@ def _get_kwargs(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
     principal_id: None | Unset | UUID = UNSET,
+    group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
@@ -46,13 +46,6 @@ def _get_kwargs(
 
     params["include_total"] = include_total
 
-    json_principal_type: None | str | Unset
-    if isinstance(principal_type, Unset):
-        json_principal_type = UNSET
-    else:
-        json_principal_type = principal_type
-    params["principal_type"] = json_principal_type
-
     json_principal_id: None | str | Unset
     if isinstance(principal_id, Unset):
         json_principal_id = UNSET
@@ -61,6 +54,15 @@ def _get_kwargs(
     else:
         json_principal_id = principal_id
     params["principal_id"] = json_principal_id
+
+    json_group_id: None | str | Unset
+    if isinstance(group_id, Unset):
+        json_group_id = UNSET
+    elif isinstance(group_id, UUID):
+        json_group_id = str(group_id)
+    else:
+        json_group_id = group_id
+    params["group_id"] = json_group_id
 
     json_principal_name: None | str | Unset
     if isinstance(principal_name, Unset):
@@ -165,8 +167,8 @@ def sync_detailed(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
     principal_id: None | Unset | UUID = UNSET,
+    group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
@@ -185,8 +187,8 @@ def sync_detailed(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
         principal_id (None | Unset | UUID):
+        group_id (None | Unset | UUID):
         principal_name (None | str | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
@@ -204,8 +206,8 @@ def sync_detailed(
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        principal_type=principal_type,
         principal_id=principal_id,
+        group_id=group_id,
         principal_name=principal_name,
         role_name=role_name,
         project_id=project_id,
@@ -226,8 +228,8 @@ def sync(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
     principal_id: None | Unset | UUID = UNSET,
+    group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
@@ -245,8 +247,8 @@ def sync(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
         principal_id (None | Unset | UUID):
+        group_id (None | Unset | UUID):
         principal_name (None | str | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
@@ -265,8 +267,8 @@ def sync(
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        principal_type=principal_type,
         principal_id=principal_id,
+        group_id=group_id,
         principal_name=principal_name,
         role_name=role_name,
         project_id=project_id,
@@ -280,8 +282,8 @@ async def asyncio_detailed(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
     principal_id: None | Unset | UUID = UNSET,
+    group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
@@ -299,8 +301,8 @@ async def asyncio_detailed(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
         principal_id (None | Unset | UUID):
+        group_id (None | Unset | UUID):
         principal_name (None | str | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
@@ -318,8 +320,8 @@ async def asyncio_detailed(
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        principal_type=principal_type,
         principal_id=principal_id,
+        group_id=group_id,
         principal_name=principal_name,
         role_name=role_name,
         project_id=project_id,
@@ -337,8 +339,8 @@ async def asyncio(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
     principal_id: None | Unset | UUID = UNSET,
+    group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
@@ -356,8 +358,8 @@ async def asyncio(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
         principal_id (None | Unset | UUID):
+        group_id (None | Unset | UUID):
         principal_name (None | str | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
@@ -377,8 +379,8 @@ async def asyncio(
             cursor=cursor,
             sort=sort,
             include_total=include_total,
-            principal_type=principal_type,
             principal_id=principal_id,
+            group_id=group_id,
             principal_name=principal_name,
             role_name=role_name,
             project_id=project_id,

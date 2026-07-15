@@ -42,7 +42,7 @@ type AssignRoleFormData = z.infer<typeof assignRoleSchema>
 const ROLE_PAGE_SIZE = 20
 
 type AssignRoleModalProps = {
-  principalType: 'user' | 'group'
+  principalOrGroup: 'principal' | 'group'
   principalId: string
   isOpen: boolean
   onClose: () => void
@@ -98,7 +98,7 @@ function SingleSelect({
 }
 
 export function AssignRoleModal({
-  principalType,
+  principalOrGroup,
   principalId,
   isOpen,
   onClose,
@@ -171,7 +171,10 @@ export function AssignRoleModal({
     try {
       const results = await Promise.allSettled(
         data.roleIds.map((roleKey) => {
-          const body = { principal_type: principalType, principal_id: principalId, role_name: roleKey }
+          const body =
+            principalOrGroup === 'group'
+              ? { group_id: principalId, role_name: roleKey }
+              : { principal_id: principalId, role_name: roleKey }
           if (data.scope === 'system') {
             return createRoleAssignment({ body })
           }

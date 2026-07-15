@@ -74,8 +74,8 @@ export type ResourceActionsResponse = AuthzAPI.components['schemas']['ResourceAc
 
 export type PermissionRow = {
   id: string
-  principalType: 'user' | 'group'
-  principalId: string
+  groupId: string | null
+  principalId: string | null
   principalName: string
   assignmentType: 'role'
   assignmentName: string

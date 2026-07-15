@@ -20,10 +20,10 @@ class RoleAssignmentRead:
 
     Attributes:
         id (UUID):
-        principal_type (str):
-        principal_id (UUID):
         principal_name (str):
         role_name (str):
+        principal_id (None | Unset | UUID):
+        group_id (None | Unset | UUID):
         role_description (None | str | Unset):
         role_policies (list[str] | Unset):
         project_id (None | Unset | UUID):
@@ -33,10 +33,10 @@ class RoleAssignmentRead:
     """
 
     id: UUID
-    principal_type: str
-    principal_id: UUID
     principal_name: str
     role_name: str
+    principal_id: None | Unset | UUID = UNSET
+    group_id: None | Unset | UUID = UNSET
     role_description: None | str | Unset = UNSET
     role_policies: list[str] | Unset = UNSET
     project_id: None | Unset | UUID = UNSET
@@ -48,13 +48,25 @@ class RoleAssignmentRead:
     def to_dict(self) -> dict[str, Any]:
         id = str(self.id)
 
-        principal_type = self.principal_type
-
-        principal_id = str(self.principal_id)
-
         principal_name = self.principal_name
 
         role_name = self.role_name
+
+        principal_id: None | str | Unset
+        if isinstance(self.principal_id, Unset):
+            principal_id = UNSET
+        elif isinstance(self.principal_id, UUID):
+            principal_id = str(self.principal_id)
+        else:
+            principal_id = self.principal_id
+
+        group_id: None | str | Unset
+        if isinstance(self.group_id, Unset):
+            group_id = UNSET
+        elif isinstance(self.group_id, UUID):
+            group_id = str(self.group_id)
+        else:
+            group_id = self.group_id
 
         role_description: None | str | Unset
         if isinstance(self.role_description, Unset):
@@ -95,12 +107,14 @@ class RoleAssignmentRead:
         field_dict.update(
             {
                 "id": id,
-                "principal_type": principal_type,
-                "principal_id": principal_id,
                 "principal_name": principal_name,
                 "role_name": role_name,
             }
         )
+        if principal_id is not UNSET:
+            field_dict["principal_id"] = principal_id
+        if group_id is not UNSET:
+            field_dict["group_id"] = group_id
         if role_description is not UNSET:
             field_dict["role_description"] = role_description
         if role_policies is not UNSET:
@@ -121,13 +135,43 @@ class RoleAssignmentRead:
         d = dict(src_dict)
         id = UUID(d.pop("id"))
 
-        principal_type = d.pop("principal_type")
-
-        principal_id = UUID(d.pop("principal_id"))
-
         principal_name = d.pop("principal_name")
 
         role_name = d.pop("role_name")
+
+        def _parse_principal_id(data: object) -> None | Unset | UUID:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                principal_id_type_0 = UUID(data)
+
+                return principal_id_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | UUID, data)
+
+        principal_id = _parse_principal_id(d.pop("principal_id", UNSET))
+
+        def _parse_group_id(data: object) -> None | Unset | UUID:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                group_id_type_0 = UUID(data)
+
+                return group_id_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | UUID, data)
+
+        group_id = _parse_group_id(d.pop("group_id", UNSET))
 
         def _parse_role_description(data: object) -> None | str | Unset:
             if data is None:
@@ -187,10 +231,10 @@ class RoleAssignmentRead:
 
         role_assignment_read = cls(
             id=id,
-            principal_type=principal_type,
-            principal_id=principal_id,
             principal_name=principal_name,
             role_name=role_name,
+            principal_id=principal_id,
+            group_id=group_id,
             role_description=role_description,
             role_policies=role_policies,
             project_id=project_id,

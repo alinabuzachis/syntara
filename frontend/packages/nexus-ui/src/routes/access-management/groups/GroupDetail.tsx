@@ -133,7 +133,9 @@ function GroupTabContent({
       {activeTab === 'members' && showMembers && (
         <GroupMembersPanel groupId={groupId} onMembershipChange={onMembersChange} />
       )}
-      {activeTab === 'roles' && showAssignments && <RoleAssignmentsPanel principalType="group" principalId={groupId} />}
+      {activeTab === 'roles' && showAssignments && (
+        <RoleAssignmentsPanel principalOrGroup="group" principalId={groupId} />
+      )}
     </>
   )
 }

@@ -96,11 +96,15 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
           return
         }
         const pid = row.projectId
+        const projectBody =
+          row.groupId != null
+            ? { group_id: row.groupId, role_name: newRole }
+            : { principal_id: row.principalId!, role_name: newRole }
         await assignNewThenDeleteOldWithRollback({
           assignNew: () =>
             createProjectRoleAssignment({
               params: { path: { project_id: pid } },
-              body: { principal_type: row.principalType, principal_id: row.principalId, role_name: newRole },
+              body: projectBody,
             }),
           deleteOld: () =>
             deleteProjectRoleAssignment({ params: { path: { project_id: pid, assignment_id: row.id } } }),
@@ -108,10 +112,14 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
             deleteProjectRoleAssignment({ params: { path: { project_id: pid, assignment_id: newAssignmentId } } }),
         })
       } else {
+        const globalBody =
+          row.groupId != null
+            ? { group_id: row.groupId, role_name: newRole }
+            : { principal_id: row.principalId!, role_name: newRole }
         await assignNewThenDeleteOldWithRollback({
           assignNew: () =>
             createRoleAssignment({
-              body: { principal_type: row.principalType, principal_id: row.principalId, role_name: newRole },
+              body: globalBody,
             }),
           deleteOld: () => deleteRoleAssignment({ params: { path: { assignment_id: row.id } } }),
           revokeNew: (newAssignmentId) =>

@@ -13,7 +13,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.evaluator import AuthzEvaluator
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.authz.resolver import resolve_effective_policies, resolve_user_groups
 from nexus.core.models.group import Group
@@ -501,7 +501,6 @@ async def assign_project_admin(
 
     """
     assignment = RoleAssignment(
-        principal_type=RolePrincipalType.USER,
         principal_id=user_id,
         project_id=project_id,
         role_name=PROJECT_ADMIN_ROLE_NAME,
@@ -547,8 +546,7 @@ async def assign_authenticated_group_project_user(
         return None
 
     assignment = RoleAssignment(
-        principal_type=RolePrincipalType.GROUP,
-        principal_id=group.id,
+        group_id=group.id,
         project_id=project_id,
         role_name=PROJECT_USER_ROLE_NAME,
     )

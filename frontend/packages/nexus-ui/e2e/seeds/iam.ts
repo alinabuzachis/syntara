@@ -160,7 +160,6 @@ export async function createRoleAssignmentViaApi(
     const resp = await apiRequest(page, 'post', `/projects/${projectId}/role_assignments`, {
       token,
       data: {
-        principal_type: 'user',
         principal_id: options.userId,
         role_name: options.roleName,
       },

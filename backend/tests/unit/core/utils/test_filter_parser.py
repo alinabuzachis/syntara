@@ -41,6 +41,7 @@ class TestFilterParser:
         assert FilterOperator.GTE.value == "gte"
         assert FilterOperator.LT.value == "lt"
         assert FilterOperator.LTE.value == "lte"
+        assert FilterOperator.ISNULL.value == "isnull"
 
     def test_filter_dataclass_structure(self) -> None:
         """Test that Filter dataclass has expected structure."""
@@ -111,13 +112,14 @@ class TestFilterParser:
             "created_at[gte]": "2025-01-01T00:00:00Z",
             "created_at[lt]": "2025-12-31T23:59:59Z",
             "created_at[lte]": "2025-12-31T23:59:59Z",
+            "status[isnull]": "true",
         }
-        allowed_fields = ["name", "created_at"]
+        allowed_fields = ["name", "created_at", "status"]
 
         filters = parse_filters(params, allowed_fields)
 
-        # Should have 7 filters total
-        assert len(filters) == 7
+        # Should have 8 filters total
+        assert len(filters) == 8
 
         # Check each operator was parsed correctly
         operators_found = {f.operator for f in filters}
@@ -129,8 +131,53 @@ class TestFilterParser:
             FilterOperator.GTE,
             FilterOperator.LT,
             FilterOperator.LTE,
+            FilterOperator.ISNULL,
         }
         assert operators_found == expected_operators
+
+    def test_parse_isnull_true(self) -> None:
+        """Test parsing isnull=true filter."""
+        params = {"principal_id[isnull]": "true"}
+        allowed_fields = ["principal_id"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 1
+        assert filters[0].field == "principal_id"
+        assert filters[0].operator == FilterOperator.ISNULL
+        assert filters[0].value == "true"
+
+    def test_parse_isnull_false(self) -> None:
+        """Test parsing isnull=false filter."""
+        params = {"group_id[isnull]": "false"}
+        allowed_fields = ["group_id"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 1
+        assert filters[0].field == "group_id"
+        assert filters[0].operator == FilterOperator.ISNULL
+        assert filters[0].value == "false"
+
+    def test_parse_isnull_combined_with_other_filters(self) -> None:
+        """Test parsing isnull alongside other filter operators."""
+        params = {
+            "principal_id[isnull]": "true",
+            "role_name[contains]": "admin",
+        }
+        allowed_fields = ["principal_id", "role_name"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 2
+
+        isnull_filter = next(f for f in filters if f.operator == FilterOperator.ISNULL)
+        assert isnull_filter.field == "principal_id"
+        assert isnull_filter.value == "true"
+
+        contains_filter = next(f for f in filters if f.operator == FilterOperator.CONTAINS)
+        assert contains_filter.field == "role_name"
+        assert contains_filter.value == "admin"
 
     def test_parse_invalid_field_raises_error(self) -> None:
         """Test that invalid field names raise SafeValueError."""

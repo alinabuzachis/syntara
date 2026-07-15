@@ -122,8 +122,8 @@ const mockAllAssignments = [
   {
     id: 'pr1',
     principal_id: 'u1',
+    group_id: null,
     principal_name: 'alice',
-    principal_type: 'user',
     role_name: 'Admin',
     project_id: 'p1',
     project_name: 'Project Alpha',
@@ -132,8 +132,8 @@ const mockAllAssignments = [
   {
     id: 'sur1',
     principal_id: 'u2',
+    group_id: null,
     principal_name: 'bob',
-    principal_type: 'user',
     role_name: 'Viewer',
     project_id: null,
     project_name: null,
@@ -141,9 +141,9 @@ const mockAllAssignments = [
   },
   {
     id: 'pgr1',
-    principal_id: 'g1',
+    principal_id: null,
+    group_id: 'g1',
     principal_name: 'Devs',
-    principal_type: 'group',
     role_name: 'Editor',
     project_id: 'p1',
     project_name: 'Project Alpha',
@@ -151,9 +151,9 @@ const mockAllAssignments = [
   },
   {
     id: 'sgr1',
-    principal_id: 'g2',
+    principal_id: null,
+    group_id: 'g2',
     principal_name: 'Ops',
-    principal_type: 'group',
     role_name: 'Admin',
     project_id: null,
     project_name: null,
@@ -243,7 +243,7 @@ describe('useAssignmentsData', () => {
 
       const projectRole = result.current.allRows.find((r) => r.id === 'pr1')
       expect(projectRole).toMatchObject({
-        principalType: 'user',
+        groupId: null,
         principalId: 'u1',
         principalName: 'alice',
         assignmentName: 'Admin',
@@ -261,8 +261,8 @@ describe('useAssignmentsData', () => {
 
       const groupRole = result.current.allRows.find((r) => r.id === 'pgr1')
       expect(groupRole).toMatchObject({
-        principalType: 'group',
-        principalId: 'g1',
+        groupId: 'g1',
+        principalId: null,
         principalName: 'Devs',
         assignmentName: 'Editor',
         scopeType: 'project',
@@ -278,7 +278,7 @@ describe('useAssignmentsData', () => {
 
       const sysUserRole = result.current.allRows.find((r) => r.id === 'sur1')
       expect(sysUserRole).toMatchObject({
-        principalType: 'user',
+        groupId: null,
         principalId: 'u2',
         principalName: 'bob',
         assignmentName: 'Viewer',
@@ -296,8 +296,8 @@ describe('useAssignmentsData', () => {
 
       const sysGroupRole = result.current.allRows.find((r) => r.id === 'sgr1')
       expect(sysGroupRole).toMatchObject({
-        principalType: 'group',
-        principalId: 'g2',
+        groupId: 'g2',
+        principalId: null,
         principalName: 'Ops',
         assignmentName: 'Admin',
         scopeType: 'system',
@@ -325,8 +325,8 @@ describe('useAssignmentsData', () => {
                 {
                   id: 'x1',
                   principal_id: 'u1',
+                  group_id: null,
                   principal_name: 'alice',
-                  principal_type: 'user',
                   role_name: 'Admin',
                   project_id: 'unknown-proj',
                   project_name: null,
@@ -431,7 +431,7 @@ describe('useAssignmentsData', () => {
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
-      expect(result.current.sortedRows.every((r) => r.principalType === 'user')).toBe(true)
+      expect(result.current.sortedRows.every((r) => r.groupId == null)).toBe(true)
     })
 
     it('filters by type (group)', () => {
@@ -443,7 +443,7 @@ describe('useAssignmentsData', () => {
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
-      expect(result.current.sortedRows.every((r) => r.principalType === 'group')).toBe(true)
+      expect(result.current.sortedRows.every((r) => r.groupId != null)).toBe(true)
     })
 
     it('filters by scope (system)', () => {
@@ -559,7 +559,7 @@ describe('useAssignmentsData', () => {
       expect(names).toEqual(['Ops', 'Devs', 'bob', 'alice'])
     })
 
-    it('sorts by type (column 1)', () => {
+    it('sorts by role name (column 1)', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
@@ -568,12 +568,11 @@ describe('useAssignmentsData', () => {
         sortParams.onSort!({} as React.MouseEvent, 1, SortByDirection.asc, {} as never)
       })
 
-      const types = result.current.sortedRows.map((r) => r.principalType)
-      // 'group' comes before 'user' alphabetically
-      expect(types).toEqual(['group', 'group', 'user', 'user'])
+      const roles = result.current.sortedRows.map((r) => r.assignmentName)
+      expect(roles).toEqual(['Admin', 'Admin', 'Editor', 'Viewer'])
     })
 
-    it('sorts by role name (column 2)', () => {
+    it('sorts by scope type (column 2)', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
@@ -582,8 +581,8 @@ describe('useAssignmentsData', () => {
         sortParams.onSort!({} as React.MouseEvent, 2, SortByDirection.asc, {} as never)
       })
 
-      const roles = result.current.sortedRows.map((r) => r.assignmentName)
-      expect(roles).toEqual(['Admin', 'Admin', 'Editor', 'Viewer'])
+      const scopes = result.current.sortedRows.map((r) => r.scopeType)
+      expect(scopes).toEqual(['project', 'project', 'system', 'system'])
     })
 
     it('sorts by scope name (column 3)', () => {
@@ -635,7 +634,7 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'pr1',
-        principalType: 'user',
+        groupId: null,
         principalId: 'u1',
         principalName: 'alice',
         assignmentType: 'role',
@@ -672,8 +671,8 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'pgr1',
-        principalType: 'group',
-        principalId: 'g1',
+        groupId: 'g1',
+        principalId: null,
         principalName: 'Devs',
         assignmentType: 'role',
         assignmentName: 'Editor',
@@ -708,7 +707,7 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'sur1',
-        principalType: 'user',
+        groupId: null,
         principalId: 'u2',
         principalName: 'bob',
         assignmentType: 'role',
@@ -743,8 +742,8 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'sgr1',
-        principalType: 'group',
-        principalId: 'g2',
+        groupId: 'g2',
+        principalId: null,
         principalName: 'Ops',
         assignmentType: 'role',
         assignmentName: 'Admin',
@@ -779,7 +778,7 @@ describe('useAssignmentsData', () => {
       const onSettled = vi.fn()
       const row: PermissionRow = {
         id: 'sur1',
-        principalType: 'user',
+        groupId: null,
         principalId: 'u2',
         principalName: 'bob',
         assignmentType: 'role',
@@ -815,7 +814,7 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'pr-missing',
-        principalType: 'user',
+        groupId: null,
         principalId: 'u1',
         principalName: 'alice',
         assignmentType: 'role',

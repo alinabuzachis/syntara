@@ -36,7 +36,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from nexus.auth.services.global_revocation import clear_global_revocation_cache
 from nexus.auth.services.token_service import TokenService
-from nexus.authz.models import RoleAssignment, RolePrincipalType
+from nexus.authz.models import RoleAssignment
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models.group import Group, user_groups
 from nexus.core.websocket.close_codes import POLICY_VIOLATION
@@ -103,8 +103,7 @@ async def _make_role_assignment(
     await session.flush()
     session.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.GROUP,
-            principal_id=group.id,
+            group_id=group.id,
             role_name=role_name,
         )
     )

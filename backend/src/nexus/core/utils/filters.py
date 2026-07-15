@@ -40,6 +40,7 @@ class FilterOperator(str, Enum):
     - gte: Greater than or equal comparison
     - lt: Less than comparison
     - lte: Less than or equal comparison
+    - isnull: Null check (true = IS NULL, false = IS NOT NULL)
     """
 
     EQ = "eq"
@@ -49,6 +50,7 @@ class FilterOperator(str, Enum):
     GTE = "gte"
     LT = "lt"
     LTE = "lte"
+    ISNULL = "isnull"
 
 
 class Filter(BaseModel):
@@ -403,6 +405,10 @@ def _build_condition(field_attr: Any, operator: FilterOperator, value: FilterVal
             return field_attr < converted_value
         case FilterOperator.LTE:
             return field_attr <= converted_value
+        case FilterOperator.ISNULL:
+            if _convert_boolean_value(str(converted_value)):
+                return field_attr.is_(None)
+            return field_attr.isnot(None)
 
 
 def apply_filters(

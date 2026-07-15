@@ -81,14 +81,6 @@ paths:
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
-        - name: principal_type
-          in: query
-          required: false
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Principal Type
         - name: principal_id
           in: query
           required: false
@@ -98,6 +90,17 @@ paths:
                 format: uuid
               - type: 'null'
             title: Principal Id
+          description: Filter by principal ID (user or service account)
+        - name: group_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Group Id
+          description: Filter by group ID
         - name: principal_name
           in: query
           required: false
@@ -235,27 +238,28 @@ paths:
 
 components:
   schemas:
-    RolePrincipalType:
-      type: string
-      enum: [user, group, service_account]
-      title: RolePrincipalType
-      description: Discriminator for role assignment targets.
-
     RoleAssignmentCreate:
       type: object
       title: RoleAssignmentCreate
-      description: Request body for creating a role assignment.
+      description: |-
+        Request body for creating a role assignment.
+
+        Exactly one of ``principal_id`` or ``group_id`` must be provided.
       required:
-        - principal_type
-        - principal_id
         - role_name
       properties:
-        principal_type:
-          $ref: "#/components/schemas/RolePrincipalType"
         principal_id:
-          type: string
-          format: uuid
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
           title: Principal Id
+        group_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Group Id
         role_name:
           type: string
           title: Role Name
@@ -272,7 +276,7 @@ components:
       description: |-
         Request body for creating a role assignment from a sub-resource endpoint.
 
-        principal_type and principal_id come from the URL path.
+        The principal_id (or group_id) comes from the URL path.
       required:
         - role_name
       properties:
@@ -292,8 +296,6 @@ components:
       description: Response body for a role assignment.
       required:
         - id
-        - principal_type
-        - principal_id
         - principal_name
         - role_name
       properties:
@@ -301,13 +303,18 @@ components:
           type: string
           format: uuid
           title: Id
-        principal_type:
-          type: string
-          title: Principal Type
         principal_id:
-          type: string
-          format: uuid
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
           title: Principal Id
+        group_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Group Id
         principal_name:
           type: string
           title: Principal Name

@@ -466,14 +466,6 @@ paths:
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
-        - name: principal_type
-          in: query
-          required: false
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Principal Type
         - name: principal_id
           in: query
           required: false
@@ -483,6 +475,17 @@ paths:
                 format: uuid
               - type: 'null'
             title: Principal Id
+          description: Filter by principal ID (user or service account)
+        - name: group_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Group Id
+          description: Filter by group ID
         - name: principal_name
           in: query
           required: false

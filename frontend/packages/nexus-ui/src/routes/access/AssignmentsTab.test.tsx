@@ -90,7 +90,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 const sampleRows: PermissionRow[] = [
   {
     id: 'pr1',
-    principalType: 'user',
+    groupId: null,
     principalId: 'u1',
     principalName: 'alice',
     assignmentType: 'role',
@@ -104,7 +104,7 @@ const sampleRows: PermissionRow[] = [
   },
   {
     id: 'pgr1',
-    principalType: 'group',
+    groupId: 'g1',
     principalId: 'g1',
     principalName: 'Devs',
     assignmentType: 'role',
@@ -118,7 +118,7 @@ const sampleRows: PermissionRow[] = [
   },
   {
     id: 'sur1',
-    principalType: 'user',
+    groupId: null,
     principalId: 'u2',
     principalName: 'bob',
     assignmentType: 'role',

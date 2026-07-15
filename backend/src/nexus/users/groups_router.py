@@ -12,14 +12,14 @@ from nexus.auth import get_current_user
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
 from nexus.authz.engine import VisibilityResult
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.role_assignment_router import (
     PrincipalRoleAssignmentListParams,
     RoleAssignmentListResponse,
     RoleAssignmentRead,
     SubResourceRoleAssignmentCreate,
-    delete_principal_assignment,
-    list_principal_assignments,
+    delete_sub_resource_assignment,
+    list_sub_resource_assignments,
 )
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.database.session import get_db
@@ -262,8 +262,7 @@ async def create_group_role_assignment(
 ) -> RoleAssignmentRead:
     """Assign a role to this group."""
     result = await service.assign(
-        principal_type=RolePrincipalType.GROUP,
-        principal_id=group_id,
+        group_id=group_id,
         role_name=body.role_name,
         project_id=body.project_id,
     )
@@ -285,9 +284,8 @@ async def list_group_role_assignments(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> RoleAssignmentListResponse:
     """List role assignments for a specific group."""
-    return await list_principal_assignments(
-        principal_type=RolePrincipalType.GROUP,
-        principal_id=group_id,
+    return await list_sub_resource_assignments(
+        group_id=group_id,
         request=request,
         params=params,
         service=service,
@@ -319,9 +317,8 @@ async def delete_group_role_assignment(
     service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
 ) -> None:
     """Remove a role assignment from this group."""
-    await delete_principal_assignment(
-        principal_type=RolePrincipalType.GROUP,
-        principal_id=group_id,
+    await delete_sub_resource_assignment(
+        group_id=group_id,
         assignment_id=assignment_id,
         service=service,
     )

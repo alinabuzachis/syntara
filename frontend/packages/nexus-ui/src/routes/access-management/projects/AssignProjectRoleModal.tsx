@@ -27,16 +27,16 @@ import { useAllProjectRoles } from '../../access/useAllProjectRoles'
 
 const assignProjectRoleSchema = z
   .object({
-    principalType: z.enum(['user', 'group']),
+    principalOrGroup: z.enum(['principal', 'group']),
     userId: z.string(),
     groupId: z.string(),
     roleName: z.string(),
   })
   .superRefine((data, ctx) => {
-    if (data.principalType === 'user' && !data.userId) {
+    if (data.principalOrGroup === 'principal' && !data.userId) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'User is required', path: ['userId'] })
     }
-    if (data.principalType === 'group' && !data.groupId) {
+    if (data.principalOrGroup === 'group' && !data.groupId) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Group is required', path: ['groupId'] })
     }
     if (!data.roleName) {
@@ -114,7 +114,12 @@ function TypeaheadFormField<T extends FieldValues>({
   )
 }
 
-const defaultValues: AssignProjectRoleFormData = { principalType: 'user', userId: '', groupId: '', roleName: '' }
+const defaultValues: AssignProjectRoleFormData = {
+  principalOrGroup: 'principal',
+  userId: '',
+  groupId: '',
+  roleName: '',
+}
 
 type AssignProjectRoleModalProps = {
   projectId: string
@@ -138,10 +143,10 @@ export function AssignProjectRoleModal({
     defaultValues,
   })
 
-  const principalType = useWatch({ control, name: 'principalType' })
+  const principalOrGroup = useWatch({ control, name: 'principalOrGroup' })
   const selectedUserId = useWatch({ control, name: 'userId' })
   const selectedGroupId = useWatch({ control, name: 'groupId' })
-  const selectedPrincipalId = principalType === 'user' ? selectedUserId : selectedGroupId
+  const selectedPrincipalId = principalOrGroup === 'principal' ? selectedUserId : selectedGroupId
 
   // ── Server-side user search ──────────────────────────────────────────────
   const [userSearchTerm, setUserSearchTerm] = useState('')
@@ -203,11 +208,14 @@ export function AssignProjectRoleModal({
   }
 
   const onSubmit = handleSubmit((data) => {
-    const principalId = data.principalType === 'user' ? data.userId : data.groupId
+    const body =
+      data.principalOrGroup === 'group'
+        ? { group_id: data.groupId, role_name: data.roleName }
+        : { principal_id: data.userId, role_name: data.roleName }
     assignRole(
       {
         params: { path: { project_id: projectId } },
-        body: { principal_type: data.principalType, principal_id: principalId, role_name: data.roleName },
+        body,
       },
       {
         onSuccess: () => {
@@ -227,7 +235,7 @@ export function AssignProjectRoleModal({
         <Form id="assign-project-role-form" onSubmit={onSubmit}>
           <FormGroup label="Principal type" isRequired fieldId="principal-type" role="group">
             <Controller
-              name="principalType"
+              name="principalOrGroup"
               control={control}
               render={({ field }) => (
                 <FormSelect
@@ -241,14 +249,14 @@ export function AssignProjectRoleModal({
                     setValue('roleName', '', { shouldValidate: false })
                   }}
                 >
-                  <FormSelectOption value="user" label="User" />
+                  <FormSelectOption value="principal" label="User" />
                   <FormSelectOption value="group" label="Group" />
                 </FormSelect>
               )}
             />
           </FormGroup>
 
-          {principalType === 'user' && (
+          {principalOrGroup === 'principal' && (
             <TypeaheadFormField
               name="userId"
               control={control}
@@ -264,7 +272,7 @@ export function AssignProjectRoleModal({
             />
           )}
 
-          {principalType === 'group' && (
+          {principalOrGroup === 'group' && (
             <TypeaheadFormField
               name="groupId"
               control={control}

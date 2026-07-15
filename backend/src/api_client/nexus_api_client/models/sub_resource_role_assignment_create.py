@@ -16,7 +16,7 @@ T = TypeVar("T", bound="SubResourceRoleAssignmentCreate")
 class SubResourceRoleAssignmentCreate:
     """Request body for creating a role assignment from a sub-resource endpoint.
 
-    principal_type and principal_id come from the URL path.
+    The principal_id (or group_id) comes from the URL path.
 
         Attributes:
             role_name (str):

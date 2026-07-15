@@ -17,7 +17,6 @@ if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
 from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
-from nexus_api_client.models.role_principal_type import RolePrincipalType
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_test_sdk.e2e.auth import api_for
@@ -81,7 +80,6 @@ class TestRoleAssignmentManagerAllowed:
         assign_resp = mgr_api.projects.create_role_assignment(
             project_id=project_id,
             body=RoleAssignmentCreate(
-                principal_type=RolePrincipalType.USER,
                 principal_id=target_id,
                 role_name="project-user",
             ),

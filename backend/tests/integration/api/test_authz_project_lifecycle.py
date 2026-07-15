@@ -12,7 +12,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models import Project
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.core.models import User
 from tests.integration.api.conftest import make_admin, make_project_admin, make_project_user
 
@@ -100,7 +100,6 @@ async def test_assign_user_and_auditor(
     # Carol as project-auditor (manual assignment)
     test_db_session.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.USER,
             principal_id=carol.id,
             project_id=project.id,
             role_name="project-auditor",

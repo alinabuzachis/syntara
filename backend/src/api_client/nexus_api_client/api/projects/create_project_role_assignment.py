@@ -108,6 +108,8 @@ def sync_detailed(
         project_id (UUID):
         body (RoleAssignmentCreate): Request body for creating a role assignment.
 
+            Exactly one of ``principal_id`` or ``group_id`` must be provided.
+
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
@@ -142,6 +144,8 @@ def sync(
         project_id (UUID):
         body (RoleAssignmentCreate): Request body for creating a role assignment.
 
+            Exactly one of ``principal_id`` or ``group_id`` must be provided.
+
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
@@ -170,6 +174,8 @@ async def asyncio_detailed(
     Args:
         project_id (UUID):
         body (RoleAssignmentCreate): Request body for creating a role assignment.
+
+            Exactly one of ``principal_id`` or ``group_id`` must be provided.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -202,6 +208,8 @@ async def asyncio(
     Args:
         project_id (UUID):
         body (RoleAssignmentCreate): Request body for creating a role assignment.
+
+            Exactly one of ``principal_id`` or ``group_id`` must be provided.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

@@ -109,7 +109,7 @@ def sync_detailed(
         body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
             sub-resource endpoint.
 
-            principal_type and principal_id come from the URL path.
+            The principal_id (or group_id) comes from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -146,7 +146,7 @@ def sync(
         body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
             sub-resource endpoint.
 
-            principal_type and principal_id come from the URL path.
+            The principal_id (or group_id) comes from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -178,7 +178,7 @@ async def asyncio_detailed(
         body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
             sub-resource endpoint.
 
-            principal_type and principal_id come from the URL path.
+            The principal_id (or group_id) comes from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -213,7 +213,7 @@ async def asyncio(
         body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
             sub-resource endpoint.
 
-            principal_type and principal_id come from the URL path.
+            The principal_id (or group_id) comes from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

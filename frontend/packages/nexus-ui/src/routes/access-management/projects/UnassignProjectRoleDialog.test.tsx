@@ -9,8 +9,8 @@ import { UnassignProjectRoleDialog } from './UnassignProjectRoleDialog'
 
 const mockAssignment: RoleAssignmentRead = {
   id: 'a1',
-  principal_type: 'user',
   principal_id: 'u1',
+  group_id: null,
   principal_name: 'alice',
   project_id: 'p1',
   role_name: 'project-admin',

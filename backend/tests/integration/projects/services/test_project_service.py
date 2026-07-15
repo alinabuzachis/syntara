@@ -15,7 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.authz.exceptions import ProjectNotFoundError
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.role import Role
 from nexus.authz.seed import seed_authz_data
@@ -60,7 +60,6 @@ async def test_create_project(seeded_db: AsyncSession, test_user: User) -> None:
     assignments = (await seeded_db.exec(select(RoleAssignment).where(RoleAssignment.project_id == project.id))).all()
     assert len(assignments) == 1
     assert assignments[0].role_name == "project-admin"
-    assert assignments[0].principal_type == RolePrincipalType.USER
     assert assignments[0].principal_id == test_user.id
 
 
@@ -287,7 +286,6 @@ async def test_delete_project_cascades_role_assignments(seeded_db: AsyncSession,
 
     seeded_db.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.USER,
             principal_id=other.id,
             role_name="project-user",
             project_id=project.id,
@@ -295,8 +293,7 @@ async def test_delete_project_cascades_role_assignments(seeded_db: AsyncSession,
     )
     seeded_db.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.GROUP,
-            principal_id=group.id,
+            group_id=group.id,
             role_name="project-auditor",
             project_id=project.id,
         )

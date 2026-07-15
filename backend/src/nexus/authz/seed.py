@@ -15,7 +15,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models import RoleAssignment
-from nexus.authz.models.assignments import RolePrincipalType
 from nexus.authz.models.project import Project
 from nexus.core.config.base import get_settings
 from nexus.core.models import User
@@ -159,8 +158,7 @@ async def _ensure_role_assignment(
 ) -> None:
     """Create a group role assignment if it doesn't already exist."""
     where_clauses = [
-        RoleAssignment.principal_type == RolePrincipalType.GROUP,
-        RoleAssignment.principal_id == group.id,
+        RoleAssignment.group_id == group.id,
         RoleAssignment.role_name == role_name,
     ]
     if project_id is None:
@@ -173,8 +171,7 @@ async def _ensure_role_assignment(
         session.add(
             RoleAssignment(
                 id=uuid4(),
-                principal_type=RolePrincipalType.GROUP,
-                principal_id=group.id,
+                group_id=group.id,
                 role_name=role_name,
                 project_id=project_id,
                 is_builtin=is_builtin,

@@ -321,7 +321,7 @@ function UserDetailTabContent({
         />
       )}
       {activeTab === 'roles' && validTabs.includes('roles') && (
-        <RoleAssignmentsPanel principalType="user" principalId={userId} />
+        <RoleAssignmentsPanel principalOrGroup="principal" principalId={userId} />
       )}
       {activeTab === 'permissions' && isOwnProfile && <MyPermissionsView />}
       {activeTab === 'check-access' && isOwnProfile && <UserCheckAccessTab />}

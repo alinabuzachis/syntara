@@ -89,7 +89,7 @@ const mockRoles = {
 
 const projectRow: PermissionRow = {
   id: 'pr1',
-  principalType: 'user',
+  groupId: null,
   principalId: 'u1',
   principalName: 'alice',
   assignmentType: 'role',
@@ -104,7 +104,7 @@ const projectRow: PermissionRow = {
 
 const projectGroupRow: PermissionRow = {
   id: 'pgr1',
-  principalType: 'group',
+  groupId: 'g1',
   principalId: 'g1',
   principalName: 'Devs',
   assignmentType: 'role',
@@ -119,7 +119,7 @@ const projectGroupRow: PermissionRow = {
 
 const systemUserRow: PermissionRow = {
   id: 'sur1',
-  principalType: 'user',
+  groupId: null,
   principalId: 'u2',
   principalName: 'bob',
   assignmentType: 'role',
@@ -134,7 +134,7 @@ const systemUserRow: PermissionRow = {
 
 const systemGroupRow: PermissionRow = {
   id: 'sgr1',
-  principalType: 'group',
+  groupId: 'g2',
   principalId: 'g2',
   principalName: 'Ops',
   assignmentType: 'role',

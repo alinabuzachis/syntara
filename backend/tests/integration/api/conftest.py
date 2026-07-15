@@ -21,7 +21,7 @@ from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.authz.dependencies import get_authz_evaluator
 from nexus.authz.evaluator import evaluate_policy_input
-from nexus.authz.models import Project, RoleAssignment, RolePrincipalType
+from nexus.authz.models import Project, RoleAssignment
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
@@ -58,8 +58,7 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
     test_db_session.add(
         RoleAssignment(
             id=uuid4(),
-            principal_type=RolePrincipalType.GROUP,
-            principal_id=test_group.id,
+            group_id=test_group.id,
             role_name="admin",
         )
     )
@@ -150,8 +149,7 @@ async def _make_role_assignment(
     await session.flush()
     session.add(
         RoleAssignment(
-            principal_type=RolePrincipalType.GROUP,
-            principal_id=group.id,
+            group_id=group.id,
             role_name=role_name,
         )
     )
@@ -181,7 +179,6 @@ async def make_project_user(
 ) -> RoleAssignment:
     """Assign project-user role to a user for a specific project."""
     assignment = RoleAssignment(
-        principal_type=RolePrincipalType.USER,
         principal_id=user.id,
         project_id=project.id,
         role_name="project-user",
@@ -198,7 +195,6 @@ async def make_project_admin(
 ) -> RoleAssignment:
     """Assign project-admin role to a user for a specific project."""
     assignment = RoleAssignment(
-        principal_type=RolePrincipalType.USER,
         principal_id=user.id,
         project_id=project.id,
         role_name="project-admin",

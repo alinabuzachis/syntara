@@ -97,8 +97,8 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 type AssignmentResource = {
   id: string
-  principal_type: 'user' | 'group'
-  principal_id: string
+  principal_id: string | null
+  group_id: string | null
   principal_name: string
   role_name: string
   role_description: string | null
@@ -111,8 +111,8 @@ type AssignmentResource = {
 const mockUserAssignments: AssignmentResource[] = [
   {
     id: 'ua1',
-    principal_type: 'user',
     principal_id: 'u1',
+    group_id: null,
     principal_name: 'user-one',
     role_name: 'admin-role',
     role_description: 'Full access',
@@ -123,8 +123,8 @@ const mockUserAssignments: AssignmentResource[] = [
   },
   {
     id: 'ua2',
-    principal_type: 'user',
     principal_id: 'u1',
+    group_id: null,
     principal_name: 'user-one',
     role_name: 'viewer-role',
     role_description: 'Read-only',
@@ -138,8 +138,8 @@ const mockUserAssignments: AssignmentResource[] = [
 const mockGroupAssignments: AssignmentResource[] = [
   {
     id: 'ga1',
-    principal_type: 'group',
-    principal_id: 'g1',
+    principal_id: null,
+    group_id: 'g1',
     principal_name: 'group-one',
     role_name: 'admin-role',
     role_description: 'Full access',
@@ -213,14 +213,14 @@ describe('RoleAssignmentsPanel', () => {
 
   describe('Accessibility', () => {
     it('has no accessibility violations with data', async () => {
-      const { container } = render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      const { container } = render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })
 
     it('has no accessibility violations in empty state', async () => {
       setupMocks({ userAssignments: [] })
-      const { container } = render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      const { container } = render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })
@@ -236,7 +236,7 @@ describe('RoleAssignmentsPanel', () => {
       })
       vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn(vi.fn()))
 
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
       expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument()
     })
 
@@ -255,7 +255,7 @@ describe('RoleAssignmentsPanel', () => {
       })
       vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn(vi.fn()))
 
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
       expect(screen.getByText('Error loading role assignments')).toBeInTheDocument()
     })
   })
@@ -263,7 +263,7 @@ describe('RoleAssignmentsPanel', () => {
   describe('Empty state', () => {
     it('shows empty state when user has no assignments', () => {
       setupMocks({ userAssignments: [] })
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       expect(screen.getByText('No role assignments')).toBeInTheDocument()
       expect(screen.getByText('No roles have been assigned to this user.')).toBeInTheDocument()
@@ -272,7 +272,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('shows empty state when group has no assignments', () => {
       setupMocks({ groupAssignments: [] })
-      render(<RoleAssignmentsPanel principalType="group" principalId="g1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="group" principalId="g1" />, { wrapper })
 
       expect(screen.getByText('No role assignments')).toBeInTheDocument()
       expect(screen.getByText('No roles have been assigned to this group.')).toBeInTheDocument()
@@ -281,7 +281,7 @@ describe('RoleAssignmentsPanel', () => {
     it('opens assign role modal from empty state', async () => {
       const user = userEvent.setup()
       setupMocks({ userAssignments: [] })
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       await user.click(screen.getByRole('button', { name: 'Assign role' }))
 
@@ -293,7 +293,7 @@ describe('RoleAssignmentsPanel', () => {
     it('closes assign role modal from empty state via Cancel', async () => {
       const user = userEvent.setup()
       setupMocks({ userAssignments: [] })
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       await user.click(screen.getByRole('button', { name: 'Assign role' }))
 
@@ -311,7 +311,7 @@ describe('RoleAssignmentsPanel', () => {
 
   describe('Table rendering (user)', () => {
     it('renders table with correct columns', () => {
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const table = screen.getByRole('grid', { name: 'Role assignments table' })
       expect(table).toBeInTheDocument()
@@ -324,7 +324,7 @@ describe('RoleAssignmentsPanel', () => {
     })
 
     it('renders all assignment rows', () => {
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const table = screen.getByRole('grid', { name: 'Role assignments table' })
       const rows = within(table).getAllByRole('row')
@@ -337,20 +337,20 @@ describe('RoleAssignmentsPanel', () => {
     })
 
     it('shows role description', () => {
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
       expect(screen.getByText('Full access')).toBeInTheDocument()
       expect(screen.getByText('Read-only')).toBeInTheDocument()
     })
 
     it('shows scope as System labels', () => {
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const systemLabels = screen.getAllByText('System')
       expect(systemLabels.length).toBeGreaterThanOrEqual(2)
     })
 
     it('shows policies as labels', () => {
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       expect(screen.getByText('policy-a')).toBeInTheDocument()
       expect(screen.getByText('policy-b')).toBeInTheDocument()
@@ -358,14 +358,14 @@ describe('RoleAssignmentsPanel', () => {
     })
 
     it('shows "Assign role" button', () => {
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
       expect(screen.getByRole('button', { name: 'Assign role' })).toBeInTheDocument()
     })
   })
 
   describe('Table rendering (group)', () => {
     it('renders group assignments', () => {
-      render(<RoleAssignmentsPanel principalType="group" principalId="g1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="group" principalId="g1" />, { wrapper })
 
       const table = screen.getByRole('grid', { name: 'Role assignments table' })
       const rows = within(table).getAllByRole('row')
@@ -382,8 +382,8 @@ describe('RoleAssignmentsPanel', () => {
         userAssignments: [
           {
             id: 'ua1',
-            principal_type: 'user',
             principal_id: 'u1',
+            group_id: null,
             principal_name: 'user-one',
             role_name: 'no-desc-role',
             role_description: null,
@@ -395,7 +395,7 @@ describe('RoleAssignmentsPanel', () => {
         ],
       })
 
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const dashes = screen.getAllByText('-')
       expect(dashes.length).toBeGreaterThanOrEqual(2)
@@ -404,13 +404,13 @@ describe('RoleAssignmentsPanel', () => {
 
   describe('Filtering', () => {
     it('renders the filter bar', () => {
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
       expect(screen.getByPlaceholderText('Filter by role name')).toBeInTheDocument()
     })
 
     it('filters rows by name', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const filterInput = screen.getByPlaceholderText('Filter by role name')
       await user.type(filterInput, 'admin')
@@ -424,7 +424,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('shows filter empty state when no rows match filter', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const filterInput = screen.getByPlaceholderText('Filter by role name')
       await user.type(filterInput, 'nonexistent')
@@ -437,7 +437,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('clears filters from the filter empty state', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const filterInput = screen.getByPlaceholderText('Filter by role name')
       await user.type(filterInput, 'nonexistent')
@@ -458,7 +458,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('clears filters from the FilterBar clear-all button', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const filterInput = screen.getByPlaceholderText('Filter by role name')
       await user.type(filterInput, 'admin')
@@ -481,15 +481,15 @@ describe('RoleAssignmentsPanel', () => {
 
   describe('Pagination', () => {
     it('renders pagination footer', () => {
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
       expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
     })
 
     it('paginates rows and supports next/prev navigation', async () => {
       const manyAssignments: AssignmentResource[] = Array.from({ length: 25 }, (_, i) => ({
         id: `ua-${String(i)}`,
-        principal_type: 'user' as const,
         principal_id: 'u1',
+        group_id: null,
         principal_name: 'user-one',
         role_name: `role-${String(i)}`,
         role_description: null,
@@ -502,7 +502,7 @@ describe('RoleAssignmentsPanel', () => {
       setupMocks({ userAssignments: manyAssignments })
 
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       expect(screen.getByText('role-0')).toBeInTheDocument()
       expect(screen.getByText('role-19')).toBeInTheDocument()
@@ -528,7 +528,7 @@ describe('RoleAssignmentsPanel', () => {
   describe('Assign role modal', () => {
     it('opens assign role modal when "Assign role" button is clicked', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       await user.click(screen.getByRole('button', { name: 'Assign role' }))
 
@@ -539,7 +539,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('closes assign role modal when Cancel is clicked', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       await user.click(screen.getByRole('button', { name: 'Assign role' }))
 
@@ -558,7 +558,7 @@ describe('RoleAssignmentsPanel', () => {
   describe('Unassign role', () => {
     it('opens unassign dialog when Unassign action is clicked', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabButtons[0])
@@ -576,7 +576,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('closes unassign dialog when Cancel is clicked', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabButtons[0])
@@ -597,7 +597,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('calls deleteSystemAssignment when confirming unassign for system-scoped role', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabButtons[0])
@@ -628,8 +628,8 @@ describe('RoleAssignmentsPanel', () => {
         userAssignments: [
           {
             id: 'pa1',
-            principal_type: 'user',
             principal_id: 'u1',
+            group_id: null,
             principal_name: 'user-one',
             role_name: 'admin-role',
             role_description: 'Full access',
@@ -642,7 +642,7 @@ describe('RoleAssignmentsPanel', () => {
       })
 
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabButtons[0])
@@ -670,7 +670,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('shows success alert after successful unassign', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabButtons[0])
@@ -702,7 +702,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('shows error alert after failed unassign', async () => {
       const user = userEvent.setup()
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabButtons[0])
@@ -749,7 +749,7 @@ describe('RoleAssignmentsPanel', () => {
       })
       vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn(vi.fn()))
 
-      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+      render(<RoleAssignmentsPanel principalOrGroup="principal" principalId="u1" />, { wrapper })
 
       expect(screen.getByText('Showing project-scoped roles only')).toBeInTheDocument()
     })

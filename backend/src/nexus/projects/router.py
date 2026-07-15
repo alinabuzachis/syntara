@@ -352,8 +352,8 @@ async def create_project_role_assignment(
     """Assign a role to a user or group within a project."""
     await project_service.get_project(project_id)
     result = await service.assign(
-        principal_type=body.principal_type,
         principal_id=body.principal_id,
+        group_id=body.group_id,
         role_name=body.role_name,
         project_id=project_id,
     )
@@ -393,8 +393,8 @@ async def list_project_role_assignments(
         limit=params.limit,
         cursor=params.cursor,
         sort=params.sort,
-        principal_type=params.principal_type,
         principal_id=params.principal_id,
+        group_id=params.group_id,
         principal_name=params.principal_name,
         principal_name_contains=contains.get("principal_name_contains"),
         role_name=params.role_name,

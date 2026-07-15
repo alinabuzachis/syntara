@@ -14,7 +14,7 @@ describe('assignRoleSchema', () => {
     it('passes when userId, projectId, and roleName are provided', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'user',
+        principalOrGroup: 'principal',
         scope: 'project',
         userId: 'u1',
         projectId: 'p1',
@@ -26,7 +26,7 @@ describe('assignRoleSchema', () => {
     it('fails when userId is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'user',
+        principalOrGroup: 'principal',
         scope: 'project',
         projectId: 'p1',
         roleName: 'admin',
@@ -40,7 +40,7 @@ describe('assignRoleSchema', () => {
     it('fails when projectId is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'user',
+        principalOrGroup: 'principal',
         scope: 'project',
         userId: 'u1',
         roleName: 'admin',
@@ -54,7 +54,7 @@ describe('assignRoleSchema', () => {
     it('fails when roleName is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'user',
+        principalOrGroup: 'principal',
         scope: 'project',
         userId: 'u1',
         projectId: 'p1',
@@ -70,7 +70,7 @@ describe('assignRoleSchema', () => {
     it('passes when groupId, projectId, and roleName are provided', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'group',
+        principalOrGroup: 'group',
         scope: 'project',
         groupId: 'g1',
         projectId: 'p1',
@@ -82,7 +82,7 @@ describe('assignRoleSchema', () => {
     it('fails when groupId is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'group',
+        principalOrGroup: 'group',
         scope: 'project',
         projectId: 'p1',
         roleName: 'viewer',
@@ -98,7 +98,7 @@ describe('assignRoleSchema', () => {
     it('passes when userId and roleName are provided', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'user',
+        principalOrGroup: 'principal',
         scope: 'system',
         userId: 'u1',
         roleName: 'r1',
@@ -109,7 +109,7 @@ describe('assignRoleSchema', () => {
     it('fails when roleName is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'user',
+        principalOrGroup: 'principal',
         scope: 'system',
         userId: 'u1',
       })
@@ -122,7 +122,7 @@ describe('assignRoleSchema', () => {
     it('does not require projectId', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'user',
+        principalOrGroup: 'principal',
         scope: 'system',
         userId: 'u1',
         roleName: 'r1',
@@ -135,7 +135,7 @@ describe('assignRoleSchema', () => {
     it('passes when groupId and roleName are provided', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'group',
+        principalOrGroup: 'group',
         scope: 'system',
         groupId: 'g1',
         roleName: 'r1',
@@ -146,7 +146,7 @@ describe('assignRoleSchema', () => {
     it('fails when groupId is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'group',
+        principalOrGroup: 'group',
         scope: 'system',
         roleName: 'r1',
       })
@@ -159,7 +159,7 @@ describe('assignRoleSchema', () => {
     it('fails when roleName is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'group',
+        principalOrGroup: 'group',
         scope: 'system',
         groupId: 'g1',
       })
@@ -170,11 +170,11 @@ describe('assignRoleSchema', () => {
     })
   })
 
-  describe('invalid principalType', () => {
+  describe('invalid principalOrGroup', () => {
     it('fails for unknown principal type', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalType: 'invalid',
+        principalOrGroup: 'invalid',
         scope: 'system',
       })
       expect(result.success).toBe(false)

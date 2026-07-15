@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import AuthzRequest, authorize
 from nexus.authz.evaluator import RegoEvaluator
-from nexus.authz.models import RoleAssignment, RolePrincipalType
+from nexus.authz.models import RoleAssignment
 from nexus.authz.resolver import resolve_effective_policies
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
@@ -68,7 +68,7 @@ async def _assign_role(
     group = Group(name=f"{role_name}-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(RoleAssignment(principal_type=RolePrincipalType.GROUP, principal_id=group.id, role_name=role_name))
+    session.add(RoleAssignment(group_id=group.id, role_name=role_name))
     await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 

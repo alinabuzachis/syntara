@@ -13,11 +13,10 @@ import { useAllProjects } from './useAllProjects'
 function buildPermissionRows(assignments: RoleAssignmentRead[]): PermissionRow[] {
   return assignments.map((a) => {
     const isProject = !!a.project_id
-    const principalType = a.principal_type as 'user' | 'group'
     return {
       id: a.id,
-      principalType,
-      principalId: a.principal_id,
+      groupId: a.group_id ?? null,
+      principalId: a.principal_id ?? null,
       principalName: a.principal_name,
       assignmentType: 'role' as const,
       assignmentName: a.role_name,
@@ -43,7 +42,7 @@ function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): Permissio
         case 'role_name':
           return row.assignmentName.toLowerCase().includes(value.toLowerCase())
         case 'type':
-          return row.principalType === value
+          return value === 'group' ? row.groupId != null : row.groupId == null
         case 'scope':
           return row.scopeType === value
         case 'project':
@@ -57,15 +56,13 @@ function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): Permissio
 
 const assignmentsSortFieldByColumn: Record<number, string> = {
   0: 'principal_name',
-  1: 'principal_type',
-  2: 'assignment_name',
-  3: 'scope_type',
-  4: 'scope_name',
+  1: 'assignment_name',
+  2: 'scope_type',
+  3: 'scope_name',
 }
 
 const assignmentsSortFieldToRow: Record<string, keyof PermissionRow> = {
   principal_name: 'principalName',
-  principal_type: 'principalType',
   assignment_name: 'assignmentName',
   scope_type: 'scopeType',
   scope_name: 'scopeName',

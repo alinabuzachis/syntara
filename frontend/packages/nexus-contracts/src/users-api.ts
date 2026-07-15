@@ -950,7 +950,7 @@ export interface components {
      * SubResourceRoleAssignmentCreate
      * @description Request body for creating a role assignment from a sub-resource endpoint.
      *
-     *     principal_type and principal_id come from the URL path.
+     *     The principal_id (or group_id) comes from the URL path.
      */
     SubResourceRoleAssignmentCreate: {
       /** Role Name */
@@ -968,13 +968,10 @@ export interface components {
        * Format: uuid
        */
       id: string
-      /** Principal Type */
-      principal_type: string
-      /**
-       * Principal Id
-       * Format: uuid
-       */
-      principal_id: string
+      /** Principal Id */
+      principal_id?: string | null
+      /** Group Id */
+      group_id?: string | null
       /** Principal Name */
       principal_name: string
       /** Role Name */

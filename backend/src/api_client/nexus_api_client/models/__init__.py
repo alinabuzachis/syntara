@@ -274,7 +274,6 @@ __all__ = (
     "RoleCreate",
     "RoleCreateLabels",
     "RoleListResponse",
-    "RolePrincipalType",
     "RoleRead",
     "RoleReadLabels",
     "RoleUpdate",

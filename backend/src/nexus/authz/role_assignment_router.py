@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, Request, status
+from pydantic import model_validator
 from sqlmodel import Field, SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -13,7 +14,7 @@ from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_authz_evaluator
 from nexus.authz.engine import VisibilityResult, resolve_visibility
-from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.database.session import get_db
 from nexus.core.exceptions import SafeValueError
@@ -28,20 +29,31 @@ from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 
 
 class RoleAssignmentCreate(SQLModel):
-    """Request body for creating a role assignment."""
+    """Request body for creating a role assignment.
 
-    principal_type: RolePrincipalType
-    principal_id: UUID
+    Exactly one of ``principal_id`` or ``group_id`` must be provided.
+    """
+
+    principal_id: UUID | None = None
+    group_id: UUID | None = None
     role_name: str
     project_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def validate_principal_xor_group(self) -> "RoleAssignmentCreate":
+        """Ensure exactly one of principal_id or group_id is provided."""
+        if (self.principal_id is None) == (self.group_id is None):
+            msg = "Exactly one of principal_id or group_id must be provided"
+            raise ValueError(msg)
+        return self
 
 
 class RoleAssignmentRead(SQLModel):
     """Response body for a role assignment."""
 
     id: UUID
-    principal_type: str
-    principal_id: UUID
+    principal_id: UUID | None = None
+    group_id: UUID | None = None
     principal_name: str
     role_name: str
     role_description: str | None = None
@@ -55,7 +67,7 @@ class RoleAssignmentRead(SQLModel):
 class SubResourceRoleAssignmentCreate(SQLModel):
     """Request body for creating a role assignment from a sub-resource endpoint.
 
-    principal_type and principal_id come from the URL path.
+    The principal_id (or group_id) comes from the URL path.
     """
 
     role_name: str
@@ -69,8 +81,8 @@ class RoleAssignmentListResponse(ResourcesResponse[RoleAssignmentRead]):
 class RoleAssignmentListParams(BaseListParams):
     """Query parameters for listing role assignments (global endpoint)."""
 
-    principal_type: str | None = Field(default=None, description="Filter by principal type: user or group")
-    principal_id: UUID | None = Field(default=None, description="Filter by principal ID (user or group UUID)")
+    principal_id: UUID | None = Field(default=None, description="Filter by principal ID (user or service account)")
+    group_id: UUID | None = Field(default=None, description="Filter by group ID")
     principal_name: str | None = Field(default=None, description="Filter by principal name")
     role_name: str | None = Field(default=None, description="Filter by role name")
     project_id: UUID | None = Field(default=None, description="Filter by project ID")
@@ -79,8 +91,8 @@ class RoleAssignmentListParams(BaseListParams):
 class ProjectRoleAssignmentListParams(BaseListParams):
     """Query parameters for listing role assignments under a project (project_id comes from URL)."""
 
-    principal_type: str | None = Field(default=None, description="Filter by principal type: user or group")
-    principal_id: UUID | None = Field(default=None, description="Filter by principal ID (user or group UUID)")
+    principal_id: UUID | None = Field(default=None, description="Filter by principal ID (user or service account)")
+    group_id: UUID | None = Field(default=None, description="Filter by group ID")
     principal_name: str | None = Field(default=None, description="Filter by principal name")
     role_name: str | None = Field(default=None, description="Filter by role name")
 
@@ -154,25 +166,30 @@ async def _resolve_role_assignment_visibility(
 # ---------------------------------------------------------------------------
 
 
-async def list_principal_assignments(
+async def list_sub_resource_assignments(
     *,
-    principal_type: RolePrincipalType,
-    principal_id: UUID,
+    principal_id: UUID | None = None,
+    group_id: UUID | None = None,
     request: Request,
     params: "PrincipalRoleAssignmentListParams",
     service: RoleAssignmentService,
     current_user: User,
     db: AsyncSession,
 ) -> "RoleAssignmentListResponse":
-    """Shared list logic for user/group role assignment sub-resources."""
+    """List role assignments scoped to a single user or group.
+
+    Used by ``/users/{id}/role_assignments`` and ``/groups/{id}/role_assignments``
+    to share visibility resolution, project-name redaction, and response construction.
+    Pass ``principal_id`` for user/service-account endpoints, ``group_id`` for group endpoints.
+    """
     visibility = await _resolve_role_assignment_visibility(request, current_user, db)
 
     result = await service.list(
         limit=params.limit,
         cursor=params.cursor,
         sort=params.sort,
-        principal_type=principal_type.value,
         principal_id=principal_id,
+        group_id=group_id,
         role_name=params.role_name,
         role_name_contains=_parse_contains_filters(request).get("role_name_contains"),
         project_id=params.project_id,
@@ -194,19 +211,31 @@ async def list_principal_assignments(
     )
 
 
-async def delete_principal_assignment(
+async def delete_sub_resource_assignment(
     *,
-    principal_type: RolePrincipalType,
-    principal_id: UUID,
+    principal_id: UUID | None = None,
+    group_id: UUID | None = None,
     assignment_id: UUID,
     service: RoleAssignmentService,
 ) -> None:
-    """Shared delete logic for user/group role assignment sub-resources."""
+    """Revoke a role assignment after verifying it belongs to the given user or group.
+
+    Used by ``DELETE /users/{id}/role_assignments/{id}`` and the equivalent group
+    endpoint.  The ownership check prevents callers from revoking an assignment
+    that exists but belongs to a different principal than the one in the URL path.
+    """
     assignment = await service.get(assignment_id)
-    if assignment["principal_type"] != principal_type.value or assignment["principal_id"] != principal_id:
-        label = principal_type.value
-        msg = f"Role assignment {assignment_id} not found for {label} {principal_id}"
-        raise SafeValueError(msg)
+    if group_id is not None:
+        if assignment.get("group_id") != group_id:
+            msg = f"Role assignment {assignment_id} not found for group {group_id}"
+            raise SafeValueError(msg)
+    elif principal_id is not None:
+        if assignment["principal_id"] != principal_id:
+            msg = f"Role assignment {assignment_id} not found for principal {principal_id}"
+            raise SafeValueError(msg)
+    else:
+        msg = "Either principal_id or group_id must be provided"
+        raise ValueError(msg)
     await service.revoke(assignment_id)
 
 
@@ -247,8 +276,8 @@ async def create_role_assignment(
     otherwise it is a global (system-level) assignment.
     """
     result = await service.assign(
-        principal_type=body.principal_type,
         principal_id=body.principal_id,
+        group_id=body.group_id,
         role_name=body.role_name,
         project_id=body.project_id,
     )
@@ -279,8 +308,8 @@ async def list_role_assignments(
         limit=params.limit,
         cursor=params.cursor,
         sort=params.sort,
-        principal_type=params.principal_type,
         principal_id=params.principal_id,
+        group_id=params.group_id,
         principal_name=params.principal_name,
         principal_name_contains=contains.get("principal_name_contains"),
         role_name=params.role_name,

@@ -106,7 +106,7 @@ async def test_project_admin_grants_roles(
     # Assign project-user role to bob
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "user", "principal_id": str(other_user.id), "role_name": "project-user"},
+        json={"principal_id": str(other_user.id), "role_name": "project-user"},
     )
     assert response.status_code == 201
     assert response.json()["role_name"] == "project-user"
@@ -115,7 +115,7 @@ async def test_project_admin_grants_roles(
     # Assign project-auditor role to bob as well
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "user", "principal_id": str(other_user.id), "role_name": "project-auditor"},
+        json={"principal_id": str(other_user.id), "role_name": "project-auditor"},
     )
     assert response.status_code == 201
 
@@ -147,7 +147,7 @@ async def test_project_admin_grants_admin_to_another_user(
     # Grant project-admin to alice
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "user", "principal_id": str(other_user.id), "role_name": "project-admin"},
+        json={"principal_id": str(other_user.id), "role_name": "project-admin"},
     )
     assert response.status_code == 201
     assert response.json()["role_name"] == "project-admin"
@@ -176,7 +176,7 @@ async def test_assigned_user_gets_project_scoped_policies(
     # Assign project-user
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "user", "principal_id": str(other_user.id), "role_name": "project-user"},
+        json={"principal_id": str(other_user.id), "role_name": "project-user"},
     )
     assert response.status_code == 201
 
@@ -216,7 +216,7 @@ async def test_revoke_project_role(
     # Assign project-user
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "user", "principal_id": str(other_user.id), "role_name": "project-user"},
+        json={"principal_id": str(other_user.id), "role_name": "project-user"},
     )
     assert response.status_code == 201
     assignment_id = response.json()["id"]
@@ -250,7 +250,7 @@ async def test_invalid_role_name_rejected(
 
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "user", "principal_id": str(other_user.id), "role_name": "superadmin"},
+        json={"principal_id": str(other_user.id), "role_name": "superadmin"},
     )
     # Should fail — "superadmin" is not an assignable project role
     assert response.status_code >= 400
@@ -268,7 +268,7 @@ async def test_admin_can_delete_default_project(
 
     from sqlmodel import select
 
-    from nexus.authz.models import RoleAssignment, RolePrincipalType
+    from nexus.authz.models import RoleAssignment
     from nexus.authz.models.project import Project
 
     # Create an admin user
@@ -277,11 +277,7 @@ async def test_admin_can_delete_default_project(
     admin_group = Group(id=uuid4(), name="pt10-admin-group", description="Admin group", is_builtin=False, labels={})
     test_db_session.add(admin_group)
     await test_db_session.flush()
-    test_db_session.add(
-        RoleAssignment(
-            id=uuid4(), principal_type=RolePrincipalType.GROUP, principal_id=admin_group.id, role_name="admin"
-        )
-    )
+    test_db_session.add(RoleAssignment(id=uuid4(), group_id=admin_group.id, role_name="admin"))
     await test_db_session.exec(insert(user_groups).values(user_id=admin_user.id, group_id=admin_group.id))
     await test_db_session.commit()
 
@@ -410,7 +406,7 @@ async def test_non_admin_cannot_assign_roles(
     # Assign project-user (not admin) to non_admin
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "user", "principal_id": str(non_admin.id), "role_name": "project-user"},
+        json={"principal_id": str(non_admin.id), "role_name": "project-user"},
     )
     assert response.status_code == 201
 
@@ -426,7 +422,7 @@ async def test_non_admin_cannot_assign_roles(
     _auth_as(non_admin)
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "user", "principal_id": str(target_user.id), "role_name": "project-user"},
+        json={"principal_id": str(target_user.id), "role_name": "project-user"},
     )
     assert response.status_code == 403
 
@@ -455,7 +451,7 @@ async def test_project_auditor_has_read_only_permissions(
     # Assign project-auditor
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "user", "principal_id": str(auditor.id), "role_name": "project-auditor"},
+        json={"principal_id": str(auditor.id), "role_name": "project-auditor"},
     )
     assert response.status_code == 201
 
@@ -519,18 +515,18 @@ async def test_project_admin_assigns_group_role(
     # Assign project-admin to the group via API
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "group", "principal_id": str(group.id), "role_name": "project-admin"},
+        json={"group_id": str(group.id), "role_name": "project-admin"},
     )
     assert response.status_code == 201
-    assert response.json()["principal_id"] == str(group.id)
+    assert response.json()["group_id"] == str(group.id)
     assert response.json()["role_name"] == "project-admin"
 
     # Verify group assignment is listed
-    response = await auth_client.get(f"/api/v1/projects/{project_id}/role_assignments?principal_type=group")
+    response = await auth_client.get(f"/api/v1/projects/{project_id}/role_assignments?group_id={group.id}")
     assert response.status_code == 200
     assignments = response.json()["resources"]
     assert len(assignments) == 1
-    assert assignments[0]["principal_id"] == str(group.id)
+    assert assignments[0]["group_id"] == str(group.id)
 
     # Verify alice inherits project-admin permissions via group membership
     policies = await resolve_effective_policies(test_db_session, alice.id)
@@ -593,7 +589,7 @@ async def test_revoke_group_role_removes_access(
     # Assign and then revoke
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
-        json={"principal_type": "group", "principal_id": str(group.id), "role_name": "project-user"},
+        json={"group_id": str(group.id), "role_name": "project-user"},
     )
     assert response.status_code == 201
     assignment_id = response.json()["id"]

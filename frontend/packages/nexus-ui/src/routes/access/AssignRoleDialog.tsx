@@ -34,7 +34,7 @@ const PAGE_SIZE = 20
 type AssignRoleFormBodyProps = {
   control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
   setValue: ReturnType<typeof useForm<AssignRoleFormData>>['setValue']
-  principalType: string
+  principalOrGroup: string
   isProjectScoped: boolean
   projectOptions: { value: string; label: string }[]
   userOptions: { value: string; label: string }[]
@@ -56,7 +56,7 @@ type AssignRoleFormBodyProps = {
 function AssignRoleFormBody({
   control,
   setValue,
-  principalType,
+  principalOrGroup,
   isProjectScoped,
   projectOptions,
   userOptions,
@@ -78,7 +78,7 @@ function AssignRoleFormBody({
     <>
       <FormGroup label="Principal type" isRequired fieldId="principal-type">
         <Controller
-          name="principalType"
+          name="principalOrGroup"
           control={control}
           render={({ field }) => (
             <FormSelect
@@ -91,7 +91,7 @@ function AssignRoleFormBody({
                 setValue('groupId', '')
               }}
             >
-              <FormSelectOption value="user" label="User" />
+              <FormSelectOption value="principal" label="User" />
               <FormSelectOption value="group" label="Group" />
             </FormSelect>
           )}
@@ -152,7 +152,7 @@ function AssignRoleFormBody({
         </FormGroup>
       )}
 
-      {principalType === 'user' && (
+      {principalOrGroup === 'principal' && (
         <FormGroup label="User" isRequired fieldId="user-id">
           <Controller
             name="userId"
@@ -184,7 +184,7 @@ function AssignRoleFormBody({
         </FormGroup>
       )}
 
-      {principalType === 'group' && (
+      {principalOrGroup === 'group' && (
         <FormGroup label="Group" isRequired fieldId="group-id">
           <Controller
             name="groupId"
@@ -263,7 +263,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const { handleSubmit, control, setValue, setError } = useForm<AssignRoleFormData>({
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: {
-      principalType: 'user',
+      principalOrGroup: 'principal',
       scope: 'project',
       projectId: '',
       userId: '',
@@ -272,7 +272,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
     },
   })
 
-  const principalType = useWatch({ control, name: 'principalType' })
+  const principalOrGroup = useWatch({ control, name: 'principalOrGroup' })
   const scope = useWatch({ control, name: 'scope' })
   const selectedProjectId = useWatch({ control, name: 'projectId' })
   const isProjectScoped = scope === 'project'
@@ -355,8 +355,10 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
       onClose()
     }
     const onMutationError = handleError({ title: 'Failed to add assignment' })
-    const principalId = data.principalType === 'user' ? data.userId : data.groupId
-    const body = { principal_type: data.principalType, principal_id: principalId, role_name: data.roleName }
+    const body =
+      data.principalOrGroup === 'group'
+        ? { group_id: data.groupId, role_name: data.roleName }
+        : { principal_id: data.userId, role_name: data.roleName }
 
     if (data.scope === 'project') {
       createProjectRoleAssignment(
@@ -376,7 +378,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
           <AssignRoleFormBody
             control={control}
             setValue={setValue}
-            principalType={principalType}
+            principalOrGroup={principalOrGroup}
             isProjectScoped={isProjectScoped}
             projectOptions={projectOptions}
             userOptions={userOptions}

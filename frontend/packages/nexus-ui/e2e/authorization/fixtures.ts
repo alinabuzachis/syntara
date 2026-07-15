@@ -67,7 +67,6 @@ export async function createPersona(app: Page, name: string, actions: string[]):
   if (!user) throw new Error(`Failed to create user for persona "${name}"`)
 
   const assignment = await createRoleAssignmentViaApi(app, {
-    principal_type: 'user',
     principal_id: user.id,
     role_name: role.name,
   })
@@ -94,7 +93,6 @@ export async function createAdminPersona(app: Page, name: string): Promise<Perso
   if (!user) throw new Error(`Failed to create admin user "${name}"`)
 
   const assignment = await createRoleAssignmentViaApi(app, {
-    principal_type: 'user',
     principal_id: user.id,
     role_name: 'admin',
   })
@@ -295,7 +293,7 @@ export async function assignProjectRoleApi(
   if (!t) throw new Error('No token')
   const resp = await apiRequest(page, 'post', `/projects/${projectId}/role_assignments`, {
     token: t,
-    data: { principal_type: 'user', principal_id: userId, role_name: roleName },
+    data: { principal_id: userId, role_name: roleName },
   })
   if (!resp.ok()) throw new Error(`Failed to assign role: ${resp.status()}`)
   return (await resp.json()) as { id: string }
@@ -311,7 +309,7 @@ export async function assignGroupProjectRoleApi(
   if (!token) throw new Error('No admin token')
   const resp = await apiRequest(page, 'post', `/projects/${projectId}/role_assignments`, {
     token,
-    data: { principal_type: 'group', principal_id: groupId, role_name: roleName },
+    data: { group_id: groupId, role_name: roleName },
   })
   if (!resp.ok()) throw new Error(`Failed to assign group role: ${resp.status()}`)
 }
