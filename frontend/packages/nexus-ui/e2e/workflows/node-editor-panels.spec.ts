@@ -9,9 +9,20 @@ import {
   selectProjectIfRequired,
 } from '../helpers/workflows'
 
+/**
+ * Wait for a PF6 dropdown item to finish animating in, then click it.
+ * PF6 menus animate open after the toggle click — clicking before the item is
+ * stable causes "element detached from DOM" / "not stable" errors in strict mode.
+ */
+async function clickMenuItemWhenVisible(app: import('@playwright/test').Page, itemName: string) {
+  const item = app.getByRole('menuitem', { name: itemName })
+  await expect(item).toBeVisible()
+  await item.click()
+}
+
 /** Click the Layout button to reposition nodes within the viewport. */
 async function layoutCanvas(app: import('@playwright/test').Page) {
-  const layoutButton = app.getByRole('button', { name: 'Layout' })
+  const layoutButton = app.getByRole('button', { name: 'Reset layout', exact: true })
   if ((await layoutButton.count()) > 0) {
     await layoutButton.click()
     await app.waitForSelector('.react-flow__node', { state: 'visible', timeout: 5_000 })
@@ -960,9 +971,7 @@ test.describe('Node editor panels', () => {
     await expect(setMockButton).toBeVisible()
     await setMockButton.click()
 
-    const scriptAOption = app.getByRole('menuitem', { name: 'Script A' })
-    await expect(scriptAOption).toBeVisible()
-    await scriptAOption.click()
+    await clickMenuItemWhenVisible(app, 'Script A')
 
     await expect(app.getByText('Editing mock data for:')).toBeVisible()
     await expect(app.getByRole('button', { name: 'Pin data', exact: true })).toBeVisible()
@@ -1018,7 +1027,7 @@ test.describe('Node editor panels', () => {
     })
     await expect(setMockButton).toBeVisible({ timeout: 10_000 })
     await setMockButton.click()
-    await app.getByRole('menuitem', { name: 'Script A' }).click()
+    await clickMenuItemWhenVisible(app, 'Script A')
     await app.getByRole('button', { name: 'Pin data', exact: true }).click()
     await expect(app.getByText('Mock data pinned (1)')).toBeVisible()
 
@@ -1026,9 +1035,7 @@ test.describe('Node editor panels', () => {
       hasText: 'Unpin data',
     })
     await unpinButton.click()
-    const unpinOption = app.getByRole('menuitem', { name: 'Script A' })
-    await expect(unpinOption).toBeVisible()
-    await unpinOption.click()
+    await clickMenuItemWhenVisible(app, 'Script A')
 
     await expect(app.getByText('Mock data pinned (1)')).not.toBeVisible()
   })
@@ -1073,7 +1080,7 @@ test.describe('Node editor panels', () => {
       hasText: 'Set mock data',
     })
     await setMockButton.click()
-    await app.getByRole('menuitem', { name: 'Script A' }).click()
+    await clickMenuItemWhenVisible(app, 'Script A')
     await expect(app.getByRole('button', { name: 'Pin data', exact: true })).toBeVisible()
 
     await app.getByRole('button', { name: 'Cancel', exact: true }).click()
@@ -1178,7 +1185,7 @@ test.describe('Node editor panels', () => {
       hasText: 'Set mock data',
     })
     await setMockButton.click()
-    await app.getByRole('menuitem', { name: 'Script A' }).click()
+    await clickMenuItemWhenVisible(app, 'Script A')
     await app.getByRole('button', { name: 'Pin data', exact: true }).click()
     await expect(app.getByText('Mock data pinned (1)')).toBeVisible()
 

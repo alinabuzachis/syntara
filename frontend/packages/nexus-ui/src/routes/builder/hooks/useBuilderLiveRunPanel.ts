@@ -18,7 +18,7 @@ type UseBuilderLiveRunPanelResult = {
   showMostRecentRunPanelInEditor: boolean
   isTerminalStatus: boolean
   isLiveRunActive: boolean
-  canvasExecutionStatus: ExecutionStatus | null
+  canvasExecutionStatus: ExecutionStatus | null | undefined
   mostRecentSelectedNodeId: string | null
   mostRecentSelectedNodeName: string | null
   mostRecentPanelHeight: number
@@ -51,20 +51,24 @@ export function useBuilderLiveRunPanel({
   }, [mostRecentExecutionId])
 
   const isActive = mostRecentRunPanelOpen && !!mostRecentExecutionId
-  const isRunningOrPending =
-    executionStatus === ExecutionStatusEnum.RUNNING ||
-    executionStatus === ExecutionStatusEnum.PENDING ||
-    executionStatus === ExecutionStatusEnum.PAUSED
   const isTerminalStatus =
     executionStatus === ExecutionStatusEnum.COMPLETED ||
     executionStatus === ExecutionStatusEnum.FAILED ||
     executionStatus === ExecutionStatusEnum.CANCELLED
-  const canvasExecutionStatus = isActive ? (executionStatus ?? null) : null
+  // Preserve undefined (status still loading) vs null (explicitly no execution).
+  // resolveExecutionStatus uses null as the "edit mode" sentinel; undefined lets
+  // the WebSocket store's visualization status take over while REST is in-flight.
+  const canvasExecutionStatus = isActive ? executionStatus : null
   const showMostRecentRunPanelInEditor = isActive && !isViewingExecution
   const isLiveRunActive = showMostRecentRunPanelInEditor && !isTerminalStatus
 
   useExecutionWebSocket(mostRecentExecutionId ?? '', {
-    enabled: isActive && isRunningOrPending,
+    // Connect whenever the panel is active and we haven't confirmed a terminal
+    // status from REST. Using !isTerminalStatus (rather than isRunningOrPending)
+    // means we also connect while the status query is still loading (undefined),
+    // which lets EVENTS_EXPIRED fire and refresh activity data for fast executions
+    // that complete before the first REST response arrives.
+    enabled: isActive && !isTerminalStatus,
     onExecutionComplete: () => {
       detachPromise(
         Promise.all([

@@ -36,6 +36,7 @@ import {
   startWorkflowWithTrigger,
   saveWorkflow,
   verifyNodeVisible,
+  waitForUIReady,
 } from './helpers/workflows'
 import { ensureProject } from './utils/api'
 
@@ -80,6 +81,9 @@ async function importFromWorkflowsList(
 ): Promise<void> {
   await ensureProject(app)
   await selectFirstProject(app)
+  // PF6 alert toasts and loading overlays from the project-selector transition can
+  // intercept pointer events, silently swallowing the 'Import workflow' click.
+  await waitForUIReady(app)
 
   await app.getByRole('button', { name: 'Import workflow' }).click()
   const dialog = app.getByRole('dialog')

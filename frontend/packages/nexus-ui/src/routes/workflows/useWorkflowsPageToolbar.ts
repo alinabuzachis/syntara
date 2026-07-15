@@ -43,12 +43,14 @@ export function useWorkflowsPageToolbar({
   }, [isAllProjects, selectedProjectId, projects, getProjectActions])
 
   const showWorkflowActions = sortedWorkflowsLength > 0 || hasActiveFilters
-  const showToolbar = showWorkflowActions || headerProjectActions.length > 0
+  const showImportWorkflow = !isAllProjects || sortedWorkflowsLength > 0 || hasActiveFilters
+  const showToolbar = showImportWorkflow || headerProjectActions.length > 0
 
   return {
     getProjectActions,
     headerProjectActions,
     showWorkflowActions,
+    showImportWorkflow,
     showToolbar,
   }
 }

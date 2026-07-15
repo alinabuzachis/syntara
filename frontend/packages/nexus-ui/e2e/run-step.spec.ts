@@ -23,19 +23,9 @@ import {
   deleteWorkflow,
   fillCodeEditor,
   selectProjectIfRequired,
+  triggerLayout,
 } from './helpers/workflows'
 import { ensureProject } from './utils/api'
-
-/** Click Layout so nodes are in view before canvas interactions. */
-async function layoutCanvas(app: import('@playwright/test').Page) {
-  const layoutButton = app.getByRole('button', { name: 'Layout' })
-  if ((await layoutButton.count()) > 0) {
-    await layoutButton.click()
-    await expect(app.locator('.react-flow__node').filter({ hasText: 'Manual trigger' })).toBeVisible({
-      timeout: 15_000,
-    })
-  }
-}
 
 /** Create trigger → First action → Second action workflow from scratch. */
 async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workflowName: string) {
@@ -71,7 +61,7 @@ async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workf
   await app.getByPlaceholder('Workflow name').fill(workflowName)
   await app.getByRole('button', { name: 'Save' }).click()
   await expect(app).toHaveURL(/workflow-builder\/.+/)
-  await layoutCanvas(app)
+  await triggerLayout(app)
   await expect(app.locator('.react-flow__node').filter({ hasText: 'Second action' })).toBeVisible({
     timeout: 15_000,
   })
@@ -79,7 +69,7 @@ async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workf
 
 /** Click a React Flow node's kebab menu by its visible text label. */
 async function openNodeKebabMenu(app: import('@playwright/test').Page, nodeText: string) {
-  await layoutCanvas(app)
+  await triggerLayout(app)
   const node = app.locator('.react-flow__node').filter({ hasText: nodeText })
   await expect(node).toBeVisible({ timeout: 15_000 })
 

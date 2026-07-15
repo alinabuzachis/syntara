@@ -18,7 +18,7 @@ import { ensureProject } from '../utils/api'
 
 test.describe('Manual Trigger', () => {
   test('creates workflow with manual trigger and verifies canvas display', async ({ app }) => {
-    test.fixme(true, 'Flaky in CI')
+    test.fixme(true, 'Flaky in CI — badge count assertion timing needs investigation')
     const workflowName = buildUniqueName('e2e-manual')
 
     await ensureProject(app)
@@ -44,7 +44,7 @@ test.describe('Manual Trigger', () => {
       await expect(app).toHaveURL(/workflow-builder\/.+/, { timeout: 15_000 })
 
       // Click Layout to position nodes within the viewport so both are visible
-      const layoutButton = app.getByRole('button', { name: 'Layout' })
+      const layoutButton = app.getByRole('button', { name: 'Reset layout', exact: true })
       await expect(layoutButton).toBeVisible({ timeout: 10_000 })
       await layoutButton.click()
       await app
@@ -82,8 +82,9 @@ test.describe('Manual Trigger', () => {
       // Verify the run details panel appears after execution starts
       await expect(app.getByRole('heading', { name: 'Run details' })).toBeVisible({ timeout: 30_000 })
 
-      // Verify execution completes — trigger node doesn't get a success badge, only the script node does
-      await expect(app.getByRole('img', { name: 'Success' })).toHaveCount(2, { timeout: 30_000 })
+      // Verify execution completes — both the trigger and script nodes get a success badge
+      const canvas = app.locator('.react-flow')
+      await expect(canvas.getByRole('img', { name: 'Success' })).toHaveCount(2, { timeout: 30_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
     }

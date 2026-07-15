@@ -9,10 +9,14 @@ async function navigateViaConfigMenu(app: Page, itemName: string) {
 
 test.describe('Configuration Navigation & Tabs', () => {
   test('displays all Configuration sub-navigation tabs', async ({ app }) => {
-    test.fixme(true, 'Flaky in CI')
+    // Navigate to a stable page so the router has fully settled before touching the nav.
+    // Without this, the SPA's initial redirect from root fires mid-test and the PF6
+    // flyout click gets swallowed by the re-rendering nav component.
+    await app.goto(toAppUrl('/configuration/integrations'))
+    await expect(app.getByRole('heading', { name: 'Integrations', level: 1 })).toBeVisible()
+
     // Act - Open the Configuration flyout dropdown
     const configButton = app.getByRole('button', { name: 'Configuration', exact: true })
-    await expect(configButton).toBeVisible()
     await configButton.click()
 
     // Assert - Configuration tabs are visible (Credential Types removed for GA)

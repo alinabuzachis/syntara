@@ -88,6 +88,8 @@ test.describe('Permission gating — Navigation visibility', () => {
     await expect(app.getByRole('menuitem', { name: 'Integrations' })).toBeVisible()
     await expect(app.getByRole('menuitem', { name: 'Credentials' })).toBeVisible()
     await app.keyboard.press('Escape')
+    // Wait for the Configuration flyout to fully close before opening the next one
+    await expect(app.getByRole('menuitem', { name: 'Integrations' })).toBeHidden()
 
     const sysAdminItem = nav.getByLabel('System Administration')
     await expect(sysAdminItem).toBeVisible()
@@ -296,7 +298,7 @@ test.describe('Permission gating — Workflow actions', () => {
       await expect(createButton).toHaveAttribute('aria-disabled', 'true')
 
       await createButton.hover()
-      await expect(viewerApp.getByRole('tooltip')).toContainText('workflow:create')
+      await expect(viewerApp.getByRole('tooltip').filter({ hasText: 'workflow:create' })).toBeVisible()
     } finally {
       await deleteTestWorkflow(app, workflowId)
     }
@@ -442,7 +444,7 @@ test.describe('Permission gating — Workflow actions', () => {
 
       const editItem = viewerApp.getByRole('menuitem', { name: /Edit workflow/i })
       await editItem.hover()
-      await expect(viewerApp.getByRole('tooltip')).toContainText('workflow:update')
+      await expect(viewerApp.getByRole('tooltip').filter({ hasText: 'workflow:update' })).toBeVisible()
     } finally {
       await deleteTestWorkflow(app, workflow.id)
     }
@@ -658,19 +660,23 @@ test.describe('Permission gating — Project actions', () => {
 
 test.describe('Permission gating — Credential actions', () => {
   test('viewer: Create credential button is disabled with tooltip', async ({ app, viewerApp }) => {
-    test.fixme(true, 'Flaky in CI')
-    const { id: credId } = await createTestCredential(app)
+    const { id: credId, name: credName } = await createTestCredential(app)
 
     try {
       await viewerApp.goto(toAppUrl('/configuration/credentials'))
       await expect(viewerApp.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
+
+      // Wait for credential data to load — the toolbar button only renders once credentials.length > 0
+      await expect(
+        viewerApp.getByRole('grid', { name: 'Credentials table' }).getByRole('row', { name: new RegExp(credName) })
+      ).toBeVisible({ timeout: 15_000 })
 
       const createButton = viewerApp.getByRole('button', { name: /Create credential/i })
       await expect(createButton).toBeVisible()
       await expect(createButton).toHaveAttribute('aria-disabled', 'true')
 
       await createButton.hover()
-      await expect(viewerApp.getByRole('tooltip', { name: /credential:create/i })).toBeVisible()
+      await expect(viewerApp.getByRole('tooltip').filter({ hasText: 'credential:create' })).toBeVisible()
     } finally {
       await deleteCredentialViaApi(app, credId)
     }
@@ -785,7 +791,7 @@ test.describe('Permission gating — Access Management actions', () => {
     await expect(createButton).toHaveAttribute('aria-disabled', 'true')
 
     await createButton.hover()
-    await expect(userApp.getByRole('tooltip')).toContainText('user:create')
+    await expect(userApp.getByRole('tooltip').filter({ hasText: 'user:create' })).toBeVisible()
   })
 })
 
@@ -833,7 +839,7 @@ test.describe('Permission gating — Identity Provider actions', () => {
     await expect(addButton).toHaveAttribute('aria-disabled', 'true')
 
     await addButton.hover()
-    await expect(auditorApp.getByRole('tooltip')).toContainText('identity-provider:create')
+    await expect(auditorApp.getByRole('tooltip').filter({ hasText: 'identity-provider:create' })).toBeVisible()
   })
 
   test('auditor: IdP row actions are aria-disabled', async ({ app, auditorApp }) => {

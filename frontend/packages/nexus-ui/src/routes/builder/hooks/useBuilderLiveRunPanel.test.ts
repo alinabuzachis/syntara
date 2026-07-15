@@ -123,7 +123,7 @@ describe('useBuilderLiveRunPanel', () => {
       expect(result.current.canvasExecutionStatus).toBe('running')
     })
 
-    it('is null (not undefined) when active but executionStatus is undefined', () => {
+    it('is undefined (not null) when active but executionStatus is still loading', () => {
       const { result } = renderHook(
         () =>
           useBuilderLiveRunPanel(
@@ -132,7 +132,9 @@ describe('useBuilderLiveRunPanel', () => {
         { wrapper: makeWrapper(queryClient) }
       )
 
-      expect(result.current.canvasExecutionStatus).toBeNull()
+      // undefined signals "status still loading" so resolveExecutionStatus can fall back
+      // to the WebSocket store's visualization status. null would force "edit mode".
+      expect(result.current.canvasExecutionStatus).toBeUndefined()
     })
 
     it('retains status when execution reaches completed (terminal) state', () => {
@@ -312,6 +314,33 @@ describe('useBuilderLiveRunPanel', () => {
       expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: true }))
     })
 
+    it('is enabled when active and status is paused', () => {
+      renderHook(
+        () =>
+          useBuilderLiveRunPanel(
+            defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus: 'paused' })
+          ),
+        { wrapper: makeWrapper(queryClient) }
+      )
+
+      expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: true }))
+    })
+
+    it('is enabled when active and status is undefined (REST query still loading)', () => {
+      // Fast executions can complete before the status query returns, leaving
+      // executionStatus = undefined. We must still connect so EVENTS_EXPIRED fires
+      // and triggers the query invalidation that refreshes final activity data.
+      renderHook(
+        () =>
+          useBuilderLiveRunPanel(
+            defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus: undefined })
+          ),
+        { wrapper: makeWrapper(queryClient) }
+      )
+
+      expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: true }))
+    })
+
     it('is disabled when active but status is completed', () => {
       renderHook(
         () =>
@@ -320,6 +349,34 @@ describe('useBuilderLiveRunPanel', () => {
               mostRecentRunPanelOpen: true,
               mostRecentExecutionId: 'exec-1',
               executionStatus: 'completed',
+            })
+          ),
+        { wrapper: makeWrapper(queryClient) }
+      )
+
+      expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: false }))
+    })
+
+    it('is disabled when active but status is failed', () => {
+      renderHook(
+        () =>
+          useBuilderLiveRunPanel(
+            defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus: 'failed' })
+          ),
+        { wrapper: makeWrapper(queryClient) }
+      )
+
+      expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: false }))
+    })
+
+    it('is disabled when active but status is cancelled', () => {
+      renderHook(
+        () =>
+          useBuilderLiveRunPanel(
+            defaultParams({
+              mostRecentRunPanelOpen: true,
+              mostRecentExecutionId: 'exec-1',
+              executionStatus: 'cancelled',
             })
           ),
         { wrapper: makeWrapper(queryClient) }

@@ -49,6 +49,7 @@ type WorkflowsPageToolbarProps = {
   canCreate: boolean
   createTooltip: string
   showWorkflowActions: boolean
+  showImportWorkflow: boolean
   onImportClick: () => void
   onCreateClick: () => void
 }
@@ -58,24 +59,25 @@ function WorkflowsPageToolbar({
   canCreate,
   createTooltip,
   showWorkflowActions,
+  showImportWorkflow,
   onImportClick,
   onCreateClick,
 }: WorkflowsPageToolbarProps) {
   return (
     <>
+      {showImportWorkflow && (
+        <DisabledWithTooltip isDisabled={!canCreate} content={createTooltip}>
+          <Button variant="secondary" icon={<RhUiImportIcon />} isAriaDisabled={!canCreate} onClick={onImportClick}>
+            Import workflow
+          </Button>
+        </DisabledWithTooltip>
+      )}
       {showWorkflowActions && (
-        <>
-          <DisabledWithTooltip isDisabled={!canCreate} content={createTooltip}>
-            <Button variant="secondary" icon={<RhUiImportIcon />} isAriaDisabled={!canCreate} onClick={onImportClick}>
-              Import workflow
-            </Button>
-          </DisabledWithTooltip>
-          <DisabledWithTooltip isDisabled={!canCreate} content={createTooltip}>
-            <Button variant="primary" icon={<RhUiAddIcon />} isAriaDisabled={!canCreate} onClick={onCreateClick}>
-              Create workflow
-            </Button>
-          </DisabledWithTooltip>
-        </>
+        <DisabledWithTooltip isDisabled={!canCreate} content={createTooltip}>
+          <Button variant="primary" icon={<RhUiAddIcon />} isAriaDisabled={!canCreate} onClick={onCreateClick}>
+            Create workflow
+          </Button>
+        </DisabledWithTooltip>
       )}
       {headerProjectActions.length > 0 && <NxKebabMenu actions={headerProjectActions} aria-label="Project actions" />}
     </>
@@ -191,16 +193,17 @@ export default function Workflows() {
     onSuccess: () => detachPromise(workflowsQuery.refetch()),
   })
 
-  const { getProjectActions, headerProjectActions, showWorkflowActions, showToolbar } = useWorkflowsPageToolbar({
-    isAllProjects,
-    selectedProjectId,
-    projects,
-    sortedWorkflowsLength: sortedWorkflows.length,
-    hasActiveFilters,
-    projectEditDialog,
-    projectDeleteDialog,
-    projectPermissions,
-  })
+  const { getProjectActions, headerProjectActions, showWorkflowActions, showImportWorkflow, showToolbar } =
+    useWorkflowsPageToolbar({
+      isAllProjects,
+      selectedProjectId,
+      projects,
+      sortedWorkflowsLength: sortedWorkflows.length,
+      hasActiveFilters,
+      projectEditDialog,
+      projectDeleteDialog,
+      projectPermissions,
+    })
 
   const getRowActions = (workflow: Workflow) =>
     buildWorkflowRowActions(workflow, permissions, {
@@ -238,6 +241,7 @@ export default function Workflows() {
                 canCreate={permissions.canCreate}
                 createTooltip={permissions.tooltips.create}
                 showWorkflowActions={showWorkflowActions}
+                showImportWorkflow={showImportWorkflow}
                 onImportClick={() => setImportDialogOpen(true)}
                 onCreateClick={() => detachPromise(navigate({ to: '/workflow-builder/new' }))}
               />

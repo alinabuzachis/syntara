@@ -1212,6 +1212,11 @@ describe('Workflows Component', () => {
       expect(screen.getByText('No workflows yet')).toBeInTheDocument()
       expect(screen.getByText('Create your first workflow to get started.')).toBeInTheDocument()
       expect(screen.queryByRole('search', { name: 'Filters' })).not.toBeInTheDocument()
+      // Import workflow is visible even with 0 workflows when a project is selected —
+      // the button is always shown for any specific project so users can import into it.
+      expect(screen.getByRole('button', { name: 'Import workflow' })).toBeInTheDocument()
+      // Create workflow only appears in the empty state body, not the toolbar (toolbar
+      // hides Create when there are no workflows and no active filters).
       const createButtons = screen.getAllByRole('button', { name: 'Create workflow' })
       expect(createButtons).toHaveLength(1)
     })
