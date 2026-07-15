@@ -227,7 +227,7 @@ describe('CredentialsTab', () => {
   })
 
   describe('Rotate credential flow', () => {
-    it('shows confirmation dialog when rotate is triggered', async () => {
+    it('shows confirmation dialog with grace period select when rotate is triggered', async () => {
       const user = userEvent.setup()
       render(<CredentialsTab serviceAccountId="sa-1" />, { wrapper })
 
@@ -238,14 +238,16 @@ describe('CredentialsTab', () => {
       await user.click(rotateOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Rotate credential secret?')).toBeInTheDocument()
+        expect(screen.getByText('Rotate client secret?')).toBeInTheDocument()
       })
+
+      expect(screen.getByRole('button', { name: '1 hour' })).toBeInTheDocument()
     })
 
-    it('calls rotate mutation when confirmation is accepted', async () => {
+    it('calls rotate mutation with selected grace period when confirmation is accepted', async () => {
       mockMutations.rotate.mockImplementation(
         (_params: unknown, opts: { onSuccess?: (r: unknown) => void; onSettled?: () => void }) => {
-          opts.onSuccess?.({ identifier: 'client-id-abc', client_secret: 'new-secret-123' })
+          opts.onSuccess?.({ identifier: 'client-id-abc', client_secret: 'new-secret-123', grace_period_seconds: 3600 })
           opts.onSettled?.()
         }
       )
@@ -260,14 +262,79 @@ describe('CredentialsTab', () => {
       await user.click(rotateOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Rotate credential secret?')).toBeInTheDocument()
+        expect(screen.getByText('Rotate client secret?')).toBeInTheDocument()
       })
 
-      await user.click(screen.getByRole('button', { name: 'Rotate' }))
+      await user.click(screen.getByRole('button', { name: 'Rotate secret' }))
       expect(mockMutations.rotate).toHaveBeenCalled()
 
+      const callArgs = mockMutations.rotate.mock.calls[0] as [{ body: { grace_period_seconds: number } }]
+      expect(callArgs[0].body.grace_period_seconds).toBe(3600)
+
       await waitFor(() => {
-        expect(screen.getByText('Secret rotated')).toBeInTheDocument()
+        expect(screen.getByText('New client secret')).toBeInTheDocument()
+      })
+    })
+
+    it('sends selected grace period when a non-default option is chosen', async () => {
+      mockMutations.rotate.mockImplementation(
+        (_params: unknown, opts: { onSuccess?: (r: unknown) => void; onSettled?: () => void }) => {
+          opts.onSuccess?.({
+            identifier: 'client-id-abc',
+            client_secret: 'new-secret-456',
+            grace_period_seconds: 86400,
+          })
+          opts.onSettled?.()
+        }
+      )
+
+      const user = userEvent.setup()
+      render(<CredentialsTab serviceAccountId="sa-1" />, { wrapper })
+
+      const kebab = screen.getByRole('button', { name: 'Actions for client-id-abc' })
+      await user.click(kebab)
+
+      const rotateOption = await screen.findByRole('menuitem', { name: /rotate secret/i })
+      await user.click(rotateOption)
+
+      await waitFor(() => {
+        expect(screen.getByText('Rotate client secret?')).toBeInTheDocument()
+      })
+
+      const gracePeriodToggle = screen.getByRole('button', { name: '1 hour' })
+      await user.click(gracePeriodToggle)
+
+      const option24h = await screen.findByRole('option', { name: '24 hours' })
+      await user.click(option24h)
+
+      await user.click(screen.getByRole('button', { name: 'Rotate secret' }))
+
+      const callArgs = mockMutations.rotate.mock.calls[0] as [{ body: { grace_period_seconds: number } }]
+      expect(callArgs[0].body.grace_period_seconds).toBe(86400)
+    })
+
+    it('shows active grace period warning when credential has old_secret_valid_until', async () => {
+      const futureDate = new Date(Date.now() + 3_600_000).toISOString()
+      const credsWithGracePeriod: SACredentialRead[] = [
+        {
+          ...mockCredentials[0],
+          old_secret_valid_until: futureDate,
+          grace_period_seconds: 3600,
+        },
+      ]
+      vi.mocked(accessClient.useQuery).mockReturnValue(buildQueryResult({ resources: credsWithGracePeriod }) as never)
+
+      const user = userEvent.setup()
+      render(<CredentialsTab serviceAccountId="sa-1" />, { wrapper })
+
+      const kebab = screen.getByRole('button', { name: 'Actions for client-id-abc' })
+      await user.click(kebab)
+
+      const rotateOption = await screen.findByRole('menuitem', { name: /rotate secret/i })
+      await user.click(rotateOption)
+
+      await waitFor(() => {
+        expect(screen.getByText('Active grace period will be replaced')).toBeInTheDocument()
       })
     })
   })

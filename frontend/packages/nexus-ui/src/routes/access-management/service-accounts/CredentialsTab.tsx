@@ -21,6 +21,8 @@ import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 
+import { RotateDialogBody } from './RotateDialogBody'
+import { DEFAULT_GRACE_PERIOD, GRACE_PERIOD_OPTIONS } from './rotateDialogUtils'
 import { SecretRevealModal } from './SecretRevealModal'
 import type { SACredentialRead } from './serviceAccountTypes'
 import { useServiceAccountPermissions } from './useServiceAccountPermissions'
@@ -29,6 +31,7 @@ type SecretRevealState = {
   identifier: string
   clientSecret: string
   title: string
+  gracePeriodSeconds?: number
 }
 
 const SORT_FIELDS = ['identifier', 'created_at', 'last_used_at', 'expires_at', 'status'] as const
@@ -125,16 +128,22 @@ function useCredentialActions(serviceAccountId: string, refetch: () => Promise<u
   )
 
   const handleRotateConfirm = useCallback(
-    (cred: SACredentialRead | null, onSettled: () => void) => {
+    (cred: SACredentialRead | null, gracePeriodSeconds: number, onSettled: () => void) => {
       if (!cred) return
+      const validValues = GRACE_PERIOD_OPTIONS.map((opt) => opt.value as number)
+      const sanitizedGracePeriod = validValues.includes(gracePeriodSeconds) ? gracePeriodSeconds : DEFAULT_GRACE_PERIOD
       rotateCredential(
-        { params: { path: { service_account_id: serviceAccountId, credential_id: cred.id } }, body: {} },
+        {
+          params: { path: { service_account_id: serviceAccountId, credential_id: cred.id } },
+          body: { grace_period_seconds: sanitizedGracePeriod },
+        },
         {
           onSuccess: (response) => {
             setSecretReveal({
               identifier: response.identifier,
               clientSecret: response.client_secret ?? '',
-              title: 'Secret rotated',
+              title: 'New client secret',
+              gracePeriodSeconds: sanitizedGracePeriod,
             })
             detachPromise(refetch())
           },
@@ -268,6 +277,7 @@ export function CredentialsTab({ serviceAccountId }: Readonly<{ serviceAccountId
   const deleteDialog = useDialogState<SACredentialRead>()
   const disableDialog = useDialogState<SACredentialRead>()
   const rotateDialog = useDialogState<SACredentialRead>()
+  const [rotateGracePeriod, setRotateGracePeriod] = useState(DEFAULT_GRACE_PERIOD)
 
   const {
     cursor,
@@ -399,14 +409,25 @@ export function CredentialsTab({ serviceAccountId }: Readonly<{ serviceAccountId
 
       <NxConfirmationDialog
         isOpen={rotateDialog.isOpen}
-        onClose={rotateDialog.close}
-        onConfirm={() => actions.handleRotateConfirm(rotateDialog.item, rotateDialog.close)}
-        title="Rotate credential secret?"
-        confirmLabel="Rotate"
+        onClose={() => {
+          rotateDialog.close()
+          setRotateGracePeriod(DEFAULT_GRACE_PERIOD)
+        }}
+        onConfirm={() =>
+          actions.handleRotateConfirm(rotateDialog.item, rotateGracePeriod, () => {
+            rotateDialog.close()
+            setRotateGracePeriod(DEFAULT_GRACE_PERIOD)
+          })
+        }
+        title="Rotate client secret?"
+        confirmLabel="Rotate secret"
         confirmVariant="primary"
       >
-        A new client secret will be generated for credential <strong>{rotateDialog.item?.identifier}</strong>. The
-        current secret will stop working immediately.
+        <RotateDialogBody
+          credential={rotateDialog.item}
+          gracePeriod={rotateGracePeriod}
+          onGracePeriodChange={setRotateGracePeriod}
+        />
       </NxConfirmationDialog>
 
       {actions.secretReveal && (
@@ -416,6 +437,7 @@ export function CredentialsTab({ serviceAccountId }: Readonly<{ serviceAccountId
           title={actions.secretReveal.title}
           identifier={actions.secretReveal.identifier}
           clientSecret={actions.secretReveal.clientSecret}
+          gracePeriodSeconds={actions.secretReveal.gracePeriodSeconds}
         />
       )}
     </>
