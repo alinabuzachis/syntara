@@ -125,7 +125,7 @@ services:
       dockerfile: containers/nexus/Containerfile
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, 'chmod -R g+rwX /data/audit-exports 2>/dev/null; uv run alembic upgrade head && uv run python -m nexus.seed --all && (uv run python -c "import boto3; boto3.client(\"s3\", endpoint_url=\"http://moto:5000\", aws_access_key_id=\"testing\", aws_secret_access_key=\"testing\", region_name=\"us-east-1\").create_bucket(Bucket=\"nexus-files\")" || true) && uv run python -m nexus.api.main']
+    command: [sh, -c, 'chmod -R g+rwX /data/audit-exports 2>/dev/null; uv run --no-sync alembic upgrade head && uv run --no-sync python -m nexus.seed --all && (uv run --no-sync python -c "import boto3; boto3.client(\"s3\", endpoint_url=\"http://moto:5000\", aws_access_key_id=\"testing\", aws_secret_access_key=\"testing\", region_name=\"us-east-1\").create_bucket(Bucket=\"nexus-files\")" || true) && uv run --no-sync python -m nexus.api.main']
     ports:
       - ${APP_API_PORT:-8000}:8000
     environment:
@@ -205,7 +205,7 @@ services:
   temporal-worker:
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, uv run python -m nexus.workflows.worker]
+    command: [sh, -c, uv run --no-sync python -m nexus.workflows.worker]
     extra_hosts: # Dev mode: resolves 'nexus' to host when API runs outside containers
       - "nexus:host-gateway"
     environment:
@@ -290,7 +290,7 @@ services:
   temporal-background-worker:
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, uv run python -m nexus.workflows.background_worker]
+    command: [sh, -c, uv run --no-sync python -m nexus.workflows.background_worker]
     extra_hosts:
       - "nexus:host-gateway"
     environment:

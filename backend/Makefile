@@ -62,14 +62,14 @@ check-deps: _check-dependency-binaries _ensure-secrets ## Check if all dependenc
 _deps-install-dev: _check-uv
 	@echo "📦 Installing development dependencies with uv..."
 	uv sync --extra dev
-	uv pip install --editable test-sdk/
+	uv pip install --no-deps --editable test-sdk/
 	@echo "✅ Development dependencies installed successfully"
 
 .PHONY: install-integration
 install-integration: _deps-install-dev ## Install integration test dependencies
 	@echo "📦 Installing integration dependencies with uv..."
 	uv sync --extra dev --extra integration
-	uv pip install --editable test-sdk/
+	uv pip install --no-deps --editable test-sdk/
 	@echo "✅ Integration dependencies installed successfully"
 
 _deps-install-pre-commit:
@@ -98,10 +98,11 @@ _check-dependency-binaries: _check-uv
 # run-tests: run pytest with testcontainers (Podman or Docker).
 # Usage: $(call run-tests,<pytest-args>)
 define run-tests
+@uv pip install --no-deps --editable test-sdk/ --quiet
 @PODMAN_SOCK="$(PODMAN_SOCK)" POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" \
 	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
 	./tools/scripts/run-with-testcontainers.sh --label "🧪 Running tests" -- \
-	uv run pytest $(1)
+	uv run --no-sync pytest $(1)
 endef
 
 
@@ -131,7 +132,8 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/ -v -m "mcp")
 else
 	@echo "🧪 Running MCP tests..."
-	uv run pytest tests/ -v -m "mcp"
+	@uv pip install --no-deps --editable test-sdk/ --quiet
+	uv run --no-sync pytest tests/ -v -m "mcp"
 endif
 
 .PHONY: test-performance
@@ -140,7 +142,8 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/performance/ -v --run-performance)
 else
 	@echo "🧪 Running performance tests..."
-	uv run pytest tests/performance/ -v --run-performance
+	@uv pip install --no-deps --editable test-sdk/ --quiet
+	uv run --no-sync pytest tests/performance/ -v --run-performance
 endif
 
 
@@ -201,7 +204,8 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/$(E2E_TARGET) -v -m "not global_revocation" $(E2E_ARGS))
 else
 	@echo "🧪 Running E2E tests $(if $(PHASE),for phase $(PHASE),$(if $(EXCLUDE),excluding phase $(EXCLUDE),))..."
-	uv run pytest tests/e2e/$(E2E_TARGET) -v -m "not global_revocation" $(E2E_ARGS)
+	@uv pip install --no-deps --editable test-sdk/ --quiet
+	uv run --no-sync pytest tests/e2e/$(E2E_TARGET) -v -m "not global_revocation" $(E2E_ARGS)
 endif
 
 .PHONY: test-e2e-global-revocation
@@ -210,7 +214,8 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/ -v -m global_revocation)
 else
 	@echo "🧪 Running global revocation E2E tests..."
-	uv run pytest tests/e2e/ -v -m global_revocation; \
+	@uv pip install --no-deps --editable test-sdk/ --quiet
+	uv run --no-sync pytest tests/e2e/ -v -m global_revocation; \
 	exitcode=$$?; \
 	if [ $$exitcode -eq 5 ]; then echo "⚠️  No global revocation tests found — all migrated downstream"; exit 0; fi; \
 	exit $$exitcode
@@ -228,11 +233,12 @@ test-e2e-exclude-pr-check: ## Run E2E tests excluding PR checks (alias for: make
 .PHONY: test-e2e-telemetry
 test-e2e-telemetry: check-deps ## Run telemetry E2E tests only
 ifndef APP_BASE_URL
-	$(call _e2e-run,tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} uv run pytest tests/e2e/telemetry/test_performance_and_resilience.py -v)
+	$(call _e2e-run,tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} uv run --no-sync pytest tests/e2e/telemetry/test_performance_and_resilience.py -v)
 else
 	@echo "🧪 Running telemetry E2E tests..."
-	uv run pytest tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && \
-	uv run pytest tests/e2e/telemetry/test_performance_and_resilience.py -v
+	@uv pip install --no-deps --editable test-sdk/ --quiet
+	uv run --no-sync pytest tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && \
+	uv run --no-sync pytest tests/e2e/telemetry/test_performance_and_resilience.py -v
 endif
 
 # Development workflow
