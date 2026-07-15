@@ -687,3 +687,29 @@ export async function navigateToApiActionForm(page: Page) {
   const credToggle = page.getByRole('button', { name: 'Authentication credential', exact: true })
   await expect(credToggle).toBeEnabled({ timeout: 10_000 })
 }
+
+/**
+ * Run a single node of workflow via the kebab menu "Run step" action.
+ * Pass mockData (JSON string) to use mock data, or omit to run all previous steps.
+ */
+export async function runSingleWorkflowNode(page: Page, nodeName: string, mockData?: string) {
+  const node = page.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: nodeName })
+  await expect(node).toBeVisible()
+
+  const kebabButton = node.getByLabel('Step actions menu')
+  await expect(kebabButton).toBeVisible()
+  await kebabButton.click()
+  await page.getByRole('menuitem', { name: 'Run step' }).click()
+
+  await expect(page.getByRole('heading', { name: /Run /i })).toBeVisible()
+
+  if (mockData) {
+    await page.getByRole('button', { name: 'Set mock data' }).click()
+    await fillCodeEditor(page, { value: mockData })
+    await page.getByRole('button', { name: 'Run', exact: true }).click()
+  } else {
+    await page.getByRole('button', { name: 'Run all previous steps' }).click()
+  }
+
+  await expect(page.getByRole('heading', { name: /Most recent run details/i })).toBeVisible()
+}
