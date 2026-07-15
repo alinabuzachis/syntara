@@ -88,6 +88,13 @@ arches:
     name: expat
     evr: 2.5.0-6.el9_8.1
     sourcerpm: expat-2.5.0-6.el9_8.1.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/baseos/os/Packages/l/libatomic-11.5.0-14.el9.aarch64.rpm
+    repoid: ubi-9-for-aarch64-baseos-rpms
+    size: 26108
+    checksum: sha256:bebe2e8fd98c64d1667e3de1eb3751b7b641bf5d0cd870ed6445fea5c4526326
+    name: libatomic
+    evr: 11.5.0-14.el9
+    sourcerpm: gcc-11.5.0-14.el9.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/baseos/os/Packages/l/libgfortran-11.5.0-14.el9.aarch64.rpm
     repoid: ubi-9-for-aarch64-baseos-rpms
     size: 435007

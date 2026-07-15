@@ -15,4 +15,9 @@ context:
 arches:
   - x86_64
   - aarch64
+upgradePackages:
+  - name: libatomic
+    arches:
+      only:
+        - aarch64
 installWeakDeps: false
