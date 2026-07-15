@@ -344,9 +344,10 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Use PatternFly's [Read-only Clipboard Copy](https://www.patternfly.org/components/clipboard-copy/#clipboardcopy) when an input is pre-populated by the system and the user needs to copy
   - Use PatternFly's [Validated component](https://www.patternfly.org/components/forms/form/#validated) for general form validation
   - Use PatternFly's [Number Input component](https://www.patternfly.org/components/number-input/#numberinput) for number input fields
+  - Use PatternFly's [DatePicker](https://www.patternfly.org/components/date-and-time/date-picker) for date inputs — never use native `<TextInput type="date">`. DatePicker provides a consistent cross-browser calendar popover, date validation via the `validators` prop, and proper formatting/parsing via `dateFormat`/`dateParse`. Use `appendTo={() => document.body}` for correct popover positioning. Pass validation state through `inputProps={{ validated: ... }}`.
   - Use PatternFly's [popover help text](https://www.patternfly.org/components/popover/design-guidelines) on form field labels
   - Use PatternFly's [`HelperText`](https://www.patternfly.org/components/forms/helper-text) / `HelperTextItem` below form inputs to provide brief, contextual guidance (e.g., accepted formats, valid ranges, constraints). The help popover icon on the field label is for longer explanatory descriptions. When both are present, inline helper text gives at-a-glance guidance while the popover provides full context. Validation errors (`validated="error"`) take priority — replace the helper text with the error message when the field is invalid.
-- **Dropdowns:** Never use native `<select>` or PatternFly's legacy `FormSelect` / `FormSelectOption`. Always use the PF6 `Select` + `MenuToggle` + `SelectList` + `SelectOption` pattern. Inside modals, use `popperProps={{ appendTo: 'inline' }}` for correct dropdown positioning. Add `shouldFocusToggleOnSelect` for keyboard accessibility after selection.
+- **Dropdowns:** Never use native `<select>` or PatternFly's legacy `FormSelect` / `FormSelectOption`. Always use the PF6 `Select` + `MenuToggle` + `SelectList` + `SelectOption` pattern. Inside modals, use `popperProps={{ appendTo: 'inline' }}` for correct dropdown positioning. Add `shouldFocusToggleOnSelect` for keyboard accessibility after selection. When dropdown options represent policies or modes where the label alone isn't self-explanatory, use the `description` prop on `SelectOption` to provide inline context (e.g., "Skip" with description "Only one run at a time; skip if the previous run is still in progress").
 - **Validation behavior:**
   - The primary action (Save / Create) is **always clickable** — never disable it because of missing required fields
   - When the user clicks Save with invalid or missing fields, apply `validated="error"` (danger styling) to the invalid fields and show a toast notification explaining what needs attention
@@ -354,6 +355,8 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - **Human-readable validation copy:** Never expose raw regex patterns or API validation strings to users. Use plain-language error messages (e.g., "Project name can only contain letters, numbers, hyphens, underscores, or colons. It must start and end with a letter or number."). Provide proactive field guidance via inline hint text (using `HintOrError` or `HelperText`) that displays before the user triggers an error; the hint is replaced by the error message on validation failure. Use example-style placeholders (e.g., `'my-project-name'`) instead of generic `"Enter project name"`.
 - **Read-only system values:** Never use a disabled `TextInput` to display system-provided, non-editable values. Disabled inputs imply the field could be editable in another context. Instead use `DescriptionList isCompact` (term + description), `ClipboardCopy` (when copying is the primary action), or plain text to make clear the value is informational.
 - **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler -- not in a `useEffect` watching the field value. See [.claude/skills/frontend-coding-standards/SKILL.md §23](../frontend-coding-standards/SKILL.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
+- **Credential-managed field locking:** When a credential selection controls a field's value at runtime (e.g., a "Secret URL" credential manages the URL), disable the field, change its placeholder to explain the override (e.g., "URL managed by credential"), add helper text ("This value will be injected at execution time and is never stored in the workflow definition."), clear any user-entered value, and remove the `required` attribute. When the credential is deselected, restore the field to its normal editable state. See `httpCredentialSection.tsx` for the pattern.
+- **Auto-save before dependent actions:** When a user action depends on the current form state being persisted (e.g., "Run Step" depends on saved step configuration), programmatically submit any open editor form before proceeding. Use a `data-step-editor-form` attribute on forms and `requestSubmit()` to trigger save, then continue with the dependent action. See `useRunStepDialog.ts` for the pattern.
 - **FormSection for complex forms:** When a single form step has 10+ fields spanning logical domains, group them with PatternFly `FormSection`:
   - `title="Section Name"` + `titleElement="h3"` for each group
   - **Grouping logic:** General (identity/metadata) -> Connection (endpoints/secrets) -> Options (toggles/advanced)
@@ -369,7 +372,7 @@ All typeahead dropdown menus should have a **max height** to prevent the dropdow
 
 The project selector is a special typeahead that supports favorites. This pattern is specific to the project selector — resource pickers (e.g., credential selectors, integration pickers) do **not** include favorites.
 
-- **Visible prefix label** — The masthead project selector includes a static `"Project:"` prefix inside the toggle using `InputGroupItem` + `Content` with PF subtle text color token (`--pf-t--global--text--color--subtle`). Global scope selectors must label what they control, not rely on placeholder alone.
+- **Visible prefix label** — The masthead project selector includes a static `"Project:"` prefix inside the toggle using `InputGroupItem` + `Content`. When enabled, use `--pf-t--global--text--color--regular` for the prefix (subtle text color lacks contrast on MenuToggle's light grey background in dark mode). When disabled, use `color: inherit` so the prefix matches PatternFly's disabled toggle text color. See `getProjectTogglePrefixLabelStyle()` in `projectSelectorUtils.ts`. Global scope selectors must label what they control, not rely on placeholder alone.
 - **Favorites** — star icon to mark items as favorites; favorites appear in a grouped section at the top of the dropdown
 - **Grouped sections** — separate "Favorites" and "All" groups when favorites are active
 - **Sticky footer** — a persistent "Create [resource]" action pinned at the bottom of the dropdown, always visible regardless of scroll position
@@ -947,24 +950,64 @@ Use `Label` only when visual distinction is needed — for statuses, categorical
 
 ### Component Selection
 
-| Content type                                         | Component                                           | Visual treatment            |
-| ---------------------------------------------------- | --------------------------------------------------- | --------------------------- |
-| Status indicators (success, danger, warning)         | `NxLabel` with `status` + icon                      | Filled                      |
-| Categorical metadata (System, Project, Built-in)     | `NxLabel` with `color`                              | Filled                      |
-| Counts, callouts (single-value, no type distinction) | `NxLabel color="grey"`                              | Filled grey                 |
-| User-authored tags, workflow tags                    | `NxUserTag`                                         | Outlined compact            |
-| Filter chips (active filters)                        | `Label variant="outline" isCompact` in `LabelGroup` | Outlined compact, removable |
+| Content type                                                                          | Component                                           | Visual treatment            |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------- |
+| Live status of a monitored entity (execution, activity, approval, integration health) | `NxLabel variant="outline"` with `status` + icon     | Outlined with status color   |
+| Categorical metadata (System, Project, Built-in)                                      | `NxLabel` with `color`                              | Filled                        |
+| Counts, callouts (single-value, no type distinction)                                  | `NxLabel color="grey"`                              | Filled grey                   |
+| Informational context (e.g., "Test run", "Default")                                  | `NxLabel color="purple"` or `color="blue"`          | Filled colored                 |
+| User-authored tags, workflow tags                                                     | `NxUserTag`                                         | Outlined compact                |
+| Filter chips (active filters)                                                        | `Label variant="outline" isCompact` in `LabelGroup` | Outlined compact, removable      |
 
-**`NxLabel`** (from `frontend/packages/nexus-ui/src/components/NxLabel.tsx`) — thin wrapper over PF `Label` with UX defaults: `isCompact={true}`, `variant="filled"`.
+**`NxLabel`** (from `frontend/packages/nexus-ui/src/components/labels/NxLabel.tsx`) — thin wrapper over PF `Label` with UX defaults: `isCompact={true}`, `variant="filled"`. Never use PF `Label` directly.
 
-**`NxUserTag`** (from `frontend/packages/nexus-ui/src/components/NxUserTag.tsx`) — outline-only wrapper for user-authored content. Always use for content typed by users (workflow tags, custom labels).
+**`NxUserTag`** (from `frontend/packages/nexus-ui/src/components/labels/NxUserTag.tsx`) — outline-only wrapper for user-authored content. Always use for content typed by users (workflow tags, custom labels).
 
-### Statuses
+### Filled vs. Outline — When to Use Each Variant
 
-| Use case                                                                           | Component   | Variant               |
-| ---------------------------------------------------------------------------------- | ----------- | --------------------- |
-| All system-generated labels (statuses, categories, metadata, counts, filter chips) | `NxLabel`   | `filled` (default)    |
-| User-authored content (workflow tags, user-entered values)                         | `NxUserTag` | `outline` (hardcoded) |
+The distinguishing axis is **"live status of a monitored entity" vs. "fixed categorical/contextual metadata,"** not how often the value happens to change:
+
+| Variant                           | When to use                                                                                                                              | Examples                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Outline** (`variant="outline"`) | The label reports the current condition of a monitored entity — a process, resource, or decision whose state is determined by the system | Execution status (Running, Completed, Failed), activity status (Pending, Retrying), approval decisions (Approved, Rejected), "Pending approval" badge, integration health (Available, Error, Validating) |
+| **Filled** (default)              | The label classifies a resource into a fixed category, or conveys single-value contextual info                                          | Version status (Published, Draft), role type (Built-in, Custom), scope (System, Project), counts, informational badges (Test run, Default) |
+
+**Rule of thumb:** If the label is reporting the *live health/state of an entity* (an execution's progress, an integration's connectivity, an approval's decision) — regardless of how often that state actually changes — use **outline**. If the label is classifying *what kind of thing this is* (a role is built-in, a version is a draft) or conveying a one-off contextual fact (a count, "Test run"), use **filled**.
+
+This mirrors common status-indicator conventions in comparable products (CI/CD pipeline status, service health badges): a single, consistent treatment is used for "current condition of a monitored entity" everywhere it appears, rather than varying by how volatile the state happens to be. A lighter outline treatment for statuses that repeat down a table column (executions list, integrations list) also keeps dense lists scannable — reserve heavier filled/saturated labels for lower-frequency categorical or single-value badges to avoid visual fatigue.
+
+> **Known inconsistency (tracked separately):** `routes/configuration/integrations/StatusLabel.tsx` currently renders integration health as **filled** rather than **outline**, which conflicts with the rule above. This is legacy drift, not an intentional exception — do not replicate it in new code. A Jira issue will track normalizing it to `variant="outline"` to match execution/activity/approval status labels.
+
+### Building Domain Status Labels
+
+All domain status labels follow a consistent implementation pattern — a status-to-variant map, a status-to-icon map, and a thin component:
+
+```tsx
+const statusMap: Record<MyStatus, 'success' | 'danger' | 'warning' | 'info' | 'custom'> = {
+  completed: 'success',
+  failed: 'danger',
+  running: 'custom',
+}
+
+const statusIcons: Record<MyStatus, React.ComponentType> = {
+  completed: RhUiCheckCircleIcon,
+  failed: RhUiCloseCircleIcon,
+  running: RhUiSyncIcon,
+}
+
+export function MyStatusLabel({ status }: Readonly<{ status: MyStatus }>) {
+  const Icon = statusIcons[status]
+  return (
+    <NxLabel variant="outline" status={statusMap[status]} icon={<Icon />}>
+      {displayLabels[status]}
+    </NxLabel>
+  )
+}
+```
+
+Keep display labels in a separate constants file (e.g., `executionStatusConstants.ts`) to decouple display text from the component. Use `Record<Status, string>` for display labels rather than string manipulation like `charAt(0).toUpperCase() + slice(1)`.
+
+### General Label Rules
 
 - If labels on a table reference a resource, make them clickable labels, navigating to the details page of the resource if one exists
 - Use outline (unfilled) `RhUi*Icon` variants when passing icons to `NxLabel`
@@ -998,6 +1041,19 @@ Use `Label` only when visual distinction is needed — for statuses, categorical
 | Unpublished changes | Filled yellow |
 | Draft               | Filled gray   |
 
+**Workflow builder**
+
+| Context              | Style          |
+| -------------------- | -------------- |
+| Test run badge       | Filled purple  |
+| Viewing version date | Filled grey    |
+
+**Integrations**
+
+| Context           | Style        |
+| ----------------- | ------------ |
+| Default model     | Filled blue  |
+
 **Access Management — Assignments**
 
 | Dimension | Value   | Style         |
@@ -1023,6 +1079,13 @@ Use `Label` only when visual distinction is needed — for statuses, categorical
 | Statement: Allow | Filled green |
 | Statement: Deny  | Filled red   |
 | Scope & resource | Filled gray  |
+
+**Counts and grouping**
+
+| Context                     | Style         |
+| --------------------------- | ------------- |
+| Group item count            | Filled purple |
+| Single-value callout        | Filled grey   |
 
 ---
 
@@ -1593,12 +1656,46 @@ Importing a workflow into an existing saved builder shows a choice dialog before
 - **Buttons:** Primary "Import" + link "Cancel"
 - **Radio descriptions:** Each option has a `description` prop explaining the behavior
 
+### Conditional Settings Visibility
+
+Node settings sections should only show controls that are relevant to the current node type. Use a `supportsRetryPolicy` prop (or similar capability flag) to hide settings that have no effect on a given node type. For example, retry policy settings are hidden for AI Agent nodes, script action nodes, and approval nodes — only HTTP request action nodes show them. This prevents user confusion about settings that would be silently ignored.
+
+### Canvas Auto-Layout
+
+The canvas layout engine uses unified spacing constants shared between auto-layout (`layoutEngine.ts`) and manual positioning (`useNodePositioning.ts`) to ensure consistent spacing regardless of how nodes are placed.
+
+- **Unified constants:** `LOOP_BODY_SPACING` from `layoutConstants.ts` — `horizontal` (80px), `vertical` (100px), `nodeGap` (40px). Never use magic numbers for loop body positioning.
+- **Branch ordering:** Branching nodes (condition, approval, switch, loop) use edge weight-based ordering via `buildBranchNodeOrdering()`. Higher-weight branches render first (leftmost/topmost): true/approved branches get weight 2, false/rejected get weight 1. Switch cases use descending weights (case_0=50, case_1=49, ..., default=1).
+- **Layout algorithm:** Uses `network-simplex` ranker with `nodesep: 90` for proper horizontal spacing between branch targets.
+
 ### Execution View Panels
 
 - The **run details panel** provides an Overview/Details toggle for inspecting execution state
 - Panels use `NxPanel isFullHeight` for proper internal scroll behavior — do not hand-roll `display: flex; flexDirection: column` inline styles when `isFullHeight` exists
 - Panels may use a `ResizableDivider` to allow users to resize panel split areas
 - The most recent run details can display inline in the editor after workflow execution
+- **Activity filtering:** The execution details panel includes a `FilterBar` toolbar (role="search", aria-label="Filters") for filtering activities by name. Filter state persists across Overview/Details tab switches. When no activities match, show `NxEmptyStateFilter` with a "Clear all filters" button.
+- **Human-readable error messages:** Execution error messages must resolve internal activity IDs to human-readable node names. Use a name map (`Map<activityId, nodeName>`) and `resolveErrorDetails()` to replace IDs in error strings before displaying them to users. Never show raw activity IDs in user-facing error alerts.
+
+### Run History Panel
+
+The run history panel displays execution history for a workflow using a scrollable, paginated list.
+
+- **Pagination:** Use cursor-based pagination via `useCursorPagination` hook + `PaginationFooter` component for any list that can exceed ~20 items. Time-ordered lists (executions, history entries) should always use cursor pagination, not offset pagination.
+- **Filter integration:** Filters and pagination share state via `useCursorPagination` — changing filters resets the cursor to page 1.
+- **Layout:** Execution rows use `Flex` with `flex_1` on the content side and `flexShrink: 0` on the status side to prevent layout shifts with varying content lengths.
+
+### File Upload UX
+
+- **Dropzone layout:** Use vertical layout for `MultipleFileUpload` (not `isHorizontal`)
+- **Collapsible file list:** Use `ExpandableSection` (not `MultipleFileUploadStatus`) for the attached file list. The section auto-expands when new files are dropped and can start collapsed via `defaultStatusExpanded={false}`.
+- **Status text:** Use "N files attached" (or "1 file attached") when all files are successfully uploaded — not "N/N files uploaded". Show "N/M files uploaded" only during active upload or when errors occur.
+- **Disabled opacity:** Use `var(--nexus-disabled-opacity)` CSS variable for disabled dropzone opacity, not hardcoded `0.5`.
+
+### Schedule Trigger Form
+
+- **Optional start date:** The schedule start date field is optional — if left empty, the schedule starts upon publishing. An info `Alert` (variant="info", isInline) above the schedule fields explains: "This schedule will only take effect once the workflow is published. Changes to the schedule are applied on the next publish."
+- **Execution conflict policy:** The "Execution conflict policy" dropdown (formerly "Missed schedule behavior") uses `SelectOption` with `description` props to explain each option inline: Skip (default), Run once, Run all.
 
 ---
 
