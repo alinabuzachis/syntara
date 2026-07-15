@@ -284,6 +284,13 @@ export interface components {
        * Format: uuid
        */
       project_id: string
+      /** Project Name */
+      project_name?: string | null
+      /**
+       * Is Project Deleted
+       * @default false
+       */
+      is_project_deleted?: boolean
       /** Last Authenticated At */
       last_authenticated_at?: string | null
       /**

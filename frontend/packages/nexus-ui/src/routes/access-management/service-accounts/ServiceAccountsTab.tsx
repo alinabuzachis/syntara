@@ -21,7 +21,7 @@ import type { FilterFieldDefinition } from '../../../types/filters'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
-import { getServiceAccountDetailPath } from '../accessManagementPaths'
+import { getProjectDetailPath, getServiceAccountDetailPath } from '../accessManagementPaths'
 
 import { CreateServiceAccountModal } from './CreateServiceAccountModal'
 import { EditServiceAccountModal } from './EditServiceAccountModal'
@@ -99,6 +99,13 @@ function ServiceAccountTableBody({
             <NxLink to={getServiceAccountDetailPath(sa.id)}>
               <Truncate content={sa.name} />
             </NxLink>
+          </Td>
+          <Td dataLabel="Owning project">
+            {sa.project_name && !sa.is_project_deleted ? (
+              <NxLink to={getProjectDetailPath(sa.project_id)}>{sa.project_name}</NxLink>
+            ) : (
+              (sa.project_name ?? sa.project_id)
+            )}
           </Td>
           <Td dataLabel="Created">{formatDateTime(sa.created_at)}</Td>
           <Td dataLabel="Last authenticated">
@@ -266,6 +273,7 @@ export function ServiceAccountsTab() {
               <Thead>
                 <Tr>
                   <Th sort={getSortParams(0)}>Name</Th>
+                  <Th>Owning project</Th>
                   <Th sort={getSortParams(1)}>Created</Th>
                   <Th sort={getSortParams(2)}>Last authenticated</Th>
                   <Th>State</Th>

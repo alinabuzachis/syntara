@@ -16,6 +16,7 @@ import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxKebabMenu } from '../../../components/NxKebabMenu'
+import { NxLink } from '../../../components/NxLink'
 import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -27,6 +28,7 @@ import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 import { accessClient } from '../../access/accessClient'
+import { getProjectDetailPath } from '../accessManagementPaths'
 import { DetailPageShell } from '../DetailPageShell'
 
 import { CredentialsTab } from './CredentialsTab'
@@ -39,6 +41,13 @@ function DetailsTab({ serviceAccount }: Readonly<{ serviceAccount: ServiceAccoun
   return (
     <DescriptionList isHorizontal>
       <NxDetail label="Name">{serviceAccount.name}</NxDetail>
+      <NxDetail label="Owning project">
+        {serviceAccount.project_name && !serviceAccount.is_project_deleted ? (
+          <NxLink to={getProjectDetailPath(serviceAccount.project_id)}>{serviceAccount.project_name}</NxLink>
+        ) : (
+          (serviceAccount.project_name ?? serviceAccount.project_id)
+        )}
+      </NxDetail>
       <NxDetail label="Description">{serviceAccount.description}</NxDetail>
       <NxDetail label="State">
         <NxLabel color={serviceAccount.status === 'active' ? 'green' : 'grey'}>

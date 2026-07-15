@@ -4416,6 +4416,8 @@ export const handlers = [
       return HttpResponse.json({ detail: 'name and project_id are required' }, { status: 422 })
     }
     const id = `sa-new-${mockServiceAccounts.length + 1}`
+    const project = mockProjects.find((p) => p.id === body.project_id)
+    const project_name = project?.name ?? null
 
     const sa = {
       id,
@@ -4423,6 +4425,8 @@ export const handlers = [
       description: body.description ?? null,
       status: 'active' as const,
       project_id: body.project_id,
+      project_name,
+      is_project_deleted: false,
       last_authenticated_at: null,
       created_by: 'u-001',
       updated_by: null,

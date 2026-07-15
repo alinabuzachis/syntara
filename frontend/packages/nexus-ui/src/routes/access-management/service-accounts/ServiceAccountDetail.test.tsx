@@ -286,6 +286,40 @@ describe('ServiceAccountDetail', () => {
     expect(screen.getByRole('switch', { name: 'Toggle service account status' })).not.toBeChecked()
   })
 
+  it('renders owning project as a link when project_name is present', () => {
+    vi.mocked(accessClient.useQuery).mockReturnValue(
+      buildQueryResult({ ...mockServiceAccount, project_name: 'my-project', is_project_deleted: false }) as never
+    )
+
+    render(<ServiceAccountDetail />, { wrapper })
+
+    const link = screen.getByRole('link', { name: 'my-project' })
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/system-administration/access-management/projects/proj-1')
+  })
+
+  it('renders owning project as plain text when project_name is null', () => {
+    vi.mocked(accessClient.useQuery).mockReturnValue(
+      buildQueryResult({ ...mockServiceAccount, project_name: null }) as never
+    )
+
+    render(<ServiceAccountDetail />, { wrapper })
+
+    expect(screen.getByText('proj-1')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'proj-1' })).not.toBeInTheDocument()
+  })
+
+  it('renders owning project as plain text when project is deleted', () => {
+    vi.mocked(accessClient.useQuery).mockReturnValue(
+      buildQueryResult({ ...mockServiceAccount, project_name: 'old-project', is_project_deleted: true }) as never
+    )
+
+    render(<ServiceAccountDetail />, { wrapper })
+
+    expect(screen.getByText('old-project')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'old-project' })).not.toBeInTheDocument()
+  })
+
   it('shows Never for last authenticated when never used', () => {
     vi.mocked(accessClient.useQuery).mockReturnValue(
       buildQueryResult({ ...mockServiceAccount, last_authenticated_at: null }) as never

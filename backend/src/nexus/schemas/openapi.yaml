@@ -30073,6 +30073,15 @@ components:
           type: string
           format: uuid
           title: Project Id
+        project_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Name
+        is_project_deleted:
+          type: boolean
+          title: Is Project Deleted
+          default: false
         last_authenticated_at:
           anyOf:
             - type: string

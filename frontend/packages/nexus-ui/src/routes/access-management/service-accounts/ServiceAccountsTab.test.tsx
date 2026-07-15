@@ -54,6 +54,8 @@ const mockServiceAccounts: ServiceAccountRead[] = [
     description: 'Deployment automation',
     status: 'active',
     project_id: 'proj-1',
+    project_name: 'default',
+    is_project_deleted: false,
     last_authenticated_at: '2024-06-15T10:00:00Z',
     created_by: 'admin',
     updated_by: null,
@@ -67,6 +69,8 @@ const mockServiceAccounts: ServiceAccountRead[] = [
     description: null,
     status: 'disabled',
     project_id: 'proj-1',
+    project_name: 'default',
+    is_project_deleted: false,
     last_authenticated_at: null,
     created_by: 'admin',
     updated_by: null,
@@ -144,9 +148,46 @@ describe('ServiceAccountsTab', () => {
     render(<ServiceAccountsTab />, { wrapper })
 
     expect(screen.getByRole('columnheader', { name: /name/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /owning project/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /created/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /last authenticated/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /state/i })).toBeInTheDocument()
+  })
+
+  it('renders owning project as a link when project exists', () => {
+    render(<ServiceAccountsTab />, { wrapper })
+
+    const links = screen.getAllByRole('link', { name: 'default' })
+    expect(links.length).toBeGreaterThanOrEqual(1)
+    expect(links[0]).toHaveAttribute('href', '/system-administration/access-management/projects/proj-1')
+  })
+
+  it('renders owning project as plain text when project is deleted', () => {
+    vi.mocked(accessClient.useQuery).mockReturnValue(
+      buildQueryResult({
+        resources: [{ ...mockServiceAccounts[0], project_name: 'old-project', is_project_deleted: true }],
+        next_cursor: null,
+      }) as never
+    )
+
+    render(<ServiceAccountsTab />, { wrapper })
+
+    expect(screen.getByText('old-project')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'old-project' })).not.toBeInTheDocument()
+  })
+
+  it('renders owning project as project ID when project_name is null', () => {
+    vi.mocked(accessClient.useQuery).mockReturnValue(
+      buildQueryResult({
+        resources: [{ ...mockServiceAccounts[0], project_name: null }],
+        next_cursor: null,
+      }) as never
+    )
+
+    render(<ServiceAccountsTab />, { wrapper })
+
+    expect(screen.getByText('proj-1')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'proj-1' })).not.toBeInTheDocument()
   })
 
   it('shows Create service account button', () => {

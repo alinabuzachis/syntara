@@ -579,6 +579,8 @@ export interface MockServiceAccount {
   description: string | null
   status: ServiceAccountStatus
   project_id: string
+  project_name: string | null
+  is_project_deleted: boolean
   last_authenticated_at: string | null
   created_by: string
   updated_by: string | null
@@ -594,6 +596,8 @@ export const mockServiceAccounts: MockServiceAccount[] = [
     description: 'CI/CD pipeline service account for automated deployments',
     status: 'active',
     project_id: 'p-001',
+    project_name: 'default',
+    is_project_deleted: false,
     last_authenticated_at: mockDate.hoursAgo2,
     created_by: 'u-001',
     updated_by: null,
@@ -607,6 +611,8 @@ export const mockServiceAccounts: MockServiceAccount[] = [
     description: 'Monitoring and observability agent',
     status: 'active',
     project_id: 'p-001',
+    project_name: 'default',
+    is_project_deleted: false,
     last_authenticated_at: mockDate.minutesAgo30,
     created_by: 'u-001',
     updated_by: null,
@@ -620,6 +626,8 @@ export const mockServiceAccounts: MockServiceAccount[] = [
     description: 'Automated backup service',
     status: 'disabled',
     project_id: 'p-002',
+    project_name: 'alice-sandbox',
+    is_project_deleted: false,
     last_authenticated_at: mockDate.daysAgo5,
     created_by: 'u-002',
     updated_by: 'u-001',
@@ -633,6 +641,8 @@ export const mockServiceAccounts: MockServiceAccount[] = [
     description: null,
     status: 'active',
     project_id: 'p-002',
+    project_name: 'alice-sandbox',
+    is_project_deleted: false,
     last_authenticated_at: null,
     created_by: 'u-001',
     updated_by: null,
