@@ -7,23 +7,38 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
+from ...models.workflow_version_read import WorkflowVersionRead
+from ...models.workflow_version_update import WorkflowVersionUpdate
 from ...types import Response
 
 
 def _get_kwargs(
-    file_id: UUID,
+    workflow_id: UUID,
+    version: int,
+    *,
+    body: WorkflowVersionUpdate,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": f"/files/{file_id}/download",
+        "method": "patch",
+        "url": f"/workflows/{workflow_id}/versions/{version}",
     }
 
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> ErrorData | str | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Any | ErrorData | WorkflowVersionRead | None:
     if response.status_code == 200:
-        response_200 = cast(str, response.content)
+        response_200 = WorkflowVersionRead.from_dict(response.json())
+
         return response_200
 
     if response.status_code == 400:
@@ -42,8 +57,7 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return response_403
 
     if response.status_code == 404:
-        response_404 = ErrorData.from_dict(response.json())
-
+        response_404 = cast(Any, None)
         return response_404
 
     if response.status_code == 409:
@@ -67,7 +81,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[ErrorData | str]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | ErrorData | WorkflowVersionRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -79,27 +95,34 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 
 
 def sync_detailed(
-    file_id: UUID,
+    workflow_id: UUID,
+    version: int,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorData | str]:
-    """Download File
+    body: WorkflowVersionUpdate,
+) -> Response[Any | ErrorData | WorkflowVersionRead]:
+    """Update Workflow Version Metadata
 
-     Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
+     Update a workflow version's metadata (publish_name, change_description).
 
     Args:
-        file_id (UUID):
+        workflow_id (UUID):
+        version (int):
+        body (WorkflowVersionUpdate): Request body for updating version metadata (PATCH
+            /workflows/{id}/versions/{version}).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | str]
+        Response[Any | ErrorData | WorkflowVersionRead]
     """
 
     kwargs = _get_kwargs(
-        file_id=file_id,
+        workflow_id=workflow_id,
+        version=version,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -110,53 +133,67 @@ def sync_detailed(
 
 
 def sync(
-    file_id: UUID,
+    workflow_id: UUID,
+    version: int,
     *,
     client: AuthenticatedClient,
-) -> ErrorData | str | None:
-    """Download File
+    body: WorkflowVersionUpdate,
+) -> Any | ErrorData | WorkflowVersionRead | None:
+    """Update Workflow Version Metadata
 
-     Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
+     Update a workflow version's metadata (publish_name, change_description).
 
     Args:
-        file_id (UUID):
+        workflow_id (UUID):
+        version (int):
+        body (WorkflowVersionUpdate): Request body for updating version metadata (PATCH
+            /workflows/{id}/versions/{version}).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | str
+        Any | ErrorData | WorkflowVersionRead
     """
 
     return sync_detailed(
-        file_id=file_id,
+        workflow_id=workflow_id,
+        version=version,
         client=client,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    file_id: UUID,
+    workflow_id: UUID,
+    version: int,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorData | str]:
-    """Download File
+    body: WorkflowVersionUpdate,
+) -> Response[Any | ErrorData | WorkflowVersionRead]:
+    """Update Workflow Version Metadata
 
-     Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
+     Update a workflow version's metadata (publish_name, change_description).
 
     Args:
-        file_id (UUID):
+        workflow_id (UUID):
+        version (int):
+        body (WorkflowVersionUpdate): Request body for updating version metadata (PATCH
+            /workflows/{id}/versions/{version}).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | str]
+        Response[Any | ErrorData | WorkflowVersionRead]
     """
 
     kwargs = _get_kwargs(
-        file_id=file_id,
+        workflow_id=workflow_id,
+        version=version,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -165,28 +202,35 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    file_id: UUID,
+    workflow_id: UUID,
+    version: int,
     *,
     client: AuthenticatedClient,
-) -> ErrorData | str | None:
-    """Download File
+    body: WorkflowVersionUpdate,
+) -> Any | ErrorData | WorkflowVersionRead | None:
+    """Update Workflow Version Metadata
 
-     Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
+     Update a workflow version's metadata (publish_name, change_description).
 
     Args:
-        file_id (UUID):
+        workflow_id (UUID):
+        version (int):
+        body (WorkflowVersionUpdate): Request body for updating version metadata (PATCH
+            /workflows/{id}/versions/{version}).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | str
+        Any | ErrorData | WorkflowVersionRead
     """
 
     return (
         await asyncio_detailed(
-            file_id=file_id,
+            workflow_id=workflow_id,
+            version=version,
             client=client,
+            body=body,
         )
     ).parsed

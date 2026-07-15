@@ -6,16 +6,27 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
+from ...models.what_can_i_request import WhatCanIRequest
 from ...models.what_can_i_response import WhatCanIResponse
 from ...types import Response
 
 
-def _get_kwargs() -> dict[str, Any]:
+def _get_kwargs(
+    *,
+    body: WhatCanIRequest,
+) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+
     _kwargs: dict[str, Any] = {
         "method": "post",
         "url": "/authz/what_can_i",
     }
 
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -84,11 +95,15 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
+    body: WhatCanIRequest,
 ) -> Response[ErrorData | WhatCanIResponse]:
     """List all permissions for the current user
 
      Resolves the current user's effective policies and returns them as a flat list of permission
     entries. No runtime policy evaluation call is needed.
+
+    Args:
+        body (WhatCanIRequest): Request body for the What can I? endpoint.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -98,7 +113,9 @@ def sync_detailed(
         Response[ErrorData | WhatCanIResponse]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        body=body,
+    )
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -110,11 +127,15 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
+    body: WhatCanIRequest,
 ) -> ErrorData | WhatCanIResponse | None:
     """List all permissions for the current user
 
      Resolves the current user's effective policies and returns them as a flat list of permission
     entries. No runtime policy evaluation call is needed.
+
+    Args:
+        body (WhatCanIRequest): Request body for the What can I? endpoint.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -126,17 +147,22 @@ def sync(
 
     return sync_detailed(
         client=client,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
+    body: WhatCanIRequest,
 ) -> Response[ErrorData | WhatCanIResponse]:
     """List all permissions for the current user
 
      Resolves the current user's effective policies and returns them as a flat list of permission
     entries. No runtime policy evaluation call is needed.
+
+    Args:
+        body (WhatCanIRequest): Request body for the What can I? endpoint.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -146,7 +172,9 @@ async def asyncio_detailed(
         Response[ErrorData | WhatCanIResponse]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        body=body,
+    )
 
     response = await client.get_async_httpx_client().request(**kwargs)
 
@@ -156,11 +184,15 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
+    body: WhatCanIRequest,
 ) -> ErrorData | WhatCanIResponse | None:
     """List all permissions for the current user
 
      Resolves the current user's effective policies and returns them as a flat list of permission
     entries. No runtime policy evaluation call is needed.
+
+    Args:
+        body (WhatCanIRequest): Request body for the What can I? endpoint.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -173,5 +205,6 @@ async def asyncio(
     return (
         await asyncio_detailed(
             client=client,
+            body=body,
         )
     ).parsed

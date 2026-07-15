@@ -32,6 +32,7 @@ class SACredentialRotateResponse:
         updated_at (datetime.datetime):
         expires_at (datetime.datetime | None | Unset):
         last_used_at (datetime.datetime | None | Unset):
+        old_secret_valid_until (datetime.datetime | None | Unset):
         updated_by (None | Unset | UUID):
         client_secret (None | str | Unset): Plaintext client secret (shown only once)
     """
@@ -47,6 +48,7 @@ class SACredentialRotateResponse:
     updated_at: datetime.datetime
     expires_at: datetime.datetime | None | Unset = UNSET
     last_used_at: datetime.datetime | None | Unset = UNSET
+    old_secret_valid_until: datetime.datetime | None | Unset = UNSET
     updated_by: None | Unset | UUID = UNSET
     client_secret: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -86,6 +88,14 @@ class SACredentialRotateResponse:
         else:
             last_used_at = self.last_used_at
 
+        old_secret_valid_until: None | str | Unset
+        if isinstance(self.old_secret_valid_until, Unset):
+            old_secret_valid_until = UNSET
+        elif isinstance(self.old_secret_valid_until, datetime.datetime):
+            old_secret_valid_until = self.old_secret_valid_until.isoformat()
+        else:
+            old_secret_valid_until = self.old_secret_valid_until
+
         updated_by: None | str | Unset
         if isinstance(self.updated_by, Unset):
             updated_by = UNSET
@@ -119,6 +129,8 @@ class SACredentialRotateResponse:
             field_dict["expires_at"] = expires_at
         if last_used_at is not UNSET:
             field_dict["last_used_at"] = last_used_at
+        if old_secret_valid_until is not UNSET:
+            field_dict["old_secret_valid_until"] = old_secret_valid_until
         if updated_by is not UNSET:
             field_dict["updated_by"] = updated_by
         if client_secret is not UNSET:
@@ -181,6 +193,23 @@ class SACredentialRotateResponse:
 
         last_used_at = _parse_last_used_at(d.pop("last_used_at", UNSET))
 
+        def _parse_old_secret_valid_until(data: object) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                old_secret_valid_until_type_0 = isoparse(data)
+
+                return old_secret_valid_until_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        old_secret_valid_until = _parse_old_secret_valid_until(d.pop("old_secret_valid_until", UNSET))
+
         def _parse_updated_by(data: object) -> None | Unset | UUID:
             if data is None:
                 return data
@@ -219,6 +248,7 @@ class SACredentialRotateResponse:
             updated_at=updated_at,
             expires_at=expires_at,
             last_used_at=last_used_at,
+            old_secret_valid_until=old_secret_valid_until,
             updated_by=updated_by,
             client_secret=client_secret,
         )

@@ -10,6 +10,7 @@ class MetricType(str, Enum):
     API_ERROR_RATE = "api_error_rate"
     API_RESPONSE_TIME_MS = "api_response_time_ms"
     API_THROUGHPUT_RPS = "api_throughput_rps"
+    AUTH_FAILURE = "auth_failure"
     CACHE_HIT = "cache_hit"
     CACHE_LOOKUP_MS = "cache_lookup_ms"
     CACHE_MISS = "cache_miss"

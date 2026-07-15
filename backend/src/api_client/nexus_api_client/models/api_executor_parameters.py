@@ -25,17 +25,17 @@ class APIExecutorParameters:
 
     Attributes:
         method (HTTPMethod): Supported HTTP methods for API requests.
-        url (str): Request URL
+        url (None | str | Unset): Request URL (optional when a Secret URL credential provides it)
         headers (APIExecutorParametersHeaders | Unset):
         body (APIExecutorParametersBodyType0 | None | str | Unset):
         query_params (APIExecutorParametersQueryParams | Unset):
         authentication (Authentication | None | Unset):
-        credential_id (None | str | Unset): Nexus credential UUID for authentication. Takes priority over authentication
-            field.
+        credential_id (None | str | Unset): Nexus credential UUID for authentication or Secret URL. Takes priority over
+            authentication field.
     """
 
     method: HTTPMethod
-    url: str
+    url: None | str | Unset = UNSET
     headers: APIExecutorParametersHeaders | Unset = UNSET
     body: APIExecutorParametersBodyType0 | None | str | Unset = UNSET
     query_params: APIExecutorParametersQueryParams | Unset = UNSET
@@ -49,7 +49,11 @@ class APIExecutorParameters:
 
         method = self.method.value
 
-        url = self.url
+        url: None | str | Unset
+        if isinstance(self.url, Unset):
+            url = UNSET
+        else:
+            url = self.url
 
         headers: dict[str, Any] | Unset = UNSET
         if not isinstance(self.headers, Unset):
@@ -86,9 +90,10 @@ class APIExecutorParameters:
         field_dict.update(
             {
                 "method": method,
-                "url": url,
             }
         )
+        if url is not UNSET:
+            field_dict["url"] = url
         if headers is not UNSET:
             field_dict["headers"] = headers
         if body is not UNSET:
@@ -112,7 +117,14 @@ class APIExecutorParameters:
         d = dict(src_dict)
         method = HTTPMethod(d.pop("method"))
 
-        url = d.pop("url")
+        def _parse_url(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        url = _parse_url(d.pop("url", UNSET))
 
         _headers = d.pop("headers", UNSET)
         headers: APIExecutorParametersHeaders | Unset

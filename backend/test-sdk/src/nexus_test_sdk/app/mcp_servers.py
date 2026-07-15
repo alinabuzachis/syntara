@@ -162,7 +162,7 @@ class ForbiddenMCPServer(BaseServer):
         super().__init__(host, port, auth)
 
     def get_app(self) -> StarletteWithLifespan:
-        """Get the Starlette application with forbidden middleware."""
+        """Get the Starlette application for the MCP server with forbidden middleware."""
         http_app = self.mcp_app.http_app(transport="streamable-http", host_origin_protection=False)
         http_app.add_middleware(ForbiddenMiddleware)
         return http_app

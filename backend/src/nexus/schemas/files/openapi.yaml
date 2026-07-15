@@ -196,6 +196,7 @@ components:
           type: array
           items:
             type: string
+            format: binary
             contentMediaType: application/octet-stream
           title: Files
           description: Files to upload (1-10 files, max 10MB each)

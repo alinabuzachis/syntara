@@ -363,6 +363,7 @@ __all__ = (
     "WaitNodeParameters",
     "WebhookResponse",
     "WebSocketTicketResponse",
+    "WhatCanIRequest",
     "WhatCanIResponse",
     "WhoCanRequest",
     "WhoCanRequestResourceLabels",
@@ -393,6 +394,7 @@ __all__ = (
     "WorkflowVersionRead",
     "WorkflowVersionReadWorkflowDefinition",
     "WorkflowVersionStatus",
+    "WorkflowVersionUpdate",
 )
 
 _MODEL_MODULES = frozenset(path.stem for path in Path(__file__).parent.glob("*.py") if path.stem != "__init__")

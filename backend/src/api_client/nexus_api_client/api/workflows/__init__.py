@@ -104,6 +104,14 @@ class WorkflowsApi:
         endpoint_module = self._load_endpoint_module("get_workflow_version")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
+    def update_version_metadata(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_workflow_version_metadata")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_update_version_metadata(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_workflow_version_metadata")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
     def publish_version(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("publish_workflow_version")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)

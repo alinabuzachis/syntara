@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from io import BytesIO
 from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from .. import types
-from ..types import UNSET, File, FileTypes, Unset
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="InvocationRequestWithFile")
 
@@ -22,14 +21,14 @@ class InvocationRequestWithFile:
         prompt (None | str | Unset):
         session_id (None | str | Unset):
         context_data (None | str | Unset):
-        files (list[File] | None | Unset):
+        files (list[str] | None | Unset):
     """
 
     project_id: str
     prompt: None | str | Unset = UNSET
     session_id: None | str | Unset = UNSET
     context_data: None | str | Unset = UNSET
-    files: list[File] | None | Unset = UNSET
+    files: list[str] | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -53,15 +52,11 @@ class InvocationRequestWithFile:
         else:
             context_data = self.context_data
 
-        files: list[FileTypes] | None | Unset
+        files: list[str] | None | Unset
         if isinstance(self.files, Unset):
             files = UNSET
         elif isinstance(self.files, list):
-            files = []
-            for files_type_0_item_data in self.files:
-                files_type_0_item = files_type_0_item_data.to_tuple()
-
-                files.append(files_type_0_item)
+            files = self.files
 
         else:
             files = self.files
@@ -110,7 +105,7 @@ class InvocationRequestWithFile:
         if not isinstance(self.files, Unset):
             if isinstance(self.files, list):
                 for files_type_0_item_element in self.files:
-                    files.append(("files", files_type_0_item_element.to_tuple()))
+                    files.append(("files", (None, str(files_type_0_item_element).encode(), "text/plain")))
             else:
                 files.append(("files", (None, str(self.files).encode(), "text/plain")))
 
@@ -151,7 +146,7 @@ class InvocationRequestWithFile:
 
         context_data = _parse_context_data(d.pop("context_data", UNSET))
 
-        def _parse_files(data: object) -> list[File] | None | Unset:
+        def _parse_files(data: object) -> list[str] | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -159,17 +154,12 @@ class InvocationRequestWithFile:
             try:
                 if not isinstance(data, list):
                     raise TypeError()
-                files_type_0 = []
-                _files_type_0 = data
-                for files_type_0_item_data in _files_type_0:
-                    files_type_0_item = File(payload=BytesIO(files_type_0_item_data))
-
-                    files_type_0.append(files_type_0_item)
+                files_type_0 = cast(list[str], data)
 
                 return files_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(list[File] | None | Unset, data)
+            return cast(list[str] | None | Unset, data)
 
         files = _parse_files(d.pop("files", UNSET))
 

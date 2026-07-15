@@ -8,7 +8,7 @@ via a builtin Temporal workflow.
 """
 
 from io import BytesIO
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 import structlog
@@ -53,12 +53,21 @@ _files_perm_upload = PermissionChecker(
 # ============================================================================
 
 
+def _files_binary_format(schema: dict[str, Any]) -> None:
+    items = schema.get("items")
+    if isinstance(items, dict):
+        items["format"] = "binary"
+
+
 class UploadFilesBody(BaseModel):
     """Request body for POST /files endpoint."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    files: list[UploadFile] = Field(description="Files to upload (1-10 files, max 10MB each)")
+    files: list[UploadFile] = Field(
+        description="Files to upload (1-10 files, max 10MB each)",
+        json_schema_extra=_files_binary_format,
+    )
     project_id: UUID = Field(description="Project to associate files with")
 
 
