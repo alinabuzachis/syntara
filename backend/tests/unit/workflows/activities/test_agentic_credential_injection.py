@@ -20,9 +20,7 @@ class TestAgenticCredentialMetadata:
                 "credential_id": "cred-uuid-123",
                 "extra_vars": {
                     "auth_type": "api_key",
-                    "llm_provider": "anthropic",
                     "llm_api_key": "sk-ant-secret",
-                    "llm_base_url": "https://api.anthropic.com",
                 },
             },
         }
@@ -31,8 +29,6 @@ class TestAgenticCredentialMetadata:
 
         assert metadata["credential_id"] == "cred-uuid-123"
         assert "llm_api_key" not in metadata
-        assert "llm_provider" not in metadata
-        assert "llm_base_url" not in metadata
         assert metadata["activity_name"] == "test"
 
     def test_no_credentials_no_metadata(self) -> None:
@@ -43,7 +39,6 @@ class TestAgenticCredentialMetadata:
 
         assert "credential_id" not in metadata
         assert "llm_api_key" not in metadata
-        assert "llm_provider" not in metadata
         assert metadata["activity_name"] == "test"
 
     def test_partial_credentials_no_credential_id(self) -> None:
@@ -52,7 +47,7 @@ class TestAgenticCredentialMetadata:
         input_data: dict[str, Any] = {
             "_resolved_credentials": {
                 "extra_vars": {
-                    "llm_provider": "openrouter",
+                    "llm_api_key": "sk-partial-key",
                 },
             },
         }
@@ -61,18 +56,15 @@ class TestAgenticCredentialMetadata:
 
         assert "credential_id" not in metadata
         assert "llm_api_key" not in metadata
-        assert "llm_provider" not in metadata
 
-    def test_non_secret_fields_only(self) -> None:
-        """Only credential_id is passed; non-secret LLM fields are not injected into metadata."""
+    def test_secret_fields_not_injected(self) -> None:
+        """Only credential_id is passed; secret LLM fields are not injected into metadata."""
         metadata: dict[str, Any] = {}
         input_data: dict[str, Any] = {
             "_resolved_credentials": {
                 "credential_id": "cred-456",
                 "extra_vars": {
                     "llm_api_key": "sk-secret-key",
-                    "llm_provider": "openai",
-                    "llm_base_url": "https://api.openai.com/v1",
                 },
             },
         }
@@ -81,5 +73,3 @@ class TestAgenticCredentialMetadata:
 
         assert metadata["credential_id"] == "cred-456"
         assert "llm_api_key" not in metadata
-        assert "llm_provider" not in metadata
-        assert "llm_base_url" not in metadata

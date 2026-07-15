@@ -594,37 +594,37 @@ class TestValidateInputs:
         )
 
     def test_invalid_choice_rejected(self) -> None:
-        llm_inputs = {
+        choice_inputs = {
             "fields": [
                 {
-                    "id": "provider",
+                    "id": "region",
                     "type": "string",
                     "secret": False,
-                    "label": "Provider",
-                    "choices": ["openai", "anthropic"],
+                    "label": "Region",
+                    "choices": ["us-east", "eu-west"],
                 },
                 {"id": "api_key", "type": "string", "secret": True, "label": "Key"},
             ],
             "required": ["api_key"],
         }
         with pytest.raises(CredentialValidationError, match="Invalid value"):
-            _validate_inputs({"provider": "invalid_provider", "api_key": "key"}, llm_inputs)
+            _validate_inputs({"region": "invalid_region", "api_key": "key"}, choice_inputs)
 
     def test_valid_choice_accepted(self) -> None:
-        llm_inputs = {
+        choice_inputs = {
             "fields": [
                 {
-                    "id": "provider",
+                    "id": "region",
                     "type": "string",
                     "secret": False,
-                    "label": "Provider",
-                    "choices": ["openai", "anthropic"],
+                    "label": "Region",
+                    "choices": ["us-east", "eu-west"],
                 },
                 {"id": "api_key", "type": "string", "secret": True, "label": "Key"},
             ],
             "required": ["api_key"],
         }
-        _validate_inputs({"provider": "openai", "api_key": "key"}, llm_inputs)
+        _validate_inputs({"region": "us-east", "api_key": "key"}, choice_inputs)
 
     def test_payload_too_large_rejected(self) -> None:
         large_value = "x" * 70000

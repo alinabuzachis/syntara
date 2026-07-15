@@ -138,15 +138,13 @@ test.describe('Dynamic Credential Form Rendering', () => {
     await expect(modal.getByText('Private key is required')).toBeVisible()
   })
 
-  // --- LLM Provider (3 fields: provider choices dropdown, api_key secret, base_url) ---
+  // --- LLM Provider (requires API key only) ---
 
   test('LLM Provider: form renders correct fields', async ({ app }) => {
     const modal = await openCreateModal(app)
     await selectCredentialType(modal, 'LLM Provider')
 
-    await expect(modal.getByRole('combobox', { name: 'Provider' })).toBeVisible()
     await expect(modal.getByRole('textbox', { name: 'API Key' })).toBeVisible()
-    await expect(modal.getByRole('textbox', { name: 'Base URL' })).toBeVisible()
   })
 
   test('LLM Provider: create credential succeeds', async ({ app }) => {
@@ -155,7 +153,6 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
     await selectCredentialType(modal, 'LLM Provider')
-    await modal.getByRole('combobox', { name: 'Provider' }).selectOption('anthropic')
     await modal.getByRole('textbox', { name: 'API Key' }).fill('sk-ant-test-key-123')
     await modal.getByRole('button', { name: 'Create credential' }).click()
 

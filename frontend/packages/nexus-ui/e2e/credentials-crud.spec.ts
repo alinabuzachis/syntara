@@ -27,12 +27,9 @@ test.describe('Type Change Resets Dynamic Fields', () => {
 
     await selectCredentialType(modal, 'LLM Provider')
 
-    await expect(modal.getByRole('combobox', { name: 'Provider' })).toBeVisible()
     await expect(modal.getByRole('textbox', { name: 'API Key' })).toBeVisible()
-    await expect(modal.getByRole('textbox', { name: 'Base URL' })).toBeVisible()
 
     await expect(modal.getByRole('textbox', { name: 'API Key' })).toHaveValue('')
-    await expect(modal.getByRole('textbox', { name: 'Base URL' })).toHaveValue('')
   })
 })
 

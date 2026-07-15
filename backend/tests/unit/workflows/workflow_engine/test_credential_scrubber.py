@@ -24,12 +24,9 @@ class TestScrubCredentials:
         assert result["basic_password"] == REDACTED
 
     def test_scrubs_llm_keys(self) -> None:
-        data = {"llm_api_key": "llm-key", "llm_provider": "openai", "llm_base_url": "https://api.openai.com"}
+        data = {"llm_api_key": "llm-key"}
         result = scrub_credentials(data)
         assert result["llm_api_key"] == REDACTED
-        # Non-secret injector keys are also scrubbed (credential-adjacent metadata)
-        assert result["llm_provider"] == REDACTED
-        assert result["llm_base_url"] == REDACTED
 
     def test_scrubs_aap_credentials(self) -> None:
         data = {"aap_password": "pass", "aap_oauth_token": "token"}

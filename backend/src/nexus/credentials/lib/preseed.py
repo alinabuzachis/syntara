@@ -166,14 +166,6 @@ GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
         "inputs": {
             "fields": [
                 {
-                    "id": "provider",
-                    "label": "Provider",
-                    "type": "string",
-                    "secret": False,
-                    "choices": ["openai", "anthropic", "openrouter", "azure_openai", "other"],
-                    "help_text": "LLM provider name (optional — used for API routing)",
-                },
-                {
                     "id": "api_key",
                     "label": "API Key",
                     "type": "string",
@@ -181,23 +173,13 @@ GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
                     "help_text": "API key for the LLM provider service",
                     "placeholder": "Enter API key",
                 },
-                {
-                    "id": "base_url",
-                    "label": "Base URL",
-                    "type": "string",
-                    "secret": False,
-                    "help_text": "Custom base URL (overrides provider default, leave empty to use default)",
-                    "placeholder": "https://api.example.com/v1",
-                },
             ],
             "required": ["api_key"],
         },
         "injectors": {
             "extra_vars": {
                 "auth_type": "api_key",
-                "llm_provider": "{{provider}}",
                 "llm_api_key": "{{api_key}}",
-                "llm_base_url": "{{base_url}}",
             },
             "env": {},
             "file": {},

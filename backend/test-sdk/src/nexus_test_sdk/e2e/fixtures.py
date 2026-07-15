@@ -465,9 +465,7 @@ def llm_credential_id(
             project_id=first_project_id,
             inputs=CredentialCreateInputs.from_dict(
                 {
-                    "provider": "openrouter",
                     "api_key": api_key,
-                    "base_url": "https://openrouter.ai/api/v1",
                 }
             ),
         ),

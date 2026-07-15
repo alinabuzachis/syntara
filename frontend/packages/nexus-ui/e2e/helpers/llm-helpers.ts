@@ -43,7 +43,7 @@ export async function ensureLlmCredential(page: Page): Promise<string> {
       name: credName,
       credential_type_id: llmType.id,
       project_id: project.id,
-      inputs: { provider: 'anthropic', api_key: 'sk-ant-e2e-test-key' },
+      inputs: { api_key: 'sk-ant-e2e-test-key' },
     },
   })
   if (!createResp.ok()) throw new Error('Could not create LLM credential')

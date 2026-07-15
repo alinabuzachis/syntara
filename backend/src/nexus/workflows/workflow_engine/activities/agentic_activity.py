@@ -223,9 +223,9 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
 def _inject_llm_credential_metadata(metadata: dict[str, Any], input_data: dict[str, Any]) -> None:
     """Inject LLM credential reference into agent metadata from resolved credentials.
 
-    Passes ``credential_id`` for deferred resolution at execution time — the
-    decrypted API key is never stored in invocation context_data.  Non-secret
-    fields (provider, base_url) are still passed directly.
+    Passes only ``credential_id`` for deferred resolution at execution time.
+    The decrypted API key and all non-secret LLM metadata are omitted from
+    invocation context_data.
 
     Args:
         metadata: Mutable agent metadata dict to update.
