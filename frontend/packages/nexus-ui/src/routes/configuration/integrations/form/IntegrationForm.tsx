@@ -12,7 +12,7 @@ import {
   useWizardContext,
 } from '@patternfly/react-core'
 import { useCallback, useState } from 'react'
-import { useForm, useWatch, type UseFormTrigger } from 'react-hook-form'
+import { useForm, useWatch, type Resolver, type UseFormTrigger } from 'react-hook-form'
 
 import { AppRoute } from '../../../../app/AppRoute'
 import { breadcrumbsIntegrationConfigure } from '../../../../app/breadcrumbBuilders'
@@ -33,8 +33,8 @@ import { EnableToolsWrapper } from './EnableToolsStep'
 import { IntegrationDetailsStep } from './IntegrationDetailsStep'
 import {
   integrationFormSchema,
-  LLM_STEP1_FIELDS,
-  MCP_STEP1_FIELDS,
+  getStep1Fields,
+  getDefaultConfiguration,
   type IntegrationFormData,
 } from './integrationFormSchema'
 import { useCreateIntegration } from './useCreateIntegration'
@@ -53,30 +53,42 @@ type WizardNavFooterProps = Readonly<{
   trigger: UseFormTrigger<IntegrationFormData>
   onSubmit: () => void
   credentialId: string | null | undefined
-  integrationType: string
-  onStep1Validated: () => void
+  integrationTypeValue: string
+  onDetailsStepValidated: () => void
 }>
 
-function WizardNavFooter({ trigger, onSubmit, credentialId, integrationType, onStep1Validated }: WizardNavFooterProps) {
-  const { goToNextStep, goToPrevStep, activeStep, steps } = useWizardContext()
+function WizardNavFooter({
+  trigger,
+  onSubmit,
+  credentialId,
+  integrationTypeValue,
+  onDetailsStepValidated,
+}: WizardNavFooterProps) {
+  const { goToNextStep, goToPrevStep, activeStep } = useWizardContext()
   const isFirst = activeStep.index === 1
   const isSecond = activeStep.id === 'credential'
-  const isLast = activeStep.index === steps.length
+  const isLast =
+    activeStep.id === 'enable-tools' ||
+    activeStep.id === 'enable-models' ||
+    (integrationTypeValue !== IntegrationTypeEnum.MCP_SERVER &&
+      integrationTypeValue !== IntegrationTypeEnum.LLM_PROVIDER &&
+      activeStep.id === 'credential')
 
   const handleNext = useCallback(async () => {
     if (isFirst) {
-      const step1Fields = integrationType === IntegrationTypeEnum.LLM_PROVIDER ? LLM_STEP1_FIELDS : MCP_STEP1_FIELDS
-      const valid = await trigger(step1Fields)
+      const fields = getStep1Fields(integrationTypeValue)
+      const valid = await trigger(fields as (keyof IntegrationFormData)[])
       if (valid) {
-        onStep1Validated()
+        onDetailsStepValidated()
         await goToNextStep()
       }
       return
     }
     await goToNextStep()
-  }, [trigger, isFirst, integrationType, goToNextStep, onStep1Validated])
+  }, [trigger, isFirst, goToNextStep, integrationTypeValue, onDetailsStepValidated])
 
   const isNextDisabled = isSecond && !credentialId
+  const isSaveDisabled = isSecond && !credentialId
 
   return (
     <WizardFooterWrapper>
@@ -91,7 +103,7 @@ function WizardNavFooter({ trigger, onSubmit, credentialId, integrationType, onS
           )}
           <ActionListItem>
             {isLast ? (
-              <Button variant="primary" onClick={onSubmit}>
+              <Button variant="primary" onClick={isSaveDisabled ? undefined : onSubmit} isAriaDisabled={isSaveDisabled}>
                 Save
               </Button>
             ) : (
@@ -122,28 +134,10 @@ function WizardNavFooter({ trigger, onSubmit, credentialId, integrationType, onS
   )
 }
 
-export function IntegrationForm() {
-  const docLink = useDocLink('integrations')
-  const { control, handleSubmit, setError, trigger, setValue, getValues } = useForm<IntegrationFormData>({
-    resolver: zodResolver(integrationFormSchema, undefined, { mode: 'sync' }),
-    defaultValues: {
-      name: '',
-      description: '',
-      integration_type: IntegrationTypeEnum.MCP_SERVER,
-      configuration: { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: '' },
-      management_credential_id: null,
-      scope: 'global',
-    },
-  })
-  const handleError = useFormMutationErrorHandler<IntegrationFormData>(setError)
-  const createIntegration = useCreateIntegration({ handleError })
-  const credentialId = useWatch({ control, name: 'management_credential_id' })
-  const integrationType = useWatch({ control, name: 'integration_type' })
-
+function useDiscoverConnection(getValues: () => IntegrationFormData) {
   const [testResult, setTestResult] = useState<DiscoverResult | null>(null)
   const [selectedToolNames, setSelectedToolNames] = useState<Set<string>>(new Set())
   const [selectedModels, setSelectedModels] = useState<Map<string, InitialModelSelection>>(new Map())
-  const [step1Validated, setStep1Validated] = useState(false)
 
   const { mutate: testConnection, isPending: isTesting } = integrationsClient.useMutation(
     'post',
@@ -151,18 +145,11 @@ export function IntegrationForm() {
   )
   const { showAlert } = useAlerts()
 
-  const isLLM = integrationType === IntegrationTypeEnum.LLM_PROVIDER
-
   const resetTestState = useCallback(() => {
     setTestResult(null)
     setSelectedToolNames(new Set())
     setSelectedModels(new Map())
   }, [])
-
-  const handleTypeChange = useCallback(() => {
-    resetTestState()
-    setStep1Validated(false)
-  }, [resetTestState])
 
   const handleDiscoverSuccess = useCallback(
     (result: DiscoverResult, isLLMType: boolean) => {
@@ -239,6 +226,65 @@ export function IntegrationForm() {
     )
   }, [getValues, testConnection, showAlert, resetTestState, handleDiscoverSuccess])
 
+  return {
+    testResult,
+    selectedToolNames,
+    setSelectedToolNames,
+    selectedModels,
+    setSelectedModels,
+    isTesting,
+    resetTestState,
+    handleTestConnection,
+  }
+}
+
+export function IntegrationForm() {
+  const docLink = useDocLink('integrations')
+  // zodResolver with discriminated unions produces a resolver type that react-hook-form
+  // cannot reconcile — the TFieldValues generic diverges. This is a known @hookform/resolvers
+  // limitation. The cast is safe because the schema defines the actual validation.
+  const { control, handleSubmit, setError, trigger, setValue, getValues } = useForm<IntegrationFormData>({
+    resolver: zodResolver(integrationFormSchema, undefined, { mode: 'sync' }) as Resolver<IntegrationFormData>,
+    defaultValues: {
+      name: '',
+      description: '',
+      integration_type: IntegrationTypeEnum.MCP_SERVER,
+      configuration: { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: '' },
+      management_credential_id: null,
+      scope: 'global',
+    },
+  })
+  const handleError = useFormMutationErrorHandler<IntegrationFormData>(setError)
+  const createIntegration = useCreateIntegration({ handleError })
+  const credentialId = useWatch({ control, name: 'management_credential_id' })
+  const integrationTypeValue = useWatch({ control, name: 'integration_type' })
+
+  const {
+    testResult,
+    selectedToolNames,
+    setSelectedToolNames,
+    selectedModels,
+    setSelectedModels,
+    isTesting,
+    resetTestState,
+    handleTestConnection,
+  } = useDiscoverConnection(getValues)
+
+  const [isDetailsStepValid, setIsDetailsStepValid] = useState(false)
+  const { showAlert } = useAlerts()
+  const isLLM = integrationTypeValue === IntegrationTypeEnum.LLM_PROVIDER
+
+  const onTypeChange = useCallback(
+    (newType: string) => {
+      setValue('configuration', getDefaultConfiguration(newType), { shouldValidate: false })
+      setValue('integration_type', newType as IntegrationFormData['integration_type'])
+      setValue('management_credential_id', null)
+      resetTestState()
+      setIsDetailsStepValid(false)
+    },
+    [setValue, resetTestState]
+  )
+
   const onSubmit = handleSubmit(
     (formData) => {
       if (formData.integration_type === IntegrationTypeEnum.LLM_PROVIDER) {
@@ -259,7 +305,12 @@ export function IntegrationForm() {
     (errors) => {
       const messages: string[] = []
       if (errors.name) messages.push(errors.name.message ?? 'Name is invalid')
-      if (errors.configuration?.base_url) messages.push(errors.configuration.base_url.message ?? 'Base URL is invalid')
+      if (errors.configuration && 'base_url' in errors.configuration && errors.configuration.base_url) {
+        messages.push(errors.configuration.base_url.message ?? 'Base URL is invalid')
+      }
+      if (errors.configuration && 'aap_url' in errors.configuration && errors.configuration.aap_url) {
+        messages.push(errors.configuration.aap_url.message ?? 'AAP URL is invalid')
+      }
       if (messages.length > 0) {
         showAlert({
           title: 'Unable to save integration',
@@ -270,8 +321,6 @@ export function IntegrationForm() {
       }
     }
   )
-
-  const resourceStepName = isLLM ? 'Enable models' : 'Enable tools'
 
   return (
     <NxPage>
@@ -285,44 +334,50 @@ export function IntegrationForm() {
                 trigger={trigger}
                 onSubmit={() => detachPromise(onSubmit())}
                 credentialId={credentialId}
-                integrationType={integrationType}
-                onStep1Validated={() => setStep1Validated(true)}
+                integrationTypeValue={integrationTypeValue}
+                onDetailsStepValidated={() => setIsDetailsStepValid(true)}
               />
             }
           >
             <WizardStep name="Integration details" id="integration-details">
-              <IntegrationDetailsStep control={control} setValue={setValue} onTypeChange={handleTypeChange} />
+              <IntegrationDetailsStep control={control} setValue={setValue} onTypeChange={onTypeChange} />
             </WizardStep>
 
-            <WizardStep name="Connection credential" id="credential" navItem={{ isDisabled: !step1Validated }}>
+            <WizardStep name="Connection credential" id="credential" navItem={{ isDisabled: !isDetailsStepValid }}>
               <CredentialStep
                 control={control}
                 setValue={setValue}
                 credentialId={credentialId}
+                integrationTypeValue={integrationTypeValue}
                 isTesting={isTesting}
                 onTestConnection={handleTestConnection}
                 onCredentialChange={resetTestState}
               />
             </WizardStep>
 
-            <WizardStep name={resourceStepName} id="enable-resources" isDisabled={!credentialId}>
-              {isLLM ? (
-                <EnableModelsWrapper
-                  testResult={testResult}
-                  selectedModels={selectedModels}
-                  onSelectionChange={setSelectedModels}
-                  onTestConnection={handleTestConnection}
-                  isTestDisabled={!credentialId || isTesting}
-                />
-              ) : (
-                <EnableToolsWrapper
-                  testResult={testResult}
-                  selectedNames={selectedToolNames}
-                  onSelectionChange={setSelectedToolNames}
-                  onTestConnection={handleTestConnection}
-                  isTestDisabled={!credentialId || isTesting}
-                />
-              )}
+            <WizardStep
+              name="Enable tools"
+              id="enable-tools"
+              isHidden={integrationTypeValue !== IntegrationTypeEnum.MCP_SERVER}
+              isDisabled={!credentialId}
+            >
+              <EnableToolsWrapper
+                testResult={testResult}
+                selectedNames={selectedToolNames}
+                onSelectionChange={setSelectedToolNames}
+                onTestConnection={handleTestConnection}
+                isTestDisabled={!credentialId || isTesting}
+              />
+            </WizardStep>
+
+            <WizardStep name="Enable models" id="enable-models" isHidden={!isLLM} isDisabled={!credentialId}>
+              <EnableModelsWrapper
+                testResult={testResult}
+                selectedModels={selectedModels}
+                onSelectionChange={setSelectedModels}
+                onTestConnection={handleTestConnection}
+                isTestDisabled={!credentialId || isTesting}
+              />
             </WizardStep>
           </Wizard>
         </NxPanel>

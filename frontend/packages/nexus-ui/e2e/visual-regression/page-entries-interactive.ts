@@ -564,6 +564,20 @@ export const credentialDialogPages: PageEntry[] = [
 export const integrationWizardPages: PageEntry[] = [
   {
     section: 'configuration/integrations',
+    name: 'integration-configure-aap-step1',
+    path: AppRoute.Configuration.Integrations.Configure,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Configure integration' })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByText('MCP Server').click()
+      await page.getByRole('option', { name: 'Ansible Automation Platform' }).click()
+      await expect(page.getByRole('textbox', { name: /AAP URL/i })).toBeVisible()
+      await expect(page.getByRole('switch', { name: /SSL verification/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
     name: 'integration-configure-step2-credential',
     path: AppRoute.Configuration.Integrations.Configure,
     waitFor: async (page) => {

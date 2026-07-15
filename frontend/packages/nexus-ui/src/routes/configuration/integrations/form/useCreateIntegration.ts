@@ -1,4 +1,4 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum, type IntegrationsAPI } from '@ansible/nexus-contracts'
 import { useCallback } from 'react'
 
 import { AppRoute } from '../../../../app/AppRoute'
@@ -54,7 +54,8 @@ export function useCreateIntegration({ handleError }: UseCreateIntegrationOption
             configuration: formData.configuration,
             management_credential_id: formData.management_credential_id ?? undefined,
             scope: formData.scope,
-            discovered_tools: discoveredTools ?? null,
+            discovered_tools:
+              formData.integration_type === IntegrationTypeEnum.MCP_SERVER ? (discoveredTools ?? null) : null,
             discovered_models: discoveredModels ?? null,
           },
         },

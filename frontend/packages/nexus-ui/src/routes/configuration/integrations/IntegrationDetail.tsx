@@ -1,6 +1,8 @@
 import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
   ActionGroup,
+  Alert,
   Badge,
   Button,
   DescriptionList,
@@ -29,7 +31,6 @@ import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
-import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import type { KebabAction } from '../../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxLink } from '../../../components/NxLink'
@@ -45,8 +46,6 @@ import { useDocLink } from '../../../utils/docs/useDocLink'
 import styles from './IntegrationDetail.module.css'
 import { IntegrationDialogs } from './IntegrationDialogs'
 import { INTEGRATION_TYPE_LABELS, PROVIDER_HINT_LABELS } from './integrationFilters'
-import { IntegrationModelsTab } from './IntegrationModelsTab'
-import { IntegrationResourcesTab } from './IntegrationResourcesTab'
 import {
   getBaseUrl,
   getEnabledResourceCount,
@@ -55,6 +54,7 @@ import {
   getTotalResourceCount,
   isLLMProvider,
 } from './integrationUtils'
+import { ResourcesTabContent } from './ResourcesTabContent'
 import { StatusLabel } from './StatusLabel'
 import { useAllIntegrationTools } from './useAllIntegrationTools'
 import { useIntegrationActions } from './useIntegrationActions'
@@ -95,6 +95,14 @@ function IntegrationDetailsTab({
             </NxDetail>
           )}
           <NxDetail label="URL">{getBaseUrl(integration) || '—'}</NxDetail>
+          {integration.integration_type === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM &&
+            integration.configuration &&
+            'insecure_skip_tls_verify' in integration.configuration &&
+            integration.configuration.insecure_skip_tls_verify && (
+              <NxDetail label="TLS verification">
+                <Alert variant="warning" isInline isPlain title="SSL verification disabled" />
+              </NxDetail>
+            )}
           <NxDetail label="Connection credential">
             {credentialId && credentialName ? (
               <NxLink to={AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId)}>
@@ -104,7 +112,9 @@ function IntegrationDetailsTab({
               'None'
             )}
           </NxDetail>
-          <NxDetail label={`Enabled ${resourceNoun}`}>{String(enabledResourceCount)}</NxDetail>
+          {(isLLMProvider(integration) || integration.integration_type === IntegrationTypeEnum.MCP_SERVER) && (
+            <NxDetail label={`Enabled ${resourceNoun}`}>{String(enabledResourceCount)}</NxDetail>
+          )}
         </DescriptionList>
       </StackItem>
     </Stack>
@@ -300,6 +310,10 @@ function getFooterState(
   return { isDirty: toolsDirty, isSaving: isToolsSaving, onSave: handleToolsSave, saveLabel: 'Save changes' }
 }
 
+function hasResourcesTab(integration: IntegrationsAPI.components['schemas']['IntegrationRead']): boolean {
+  return isLLMProvider(integration) || integration.integration_type === IntegrationTypeEnum.MCP_SERVER
+}
+
 export function IntegrationDetail() {
   const { integrationId }: { integrationId: string } = useParams({ strict: false })
   const navigate = useNavigate()
@@ -415,7 +429,7 @@ export function IntegrationDetail() {
           <NxUrlTabs
             basePath={integrationBasePath}
             defaultTab="details"
-            validTabs={['details', 'resources']}
+            validTabs={hasResourcesTab(integration) ? ['details', 'resources'] : ['details']}
             aria-label="Integration details"
             guardUnsavedChanges
           >
@@ -427,59 +441,34 @@ export function IntegrationDetail() {
               />
             </Tab>
 
-            <Tab
-              eventKey="resources"
-              title={
-                <>
-                  Enabled resources{' '}
-                  {getTotalResourceCount(integration) > 0 && <Badge isRead>{enabledResourceCount}</Badge>}
-                </>
-              }
-            >
-              <NxPanelContentStack className={styles.resourcesTabContent}>
-                {integration && isLLMProvider(integration) ? (
-                  <IntegrationModelsTab
-                    integrationId={integration.id}
-                    models={modelsState.models}
-                    isLoading={modelsState.isLoading}
-                    error={modelsState.error?.message ?? null}
-                    refetchModels={() => modelsState.refetchModels()}
-                    enabledModelIds={modelsState.enabledModelIds}
-                    enabledCount={modelsState.enabledCount}
-                    allSelected={modelsState.allSelected}
-                    handleSelectAll={modelsState.handleSelectAll}
-                    defaultModelId={modelsState.defaultModelId}
-                    handleSelectWithDefaultClear={modelsState.handleSelectWithDefaultClear}
-                    handleSetDefault={modelsState.handleSetDefault}
-                    handleRemoveDefault={modelsState.handleRemoveDefault}
-                    resetSelectionToServer={modelsState.resetSelectionToServer}
-                    resetDefault={modelsState.resetDefault}
-                    lastRefreshedAt={integration.last_refreshed_at}
-                    canUpdate={permissions.canUpdate}
-                    updateTooltip={permissions.tooltips.update}
-                    onRefreshed={async () => {
-                      const result = await query.refetch()
-                      return result.data
-                    }}
-                  />
-                ) : (
-                  <IntegrationResourcesTab
-                    integrationId={integration.id}
-                    tools={tools}
-                    enabledToolIds={enabledToolIds}
-                    enabledCount={toolEnabledCount}
-                    handleSelectTool={handleSelectTool}
-                    lastRefreshedAt={integration.last_refreshed_at}
-                    canUpdate={permissions.canUpdate}
-                    onRefreshed={async () => {
-                      const result = await query.refetch()
-                      return result.data
-                    }}
-                    refetchTools={() => refetchTools()}
-                  />
-                )}
-              </NxPanelContentStack>
-            </Tab>
+            {hasResourcesTab(integration) && (
+              <Tab
+                eventKey="resources"
+                title={
+                  <>
+                    Enabled resources{' '}
+                    {getTotalResourceCount(integration) > 0 && <Badge isRead>{enabledResourceCount}</Badge>}
+                  </>
+                }
+              >
+                <ResourcesTabContent
+                  integration={integration}
+                  isLLM={isLLM}
+                  modelsState={modelsState}
+                  tools={tools}
+                  enabledToolIds={enabledToolIds}
+                  toolEnabledCount={toolEnabledCount}
+                  handleSelectTool={handleSelectTool}
+                  refetchTools={() => refetchTools()}
+                  onRefreshed={async () => {
+                    const result = await query.refetch()
+                    return result.data
+                  }}
+                  canUpdate={permissions.canUpdate}
+                  updateTooltip={permissions.tooltips.update}
+                />
+              </Tab>
+            )}
           </NxUrlTabs>
         </NxPanel>
       </NxPageBody>

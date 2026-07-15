@@ -75,6 +75,31 @@ const mockIntegration = {
   labels: {},
 }
 
+const mockAapIntegration = {
+  id: 'int-2',
+  name: 'My Ansible Automation Integration',
+  description: 'A production Ansible Automation Platform',
+  integration_type: 'ansible_automation_platform',
+  enabled: true,
+  validation_status: 'available',
+  scope: 'global',
+  configuration: {
+    integration_type: 'ansible_automation_platform',
+    aap_url: 'https://aap.example.com',
+    insecure_skip_tls_verify: false,
+  },
+  management_credential_id: null,
+  last_validated_at: '2026-01-01T00:00:00Z',
+  validation_error: null,
+  refresh_status: 'available',
+  last_refreshed_at: '2026-01-01T00:00:00Z',
+  refresh_error: null,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  created_by: 'user-1',
+  labels: {},
+}
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 })
@@ -235,7 +260,7 @@ describe('EditIntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(screen.getByText('Name is required')).toBeInTheDocument()
+        expect(screen.getByText('Server name / ID is required')).toBeInTheDocument()
       })
     })
 
@@ -248,7 +273,7 @@ describe('EditIntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
+        expect(screen.getByText(/base url is required/i)).toBeInTheDocument()
       })
     })
 
@@ -545,6 +570,146 @@ describe('EditIntegrationForm', () => {
     })
   })
 
+  describe('Ansible Automation Platform', () => {
+    beforeEach(() => {
+      setupMocks({ integration: mockAapIntegration })
+    })
+
+    it('shows Ansible Automation Platform as integration type', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByText('Ansible Automation Platform')).toBeInTheDocument()
+    })
+
+    it('renders AAP URL field', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByDisplayValue('https://aap.example.com')).toBeInTheDocument()
+    })
+
+    it('does not render API URL field for Ansible Automation Platform', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.queryByLabelText('API URL')).not.toBeInTheDocument()
+    })
+
+    it('renders TLS verification switch', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByRole('switch', { name: /ssl verification/i })).toBeInTheDocument()
+    })
+
+    it('shows TLS warning when verification is disabled', () => {
+      setupMocks({
+        integration: {
+          ...mockAapIntegration,
+          configuration: {
+            integration_type: 'ansible_automation_platform',
+            aap_url: 'https://aap.example.com',
+            insecure_skip_tls_verify: true,
+          },
+        },
+      })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByText(/disabling tls verification/i)).toBeInTheDocument()
+    })
+
+    it('calls PATCH with Ansible Automation Platform configuration on save', async () => {
+      const { patchMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
+
+      await waitFor(() => {
+        expect(patchMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            body: expect.objectContaining({
+              configuration: {
+                integration_type: 'ansible_automation_platform',
+                aap_url: 'https://aap.example.com',
+                insecure_skip_tls_verify: false,
+              },
+            }) as Record<string, unknown>,
+          }),
+          expect.any(Object)
+        )
+      })
+    })
+
+    it('calls discover with Ansible Automation Platform configuration on test connection', async () => {
+      const { discoverMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      expect(discoverMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({
+            integration_type: 'ansible_automation_platform',
+            configuration: expect.objectContaining({
+              integration_type: 'ansible_automation_platform',
+              aap_url: 'https://aap.example.com',
+            }) as Record<string, unknown>,
+          }) as Record<string, unknown>,
+        }),
+        expect.any(Object)
+      )
+    })
+
+    it('shows AAP-specific credential description text', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByText(/verify the connection to the Ansible Automation Platform/i)).toBeInTheDocument()
+    })
+
+    it('shows error when AAP URL is empty', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const aapUrlInput = screen.getByDisplayValue('https://aap.example.com')
+      await user.clear(aapUrlInput)
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/aap url is required/i)).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when AAP URL is not a valid HTTPS URL', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const aapUrlInput = screen.getByDisplayValue('https://aap.example.com')
+      await user.clear(aapUrlInput)
+      await user.type(aapUrlInput, 'not-a-url')
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
+      })
+    })
+
+    it('handles null AAP URL in configuration gracefully', () => {
+      setupMocks({
+        integration: {
+          ...mockAapIntegration,
+          configuration: {
+            integration_type: 'ansible_automation_platform',
+            aap_url: null,
+            insecure_skip_tls_verify: false,
+          },
+        },
+      })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByRole('textbox', { name: /aap url/i })).toHaveValue('')
+    })
+  })
+
   describe('Accessibility', () => {
     it('has no accessibility violations', async () => {
       const { container } = render(<EditIntegrationForm />, { wrapper })
@@ -590,7 +755,7 @@ describe('EditIntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
+        expect(screen.getByText(/base url is required/i)).toBeInTheDocument()
       })
     })
 
@@ -613,7 +778,7 @@ describe('EditIntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
+        expect(screen.getByText(/base url is required/i)).toBeInTheDocument()
       })
     })
 
@@ -698,6 +863,38 @@ describe('EditIntegrationForm', () => {
       render(<EditIntegrationForm />, { wrapper })
 
       expect(screen.getByText('MCP Server')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('https://mcp.example.com')).toBeInTheDocument()
+    })
+  })
+
+  describe('Null configuration fallbacks', () => {
+    it('handles null base_url in MCP configuration', () => {
+      setupMocks({
+        integration: {
+          configuration: {
+            integration_type: 'mcp_server',
+            base_url: null,
+          },
+        },
+      })
+      render(<EditIntegrationForm />, { wrapper })
+
+      const urlInput = screen.getByRole('textbox', { name: /api url/i })
+      expect(urlInput).toHaveValue('')
+    })
+
+    it('handles missing integration_type with fallback', () => {
+      setupMocks({
+        integration: {
+          integration_type: null,
+          configuration: {
+            integration_type: 'mcp_server',
+            base_url: 'https://mcp.example.com',
+          },
+        },
+      })
+      render(<EditIntegrationForm />, { wrapper })
+
       expect(screen.getByDisplayValue('https://mcp.example.com')).toBeInTheDocument()
     })
   })

@@ -1,5 +1,6 @@
-import { IntegrationTypeEnum, LLMProviderHintEnum } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
+  Alert,
   Content,
   ContentVariants,
   Form,
@@ -27,7 +28,7 @@ import styles from './WizardSteps.module.css'
 
 type ControlledTextFieldProps = Readonly<{
   control: Control<IntegrationFormData>
-  name: 'name' | 'description' | 'configuration.base_url'
+  name: 'name' | 'description' | 'configuration.base_url' | 'configuration.aap_url'
   label: string
   fieldId: string
   placeholder: string
@@ -179,7 +180,7 @@ function ProviderHintSelect({
 type IntegrationDetailsStepProps = Readonly<{
   control: Control<IntegrationFormData>
   setValue: UseFormSetValue<IntegrationFormData>
-  onTypeChange?: () => void
+  onTypeChange: (newType: string) => void
 }>
 
 export function IntegrationDetailsStep({ control, setValue, onTypeChange }: IntegrationDetailsStepProps) {
@@ -190,6 +191,7 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
   const [isProviderOpen, setIsProviderOpen] = useState(false)
 
   const isLLM = integrationType === IntegrationTypeEnum.LLM_PROVIDER
+  const isAAP = integrationType === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM
   const typeConfig = isLLM
     ? {
         nameLabel: 'Name',
@@ -203,9 +205,9 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
         nameLabel: 'Server name / ID',
         namePlaceholder: 'Enter server name / ID',
         showProviderHint: false,
-        hideBaseUrl: false,
-        requireBaseUrl: true,
-        baseUrlPlaceholder: 'https://mcp-server.example.com/mcp',
+        hideBaseUrl: isAAP,
+        requireBaseUrl: !isAAP,
+        baseUrlPlaceholder: isAAP ? '' : 'https://mcp-server.example.com/mcp',
       }
 
   const renderTypeToggle = useCallback(
@@ -252,21 +254,8 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
                 onOpenChange={setIsTypeOpen}
                 onSelect={(value) => {
                   const validType = INTEGRATION_TYPE_OPTIONS.find((opt) => opt.value === value)
-                  if (!validType || validType.value === field.value) return
-                  field.onChange(validType.value)
-
-                  if (validType.value === IntegrationTypeEnum.MCP_SERVER) {
-                    setValue('configuration', { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: '' })
-                  } else {
-                    setValue('configuration', {
-                      integration_type: IntegrationTypeEnum.LLM_PROVIDER,
-                      provider_hint: LLMProviderHintEnum.RED_HAT_AI,
-                      base_url: '',
-                    })
-                  }
-
-                  setValue('management_credential_id', null)
-                  onTypeChange?.()
+                  if (!validType) return
+                  onTypeChange(validType.value)
                   setIsTypeOpen(false)
                 }}
                 renderToggle={renderTypeToggle}
@@ -322,6 +311,43 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
             isRequired={typeConfig.requireBaseUrl}
           />
         )}
+
+        {isAAP && (
+          <>
+            <ControlledTextField
+              control={control}
+              name="configuration.aap_url"
+              label="AAP URL"
+              fieldId="aap-url"
+              placeholder="e.g. https://aap.example.com"
+              isRequired
+            />
+            <FormGroup label="Verify SSL certificate" fieldId="tls-verify">
+              <Controller
+                name="configuration.insecure_skip_tls_verify"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <Switch
+                      id="tls-verify"
+                      label={field.value ? 'SSL verification disabled' : 'SSL verification enabled'}
+                      aria-label="SSL verification"
+                      hasCheckIcon
+                      isChecked={!field.value}
+                      onChange={(_event, checked) => field.onChange(!checked)}
+                    />
+                    {field.value && (
+                      <Alert variant="warning" isInline isPlain title="Insecure connection">
+                        Disabling TLS verification is insecure and not recommended for production environments.
+                      </Alert>
+                    )}
+                  </>
+                )}
+              />
+            </FormGroup>
+          </>
+        )}
+
         <FormGroup label="Scope" fieldId="integration-scope">
           <Controller
             name="scope"

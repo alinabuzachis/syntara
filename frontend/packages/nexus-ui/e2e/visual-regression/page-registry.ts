@@ -779,6 +779,24 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Edit integration' })).toBeVisible()
     },
   },
+  {
+    section: 'configuration/integrations',
+    name: 'aap-detail',
+    path: AppRoute.Configuration.Integrations.Detail.replace(':integrationId', '12'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Production AAP' })).toBeVisible()
+      await expect(page.getByText('Ansible Automation Platform', { exact: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'aap-edit',
+    path: AppRoute.Configuration.Integrations.Edit.replace(':integrationId', '12'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Edit integration' })).toBeVisible()
+      await expect(page.locator('input[value="https://aap.prod.example.com"]')).toBeVisible()
+    },
+  },
   ...integrationDialogPages,
   ...integrationWizardPages,
 

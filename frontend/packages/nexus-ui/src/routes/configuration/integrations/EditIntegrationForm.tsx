@@ -3,6 +3,7 @@ import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   ActionGroup,
+  Alert,
   Button,
   Content,
   ContentVariants,
@@ -20,9 +21,8 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
-import { z } from 'zod'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsIntegrationEdit } from '../../../app/breadcrumbBuilders'
@@ -35,12 +35,13 @@ import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
-import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 import { CredentialSelector } from '../../builder/components/CredentialSelector'
 
 import styles from './EditIntegrationForm.module.css'
+import type { EditIntegrationFormValues, IntegrationRead } from './editIntegrationFormSchema'
+import { buildConfiguration, buildEditSchema, editIntegrationSchema } from './editIntegrationFormSchema'
 import {
   CREDENTIAL_TYPES_BY_INTEGRATION,
   INTEGRATION_TYPE_LABELS,
@@ -48,107 +49,67 @@ import {
   PROVIDERS_HIDING_BASE_URL,
   PROVIDERS_REQUIRING_BASE_URL,
 } from './integrationFilters'
-import { getBaseUrl, getProviderHint, isLLMProvider } from './integrationUtils'
+import { getProviderHint, isLLMProvider } from './integrationUtils'
+import { useEditTestConnection } from './useEditTestConnection'
 
-const httpUrl = z
-  .string()
-  .url('Must be a valid URL')
-  .refine((url) => /^https?:\/\//.test(url), 'Must be an HTTP or HTTPS URL')
-
-function buildEditIntegrationSchema(isLLM: boolean, requiresBaseUrl: boolean) {
-  const urlRequired = !isLLM || requiresBaseUrl
-  return z.object({
-    name: z.string().min(1, 'Name is required'),
-    description: z.string(),
-    base_url: urlRequired ? httpUrl : httpUrl.or(z.literal('')),
-    scope: z.enum(['global', 'project']),
-    management_credential_id: z.string().nullable(),
-  })
-}
-
-const editIntegrationSchema = buildEditIntegrationSchema(false, true)
-
-type EditIntegrationFormValues = z.infer<typeof editIntegrationSchema>
-
-type DiscoverResult = IntegrationsAPI.components['schemas']['DiscoverResult']
-type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
-
-function buildConfiguration(
-  integration: IntegrationRead,
-  baseUrl: string
-): NonNullable<IntegrationsAPI.components['schemas']['IntegrationPatch']['configuration']> {
-  if (isLLMProvider(integration) && integration.configuration.integration_type === IntegrationTypeEnum.LLM_PROVIDER) {
-    return {
-      integration_type: IntegrationTypeEnum.LLM_PROVIDER,
-      provider_hint: integration.configuration.provider_hint,
-      base_url: baseUrl || undefined,
-    }
-  }
-  return { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: baseUrl }
-}
-
-function useTestConnection(integration: IntegrationRead | undefined, getValues: () => EditIntegrationFormValues) {
-  const { showAlert } = useAlerts()
-  const { mutate: testConnection, isPending: isTesting } = integrationsClient.useMutation(
-    'post',
-    '/integrations/discover'
+function AapConfigurationFields({
+  control,
+  errors,
+}: Readonly<{
+  control: ReturnType<typeof useForm<EditIntegrationFormValues>>['control']
+  errors: ReturnType<typeof useForm<EditIntegrationFormValues>>['formState']['errors']
+}>) {
+  return (
+    <>
+      <FormGroup label="AAP URL" isRequired fieldId="edit-aap-url">
+        <Controller
+          name="aap_url"
+          control={control}
+          render={({ field }) => (
+            <TextInput
+              id="edit-aap-url"
+              isRequired
+              placeholder="e.g. https://aap.example.com"
+              validated={errors.aap_url ? 'error' : 'default'}
+              {...field}
+            />
+          )}
+        />
+        {errors.aap_url && (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                {errors.aap_url.message}
+              </HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        )}
+      </FormGroup>
+      <FormGroup label="Verify SSL certificate" fieldId="edit-tls-verify">
+        <Controller
+          name="insecure_skip_tls_verify"
+          control={control}
+          render={({ field }) => (
+            <>
+              <Switch
+                id="edit-tls-verify"
+                label={field.value ? 'SSL verification disabled' : 'SSL verification enabled'}
+                aria-label="SSL verification"
+                hasCheckIcon
+                isChecked={!field.value}
+                onChange={(_event, checked) => field.onChange(!checked)}
+              />
+              {field.value && (
+                <Alert variant="warning" isInline isPlain title="Insecure connection">
+                  Disabling TLS verification is insecure and not recommended for production environments.
+                </Alert>
+              )}
+            </>
+          )}
+        />
+      </FormGroup>
+    </>
   )
-
-  const handleTestConnection = useCallback(() => {
-    const values = getValues()
-    const credId = values.management_credential_id
-    if (!credId) return
-
-    const isLLM = integration ? isLLMProvider(integration) : false
-    testConnection(
-      {
-        body: {
-          integration_type: integration?.integration_type ?? IntegrationTypeEnum.MCP_SERVER,
-          configuration: integration
-            ? buildConfiguration(integration, values.base_url)
-            : { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: values.base_url },
-          credential_id: credId,
-        },
-      },
-      {
-        onSuccess: (result: DiscoverResult) => {
-          if (result.success) {
-            const resourceCount = isLLM
-              ? (result.discovered_models?.length ?? 0)
-              : (result.discovered_tools?.length ?? 0)
-            const singular = isLLM ? 'model' : 'tool'
-            const resourceLabel = resourceCount === 1 ? singular : `${singular}s`
-            showAlert({
-              title: 'Connection tested',
-              description:
-                resourceCount > 0
-                  ? `Successfully connected. Discovered ${String(resourceCount)} ${resourceLabel}.`
-                  : 'Successfully connected. The integration is reachable.',
-              variant: 'success',
-              autoDismiss: true,
-            })
-          } else {
-            showAlert({
-              title: 'Connection failed',
-              description: result.error ?? 'Unable to connect to the integration.',
-              variant: 'danger',
-              autoDismiss: true,
-            })
-          }
-        },
-        onError: (error: unknown) => {
-          showAlert({
-            title: 'Connection test failed',
-            description: getErrorMessage(error),
-            variant: 'danger',
-            autoDismiss: true,
-          })
-        },
-      }
-    )
-  }, [getValues, testConnection, showAlert, integration])
-
-  return { handleTestConnection, isTesting }
 }
 
 type FormFieldsProps = Readonly<{
@@ -172,6 +133,11 @@ function EditIntegrationFormFields({
   setValue,
   onTestConnection,
 }: FormFieldsProps) {
+  const isAnsibleAutomationPlatform = integration.integration_type === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM
+  const isLLM = isLLMProvider(integration)
+  const hideBaseUrl =
+    isAnsibleAutomationPlatform || (isLLM && PROVIDERS_HIDING_BASE_URL.has(getProviderHint(integration)))
+
   return (
     <>
       <Title headingLevel="h2" size="lg">
@@ -182,14 +148,14 @@ function EditIntegrationFormFields({
         <NxDetail label="Integration type">
           {INTEGRATION_TYPE_LABELS[integration.integration_type ?? ''] ?? integration.integration_type ?? ''}
         </NxDetail>
-        {isLLMProvider(integration) && (
+        {isLLM && (
           <NxDetail label="Provider type">
             {PROVIDER_HINT_LABELS[getProviderHint(integration)] ?? getProviderHint(integration)}
           </NxDetail>
         )}
       </DescriptionList>
 
-      <FormGroup label={isLLMProvider(integration) ? 'Name' : 'Server name / ID'} isRequired fieldId="edit-name">
+      <FormGroup label={isLLM ? 'Name' : 'Server name / ID'} isRequired fieldId="edit-name">
         <Controller
           name="name"
           control={control}
@@ -226,15 +192,15 @@ function EditIntegrationFormFields({
         />
       </FormGroup>
 
-      {!(isLLMProvider(integration) && PROVIDERS_HIDING_BASE_URL.has(getProviderHint(integration))) && (
-        <FormGroup label="API URL" isRequired={!isLLMProvider(integration)} fieldId="edit-base-url">
+      {!hideBaseUrl && (
+        <FormGroup label="API URL" isRequired={!isLLM} fieldId="edit-base-url">
           <Controller
             name="base_url"
             control={control}
             render={({ field }) => (
               <TextInput
                 id="edit-base-url"
-                isRequired={!isLLMProvider(integration)}
+                isRequired={!isLLM}
                 validated={errors.base_url ? 'error' : 'default'}
                 {...field}
               />
@@ -251,6 +217,8 @@ function EditIntegrationFormFields({
           )}
         </FormGroup>
       )}
+
+      {isAnsibleAutomationPlatform && <AapConfigurationFields control={control} errors={errors} />}
 
       <FormGroup label="Scope" fieldId="edit-integration-scope">
         <Controller
@@ -285,8 +253,9 @@ function EditIntegrationFormFields({
           Connection credential
         </Title>
         <Content component={ContentVariants.p} className={styles.credentialDescription}>
-          This credential is used to verify the connection to this integration and perform periodic health checks.
-          Workflow credentials are configured separately in the workflow builder.
+          {isAnsibleAutomationPlatform
+            ? 'This credential is used to verify the connection to the Ansible Automation Platform. Workflow credentials are configured separately in the workflow builder.'
+            : 'This credential is used to verify the connection to this integration and perform periodic health checks. Workflow credentials are configured separately in the workflow builder.'}
         </Content>
       </div>
 
@@ -304,7 +273,11 @@ function EditIntegrationFormFields({
             fieldId="edit-credential-select"
             allowCreate
             placeholder="Select a credential"
-            helpText="Used to test and monitor the connection to this integration."
+            helpText={
+              isAnsibleAutomationPlatform
+                ? 'Used to authenticate with the Ansible Automation Platform for connection testing.'
+                : 'Used to test and monitor the connection to this integration.'
+            }
           />
         )}
       />
@@ -339,9 +312,10 @@ export function EditIntegrationForm() {
 
   const schema = useMemo(() => {
     if (!integration) return editIntegrationSchema
-    const isLLM = isLLMProvider(integration)
-    const requiresBaseUrl = PROVIDERS_REQUIRING_BASE_URL.has(getProviderHint(integration))
-    return buildEditIntegrationSchema(isLLM, requiresBaseUrl)
+    const requiresBaseUrl = isLLMProvider(integration)
+      ? PROVIDERS_REQUIRING_BASE_URL.has(getProviderHint(integration))
+      : true
+    return buildEditSchema(requiresBaseUrl)
   }, [integration])
 
   const {
@@ -357,7 +331,10 @@ export function EditIntegrationForm() {
     defaultValues: {
       name: '',
       description: '',
+      integration_type: '',
       base_url: '',
+      aap_url: '',
+      insecure_skip_tls_verify: false,
       scope: 'global',
       management_credential_id: null,
     },
@@ -365,10 +342,15 @@ export function EditIntegrationForm() {
 
   useEffect(() => {
     if (integration) {
+      const config = integration.configuration
       reset({
         name: integration.name ?? '',
         description: integration.description ?? '',
-        base_url: getBaseUrl(integration),
+        integration_type: integration.integration_type ?? IntegrationTypeEnum.MCP_SERVER,
+        base_url: 'base_url' in config ? String(config.base_url ?? '') : '',
+        aap_url: 'aap_url' in config ? String(config.aap_url ?? '') : '',
+        insecure_skip_tls_verify:
+          'insecure_skip_tls_verify' in config ? Boolean(config.insecure_skip_tls_verify) : false,
         scope: (integration.scope as 'global' | 'project') ?? 'global',
         management_credential_id: integration.management_credential_id ?? null,
       })
@@ -385,18 +367,22 @@ export function EditIntegrationForm() {
     '/integrations/{integration_id}'
   )
 
-  const { handleTestConnection, isTesting } = useTestConnection(integration, getValues)
+  const { handleTestConnection, isTesting } = useEditTestConnection(integration, getValues)
 
   function onSubmit(values: EditIntegrationFormValues) {
-    if (!integrationId) return
+    if (!integrationId || !integration) return
+
+    const integrationType = integration.integration_type ?? IntegrationTypeEnum.MCP_SERVER
 
     const body: IntegrationsAPI.components['schemas']['IntegrationPatch'] = {
       name: values.name,
       description: values.description || null,
       scope: values.scope,
-      configuration: integration
-        ? buildConfiguration(integration, values.base_url)
-        : { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: values.base_url },
+      configuration: buildConfiguration(
+        integrationType,
+        values,
+        isLLMProvider(integration) ? getProviderHint(integration) : undefined
+      ),
       management_credential_id: values.management_credential_id,
     }
 

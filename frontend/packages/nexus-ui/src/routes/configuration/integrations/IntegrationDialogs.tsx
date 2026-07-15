@@ -1,3 +1,4 @@
+import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { Badge, Content, ContentVariants } from '@patternfly/react-core'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
@@ -22,6 +23,11 @@ export function IntegrationDialogs({
   onDelete,
   onDisable,
 }: IntegrationDialogsProps) {
+  const activeItem = disableDialog.item ?? deleteDialog.item
+  const hasResources =
+    activeItem?.integration_type === IntegrationTypeEnum.MCP_SERVER ||
+    activeItem?.integration_type === IntegrationTypeEnum.LLM_PROVIDER
+
   return (
     <>
       <NxConfirmationDialog
@@ -47,19 +53,25 @@ export function IntegrationDialogs({
         titleIconVariant="warning"
         destructiveAcknowledgement={{
           checkboxId: 'delete-integration-ack',
-          label: 'I understand this integration and the resources shown above will be permanently deleted.',
+          label: hasResources
+            ? 'I understand this integration and the resources shown above will be permanently deleted.'
+            : 'I understand this integration will be permanently deleted.',
         }}
       >
         <Content component={ContentVariants.p}>
           The integration <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
         </Content>
-        <Content component={ContentVariants.p}>
-          <strong>Resources that will be deleted</strong>
-        </Content>
-        <Content component={ContentVariants.p}>
-          {deleteDialog.item && isLLMProvider(deleteDialog.item) ? 'Models' : 'Tools'}{' '}
-          <Badge isRead>{deleteDialog.item ? getTotalResourceCount(deleteDialog.item) : 0}</Badge>
-        </Content>
+        {hasResources && (
+          <>
+            <Content component={ContentVariants.p}>
+              <strong>Resources that will be deleted</strong>
+            </Content>
+            <Content component={ContentVariants.p}>
+              {deleteDialog.item && isLLMProvider(deleteDialog.item) ? 'Models' : 'Tools'}{' '}
+              <Badge isRead>{deleteDialog.item ? getTotalResourceCount(deleteDialog.item) : 0}</Badge>
+            </Content>
+          </>
+        )}
       </NxConfirmationDialog>
 
       <NxConfirmationDialog
@@ -73,11 +85,18 @@ export function IntegrationDialogs({
         <Content component={ContentVariants.p}>
           You are about to disable the following integration: <strong>{disableDialog.item?.name}</strong>
         </Content>
-        <Content component={ContentVariants.p}>
-          Workflows using this integration will no longer have access to its{' '}
-          {disableDialog.item ? getResourceNoun(disableDialog.item) : 'tools'}. You can re-enable the integration at any
-          time.
-        </Content>
+        {hasResources ? (
+          <Content component={ContentVariants.p}>
+            Workflows using this integration will no longer have access to its{' '}
+            {disableDialog.item ? getResourceNoun(disableDialog.item) : 'tools'}. You can re-enable the integration at
+            any time.
+          </Content>
+        ) : (
+          <Content component={ContentVariants.p}>
+            Workflows using this integration will no longer be able to connect to Ansible Automation Platform. You can
+            re-enable the integration at any time.
+          </Content>
+        )}
       </NxConfirmationDialog>
     </>
   )

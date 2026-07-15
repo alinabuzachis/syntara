@@ -1,3 +1,4 @@
+import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -129,7 +130,7 @@ describe('IntegrationForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
-    expect(screen.getByText('Name is required')).toBeInTheDocument()
+    expect(screen.getByText('Server name / ID is required')).toBeInTheDocument()
     expect(screen.getByText('Base URL is required')).toBeInTheDocument()
   })
 
@@ -141,7 +142,7 @@ describe('IntegrationForm', () => {
     await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
-    expect(screen.getByText(/This credential is used to discover/)).toBeInTheDocument()
+    expect(screen.getByText(/credential is used to discover/i)).toBeInTheDocument()
     expect(screen.getByTestId('credential-selector')).toBeInTheDocument()
   })
 
@@ -189,7 +190,7 @@ describe('IntegrationForm', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
-    expect(screen.queryByText(/This credential is used to discover/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/credential is used to discover/i)).not.toBeInTheDocument()
   })
 
   it('navigates to integrations list when Cancel is clicked', async () => {
@@ -211,7 +212,7 @@ describe('IntegrationForm', () => {
     await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
-    expect(screen.getByText(/This credential is used to discover/)).toBeInTheDocument()
+    expect(screen.getByText(/credential is used to discover/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Back' }))
 
@@ -295,6 +296,127 @@ describe('IntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Back' }))
 
       expect(screen.getByText(/credential is used to discover/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('Ansible Automation Platform wizard flow', () => {
+    async function selectAnsibleAutomationPlatform(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByText('MCP Server'))
+      await user.click(screen.getByText('Ansible Automation Platform'))
+    }
+
+    async function advanceAapToStep2(user: ReturnType<typeof userEvent.setup>) {
+      await selectAnsibleAutomationPlatform(user)
+      await user.type(screen.getByRole('textbox', { name: /name/i }), 'My Ansible Automation Platform')
+      await user.type(screen.getByRole('textbox', { name: /aap url/i }), 'https://aap.example.com')
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+    }
+
+    it('shows Ansible Automation Platform as a selectable type option', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await user.click(screen.getByText('MCP Server'))
+
+      expect(screen.getByText('Ansible Automation Platform')).toBeInTheDocument()
+    })
+
+    it('shows AAP URL field after selecting Ansible Automation Platform', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await selectAnsibleAutomationPlatform(user)
+
+      expect(screen.getByRole('textbox', { name: /aap url/i })).toBeInTheDocument()
+      expect(screen.queryByRole('textbox', { name: /base url/i })).not.toBeInTheDocument()
+    })
+
+    it('resets fields when switching from MCP to Ansible Automation Platform', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+      await selectAnsibleAutomationPlatform(user)
+
+      expect(screen.getByRole('textbox', { name: /aap url/i })).toHaveValue('')
+    })
+
+    it('advances to step 2 with valid Ansible Automation Platform fields', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceAapToStep2(user)
+
+      expect(screen.getByText(/verify that the Ansible Automation Platform is reachable/i)).toBeInTheDocument()
+    })
+
+    it('shows Save button on step 2 (no step 3)', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceAapToStep2(user)
+      await user.click(screen.getByTestId('select-credential'))
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument()
+    })
+
+    it('calls createIntegration with Ansible Automation Platform configuration on Save', async () => {
+      const createMutate = vi.fn()
+      mockMutations(undefined, createMutate)
+
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceAapToStep2(user)
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(createMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            body: expect.objectContaining({
+              integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
+              configuration: expect.objectContaining({
+                integration_type: 'ansible_automation_platform',
+                aap_url: 'https://aap.example.com',
+              }) as Record<string, unknown>,
+              discovered_tools: null,
+            }) as Record<string, unknown>,
+          }),
+          expect.any(Object)
+        )
+      })
+    })
+
+    it('disables Save button on step 2 when no credential is selected', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceAapToStep2(user)
+
+      expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('shows validation error alert when saving with cleared fields', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceAapToStep2(user)
+      await user.click(screen.getByTestId('select-credential'))
+
+      await user.click(screen.getByRole('button', { name: 'Back' }))
+      const nameInput = screen.getByRole('textbox', { name: /name/i })
+      const aapUrlInput = screen.getByRole('textbox', { name: /aap url/i })
+      await user.clear(nameInput)
+      await user.clear(aapUrlInput)
+
+      await user.click(screen.getByRole('button', { name: /Connection credential/i }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Unable to save integration')).toBeInTheDocument()
+      })
     })
   })
 
@@ -542,6 +664,48 @@ describe('IntegrationForm', () => {
       expect(screen.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true')
     })
 
+    it('calls createIntegration with discovered models on Save for LLM', async () => {
+      const discoverMutate = vi.fn()
+      discoverMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({
+          success: true,
+          discovered_models: [
+            { id: 'm1', name: 'model-1', description: 'First' },
+            { id: 'm2', name: 'model-2', description: 'Second' },
+          ],
+        })
+      })
+      const { createMutate } = mockMutations(discoverMutate)
+
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceLLMToStep2(user)
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Connection tested')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(createMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            body: expect.objectContaining({
+              integration_type: IntegrationTypeEnum.LLM_PROVIDER,
+              discovered_models: expect.arrayContaining([
+                expect.objectContaining({ model_id: 'm1', name: 'model-1', enabled: true }),
+              ]) as unknown[],
+            }) as Record<string, unknown>,
+          }),
+          expect.any(Object)
+        )
+      })
+    })
+
     it('MCP server flow still works unchanged (regression)', async () => {
       const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
@@ -551,6 +715,57 @@ describe('IntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Next' }))
 
       expect(screen.getByText(/This credential is used to discover/)).toBeInTheDocument()
+    })
+  })
+
+  describe('Validation error alert on save', () => {
+    it('shows validation error alert with name error when saving MCP form with cleared name', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
+      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+
+      await user.click(screen.getByRole('button', { name: 'Back' }))
+      await user.click(screen.getByRole('button', { name: 'Back' }))
+
+      const nameInput = screen.getByRole('textbox', { name: /name/i })
+      await user.clear(nameInput)
+      const urlInput = screen.getByRole('textbox', { name: /base url/i })
+      await user.clear(urlInput)
+
+      await user.click(screen.getByRole('button', { name: /Enable tools/i }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Unable to save integration')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Test connection disabled during testing', () => {
+    it('disables test connection and step navigation when testing is in progress', async () => {
+      vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path === '/integrations/discover') {
+          return { mutate: vi.fn(), isPending: true, isError: false } as never
+        }
+        return { mutate: vi.fn(), isPending: false, isError: false } as never
+      })
+
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
+      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+
+      await user.click(screen.getByTestId('select-credential'))
+
+      expect(screen.getByRole('button', { name: /test connection/i })).toHaveAttribute('aria-disabled', 'true')
     })
   })
 })

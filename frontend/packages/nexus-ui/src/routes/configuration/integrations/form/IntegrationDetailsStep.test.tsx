@@ -1,23 +1,71 @@
+import { IntegrationTypeEnum, LLMProviderHintEnum } from '@ansible/nexus-contracts'
 import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { IntegrationDetailsStep } from './IntegrationDetailsStep'
 import type { IntegrationFormData } from './integrationFormSchema'
 
-function TestWrapper() {
-  const { control, setValue } = useForm<IntegrationFormData>({
-    defaultValues: {
-      name: '',
-      description: '',
-      integration_type: 'mcp_server',
-      configuration: { integration_type: 'mcp_server', base_url: '' },
-      scope: 'global',
+function TestWrapper({
+  defaultType = IntegrationTypeEnum.MCP_SERVER,
+  onTypeChange: onTypeChangeProp = vi.fn(),
+}: {
+  defaultType?: string
+  onTypeChange?: (newType: string) => void
+} = {}) {
+  const defaultValues: IntegrationFormData =
+    defaultType === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM
+      ? {
+          name: '',
+          description: '',
+          integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
+          configuration: {
+            integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
+            aap_url: '',
+            insecure_skip_tls_verify: false,
+          },
+          scope: 'global',
+        }
+      : {
+          name: '',
+          description: '',
+          integration_type: IntegrationTypeEnum.MCP_SERVER,
+          configuration: { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: '' },
+          scope: 'global',
+        }
+
+  const { control, setValue } = useForm<IntegrationFormData>({ defaultValues })
+
+  const onTypeChange = useCallback(
+    (newType: string) => {
+      let newConfig: IntegrationFormData['configuration']
+      if (newType === IntegrationTypeEnum.LLM_PROVIDER) {
+        newConfig = {
+          integration_type: 'llm_provider' as const,
+          provider_hint: LLMProviderHintEnum.RED_HAT_AI,
+          base_url: '',
+        }
+      } else if (newType === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM) {
+        newConfig = {
+          integration_type: 'ansible_automation_platform' as const,
+          aap_url: '',
+          insecure_skip_tls_verify: false,
+        }
+      } else {
+        newConfig = { integration_type: 'mcp_server' as const, base_url: '' }
+      }
+      setValue('configuration', newConfig, { shouldValidate: false })
+      setValue('integration_type', newType as IntegrationFormData['integration_type'])
+      setValue('management_credential_id', null)
+      onTypeChangeProp(newType)
     },
-  })
-  return <IntegrationDetailsStep control={control} setValue={setValue} />
+    [setValue, onTypeChangeProp]
+  )
+
+  return <IntegrationDetailsStep control={control} setValue={setValue} onTypeChange={onTypeChange} />
 }
 
 describe('IntegrationDetailsStep', () => {
@@ -46,10 +94,16 @@ describe('IntegrationDetailsStep', () => {
     expect(screen.getByRole('textbox', { name: /description/i })).toBeInTheDocument()
   })
 
-  it('renders base URL field', () => {
+  it('renders base URL field for MCP Server', () => {
     render(<TestWrapper />)
 
     expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
+  })
+
+  it('does not render AAP URL field for MCP Server', () => {
+    render(<TestWrapper />)
+
+    expect(screen.queryByRole('textbox', { name: /aap url/i })).not.toBeInTheDocument()
   })
 
   it('allows typing in name field', async () => {
@@ -60,6 +114,54 @@ describe('IntegrationDetailsStep', () => {
     await user.type(nameInput, 'My MCP Server')
 
     expect(nameInput).toHaveValue('My MCP Server')
+  })
+
+  describe('Ansible Automation Platform', () => {
+    it('renders AAP URL field for Ansible Automation Platform', () => {
+      render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
+
+      expect(screen.getByRole('textbox', { name: /aap url/i })).toBeInTheDocument()
+    })
+
+    it('does not render base URL field for Ansible Automation Platform', () => {
+      render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
+
+      expect(screen.queryByRole('textbox', { name: /base url/i })).not.toBeInTheDocument()
+    })
+
+    it('renders TLS verification switch for Ansible Automation Platform', () => {
+      render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
+
+      expect(screen.getByRole('switch', { name: /ssl verification/i })).toBeInTheDocument()
+    })
+
+    it('shows TLS warning when verification is disabled', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
+
+      await user.click(screen.getByRole('switch', { name: /ssl verification/i }))
+
+      expect(screen.getByText(/disabling tls verification/i)).toBeInTheDocument()
+    })
+
+    it('hides TLS warning when verification is enabled', () => {
+      render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
+
+      expect(screen.queryByText(/disabling tls verification/i)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('type change', () => {
+    it('calls onTypeChange callback when type is selected', async () => {
+      const onTypeChange = vi.fn()
+      const user = userEvent.setup()
+      render(<TestWrapper onTypeChange={onTypeChange} />)
+
+      await user.click(screen.getByText('MCP Server'))
+      await user.click(screen.getByText('Ansible Automation Platform'))
+
+      expect(onTypeChange).toHaveBeenCalledWith(IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM)
+    })
   })
 
   it('has no accessibility violations', async () => {
@@ -83,7 +185,7 @@ describe('IntegrationDetailsStep', () => {
           scope: 'global',
         },
       })
-      return <IntegrationDetailsStep control={control} setValue={setValue} />
+      return <IntegrationDetailsStep control={control} setValue={setValue} onTypeChange={vi.fn()} />
     }
 
     it('shows provider hint dropdown when LLM Provider is selected', () => {
@@ -122,6 +224,16 @@ describe('IntegrationDetailsStep', () => {
       expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
     })
 
+    it('changes provider hint when selecting a different provider', async () => {
+      const user = userEvent.setup()
+      render(<LLMTestWrapper />)
+
+      await user.click(screen.getByText('Red Hat AI'))
+      await user.click(screen.getByRole('option', { name: 'OpenAI' }))
+
+      expect(screen.getByRole('button', { name: 'OpenAI' })).toBeInTheDocument()
+    })
+
     it('has no accessibility violations with LLM Provider selected', async () => {
       const { container } = render(<LLMTestWrapper />)
 
@@ -130,6 +242,36 @@ describe('IntegrationDetailsStep', () => {
         results = await axe(container)
       })
       expect(results!).toHaveNoViolations()
+    })
+  })
+
+  describe('scope toggle', () => {
+    it('defaults to global scope', () => {
+      render(<TestWrapper />)
+
+      const toggle = screen.getByRole('switch', { name: /integration scope/i })
+      expect(toggle).toBeChecked()
+    })
+
+    it('toggles to project scope', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      const toggle = screen.getByRole('switch', { name: /integration scope/i })
+      await user.click(toggle)
+
+      expect(toggle).not.toBeChecked()
+    })
+
+    it('toggles back to global scope', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      const toggle = screen.getByRole('switch', { name: /integration scope/i })
+      await user.click(toggle)
+      await user.click(toggle)
+
+      expect(toggle).toBeChecked()
     })
   })
 })

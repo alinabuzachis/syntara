@@ -1,5 +1,6 @@
 import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useParams } from '@tanstack/react-router'
 import { render, screen, within, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
@@ -80,12 +81,21 @@ vi.mock('@tanstack/react-router', async () => {
   }
 })
 
+const capturedModelsTabProps: Record<string, unknown> = {}
+const capturedResourcesTabProps: Record<string, unknown> = {}
+
 vi.mock('./IntegrationModelsTab', () => ({
-  IntegrationModelsTab: () => <div data-testid="models-tab-content">Models tab content</div>,
+  IntegrationModelsTab: (props: Record<string, unknown>) => {
+    Object.assign(capturedModelsTabProps, props)
+    return <div data-testid="models-tab-content">Models tab content</div>
+  },
 }))
 
 vi.mock('./IntegrationResourcesTab', () => ({
-  IntegrationResourcesTab: () => <div data-testid="resources-tab-content">Resources tab content</div>,
+  IntegrationResourcesTab: (props: Record<string, unknown>) => {
+    Object.assign(capturedResourcesTabProps, props)
+    return <div data-testid="resources-tab-content">Resources tab content</div>
+  },
 }))
 
 let mockActiveTab = 'details'
@@ -487,6 +497,40 @@ describe('IntegrationDetail', () => {
 
       expect(screen.getAllByText('Error loading integration').length).toBeGreaterThanOrEqual(1)
     })
+
+    it('calls refetch when retry button is clicked in error state', async () => {
+      const retryableError = Object.assign(new Error('Load failed'), { status: 500 })
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
+        data: undefined,
+        isPending: false,
+        isError: true,
+        error: retryableError,
+        refetch: mockRefetch,
+      } as never)
+      vi.mocked(credentialsClient.useQuery).mockReturnValue({
+        data: undefined,
+        isPending: false,
+        isError: false,
+        error: null,
+      } as never)
+      vi.mocked(integrationsClient.useMutation).mockReturnValue({
+        mutate: mockMutate,
+        isPending: false,
+      } as never)
+      vi.mocked(toolManagerClient.useMutation).mockReturnValue({
+        mutateAsync: vi.fn().mockResolvedValue({}),
+        mutate: vi.fn(),
+        isPending: false,
+      } as never)
+      mockRefetch.mockResolvedValue({ data: mockIntegration })
+      const user = userEvent.setup()
+      render(<IntegrationDetail />, { wrapper })
+
+      const retryButton = screen.getByRole('button', { name: /retry/i })
+      await user.click(retryButton)
+
+      expect(mockRefetch).toHaveBeenCalled()
+    })
   })
 
   describe('Unsaved changes guard', () => {
@@ -618,6 +662,87 @@ describe('IntegrationDetail', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Save failed')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Ansible Automation Platform', () => {
+    const mockAapIntegration: IntegrationRead = {
+      ...mockIntegration,
+      id: 'int-2',
+      name: 'My Ansible Automation Platform',
+      description: 'Production AAP',
+      integration_type: 'ansible_automation_platform',
+      configuration: {
+        integration_type: 'ansible_automation_platform',
+        aap_url: 'https://aap.example.com',
+        insecure_skip_tls_verify: false,
+      },
+      enabled_tool_count: 0,
+      total_tool_count: 0,
+    }
+
+    it('does not show Enabled resources tab for Ansible Automation Platform', () => {
+      setupDefaultMocks({ integration: mockAapIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: /Enabled resources/ })).not.toBeInTheDocument()
+    })
+
+    it('shows Ansible Automation Platform type label', () => {
+      setupDefaultMocks({ integration: mockAapIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText('Ansible Automation Platform')).toBeInTheDocument()
+    })
+
+    it('shows AAP URL', () => {
+      setupDefaultMocks({ integration: mockAapIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText('https://aap.example.com')).toBeInTheDocument()
+    })
+
+    it('shows TLS warning when insecure_skip_tls_verify is true', () => {
+      setupDefaultMocks({
+        integration: {
+          ...mockAapIntegration,
+          configuration: {
+            integration_type: 'ansible_automation_platform',
+            aap_url: 'https://aap.example.com',
+            insecure_skip_tls_verify: true,
+          },
+        },
+      })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText(/SSL verification disabled/i)).toBeInTheDocument()
+    })
+
+    it('does not show TLS warning when insecure_skip_tls_verify is false', () => {
+      setupDefaultMocks({ integration: mockAapIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByText(/SSL verification disabled/i)).not.toBeInTheDocument()
+    })
+
+    it('does not show enabled resources count for Ansible Automation Platform', () => {
+      setupDefaultMocks({ integration: mockAapIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByText('Enabled resources')).not.toBeInTheDocument()
+    })
+
+    it('shows type-aware disable dialog copy for Ansible Automation Platform', async () => {
+      setupDefaultMocks({ integration: mockAapIntegration })
+      const user = userEvent.setup()
+      render(<IntegrationDetail />, { wrapper })
+
+      await user.click(screen.getByLabelText(/toggle my Ansible Automation Platform/i))
+
+      await waitFor(() => {
+        expect(screen.getByText(/connect to Ansible Automation Platform/i)).toBeInTheDocument()
       })
     })
   })
@@ -835,6 +960,176 @@ describe('IntegrationDetail', () => {
       render(<IntegrationDetail />, { wrapper })
 
       expect(screen.getByRole('switch')).toBeDisabled()
+    })
+  })
+
+  describe('Early exit states', () => {
+    it('renders nothing when activeTab is edit', () => {
+      mockActiveTab = 'edit'
+      const { container } = render(<IntegrationDetail />, { wrapper })
+
+      expect(container).toBeEmptyDOMElement()
+    })
+
+    it('shows invalid integration error when integrationId is empty', () => {
+      vi.mocked(useParams).mockReturnValue({ integrationId: '' } as never)
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText('Invalid integration')).toBeInTheDocument()
+      expect(screen.getByText('No integration ID provided')).toBeInTheDocument()
+    })
+
+    it('renders nothing when integration has no id', () => {
+      setupDefaultMocks({ integration: { id: undefined } as unknown as Partial<IntegrationRead> })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByRole('heading', { name: 'My MCP Server', level: 1 })).not.toBeInTheDocument()
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Edge case rendering', () => {
+    it('defaults switch to checked when integration.enabled is undefined', () => {
+      setupDefaultMocks({ integration: { enabled: undefined } })
+      render(<IntegrationDetail />, { wrapper })
+
+      const toggle = screen.getByRole('switch')
+      expect(toggle).toBeChecked()
+    })
+
+    it('falls back to raw integration_type when no label mapping exists', () => {
+      setupDefaultMocks({ integration: { integration_type: 'unknown_type' as never } })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText('unknown_type')).toBeInTheDocument()
+    })
+
+    it('renders with undefined validation_status', () => {
+      setupDefaultMocks({ integration: { validation_status: undefined } })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByRole('heading', { name: 'My MCP Server', level: 1 })).toBeInTheDocument()
+    })
+
+    it('does not show resource badge when total resource count is 0', () => {
+      setupDefaultMocks({
+        integration: {
+          ...mockIntegration,
+          total_tool_count: 0,
+          enabled_tool_count: 0,
+        },
+      })
+      render(<IntegrationDetail />, { wrapper })
+
+      const resourcesTab = screen.getByRole('tab', { name: /Enabled resources/ })
+      expect(within(resourcesTab).queryByText('0')).not.toBeInTheDocument()
+    })
+
+    it('does not show TLS warning for non-AAP integration', () => {
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByText(/SSL verification disabled/i)).not.toBeInTheDocument()
+    })
+
+    it('does not show TLS warning for AAP without configuration', () => {
+      setupDefaultMocks({
+        integration: {
+          ...mockIntegration,
+          integration_type: 'ansible_automation_platform',
+          configuration: null as never,
+        },
+      })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByText(/SSL verification disabled/i)).not.toBeInTheDocument()
+    })
+
+    it('does not show TLS warning for AAP without insecure_skip_tls_verify key', () => {
+      setupDefaultMocks({
+        integration: {
+          ...mockIntegration,
+          integration_type: 'ansible_automation_platform',
+          configuration: {
+            integration_type: 'ansible_automation_platform',
+            aap_url: 'https://aap.example.com',
+          },
+        },
+      })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByText(/SSL verification disabled/i)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('onRefreshed callback', () => {
+    it('refetches integration data when onRefreshed is called on resources tab', async () => {
+      mockActiveTab = 'resources'
+      mockRefetch.mockResolvedValue({ data: mockIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      const onRefreshed = capturedResourcesTabProps.onRefreshed as () => Promise<unknown>
+      expect(onRefreshed).toBeDefined()
+
+      let result: unknown
+      await act(async () => {
+        result = await onRefreshed()
+      })
+
+      expect(mockRefetch).toHaveBeenCalled()
+      expect(result).toEqual(mockIntegration)
+    })
+
+    it('invokes refetchTools wrapper on resources tab', async () => {
+      const mockRefetchToolsFn = vi.fn().mockResolvedValue(undefined)
+      mockUseAllIntegrationTools.mockReturnValue({
+        tools: [],
+        isLoading: false,
+        error: null,
+        refetch: mockRefetchToolsFn,
+      })
+      mockActiveTab = 'resources'
+      mockRefetch.mockResolvedValue({ data: mockIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      const refetchTools = capturedResourcesTabProps.refetchTools as () => Promise<unknown>
+      expect(refetchTools).toBeDefined()
+
+      await act(async () => {
+        await refetchTools()
+      })
+
+      expect(mockRefetchToolsFn).toHaveBeenCalled()
+    })
+  })
+
+  describe('LLM Provider resources tab footer', () => {
+    const llmIntegration: IntegrationRead = {
+      ...mockIntegration,
+      integration_type: 'llm_provider',
+      configuration: {
+        integration_type: 'llm_provider',
+        provider_hint: 'red_hat_ai',
+        base_url: 'https://api.redhat.ai',
+      },
+      total_model_count: 5,
+      enabled_model_count: 3,
+      total_tool_count: 0,
+      enabled_tool_count: 0,
+    }
+
+    it('shows Save model changes button on LLM resources tab', () => {
+      setupDefaultMocks({ integration: llmIntegration })
+      mockActiveTab = 'resources'
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Save model changes' })).toBeInTheDocument()
+    })
+
+    it('shows Save changes button on MCP server resources tab', () => {
+      mockActiveTab = 'resources'
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument()
     })
   })
 })

@@ -1,0 +1,78 @@
+import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
+
+import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+
+import styles from './IntegrationDetail.module.css'
+import { IntegrationModelsTab } from './IntegrationModelsTab'
+import { IntegrationResourcesTab } from './IntegrationResourcesTab'
+import type { useIntegrationModelsState } from './useIntegrationModelsState'
+
+export function ResourcesTabContent({
+  integration,
+  isLLM,
+  modelsState,
+  tools,
+  enabledToolIds,
+  toolEnabledCount,
+  handleSelectTool,
+  refetchTools,
+  onRefreshed,
+  canUpdate,
+  updateTooltip,
+}: Readonly<{
+  integration: IntegrationsAPI.components['schemas']['IntegrationRead']
+  isLLM: boolean
+  modelsState: ReturnType<typeof useIntegrationModelsState>
+  tools: Tool[]
+  enabledToolIds: Set<string>
+  toolEnabledCount: number
+  handleSelectTool: (id: string, enabled: boolean) => void
+  refetchTools: () => Promise<unknown>
+  onRefreshed: () => Promise<IntegrationsAPI.components['schemas']['IntegrationRead'] | undefined>
+  canUpdate: boolean
+  updateTooltip?: string
+}>) {
+  if (isLLM) {
+    return (
+      <NxPanelContentStack className={styles.resourcesTabContent}>
+        <IntegrationModelsTab
+          integrationId={integration.id!}
+          models={modelsState.models}
+          isLoading={modelsState.isLoading}
+          error={modelsState.error?.message ?? null}
+          refetchModels={() => modelsState.refetchModels()}
+          enabledModelIds={modelsState.enabledModelIds}
+          enabledCount={modelsState.enabledCount}
+          allSelected={modelsState.allSelected}
+          handleSelectAll={modelsState.handleSelectAll}
+          defaultModelId={modelsState.defaultModelId}
+          handleSelectWithDefaultClear={modelsState.handleSelectWithDefaultClear}
+          handleSetDefault={modelsState.handleSetDefault}
+          handleRemoveDefault={modelsState.handleRemoveDefault}
+          resetSelectionToServer={modelsState.resetSelectionToServer}
+          resetDefault={modelsState.resetDefault}
+          lastRefreshedAt={integration.last_refreshed_at}
+          canUpdate={canUpdate}
+          updateTooltip={updateTooltip}
+          onRefreshed={onRefreshed}
+        />
+      </NxPanelContentStack>
+    )
+  }
+
+  return (
+    <NxPanelContentStack className={styles.resourcesTabContent}>
+      <IntegrationResourcesTab
+        integrationId={integration.id!}
+        tools={tools}
+        enabledToolIds={enabledToolIds}
+        enabledCount={toolEnabledCount}
+        handleSelectTool={handleSelectTool}
+        lastRefreshedAt={integration.last_refreshed_at}
+        canUpdate={canUpdate}
+        onRefreshed={onRefreshed}
+        refetchTools={refetchTools}
+      />
+    </NxPanelContentStack>
+  )
+}

@@ -36,7 +36,7 @@ function createTestFormData(overrides?: Partial<IntegrationFormData>): Integrati
     management_credential_id: null,
     scope: 'global',
     ...overrides,
-  }
+  } as IntegrationFormData
 }
 
 describe('useCreateIntegration', () => {
