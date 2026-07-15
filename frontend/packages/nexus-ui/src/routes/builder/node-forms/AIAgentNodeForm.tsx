@@ -23,9 +23,7 @@ import {
   FILE_STORAGE_UNCONFIGURED_MESSAGE,
   useFileStorageStatus,
 } from '../../../hooks/useFileStorageStatus'
-import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { detachPromise } from '../../../utils/detachPromise'
-import { generateUUID } from '../../../utils/generateUUID'
 import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
 import { FileUpload, type UploadedFile } from '../components/file-upload'
 import { LLMCredentialStatus } from '../components/LLMCredentialStatus'
@@ -44,6 +42,8 @@ import { NodeSettingsForm } from './shared/NodeSettingsForm'
 import type { IntegrationWithTools, ToolSelection } from './ToolsMultiSelect'
 import { ToolsMultiSelect } from './ToolsMultiSelect'
 import { useFilesMetadata } from './useFilesMetadata'
+import { useFileUploadState } from './useFileUploadState'
+import type { FileContextType } from './useFileUploadState'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 type ToolWithParameters = ToolManagerAPI.components['schemas']['ToolWithParameters']
@@ -59,14 +59,6 @@ export type AIAgentFormSubmitData = {
 /** Initial data for form fields (file IDs handled separately by parent) */
 export type AIAgentFormInitialData = Partial<AIAgentFormData>
 
-/** Context to share file state between form components */
-type FileContextType = {
-  completedFiles: UploadedFile[]
-  addFiles: (files: UploadedFile[]) => void
-  removeFile: (fileId: string) => void
-  removeFilesByName: (names: Set<string>) => void
-  isFilesError: boolean
-}
 const FileContext = createContext<FileContextType | null>(null)
 
 export type AIAgentNodeFormProps = {
@@ -209,6 +201,38 @@ function LLMSection({ isVersionView, projectId }: LLMSectionProps) {
   )
 }
 
+const NO_PROJECT_MESSAGE = 'Select a project in the workflow builder header to upload context files.'
+
+type FileUploadSectionProps = Readonly<{
+  projectId: string
+  isVersionView: boolean
+  hasExistingFiles: boolean
+}>
+
+function FileUploadSection({ projectId, isVersionView, hasExistingFiles }: FileUploadSectionProps) {
+  const fileContext = useContext(FileContext)
+  if (!fileContext) throw new Error('FileUploadSection must be used within FileContext.Provider')
+  const { uploadedFiles, handleFilesSelected, handleFileRemove } = useFileUploadState(fileContext, projectId)
+  const { isConfigured: isFileStorageConfigured, status: fileStorageStatus } = useFileStorageStatus()
+
+  return (
+    <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+      <FileUpload
+        files={uploadedFiles}
+        onFilesSelected={handleFilesSelected}
+        onFileRemove={handleFileRemove}
+        acceptedMimeTypes={['.pdf', '.doc', '.docx', '.txt', '.md']}
+        aria-label="Context file upload"
+        disabled={!isFileStorageConfigured}
+        disabledTooltip={
+          fileStorageStatus === 'unconfigured' ? FILE_STORAGE_UNCONFIGURED_MESSAGE : FILE_STORAGE_UNAVAILABLE_MESSAGE
+        }
+        defaultStatusExpanded={!hasExistingFiles}
+      />
+    </fieldset>
+  )
+}
+
 type AIAgentFormFieldsProps = Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
@@ -218,76 +242,6 @@ type AIAgentFormFieldsProps = Readonly<{
   onRetryTools: () => void
   hasExistingFiles: boolean
 }>
-
-function useFileUploadState(fileContext: FileContextType, projectId: string | undefined) {
-  const { completedFiles, addFiles, removeFile, removeFilesByName } = fileContext
-  const [uploadingFiles, setUploadingFiles] = useState<UploadedFile[]>([])
-  const { uploadFiles, progress, error } = useFileUploadWithProgress()
-
-  const uploadedFiles: UploadedFile[] = [
-    ...completedFiles,
-    ...uploadingFiles.map((f) => {
-      const fileProgress = progress.find((p) => p.fileName === f.file.name)
-      return {
-        ...f,
-        progress: fileProgress?.percentage ?? f.progress,
-        status: error ? ('error' as const) : f.status,
-        errorMessage: error?.message ?? f.errorMessage,
-      }
-    }),
-  ]
-
-  const handleFilesSelected = async (files: File[]) => {
-    const reUploadNames = new Set(files.map((f) => f.name))
-    const newFiles: UploadedFile[] = files.map((file) => ({
-      id: generateUUID(),
-      file,
-      progress: 0,
-      status: 'uploading' as const,
-    }))
-
-    removeFilesByName(reUploadNames)
-    setUploadingFiles(newFiles)
-
-    if (!projectId) {
-      const errorFiles = newFiles.map((f) => ({
-        ...f,
-        status: 'error' as const,
-        errorMessage: 'Cannot upload files without a project context',
-      }))
-      addFiles(errorFiles)
-      setUploadingFiles([])
-      return
-    }
-
-    try {
-      const response = await uploadFiles(files, projectId)
-      const successFiles = newFiles.map((f, i) => ({
-        ...f,
-        id: response.files?.[i]?.file_id ?? f.id,
-        progress: 100,
-        status: 'success' as const,
-      }))
-      addFiles(successFiles)
-      setUploadingFiles([])
-    } catch {
-      const errorFiles = newFiles.map((f) => ({
-        ...f,
-        status: 'error' as const,
-        errorMessage: 'Upload failed. Please try again.',
-      }))
-      addFiles(errorFiles)
-      setUploadingFiles([])
-    }
-  }
-
-  const handleFileRemove = (fileId: string) => {
-    removeFile(fileId)
-    setUploadingFiles((prev) => prev.filter((f) => f.id !== fileId))
-  }
-
-  return { uploadedFiles, handleFilesSelected, handleFileRemove }
-}
 
 function AIAgentFormFields({
   onHeaderContentChange,
@@ -305,8 +259,6 @@ function AIAgentFormFields({
   const fileContext = useContext(FileContext)
   if (!fileContext) throw new Error('AIAgentFormFields must be used within FileContext.Provider')
   const { isFilesError } = fileContext
-  const { uploadedFiles, handleFilesSelected, handleFileRemove } = useFileUploadState(fileContext, projectId)
-  const { isConfigured: isFileStorageConfigured, status: fileStorageStatus } = useFileStorageStatus()
 
   const nameField = useMemo(
     () => (
@@ -407,22 +359,32 @@ function AIAgentFormFields({
       )}
       <StackItem>
         <FormGroup label="Context file upload" fieldId="agent-context">
-          <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
-            <FileUpload
-              files={uploadedFiles}
-              onFilesSelected={handleFilesSelected}
-              onFileRemove={handleFileRemove}
-              acceptedMimeTypes={['.pdf', '.doc', '.docx', '.txt', '.md']}
-              aria-label="Context file upload"
-              disabled={!isFileStorageConfigured}
-              disabledTooltip={
-                fileStorageStatus === 'unconfigured'
-                  ? FILE_STORAGE_UNCONFIGURED_MESSAGE
-                  : FILE_STORAGE_UNAVAILABLE_MESSAGE
-              }
-              defaultStatusExpanded={!hasExistingFiles}
+          {projectId ? (
+            <FileUploadSection
+              projectId={projectId}
+              isVersionView={isVersionView}
+              hasExistingFiles={hasExistingFiles}
             />
-          </fieldset>
+          ) : (
+            <>
+              <fieldset disabled className={nodeFormStyles.disabledFieldset}>
+                <FileUpload
+                  files={[]}
+                  onFilesSelected={() => {}}
+                  onFileRemove={() => {}}
+                  acceptedMimeTypes={['.pdf', '.doc', '.docx', '.txt', '.md']}
+                  aria-label="Context file upload"
+                  disabled
+                  disabledTooltip={NO_PROJECT_MESSAGE}
+                />
+              </fieldset>
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem>{NO_PROJECT_MESSAGE}</HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            </>
+          )}
         </FormGroup>
       </StackItem>
     </Stack>

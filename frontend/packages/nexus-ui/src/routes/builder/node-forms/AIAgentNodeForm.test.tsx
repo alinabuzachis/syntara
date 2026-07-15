@@ -234,15 +234,18 @@ describe('AIAgentNodeForm', () => {
     })
   })
 
-  it('shows error when uploading files without projectId', async () => {
-    const user = userEvent.setup()
+  it('disables file upload with helper text when no projectId', () => {
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
-    await user.click(screen.getByTestId('upload-files'))
-
-    await waitFor(() => {
-      expect(mockUploadFiles).not.toHaveBeenCalled()
-    })
+    const fileUpload = screen.getByTestId('file-upload')
+    expect(fileUpload).toHaveAttribute('data-disabled', 'true')
+    expect(fileUpload).toHaveAttribute(
+      'data-disabled-tooltip',
+      'Select a project in the workflow builder header to upload context files.'
+    )
+    expect(
+      screen.getByText('Select a project in the workflow builder header to upload context files.')
+    ).toBeInTheDocument()
   })
 
   it('handles file upload error', async () => {
