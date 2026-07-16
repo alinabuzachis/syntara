@@ -94,7 +94,7 @@ test.describe('Loop Node Configuration [UI-16]', () => {
       await openNodeForEditing(app, 'Process items')
 
       await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Process items')
-      await expect(app.getByLabel('Type', { exact: true })).toHaveValue('forEach')
+      await expect(app.getByRole('button', { name: 'Type', exact: true })).toContainText('For each')
       await expect(app.getByLabel('Items expression')).toHaveValue('${input.records}')
       await expect(app.getByLabel('Item variable')).toHaveValue('record')
       await expect(app.getByLabel('Index variable')).toHaveValue('recordIndex')
@@ -123,7 +123,7 @@ test.describe('Loop Node Configuration [UI-16]', () => {
       await openNodeForEditing(app, 'Limited while loop')
 
       await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Limited while loop')
-      await expect(app.getByLabel('Type', { exact: true })).toHaveValue('while')
+      await expect(app.getByRole('button', { name: 'Type', exact: true })).toContainText('While')
       await expect(app.getByLabel(/Raw expression/i)).toHaveValue('true')
       await expect(app.getByRole('spinbutton', { name: /Max iterations/i })).toHaveValue('100')
 
@@ -161,7 +161,7 @@ test.describe('Loop Node Configuration [UI-16]', () => {
 
       await openNodeForEditing(app, 'Switchable loop')
 
-      await expect(app.getByLabel('Type', { exact: true })).toHaveValue('forEach')
+      await expect(app.getByRole('button', { name: 'Type', exact: true })).toContainText('For each')
       await expect(app.getByLabel('Items expression')).toHaveValue('${input.data}')
       await expect(app.getByLabel(/Raw expression/i)).not.toBeVisible()
 
@@ -180,7 +180,7 @@ test.describe('Loop Node Configuration [UI-16]', () => {
 
     await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
     await expect(app.getByText('Type', { exact: true })).toBeVisible()
-    await expect(app.getByLabel('Type', { exact: true })).toHaveValue('while')
+    await expect(app.getByRole('button', { name: 'Type', exact: true })).toContainText('While')
     await expect(app.getByText('Conditional expression', { exact: true })).toBeVisible()
     await expect(app.getByRole('button', { name: /Expression editor mode/i })).toBeVisible()
     await expect(app.getByText('Max iterations', { exact: true })).toBeVisible()

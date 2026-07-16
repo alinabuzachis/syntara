@@ -287,8 +287,9 @@ describe('AssignProjectRoleModal', () => {
     const user = userEvent.setup()
     renderModal()
 
-    const principalOrGroupSelect = screen.getByLabelText('Principal type')
-    await user.selectOptions(principalOrGroupSelect, 'group')
+    const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+    await user.click(principalToggle)
+    await user.click(screen.getByRole('option', { name: 'Group' }))
 
     expect(getTypeaheadInput('Group')).toBeInTheDocument()
     expect(queryTypeaheadInput('User')).not.toBeInTheDocument()
@@ -298,8 +299,9 @@ describe('AssignProjectRoleModal', () => {
     const user = userEvent.setup()
     renderModal()
 
-    const principalOrGroupSelect = screen.getByLabelText('Principal type')
-    await user.selectOptions(principalOrGroupSelect, 'group')
+    const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+    await user.click(principalToggle)
+    await user.click(screen.getByRole('option', { name: 'Group' }))
 
     const groupInput = getTypeaheadInput('Group')
     await user.click(groupInput)
@@ -341,8 +343,9 @@ describe('AssignProjectRoleModal', () => {
     const aliceOption = await screen.findByRole('option', { name: /alice/i })
     await user.click(aliceOption)
 
-    const principalOrGroupSelect = screen.getByLabelText('Principal type')
-    await user.selectOptions(principalOrGroupSelect, 'group')
+    const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+    await user.click(principalToggle)
+    await user.click(screen.getByRole('option', { name: 'Group' }))
 
     const groupInput = getTypeaheadInput('Group')
     expect(groupInput).toHaveValue('')

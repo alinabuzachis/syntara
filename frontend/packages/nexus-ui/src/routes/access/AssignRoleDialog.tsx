@@ -4,14 +4,17 @@ import {
   Form,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
+  Select,
+  SelectList,
+  SelectOption,
 } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
@@ -24,6 +27,7 @@ import { useAlerts } from '../../providers/alerts'
 import { accessClient } from './accessClient'
 import { assignRoleSchema } from './assignRoleSchema'
 import type { AssignRoleFormData } from './assignRoleSchema'
+import { PrincipalTypeSelect } from './PrincipalTypeSelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import { useAllProjects } from './useAllProjects'
 
@@ -51,6 +55,38 @@ type AssignRoleFormBodyProps = {
   onRoleSearchChange: (term: string) => void
   hasMoreRoles: boolean
   isRolesLoading: boolean
+}
+
+function ScopeSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+  return (
+    <Select
+      id="scope"
+      isOpen={isOpen}
+      selected={value}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          aria-label="Scope"
+        >
+          {value === 'system' ? 'System' : 'Project'}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        <SelectOption value="system">System</SelectOption>
+        <SelectOption value="project">Project</SelectOption>
+      </SelectList>
+    </Select>
+  )
 }
 
 function AssignRoleFormBody({
@@ -81,19 +117,14 @@ function AssignRoleFormBody({
           name="principalOrGroup"
           control={control}
           render={({ field }) => (
-            <FormSelect
-              id="principal-type"
-              aria-label="Principal type"
+            <PrincipalTypeSelect
               value={field.value}
-              onChange={(_event, value) => {
+              onChange={(value) => {
                 field.onChange(value)
                 setValue('userId', '')
                 setValue('groupId', '')
               }}
-            >
-              <FormSelectOption value="principal" label="User" />
-              <FormSelectOption value="group" label="Group" />
-            </FormSelect>
+            />
           )}
         />
       </FormGroup>
@@ -103,18 +134,13 @@ function AssignRoleFormBody({
           name="scope"
           control={control}
           render={({ field }) => (
-            <FormSelect
-              id="scope"
-              aria-label="Scope"
+            <ScopeSelect
               value={field.value}
-              onChange={(_event, value) => {
+              onChange={(value) => {
                 field.onChange(value)
                 setValue('roleName', '')
               }}
-            >
-              <FormSelectOption value="system" label="System" />
-              <FormSelectOption value="project" label="Project" />
-            </FormSelect>
+            />
           )}
         />
       </FormGroup>

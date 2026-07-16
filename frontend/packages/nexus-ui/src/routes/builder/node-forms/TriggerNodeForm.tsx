@@ -10,8 +10,6 @@ import {
   ContentVariants,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
   MenuToggle,
@@ -156,6 +154,47 @@ function ExecutionConflictPolicyField({
   )
 }
 
+function ScheduleTypeSelect({
+  value = ScheduleTypeEnum.INTERVAL,
+  onChange,
+  isDisabled,
+}: {
+  value?: string
+  onChange: (value: string) => void
+  isDisabled?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  return (
+    <Select
+      id="schedule-expression"
+      isOpen={isOpen}
+      selected={value}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isDisabled={isDisabled}
+          aria-label="Schedule expression"
+        >
+          {value === ScheduleTypeEnum.INTERVAL ? 'Visual schedule builder' : 'Custom cron expression'}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        <SelectOption value={ScheduleTypeEnum.INTERVAL}>Visual schedule builder</SelectOption>
+        <SelectOption value={ScheduleTypeEnum.CRON}>Custom cron expression</SelectOption>
+      </SelectList>
+    </Select>
+  )
+}
+
 // ── Main form fields ─────────────────────────────────────────────────────
 
 function TriggerFormFields({
@@ -242,16 +281,7 @@ function TriggerFormFields({
                 control={control}
                 name="scheduleType"
                 render={({ field }) => (
-                  <FormSelect
-                    id="schedule-expression"
-                    aria-label="Schedule expression"
-                    value={field.value}
-                    onChange={(_event, value) => field.onChange(value)}
-                    isDisabled={isVersionView}
-                  >
-                    <FormSelectOption value={ScheduleTypeEnum.INTERVAL} label="Visual schedule builder" />
-                    <FormSelectOption value={ScheduleTypeEnum.CRON} label="Custom cron expression" />
-                  </FormSelect>
+                  <ScheduleTypeSelect value={field.value} onChange={field.onChange} isDisabled={isVersionView} />
                 )}
               />
             </FormGroup>

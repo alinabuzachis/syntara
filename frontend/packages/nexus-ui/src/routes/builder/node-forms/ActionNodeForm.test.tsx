@@ -118,7 +118,7 @@ describe('ActionNodeForm', () => {
     expect(screen.getByDisplayValue('Existing Script')).toBeInTheDocument()
     expect(screen.getByDisplayValue('echo "hello"')).toBeInTheDocument()
     expect(screen.getByDisplayValue('{"param": "value"}')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Language/i)).toHaveValue('bash')
+    expect(screen.getByRole('button', { name: /Language/i })).toHaveTextContent('Bash')
   })
 
   it('populates form with initial data for API executor', () => {
@@ -187,7 +187,8 @@ describe('ActionNodeForm', () => {
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
 
     await user.type(screen.getByPlaceholderText(/https:\/\/api.example.com/i), 'https://api.test.com/data')
-    await user.selectOptions(screen.getByLabelText(/HTTP Method/i), 'POST')
+    await user.click(screen.getByRole('button', { name: /HTTP Method/i }))
+    await user.click(screen.getByRole('option', { name: 'POST' }))
     fireEvent.submit(screen.getByTestId('action-node-form'))
 
     await waitFor(() => {
@@ -206,7 +207,8 @@ describe('ActionNodeForm', () => {
     const user = userEvent.setup()
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
-    await user.selectOptions(screen.getByLabelText(/Language/i), 'bash')
+    await user.click(screen.getByRole('button', { name: /Language/i }))
+    await user.click(screen.getByRole('option', { name: 'Bash' }))
     await user.type(screen.getByPlaceholderText(/Enter your code/i), 'echo "test"')
     fireEvent.submit(screen.getByTestId('action-node-form'))
 

@@ -1,17 +1,20 @@
 import {
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   Stack,
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
@@ -31,6 +34,47 @@ import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
 export type { LoopFormData }
+
+function LoopTypeSelect({
+  value,
+  onChange,
+  isDisabled,
+}: {
+  value: string
+  onChange: (value: string) => void
+  isDisabled?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  return (
+    <Select
+      id="loop-type"
+      isOpen={isOpen}
+      selected={value}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isDisabled={isDisabled}
+          aria-label="Type"
+        >
+          {value === 'while' ? 'While' : 'For each'}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        <SelectOption value="while">While</SelectOption>
+        <SelectOption value="forEach">For each</SelectOption>
+      </SelectList>
+    </Select>
+  )
+}
 
 type LoopNodeFormProps = {
   onSubmit: (data: LoopFormData) => void
@@ -95,16 +139,7 @@ function LoopFormFields({
             control={control}
             name="type"
             render={({ field }) => (
-              <FormSelect
-                id="loop-type"
-                aria-label="Type"
-                value={field.value}
-                onChange={(_event, value) => field.onChange(value)}
-                isDisabled={isVersionView}
-              >
-                <FormSelectOption value="while" label="While" />
-                <FormSelectOption value="forEach" label="For each" />
-              </FormSelect>
+              <LoopTypeSelect value={field.value} onChange={field.onChange} isDisabled={isVersionView} />
             )}
           />
         </FormGroup>

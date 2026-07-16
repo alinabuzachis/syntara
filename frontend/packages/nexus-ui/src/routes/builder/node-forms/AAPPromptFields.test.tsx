@@ -41,14 +41,18 @@ function TestWrapper({
 
 describe('AAPPromptFields', () => {
   describe('RunTypeField', () => {
-    it('renders run type select', () => {
+    it('renders run type select', async () => {
+      const user = userEvent.setup()
       render(
         <TestWrapper>
           <RunTypeField />
         </TestWrapper>
       )
 
-      expect(screen.getByLabelText('Run type')).toBeInTheDocument()
+      const toggle = screen.getByRole('button', { name: 'Run type' })
+      expect(toggle).toBeInTheDocument()
+
+      await user.click(toggle)
       expect(screen.getByRole('option', { name: 'Run' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Check (Dry Run)' })).toBeInTheDocument()
     })
@@ -61,10 +65,11 @@ describe('AAPPromptFields', () => {
         </TestWrapper>
       )
 
-      const select = screen.getByLabelText('Run type')
-      await user.selectOptions(select, 'run')
+      const toggle = screen.getByRole('button', { name: 'Run type' })
+      await user.click(toggle)
+      await user.click(screen.getByRole('option', { name: 'Run' }))
 
-      expect(select).toHaveValue('run')
+      expect(toggle).toHaveTextContent('Run')
     })
 
     it('selects check option', async () => {
@@ -75,10 +80,11 @@ describe('AAPPromptFields', () => {
         </TestWrapper>
       )
 
-      const select = screen.getByLabelText('Run type')
-      await user.selectOptions(select, 'check')
+      const toggle = screen.getByRole('button', { name: 'Run type' })
+      await user.click(toggle)
+      await user.click(screen.getByRole('option', { name: 'Check (Dry Run)' }))
 
-      expect(select).toHaveValue('check')
+      expect(toggle).toHaveTextContent('Check (Dry Run)')
     })
 
     it('displays placeholder option', () => {
@@ -88,19 +94,23 @@ describe('AAPPromptFields', () => {
         </TestWrapper>
       )
 
-      expect(screen.getByRole('option', { name: '[ run type ]' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Run type' })).toHaveTextContent('[ run type ]')
     })
   })
 
   describe('VerbosityField', () => {
-    it('renders verbosity select with all options', () => {
+    it('renders verbosity select with all options', async () => {
+      const user = userEvent.setup()
       render(
         <TestWrapper>
           <VerbosityField />
         </TestWrapper>
       )
 
-      expect(screen.getByLabelText('Verbosity')).toBeInTheDocument()
+      const toggle = screen.getByRole('button', { name: 'Verbosity' })
+      expect(toggle).toBeInTheDocument()
+
+      await user.click(toggle)
       expect(screen.getByRole('option', { name: '0 - Normal' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: '1 - Verbose' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: '2 - More Verbose' })).toBeInTheDocument()
@@ -117,10 +127,11 @@ describe('AAPPromptFields', () => {
         </TestWrapper>
       )
 
-      const select = screen.getByLabelText('Verbosity')
-      await user.selectOptions(select, '3')
+      const toggle = screen.getByRole('button', { name: 'Verbosity' })
+      await user.click(toggle)
+      await user.click(screen.getByRole('option', { name: '3 - Debug' }))
 
-      expect(select).toHaveValue('3')
+      expect(toggle).toHaveTextContent('3 - Debug')
     })
 
     it('displays placeholder option', () => {
@@ -130,7 +141,7 @@ describe('AAPPromptFields', () => {
         </TestWrapper>
       )
 
-      expect(screen.getByRole('option', { name: '[ verbosity ]' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Verbosity' })).toHaveTextContent('[ verbosity ]')
     })
   })
 

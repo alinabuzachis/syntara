@@ -51,7 +51,7 @@ describe('LogicNodeForm', () => {
 
       // Verify LoopNodeForm is rendered by checking for its unique elements
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Loop')
-      expect(screen.getByRole('combobox', { name: /Type/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Type' })).toBeInTheDocument()
     })
 
     it('renders ConvergeNodeForm when logicType is converge', () => {
@@ -68,7 +68,7 @@ describe('LogicNodeForm', () => {
 
       // Verify ConvergeNodeForm is rendered by checking for its unique elements
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Converge')
-      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Continue when criteria' })).toBeInTheDocument()
     })
 
     it('renders SwitchNodeForm when logicType is switch', () => {
@@ -299,7 +299,9 @@ describe('LogicNodeForm', () => {
         />
       )
 
-      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
+      expect(screen.getByRole('button', { name: 'Continue when criteria' })).toHaveTextContent(
+        'All branches reach this step'
+      )
     })
 
     it('defaults loop type to while when not provided', () => {
@@ -313,7 +315,7 @@ describe('LogicNodeForm', () => {
         />
       )
 
-      expect(screen.getByRole('combobox', { name: /Type/i })).toHaveValue('while')
+      expect(screen.getByRole('button', { name: 'Type' })).toHaveTextContent('While')
     })
   })
 
@@ -350,7 +352,7 @@ describe('LogicNodeForm', () => {
       )
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Loop Node')
-      expect(screen.getByRole('combobox', { name: /Type/i })).toHaveValue('while')
+      expect(screen.getByRole('button', { name: 'Type' })).toHaveTextContent('While')
     })
 
     it('maps all wait fields from initialData', () => {
@@ -387,7 +389,9 @@ describe('LogicNodeForm', () => {
       )
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Converge Node')
-      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('any')
+      expect(screen.getByRole('button', { name: 'Continue when criteria' })).toHaveTextContent(
+        'Any branches reach this step'
+      )
     })
   })
 })

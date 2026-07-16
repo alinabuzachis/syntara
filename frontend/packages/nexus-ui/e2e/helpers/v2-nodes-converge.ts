@@ -53,8 +53,9 @@ export async function addConvergeNodeWithAnyStrategy(page: Page, name: string, r
   await selectCategoryAndType(page, 'Logic', 'Converge')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
 
-  // Select 'any' strategy
-  await page.getByRole('combobox', { name: /Continue when criteria/i }).selectOption('any')
+  // Select 'any' strategy via PF Select (click toggle, then option)
+  await page.getByRole('button', { name: 'Continue when criteria', exact: true }).click()
+  await page.getByRole('option', { name: 'Any branches reach this step' }).click()
 
   // Fill required path count
   const requiredPathCountInput = page.getByRole('spinbutton', {
@@ -92,7 +93,8 @@ export async function addConvergeNodeWithTimeout(
 
   // Set strategy if provided
   if (timeoutConfig.strategy === 'any' && timeoutConfig.requiredPathCount !== undefined) {
-    await page.getByRole('combobox', { name: /Continue when criteria/i }).selectOption('any')
+    await page.getByRole('button', { name: 'Continue when criteria', exact: true }).click()
+    await page.getByRole('option', { name: 'Any branches reach this step' }).click()
     const requiredPathCountInput = page.getByRole('spinbutton', {
       name: /Required number of branches before continuing/i,
     })

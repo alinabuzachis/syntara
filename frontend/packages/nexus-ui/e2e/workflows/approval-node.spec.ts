@@ -95,9 +95,11 @@ async function configureApprovalNode(
   }
 
   if (config.fallbackDecision) {
-    const fallbackSelect = page.getByLabel('Fallback decision')
-    await expect(fallbackSelect).toBeVisible()
-    await fallbackSelect.selectOption(config.fallbackDecision)
+    const fallbackToggle = page.getByRole('button', { name: 'Fallback decision' })
+    await expect(fallbackToggle).toBeVisible()
+    await fallbackToggle.click()
+    const optionLabel = config.fallbackDecision === 'reject' ? 'Reject (default)' : 'Approve'
+    await page.getByRole('option', { name: optionLabel }).click()
   }
 }
 
@@ -178,7 +180,7 @@ test.describe('Approval Node Configuration', () => {
       await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Initial approval')
       await expect(app.getByRole('textbox', { name: 'Message' })).toHaveValue('Please review this change')
       await expect(app.getByLabel('Hours')).toHaveValue('2')
-      await expect(app.getByLabel('Fallback decision')).toHaveValue('approve')
+      await expect(app.getByRole('button', { name: 'Fallback decision' })).toContainText('Approve')
 
       // Close the panel to verify workflow state
       // When editing (vs creating), the node details panel must close before the editor drawer
@@ -270,7 +272,7 @@ test.describe('Approval Node Configuration', () => {
       // Assert - Verify all configured values are present
       await expect(app.getByRole('textbox', { name: 'Message' })).toHaveValue('Please approve this deployment')
       await expect(app.getByLabel('Minutes')).toHaveValue('30')
-      await expect(app.getByLabel('Fallback decision')).toHaveValue('approve')
+      await expect(app.getByRole('button', { name: 'Fallback decision' })).toContainText('Approve')
 
       // Close the panel
       await closeNodeEditorPanel(app)
@@ -297,13 +299,15 @@ test.describe('Approval Node Configuration', () => {
     await expect(app.getByText('Approver groups')).toBeVisible()
     await expect(app.getByRole('textbox', { name: 'Message' })).toBeVisible()
 
-    const fallbackSelect = app.getByLabel('Fallback decision')
-    await expect(fallbackSelect).toBeVisible()
+    const fallbackToggle = app.getByRole('button', { name: 'Fallback decision' })
+    await expect(fallbackToggle).toBeVisible()
 
     // Verify the fallback decision dropdown has both options
-    const fallbackOptions = await fallbackSelect.locator('option').allTextContents()
-    expect(fallbackOptions).toContain('Approve')
-    expect(fallbackOptions).toContain('Reject (default)')
+    await fallbackToggle.click()
+    await expect(app.getByRole('option', { name: 'Approve' })).toBeVisible()
+    await expect(app.getByRole('option', { name: 'Reject (default)' })).toBeVisible()
+    // Close the dropdown
+    await fallbackToggle.click()
 
     // Verify decision window label is present (use exact match to avoid strict mode violation)
     await expect(app.getByText('Decision window', { exact: true })).toBeVisible()

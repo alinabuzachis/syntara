@@ -23,10 +23,14 @@ describe('LoopNodeForm', () => {
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toBeInTheDocument()
     })
 
-    it('renders type selector', () => {
+    it('renders type selector', async () => {
+      const user = userEvent.setup()
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('combobox', { name: /Type/i })).toBeInTheDocument()
+      const toggle = screen.getByRole('button', { name: 'Type' })
+      expect(toggle).toBeInTheDocument()
+
+      await user.click(toggle)
       expect(screen.getByRole('option', { name: /For each/i })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: /While/i })).toBeInTheDocument()
     })
@@ -126,7 +130,9 @@ describe('LoopNodeForm', () => {
       expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
 
       // Switch to forEach
-      await user.selectOptions(screen.getByRole('combobox', { name: /Type/i }), 'forEach')
+      const toggle = screen.getByRole('button', { name: 'Type' })
+      await user.click(toggle)
+      await user.click(screen.getByRole('option', { name: /For each/i }))
 
       // Now should show forEach fields
       expect(screen.getByLabelText(/Items expression/i)).toBeInTheDocument()
@@ -173,7 +179,7 @@ describe('LoopNodeForm', () => {
     it('defaults to while type', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('combobox', { name: /Type/i })).toHaveValue('while')
+      expect(screen.getByRole('button', { name: 'Type' })).toHaveTextContent('While')
     })
 
     it('defaults indexVariable to "index" for forEach', () => {

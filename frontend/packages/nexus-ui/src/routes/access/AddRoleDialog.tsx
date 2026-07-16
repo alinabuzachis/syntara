@@ -4,18 +4,21 @@ import {
   Form,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
+  Select,
+  SelectList,
+  SelectOption,
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
@@ -27,6 +30,47 @@ import type { AddRoleFormData } from './addRoleSchema'
 import { PolicySelect } from './PolicySelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import { useAllProjects } from './useAllProjects'
+
+function RoleScopeSelect({
+  value,
+  onChange,
+  hasError,
+}: {
+  value: string
+  onChange: (value: string) => void
+  hasError?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  return (
+    <Select
+      id="role-scope"
+      isOpen={isOpen}
+      selected={value}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          status={hasError ? 'danger' : undefined}
+          aria-label="Role scope"
+        >
+          {value === 'system' ? 'System' : 'Project'}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        <SelectOption value="system">System</SelectOption>
+        <SelectOption value="project">Project</SelectOption>
+      </SelectList>
+    </Select>
+  )
+}
 
 type AddRoleDialogProps = {
   onClose: () => void
@@ -157,16 +201,7 @@ export function AddRoleDialog({ onClose, onSuccess, defaultScope, defaultProject
           </FormGroup>
 
           <FormGroup label="Scope" isRequired fieldId="role-scope">
-            <FormSelect
-              id="role-scope"
-              aria-label="Role scope"
-              value={scope}
-              onChange={(_e, val) => handleScopeChange(val)}
-              validated={errors.scope ? 'error' : 'default'}
-            >
-              <FormSelectOption value="system" label="System" />
-              <FormSelectOption value="project" label="Project" />
-            </FormSelect>
+            <RoleScopeSelect value={scope} onChange={handleScopeChange} hasError={!!errors.scope} />
             <FormHelperText>
               <HelperText>
                 <HelperTextItem>

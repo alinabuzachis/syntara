@@ -162,8 +162,9 @@ describe('TriggerNodeForm Component', () => {
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.SCHEDULED }} />
       )
 
-      expect(screen.getByLabelText('Schedule expression')).toBeInTheDocument()
-      expect(screen.getByLabelText('Schedule expression')).toHaveValue('interval')
+      const toggle = screen.getByRole('button', { name: 'Schedule expression' })
+      expect(toggle).toBeInTheDocument()
+      expect(toggle).toHaveTextContent('Visual schedule builder')
     })
 
     it('shows interval picker for interval schedule type', () => {
@@ -188,15 +189,19 @@ describe('TriggerNodeForm Component', () => {
 
       expect(screen.queryByLabelText('Cron expression')).not.toBeInTheDocument()
 
-      await user.selectOptions(screen.getByLabelText('Schedule expression'), 'cron')
+      const toggle = screen.getByRole('button', { name: 'Schedule expression' })
+      await user.click(toggle)
+      await user.click(screen.getByRole('option', { name: 'Custom cron expression' }))
 
       expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
       expect(screen.queryByTestId('schedule-builder-fields')).not.toBeInTheDocument()
 
-      await user.selectOptions(screen.getByLabelText('Schedule expression'), 'interval')
+      await user.click(toggle)
+      await user.click(screen.getByRole('option', { name: 'Visual schedule builder' }))
       expect(screen.queryByLabelText('Cron expression')).not.toBeInTheDocument()
 
-      await user.selectOptions(screen.getByLabelText('Schedule expression'), 'cron')
+      await user.click(toggle)
+      await user.click(screen.getByRole('option', { name: 'Custom cron expression' }))
 
       expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
     })
@@ -246,7 +251,7 @@ describe('TriggerNodeForm Component', () => {
 
       renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
-      expect(screen.getByLabelText('Schedule expression')).toHaveValue('interval')
+      expect(screen.getByRole('button', { name: 'Schedule expression' })).toHaveTextContent('Visual schedule builder')
       expect(screen.getByTestId('interval-input')).toHaveValue('R/2024-01-01T10:00:00Z/P1D')
     })
   })

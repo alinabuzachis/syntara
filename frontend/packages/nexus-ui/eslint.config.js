@@ -82,6 +82,18 @@ export default tseslint.config(
             'ImportDeclaration[source.value=/routing\\/(useNavigate|useParams|useSearch|useLocation|navigate|Link)$/]',
           message: 'Deprecated bridge hook. Use @tanstack/react-router primitives directly.',
         },
+        {
+          selector:
+            'ImportDeclaration[source.value="@patternfly/react-core"] > ImportSpecifier[imported.name="FormSelect"]',
+          message:
+            'Use PatternFly Select, SelectList, SelectOption, and MenuToggle instead of FormSelect / FormSelectOption.',
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="@patternfly/react-core"] > ImportSpecifier[imported.name="FormSelectOption"]',
+          message:
+            'Use PatternFly Select, SelectList, SelectOption, and MenuToggle instead of FormSelect / FormSelectOption.',
+        },
       ],
       // axios restriction merged into the icon/wouter no-restricted-imports block below
       // to avoid flat-config rule shadowing (the last matching block wins for a given rule).

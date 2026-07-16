@@ -106,10 +106,7 @@ describe('DynamicFieldRenderer', () => {
   it('renders a select for choices fields', () => {
     render(<DynamicFieldRenderer field={choicesField} value="openai" onChange={onChange} />)
 
-    expect(screen.getByLabelText('Provider', { selector: 'select' })).toBeInTheDocument()
-    expect(screen.getByText('openai')).toBeInTheDocument()
-    expect(screen.getByText('anthropic')).toBeInTheDocument()
-    expect(screen.getByText('azure')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Provider' })).toHaveTextContent('openai')
   })
 
   it('renders a textarea for multiline fields', () => {

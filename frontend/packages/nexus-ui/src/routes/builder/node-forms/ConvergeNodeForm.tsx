@@ -1,17 +1,19 @@
 import {
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   Stack,
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import type { ReactNode } from 'react'
-import { useEffect, useMemo } from 'react'
+import React, { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
@@ -35,6 +37,55 @@ const CONTINUE_WHEN_CRITERIA_OPTIONS: Array<{ label: string; value: ConvergeStra
   { label: 'All branches reach this step', value: 'all' },
   { label: 'Any branches reach this step', value: 'any' },
 ]
+
+function ContinueWhenSelect({
+  value,
+  onChange,
+  isDisabled,
+  validated,
+}: {
+  value: string
+  onChange: (value: string) => void
+  isDisabled?: boolean
+  validated?: 'error' | 'default'
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedLabel = CONTINUE_WHEN_CRITERIA_OPTIONS.find((o) => o.value === value)?.label
+  return (
+    <Select
+      id="converge-strategy"
+      isOpen={isOpen}
+      selected={value || undefined}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isDisabled={isDisabled}
+          isPlaceholder={!value}
+          status={validated === 'error' ? 'danger' : undefined}
+          aria-label="Continue when criteria"
+        >
+          {selectedLabel ?? 'Select continue when criteria'}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        {CONTINUE_WHEN_CRITERIA_OPTIONS.map((o) => (
+          <SelectOption key={o.value} value={o.value}>
+            {o.label}
+          </SelectOption>
+        ))}
+      </SelectList>
+    </Select>
+  )
+}
 
 type ConvergeNodeFormProps = {
   onSubmit: (data: ConvergeFormData) => void
@@ -96,20 +147,12 @@ function ConvergeFormFields({
             control={control}
             name="strategy"
             render={({ field }) => (
-              <FormSelect
-                id="converge-strategy"
-                aria-label="Continue when criteria"
+              <ContinueWhenSelect
                 value={field.value ?? ''}
-                onChange={(_event, value) => field.onChange(value)}
-                isRequired
-                validated={errors.strategy ? 'error' : 'default'}
+                onChange={field.onChange}
                 isDisabled={isVersionView}
-              >
-                <FormSelectOption value="" label="Select continue when criteria" isPlaceholder />
-                {CONTINUE_WHEN_CRITERIA_OPTIONS.map((option) => (
-                  <FormSelectOption key={option.value} value={option.value} label={option.label} />
-                ))}
-              </FormSelect>
+                validated={errors.strategy ? 'error' : 'default'}
+              />
             )}
           />
           {errors.strategy && (

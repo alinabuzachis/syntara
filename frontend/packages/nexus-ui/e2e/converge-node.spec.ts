@@ -73,8 +73,10 @@ test.describe('Converge Node - E2E Tests', () => {
         await expect(convergeBtn).toBeVisible()
         await convergeBtn.click()
 
-        await expect(app.getByRole('combobox', { name: /Continue when criteria/i })).toBeVisible()
-        await expect(app.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
+        await expect(app.getByRole('button', { name: 'Continue when criteria', exact: true })).toBeVisible()
+        await expect(app.getByRole('button', { name: 'Continue when criteria', exact: true })).toContainText(
+          'All branches reach this step'
+        )
         // Wait duration DurationInput is always visible (no toggle switch)
         await expect(app.getByText('Wait duration')).toBeVisible()
       } finally {
@@ -86,13 +88,14 @@ test.describe('Converge Node - E2E Tests', () => {
       await openConvergeFormOnNewWorkflow(app)
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Test Converge')
-      await app.getByRole('combobox', { name: /Continue when criteria/i }).selectOption('any')
+      await app.getByRole('button', { name: 'Continue when criteria', exact: true }).click()
+      await app.getByRole('option', { name: 'Any branches reach this step' }).click()
 
       const cancelButton = app.getByRole('button', { name: 'Cancel step creation' })
       await expect(cancelButton).toBeVisible()
       await cancelButton.click()
 
-      await expect(app.getByRole('combobox', { name: /Continue when criteria/i })).not.toBeVisible()
+      await expect(app.getByRole('button', { name: 'Continue when criteria', exact: true })).not.toBeVisible()
       await expect(app.getByText('Test Converge')).not.toBeVisible()
     })
   })
@@ -135,7 +138,9 @@ test.describe('Converge Node - E2E Tests', () => {
         await openWorkflowInBuilder(app, wfName)
         await app.getByText('Converge All').click()
 
-        await expect(app.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
+        await expect(app.getByRole('button', { name: 'Continue when criteria', exact: true })).toContainText(
+          'All branches reach this step'
+        )
 
         await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Updated Converge')
         await app.getByRole('button', { name: 'Update' }).click()
@@ -170,7 +175,8 @@ test.describe('Converge Node - E2E Tests', () => {
         await openWorkflowInBuilder(app, wfName)
         await app.getByText('Converge Any').click()
 
-        await app.getByRole('combobox', { name: /Continue when criteria/i }).selectOption('all')
+        await app.getByRole('button', { name: 'Continue when criteria', exact: true }).click()
+        await app.getByRole('option', { name: 'All branches reach this step' }).click()
 
         await expect(
           app.getByRole('spinbutton', { name: /Required number of branches before continuing/i })
@@ -265,7 +271,8 @@ test.describe('Converge Node - E2E Tests', () => {
         await openWorkflowInBuilder(app, wfName)
         await app.getByText('Converge All').click()
 
-        await app.getByRole('combobox', { name: /Continue when criteria/i }).selectOption('any')
+        await app.getByRole('button', { name: 'Continue when criteria', exact: true }).click()
+        await app.getByRole('option', { name: 'Any branches reach this step' }).click()
 
         const requiredPathCountInput = app.getByRole('spinbutton', {
           name: /Required number of branches before continuing/i,
@@ -310,7 +317,9 @@ test.describe('Converge Node - E2E Tests', () => {
         await openWorkflowInBuilder(app, wfName)
 
         await app.getByText('Converge Any Persist').click()
-        await expect(app.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('any')
+        await expect(app.getByRole('button', { name: 'Continue when criteria', exact: true })).toContainText(
+          'Any branches reach this step'
+        )
         await expect(
           app.getByRole('spinbutton', { name: /Required number of branches before continuing/i })
         ).toHaveValue('5')

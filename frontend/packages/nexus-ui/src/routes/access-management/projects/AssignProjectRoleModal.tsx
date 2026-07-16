@@ -4,8 +4,6 @@ import {
   Form,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
   Modal,
@@ -22,6 +20,7 @@ import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
+import { PrincipalTypeSelect } from '../../access/PrincipalTypeSelect'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 import { useAllProjectRoles } from '../../access/useAllProjectRoles'
 
@@ -238,20 +237,15 @@ export function AssignProjectRoleModal({
               name="principalOrGroup"
               control={control}
               render={({ field }) => (
-                <FormSelect
-                  id="principal-type"
-                  aria-label="Principal type"
+                <PrincipalTypeSelect
                   value={field.value}
-                  onChange={(_event, value) => {
+                  onChange={(value) => {
                     field.onChange(value)
                     setValue('userId', '', { shouldValidate: false })
                     setValue('groupId', '', { shouldValidate: false })
                     setValue('roleName', '', { shouldValidate: false })
                   }}
-                >
-                  <FormSelectOption value="principal" label="User" />
-                  <FormSelectOption value="group" label="Group" />
-                </FormSelect>
+                />
               )}
             />
           </FormGroup>

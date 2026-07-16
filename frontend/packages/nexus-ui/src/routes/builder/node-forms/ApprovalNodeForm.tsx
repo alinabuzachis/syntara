@@ -1,16 +1,19 @@
 import type { Activity } from '@ansible/nexus-contracts'
 import {
   FormGroup,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   Stack,
   StackItem,
   TextArea,
 } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { HelpPopover } from '../../../components/expressions/HelpPopover'
@@ -43,6 +46,47 @@ import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
 import { useApprovalDecideGroups } from './useApprovalDecideGroups'
 import { useApprovalDecideUsers } from './useApprovalDecideUsers'
+
+function FallbackDecisionSelect({
+  value = 'reject',
+  onChange,
+  isDisabled,
+}: {
+  value?: string
+  onChange: (value: string) => void
+  isDisabled?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  return (
+    <Select
+      id="approval-fallback-decision"
+      isOpen={isOpen}
+      selected={value}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isDisabled={isDisabled}
+          aria-label="Fallback decision"
+        >
+          {value === 'reject' ? 'Reject (default)' : 'Approve'}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        <SelectOption value="reject">Reject (default)</SelectOption>
+        <SelectOption value="approve">Approve</SelectOption>
+      </SelectList>
+    </Select>
+  )
+}
 
 // Approver user type
 type ApproverUser = Readonly<{ id: string; username: string }>
@@ -242,16 +286,11 @@ function ApprovalFormFields({
             control={control}
             name="fallback_decision"
             render={({ field }) => (
-              <FormSelect
-                id="approval-fallback-decision"
-                aria-label="Fallback decision"
+              <FallbackDecisionSelect
                 value={field.value ?? 'reject'}
-                onChange={(_event, value) => field.onChange(value)}
+                onChange={field.onChange}
                 isDisabled={isVersionView}
-              >
-                <FormSelectOption value="reject" label="Reject (default)" />
-                <FormSelectOption value="approve" label="Approve" />
-              </FormSelect>
+              />
             )}
           />
           <HelperText>

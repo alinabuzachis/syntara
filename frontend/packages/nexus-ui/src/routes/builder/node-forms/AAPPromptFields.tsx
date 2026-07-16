@@ -5,21 +5,115 @@
 import {
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   StackItem,
   Switch,
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import React, { useState } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
 import { TagInput } from '../../../components/forms/TagInput'
 import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
 
 import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
+
+// ── Select sub-components ────────────────────────────────────────────────
+
+const RUN_TYPE_OPTIONS = [
+  { value: 'run', label: 'Run' },
+  { value: 'check', label: 'Check (Dry Run)' },
+]
+
+function RunTypeSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedLabel = RUN_TYPE_OPTIONS.find((o) => o.value === value)?.label
+  return (
+    <Select
+      id="aap-jobType"
+      isOpen={isOpen}
+      selected={value || undefined}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isPlaceholder={!value}
+          aria-label="Run type"
+        >
+          {selectedLabel ?? '[ run type ]'}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        {RUN_TYPE_OPTIONS.map((o) => (
+          <SelectOption key={o.value} value={o.value}>
+            {o.label}
+          </SelectOption>
+        ))}
+      </SelectList>
+    </Select>
+  )
+}
+
+const VERBOSITY_OPTIONS = [
+  { value: '0', label: '0 - Normal' },
+  { value: '1', label: '1 - Verbose' },
+  { value: '2', label: '2 - More Verbose' },
+  { value: '3', label: '3 - Debug' },
+  { value: '4', label: '4 - Connection Debug' },
+  { value: '5', label: '5 - WinRM Debug' },
+]
+
+function VerbositySelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedLabel = VERBOSITY_OPTIONS.find((o) => o.value === value)?.label
+  return (
+    <Select
+      id="aap-verbosity"
+      isOpen={isOpen}
+      selected={value || undefined}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isPlaceholder={!value}
+          aria-label="Verbosity"
+        >
+          {selectedLabel ?? '[ verbosity ]'}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        {VERBOSITY_OPTIONS.map((o) => (
+          <SelectOption key={o.value} value={o.value}>
+            {o.label}
+          </SelectOption>
+        ))}
+      </SelectList>
+    </Select>
+  )
+}
 
 // ── Run Type Field ──────────────────────────────────────────────────────
 
@@ -32,18 +126,7 @@ export function RunTypeField() {
         <Controller
           control={control}
           name="job_type"
-          render={({ field }) => (
-            <FormSelect
-              id="aap-jobType"
-              value={field.value ?? ''}
-              onChange={(_event, value) => field.onChange(value)}
-              aria-label="Run type"
-            >
-              <FormSelectOption value="" label="[ run type ]" isPlaceholder />
-              <FormSelectOption value="run" label="Run" />
-              <FormSelectOption value="check" label="Check (Dry Run)" />
-            </FormSelect>
-          )}
+          render={({ field }) => <RunTypeSelect value={field.value ?? ''} onChange={field.onChange} />}
         />
       </FormGroup>
     </StackItem>
@@ -61,22 +144,7 @@ export function VerbosityField() {
         <Controller
           control={control}
           name="verbosity"
-          render={({ field }) => (
-            <FormSelect
-              id="aap-verbosity"
-              value={field.value ?? ''}
-              onChange={(_event, value) => field.onChange(value)}
-              aria-label="Verbosity"
-            >
-              <FormSelectOption value="" label="[ verbosity ]" isPlaceholder />
-              <FormSelectOption value="0" label="0 - Normal" />
-              <FormSelectOption value="1" label="1 - Verbose" />
-              <FormSelectOption value="2" label="2 - More Verbose" />
-              <FormSelectOption value="3" label="3 - Debug" />
-              <FormSelectOption value="4" label="4 - Connection Debug" />
-              <FormSelectOption value="5" label="5 - WinRM Debug" />
-            </FormSelect>
-          )}
+          render={({ field }) => <VerbositySelect value={field.value ?? ''} onChange={field.onChange} />}
         />
       </FormGroup>
     </StackItem>

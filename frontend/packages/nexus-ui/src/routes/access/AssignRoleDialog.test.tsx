@@ -252,8 +252,9 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const principalOrGroupSelect = screen.getByLabelText('Principal type')
-      await user.selectOptions(principalOrGroupSelect, 'group')
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Group' }))
 
       expect(screen.getByPlaceholderText('Select a group...')).toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Select a user...')).not.toBeInTheDocument()
@@ -263,8 +264,9 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const scopeSelect = screen.getByLabelText('Scope')
-      await user.selectOptions(scopeSelect, 'system')
+      const scopeToggle = screen.getByRole('button', { name: 'Scope' })
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'System' }))
 
       expect(screen.getByPlaceholderText('Select a user...')).toBeInTheDocument()
       // No project field for system-scoped
@@ -275,11 +277,13 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const principalOrGroupSelect = screen.getByLabelText('Principal type')
-      await user.selectOptions(principalOrGroupSelect, 'group')
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Group' }))
 
-      const scopeSelect = screen.getByLabelText('Scope')
-      await user.selectOptions(scopeSelect, 'system')
+      const scopeToggle = screen.getByRole('button', { name: 'Scope' })
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'System' }))
 
       expect(screen.getByPlaceholderText('Select a group...')).toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Select a project...')).not.toBeInTheDocument()
@@ -340,8 +344,9 @@ describe('AssignRoleDialog', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
       // Switch principal type to group
-      const principalOrGroupSelect = screen.getByLabelText('Principal type')
-      await user.selectOptions(principalOrGroupSelect, 'group')
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Group' }))
 
       // Select a project FIRST (role dropdown is disabled until project is selected)
       const projectInput = screen.getByPlaceholderText('Select a project...')
@@ -448,8 +453,9 @@ describe('AssignRoleDialog', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
       // Switch scope to system
-      const scopeSelect = screen.getByLabelText('Scope')
-      await user.selectOptions(scopeSelect, 'system')
+      const scopeToggle = screen.getByRole('button', { name: 'Scope' })
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'System' }))
 
       // Select a user from the typeahead
       const userInput = screen.getByPlaceholderText('Select a user...')
@@ -485,12 +491,14 @@ describe('AssignRoleDialog', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
       // Switch principal type to group
-      const principalOrGroupSelect = screen.getByLabelText('Principal type')
-      await user.selectOptions(principalOrGroupSelect, 'group')
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Group' }))
 
       // Switch scope to system
-      const scopeSelect = screen.getByLabelText('Scope')
-      await user.selectOptions(scopeSelect, 'system')
+      const scopeToggle = screen.getByRole('button', { name: 'Scope' })
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'System' }))
 
       // Select a group from the typeahead
       const groupInput = screen.getByPlaceholderText('Select a group...')
@@ -538,8 +546,9 @@ describe('AssignRoleDialog', () => {
       expect(clearButtons.length).toBeGreaterThanOrEqual(1)
 
       // Switch scope to system (project field disappears, role resets)
-      const scopeSelect = screen.getByLabelText('Scope')
-      await user.selectOptions(scopeSelect, 'system')
+      const scopeToggle = screen.getByRole('button', { name: 'Scope' })
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'System' }))
 
       // Role field should be cleared -- no clear button for role
       await waitFor(() => {
@@ -552,8 +561,9 @@ describe('AssignRoleDialog', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
       // Switch scope to system first
-      const scopeSelect = screen.getByLabelText('Scope')
-      await user.selectOptions(scopeSelect, 'system')
+      const scopeToggle = screen.getByRole('button', { name: 'Scope' })
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'System' }))
 
       // Select a role in system scope (use exact name to avoid multiple matches)
       const roleInput = screen.getByPlaceholderText('Select a role...')
@@ -565,7 +575,8 @@ describe('AssignRoleDialog', () => {
       expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument()
 
       // Switch back to project scope
-      await user.selectOptions(scopeSelect, 'project')
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'Project' }))
 
       // Role field should be cleared
       await waitFor(() => {
@@ -595,8 +606,9 @@ describe('AssignRoleDialog', () => {
       await user.click(roleOption)
 
       // Switch scope to system
-      const scopeSelect = screen.getByLabelText('Scope')
-      await user.selectOptions(scopeSelect, 'system')
+      const scopeToggle = screen.getByRole('button', { name: 'Scope' })
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'System' }))
 
       // Select a user from the typeahead
       const userInput = screen.getByPlaceholderText('Select a user...')

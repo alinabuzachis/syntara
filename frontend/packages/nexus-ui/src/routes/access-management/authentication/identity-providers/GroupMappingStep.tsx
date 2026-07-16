@@ -7,14 +7,17 @@ import {
   Form,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   TextInput,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiErrorIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Controller, useFieldArray, useWatch, type Control, type UseFormSetValue } from 'react-hook-form'
 
 import { useAllGroups } from '../../../access/useAllGroups'
@@ -29,6 +32,60 @@ import {
 import { nextKey, processDiscoveredGroups } from './groupMappingUtils'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
 import { useTestSignIn } from './useTestSignIn'
+
+function NexusGroupSelect({
+  value,
+  onChange,
+  onBlur,
+  nexusGroups,
+  ariaLabel,
+  validated,
+}: {
+  value: string
+  onChange: (value: string) => void
+  onBlur?: () => void
+  nexusGroups: { id?: string; name?: string }[]
+  ariaLabel: string
+  validated?: 'error' | 'default'
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedLabel = nexusGroups.find((g) => g.id === value)?.name ?? value
+  return (
+    <Select
+      isOpen={isOpen}
+      selected={value || undefined}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={(open) => {
+        setIsOpen(open)
+        if (!open) onBlur?.()
+      }}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isPlaceholder={!value}
+          status={validated === 'error' ? 'danger' : undefined}
+          aria-label={ariaLabel}
+        >
+          {value ? selectedLabel : 'Select a Nexus group...'}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        {nexusGroups.map((g) => (
+          <SelectOption key={g.id} value={g.id}>
+            {g.name ?? g.id ?? ''}
+          </SelectOption>
+        ))}
+      </SelectList>
+    </Select>
+  )
+}
 
 type MappingEntryRowProps = {
   index: number
@@ -59,19 +116,14 @@ function MappingEntryRow({ index, control, nexusGroups, onRemove }: Readonly<Map
         control={control}
         render={({ field, fieldState }) => (
           <div style={flexOneStyle}>
-            <FormSelect
-              aria-label={`Nexus group ${index + 1}`}
-              validated={fieldState.error ? 'error' : 'default'}
+            <NexusGroupSelect
               value={field.value}
-              onChange={(_event, value) => field.onChange(value)}
+              onChange={field.onChange}
               onBlur={field.onBlur}
-              name={field.name}
-            >
-              <FormSelectOption value="" label="Select a Nexus group..." />
-              {nexusGroups.map((g) => (
-                <FormSelectOption key={g.id} value={g.id} label={g.name ?? g.id ?? ''} />
-              ))}
-            </FormSelect>
+              nexusGroups={nexusGroups}
+              ariaLabel={`Nexus group ${index + 1}`}
+              validated={fieldState.error ? 'error' : 'default'}
+            />
           </div>
         )}
       />

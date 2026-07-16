@@ -2,18 +2,21 @@ import {
   Button,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
   InputGroup,
   InputGroupItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   Switch,
   TextArea,
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon, RhUiViewIcon, RhUiViewOffIcon } from '@patternfly/react-icons'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type Ref } from 'react'
 
 import { FormLabelWithHelp } from '../../../../components/FormLabelWithHelp'
 import { ENCRYPTED_SENTINEL } from '../credentialConstants'
@@ -97,24 +100,71 @@ function BooleanField({ field, value, onChange, error }: DynamicFieldRendererPro
   )
 }
 
+function ChoicesSelect({
+  value,
+  onChange,
+  choices,
+  fieldId,
+  label,
+  validated,
+}: {
+  value: string
+  onChange: (value: string) => void
+  choices: string[]
+  fieldId: string
+  label: string
+  validated?: 'error' | 'default'
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const toggleText = value || 'Select...'
+  return (
+    <Select
+      id={fieldId}
+      isOpen={isOpen}
+      selected={value || undefined}
+      onSelect={(_event, val: string | number | undefined) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isPlaceholder={!value}
+          status={validated === 'error' ? 'danger' : undefined}
+          aria-label={label}
+        >
+          {toggleText}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        {choices.map((choice) => (
+          <SelectOption key={choice} value={choice}>
+            {choice}
+          </SelectOption>
+        ))}
+      </SelectList>
+    </Select>
+  )
+}
+
 function ChoicesField({ field, value, onChange, isRequired, error }: DynamicFieldRendererProps) {
   const stringValue = value != null ? String(value as string | number | boolean) : ''
-  const validated = error ? 'error' : 'default'
 
   return (
     <FieldWrapper field={field} isRequired={isRequired} error={error}>
-      <FormSelect
-        id={field.id}
+      <ChoicesSelect
         value={stringValue}
-        onChange={(_event, val) => onChange(field.id, val)}
-        validated={validated}
-        aria-label={field.label}
-      >
-        <FormSelectOption value="" label="Select..." isPlaceholder />
-        {field.choices?.map((choice) => (
-          <FormSelectOption key={choice} value={choice} label={choice} />
-        ))}
-      </FormSelect>
+        onChange={(val) => onChange(field.id, val)}
+        choices={field.choices ?? []}
+        fieldId={field.id}
+        label={field.label}
+        validated={error ? 'error' : 'default'}
+      />
     </FieldWrapper>
   )
 }

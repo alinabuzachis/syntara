@@ -676,10 +676,11 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    const verbositySelect = screen.getByLabelText(/Verbosity/i)
-    await user.selectOptions(verbositySelect, '2')
+    const verbosityToggle = screen.getByRole('button', { name: /Verbosity/i })
+    await user.click(verbosityToggle)
+    await user.click(screen.getByRole('option', { name: '2 - More Verbose' }))
 
-    expect(verbositySelect).toHaveValue('2')
+    expect(verbosityToggle).toHaveTextContent('2 - More Verbose')
   })
 
   it('toggles diff mode switch', async () => {
@@ -1109,9 +1110,10 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    const jobTypeSelect = screen.getByLabelText(/Run type/i)
-    await user.selectOptions(jobTypeSelect, 'check')
+    const jobTypeToggle = screen.getByRole('button', { name: /Run type/i })
+    await user.click(jobTypeToggle)
+    await user.click(screen.getByRole('option', { name: 'Check (Dry Run)' }))
 
-    expect(jobTypeSelect).toHaveValue('check')
+    expect(jobTypeToggle).toHaveTextContent('Check (Dry Run)')
   })
 })

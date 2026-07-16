@@ -8,8 +8,6 @@ import {
   FlexItem,
   Form,
   FormGroup,
-  FormSelect,
-  FormSelectOption,
   Spinner,
   Stack,
   StackItem,
@@ -26,6 +24,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
 import type { ResourceActionMap } from './canIUtils'
+import { ProjectSelect } from './ProjectSelect'
 import { ResourceIdSelect } from './ResourceIdSelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import type { WhoCanUser } from './types'
@@ -257,17 +256,12 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
               name="project"
               control={control}
               render={({ field }) => (
-                <FormSelect
+                <ProjectSelect
                   id="who-can-project"
-                  aria-label="Project"
                   value={field.value ?? ''}
-                  onChange={(_e, val) => field.onChange(val)}
-                >
-                  <FormSelectOption value="" label="Any project" isPlaceholder />
-                  {projects.map((p) => (
-                    <FormSelectOption key={p.id} value={p.name} label={p.name} />
-                  ))}
-                </FormSelect>
+                  onChange={field.onChange}
+                  projects={projects}
+                />
               )}
             />
           </FormGroup>

@@ -139,7 +139,7 @@ describe('SettingInput', () => {
     expect(onChange).toHaveBeenCalledWith('test.setting', 0.6)
   })
 
-  it('renders string with allowed_values as FormSelect', () => {
+  it('renders string with allowed_values as Select', () => {
     const stringSetting = {
       ...baseSetting,
       value_type: 'string' as const,
@@ -159,7 +159,7 @@ describe('SettingInput', () => {
       />
     )
 
-    expect(screen.getByRole('combobox')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Test setting' })).toBeInTheDocument()
   })
 
   it('renders string without allowed_values as TextInput', () => {
@@ -400,7 +400,7 @@ describe('SettingInput', () => {
       expect(screen.getByRole('spinbutton')).toBeDisabled()
     })
 
-    it('disables FormSelect when readOnly', () => {
+    it('disables Select when readOnly', () => {
       const stringSetting = {
         ...baseSetting,
         value_type: 'string' as const,
@@ -421,7 +421,7 @@ describe('SettingInput', () => {
         />
       )
 
-      expect(screen.getByRole('combobox')).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Test setting' })).toBeDisabled()
     })
 
     it('renders TextInput as read-only when readOnly', () => {

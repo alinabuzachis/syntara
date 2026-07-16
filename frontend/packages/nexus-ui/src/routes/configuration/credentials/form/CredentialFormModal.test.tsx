@@ -356,20 +356,25 @@ describe('CredentialFormModal', () => {
     expect(screen.getByLabelText('Token', { selector: 'input' })).toBeInTheDocument()
   })
 
-  it('renders project dropdown in create mode', () => {
+  it('renders project dropdown in create mode', async () => {
+    const user = userEvent.setup()
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 
-    const projectSelect = screen.getByLabelText('Credential project')
-    expect(projectSelect).toBeInTheDocument()
-    expect(within(projectSelect).getByRole('option', { name: 'Project Alpha' })).toBeInTheDocument()
-    expect(within(projectSelect).getByRole('option', { name: 'Project Beta' })).toBeInTheDocument()
-    expect(within(projectSelect).getByRole('option', { name: 'Project Gamma' })).toBeInTheDocument()
+    const projectToggle = screen.getByRole('button', { name: 'Credential project' })
+    expect(projectToggle).toBeInTheDocument()
+    expect(projectToggle).toHaveTextContent('Select a project')
+
+    // Open dropdown to verify all options are listed
+    await user.click(projectToggle)
+    expect(screen.getByRole('option', { name: 'Project Alpha' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Project Beta' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Project Gamma' })).toBeInTheDocument()
   })
 
   it('pre-selects project when defaultProjectId is provided', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
 
-    expect(screen.getByLabelText('Credential project')).toHaveValue('proj-1')
+    expect(screen.getByRole('button', { name: 'Credential project' })).toHaveTextContent('Project Alpha')
   })
 
   it('shows placeholder when no defaultProjectId is provided', () => {
@@ -410,7 +415,8 @@ describe('CredentialFormModal', () => {
     const user = userEvent.setup()
     render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
 
-    await user.selectOptions(screen.getByLabelText('Credential project'), 'proj-2')
+    await user.click(screen.getByRole('button', { name: 'Credential project' }))
+    await user.click(screen.getByRole('option', { name: 'Project Beta' }))
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
     // type-1 (HTTP Bearer Token) is auto-selected
     await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'my-secret-token')
@@ -431,7 +437,7 @@ describe('CredentialFormModal', () => {
   it('shows credential project in edit mode', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} credentialToEdit={mockCredential} />, { wrapper })
 
-    expect(screen.getByLabelText('Credential project')).toHaveValue('proj-1')
+    expect(screen.getByRole('button', { name: 'Credential project' })).toHaveTextContent('Project Alpha')
   })
 
   it('shows loading state for projects', () => {

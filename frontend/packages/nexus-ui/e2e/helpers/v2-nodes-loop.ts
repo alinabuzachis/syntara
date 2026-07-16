@@ -49,9 +49,10 @@ export async function configureLoopNode(
   }
 
   if (config.type) {
-    const typeSelect = page.getByLabel('Type', { exact: true })
-    await expect(typeSelect).toBeVisible()
-    await typeSelect.selectOption({ label: config.type === 'while' ? 'While' : 'For each' })
+    const typeToggle = page.getByRole('button', { name: 'Type', exact: true })
+    await expect(typeToggle).toBeVisible()
+    await typeToggle.click()
+    await page.getByRole('option', { name: config.type === 'while' ? 'While' : 'For each' }).click()
     // Wait for the type-specific field to appear, confirming the form re-rendered
     if (config.type === 'while') {
       await expect(page.getByLabel(/Expression editor mode/i)).toBeVisible()

@@ -1,11 +1,14 @@
 import type { SettingsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
-  FormSelect,
-  FormSelectOption,
   Label,
   LabelGroup,
+  MenuToggle,
+  type MenuToggleElement,
   NumberInput,
+  Select,
+  SelectList,
+  SelectOption,
   Switch,
   TextInput,
   TextInputGroup,
@@ -13,7 +16,7 @@ import {
   TextInputGroupUtilities,
 } from '@patternfly/react-core'
 import { TimesIcon } from '@patternfly/react-icons'
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 
 type RuntimeSetting = SettingsAPI.components['schemas']['RuntimeSettingRead']
@@ -154,6 +157,56 @@ function JsonInput({ setting, value, pattern, onChange, stringError, onStringErr
   )
 }
 
+function AllowedValuesSelect({
+  id,
+  label,
+  value,
+  allowedValues,
+  isDisabled,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: string
+  allowedValues: string[]
+  isDisabled?: boolean
+  onChange: (value: string) => void
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  return (
+    <Select
+      id={id}
+      isOpen={isOpen}
+      selected={value || undefined}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isDisabled={isDisabled}
+          aria-label={label}
+        >
+          {value || allowedValues[0] || ''}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        {allowedValues.map((v) => (
+          <SelectOption key={v} value={v}>
+            {v}
+          </SelectOption>
+        ))}
+      </SelectList>
+    </Select>
+  )
+}
+
 export function SettingInput({
   setting,
   value,
@@ -222,16 +275,14 @@ export function SettingInput({
       const allowedValues = schema.allowed_values as string[] | undefined
       if (allowedValues) {
         return (
-          <FormSelect
+          <AllowedValuesSelect
             id={setting.key}
+            label={setting.name}
             value={value as string}
+            allowedValues={allowedValues}
             isDisabled={readOnly}
-            onChange={(_event, val) => onChange(setting.key, val)}
-          >
-            {allowedValues.map((v) => (
-              <FormSelectOption key={v} value={v} label={v} />
-            ))}
-          </FormSelect>
+            onChange={(val) => onChange(setting.key, val)}
+          />
         )
       }
       return (

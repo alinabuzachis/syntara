@@ -4,18 +4,20 @@ import {
   FlexItem,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
   Label,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   Stack,
   StackItem,
   TextArea,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef } from 'react'
+import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import {
@@ -62,6 +64,96 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
   { label: 'PATCH', value: 'PATCH' },
   { label: 'DELETE', value: 'DELETE' },
 ]
+
+function ScriptLanguageSelect({
+  value,
+  onChange,
+  isDisabled,
+}: {
+  value: string
+  onChange: (value: string) => void
+  isDisabled?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedLabel = SCRIPT_LANGUAGE_OPTIONS.find((o) => o.value === value)?.label
+  return (
+    <Select
+      id="action-language"
+      isOpen={isOpen}
+      selected={value || undefined}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isDisabled={isDisabled}
+          aria-label="Language"
+        >
+          {selectedLabel ?? value}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        {SCRIPT_LANGUAGE_OPTIONS.map((o) => (
+          <SelectOption key={o.value} value={o.value}>
+            {o.label}
+          </SelectOption>
+        ))}
+      </SelectList>
+    </Select>
+  )
+}
+
+function HttpMethodSelect({
+  value,
+  onChange,
+  isDisabled,
+}: {
+  value: string
+  onChange: (value: string) => void
+  isDisabled?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedLabel = HTTP_METHOD_OPTIONS.find((o) => o.value === value)?.label
+  return (
+    <Select
+      id="action-method"
+      isOpen={isOpen}
+      selected={value || undefined}
+      onSelect={(_event, val) => {
+        onChange(String(val))
+        setIsOpen(false)
+      }}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen((prev) => !prev)}
+          isExpanded={isOpen}
+          isFullWidth
+          isDisabled={isDisabled}
+          aria-label="HTTP Method"
+        >
+          {selectedLabel ?? value}
+        </MenuToggle>
+      )}
+    >
+      <SelectList>
+        {HTTP_METHOD_OPTIONS.map((o) => (
+          <SelectOption key={o.value} value={o.value}>
+            {o.label}
+          </SelectOption>
+        ))}
+      </SelectList>
+    </Select>
+  )
+}
 
 type ScriptEnvironmentVariablesProps = {
   register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
@@ -134,17 +226,11 @@ function ActionParametersContent(props: ActionParametersContentProps) {
                 control={control}
                 name="language"
                 render={({ field }) => (
-                  <FormSelect
-                    id="action-language"
-                    aria-label="Language"
-                    value={field.value}
-                    onChange={(_event, value) => field.onChange(value)}
+                  <ScriptLanguageSelect
+                    value={field.value ?? 'python'}
+                    onChange={field.onChange}
                     isDisabled={isVersionView}
-                  >
-                    {SCRIPT_LANGUAGE_OPTIONS.map((option) => (
-                      <FormSelectOption key={option.value} value={option.value} label={option.label} />
-                    ))}
-                  </FormSelect>
+                  />
                 )}
               />
             </FormGroup>
@@ -217,17 +303,7 @@ function ActionParametersContent(props: ActionParametersContentProps) {
                 control={control}
                 name="method"
                 render={({ field }) => (
-                  <FormSelect
-                    id="action-method"
-                    aria-label="HTTP Method"
-                    value={field.value}
-                    onChange={(_event, value) => field.onChange(value)}
-                    isDisabled={isVersionView}
-                  >
-                    {HTTP_METHOD_OPTIONS.map((option) => (
-                      <FormSelectOption key={option.value} value={option.value} label={option.label} />
-                    ))}
-                  </FormSelect>
+                  <HttpMethodSelect value={field.value ?? 'GET'} onChange={field.onChange} isDisabled={isVersionView} />
                 )}
               />
             </FormGroup>

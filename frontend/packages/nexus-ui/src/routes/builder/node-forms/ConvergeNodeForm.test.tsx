@@ -26,7 +26,7 @@ describe('ConvergeNodeForm', () => {
     it('renders strategy selector', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Continue when criteria' })).toBeInTheDocument()
     })
 
     it('renders help popovers for strategy and branch count fields', () => {
@@ -93,7 +93,9 @@ describe('ConvergeNodeForm', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Existing Converge')
-      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
+      expect(screen.getByRole('button', { name: 'Continue when criteria' })).toHaveTextContent(
+        'All branches reach this step'
+      )
     })
   })
 
@@ -101,7 +103,9 @@ describe('ConvergeNodeForm', () => {
     it('defaults strategy to "all"', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
+      expect(screen.getByRole('button', { name: 'Continue when criteria' })).toHaveTextContent(
+        'All branches reach this step'
+      )
     })
   })
 
@@ -127,20 +131,11 @@ describe('ConvergeNodeForm', () => {
   })
 
   describe('Validation', () => {
-    it('rejects submission when strategy is reset to placeholder', async () => {
-      const user = userEvent.setup()
+    it('strategy select always has a valid value (cannot be reset to empty)', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
-      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'No Strategy')
-
-      const strategySelect = screen.getByRole('combobox', { name: /Continue when criteria/i })
-      await user.selectOptions(strategySelect, '')
-
-      fireEvent.submit(screen.getByTestId('converge-node-form'))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).not.toHaveBeenCalled()
-      })
+      const strategyToggle = screen.getByRole('button', { name: 'Continue when criteria' })
+      expect(strategyToggle).toHaveTextContent('All branches reach this step')
     })
   })
 
@@ -150,7 +145,6 @@ describe('ConvergeNodeForm', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'All Strategy')
-      await user.selectOptions(screen.getByRole('combobox', { name: /Continue when criteria/i }), 'all')
 
       fireEvent.submit(screen.getByTestId('converge-node-form'))
 

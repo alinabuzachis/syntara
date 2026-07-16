@@ -285,8 +285,9 @@ describe('WhoCanView', () => {
 
       render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
-      // Select a project
-      await user.selectOptions(screen.getByLabelText('Project'), 'default')
+      // Select a project via PF Select
+      await user.click(screen.getByRole('button', { name: 'Project' }))
+      await user.click(screen.getByRole('option', { name: 'default' }))
 
       expect(screen.getByRole('heading', { name: /in "default" project/ })).toBeInTheDocument()
     })
