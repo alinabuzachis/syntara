@@ -205,7 +205,7 @@ services:
   temporal-worker:
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, uv run --no-sync python -m nexus.workflows.worker]
+    command: [python, -m, nexus.workflows.worker]
     extra_hosts: # Dev mode: resolves 'nexus' to host when API runs outside containers
       - "nexus:host-gateway"
     environment:
@@ -290,7 +290,7 @@ services:
   temporal-background-worker:
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, uv run --no-sync python -m nexus.workflows.background_worker]
+    command: [python, -m, nexus.workflows.background_worker]
     extra_hosts:
       - "nexus:host-gateway"
     environment:

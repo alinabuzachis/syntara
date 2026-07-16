@@ -32,6 +32,7 @@ cleanup() {
 trap cleanup EXIT
 
 ${MAKE} _deps-install-dev
+${MAKE} install-test-sdk
 
 # Fix SELinux context if running on SELinux-enabled system
 if command -v chcon >/dev/null 2>&1 && getenforce 2>/dev/null | grep -qi enforcing; then
@@ -49,7 +50,7 @@ APP_SEGMENT_ENDPOINT="http://mock-segment:9999" \
 APP_SEGMENT_MAX_RETRIES=2 \
 APP_SEGMENT_TIMEOUT=5 \
 APP_COLLECTION_INTERVAL_SECONDS=10 \
-${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate temporal temporal-worker mock-segment mcp-server nexus \
+${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate temporal temporal-worker temporal-background-worker mock-segment mcp-server nexus \
     >> /tmp/nexus-e2e-infra.log 2>&1
 
 echo "⏳ Waiting for mock Segment server..."
@@ -71,8 +72,9 @@ until timeout 2 bash -c "echo > /dev/tcp/localhost/\${APP_TEMPORAL_PORT:-7233}" 
     sleep 2
     TRIES=$((TRIES + 1))
     if [[ $TRIES -ge 60 ]]; then
-        echo "⚠️  Temporal may not be ready — workflow execution tests may fail"
-        break
+        echo "❌ Temporal failed to start after 120s. Logs:"
+        ${COMPOSE_CMD} --profile telemetry-e2e logs temporal 2>&1 | tail -20
+        exit 1
     fi
 done
 echo "✅ Infrastructure ready"
