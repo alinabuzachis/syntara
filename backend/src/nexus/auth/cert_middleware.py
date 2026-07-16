@@ -149,7 +149,7 @@ class ClientCertAuthMiddleware:
                 await _send_403(send, exc.detail)
                 return
 
-            is_service = self._cn_allowlist is None or cert_cn in self._cn_allowlist
+            is_service = self._cn_allowlist is not None and cert_cn in self._cn_allowlist
             if not is_service:
                 logger.debug("Client certificate CN '%s' not in allowlist; treating as proxy", cert_cn)
                 cert_cn = None

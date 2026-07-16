@@ -194,16 +194,16 @@ class TestClientCertAuthMiddleware:
 
     @pytest.mark.usefixtures("_tls_enabled")
     @pytest.mark.asyncio
-    async def test_cert_without_allowlist_accepts_all(self) -> None:
-        """Valid cert with no allowlist configured: accepts all CNs (backwards compatible)."""
+    async def test_cert_without_allowlist_gets_no_service_identity(self) -> None:
+        """Valid cert with no allowlist configured: no service identity (fail closed)."""
         app = AsyncMock()
         middleware = ClientCertAuthMiddleware(app)
         scope = _make_scope(peercert=_make_peercert("worker.ao.svc"))
 
         await middleware(scope, AsyncMock(), AsyncMock())
 
-        assert scope["state"]["is_cert_authenticated"] is True
-        assert scope["state"]["cert_cn"] == "worker.ao.svc"
+        assert scope["state"]["is_cert_authenticated"] is False
+        assert scope["state"]["cert_cn"] is None
         app.assert_called_once()
 
     @pytest.mark.usefixtures("_tls_enabled")
