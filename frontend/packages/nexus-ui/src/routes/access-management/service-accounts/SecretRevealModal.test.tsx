@@ -5,9 +5,8 @@ import { axe } from 'vitest-axe'
 
 import { SecretRevealModal } from './SecretRevealModal'
 
-function getFooterCloseButton() {
-  const allCloseButtons = screen.getAllByRole('button', { name: 'Close' })
-  return allCloseButtons[allCloseButtons.length - 1]
+function getCloseButton() {
+  return screen.getByRole('button', { name: 'Close' })
 }
 
 describe('SecretRevealModal', () => {
@@ -57,7 +56,7 @@ describe('SecretRevealModal', () => {
   it('renders the footer Close button disabled until checkbox is checked', () => {
     render(<SecretRevealModal {...defaultProps} />)
 
-    expect(getFooterCloseButton()).toBeDisabled()
+    expect(getCloseButton()).toBeDisabled()
   })
 
   it('enables footer Close button after checking the acknowledgement checkbox', async () => {
@@ -66,7 +65,7 @@ describe('SecretRevealModal', () => {
 
     await user.click(screen.getByRole('checkbox', { name: 'I have saved the new secret' }))
 
-    expect(getFooterCloseButton()).toBeEnabled()
+    expect(getCloseButton()).toBeEnabled()
   })
 
   it('calls onClose when footer Close button is clicked after acknowledgement', async () => {
@@ -74,7 +73,7 @@ describe('SecretRevealModal', () => {
     render(<SecretRevealModal {...defaultProps} />)
 
     await user.click(screen.getByRole('checkbox', { name: 'I have saved the new secret' }))
-    await user.click(getFooterCloseButton())
+    await user.click(getCloseButton())
 
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1)
   })
@@ -84,13 +83,30 @@ describe('SecretRevealModal', () => {
     const { rerender } = render(<SecretRevealModal {...defaultProps} />)
 
     await user.click(screen.getByRole('checkbox', { name: 'I have saved the new secret' }))
-    await user.click(getFooterCloseButton())
+    await user.click(getCloseButton())
 
     rerender(<SecretRevealModal {...defaultProps} isOpen={false} />)
     rerender(<SecretRevealModal {...defaultProps} isOpen={true} />)
 
     expect(screen.getByRole('checkbox', { name: 'I have saved the new secret' })).not.toBeChecked()
-    expect(getFooterCloseButton()).toBeDisabled()
+    expect(getCloseButton()).toBeDisabled()
+  })
+
+  it('does not render a header close (X) button', () => {
+    render(<SecretRevealModal {...defaultProps} />)
+
+    const buttons = screen.getAllByRole('button')
+    const closeButtons = buttons.filter((btn) => btn.getAttribute('aria-label') === 'Close')
+    expect(closeButtons).toHaveLength(0)
+  })
+
+  it('does not close on Escape key press', async () => {
+    const user = userEvent.setup()
+    render(<SecretRevealModal {...defaultProps} />)
+
+    await user.keyboard('{Escape}')
+
+    expect(defaultProps.onClose).not.toHaveBeenCalled()
   })
 
   it('does not render content when closed', () => {

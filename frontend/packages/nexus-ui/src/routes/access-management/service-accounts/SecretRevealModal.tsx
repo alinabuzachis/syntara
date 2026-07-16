@@ -40,7 +40,7 @@ export function SecretRevealModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} variant="medium">
+    <Modal isOpen={isOpen} variant="medium">
       <ModalHeader title={title} />
       <ModalBody>
         <Stack hasGutter>
