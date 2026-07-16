@@ -41,6 +41,7 @@ class CredentialRead:
         enabled (bool | Unset):  Default: True.
         inputs (CredentialReadInputs | Unset):
         workflow_count (int | Unset): Number of workflows referencing this credential Default: 0.
+        integration_count (int | Unset): Number of integrations using this credential Default: 0.
     """
 
     created_by: None | UserReference
@@ -56,6 +57,7 @@ class CredentialRead:
     enabled: bool | Unset = True
     inputs: CredentialReadInputs | Unset = UNSET
     workflow_count: int | Unset = 0
+    integration_count: int | Unset = 0
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.user_reference import UserReference
@@ -110,6 +112,8 @@ class CredentialRead:
 
         workflow_count = self.workflow_count
 
+        integration_count = self.integration_count
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -138,6 +142,8 @@ class CredentialRead:
             field_dict["inputs"] = inputs
         if workflow_count is not UNSET:
             field_dict["workflow_count"] = workflow_count
+        if integration_count is not UNSET:
+            field_dict["integration_count"] = integration_count
 
         return field_dict
 
@@ -235,6 +241,8 @@ class CredentialRead:
 
         workflow_count = d.pop("workflow_count", UNSET)
 
+        integration_count = d.pop("integration_count", UNSET)
+
         credential_read = cls(
             created_by=created_by,
             name=name,
@@ -249,6 +257,7 @@ class CredentialRead:
             enabled=enabled,
             inputs=inputs,
             workflow_count=workflow_count,
+            integration_count=integration_count,
         )
 
         return credential_read

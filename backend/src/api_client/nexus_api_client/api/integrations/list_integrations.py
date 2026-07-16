@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from typing import Any
+from uuid import UUID
 
 import httpx
 
@@ -23,6 +24,7 @@ def _get_kwargs(
     validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
+    management_credential_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -80,6 +82,15 @@ def _get_kwargs(
     else:
         json_scope = scope
     params["scope"] = json_scope
+
+    json_management_credential_id: None | str | Unset
+    if isinstance(management_credential_id, Unset):
+        json_management_credential_id = UNSET
+    elif isinstance(management_credential_id, UUID):
+        json_management_credential_id = str(management_credential_id)
+    else:
+        json_management_credential_id = management_credential_id
+    params["management_credential_id"] = json_management_credential_id
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -170,6 +181,7 @@ def sync_detailed(
     validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
+    management_credential_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | IntegrationListResponse]:
     """List Integrations
@@ -185,6 +197,7 @@ def sync_detailed(
         validation_status (IntegrationStatus | None | Unset):
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
+        management_credential_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -203,6 +216,7 @@ def sync_detailed(
         validation_status=validation_status,
         enabled=enabled,
         scope=scope,
+        management_credential_id=management_credential_id,
         additional_params=additional_params,
     )
 
@@ -224,6 +238,7 @@ def sync(
     validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
+    management_credential_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | IntegrationListResponse | None:
     """List Integrations
 
@@ -238,6 +253,7 @@ def sync(
         validation_status (IntegrationStatus | None | Unset):
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
+        management_credential_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -257,6 +273,7 @@ def sync(
         validation_status=validation_status,
         enabled=enabled,
         scope=scope,
+        management_credential_id=management_credential_id,
     ).parsed
 
 
@@ -271,6 +288,7 @@ async def asyncio_detailed(
     validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
+    management_credential_id: None | Unset | UUID = UNSET,
 ) -> Response[ErrorData | IntegrationListResponse]:
     """List Integrations
 
@@ -285,6 +303,7 @@ async def asyncio_detailed(
         validation_status (IntegrationStatus | None | Unset):
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
+        management_credential_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -303,6 +322,7 @@ async def asyncio_detailed(
         validation_status=validation_status,
         enabled=enabled,
         scope=scope,
+        management_credential_id=management_credential_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -321,6 +341,7 @@ async def asyncio(
     validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
+    management_credential_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | IntegrationListResponse | None:
     """List Integrations
 
@@ -335,6 +356,7 @@ async def asyncio(
         validation_status (IntegrationStatus | None | Unset):
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
+        management_credential_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -355,5 +377,6 @@ async def asyncio(
             validation_status=validation_status,
             enabled=enabled,
             scope=scope,
+            management_credential_id=management_credential_id,
         )
     ).parsed

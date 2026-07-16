@@ -32,6 +32,8 @@ class ServiceAccountRead:
         created_at (datetime.datetime):
         updated_at (datetime.datetime):
         description (None | str | Unset):
+        project_name (None | str | Unset):
+        is_project_deleted (bool | Unset):  Default: False.
         last_authenticated_at (datetime.datetime | None | Unset):
         updated_by (None | Unset | UUID):
         labels (ServiceAccountReadLabels | Unset):
@@ -45,6 +47,8 @@ class ServiceAccountRead:
     created_at: datetime.datetime
     updated_at: datetime.datetime
     description: None | str | Unset = UNSET
+    project_name: None | str | Unset = UNSET
+    is_project_deleted: bool | Unset = False
     last_authenticated_at: datetime.datetime | None | Unset = UNSET
     updated_by: None | Unset | UUID = UNSET
     labels: ServiceAccountReadLabels | Unset = UNSET
@@ -70,6 +74,14 @@ class ServiceAccountRead:
             description = UNSET
         else:
             description = self.description
+
+        project_name: None | str | Unset
+        if isinstance(self.project_name, Unset):
+            project_name = UNSET
+        else:
+            project_name = self.project_name
+
+        is_project_deleted = self.is_project_deleted
 
         last_authenticated_at: None | str | Unset
         if isinstance(self.last_authenticated_at, Unset):
@@ -106,6 +118,10 @@ class ServiceAccountRead:
         )
         if description is not UNSET:
             field_dict["description"] = description
+        if project_name is not UNSET:
+            field_dict["project_name"] = project_name
+        if is_project_deleted is not UNSET:
+            field_dict["is_project_deleted"] = is_project_deleted
         if last_authenticated_at is not UNSET:
             field_dict["last_authenticated_at"] = last_authenticated_at
         if updated_by is not UNSET:
@@ -142,6 +158,17 @@ class ServiceAccountRead:
             return cast(None | str | Unset, data)
 
         description = _parse_description(d.pop("description", UNSET))
+
+        def _parse_project_name(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        project_name = _parse_project_name(d.pop("project_name", UNSET))
+
+        is_project_deleted = d.pop("is_project_deleted", UNSET)
 
         def _parse_last_authenticated_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -193,6 +220,8 @@ class ServiceAccountRead:
             created_at=created_at,
             updated_at=updated_at,
             description=description,
+            project_name=project_name,
+            is_project_deleted=is_project_deleted,
             last_authenticated_at=last_authenticated_at,
             updated_by=updated_by,
             labels=labels,

@@ -21,6 +21,15 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  integrationsClient: {
+    useQuery: vi.fn(() => ({
+      data: { resources: [] },
+      isPending: false,
+      error: null,
+      isFetching: false,
+      refetch: vi.fn(),
+    })),
+  },
 
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
   interfaceTagMiddleware: { onRequest: vi.fn() },
@@ -100,6 +109,7 @@ const mockCredentials = [
     project_id: 'proj-1',
     created_at: '2026-03-01T05:00:00Z',
     updated_at: '2026-03-18T05:45:00Z',
+    integration_count: 3,
   },
   {
     id: '2',

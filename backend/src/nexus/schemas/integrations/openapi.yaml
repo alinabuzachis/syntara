@@ -77,6 +77,16 @@ paths:
               - type: "null"
             title: Scope
           description: Filter by visibility scope
+        - name: management_credential_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Management Credential Id
+          description: Filter by management credential ID (credential used for admin operations like validation and tool/model discovery)
       responses:
         "200":
           description: Successful Response
@@ -1028,6 +1038,22 @@ components:
             - integration_type
             - configuration
           properties:
+            created_by:
+              anyOf:
+                - type: string
+                - type: string
+                  format: uuid
+                - type: "null"
+              description: Username or UUID of the creator
+              title: Created By
+            updated_by:
+              anyOf:
+                - type: string
+                - type: string
+                  format: uuid
+                - type: "null"
+              description: Username or UUID of the last modifier
+              title: Updated By
             integration_type:
               $ref: '#/components/schemas/IntegrationType'
             enabled:

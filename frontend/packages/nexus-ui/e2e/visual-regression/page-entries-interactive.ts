@@ -933,6 +933,18 @@ export const detailTabPages: PageEntry[] = [
     },
   },
   {
+    section: 'configuration/credentials',
+    name: 'credential-detail-integrations-tab',
+    path: AppRoute.Configuration.Credentials.DetailTab.replace(':credentialId', MOCK_CREDENTIAL_ID).replace(
+      ':tab',
+      'integrations'
+    ),
+    waitFor: async (page) => {
+      await expect(page.getByText('Production API Auth').first()).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Integrations/i, selected: true })).toBeVisible()
+    },
+  },
+  {
     section: 'access-management/users',
     name: 'user-detail-groups-tab',
     path: AppRoute.AccessManagement.UserDetailTab.replace(':userId', MOCK_USER_ID).replace(':tab', 'groups'),

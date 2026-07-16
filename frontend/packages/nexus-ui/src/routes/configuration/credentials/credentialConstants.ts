@@ -6,15 +6,6 @@ export const ENCRYPTED_SENTINEL = '$encrypted$'
 /** Credential resource from the API */
 export type Credential = CredentialsAPI.components['schemas']['CredentialRead']
 
-/**
- * Extended credential that includes fields actually returned by the backend.
- *
- * The backend returns workflow_count but the OpenAPI contract doesn't declare it.
- */
-export type CredentialExtended = {
-  workflow_count?: number
-} & Credential
-
 /** Credential type resource from the API */
 export type CredentialType = CredentialsAPI.components['schemas']['CredentialTypeRead']
 

@@ -212,6 +212,7 @@ class IntegrationService(BaseService):
         m_total, m_enabled = model_counts.get(integration.id, (0, 0))
         result.total_model_count = m_total
         result.enabled_model_count = m_enabled
+        await self._resolve_user_fields([result])
         return result
 
     async def _get_tool_counts(self, integration_ids: list[UUID]) -> dict[UUID, tuple[int, int]]:
@@ -373,6 +374,8 @@ class IntegrationService(BaseService):
             m_total, m_enabled = model_counts.get(resource.id, (0, 0))
             resource.total_model_count = m_total
             resource.enabled_model_count = m_enabled
+
+        await self._resolve_user_fields(response.resources)
 
         return response
 

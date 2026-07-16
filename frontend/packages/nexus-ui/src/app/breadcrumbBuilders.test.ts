@@ -24,6 +24,7 @@ import {
   breadcrumbsUserDetail,
   breadcrumbsUserDetailEarlyShell,
   breadcrumbsUserFormLoading,
+  type CredentialDetailBreadcrumbTab,
 } from './breadcrumbBuilders'
 
 describe('breadcrumbBuilders', () => {
@@ -83,6 +84,22 @@ describe('breadcrumbBuilders', () => {
       href: AppRoute.Configuration.Credentials.Detail.replace(':credentialId', 'cred-1'),
     })
     expect(items[3]).toEqual({ label: 'Workflows' })
+  })
+
+  it('adds Integrations segment when on the integrations tab', () => {
+    const items = breadcrumbsCredentialDetail('cred-1', 'Prod key', 'integrations')
+    expect(items).toHaveLength(4)
+    expect(items[2]).toMatchObject({
+      label: 'Prod key',
+      href: AppRoute.Configuration.Credentials.Detail.replace(':credentialId', 'cred-1'),
+    })
+    expect(items[3]).toEqual({ label: 'Integrations' })
+  })
+
+  it('uses raw tab name as fallback for unknown tab', () => {
+    const items = breadcrumbsCredentialDetail('cred-1', 'Prod key', 'unknown-tab' as CredentialDetailBreadcrumbTab)
+    expect(items).toHaveLength(4)
+    expect(items[3]).toEqual({ label: 'unknown-tab' })
   })
 
   it('covers hub, forms, settings, integrations, approvals, and loading shells', () => {

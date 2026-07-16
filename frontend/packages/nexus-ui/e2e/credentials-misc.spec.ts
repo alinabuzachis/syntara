@@ -56,6 +56,7 @@ test.describe('Credential Workflows Tab', () => {
       )
 
       await navigateToCredentialDetail(app, name)
+      await expect(app.getByRole('tab', { name: /Details/, selected: true })).toBeVisible()
       await app.getByRole('tab', { name: /Workflows/ }).click()
 
       await expect(

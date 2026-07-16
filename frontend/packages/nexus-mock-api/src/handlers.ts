@@ -261,7 +261,8 @@ function redactCredential(credential: (typeof credentials)[number]) {
       ;(redactedInputs as Record<string, unknown>)[field.id] = '$encrypted$'
     }
   }
-  return { ...credential, inputs: redactedInputs }
+  const integration_count = integrations.filter((i) => i.management_credential_id === credential.id).length
+  return { ...credential, inputs: redactedInputs, integration_count, workflow_count: 0 }
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -368,6 +369,10 @@ export const handlers = [
     if (enabledParam !== null) {
       const enabled = enabledParam === 'true'
       filtered = filtered.filter((i) => i.enabled === enabled)
+    }
+    const managementCredentialId = url.searchParams.get('management_credential_id')
+    if (managementCredentialId) {
+      filtered = filtered.filter((i) => i.management_credential_id === managementCredentialId)
     }
 
     return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))

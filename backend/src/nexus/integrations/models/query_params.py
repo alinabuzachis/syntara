@@ -1,5 +1,7 @@
 """Query parameter models for integration endpoints."""
 
+from uuid import UUID
+
 from sqlmodel import Field
 
 from nexus.core.models.base import BaseListParams
@@ -17,3 +19,4 @@ class IntegrationListParams(BaseListParams):
     validation_status: IntegrationStatus | None = Field(default=None, description="Filter by validation status")
     enabled: bool | None = Field(default=None, description="Filter by enabled status")
     scope: IntegrationScope | None = Field(default=None, description="Filter by visibility scope")
+    management_credential_id: UUID | None = Field(default=None, description="Filter by management credential ID")

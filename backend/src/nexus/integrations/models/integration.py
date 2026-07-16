@@ -7,7 +7,7 @@ LLM provider, or Ansible Automation Platform) that workflows can use.
 
 from datetime import datetime
 from enum import StrEnum
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, model_validator
@@ -338,6 +338,18 @@ class IntegrationCreate(SQLModel):
 
 class IntegrationRead(Resource):
     """Schema for integration API responses."""
+
+    created_by: str | UUID | None = Field(description="Username or UUID of the creator")  # type: ignore[assignment]
+    updated_by: str | UUID | None = Field(default=None, description="Username or UUID of the last modifier")  # type: ignore[assignment]
+
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, Any]] = {
+        **Resource.FIELD_SCHEMA_EXTRAS,
+        "created_by": {
+            **Resource.FIELD_SCHEMA_EXTRAS["created_by"],
+            "type": "string",
+            "format": "uuid",
+        },
+    }
 
     integration_type: IntegrationType
     enabled: bool = True

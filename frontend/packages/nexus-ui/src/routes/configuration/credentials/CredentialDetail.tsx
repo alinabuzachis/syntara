@@ -1,4 +1,4 @@
-import { Badge, Button, DescriptionList, Label, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
+import { Badge, Button, DescriptionList, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
@@ -9,6 +9,7 @@ import { credentialsClient } from '../../../client'
 import { NxDetail } from '../../../components/details/NxDetail'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
+import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
@@ -25,7 +26,9 @@ import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 
-import { ENCRYPTED_SENTINEL, type CredentialExtended } from './credentialConstants'
+import { ENCRYPTED_SENTINEL, type Credential } from './credentialConstants'
+import styles from './CredentialDetail.module.css'
+import { CredentialIntegrationsTab } from './CredentialIntegrationsTab'
 import { CredentialWorkflowsTab } from './CredentialWorkflowsTab'
 import { DeleteCredentialDialog } from './DeleteCredentialDialog'
 import { DisableCredentialDialog } from './DisableCredentialDialog'
@@ -37,13 +40,55 @@ import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
 import { UserTimestamp } from './UserTimestamp'
 
-type CredentialTab = 'details' | 'workflows'
-const ALL_CREDENTIAL_TABS: CredentialTab[] = ['details', 'workflows']
+type CredentialTab = 'details' | 'workflows' | 'integrations'
+const ALL_CREDENTIAL_TABS: CredentialTab[] = ['details', 'workflows', 'integrations']
 
 function getTypeDisplayText(typeName: string | undefined, typeLoadError: boolean): string {
   if (typeName) return typeName
   if (typeLoadError) return 'Failed to load type'
   return '\u2014'
+}
+
+function formatCount(count: number | null | undefined): string | number {
+  return count != null && count > 0 ? count : '—'
+}
+
+function EnabledStateLabel({ enabled }: Readonly<{ enabled: boolean }>) {
+  return enabled ? (
+    <NxLabel variant="outline" status="success">
+      Enabled
+    </NxLabel>
+  ) : (
+    <NxLabel variant="outline">Disabled</NxLabel>
+  )
+}
+
+type DynamicFieldsProps = { typeFields: FieldDefinition[]; credInputs: Record<string, unknown> }
+
+function DynamicCredentialFields({ typeFields, credInputs }: Readonly<DynamicFieldsProps>) {
+  return typeFields.map((field) => {
+    const value = credInputs[field.id]
+    const isEncrypted = value === ENCRYPTED_SENTINEL
+    return (
+      <NxDetail key={field.id} label={field.label}>
+        {isEncrypted ? (
+          <NxLabel variant="outline">Encrypted</NxLabel>
+        ) : (
+          String((value as string | number | boolean) ?? '—')
+        )}
+      </NxDetail>
+    )
+  })
+}
+
+function filterTabsByPermission(
+  permissionsLoading: boolean,
+  canReadWorkflows: boolean,
+  canReadIntegrations: boolean
+): CredentialTab[] {
+  if (permissionsLoading) return ['details']
+  const tabPermissions: Record<string, boolean> = { workflows: canReadWorkflows, integrations: canReadIntegrations }
+  return ALL_CREDENTIAL_TABS.filter((tab) => tabPermissions[tab] ?? true)
 }
 
 // eslint-disable-next-line max-lines-per-function -- detail page with multiple tabs, dialogs, and toolbar actions
@@ -53,13 +98,12 @@ export default function CredentialDetail() {
   const navigate = useNavigate()
   const credentialBasePath = AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId ?? '')
   const [activeTab] = useUrlTab<CredentialTab>(credentialBasePath)
-  const { canReadWorkflows, isLoading: permissionsLoading } = useCredentialDetailPermissions()
+  const { canReadWorkflows, canReadIntegrations, isLoading: permissionsLoading } = useCredentialDetailPermissions()
 
-  const validTabs = useMemo(() => {
-    if (permissionsLoading) return ALL_CREDENTIAL_TABS.filter((tab) => tab !== 'workflows')
-    if (canReadWorkflows) return ALL_CREDENTIAL_TABS
-    return ALL_CREDENTIAL_TABS.filter((tab) => tab !== 'workflows')
-  }, [canReadWorkflows, permissionsLoading])
+  const validTabs = useMemo(
+    () => filterTabsByPermission(permissionsLoading, canReadWorkflows, canReadIntegrations),
+    [canReadWorkflows, canReadIntegrations, permissionsLoading]
+  )
   const [editModalOpen, setEditModalOpen] = useState(false)
   const { canUpdate, canDelete, tooltips } = useCredentialPermissions()
   const {
@@ -67,6 +111,9 @@ export default function CredentialDetail() {
     affectedWorkflows: deleteAffectedWorkflows,
     workflowsFetchError: deleteWorkflowsFetchError,
     isLoadingWorkflows: deleteIsLoadingWorkflows,
+    affectedIntegrations: deleteAffectedIntegrations,
+    integrationsFetchError: deleteIntegrationsFetchError,
+    isLoadingIntegrations: deleteIsLoadingIntegrations,
     openDeleteDialog,
     closeDeleteDialog,
   } = useDeleteCredentialState()
@@ -77,6 +124,9 @@ export default function CredentialDetail() {
     affectedWorkflows,
     workflowsFetchError,
     isLoadingWorkflows: disableIsLoadingWorkflows,
+    affectedIntegrations: disableAffectedIntegrations,
+    integrationsFetchError: disableIntegrationsFetchError,
+    isLoadingIntegrations: disableIsLoadingIntegrations,
     openDisableDialog,
     closeDisableDialog,
   } = useDisableCredentialState()
@@ -87,11 +137,10 @@ export default function CredentialDetail() {
   const credQuery = credentialsClient.useQuery(
     'get',
     '/credentials/{credential_id}',
-    { params: { path: { credential_id: credentialId ?? '' } } },
+    { params: { path: { credential_id: credentialId } } },
     { enabled: !!credentialId }
   )
-  // Cast to extended type - backend returns workflow_count but contract doesn't declare it
-  const credential = credQuery.data as CredentialExtended | undefined
+  const credential = credQuery.data
 
   // Fetch credential type
   const typeQuery = credentialsClient.useQuery(
@@ -121,28 +170,27 @@ export default function CredentialDetail() {
   )
 
   function handleToggleEnabled() {
-    if (!credential) return
+    if (!credential?.id) return
     if (credential.enabled) {
       openDisableDialog(credential)
-    } else {
-      if (!credential.id) return
-      patchCredential(
-        { params: { path: { credential_id: credential.id } }, body: { enabled: true } },
-        {
-          onSuccess: () => {
-            detachPromise(credQuery.refetch())
-          },
-          onError: (error: unknown) => {
-            showAlert({
-              title: 'Failed to enable credential',
-              description: getErrorMessage(error),
-              variant: 'danger',
-              autoDismiss: true,
-            })
-          },
-        }
-      )
+      return
     }
+    patchCredential(
+      { params: { path: { credential_id: credential.id } }, body: { enabled: true } },
+      {
+        onSuccess: () => {
+          detachPromise(credQuery.refetch())
+        },
+        onError: (error: unknown) => {
+          showAlert({
+            title: 'Failed to enable credential',
+            description: getErrorMessage(error),
+            variant: 'danger',
+            autoDismiss: true,
+          })
+        },
+      }
+    )
   }
 
   function handleConfirmDisable() {
@@ -166,7 +214,7 @@ export default function CredentialDetail() {
     )
   }
 
-  const handleConfirmDelete = useDeleteAction<CredentialExtended, { params: { path: { credential_id: string } } }>({
+  const handleConfirmDelete = useDeleteAction<Credential, { params: { path: { credential_id: string } } }>({
     deleteFn: (params, callbacks) => deleteCredentialMut(params, callbacks),
     buildParams: (cred) => ({ params: { path: { credential_id: cred.id! } } }),
     entityLabel: 'credential',
@@ -219,13 +267,11 @@ export default function CredentialDetail() {
     )
   }
 
-  if (!credential) return null
-  if (!credential.id) return null
+  if (!credential?.id) return null
 
   const credInputs = credential.inputs ?? {}
   const credentialTypeDisplayText = getTypeDisplayText(credType?.name, typeLoadError)
-
-  const hasDescription = credential.description != null && credential.description.trim().length > 0
+  const hasDescription = Boolean(credential.description?.trim())
 
   const credentialCrumbs = breadcrumbsCredentialDetail(credential.id, credential.name, activeTab)
 
@@ -263,7 +309,7 @@ export default function CredentialDetail() {
       />
 
       <NxPageBody>
-        <NxPanel isFullHeight>
+        <NxPanel isFullHeight className={styles.tabsFullHeight}>
           <NxUrlTabs
             basePath={credentialBasePath}
             defaultTab="details"
@@ -277,11 +323,8 @@ export default function CredentialDetail() {
                     <NxDetail label="Name">{credential.name}</NxDetail>
                     {hasDescription ? <NxDetail label="Description">{credential.description}</NxDetail> : null}
                     <NxDetail label="Type">{credentialTypeDisplayText}</NxDetail>
-                    <NxDetail label="Workflows">
-                      {credential.workflow_count != null && credential.workflow_count > 0
-                        ? credential.workflow_count
-                        : '\u2014'}
-                    </NxDetail>
+                    <NxDetail label="Workflows">{formatCount(credential.workflow_count)}</NxDetail>
+                    <NxDetail label="Integrations">{formatCount(credential.integration_count)}</NxDetail>
                     <NxDetail label="Last modified">
                       <UserTimestamp
                         user={credential.updated_by}
@@ -297,33 +340,10 @@ export default function CredentialDetail() {
                       />
                     </NxDetail>
                     <NxDetail label="State">
-                      {credential.enabled ? (
-                        <Label variant="outline" status="success" isCompact>
-                          Enabled
-                        </Label>
-                      ) : (
-                        <Label variant="outline" isCompact>
-                          Disabled
-                        </Label>
-                      )}
+                      <EnabledStateLabel enabled={credential.enabled ?? false} />
                     </NxDetail>
 
-                    {/* Dynamic credential fields */}
-                    {typeFields.map((field) => {
-                      const value = credInputs[field.id]
-                      const isEncrypted = value === ENCRYPTED_SENTINEL
-                      return (
-                        <NxDetail key={field.id} label={field.label}>
-                          {isEncrypted ? (
-                            <Label variant="outline" isCompact>
-                              Encrypted
-                            </Label>
-                          ) : (
-                            String((value as string | number | boolean) ?? '\u2014')
-                          )}
-                        </NxDetail>
-                      )
-                    })}
+                    <DynamicCredentialFields typeFields={typeFields} credInputs={credInputs} />
                   </DescriptionList>
                 </StackItem>
               </Stack>
@@ -341,6 +361,19 @@ export default function CredentialDetail() {
                 <CredentialWorkflowsTab credentialId={credential.id} />
               </Tab>
             )}
+
+            {validTabs.includes('integrations') && (
+              <Tab
+                eventKey="integrations"
+                title={
+                  <>
+                    Integrations <Badge isRead>{credential.integration_count ?? 0}</Badge>
+                  </>
+                }
+              >
+                <CredentialIntegrationsTab credentialId={credential.id} />
+              </Tab>
+            )}
           </NxUrlTabs>
         </NxPanel>
       </NxPageBody>
@@ -350,6 +383,9 @@ export default function CredentialDetail() {
         affectedWorkflows={affectedWorkflows}
         workflowsFetchError={workflowsFetchError}
         isLoadingWorkflows={disableIsLoadingWorkflows}
+        affectedIntegrations={disableAffectedIntegrations}
+        integrationsFetchError={disableIntegrationsFetchError}
+        isLoadingIntegrations={disableIsLoadingIntegrations}
         isLoading={isPatchPending}
         onConfirm={handleConfirmDisable}
         onClose={closeDisableDialog}
@@ -360,6 +396,9 @@ export default function CredentialDetail() {
         affectedWorkflows={deleteAffectedWorkflows}
         workflowsFetchError={deleteWorkflowsFetchError}
         isLoadingWorkflows={deleteIsLoadingWorkflows}
+        affectedIntegrations={deleteAffectedIntegrations}
+        integrationsFetchError={deleteIntegrationsFetchError}
+        isLoadingIntegrations={deleteIsLoadingIntegrations}
         isLoading={isDeletePending}
         onConfirm={() => handleConfirmDelete(credentialToDelete)}
         onClose={closeDeleteDialog}

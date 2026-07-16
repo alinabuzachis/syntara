@@ -1,3 +1,4 @@
+import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -26,6 +27,13 @@ const mockAffectedWorkflows = [
   { id: 'wf-2', name: 'Workflow Two' },
 ]
 
+type Integration = IntegrationsAPI.components['schemas']['IntegrationRead']
+
+const mockAffectedIntegrations = [
+  { id: 'int-1', name: 'GitHub Copilot' },
+  { id: 'int-2', name: 'Jira Integration' },
+] as Partial<Integration>[] as Integration[]
+
 describe('DisableCredentialDialog', () => {
   it('returns null when credential is null', () => {
     const { container } = render(
@@ -34,6 +42,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -48,6 +59,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -64,6 +78,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={mockAffectedWorkflows}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -83,6 +100,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[mockAffectedWorkflows[0]]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -99,6 +119,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={true}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -114,6 +137,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={true}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -129,6 +155,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={mockAffectedWorkflows}
         workflowsFetchError={true}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -146,6 +175,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         isLoading={true}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
@@ -163,6 +195,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         isLoading={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
@@ -180,6 +215,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -196,6 +234,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -214,6 +255,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={mockOnConfirm}
         onClose={vi.fn()}
       />
@@ -233,6 +277,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={mockOnClose}
       />
@@ -249,6 +296,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={mockAffectedWorkflows}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -265,6 +315,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={true}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -281,6 +334,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={true}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />
@@ -297,6 +353,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={true}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         isLoading={true}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
@@ -313,6 +372,9 @@ describe('DisableCredentialDialog', () => {
         affectedWorkflows={[]}
         workflowsFetchError={false}
         isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
         isLoading={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
@@ -321,6 +383,26 @@ describe('DisableCredentialDialog', () => {
 
     expect(screen.getByRole('button', { name: 'Disable' })).toBeEnabled()
   })
+
+  it('shows affected integrations list when integrations are affected', () => {
+    render(
+      <DisableCredentialDialog
+        credential={mockCredential}
+        affectedWorkflows={[]}
+        workflowsFetchError={false}
+        isLoadingWorkflows={false}
+        affectedIntegrations={mockAffectedIntegrations}
+        integrationsFetchError={false}
+        isLoadingIntegrations={false}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Integrations')).toBeInTheDocument()
+    expect(screen.getByText('GitHub Copilot')).toBeInTheDocument()
+    expect(screen.getByText('Jira Integration')).toBeInTheDocument()
+  })
 })
 
 describe('DeleteCredentialDialog', () => {
@@ -328,6 +410,9 @@ describe('DeleteCredentialDialog', () => {
     affectedWorkflows: [] as { id: string; name: string }[],
     workflowsFetchError: false,
     isLoadingWorkflows: false,
+    affectedIntegrations: [],
+    integrationsFetchError: false,
+    isLoadingIntegrations: false,
     onConfirm: vi.fn(),
     onClose: vi.fn(),
   }
@@ -387,6 +472,12 @@ describe('DeleteCredentialDialog', () => {
     render(<DeleteCredentialDialog credential={mockCredential} {...defaultDeleteProps} isLoadingWorkflows={true} />)
 
     expect(screen.getByText(/Checking for workflows/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Delete/ })).toBeDisabled()
+  })
+
+  it('disables Delete button when checking integrations', () => {
+    render(<DeleteCredentialDialog credential={mockCredential} {...defaultDeleteProps} isLoadingIntegrations={true} />)
+
     expect(screen.getByRole('button', { name: /Delete/ })).toBeDisabled()
   })
 
@@ -537,5 +628,19 @@ describe('DeleteCredentialDialog', () => {
     await user.click(screen.getByRole('checkbox'))
     expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+  })
+
+  it('shows affected integrations list when integrations are affected', () => {
+    render(
+      <DeleteCredentialDialog
+        credential={mockCredential}
+        {...defaultDeleteProps}
+        affectedIntegrations={mockAffectedIntegrations}
+      />
+    )
+
+    expect(screen.getByText('Integrations')).toBeInTheDocument()
+    expect(screen.getByText('GitHub Copilot')).toBeInTheDocument()
+    expect(screen.getByText('Jira Integration')).toBeInTheDocument()
   })
 })

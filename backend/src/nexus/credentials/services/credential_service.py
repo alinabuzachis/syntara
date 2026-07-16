@@ -49,6 +49,7 @@ from nexus.credentials.models.credential import (
     CredentialWorkflowRef,
 )
 from nexus.credentials.models.credential_type import CredentialType
+from nexus.integrations.models.integration import Integration
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -471,8 +472,10 @@ class CredentialService(BaseService):
             raise
         read = self._build_masked_response(credential, credential_type, decrypted_inputs)
 
-        counts = await self.get_workflow_counts([credential_id])
-        read.workflow_count = counts.get(credential_id, 0)
+        wf_counts = await self.get_workflow_counts([credential_id])
+        read.workflow_count = wf_counts.get(credential_id, 0)
+        int_counts = await self.get_integration_counts([credential_id])
+        read.integration_count = int_counts.get(credential_id, 0)
         await self._resolve_user_references([read])
 
         return read
@@ -502,8 +505,10 @@ class CredentialService(BaseService):
         cred_ids = [r.id for r in response.resources]
         if cred_ids:
             workflow_counts = await self.get_workflow_counts(cred_ids)
+            integration_counts = await self.get_integration_counts(cred_ids)
             for resource in response.resources:
                 resource.workflow_count = workflow_counts.get(resource.id, 0)
+                resource.integration_count = integration_counts.get(resource.id, 0)
 
         await self._resolve_user_references(response.resources)
 
@@ -567,25 +572,74 @@ class CredentialService(BaseService):
         )
         read = self._build_masked_response(credential, credential_type, decrypted_inputs)
 
-        counts = await self.get_workflow_counts([credential_id])
-        read.workflow_count = counts.get(credential_id, 0)
+        workflow_counts = await self.get_workflow_counts([credential_id])
+        read.workflow_count = workflow_counts.get(credential_id, 0)
+        integration_counts = await self.get_integration_counts([credential_id])
+        read.integration_count = integration_counts.get(credential_id, 0)
 
         await self._resolve_user_references([read])
 
         return read
 
+    async def get_integration_counts(self, credential_ids: list[UUID]) -> dict[UUID, int]:
+        """Count integrations using each credential as their management credential.
+
+        Args:
+            credential_ids: List of credential UUIDs to count for.
+
+        Returns:
+            Dict mapping credential_id -> integration count.
+
+        """
+        if not credential_ids:
+            return {}
+
+        try:
+            stmt = (
+                select(
+                    Integration.management_credential_id,
+                    func.count().label("cnt"),
+                )
+                .where(
+                    Integration.management_credential_id.in_(credential_ids),  # type: ignore[union-attr]
+                    Integration.deleted_at.is_(None),  # type: ignore[union-attr]
+                )
+                .group_by(Integration.management_credential_id)  # type: ignore[arg-type]
+            )
+
+            result = await self.session.exec(stmt)
+            rows: list[tuple[UUID, int]] = [(row[0], row[1]) for row in result.all() if row[0] is not None]
+            return dict(rows)
+        except (SQLAlchemyError, OSError):
+            logger.warning(
+                "Failed to retrieve integration counts; returning empty",
+                credential_ids=[str(cid) for cid in credential_ids],
+                exc_info=True,
+            )
+            return {}
+
     async def delete_credential(self, credential_id: UUID) -> None:
         """Delete a credential and its secret data atomically."""
         credential = await self._get_or_raise(credential_id)
 
-        counts = await self.get_workflow_counts([credential_id])
-        ref_count = counts.get(credential_id, 0)
-        if ref_count:
+        wf_counts = await self.get_workflow_counts([credential_id])
+        wf_ref_count = wf_counts.get(credential_id, 0)
+        if wf_ref_count:
             logger.warning(
                 "Deleting credential still referenced by workflows",
                 credential_id=str(credential_id),
                 credential_name=credential.name,
-                affected_workflow_count=ref_count,
+                affected_workflow_count=wf_ref_count,
+            )
+
+        int_counts = await self.get_integration_counts([credential_id])
+        int_ref_count = int_counts.get(credential_id, 0)
+        if int_ref_count:
+            logger.warning(
+                "Deleting credential still referenced by integrations",
+                credential_id=str(credential_id),
+                credential_name=credential.name,
+                affected_integration_count=int_ref_count,
             )
 
         cred_name = credential.name
@@ -616,7 +670,7 @@ class CredentialService(BaseService):
                 credential_type_id=cred_type_id,
                 action="deleted",
                 project_id=cred_project_id,
-                affected_workflow_count=ref_count,
+                affected_workflow_count=wf_ref_count,
             ),
         )
 

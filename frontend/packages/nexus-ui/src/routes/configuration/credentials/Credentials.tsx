@@ -25,7 +25,7 @@ import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 
-import type { Credential, CredentialExtended, CredentialType } from './credentialConstants'
+import type { Credential, CredentialType } from './credentialConstants'
 import { CredentialEmptyState } from './CredentialEmptyState'
 import { getCredentialNameFilterDefinition } from './credentialFilters'
 import { FlatCredentialsTableBody, GroupedCredentialsTableBody, type CredentialRowAction } from './CredentialsTableBody'
@@ -100,6 +100,9 @@ export default function Credentials() {
     affectedWorkflows: deleteAffectedWorkflows,
     workflowsFetchError: deleteWorkflowsFetchError,
     isLoadingWorkflows: deleteIsLoadingWorkflows,
+    affectedIntegrations: deleteAffectedIntegrations,
+    integrationsFetchError: deleteIntegrationsFetchError,
+    isLoadingIntegrations: deleteIsLoadingIntegrations,
     openDeleteDialog,
     closeDeleteDialog,
   } = useDeleteCredentialState()
@@ -120,8 +123,7 @@ export default function Credentials() {
 
   // Fetch credentials
   const query = credentialsClient.useQuery('get', '/credentials', { params: { query: finalQueryParams } })
-  // Cast to extended type - backend returns workflow_count but contract doesn't declare it
-  const credentials = useMemo(() => (query.data?.resources ?? []) as CredentialExtended[], [query.data?.resources])
+  const credentials = useMemo(() => query.data?.resources ?? [], [query.data?.resources])
 
   useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
@@ -173,7 +175,7 @@ export default function Credentials() {
 
   const groupedCredentials = useMemo(() => {
     if (!isAllProjects) return null
-    const groups = new Map<string, { project: (typeof projects)[number] | null; credentials: CredentialExtended[] }>()
+    const groups = new Map<string, { project: (typeof projects)[number] | null; credentials: Credential[] }>()
     for (const credential of credentials) {
       const projectId = credential.project_id ?? 'unknown'
       if (!groups.has(projectId)) {
@@ -215,6 +217,9 @@ export default function Credentials() {
     affectedWorkflows,
     workflowsFetchError,
     isLoadingWorkflows: disableIsLoadingWorkflows,
+    affectedIntegrations: disableAffectedIntegrations,
+    integrationsFetchError: disableIntegrationsFetchError,
+    isLoadingIntegrations: disableIsLoadingIntegrations,
     openDisableDialog,
     closeDisableDialog,
   } = useDisableCredentialState()
@@ -363,6 +368,7 @@ export default function Credentials() {
                       <Th sort={getSortParams(0)}>Name</Th>
                       <Th>Type</Th>
                       <Th>Workflows</Th>
+                      <Th>Integrations</Th>
                       <Th sort={getSortParams(3)}>Created</Th>
                       <Th sort={getSortParams(4)}>Last modified</Th>
                       <Th>State</Th>
@@ -404,6 +410,9 @@ export default function Credentials() {
         affectedWorkflows={affectedWorkflows}
         workflowsFetchError={workflowsFetchError}
         isLoadingWorkflows={disableIsLoadingWorkflows}
+        affectedIntegrations={disableAffectedIntegrations}
+        integrationsFetchError={disableIntegrationsFetchError}
+        isLoadingIntegrations={disableIsLoadingIntegrations}
         isLoading={isPatchPending}
         onConfirm={handleConfirmDisable}
         onClose={closeDisableDialog}
@@ -414,6 +423,9 @@ export default function Credentials() {
         affectedWorkflows={deleteAffectedWorkflows}
         workflowsFetchError={deleteWorkflowsFetchError}
         isLoadingWorkflows={deleteIsLoadingWorkflows}
+        affectedIntegrations={deleteAffectedIntegrations}
+        integrationsFetchError={deleteIntegrationsFetchError}
+        isLoadingIntegrations={deleteIsLoadingIntegrations}
         isLoading={isDeletePending}
         onConfirm={() => handleConfirmDelete(credentialToDelete)}
         onClose={closeDeleteDialog}

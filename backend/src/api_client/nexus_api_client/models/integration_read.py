@@ -29,7 +29,7 @@ class IntegrationRead:
     """Schema for integration API responses.
 
     Attributes:
-        created_by (UUID): User (or automation) that created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
+        created_by (None | str | UUID): Username or UUID of the creator Example: 770e8400-e29b-41d4-a716-446655440000.
         name (str): Human-readable name for the resource Example: Authentication Service.
         integration_type (IntegrationType): Type of external integration.
         configuration (AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-specific
@@ -39,7 +39,7 @@ class IntegrationRead:
         updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
         labels (IntegrationReadLabels | Unset): Key-value pairs for resource labeling and filtering Example:
             {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
-        updated_by (None | Unset | UUID): User (or automation) that last updated the resource Example:
+        updated_by (None | str | Unset | UUID): Username or UUID of the last modifier Example:
             880e8400-e29b-41d4-a716-446655440000.
         deleted_at (datetime.datetime | None | Unset): Timestamp when resource was soft deleted Example:
             2025-10-09T14:00:00Z.
@@ -62,7 +62,7 @@ class IntegrationRead:
         enabled_model_count (int | Unset): Number of enabled models linked to this integration Default: 0.
     """
 
-    created_by: UUID
+    created_by: None | str | UUID
     name: str
     integration_type: IntegrationType
     configuration: AAPConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
@@ -70,7 +70,7 @@ class IntegrationRead:
     created_at: datetime.datetime | Unset = UNSET
     updated_at: datetime.datetime | Unset = UNSET
     labels: IntegrationReadLabels | Unset = UNSET
-    updated_by: None | Unset | UUID = UNSET
+    updated_by: None | str | Unset | UUID = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
     deleted_by: None | Unset | UUID = UNSET
     description: None | str | Unset = UNSET
@@ -92,7 +92,11 @@ class IntegrationRead:
         from ..models.llm_provider_configuration import LLMProviderConfiguration
         from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
-        created_by = str(self.created_by)
+        created_by: None | str
+        if isinstance(self.created_by, UUID):
+            created_by = str(self.created_by)
+        else:
+            created_by = self.created_by
 
         name = self.name
 
@@ -277,7 +281,21 @@ class IntegrationRead:
         from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
         d = dict(src_dict)
-        created_by = UUID(d.pop("created_by"))
+
+        def _parse_created_by(data: object) -> None | str | UUID:
+            if data is None:
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                created_by_type_1 = UUID(data)
+
+                return created_by_type_1
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | str | UUID, data)
+
+        created_by = _parse_created_by(d.pop("created_by"))
 
         name = d.pop("name")
 
@@ -338,7 +356,7 @@ class IntegrationRead:
         else:
             labels = IntegrationReadLabels.from_dict(_labels)
 
-        def _parse_updated_by(data: object) -> None | Unset | UUID:
+        def _parse_updated_by(data: object) -> None | str | Unset | UUID:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -346,12 +364,12 @@ class IntegrationRead:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                updated_by_type_0 = UUID(data)
+                updated_by_type_1 = UUID(data)
 
-                return updated_by_type_0
+                return updated_by_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(None | Unset | UUID, data)
+            return cast(None | str | Unset | UUID, data)
 
         updated_by = _parse_updated_by(d.pop("updated_by", UNSET))
 

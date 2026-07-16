@@ -135,6 +135,7 @@ class CredentialRead(NamedResource, UserOwnedResource):
     enabled: bool = True
     project_id: UUID
     workflow_count: int = Field(default=0, description="Number of workflows referencing this credential")
+    integration_count: int = Field(default=0, description="Number of integrations using this credential")
 
 
 class ProjectCredentialCreate(SQLModel):

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from nexus.core.lib.encryption import ENCRYPTED_SENTINEL
 from nexus.credentials.exceptions import (
@@ -18,7 +19,7 @@ from nexus.credentials.exceptions import (
     CredentialNotFoundError,
     CredentialValidationError,
 )
-from nexus.credentials.models.credential import Credential, CredentialCreate, CredentialUpdate
+from nexus.credentials.models.credential import Credential, CredentialCreate, CredentialRead, CredentialUpdate
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.credentials.services.credential_service import (
     CredentialService,
@@ -106,6 +107,13 @@ def mock_secret_service() -> MagicMock:
 def _mock_workflow_counts() -> Generator[None, None, None]:
     """Mock get_workflow_counts to avoid session.exec conflicts in unit tests."""
     with patch.object(CredentialService, "get_workflow_counts", new_callable=AsyncMock, return_value={}):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_integration_counts() -> Generator[None, None, None]:
+    """Mock get_integration_counts to avoid session.exec conflicts in unit tests."""
+    with patch.object(CredentialService, "get_integration_counts", new_callable=AsyncMock, return_value={}):
         yield
 
 
@@ -562,6 +570,159 @@ class TestDeleteCredential:
             assert "still referenced by workflows" in mock_logger.warning.call_args[0][0]
 
         mock_session.delete.assert_awaited_once_with(credential)
+
+
+_real_get_integration_counts = CredentialService.get_integration_counts
+
+
+class TestGetIntegrationCounts:
+    """Tests for CredentialService.get_integration_counts."""
+
+    @pytest.mark.asyncio
+    async def test_empty_credential_ids_returns_empty(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        result = await _real_get_integration_counts(service, [])
+        assert result == {}
+        mock_session.exec.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_returns_counts_for_matching_credentials(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        cred_id_1 = uuid4()
+        cred_id_2 = uuid4()
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [(cred_id_1, 3), (cred_id_2, 1)]
+        mock_session.exec.return_value = mock_result
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        result = await _real_get_integration_counts(service, [cred_id_1, cred_id_2])
+
+        assert result == {cred_id_1: 3, cred_id_2: 1}
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_when_no_matches(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.exec.return_value = mock_result
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        result = await _real_get_integration_counts(service, [uuid4()])
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_excludes_null_management_credential_id(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        cred_id = uuid4()
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [(None, 2), (cred_id, 3)]
+        mock_session.exec.return_value = mock_result
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        result = await _real_get_integration_counts(service, [cred_id])
+
+        assert result == {cred_id: 3}
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_on_db_error(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        mock_session.exec.side_effect = SQLAlchemyError("connection lost")
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        result = await _real_get_integration_counts(service, [uuid4()])
+
+        assert result == {}
+
+
+class TestIntegrationCountPopulation:
+    """Tests that integration_count is populated on credential responses."""
+
+    @pytest.mark.asyncio
+    async def test_get_credential_populates_integration_count(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+        basic_auth_type: CredentialType,
+    ) -> None:
+        cred_id = uuid4()
+        credential = Credential(
+            id=cred_id,
+            name="My Cred",
+            credential_type_id=basic_auth_type.id,
+            secret_id=uuid4(),
+            enabled=True,
+            project_id=uuid4(),
+            created_by=mock_user.id,
+        )
+        credential.credential_type = basic_auth_type
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = credential
+        mock_session.exec.return_value = mock_result
+        mock_session.get.return_value = basic_auth_type
+        mock_secret_service.retrieve_secret.return_value = {"username": "u", "password": "p"}
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        with patch.object(service, "get_integration_counts", new_callable=AsyncMock, return_value={cred_id: 5}):
+            result = await service.get_credential(cred_id)
+
+        assert result.integration_count == 5
+
+    @pytest.mark.asyncio
+    async def test_list_credentials_populates_integration_count(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+        basic_auth_type: CredentialType,
+    ) -> None:
+        cred_id = uuid4()
+        cred_read = CredentialRead(
+            id=cred_id,
+            name="Listed Cred",
+            credential_type_id=basic_auth_type.id,
+            enabled=True,
+            project_id=uuid4(),
+            inputs={},
+            created_by=mock_user.id,
+        )
+
+        mock_list_response = MagicMock()
+        mock_list_response.resources = [cred_read]
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        with (
+            patch.object(service, "list_resources", new_callable=AsyncMock, return_value=mock_list_response),
+            patch.object(service, "get_integration_counts", new_callable=AsyncMock, return_value={cred_id: 2}),
+        ):
+            result = await service.list_credentials()
+
+        assert result.resources[0].integration_count == 2
 
 
 class TestValidateInputs:

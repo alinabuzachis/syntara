@@ -21,16 +21,16 @@ import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { LinkCell } from '../../../components/table/LinkCell'
 import type { ProjectRead } from '../../access/types'
 
-import type { Credential, CredentialExtended, CredentialType } from './credentialConstants'
+import type { Credential, CredentialType } from './credentialConstants'
 import { UserTimestamp } from './UserTimestamp'
 
 /** Total visible columns including expand toggle and actions. */
-const COLUMN_COUNT = 8
+const COLUMN_COUNT = 9
 
 export type CredentialRowAction = KebabAction
 
 type CredentialRowProps = {
-  credential: CredentialExtended
+  credential: Credential
   credType: CredentialType | undefined
   rowIndex: number
   isExpanded: boolean
@@ -75,6 +75,11 @@ function CredentialRow({
         <Td dataLabel="Type">{credType?.name ?? '—'}</Td>
         <Td dataLabel="Workflows">
           {credential.workflow_count != null && credential.workflow_count > 0 ? credential.workflow_count : '—'}
+        </Td>
+        <Td dataLabel="Integrations">
+          {credential.integration_count != null && credential.integration_count > 0
+            ? credential.integration_count
+            : '—'}
         </Td>
         <Td dataLabel="Created">
           <UserTimestamp user={credential.created_by} timestamp={credential.created_at} inline />
@@ -125,7 +130,7 @@ function CredentialRow({
 
 type ProjectGroup = {
   project: ProjectRead | null
-  credentials: CredentialExtended[]
+  credentials: Credential[]
 }
 
 type GroupedCredentialsTableBodyProps = {
@@ -204,7 +209,7 @@ export function GroupedCredentialsTableBody({
 }
 
 type FlatCredentialsTableBodyProps = {
-  credentials: CredentialExtended[]
+  credentials: Credential[]
   typeMap: Map<string, CredentialType>
   expandedRows: Set<string>
   onToggleRow: (id: string) => void

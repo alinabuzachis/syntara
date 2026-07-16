@@ -56,3 +56,34 @@ test.describe('Credential Detail Edge Cases', () => {
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// Test 27: Integration Fetch Error in Disable Dialog
+// ---------------------------------------------------------------------------
+
+test('integration fetch error in disable dialog shows warning', async ({ app }) => {
+  const { name } = await createTestCredential(app, { prefix: 'e2e-int-error' })
+  try {
+    await app.route('**/api/v1/integrations*', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Internal server error' }),
+      })
+    )
+
+    await navigateToCredentialDetail(app, name)
+    await app.getByRole('switch', { name: /enabled/i }).click({ force: true })
+
+    const dialog = app.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('Disable credential?')).toBeVisible()
+    await expect(dialog.getByText(/Unable to check which integrations use this credential/)).toBeVisible()
+
+    await expect(dialog.getByRole('button', { name: 'Disable' })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Disable' })).toBeEnabled()
+  } finally {
+    await app.unroute('**/api/v1/integrations*')
+    await deleteCredentialByName(app, name)
+  }
+})

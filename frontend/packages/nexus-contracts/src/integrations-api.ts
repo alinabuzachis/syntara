@@ -459,6 +459,16 @@ export interface components {
     }
     /** @description Schema for integration API responses. */
     IntegrationRead: components['schemas']['Resource'] & {
+      /**
+       * Created By
+       * @description Username or UUID of the creator
+       */
+      created_by?: string | null
+      /**
+       * Updated By
+       * @description Username or UUID of the last modifier
+       */
+      updated_by?: string | null
       integration_type: components['schemas']['IntegrationType']
       /**
        * Enabled
@@ -1176,6 +1186,8 @@ export interface operations {
         enabled?: boolean | null
         /** @description Filter by visibility scope */
         scope?: components['schemas']['IntegrationScope'] | null
+        /** @description Filter by management credential ID (credential used for admin operations like validation and tool/model discovery) */
+        management_credential_id?: string | null
       }
       header?: never
       path?: never

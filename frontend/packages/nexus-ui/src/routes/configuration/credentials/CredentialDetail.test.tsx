@@ -71,6 +71,15 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  integrationsClient: {
+    useQuery: vi.fn(() => ({
+      data: { resources: [] },
+      isPending: false,
+      error: null,
+      isFetching: false,
+      refetch: vi.fn(),
+    })),
+  },
 
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
   interfaceTagMiddleware: { onRequest: vi.fn() },
@@ -113,6 +122,9 @@ const disableCredentialHookMock = vi.hoisted(() => {
     affectedWorkflows: [] as { id: string; name: string }[],
     workflowsFetchError: false,
     isLoadingWorkflows: false,
+    affectedIntegrations: [] as { id: string; name: string }[],
+    integrationsFetchError: false,
+    isLoadingIntegrations: false,
   }
   const openDisableDialog = vi.fn((cred: typeof mockCredential) => {
     state.credentialToDisable = cred
@@ -129,6 +141,9 @@ const disableCredentialHookMock = vi.hoisted(() => {
       state.affectedWorkflows = []
       state.workflowsFetchError = false
       state.isLoadingWorkflows = false
+      state.affectedIntegrations = []
+      state.integrationsFetchError = false
+      state.isLoadingIntegrations = false
       openDisableDialog.mockClear()
       closeDisableDialog.mockClear()
     },
@@ -141,6 +156,9 @@ vi.mock('./useDisableCredentialState', () => ({
     affectedWorkflows: disableCredentialHookMock.state.affectedWorkflows,
     workflowsFetchError: disableCredentialHookMock.state.workflowsFetchError,
     isLoadingWorkflows: disableCredentialHookMock.state.isLoadingWorkflows,
+    affectedIntegrations: disableCredentialHookMock.state.affectedIntegrations,
+    integrationsFetchError: disableCredentialHookMock.state.integrationsFetchError,
+    isLoadingIntegrations: disableCredentialHookMock.state.isLoadingIntegrations,
     openDisableDialog: disableCredentialHookMock.openDisableDialog,
     closeDisableDialog: disableCredentialHookMock.closeDisableDialog,
   }),
@@ -434,14 +452,15 @@ describe('CredentialDetail', () => {
     expect(screen.queryByRole('tab', { name: /User Access/ })).not.toBeInTheDocument()
   })
 
-  it('renders only Details and Workflows tabs', async () => {
+  it('renders Details, Workflows, and Integrations tabs', async () => {
     render(<CredentialDetail />, { wrapper })
 
     await screen.findByRole('tab', { name: /Workflows/ })
     const tabs = screen.getAllByRole('tab')
-    expect(tabs).toHaveLength(2)
+    expect(tabs).toHaveLength(3)
     expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /Workflows/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Integrations/ })).toBeInTheDocument()
   })
 
   it('switches to Workflows tab when clicked', async () => {
@@ -771,6 +790,38 @@ describe('CredentialDetail', () => {
     const workflowsTab = await screen.findByRole('tab', { name: /Workflows/ })
     expect(workflowsTab).toBeInTheDocument()
     const badges = screen.getAllByText('5')
+    expect(badges.length).toBeGreaterThan(0)
+  })
+
+  it('renders integration count in details when greater than zero', () => {
+    const credWithIntegrations = { ...mockCredential, integration_count: 3 }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithIntegrations))
+
+    render(<CredentialDetail />, { wrapper })
+
+    const integrationCountCells = screen.getAllByText('3')
+    expect(integrationCountCells.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders em-dash for integration count when null', () => {
+    const credWithNullIntegrationCount = { ...mockCredential, integration_count: null }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithNullIntegrationCount as never))
+
+    render(<CredentialDetail />, { wrapper })
+
+    const integrationLabels = screen.getAllByText('Integrations')
+    expect(integrationLabels.length).toBeGreaterThan(0)
+  })
+
+  it('renders integration count as badge on Integrations tab when greater than zero', async () => {
+    const credWithIntegrationCount = { ...mockCredential, integration_count: 7 }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithIntegrationCount as never))
+
+    render(<CredentialDetail />, { wrapper })
+
+    const integrationsTab = await screen.findByRole('tab', { name: /Integrations/ })
+    expect(integrationsTab).toBeInTheDocument()
+    const badges = screen.getAllByText('7')
     expect(badges.length).toBeGreaterThan(0)
   })
 

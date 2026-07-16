@@ -21,9 +21,10 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
     try {
       await navigateToCredentialDetail(app, name)
 
-      // Assert - Both tabs are visible
+      // Assert - All tabs are visible
       await expect(app.getByRole('tab', { name: /Details/ })).toBeVisible()
       await expect(app.getByRole('tab', { name: /Workflows/ })).toBeVisible()
+      await expect(app.getByRole('tab', { name: /Integrations/ })).toBeVisible()
     } finally {
       await deleteCredentialByName(app, name)
     }
@@ -164,6 +165,39 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
           .or(app.getByText('Failed to load workflows'))
         await expect(emptyOrError).toBeVisible()
       }
+    } finally {
+      await deleteCredentialByName(app, name)
+    }
+  })
+
+  test('navigates to Integrations tab', async ({ app }) => {
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-int-nav' })
+    try {
+      await navigateToCredentialDetail(app, name)
+
+      // Act - Click Integrations tab
+      await app.getByRole('tab', { name: /Integrations/ }).click()
+
+      // Assert - Integrations tab content loaded (table or empty state)
+      const integrationsTable = app.getByRole('grid', { name: 'Integrations using this credential' })
+      const emptyState = app.getByText('No integrations using this credential')
+      const errorState = app.getByText('Failed to load integrations')
+      await expect(integrationsTable.or(emptyState).or(errorState)).toBeVisible()
+    } finally {
+      await deleteCredentialByName(app, name)
+    }
+  })
+
+  test('integrations tab shows empty state for new credential', async ({ app }) => {
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-int-empty' })
+    try {
+      await navigateToCredentialDetail(app, name)
+      await app.getByRole('tab', { name: /Integrations/ }).click()
+
+      // Assert - Empty state or error (freshly created credential has no integrations)
+      const emptyState = app.getByText('No integrations using this credential')
+      const errorState = app.getByText('Failed to load integrations')
+      await expect(emptyState.or(errorState)).toBeVisible()
     } finally {
       await deleteCredentialByName(app, name)
     }

@@ -67,7 +67,7 @@ class TestCreateIntegration:
         assert result.scope == IntegrationScope.GLOBAL
         assert result.enabled is True
         assert result.management_credential_id is None
-        assert result.created_by == test_user.id
+        assert result.created_by == test_user.username
         assert result.deleted_at is None
 
     @pytest.mark.asyncio

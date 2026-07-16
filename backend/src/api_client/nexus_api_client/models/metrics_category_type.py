@@ -4,6 +4,7 @@ from enum import Enum
 class MetricsCategoryType(str, Enum):
     AGENT = "agent"
     API = "api"
+    AUTHORIZATION = "authorization"
     CACHE = "cache"
     DATABASE = "database"
     ERROR = "error"

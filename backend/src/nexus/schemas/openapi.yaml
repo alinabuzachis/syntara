@@ -9276,6 +9276,16 @@ paths:
               - type: 'null'
             title: Scope
           description: Filter by visibility scope
+        - name: management_credential_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Management Credential Id
+          description: Filter by management credential ID (credential used for admin operations like validation and tool/model discovery)
       responses:
         '200':
           description: Successful Response
@@ -29620,6 +29630,11 @@ components:
           description: Number of workflows referencing this credential
           title: Workflow Count
           type: integer
+        integration_count:
+          default: 0
+          description: Number of integrations using this credential
+          title: Integration Count
+          type: integer
       required:
         - name
         - credential_type_id
@@ -31006,16 +31021,22 @@ components:
           format: uuid
           readOnly: true
           title: Created By
-          description: User (or automation) that created the resource
+          description: Username or UUID of the creator
           example: 770e8400-e29b-41d4-a716-446655440000
+          anyOf:
+            - type: string
+            - type: string
+              format: uuid
+            - type: 'null'
         updated_by:
           anyOf:
+            - type: string
             - type: string
               format: uuid
             - type: 'null'
           readOnly: true
           title: Updated By
-          description: User (or automation) that last updated the resource
+          description: Username or UUID of the last modifier
           example: 880e8400-e29b-41d4-a716-446655440000
         deleted_at:
           anyOf:

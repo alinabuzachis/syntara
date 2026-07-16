@@ -834,6 +834,12 @@ export interface components {
        * @default 0
        */
       workflow_count?: number
+      /**
+       * Integration Count
+       * @description Number of integrations using this credential
+       * @default 0
+       */
+      integration_count?: number
     }
     /**
      * CredentialUpdate

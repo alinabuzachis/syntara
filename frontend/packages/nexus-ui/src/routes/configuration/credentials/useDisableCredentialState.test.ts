@@ -5,7 +5,7 @@ import { act, createElement } from 'react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { credentialsClient } from '../../../client'
+import { credentialsClient, integrationsClient } from '../../../client'
 
 import type { Credential } from './credentialConstants'
 import { useDisableCredentialState } from './useDisableCredentialState'
@@ -13,6 +13,9 @@ import { useDisableCredentialState } from './useDisableCredentialState'
 vi.mock('../../../client', () => ({
   credentialsClient: {
     useQuery: vi.fn(),
+  },
+  integrationsClient: {
+    useQuery: vi.fn(() => ({ data: { resources: [] }, error: null, isLoading: false })),
   },
   authMiddleware: { onRequest: vi.fn() },
   interfaceTagMiddleware: { onRequest: vi.fn() },
@@ -145,5 +148,67 @@ describe('useDisableCredentialState', () => {
       expect.anything(),
       expect.objectContaining({ enabled: false })
     )
+  })
+
+  it('has initial state with affectedIntegrations empty and no integration errors', () => {
+    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+
+    expect(result.current.affectedIntegrations).toEqual([])
+    expect(result.current.integrationsFetchError).toBe(false)
+    expect(result.current.isLoadingIntegrations).toBe(false)
+  })
+
+  it('returns affectedIntegrations from integration query data', () => {
+    const mockIntegrations = [
+      { id: 'int-1', name: 'GitHub Copilot' },
+      { id: 'int-2', name: 'Jira Integration' },
+    ]
+    vi.mocked(integrationsClient.useQuery).mockReturnValue({
+      data: { resources: mockIntegrations },
+      error: null,
+      isLoading: false,
+    } as ReturnType<typeof integrationsClient.useQuery>)
+
+    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+
+    act(() => {
+      result.current.openDisableDialog(mockCredential)
+    })
+
+    expect(result.current.affectedIntegrations).toEqual(mockIntegrations)
+    expect(result.current.integrationsFetchError).toBe(false)
+  })
+
+  it('sets integrationsFetchError when integration query fails', () => {
+    vi.mocked(integrationsClient.useQuery).mockReturnValue({
+      data: undefined,
+      error: new Error('Server error'),
+      isLoading: false,
+    } as ReturnType<typeof integrationsClient.useQuery>)
+
+    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+
+    act(() => {
+      result.current.openDisableDialog(mockCredential)
+    })
+
+    expect(result.current.integrationsFetchError).toBe(true)
+    expect(result.current.affectedIntegrations).toEqual([])
+  })
+
+  it('reports isLoadingIntegrations when integration query is loading', () => {
+    vi.mocked(integrationsClient.useQuery).mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: true,
+    } as ReturnType<typeof integrationsClient.useQuery>)
+
+    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+
+    act(() => {
+      result.current.openDisableDialog(mockCredential)
+    })
+
+    expect(result.current.isLoadingIntegrations).toBe(true)
   })
 })

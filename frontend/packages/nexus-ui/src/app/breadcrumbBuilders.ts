@@ -200,7 +200,14 @@ export function breadcrumbsIntegrationEdit(integrationName: string, detailBasePa
   ]
 }
 
-export type CredentialDetailBreadcrumbTab = 'details' | 'workflows'
+export type CredentialDetailBreadcrumbTab = 'details' | 'workflows' | 'integrations'
+
+function credentialDetailTabLabel(tab: string): string {
+  if (tab === 'details') return 'Details'
+  if (tab === 'workflows') return 'Workflows'
+  if (tab === 'integrations') return 'Integrations'
+  return tab
+}
 
 export function breadcrumbsCredentialDetail(
   credentialId: string,
@@ -208,11 +215,11 @@ export function breadcrumbsCredentialDetail(
   tab: CredentialDetailBreadcrumbTab
 ): AppBreadcrumbItem[] {
   const prefix = [crumbConfiguration(), crumbCredentials()]
-  if (tab === 'details') {
+  if (tab === DEFAULT_ENTITY_TAB) {
     return [...prefix, { label: credentialName }]
   }
   const detailHref = AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId)
-  return [...prefix, { label: credentialName, href: detailHref }, { label: 'Workflows' }]
+  return [...prefix, { label: credentialName, href: detailHref }, { label: credentialDetailTabLabel(tab) }]
 }
 
 export function breadcrumbsCredentialEarlyShell(currentLabel: string): AppBreadcrumbItem[] {
