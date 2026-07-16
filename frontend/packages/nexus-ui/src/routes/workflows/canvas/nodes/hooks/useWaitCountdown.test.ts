@@ -28,11 +28,14 @@ describe('useWaitCountdown', () => {
     expect(result.current.isActive).toBe(false)
   })
 
-  it('returns null when startedAt is missing', () => {
+  it('uses fallback timestamp when startedAt is missing but waiting', () => {
+    const now = new Date('2026-01-01T00:00:00Z').getTime()
+    vi.setSystemTime(now)
+
     const { result } = renderHook(() => useWaitCountdown('waiting', undefined, 60))
 
-    expect(result.current.remaining).toBeNull()
-    expect(result.current.isActive).toBe(false)
+    expect(result.current.isActive).toBe(true)
+    expect(result.current.remaining).toBe('00:01:00')
   })
 
   it('returns null when duration is zero', () => {

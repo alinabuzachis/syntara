@@ -645,7 +645,7 @@ describe('useExecutionStore', () => {
       expect(state.activityErrors.get('task1')).toBe('Task failed')
     })
 
-    it('no-ops when no activities are loaded', () => {
+    it('creates activity from patch when no activities are loaded', () => {
       useExecutionStore.getState().reset()
 
       useExecutionStore
@@ -653,8 +653,9 @@ describe('useExecutionStore', () => {
         .applyPatch([{ op: 'replace', path: '/activities/task1/status', value: 'running' }], 'event-3')
 
       const state = useExecutionStore.getState()
-      expect(state.activityStates.size).toBe(0)
-      expect(state.lastEventId).toBeNull()
+      expect(state.activityStates.size).toBe(1)
+      expect(state.activityStates.get('task1')?.status).toBe('running')
+      expect(state.lastEventId).toBe('event-3')
     })
 
     it('updates visualization.activities when visualization exists', () => {
@@ -883,6 +884,119 @@ describe('useExecutionStore', () => {
 
       const { result } = renderHook(() => useExecutionWithLiveStatus(mockData))
       expect(result.current.approval_pending).toBe(true) // From visualization
+    })
+  })
+
+  describe('mergeActivityStates', () => {
+    it('rejects incoming activity with lower status rank', () => {
+      const execution = createMockExecution({
+        activities: [
+          {
+            activity_id: 'wait_node',
+            status: 'waiting',
+            error_details: null,
+            started_at: '2025-12-10T15:00:05Z',
+            completed_at: null,
+          },
+        ],
+      })
+      useExecutionStore.getState().setExecution(execution)
+
+      // Second call with stale 'running' (rank 1 < waiting rank 2)
+      const staleExecution = createMockExecution({
+        activities: [
+          {
+            activity_id: 'wait_node',
+            status: 'running',
+            error_details: null,
+            started_at: '2025-12-10T15:00:05Z',
+            completed_at: null,
+          },
+        ],
+      })
+      useExecutionStore.getState().setExecution(staleExecution)
+
+      expect(useExecutionStore.getState().activityStates.get('wait_node')?.status).toBe('waiting')
+    })
+
+    it('early patch then snapshot preserves most advanced state', () => {
+      useExecutionStore.getState().reset()
+
+      // Patch arrives before snapshot
+      useExecutionStore
+        .getState()
+        .applyPatch([{ op: 'replace', path: '/activities/wait_node/status', value: 'waiting' }], 'patch-1')
+
+      // Snapshot arrives with stale 'pending'
+      const execution = createMockExecution({
+        activities: [
+          { activity_id: 'wait_node', status: 'pending', error_details: null, started_at: null, completed_at: null },
+        ],
+      })
+      useExecutionStore.getState().setExecution(execution)
+
+      expect(useExecutionStore.getState().activityStates.get('wait_node')?.status).toBe('waiting')
+    })
+
+    it('preserves error details when failed status survives merge', () => {
+      const execution = createMockExecution({
+        activities: [
+          {
+            activity_id: 'http_req',
+            status: 'failed',
+            error_details: 'timeout',
+            started_at: '2025-12-10T15:00:05Z',
+            completed_at: '2025-12-10T15:00:10Z',
+          },
+        ],
+      })
+      useExecutionStore.getState().setExecution(execution)
+
+      // REST re-fetch with stale 'running' — should be rejected
+      useExecutionStore.getState().setActivityExecutions([
+        {
+          activity_id: 'http_req',
+          status: 'running',
+          error_details: null,
+          started_at: '2025-12-10T15:00:05Z',
+          completed_at: null,
+        },
+      ])
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.get('http_req')?.status).toBe('failed')
+      expect(state.activityErrors.get('http_req')).toBe('timeout')
+    })
+
+    it('preserves startedAt when equal-rank merge receives null timestamps', () => {
+      const execution = createMockExecution({
+        activities: [
+          {
+            activity_id: 'wait_node',
+            status: 'waiting',
+            error_details: null,
+            started_at: '2025-12-10T15:00:05Z',
+            completed_at: null,
+          },
+        ],
+      })
+      useExecutionStore.getState().setExecution(execution)
+
+      // Same-rank REST re-fetch with null startedAt must not wipe the patch value
+      useExecutionStore.getState().setActivityExecutions([
+        {
+          activity_id: 'wait_node',
+          status: 'waiting',
+          error_details: null,
+          started_at: null,
+          completed_at: null,
+        },
+      ])
+
+      expect(useExecutionStore.getState().activityStates.get('wait_node')).toMatchObject({
+        status: 'waiting',
+        startedAt: '2025-12-10T15:00:05Z',
+      })
     })
   })
 })

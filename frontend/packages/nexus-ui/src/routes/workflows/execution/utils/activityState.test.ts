@@ -241,7 +241,7 @@ describe('applyOperation', () => {
       expect(() => applyOperation(activities, operation)).toThrow('Unsupported field')
     })
 
-    it('throws when replacing on non-existent activity', () => {
+    it('creates activity when replacing status on non-existent activity', () => {
       const activities = new Map<string, ActivityState>()
       const operation: JsonPatchOperation = {
         op: 'replace',
@@ -249,7 +249,22 @@ describe('applyOperation', () => {
         value: 'running',
       }
 
-      expect(() => applyOperation(activities, operation)).toThrow('non-existent activity')
+      applyOperation(activities, operation)
+
+      expect(activities.get('missing')).toEqual({ activityId: 'missing', status: 'running' })
+    })
+
+    it('throws when replacing a non-status field on non-existent activity', () => {
+      const activities = new Map<string, ActivityState>()
+      const operation: JsonPatchOperation = {
+        op: 'replace',
+        path: '/activities/missing/started_at',
+        value: '2025-12-10T15:00:05Z',
+      }
+
+      expect(() => applyOperation(activities, operation)).toThrow(
+        "Cannot replace field 'started_at' on non-existent activity 'missing'"
+      )
     })
   })
 

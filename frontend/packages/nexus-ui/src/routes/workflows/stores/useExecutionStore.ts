@@ -43,6 +43,57 @@ export type ExecutionMetadata = {
   pre_resolved_nodes?: Record<string, { output: Record<string, unknown> }>
 }
 
+const STATUS_ORDER: Record<string, number> = {
+  pending: 0,
+  running: 1,
+  retrying: 1,
+  waiting: 2,
+  completed: 3,
+  failed: 3,
+  cancelled: 3,
+  skipped: 3,
+}
+
+/**
+ * Merge incoming activity states with existing, preserving the most advanced
+ * status per-activity. This prevents stale REST/snapshot data from regressing
+ * state that WebSocket patches have already advanced.
+ *
+ * Limitation: full retry cycles (completed→pending) are not handled here.
+ * A proper solution requires sequence numbers or generation IDs from the backend.
+ */
+function mergeActivityStates(
+  existing: Map<string, ActivityState>,
+  incoming: Map<string, ActivityState>
+): Map<string, ActivityState> {
+  if (existing.size === 0) return incoming
+  if (incoming.size === 0) return existing
+
+  const merged = new Map(existing)
+  for (const [id, incomingState] of incoming) {
+    const existingState = merged.get(id)
+    if (!existingState) {
+      merged.set(id, incomingState)
+    } else {
+      const existingOrder = STATUS_ORDER[existingState.status] ?? 0
+      const incomingOrder = STATUS_ORDER[incomingState.status] ?? 0
+      if (incomingOrder > existingOrder) {
+        merged.set(id, incomingState)
+      } else if (incomingOrder === existingOrder) {
+        // Preserve non-null timestamps/errors from either side so a same-rank
+        // REST re-fetch cannot wipe fields already set by a WebSocket patch.
+        merged.set(id, {
+          ...incomingState,
+          startedAt: existingState.startedAt ?? incomingState.startedAt,
+          completedAt: existingState.completedAt ?? incomingState.completedAt,
+          errorDetails: existingState.errorDetails ?? incomingState.errorDetails,
+        })
+      }
+    }
+  }
+  return merged
+}
+
 // ============================================================================
 // Store State
 // ============================================================================
@@ -278,7 +329,8 @@ const initialState: ExecutionStoreState = {
  *    → Node badges update automatically when state changes
  *
  * **Note:** If both setExecution() and setActivityExecutions() are called,
- * last write wins (both update the same activityStates map).
+ * activity states are merged via mergeActivityStates — the most advanced
+ * status rank wins, and equal-rank merges preserve non-null timestamps/errors.
  */
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   ...initialState,
@@ -297,8 +349,11 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     }))
     const activityStateMap = buildActivityStateMap(activities)
 
+    const existing = get().activityStates
+    const effectiveActivities = mergeActivityStates(existing, activityStateMap)
+
     // Extract error map for fast lookups (activityStates will be the full map)
-    const [, activityErrors] = extractActivityMaps(activityStateMap)
+    const [, activityErrors] = extractActivityMaps(effectiveActivities)
 
     // Build visualization object
     const visualization: ExecutionVisualization = {
@@ -307,7 +362,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       status: execution.status ?? 'pending',
       approval_pending: execution.approval_pending ?? false,
       workflowDefinition: execution.workflow_definition,
-      activities: activityStateMap,
+      activities: effectiveActivities,
       createdAt: execution.created_at,
       startedAt: execution.created_at,
       completedAt: execution.completed_at,
@@ -319,7 +374,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     set({
       executionId: execution.id,
       visualization,
-      activityStates: activityStateMap, // Store full ActivityState objects
+      activityStates: effectiveActivities,
       activityErrors,
       executionMetadata,
       error: null,
@@ -332,9 +387,6 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     // Use visualization.activities when available, fall back to activityStates
     // (REST-loaded via setActivityExecutions before initial_snapshot arrives)
     const baseActivities = visualization?.activities ?? activityStates
-    if (baseActivities.size === 0) {
-      return
-    }
 
     const activitiesCopy = new Map(baseActivities)
 
@@ -406,7 +458,10 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
   setActivityExecutions: (activities: ActivityInput[]) => {
     // Convert ActivityData[] or ActivityExecution[] to activity state maps
-    const [activityStates, activityErrors] = buildActivityMapsFromInput(activities)
+    const [incoming] = buildActivityMapsFromInput(activities)
+
+    const activityStates = mergeActivityStates(get().activityStates, incoming)
+    const [, activityErrors] = extractActivityMaps(activityStates)
 
     set({
       activityStates,

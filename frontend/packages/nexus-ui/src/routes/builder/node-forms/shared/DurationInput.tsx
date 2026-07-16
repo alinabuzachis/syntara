@@ -1,4 +1,4 @@
-import { Content, Flex, FlexItem, TextInput } from '@patternfly/react-core'
+import { Content, Flex, FlexItem, TextInput, type TextInputProps } from '@patternfly/react-core'
 
 import { secondsToTimeUnits, timeUnitsToSeconds } from '../../utils/timeUtils'
 
@@ -18,6 +18,8 @@ type DurationInputProps = {
   /** Prefix used to generate unique field IDs. */
   idPrefix: string
   isDisabled?: boolean
+  /** PatternFly validation state applied to each duration TextInput. */
+  validated?: TextInputProps['validated']
 }
 
 function toDurationState(totalSeconds: number | undefined): DurationState {
@@ -30,7 +32,7 @@ function toTotalSeconds(state: DurationState): number | undefined {
   return total > 0 ? total : undefined
 }
 
-export function DurationInput({ value, onChange, idPrefix, isDisabled }: DurationInputProps) {
+export function DurationInput({ value, onChange, idPrefix, isDisabled, validated }: DurationInputProps) {
   const duration = toDurationState(value)
   // When value is undefined (not set), show empty inputs so the placeholder "0" appears.
   // When value is a number, show all components including zero — a saved 5-minute timeout
@@ -53,6 +55,7 @@ export function DurationInput({ value, onChange, idPrefix, isDisabled }: Duratio
           value={fieldValue(duration.days)}
           placeholder="0"
           isDisabled={isDisabled}
+          validated={validated}
           aria-label="Days"
           onChange={(_event, val) => handleFieldChange('days', val)}
           className={styles.durationInput}
@@ -69,6 +72,7 @@ export function DurationInput({ value, onChange, idPrefix, isDisabled }: Duratio
           value={fieldValue(duration.hours)}
           placeholder="0"
           isDisabled={isDisabled}
+          validated={validated}
           aria-label="Hours"
           onChange={(_event, val) => handleFieldChange('hours', val)}
           className={styles.durationInput}
@@ -85,6 +89,7 @@ export function DurationInput({ value, onChange, idPrefix, isDisabled }: Duratio
           value={fieldValue(duration.minutes)}
           placeholder="0"
           isDisabled={isDisabled}
+          validated={validated}
           aria-label="Minutes"
           onChange={(_event, val) => handleFieldChange('minutes', val)}
           className={styles.durationInput}
@@ -101,6 +106,7 @@ export function DurationInput({ value, onChange, idPrefix, isDisabled }: Duratio
           value={fieldValue(duration.seconds)}
           placeholder="0"
           isDisabled={isDisabled}
+          validated={validated}
           aria-label="Seconds"
           onChange={(_event, val) => handleFieldChange('seconds', val)}
           className={styles.durationInput}

@@ -148,7 +148,13 @@ function applyReplaceOperation(
     throw new Error(`Operation 'replace' requires a value`)
   }
   if (!existing) {
-    throw new Error(`Cannot replace field '${field}' on non-existent activity '${resolvedId}'`)
+    // Only status replace may create an activity (mirrors applyAddOperation).
+    // Other fields arriving first would otherwise invent a synthetic 'pending'.
+    if (field !== 'status') {
+      throw new Error(`Cannot replace field '${field}' on non-existent activity '${resolvedId}'`)
+    }
+    activities.set(resolvedId, { activityId: resolvedId, status: value as ActivityStatus })
+    return
   }
   activities.set(resolvedId, applyFieldUpdate(existing, field, value))
 }

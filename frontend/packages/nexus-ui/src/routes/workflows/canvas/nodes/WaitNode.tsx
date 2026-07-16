@@ -1,10 +1,12 @@
 import type { WaitActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { NxDetailList } from '../../../../components/details/NxDetailList'
 import { RegistryNodeId } from '../../../../constants'
 import { formatDurationLabel } from '../../../builder/utils/timeUtils'
 import type { ActivityStatus } from '../../execution/types'
+import { useExecutionStore } from '../../stores/useExecutionStore'
 import { getNodeTypeColor } from '../nodeTypeColors'
 import { semanticZoomActivityTitle } from '../semanticZoom'
 
@@ -37,10 +39,19 @@ export function WaitNodeComponent(props: NodeProps<WaitNode>) {
       }
     | undefined
 
+  const { liveStatus, liveStartedAt } = useExecutionStore(
+    useShallow((state) => {
+      const a = state.activityStates.get(props.data.id)
+      return { liveStatus: a?.status, liveStartedAt: a?.startedAt }
+    })
+  )
+  const countdownStatus = liveStatus ?? executionState?.status
+  const countdownStartedAt = liveStartedAt ?? executionState?.started_at
+
   const totalSeconds = (props.data.parameters as { duration?: number } | undefined)?.duration ?? 0
   const durationLabel = totalSeconds > 0 ? formatDurationLabel(totalSeconds) : 'Not configured'
 
-  const { remaining } = useWaitCountdown(executionState?.status, executionState?.started_at, totalSeconds)
+  const { isActive, remaining } = useWaitCountdown(countdownStatus, countdownStartedAt, totalSeconds)
 
   return (
     <NodeComponent
@@ -63,7 +74,7 @@ export function WaitNodeComponent(props: NodeProps<WaitNode>) {
       <NodeBody>
         <NxDetailList>
           {renderText('Duration', durationLabel)}
-          {remaining && renderText('⏱ Countdown', remaining)}
+          {isActive && renderText('⏱ Countdown', remaining ?? '')}
         </NxDetailList>
       </NodeBody>
     </NodeComponent>

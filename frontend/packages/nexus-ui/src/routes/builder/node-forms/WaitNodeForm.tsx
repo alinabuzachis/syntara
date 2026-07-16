@@ -1,7 +1,7 @@
 import { FormGroup, FormHelperText, HelperText, HelperTextItem, Stack, StackItem } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
-import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
+import { Controller, FormProvider, useForm, useFormContext, useFormState } from 'react-hook-form'
 
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -28,7 +28,8 @@ type WaitFormFieldsProps = Readonly<{
 
 function WaitFormFields({ onHeaderContentChange }: WaitFormFieldsProps) {
   const isVersionView = useIsVersionView()
-  const { register, control, formState } = useFormContext<WaitFormData>()
+  const { register, control } = useFormContext<WaitFormData>()
+  const { errors } = useFormState<WaitFormData>()
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="wait-name" ariaLabel="Name" />,
@@ -42,7 +43,7 @@ function WaitFormFields({ onHeaderContentChange }: WaitFormFieldsProps) {
     }
   }, [nameField, onHeaderContentChange])
 
-  const durationError = formState.errors.duration
+  const durationError = errors.duration
 
   const parametersContent = (
     <Stack hasGutter>
@@ -54,7 +55,13 @@ function WaitFormFields({ onHeaderContentChange }: WaitFormFieldsProps) {
             control={control}
             name="duration"
             render={({ field }) => (
-              <DurationInput value={field.value} onChange={field.onChange} idPrefix="wait" isDisabled={isVersionView} />
+              <DurationInput
+                value={field.value}
+                onChange={field.onChange}
+                idPrefix="wait"
+                isDisabled={isVersionView}
+                validated={durationError ? 'error' : undefined}
+              />
             )}
           />
           {durationError && (
@@ -89,6 +96,7 @@ export function WaitNodeForm(props: Readonly<WaitNodeFormProps>) {
   const methods = useForm<WaitFormData>({
     resolver: zodResolver(schema, undefined, { mode: 'sync' }),
     defaultValues,
+    mode: 'onChange',
   })
 
   if (isLoading) return null

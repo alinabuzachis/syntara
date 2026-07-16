@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { secondsToTimeUnits } from '../../../../builder/utils/timeUtils'
 import type { ActivityStatus } from '../../../execution/types'
@@ -24,12 +24,11 @@ function formatRemaining(ms: number): string {
   return `${hh}:${mm}:${ss}`
 }
 
-function computeRemaining(startedAt: string, durationSeconds: number): string {
-  const targetTime = new Date(startedAt).getTime() + durationSeconds * 1000
-  const ms = targetTime - Date.now()
-  return formatRemaining(ms)
-}
-
+/**
+ * Countdown hook for Wait nodes. Uses a direct Zustand subscription in the
+ * parent component to bypass React Flow's node enrichment pipeline, ensuring
+ * timely status updates drive the countdown without page refresh.
+ */
 export function useWaitCountdown(
   status: ActivityStatus | undefined,
   startedAt: string | undefined | null,
@@ -37,34 +36,35 @@ export function useWaitCountdown(
 ): CountdownState {
   const isWaiting = status === 'waiting' || status === 'running'
   const isTerminal = status != null && TERMINAL_STATUSES.has(status)
-  const shouldTick = isWaiting && !isTerminal && !!startedAt && durationSeconds > 0
+  const shouldTick = isWaiting && !isTerminal && durationSeconds > 0
 
   const [remaining, setRemaining] = useState<string | null>(null)
-
-  if (!shouldTick && remaining !== null) {
-    setRemaining(null)
-  }
+  const fallbackRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!shouldTick) {
+      fallbackRef.current = null
       return
     }
 
-    const tick = () => {
-      setRemaining(computeRemaining(startedAt, durationSeconds))
+    let effectiveStartedAt = startedAt
+    if (!effectiveStartedAt) {
+      // startedAt not yet received; use now as a conservative baseline.
+      // When the real startedAt arrives later the countdown may jump.
+      fallbackRef.current ??= new Date().toISOString()
+      effectiveStartedAt = fallbackRef.current
     }
 
-    tick()
-    const id = setInterval(tick, 1000)
+    const targetTime = new Date(effectiveStartedAt).getTime() + durationSeconds * 1000
 
-    return () => {
-      clearInterval(id)
+    const update = () => {
+      setRemaining(formatRemaining(targetTime - Date.now()))
     }
+
+    update()
+    const id = setInterval(update, 1000)
+    return () => clearInterval(id)
   }, [shouldTick, startedAt, durationSeconds])
 
-  if (!shouldTick) {
-    return { remaining: null, isActive: false }
-  }
-
-  return { remaining, isActive: remaining !== null }
+  return { remaining: shouldTick ? remaining : null, isActive: shouldTick && remaining !== null }
 }
