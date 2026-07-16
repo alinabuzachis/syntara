@@ -9,6 +9,7 @@ from sqlmodel import Field, SQLModel
 
 from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.pagination import ResourcesResponse
+from nexus.service_accounts.constants import MAX_CREDENTIALS_PER_SA
 from nexus.service_accounts.models.service_account_credential import (
     ServiceAccountCredentialStatus,
     ServiceAccountCredentialType,
@@ -89,3 +90,12 @@ class SACredentialListParams(BaseListParams):
 
 class SACredentialListResponse(ResourcesResponse[SACredentialRead]):
     """Paginated list response for service account credentials."""
+
+    max_credentials: int = Field(
+        default=MAX_CREDENTIALS_PER_SA,
+        description="Maximum number of credentials allowed per service account",
+    )
+    total_credentials: int = Field(
+        default=0,
+        description="Total number of credentials for this service account (ignoring filters)",
+    )

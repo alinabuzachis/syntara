@@ -1232,6 +1232,16 @@ components:
           maxItems: 100
           title: Resources
           description: Array of resources in current page
+        max_credentials:
+          type: integer
+          title: Max Credentials
+          default: 10
+          description: Maximum number of credentials allowed per service account
+        total_credentials:
+          type: integer
+          title: Total Credentials
+          default: 0
+          description: Total number of credentials for this service account (ignoring filters)
       type: object
       required:
         - resources

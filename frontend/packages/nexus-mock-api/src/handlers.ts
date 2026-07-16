@@ -44,6 +44,7 @@ import {
   mockServiceAccounts,
   mockServiceAccountCredentials,
 } from './resources/access'
+
 import {
   organizations,
   jobTemplates,
@@ -55,6 +56,8 @@ import {
   aapCredentials,
   instanceGroups,
 } from './resources/aap'
+
+const MAX_CREDENTIALS_PER_SA = 10
 
 // Define response types based on API contract
 type ToolsResponse = ToolManagerAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
@@ -4483,24 +4486,41 @@ export const handlers = [
     if (!sa) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
     const url = new URL(request.url)
     const statusFilter = url.searchParams.get('status')
-    let resources = mockServiceAccountCredentials.filter((c) => c.service_account_id === sa.id)
+    const allForSa = mockServiceAccountCredentials.filter((c) => c.service_account_id === sa.id)
+    let resources = [...allForSa]
     if (statusFilter) resources = resources.filter((c) => c.status === statusFilter)
     const sort = url.searchParams.get('sort')
     if (sort) {
       const desc = sort.startsWith('-')
       const field = desc ? sort.slice(1) : sort
-      resources = [...resources].sort((a, b) => {
+      resources = resources.sort((a, b) => {
         const aVal = String((a as Record<string, unknown>)[field] ?? '')
         const bVal = String((b as Record<string, unknown>)[field] ?? '')
         return desc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal)
       })
     }
-    return HttpResponse.json({ resources, next: null, prev: null })
+    return HttpResponse.json({
+      resources,
+      next: null,
+      prev: null,
+      max_credentials: MAX_CREDENTIALS_PER_SA,
+      total_credentials: allForSa.length,
+    })
   }),
 
   http.post('/api/v1/service_accounts/:service_account_id/credentials', ({ params }) => {
     const sa = mockServiceAccounts.find((s) => s.id === params.service_account_id)
     if (!sa) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    const existing = mockServiceAccountCredentials.filter((c) => c.service_account_id === sa.id)
+    if (existing.length >= MAX_CREDENTIALS_PER_SA) {
+      return HttpResponse.json(
+        {
+          detail: `Service account ${sa.id} has reached the maximum of ${MAX_CREDENTIALS_PER_SA} credentials`,
+          code: 'SERVICE_ACCOUNT_CREDENTIAL_LIMIT',
+        },
+        { status: 409 }
+      )
+    }
     const credIndex = mockServiceAccountCredentials.length + 1
     const identifier = `nx_sa_${sa.name.replace(/-/g, '_')}_new${String(credIndex).padStart(3, '0')}`
     const clientSecret = `nxs_mock_secret_${sa.name}_${credIndex}`

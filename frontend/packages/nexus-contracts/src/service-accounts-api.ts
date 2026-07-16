@@ -562,6 +562,18 @@ export interface components {
        * @description Array of resources in current page
        */
       resources: components['schemas']['SACredentialRead'][]
+      /**
+       * Max Credentials
+       * @description Maximum number of credentials allowed per service account
+       * @default 10
+       */
+      max_credentials?: number
+      /**
+       * Total Credentials
+       * @description Total number of credentials for this service account (ignoring filters)
+       * @default 0
+       */
+      total_credentials?: number
     }
     /**
      * ErrorData

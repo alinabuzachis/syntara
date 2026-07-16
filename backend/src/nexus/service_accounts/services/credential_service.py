@@ -13,6 +13,7 @@ from nexus.core.config.base import get_settings
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
+from nexus.service_accounts.constants import MAX_CREDENTIALS_PER_SA
 from nexus.service_accounts.credential_schemas import (
     SACredentialCreateResponse,
     SACredentialListResponse,
@@ -32,8 +33,6 @@ from nexus.service_accounts.models.service_account_credential import (
 )
 
 logger = structlog.stdlib.get_logger(__name__)
-
-MAX_CREDENTIALS_PER_SA = 10
 
 
 class SACredentialConvertMixin(ConvertResourceMixin):
@@ -265,7 +264,7 @@ class ServiceAccountCredentialService(BaseService):
         """List credentials for a service account."""
         sa_filter = [("service_account_id", str(service_account_id))]
         all_params = sa_filter + list(query_params_items or [])
-        return await self.list_resources(
+        response = await self.list_resources(
             model=ServiceAccountCredential,
             response_type=SACredentialListResponse,
             limit=limit,
@@ -274,6 +273,11 @@ class ServiceAccountCredentialService(BaseService):
             query_params_items=all_params,
             include_total=include_total,
         )
+        response.total_credentials = await self.count_resources(
+            ServiceAccountCredential,
+            service_account_id=service_account_id,
+        )
+        return response
 
     def to_read(self, credential: ServiceAccountCredential) -> SACredentialRead:
         """Convert a credential to a read response."""

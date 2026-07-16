@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -13,8 +13,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from contextlib import AbstractContextManager
 
+from nexus.service_accounts.constants import MAX_CREDENTIALS_PER_SA
 from nexus.service_accounts.credential_schemas import (
     SACredentialCreateResponse,
+    SACredentialListResponse,
     SACredentialRead,
     SACredentialRotateResponse,
 )
@@ -29,10 +31,7 @@ from nexus.service_accounts.models.service_account_credential import (
     ServiceAccountCredentialStatus,
     ServiceAccountCredentialType,
 )
-from nexus.service_accounts.services.credential_service import (
-    MAX_CREDENTIALS_PER_SA,
-    ServiceAccountCredentialService,
-)
+from nexus.service_accounts.services.credential_service import ServiceAccountCredentialService
 
 
 @pytest.fixture
@@ -466,3 +465,97 @@ class TestReadSchemaIncludesRotationField:
         )
         read = SACredentialRead.model_validate(cred)
         assert read.old_secret_valid_until is None
+
+
+class TestSACredentialListResponse:
+    """Tests for SACredentialListResponse schema fields."""
+
+    def test_max_credentials_defaults_to_constant(self) -> None:
+        response = SACredentialListResponse(resources=[])
+        assert response.max_credentials == MAX_CREDENTIALS_PER_SA
+
+    def test_total_credentials_defaults_to_zero(self) -> None:
+        response = SACredentialListResponse(resources=[])
+        assert response.total_credentials == 0
+
+    def test_total_credentials_can_be_set(self) -> None:
+        response = SACredentialListResponse(resources=[], total_credentials=7)
+        assert response.total_credentials == 7
+
+
+class TestListCredentials:
+    """Tests for list_credentials including total_credentials population."""
+
+    @pytest.mark.asyncio
+    async def test_list_credentials_sets_total_credentials(
+        self, service: ServiceAccountCredentialService, mock_session: AsyncMock
+    ) -> None:
+        sa_id = uuid4()
+        mock_response = SACredentialListResponse(resources=[])
+        with (
+            patch.object(service, "list_resources", new=AsyncMock(return_value=mock_response)),
+            patch.object(service, "count_resources", new=AsyncMock(return_value=5)) as mock_count,
+        ):
+            result = await service.list_credentials(service_account_id=sa_id)
+
+        assert result.total_credentials == 5
+        mock_count.assert_called_once_with(
+            ServiceAccountCredential,
+            service_account_id=sa_id,
+        )
+
+    @pytest.mark.asyncio
+    async def test_list_credentials_passes_filters_to_list_resources(
+        self, service: ServiceAccountCredentialService, mock_session: AsyncMock
+    ) -> None:
+        sa_id = uuid4()
+        mock_response = SACredentialListResponse(resources=[])
+        extra_params = [("status", "active")]
+        with (
+            patch.object(service, "list_resources", new=AsyncMock(return_value=mock_response)) as mock_list,
+            patch.object(service, "count_resources", new=AsyncMock(return_value=0)),
+        ):
+            await service.list_credentials(
+                service_account_id=sa_id,
+                limit=10,
+                query_params_items=extra_params,
+            )
+
+        call_kwargs = mock_list.call_args
+        passed_params = call_kwargs.kwargs["query_params_items"]
+        assert ("service_account_id", str(sa_id)) in passed_params
+        assert ("status", "active") in passed_params
+        assert call_kwargs.kwargs["limit"] == 10
+
+    @pytest.mark.asyncio
+    async def test_list_credentials_count_ignores_filters(
+        self, service: ServiceAccountCredentialService, mock_session: AsyncMock
+    ) -> None:
+        sa_id = uuid4()
+        mock_response = SACredentialListResponse(resources=[])
+        with (
+            patch.object(service, "list_resources", new=AsyncMock(return_value=mock_response)),
+            patch.object(service, "count_resources", new=AsyncMock(return_value=3)) as mock_count,
+        ):
+            await service.list_credentials(
+                service_account_id=sa_id,
+                query_params_items=[("status", "active")],
+            )
+
+        mock_count.assert_called_once_with(
+            ServiceAccountCredential,
+            service_account_id=sa_id,
+        )
+
+    @pytest.mark.asyncio
+    async def test_list_credentials_returns_max_credentials(
+        self, service: ServiceAccountCredentialService, mock_session: AsyncMock
+    ) -> None:
+        mock_response = SACredentialListResponse(resources=[])
+        with (
+            patch.object(service, "list_resources", new=AsyncMock(return_value=mock_response)),
+            patch.object(service, "count_resources", new=AsyncMock(return_value=0)),
+        ):
+            result = await service.list_credentials(service_account_id=uuid4())
+
+        assert result.max_credentials == MAX_CREDENTIALS_PER_SA

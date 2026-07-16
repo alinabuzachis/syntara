@@ -270,7 +270,9 @@ export function ServiceAccountDetail() {
               body={<DetailsTab serviceAccount={serviceAccount} />}
             />
           )}
-          {activeTab === 'credentials' && <CredentialsTab serviceAccountId={serviceAccount.id} />}
+          {activeTab === 'credentials' && (
+            <CredentialsTab serviceAccountId={serviceAccount.id} serviceAccountName={serviceAccount.name} />
+          )}
           {/* Assignments UI: AAP-78750 */}
           {activeTab === 'assignments' && (
             <NxListPanelView

@@ -272,7 +272,19 @@ function CredentialsTable({
   )
 }
 
-export function CredentialsTab({ serviceAccountId }: Readonly<{ serviceAccountId: string }>) {
+function getCreateDisabledTooltip(
+  permissions: ReturnType<typeof useServiceAccountPermissions>,
+  serviceAccountName: string,
+  maxCredentials: number
+) {
+  if (!permissions.canUpdate) return permissions.tooltips.update
+  return `${serviceAccountName} has reached the maximum of ${maxCredentials} credentials`
+}
+
+export function CredentialsTab({
+  serviceAccountId,
+  serviceAccountName = 'This service account',
+}: Readonly<{ serviceAccountId: string; serviceAccountName?: string }>) {
   const permissions = useServiceAccountPermissions()
   const deleteDialog = useDialogState<SACredentialRead>()
   const disableDialog = useDialogState<SACredentialRead>()
@@ -305,6 +317,10 @@ export function CredentialsTab({ serviceAccountId }: Readonly<{ serviceAccountId
     params: { path: { service_account_id: serviceAccountId }, query: finalQueryParams },
   })
   const credentials = query.data?.resources ?? []
+  const maxCredentials = query.data?.max_credentials ?? 10
+  const totalCredentials = query.data?.total_credentials ?? 0
+  const atLimit = totalCredentials >= maxCredentials
+  const createDisabledTooltip = getCreateDisabledTooltip(permissions, serviceAccountName, maxCredentials)
 
   useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
@@ -349,14 +365,14 @@ export function CredentialsTab({ serviceAccountId }: Readonly<{ serviceAccountId
               onFilterChange={handleFilterChange}
               clearAllFilters={handleClearAllFilters}
               actions={
-                <DisabledWithTooltip isDisabled={!permissions.canUpdate} content={permissions.tooltips.update}>
+                <DisabledWithTooltip isDisabled={!permissions.canUpdate || atLimit} content={createDisabledTooltip}>
                   <Button
                     variant="primary"
                     icon={<RhUiAddIcon />}
-                    isAriaDisabled={!permissions.canUpdate}
+                    isAriaDisabled={!permissions.canUpdate || atLimit}
                     isLoading={actions.isCreating}
                     isDisabled={actions.isCreating}
-                    onClick={permissions.canUpdate ? actions.handleCreate : undefined}
+                    onClick={permissions.canUpdate && !atLimit ? actions.handleCreate : undefined}
                   >
                     Create credential
                   </Button>
