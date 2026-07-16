@@ -7,9 +7,11 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models import Project
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.integrations.exceptions import (
     IntegrationCredentialNotFoundError,
+    IntegrationCredentialRequiredError,
     IntegrationCredentialTypeMismatchError,
     IntegrationNameConflictError,
     IntegrationNotFoundError,
@@ -400,7 +402,7 @@ class TestPatchIntegration:
             },
         )
 
-        with pytest.raises(ValueError, match="does not match integration type"):
+        with pytest.raises(SafeValueError, match="does not match integration type"):
             await integration_service.patch_integration(created.id, patch)
 
     @pytest.mark.asyncio
@@ -631,6 +633,68 @@ class TestCredentialTypeValidation:
         patch = IntegrationPatch(name="Renamed")
         result = await integration_service.patch_integration(created.id, patch)
         assert result.name == "Renamed"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("integration_type", "credential_type_name", "configuration"),
+        [
+            (
+                IntegrationType.LLM_PROVIDER,
+                "LLM Provider",
+                {"integration_type": "llm_provider", "base_url": "https://llm.example.com", "provider_hint": "custom"},
+            ),
+            (
+                IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
+                "Ansible Automation Platform",
+                {
+                    "integration_type": "ansible_automation_platform",
+                    "aap_url": "https://gateway.example.com",
+                    "insecure_skip_tls_verify": True,
+                },
+            ),
+        ],
+    )
+    async def test_patch_clearing_credential_on_required_type_raises(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+        credential_factory,
+        integration_type: IntegrationType,
+        credential_type_name: str,
+        configuration: dict[str, object],
+    ) -> None:
+        ct = await credential_factory.create_type(credential_type_name)
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
+        created = await integration_service.create_integration(
+            IntegrationCreate(
+                name="Test Required Cred",
+                integration_type=integration_type,
+                configuration=configuration,
+                management_credential_id=cred.id,
+            )
+        )
+
+        with pytest.raises(IntegrationCredentialRequiredError):
+            await integration_service.patch_integration(created.id, IntegrationPatch(management_credential_id=None))
+
+    @pytest.mark.asyncio
+    async def test_patch_clearing_credential_on_non_required_type_succeeds(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+        credential_factory,
+    ) -> None:
+        ct = await credential_factory.create_type("HTTP Bearer Token")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
+        created = await integration_service.create_integration(_mcp_create(management_credential_id=cred.id))
+        result = await integration_service.patch_integration(
+            created.id, IntegrationPatch(management_credential_id=None)
+        )
+        assert result.management_credential_id is None
 
 
 class TestDiscover:

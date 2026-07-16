@@ -13,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.secret_service import SecretService
@@ -415,10 +416,13 @@ class IntegrationService(BaseService):
                 f"configuration.integration_type '{data.configuration.integration_type}' "
                 f"does not match integration type '{integration.integration_type.value}'"
             )
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
-        if "management_credential_id" in data.model_fields_set and data.management_credential_id is not None:
-            await self._validate_credential_type(integration.integration_type, data.management_credential_id)
+        if "management_credential_id" in data.model_fields_set:
+            if data.management_credential_id is not None:
+                await self._validate_credential_type(integration.integration_type, data.management_credential_id)
+            elif integration.integration_type in CREDENTIAL_REQUIRED_TYPES:
+                raise IntegrationCredentialRequiredError(integration.integration_type.value)
 
         if data.name is not None and data.name != integration.name:
             await self._raise_if_name_exists(data.name)
