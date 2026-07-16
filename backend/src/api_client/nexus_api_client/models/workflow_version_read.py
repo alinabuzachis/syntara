@@ -9,7 +9,7 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
-from ..models.workflow_version_status import WorkflowVersionStatus
+from ..models.workflow_version_read_status import WorkflowVersionReadStatus
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
@@ -36,8 +36,8 @@ class WorkflowVersionRead:
             created_at (datetime.datetime):
             updated_at (datetime.datetime):
             change_description (None | str | Unset):
-            status (WorkflowVersionStatus | Unset): Publish status of a workflow version.
-            publish_name (None | str | Unset):
+            status (WorkflowVersionReadStatus | Unset):  Default: WorkflowVersionReadStatus.DRAFT.
+            name (None | str | Unset):
             created_by_username (None | str | Unset):
             deleted_at (datetime.datetime | None | Unset):
             deleted_by (None | Unset | UUID):
@@ -52,8 +52,8 @@ class WorkflowVersionRead:
     created_at: datetime.datetime
     updated_at: datetime.datetime
     change_description: None | str | Unset = UNSET
-    status: WorkflowVersionStatus | Unset = UNSET
-    publish_name: None | str | Unset = UNSET
+    status: WorkflowVersionReadStatus | Unset = WorkflowVersionReadStatus.DRAFT
+    name: None | str | Unset = UNSET
     created_by_username: None | str | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
     deleted_by: None | Unset | UUID = UNSET
@@ -86,11 +86,11 @@ class WorkflowVersionRead:
         if not isinstance(self.status, Unset):
             status = self.status.value
 
-        publish_name: None | str | Unset
-        if isinstance(self.publish_name, Unset):
-            publish_name = UNSET
+        name: None | str | Unset
+        if isinstance(self.name, Unset):
+            name = UNSET
         else:
-            publish_name = self.publish_name
+            name = self.name
 
         created_by_username: None | str | Unset
         if isinstance(self.created_by_username, Unset):
@@ -132,8 +132,8 @@ class WorkflowVersionRead:
             field_dict["change_description"] = change_description
         if status is not UNSET:
             field_dict["status"] = status
-        if publish_name is not UNSET:
-            field_dict["publish_name"] = publish_name
+        if name is not UNSET:
+            field_dict["name"] = name
         if created_by_username is not UNSET:
             field_dict["created_by_username"] = created_by_username
         if deleted_at is not UNSET:
@@ -174,20 +174,20 @@ class WorkflowVersionRead:
         change_description = _parse_change_description(d.pop("change_description", UNSET))
 
         _status = d.pop("status", UNSET)
-        status: WorkflowVersionStatus | Unset
+        status: WorkflowVersionReadStatus | Unset
         if isinstance(_status, Unset):
             status = UNSET
         else:
-            status = WorkflowVersionStatus(_status)
+            status = WorkflowVersionReadStatus(_status)
 
-        def _parse_publish_name(data: object) -> None | str | Unset:
+        def _parse_name(data: object) -> None | str | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             return cast(None | str | Unset, data)
 
-        publish_name = _parse_publish_name(d.pop("publish_name", UNSET))
+        name = _parse_name(d.pop("name", UNSET))
 
         def _parse_created_by_username(data: object) -> None | str | Unset:
             if data is None:
@@ -243,7 +243,7 @@ class WorkflowVersionRead:
             updated_at=updated_at,
             change_description=change_description,
             status=status,
-            publish_name=publish_name,
+            name=name,
             created_by_username=created_by_username,
             deleted_at=deleted_at,
             deleted_by=deleted_by,

@@ -7,6 +7,7 @@ import type { AlertMessage } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { getErrorMessage } from '../../../utils/apiErrors'
+import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import type { BuilderAction } from '../builderReducer'
 import { DEFAULT_MAX_WAIT_SECONDS, fetchMaxWaitDuration } from '../node-forms/useMaxWaitDuration'
@@ -28,6 +29,7 @@ async function checkVersionConflictBeforeRun(
   if (serverVersion != null && serverVersion > loadedVersion) {
     onRunConflict({
       currentVersion: serverVersion,
+      currentVersionName: latest?.version?.name ?? formatDateTime(latest?.version?.created_at) ?? null,
       expectedVersion: loadedVersion,
       createdByUsername: 'another user',
       createdAt: latest?.updated_at ?? '',

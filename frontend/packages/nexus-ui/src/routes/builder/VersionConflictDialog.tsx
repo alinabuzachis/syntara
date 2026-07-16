@@ -4,6 +4,7 @@ export type ConflictAction = 'save' | 'publish' | 'run'
 
 export type ConflictInfo = {
   currentVersion: number
+  currentVersionName: string | null
   expectedVersion: number
   createdByUsername: string
   createdAt: string
@@ -74,8 +75,8 @@ export function VersionConflictDialog({
       <ModalBody>
         {conflictInfo && (
           <Content component="p">
-            Version {conflictInfo.currentVersion} was saved by {conflictInfo.createdByUsername}. Your changes are based
-            on version {conflictInfo.expectedVersion}.
+            {conflictInfo.currentVersionName ?? `Version ${conflictInfo.currentVersion}`} was saved by{' '}
+            {conflictInfo.createdByUsername}. Your changes are based on version {conflictInfo.expectedVersion}.
           </Content>
         )}
         <Content component="p">

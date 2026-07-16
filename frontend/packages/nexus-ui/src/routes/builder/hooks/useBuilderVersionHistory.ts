@@ -31,6 +31,7 @@ type UseBuilderVersionHistoryParams = {
   expandAllEvent?: EventTarget
   searchParams: URLSearchParams
   setSearchParams: (params: URLSearchParams) => void
+  onVersionUpdated?: (version: number) => void
 }
 
 function loadDefinitionIntoStore(
@@ -68,12 +69,14 @@ export function useBuilderVersionHistory({
   expandAllEvent,
   searchParams,
   setSearchParams,
+  onVersionUpdated,
 }: UseBuilderVersionHistoryParams) {
   const { loadWorkflowWithEdges, markClean } = useWorkflowStore()
   const queryClient = useQueryClient()
   const restoreDialog = useDialogState<RestoreDialogItem>()
   const {
     filteredVersions,
+    publishedVersionName,
     statusFilter,
     setStatusFilter,
     exportVersion,
@@ -83,7 +86,7 @@ export function useBuilderVersionHistory({
     versionsQuery,
     updateVersionMetadata,
     updateMetadataMutation,
-  } = useVersionHistory({ workflowId, isNew })
+  } = useVersionHistory({ workflowId, isNew, onVersionUpdated })
 
   const viewedVersionQuery = workflowClient.useQuery(
     'get',
@@ -96,7 +99,9 @@ export function useBuilderVersionHistory({
   const viewedVersionDate = viewedVersionQuery.data?.created_at ?? null
   const viewedVersionStatus = viewedVersionQuery.data?.status ?? null
   const viewedVersionDescription = viewedVersionQuery.data?.change_description ?? null
-  const viewedVersionPublishName = viewedVersionQuery.data?.publish_name ?? null
+  const viewedVersionName = viewedVersionQuery.data?.name ?? null
+  const viewedVersionPublishedAt = viewedVersionQuery.data?.last_published_at ?? null
+  const viewedVersionUnpublishedAt = viewedVersionQuery.data?.last_unpublished_at ?? null
 
   useEffect(() => {
     if (!isViewingVersion || !viewedVersionQuery.data?.workflow_definition) return
@@ -172,6 +177,7 @@ export function useBuilderVersionHistory({
 
   return {
     filteredVersions,
+    publishedVersionName,
     statusFilter,
     setStatusFilter,
     exportVersion,
@@ -181,7 +187,9 @@ export function useBuilderVersionHistory({
     viewedVersionDate,
     viewedVersionStatus,
     viewedVersionDescription,
-    viewedVersionPublishName,
+    viewedVersionName,
+    viewedVersionPublishedAt,
+    viewedVersionUnpublishedAt,
     handleExitVersionView,
     handleConfirmRestore,
     restoreDialog,

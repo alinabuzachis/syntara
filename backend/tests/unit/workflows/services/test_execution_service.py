@@ -406,7 +406,7 @@ class TestCreateExecution:
         workflow.id = workflow_id
         workflow.name = "test-workflow"
         workflow.is_enabled = True
-        workflow.published_version = 1
+        workflow.published_version_id = version_id
         workflow.project_id = uuid4()
 
         workflow_version = Mock(spec=WorkflowVersion)

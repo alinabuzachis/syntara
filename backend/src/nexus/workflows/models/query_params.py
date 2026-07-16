@@ -18,6 +18,10 @@ class WorkflowListParams(BaseListParams):
     # for complex filtering operations like created_by, is_enabled, etc.
 
 
+class WorkflowVersionListParams(BaseListParams):
+    """Query parameters for workflow version list endpoint."""
+
+
 class ExecutionListParams(BaseListParams):
     """Query parameters for execution list endpoint."""
 

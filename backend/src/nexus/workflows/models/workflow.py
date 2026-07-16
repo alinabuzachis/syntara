@@ -55,7 +55,7 @@ class Workflow(Resource, table=True):
         "is_builtin",
         "is_enabled",
         "has_validation_issues",
-        "published_version",
+        "published_version_id",
         "project_id",
     ]
 
@@ -77,9 +77,10 @@ class Workflow(Resource, table=True):
         index=True,
     )
 
-    published_version: int | None = Field(
+    published_version_id: UUID | None = Field(
         default=None,
-        description="Version number of the currently published version",
+        foreign_key="workflow_versions.id",
+        description="FK to the currently published workflow version",
         index=True,
     )
 
@@ -110,6 +111,7 @@ class Workflow(Resource, table=True):
     versions: list["WorkflowVersion"] = Relationship(
         back_populates="workflow",
         cascade_delete=False,
+        sa_relationship_kwargs={"foreign_keys": "WorkflowVersion.workflow_id"},
     )
 
     executions: list["Execution"] = Relationship(
@@ -136,8 +138,8 @@ class Workflow(Resource, table=True):
             postgresql_where=text("deleted_at IS NULL"),
         ),
         CheckConstraint(
-            "(published_version IS NULL) = (NOT is_enabled)",
-            name="ck_workflows_is_enabled_published_version",
+            "(published_version_id IS NULL) = (NOT is_enabled)",
+            name="ck_workflows_is_enabled_published_version_id",
         ),
     )
 
@@ -231,7 +233,8 @@ class WorkflowRead(WorkflowBase):
     is_builtin: bool = False
     is_enabled: bool
     has_validation_issues: bool = False
-    published_version: int | None = None
+    published_version_id: UUID | None = None
+    published_version_number: int | None = None
     created_by: UUID
     project_id: UUID
     created_at: datetime

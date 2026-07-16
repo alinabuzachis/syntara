@@ -250,7 +250,7 @@ describe('useBuilderVersionPanel', () => {
     const mockVersion = {
       id: 'ver-1',
       version: 1,
-      publish_name: 'Release 1.0',
+      name: 'Release 1.0',
       change_description: 'Initial',
     }
 
@@ -259,7 +259,7 @@ describe('useBuilderVersionPanel', () => {
     })
 
     expect(result.current.versionSidePanel.editDialog.isOpen).toBe(true)
-    expect(result.current.versionSidePanel.editDialog.initialPublishName).toBe('Release 1.0')
+    expect(result.current.versionSidePanel.editDialog.initialName).toBe('Release 1.0')
     expect(result.current.versionSidePanel.editDialog.initialDescription).toBe('Initial')
   })
 
@@ -316,7 +316,7 @@ describe('useBuilderVersionPanel', () => {
 
   it('editDialog.onSave calls updateVersionMetadata and closes dialog', () => {
     const { result } = renderHook(() => useBuilderVersionPanel(createParams()))
-    const mockVersion = { id: 'ver-1', version: 2, publish_name: 'Old', change_description: 'Old Desc' }
+    const mockVersion = { id: 'ver-1', version: 2, name: 'Old', change_description: 'Old Desc' }
 
     act(() => {
       result.current.versionSidePanel.onEditVersion(mockVersion as never)
@@ -333,7 +333,7 @@ describe('useBuilderVersionPanel', () => {
 
   it('editDialog.onClose closes the dialog', () => {
     const { result } = renderHook(() => useBuilderVersionPanel(createParams()))
-    const mockVersion = { id: 'ver-1', version: 1, publish_name: null, change_description: null }
+    const mockVersion = { id: 'ver-1', version: 1, name: null, change_description: null }
 
     act(() => {
       result.current.versionSidePanel.onEditVersion(mockVersion as never)

@@ -244,7 +244,7 @@ describe('useVersionHistory', () => {
       expect(mockMutate).toHaveBeenCalledWith(
         {
           params: { path: { workflow_id: 'wf-1', version: 2 } },
-          body: { publish_name: null, change_description: null },
+          body: { name: null, change_description: null },
         },
         expect.objectContaining({
           onSuccess: expect.any(Function) as unknown,
@@ -265,7 +265,7 @@ describe('useVersionHistory', () => {
       expect(mockMutate).toHaveBeenCalledWith(
         {
           params: { path: { workflow_id: 'wf-1', version: 2 } },
-          body: { publish_name: 'Release 1.0', change_description: 'First public release' },
+          body: { name: 'Release 1.0', change_description: 'First public release' },
         },
         expect.objectContaining({
           onSuccess: expect.any(Function) as unknown,
@@ -354,7 +354,7 @@ describe('useVersionHistory', () => {
       const [args] = mockMutate.mock.calls[0] as [Record<string, unknown>]
       expect(args).toEqual({
         params: { path: { workflow_id: 'wf-1', version: 2 } },
-        body: { publish_name: 'new name', change_description: 'new desc' },
+        body: { name: 'new name', change_description: 'new desc' },
       })
     })
 

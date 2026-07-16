@@ -256,14 +256,12 @@ function VersionRow({
           fullWidth={{ default: 'fullWidth' }}
         >
           <FlexItem style={{ minWidth: 0 }}>
-            <Tooltip
-              content={version.publish_name || (version.created_at ? formatHistoryDateTime(version.created_at) : '')}
-            >
+            <Tooltip content={version.name || (version.created_at ? formatHistoryDateTime(version.created_at) : '')}>
               <Content component={ContentVariants.p} className={styles.versionTimestamp}>
-                {version.publish_name || (version.created_at ? formatHistoryDateTime(version.created_at) : '')}
+                {version.name || (version.created_at ? formatHistoryDateTime(version.created_at) : '')}
               </Content>
             </Tooltip>
-            {version.publish_name && version.created_at && (
+            {version.name && version.created_at && (
               <Content component={ContentVariants.small}>{formatHistoryDateTime(version.created_at)}</Content>
             )}
           </FlexItem>
@@ -328,10 +326,10 @@ type VersionHistoryPanelProps = Readonly<{
   selectedVersion?: number | null
   canEdit?: boolean
   editTooltip?: string
+  publishedVersionName?: string | null
 }>
 
 const STATUS_FILTER_OPTIONS: { label: string; value: string }[] = [
-  { label: 'Draft', value: 'draft' },
   { label: 'Published', value: 'published' },
   { label: 'Prev. published', value: 'previously_published' },
 ]
@@ -354,6 +352,7 @@ export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
     selectedVersion,
     canEdit = true,
     editTooltip,
+    publishedVersionName,
   } = props
 
   const groups = useMemo(() => groupVersionsByDate(versions), [versions])
@@ -463,6 +462,17 @@ export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
                   onStatusFilterChange(filter ? (filter.value as VersionStatus[]) : [])
                 }}
               />
+            </StackItem>
+          )}
+
+          {publishedVersionName && (
+            <StackItem className={styles.filterSection}>
+              <Content component={ContentVariants.small}>
+                Currently published:{' '}
+                <Button variant="link" isInline onClick={() => onStatusFilterChange(['published'] as VersionStatus[])}>
+                  {publishedVersionName}
+                </Button>
+              </Content>
             </StackItem>
           )}
 

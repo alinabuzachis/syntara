@@ -25,6 +25,7 @@ function createSidePanelState(overrides: Partial<VersionSidePanelState> = {}): V
   return {
     show: true,
     filteredVersions: [],
+    publishedVersionName: null,
     selectedVersion: null,
     statusFilter: [],
     onStatusFilterChange: vi.fn(),
@@ -57,7 +58,7 @@ function createSidePanelState(overrides: Partial<VersionSidePanelState> = {}): V
       isSaving: false,
       onClose: vi.fn(),
       onSave: vi.fn(),
-      initialPublishName: null,
+      initialName: null,
       initialDescription: null,
     },
     ...overrides,
@@ -148,7 +149,7 @@ describe('VersionHistorySidePanel', () => {
         isSaving: false,
         onClose: vi.fn(),
         onSave: vi.fn(),
-        initialPublishName: 'Release 1.0',
+        initialName: 'Release 1.0',
         initialDescription: 'First release',
       },
     })

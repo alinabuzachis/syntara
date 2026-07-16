@@ -20,9 +20,10 @@ type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionRead']
 type UseVersionHistoryParams = {
   workflowId: string | null
   isNew: boolean
+  onVersionUpdated?: (version: number) => void
 }
 
-export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams) {
+export function useVersionHistory({ workflowId, isNew, onVersionUpdated }: UseVersionHistoryParams) {
   const [statusFilter, setStatusFilter] = useState<VersionStatus[]>([])
   const queryClient = useQueryClient()
   const { showSuccess, showError } = useAlerts()
@@ -45,6 +46,13 @@ export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams
   const updateMetadataMutation = workflowClient.useMutation('patch', '/workflows/{workflow_id}/versions/{version}')
 
   const allVersions = versionsQuery.data?.resources
+  const publishedVersionName = useMemo(() => {
+    const pub = allVersions?.find((v) => (v as { status?: string }).status === 'published') as
+      | WorkflowVersion
+      | undefined
+    if (!pub) return null
+    return pub.name ?? `Version ${pub.version}`
+  }, [allVersions])
   const filteredVersions = useMemo((): WorkflowVersion[] => {
     if (!allVersions) return []
     if (statusFilter.length === 0) return allVersions as WorkflowVersion[]
@@ -69,11 +77,14 @@ export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams
       publishMutation.mutate(
         {
           params: { path: { workflow_id: workflowId, version } },
-          body: { publish_name: publishName ?? null, change_description: changeDescription ?? null },
+          body: { name: publishName ?? null, change_description: changeDescription ?? null },
         },
         {
-          onSuccess: () => {
+          onSuccess: (data) => {
             showSuccess({ title: 'Version published successfully' })
+            if (data?.current_version != null) {
+              onVersionUpdated?.(data.current_version)
+            }
             detachPromise(versionsQuery.refetch())
             detachPromise(
               queryClient.invalidateQueries({
@@ -90,7 +101,7 @@ export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams
         }
       )
     },
-    [workflowId, publishMutation, versionsQuery, queryClient, showSuccess, showError]
+    [workflowId, publishMutation, versionsQuery, queryClient, showSuccess, showError, onVersionUpdated]
   )
 
   const openInNewWindow = useCallback(
@@ -107,7 +118,7 @@ export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams
       updateMetadataMutation.mutate(
         {
           params: { path: { workflow_id: workflowId, version } },
-          body: { publish_name: publishName, change_description: changeDescription },
+          body: { name: publishName, change_description: changeDescription },
         },
         {
           onSuccess: () => {
@@ -126,6 +137,7 @@ export function useVersionHistory({ workflowId, isNew }: UseVersionHistoryParams
   return {
     versionsQuery,
     filteredVersions,
+    publishedVersionName,
     statusFilter,
     setStatusFilter,
     restoreMutation,

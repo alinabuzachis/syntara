@@ -731,10 +731,12 @@ function getErrorBody(error: Record<string, unknown>): Record<string, unknown> {
 
 export function extractVersionConflictInfo(error: Record<string, unknown>) {
   const body = getErrorBody(error)
+  const createdAt = (body.created_at as string) ?? ''
   return {
     currentVersion: (body.current_version as number) ?? 0,
+    currentVersionName: (body.current_version_name as string | null) ?? null,
     expectedVersion: (body.expected_version as number) ?? 0,
     createdByUsername: (body.created_by_username as string) ?? 'another user',
-    createdAt: (body.created_at as string) ?? '',
+    createdAt,
   }
 }

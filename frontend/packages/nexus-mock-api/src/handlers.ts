@@ -76,7 +76,7 @@ type MockVersionRecord = {
   workflow_definition: unknown
   change_description: string
   status: string
-  publish_name: string | null
+  name: string | null
   created_by: string
   created_at: string
   updated_at: string
@@ -114,16 +114,21 @@ const workflowVersionStore = new Map<string, MockVersionRecord[]>()
 function getOrCreateVersionStore(workflowId: string, workflow: WorkflowWithVersion): MockVersionRecord[] {
   if (!workflowVersionStore.has(workflowId)) {
     const now = mockDate.daysAgo1
+    const versionId = (workflow.version as Record<string, unknown> | undefined)?.id as string | undefined
+    const id = versionId ?? uuidv4()
+    if (workflow.version && !versionId) {
+      ;(workflow.version as Record<string, unknown>).id = id
+    }
     workflowVersionStore.set(workflowId, [
       {
-        id: uuidv4(),
+        id,
         workflow_id: workflowId,
         version: 1,
         schema_version: workflow.version?.schema_version ?? '2.0.0',
         workflow_definition: workflow.version?.workflow_definition,
         change_description: 'Initial version',
         status: 'draft',
-        publish_name: null,
+        name: null,
         created_by: 'user-1',
         created_at: now,
         updated_at: now,
@@ -776,13 +781,15 @@ export const handlers = [
     const workflowId = uuidv4()
     const labelRecord = body.labels ?? {}
     const projectId = typeof body.project_id === 'string' && body.project_id.length > 0 ? body.project_id : 'p-001'
+    const versionId = uuidv4()
     const createdWorkflow: WorkflowWithVersion & { project_id: string } = {
       id: workflowId,
       name: body.name ?? 'new-workflow',
       description: body.description ?? body.name ?? 'New workflow',
       labels: labelRecord,
       is_enabled: body.is_enabled ?? false,
-      published_version: null,
+      published_version_id: null,
+      published_version_number: null,
       current_version: 1,
       created_at: now,
       updated_at: now,
@@ -790,6 +797,7 @@ export const handlers = [
       updated_by: null,
       project_id: projectId,
       version: {
+        id: versionId,
         version: 1,
         schema_version: body.workflow_definition?.schema_version ?? '2.0.0',
         workflow_definition: body.workflow_definition,
@@ -923,7 +931,7 @@ export const handlers = [
         workflow_definition: JSON.parse(JSON.stringify(workflow.version?.workflow_definition)),
         change_description: workflow.version?.change_description ?? `Version ${currentVersionNum}`,
         status: 'draft',
-        publish_name: null,
+        name: null,
         created_by: workflow.version?.created_by ?? 'user-1',
         created_at: workflow.version?.created_at ?? now,
         updated_at: workflow.version?.created_at ?? now,
@@ -942,7 +950,9 @@ export const handlers = [
     mutableWorkflow.current_version = nextVersion
     // Tags live only in workflow.labels (above). Keep existing definition when PATCH omits workflow_definition (e.g. details-only edit).
     const nextDefinition = body.workflow_definition ?? workflow.version?.workflow_definition
+    const nextVersionId = uuidv4()
     mutableWorkflow.version = {
+      id: nextVersionId,
       version: nextVersion,
       schema_version: nextDefinition?.schema_version ?? workflow.version?.schema_version ?? '2.0.0',
       workflow_definition: nextDefinition,
@@ -952,14 +962,14 @@ export const handlers = [
     }
 
     versions.push({
-      id: uuidv4(),
+      id: nextVersionId,
       workflow_id: String(workflowId),
       version: nextVersion,
       schema_version: mutableWorkflow.version.schema_version ?? '2.0.0',
       workflow_definition: JSON.parse(JSON.stringify(nextDefinition)),
       change_description: mutableWorkflow.version.change_description ?? '',
       status: 'draft',
-      publish_name: null,
+      name: null,
       created_by: mutableWorkflow.version.created_by ?? 'user-1',
       created_at: now,
       updated_at: now,
@@ -1035,7 +1045,7 @@ export const handlers = [
       )
     }
     const body = (await request.request.json()) as {
-      publish_name?: string | null
+      name?: string | null
       change_description?: string | null
       expected_version?: number | null
     }
@@ -1077,12 +1087,25 @@ export const handlers = [
       )
     }
     const mutableWorkflow = workflow as MutableWorkflowWithVersion
-    mutableWorkflow.published_version = version
-    mutableWorkflow.updated_at = new Date().toISOString()
     const versionObj = mutableWorkflow.version as Record<string, unknown>
-    versionObj.publish_name = body?.publish_name ?? null
+    versionObj.name = body?.name ?? null
     versionObj.change_description = body?.change_description ?? null
     versionObj.status = WorkflowVersionStatusEnum.PUBLISHED
+    mutableWorkflow.published_version_id = (versionObj.id as string) ?? null
+    ;(mutableWorkflow as Record<string, unknown>).published_version_number = version
+    mutableWorkflow.is_enabled = true
+    mutableWorkflow.updated_at = new Date().toISOString()
+
+    const versions = getOrCreateVersionStore(String(workflowId), workflow)
+    for (const v of versions) {
+      if (v.status === 'published') v.status = 'previously_published'
+    }
+    const storeRecord = versions.find((v) => v.version === version)
+    if (storeRecord) {
+      storeRecord.status = 'published'
+      storeRecord.name = (body?.name as string) ?? null
+    }
+
     return HttpResponse.json(mutableWorkflow)
   }),
 
@@ -1102,13 +1125,20 @@ export const handlers = [
       )
     }
     const mutableWorkflow = workflow as MutableWorkflowWithVersion
-    mutableWorkflow.published_version = null
+    mutableWorkflow.published_version_id = null
+    ;(mutableWorkflow as Record<string, unknown>).published_version_number = null
+    mutableWorkflow.is_enabled = false
     mutableWorkflow.updated_at = new Date().toISOString()
     if (mutableWorkflow.version) {
       const versionObj = mutableWorkflow.version as Record<string, unknown>
-      versionObj.status = WorkflowVersionStatusEnum.DRAFT
-      versionObj.publish_name = null
+      versionObj.status = WorkflowVersionStatusEnum.PREVIOUSLY_PUBLISHED
     }
+
+    const versions = getOrCreateVersionStore(String(workflowId), workflow)
+    for (const v of versions) {
+      if (v.status === 'published') v.status = 'previously_published'
+    }
+
     return HttpResponse.json(mutableWorkflow)
   }),
 
@@ -1130,8 +1160,8 @@ export const handlers = [
         { status: 404 }
       )
     }
-    const body = (await request.request.json()) as { publish_name?: string | null; change_description?: string | null }
-    if (body.publish_name !== undefined) found.publish_name = body.publish_name
+    const body = (await request.request.json()) as { name?: string | null; change_description?: string | null }
+    if (body.name !== undefined) found.name = body.name
     if (body.change_description !== undefined) found.change_description = body.change_description
     found.updated_at = new Date().toISOString()
     return HttpResponse.json(found)
@@ -1213,7 +1243,7 @@ export const handlers = [
       workflow_definition: restoredDef,
       change_description: `Restored from version ${restoredVersionNum}`,
       status: 'draft',
-      publish_name: null,
+      name: null,
       created_by: 'user-1',
       created_at: now,
       updated_at: now,
@@ -1297,8 +1327,8 @@ export const handlers = [
       return {
         ...e,
         project_id: wf?.project_id ?? null,
-        workflow_version: wf?.published_version ?? wf?.current_version ?? null,
-        workflow_version_publish_name: null,
+        workflow_version: wf?.current_version ?? null,
+        workflow_version_name: null,
         workflow_version_created_at: e.created_at ?? null,
       }
     })

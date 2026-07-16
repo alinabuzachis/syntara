@@ -428,7 +428,7 @@ paths:
   /workflows/{workflow_id}/versions:
     get:
       summary: List Workflow Versions
-      description: List all versions for a workflow.
+      description: List versions for a workflow with cursor-based pagination.
       operationId: list_workflow_versions
       tags:
         - workflows
@@ -445,6 +445,39 @@ paths:
             type: string
             format: uuid
             title: Workflow Id
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            exclusiveMinimum: 0
+            maximum: 100
+            title: Limit
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Cursor
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                pattern: ^-?[a-z][a-z0-9_]*$
+              - type: 'null'
+            title: Sort
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+            title: Include Total
       responses:
         '200':
           description: Workflow version history
@@ -521,7 +554,7 @@ paths:
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
     patch:
       summary: Update Workflow Version Metadata
-      description: Update a workflow version's metadata (publish_name, change_description).
+      description: Update a workflow version's metadata (name, change_description).
       operationId: update_workflow_version_metadata
       tags:
         - workflows
@@ -934,13 +967,30 @@ components:
             - type: 'null'
           title: Change Description
         status:
-          $ref: '#/components/schemas/WorkflowVersionStatus'
+          type: string
           default: draft
-        publish_name:
+          enum:
+            - draft
+            - published
+            - previously_published
+          title: Status
+        last_published_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Published At
+        last_unpublished_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Unpublished At
+        name:
           anyOf:
             - type: string
             - type: 'null'
-          title: Publish Name
+          title: Name
         created_by:
           type: string
           format: uuid
@@ -971,27 +1021,19 @@ components:
             - type: 'null'
           title: Deleted By
 
-    WorkflowVersionStatus:
-      type: string
-      title: WorkflowVersionStatus
-      description: Publish status of a workflow version.
-      enum:
-        - draft
-        - published
-        - previously_published
 
     PublishVersionRequest:
       type: object
       title: PublishVersionRequest
       description: Request body for publishing a workflow version.
       properties:
-        publish_name:
+        name:
           anyOf:
             - type: string
               maxLength: 255
             - type: 'null'
-          title: Publish Name
-          description: Optional name for this published version
+          title: Name
+          description: Optional name for this version
         change_description:
           anyOf:
             - type: string
@@ -1021,12 +1063,12 @@ components:
       title: WorkflowVersionUpdate
       description: Request body for updating version metadata (PATCH /workflows/{id}/versions/{version}).
       properties:
-        publish_name:
+        name:
           anyOf:
             - type: string
               maxLength: 255
             - type: 'null'
-          title: Publish Name
+          title: Name
           description: Version name
         change_description:
           anyOf:

@@ -7,7 +7,7 @@ type WorkflowLike = {
   id?: string
   current_version?: number
   version?: { version?: number }
-  published_version?: number | null
+  published_version_id?: string | null
   created_by?: unknown
 }
 
@@ -18,7 +18,7 @@ export function useWorkflowMetadata(workflow: WorkflowLike | undefined): Workflo
       name: workflow.name ?? '',
       id: workflow.id ?? '',
       version: workflow.current_version ?? workflow.version?.version ?? 0,
-      published: workflow.published_version != null,
+      published: workflow.published_version_id != null,
       author: typeof workflow.created_by === 'string' ? workflow.created_by : 'Unknown',
     }
   }, [workflow])

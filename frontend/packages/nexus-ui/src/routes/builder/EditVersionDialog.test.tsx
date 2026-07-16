@@ -9,7 +9,7 @@ const defaultProps = {
   isSaving: false,
   onClose: vi.fn(),
   onSave: vi.fn(),
-  initialPublishName: 'v1.0 release',
+  initialName: 'v1.0 release',
   initialDescription: 'Initial release',
 }
 
@@ -45,7 +45,7 @@ describe('EditVersionDialog', () => {
 
   it('calls onSave with null when fields are empty', async () => {
     const user = userEvent.setup()
-    render(<EditVersionDialog {...defaultProps} initialPublishName="" initialDescription="" />)
+    render(<EditVersionDialog {...defaultProps} initialName="" initialDescription="" />)
 
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -78,7 +78,7 @@ describe('EditVersionDialog', () => {
 
   it('calls onSave with trimmed whitespace-only values as null', async () => {
     const user = userEvent.setup()
-    render(<EditVersionDialog {...defaultProps} initialPublishName="   " initialDescription="   " />)
+    render(<EditVersionDialog {...defaultProps} initialName="   " initialDescription="   " />)
 
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -98,7 +98,7 @@ describe('EditVersionDialog', () => {
   })
 
   it('pre-fills with null initial values as empty strings', () => {
-    render(<EditVersionDialog {...defaultProps} initialPublishName={undefined} initialDescription={undefined} />)
+    render(<EditVersionDialog {...defaultProps} initialName={undefined} initialDescription={undefined} />)
 
     expect(screen.getByRole('textbox', { name: 'Version name' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('')
@@ -106,7 +106,7 @@ describe('EditVersionDialog', () => {
 
   it('shows validation error for publish name exceeding 255 characters', async () => {
     const user = userEvent.setup()
-    render(<EditVersionDialog {...defaultProps} initialPublishName="" />)
+    render(<EditVersionDialog {...defaultProps} initialName="" />)
 
     const nameInput = screen.getByRole('textbox', { name: 'Version name' })
     await user.click(nameInput)

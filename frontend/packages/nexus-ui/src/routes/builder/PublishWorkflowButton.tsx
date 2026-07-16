@@ -6,6 +6,7 @@ import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 type PublishWorkflowButtonProps = Readonly<{
   canEdit: boolean
   hasNoSteps: boolean
+  hasNoChanges: boolean
   validationErrorCount: number
   isVerifying: boolean
   editTooltip: string
@@ -16,6 +17,7 @@ type PublishWorkflowButtonProps = Readonly<{
 export function PublishWorkflowButton({
   canEdit,
   hasNoSteps,
+  hasNoChanges,
   validationErrorCount,
   isVerifying,
   editTooltip,
@@ -23,11 +25,13 @@ export function PublishWorkflowButton({
   onPublishClick,
 }: PublishWorkflowButtonProps) {
   const hasErrors = validationErrorCount > 0
-  const canPublish = canEdit && !hasNoSteps && !hasErrors && !isVerifying
+  const canPublish = canEdit && !hasNoSteps && !hasErrors && !isVerifying && !hasNoChanges
   const errorSuffix = validationErrorCount === 1 ? '' : 's'
 
   let tooltipContent = editTooltip
-  if (canEdit && hasNoSteps) {
+  if (canEdit && hasNoChanges) {
+    tooltipContent = 'No changes to publish'
+  } else if (canEdit && hasNoSteps) {
     tooltipContent = 'Complete your workflow before publishing'
   } else if (canEdit && isVerifying) {
     tooltipContent = 'Verifying workflow...'

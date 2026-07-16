@@ -21,7 +21,7 @@ class PublishVersionRequest:
     """Request body for publishing a workflow version.
 
     Attributes:
-        publish_name (None | str | Unset): Optional name for this published version
+        name (None | str | Unset): Optional name for this version
         change_description (None | str | Unset): Description of changes in this version
         workflow_definition (None | PublishVersionRequestWorkflowDefinitionType1 | Unset | WorkflowDefinition): Optional
             workflow definition to publish directly (skips separate save step)
@@ -29,7 +29,7 @@ class PublishVersionRequest:
             higher, returns 409 Conflict.
     """
 
-    publish_name: None | str | Unset = UNSET
+    name: None | str | Unset = UNSET
     change_description: None | str | Unset = UNSET
     workflow_definition: None | PublishVersionRequestWorkflowDefinitionType1 | Unset | WorkflowDefinition = UNSET
     expected_version: int | None | Unset = UNSET
@@ -41,11 +41,11 @@ class PublishVersionRequest:
         )
         from ..models.workflow_definition import WorkflowDefinition
 
-        publish_name: None | str | Unset
-        if isinstance(self.publish_name, Unset):
-            publish_name = UNSET
+        name: None | str | Unset
+        if isinstance(self.name, Unset):
+            name = UNSET
         else:
-            publish_name = self.publish_name
+            name = self.name
 
         change_description: None | str | Unset
         if isinstance(self.change_description, Unset):
@@ -72,8 +72,8 @@ class PublishVersionRequest:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
-        if publish_name is not UNSET:
-            field_dict["publish_name"] = publish_name
+        if name is not UNSET:
+            field_dict["name"] = name
         if change_description is not UNSET:
             field_dict["change_description"] = change_description
         if workflow_definition is not UNSET:
@@ -92,14 +92,14 @@ class PublishVersionRequest:
 
         d = dict(src_dict)
 
-        def _parse_publish_name(data: object) -> None | str | Unset:
+        def _parse_name(data: object) -> None | str | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             return cast(None | str | Unset, data)
 
-        publish_name = _parse_publish_name(d.pop("publish_name", UNSET))
+        name = _parse_name(d.pop("name", UNSET))
 
         def _parse_change_description(data: object) -> None | str | Unset:
             if data is None:
@@ -147,7 +147,7 @@ class PublishVersionRequest:
         expected_version = _parse_expected_version(d.pop("expected_version", UNSET))
 
         publish_version_request = cls(
-            publish_name=publish_name,
+            name=name,
             change_description=change_description,
             workflow_definition=workflow_definition,
             expected_version=expected_version,

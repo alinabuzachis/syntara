@@ -314,11 +314,11 @@ async def test_update_version_metadata_via_patch(jwt_client: AsyncClient, test_p
     # PATCH version metadata — both fields
     patch_response = await jwt_client.patch(
         f"/api/v1/workflows/{workflow_id}/versions/1",
-        json={"publish_name": "Release 1.0", "change_description": "First release"},
+        json={"name": "Release 1.0", "change_description": "First release"},
     )
     assert patch_response.status_code == 200
     patched = patch_response.json()
-    assert patched["publish_name"] == "Release 1.0"
+    assert patched["name"] == "Release 1.0"
     assert patched["change_description"] == "First release"
     assert patched["version"] == 1
 
@@ -326,7 +326,7 @@ async def test_update_version_metadata_via_patch(jwt_client: AsyncClient, test_p
     get_response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}/versions/1")
     assert get_response.status_code == 200
     version_data = get_response.json()
-    assert version_data["publish_name"] == "Release 1.0"
+    assert version_data["name"] == "Release 1.0"
     assert version_data["change_description"] == "First release"
 
     # Verify the workflow definition is unchanged
@@ -335,7 +335,7 @@ async def test_update_version_metadata_via_patch(jwt_client: AsyncClient, test_p
 
 @pytest.mark.asyncio
 async def test_update_version_metadata_partial(jwt_client: AsyncClient, test_project_id: UUID) -> None:
-    """Test PATCH with only publish_name leaves change_description unchanged."""
+    """Test PATCH with only name leaves change_description unchanged."""
     create_payload = {
         "name": "partial-metadata-test",
         "project_id": str(test_project_id),
@@ -354,14 +354,14 @@ async def test_update_version_metadata_partial(jwt_client: AsyncClient, test_pro
     get_response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}/versions/1")
     original_description = get_response.json()["change_description"]
 
-    # PATCH only publish_name
+    # PATCH only name
     patch_response = await jwt_client.patch(
         f"/api/v1/workflows/{workflow_id}/versions/1",
-        json={"publish_name": "Named Version"},
+        json={"name": "Named Version"},
     )
     assert patch_response.status_code == 200
     patched = patch_response.json()
-    assert patched["publish_name"] == "Named Version"
+    assert patched["name"] == "Named Version"
     assert patched["change_description"] == original_description
 
 
@@ -395,7 +395,7 @@ async def test_update_version_metadata_workflow_not_found(jwt_client: AsyncClien
     fake_id = str(uuid4())
     patch_response = await jwt_client.patch(
         f"/api/v1/workflows/{fake_id}/versions/1",
-        json={"publish_name": "x"},
+        json={"name": "x"},
     )
     assert patch_response.status_code == 404
 
@@ -419,6 +419,6 @@ async def test_update_version_metadata_version_not_found(jwt_client: AsyncClient
 
     patch_response = await jwt_client.patch(
         f"/api/v1/workflows/{workflow_id}/versions/999",
-        json={"publish_name": "x"},
+        json={"name": "x"},
     )
     assert patch_response.status_code == 404

@@ -22,7 +22,7 @@ describe('useWorkflowMetadata', () => {
         name: 'my-workflow',
         id: 'wf-123',
         current_version: 5,
-        published_version: 2,
+        published_version_id: 'ver-2',
         created_by: 'admin',
       })
     )
@@ -65,19 +65,19 @@ describe('useWorkflowMetadata', () => {
     expect(result.current?.version).toBe(0)
   })
 
-  it('sets published to true when published_version is not null', () => {
-    const { result } = renderHook(() => useWorkflowMetadata({ name: 'test', published_version: 1 }))
+  it('sets published to true when published_version_id is not null', () => {
+    const { result } = renderHook(() => useWorkflowMetadata({ name: 'test', published_version_id: 'ver-1' }))
 
     expect(result.current?.published).toBe(true)
   })
 
-  it('sets published to false when published_version is null', () => {
-    const { result } = renderHook(() => useWorkflowMetadata({ name: 'test', published_version: null }))
+  it('sets published to false when published_version_id is null', () => {
+    const { result } = renderHook(() => useWorkflowMetadata({ name: 'test', published_version_id: null }))
 
     expect(result.current?.published).toBe(false)
   })
 
-  it('sets published to false when published_version is undefined', () => {
+  it('sets published to false when published_version_id is undefined', () => {
     const { result } = renderHook(() => useWorkflowMetadata({ name: 'test' }))
 
     expect(result.current?.published).toBe(false)

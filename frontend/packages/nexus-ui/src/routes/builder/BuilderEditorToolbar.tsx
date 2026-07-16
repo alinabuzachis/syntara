@@ -59,7 +59,7 @@ type WorkflowKebabMenuProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isKebabOpen: boolean
-  publishedVersion: number | null
+  publishedVersionId: string | null
   dispatch: Dispatch<BuilderAction>
   handleToggleHistory: () => void
   handleToggleVersionHistory: () => void
@@ -77,7 +77,7 @@ function WorkflowKebabMenu({
   isNew,
   workflow,
   isKebabOpen,
-  publishedVersion,
+  publishedVersionId,
   dispatch,
   handleToggleHistory,
   handleToggleVersionHistory,
@@ -182,7 +182,7 @@ function WorkflowKebabMenu({
                 </Icon>
                 Import workflow
               </DropdownItem>
-              {showExistingWorkflowItems && publishedVersion != null && (
+              {showExistingWorkflowItems && publishedVersionId != null && (
                 <DropdownItem
                   isAriaDisabled={!canEdit}
                   tooltipProps={canEdit ? undefined : { content: builderPermissions.tooltips.unpublish }}
@@ -332,7 +332,8 @@ type BuilderEditorToolbarProps = Readonly<{
   isDirty: boolean
   lastSavedAt?: string | null
   isKebabOpen: boolean
-  publishedVersion: number | null
+  publishedVersionId: string | null
+  currentVersionId?: string | null
   isAddNodePanelOpen: boolean
   hasNoWorkflowNodes: boolean
   dispatch: Dispatch<BuilderAction>
@@ -356,7 +357,8 @@ export function BuilderEditorToolbar({
   isDirty,
   lastSavedAt,
   isKebabOpen,
-  publishedVersion,
+  publishedVersionId,
+  currentVersionId,
   isAddNodePanelOpen,
   hasNoWorkflowNodes,
   dispatch,
@@ -380,6 +382,7 @@ export function BuilderEditorToolbar({
     })
 
   const hasNoSteps = useWorkflowStore((s) => (s.currentWorkflow?.workflow?.activities?.length ?? 0) === 0)
+  const hasNoChanges = publishedVersionId != null && publishedVersionId === currentVersionId && !isDirty
 
   const showAddStep = !hasNoWorkflowNodes
   const showWorkflowActions = !isNew && !!workflow?.id
@@ -395,7 +398,7 @@ export function BuilderEditorToolbar({
         isNew={isNew}
         workflow={workflow}
         isKebabOpen={isKebabOpen}
-        publishedVersion={publishedVersion}
+        publishedVersionId={publishedVersionId}
         dispatch={dispatch}
         handleToggleHistory={handleToggleHistory}
         handleToggleVersionHistory={handleToggleVersionHistory}
@@ -466,6 +469,7 @@ export function BuilderEditorToolbar({
           <PublishWorkflowButton
             canEdit={builderPermissions.canEdit}
             hasNoSteps={hasNoSteps}
+            hasNoChanges={hasNoChanges}
             validationErrorCount={validationErrorCount}
             isVerifying={isVerifying}
             editTooltip={builderPermissions.tooltips.publish}
@@ -490,7 +494,7 @@ export function BuilderEditorToolbar({
         isNew={isNew}
         workflow={workflow}
         isKebabOpen={isKebabOpen}
-        publishedVersion={publishedVersion}
+        publishedVersionId={publishedVersionId}
         dispatch={dispatch}
         handleToggleHistory={handleToggleHistory}
         handleToggleVersionHistory={handleToggleVersionHistory}

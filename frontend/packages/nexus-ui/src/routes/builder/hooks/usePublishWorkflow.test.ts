@@ -84,7 +84,7 @@ describe('usePublishWorkflow', () => {
     expect(mockPublishMutate).toHaveBeenCalledWith(
       {
         params: { path: { workflow_id: 'wf-123', version: 3 } },
-        body: { publish_name: 'v1.0', change_description: null },
+        body: { name: 'v1.0', change_description: null },
       },
       expect.objectContaining({
         onSuccess: expect.any(Function) as unknown,
@@ -93,7 +93,7 @@ describe('usePublishWorkflow', () => {
     )
   })
 
-  it('sends null publish_name when no name provided', () => {
+  it('sends null name when no name provided', () => {
     const { result } = renderHook(() => usePublishWorkflow('wf-123', 2), {
       wrapper: makeWrapper(queryClient),
     })
@@ -104,7 +104,7 @@ describe('usePublishWorkflow', () => {
 
     expect(mockPublishMutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: { publish_name: null, change_description: null },
+        body: { name: null, change_description: null },
       }),
       expect.any(Object)
     )
@@ -204,7 +204,7 @@ describe('usePublishWorkflow', () => {
 
     expect(mockPublishMutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: { publish_name: 'v2.0', change_description: 'My description' },
+        body: { name: 'v2.0', change_description: 'My description' },
       }),
       expect.any(Object)
     )

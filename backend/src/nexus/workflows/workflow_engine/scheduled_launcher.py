@@ -18,7 +18,7 @@ from temporalio.workflow import ParentClosePolicy
 
 with workflow.unsafe.imports_passed_through():
     import structlog
-    from sqlmodel import and_, select
+    from sqlmodel import select
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from nexus.core.config.base import get_settings
@@ -313,10 +313,7 @@ class ScheduledExecutionLauncher:
             select(Workflow, WorkflowVersion)
             .join(
                 WorkflowVersion,
-                and_(
-                    WorkflowVersion.workflow_id == Workflow.id,
-                    WorkflowVersion.version == Workflow.published_version,
-                ),
+                WorkflowVersion.id == Workflow.published_version_id,  # type: ignore[arg-type]
             )
             .where(Workflow.id == workflow_id)
             .where(Workflow.deleted_at.is_(None))  # type: ignore[union-attr]

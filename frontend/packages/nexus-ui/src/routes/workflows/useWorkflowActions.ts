@@ -41,7 +41,7 @@ export function useWorkflowActions({
     (workflow: Workflow) => {
       if (!workflow.id) return
       executeWorkflow(
-        { body: { workflow_id: workflow.id, input_data: {} } },
+        { body: { workflow_id: workflow.id, input_data: {}, use_published: true } },
         {
           onSuccess: (data) => {
             if (data && 'id' in data) {
@@ -93,7 +93,7 @@ export function useWorkflowActions({
       publishWorkflow(
         {
           params: { path: { workflow_id: workflow.id, version: workflow.current_version } },
-          body: { publish_name: publishName ?? null, change_description: description ?? null },
+          body: { name: publishName ?? null, change_description: description ?? null },
         },
         {
           onSuccess: () => {

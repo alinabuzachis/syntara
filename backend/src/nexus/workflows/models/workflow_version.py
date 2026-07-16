@@ -5,29 +5,18 @@ SQLModel Pattern 1 (separate models with table=False for API operations).
 """
 
 from datetime import datetime
-from enum import StrEnum
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from uuid import UUID
 
 from pydantic import ConfigDict
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, Index, Relationship, SQLModel, text
+from sqlmodel import Field, Index, Relationship, SQLModel
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import SoftDeletableResource, UserOwnedResource
 from nexus.core.models.pagination import ResourcesResponse
-from nexus.core.utils.sqlmodel import postgres_enum_column
 from nexus.workflows.models.workflow_definition import WorkflowDefinition
-
-
-class WorkflowVersionStatus(StrEnum):
-    """Publish status of a workflow version."""
-
-    DRAFT = "draft"
-    PUBLISHED = "published"
-    PREVIOUSLY_PUBLISHED = "previously_published"
-
 
 if TYPE_CHECKING:
     from nexus.workflows.models.execution import Execution
@@ -54,6 +43,7 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
         schema_version: Workflow schema version (e.g., "2.0.0")
         workflow_definition: Complete workflow definition as dict (JSONB)
         change_description: Optional description of changes in this version
+        name: Optional user-provided label for this version
 
     Relationships:
         workflow: Parent workflow
@@ -62,6 +52,15 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
     """
 
     __tablename__ = "workflow_versions"
+
+    __filterable_fields__: ClassVar[list[str]] = [
+        *UserOwnedResource.__filterable_fields__,
+        "workflow_id",
+        "version",
+    ]
+    __sortable_fields__: ClassVar[list[str]] = [
+        *UserOwnedResource.__sortable_fields__,
+    ]
 
     # Foreign key to Workflow
     workflow_id: UUID = Field(
@@ -96,26 +95,18 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
         description="Description of changes in this version",
     )
 
-    status: WorkflowVersionStatus = Field(
-        default=WorkflowVersionStatus.DRAFT,
-        sa_column=postgres_enum_column(
-            WorkflowVersionStatus,
-            "workflowversionstatus",
-            index=True,
-            server_default=text("'draft'::workflowversionstatus"),
-        ),
-        description="Publish status of this version",
-    )
-
-    publish_name: str | None = Field(
+    name: str | None = Field(
         default=None,
         max_length=FieldLimits.NAME_MAX_LENGTH,
         sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
-        description="User-provided name for this published version",
+        description="Optional user-provided label for this version",
     )
 
     # Relationships
-    workflow: "Workflow" = Relationship(back_populates="versions")
+    workflow: "Workflow" = Relationship(
+        back_populates="versions",
+        sa_relationship_kwargs={"foreign_keys": "[WorkflowVersion.workflow_id]"},
+    )
 
     executions: list["Execution"] = Relationship(
         back_populates="workflow_version",
@@ -133,13 +124,6 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
         ),
         # Index for version history queries
         Index("ix_workflow_versions_workflow_created", "workflow_id", "created_at"),
-        # Only one published version per workflow (enforced at DB level)
-        Index(
-            "ix_workflow_versions_single_published",
-            "workflow_id",
-            unique=True,
-            postgresql_where=text("status = 'published' AND deleted_at IS NULL"),
-        ),
     )
 
     def __repr__(self) -> str:
@@ -173,8 +157,10 @@ class WorkflowVersionRead(SQLModel):
     schema_version: str
     workflow_definition: dict[str, Any]
     change_description: str | None = None
-    status: WorkflowVersionStatus = WorkflowVersionStatus.DRAFT
-    publish_name: str | None = None
+    name: str | None = None
+    status: Literal["draft", "published", "previously_published"] = "draft"
+    last_published_at: datetime | None = None
+    last_unpublished_at: datetime | None = None
     created_by: UUID
     created_by_username: str | None = None
     created_at: datetime
@@ -190,14 +176,14 @@ class WorkflowVersionListResponse(ResourcesResponse[WorkflowVersionRead]):
 class WorkflowVersionUpdate(SQLModel):
     """Request body for updating version metadata (PATCH /workflows/{id}/versions/{version})."""
 
-    publish_name: str | None = Field(None, max_length=255, description="Version name")
+    name: str | None = Field(None, max_length=255, description="Version name")
     change_description: str | None = Field(None, max_length=1024, description="Description of changes")
 
 
 class PublishVersionRequest(SQLModel):
     """Request body for publishing a workflow version."""
 
-    publish_name: str | None = Field(None, max_length=255, description="Optional name for this published version")
+    name: str | None = Field(None, max_length=255, description="Optional name for this version")
     change_description: str | None = Field(None, max_length=1024, description="Description of changes in this version")
     workflow_definition: WorkflowDefinition | dict[str, Any] | None = Field(
         None, description="Optional workflow definition to publish directly (skips separate save step)"

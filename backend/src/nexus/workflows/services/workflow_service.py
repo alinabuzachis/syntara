@@ -7,7 +7,7 @@ HTTP/API concerns in the FastAPI endpoints.
 import threading
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import structlog
@@ -54,11 +54,15 @@ from nexus.workflows.models.validation_finding import (
     ValidationSeverity,
 )
 from nexus.workflows.models.workflow_definition import WorkflowDefinition
-from nexus.workflows.models.workflow_version import WorkflowVersionStatus
+from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
 from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
 from nexus.workflows.services.webhook_trigger_service import WEBHOOK_TRIGGER_TYPES, WebhookTriggerService
 from nexus.workflows.services.workflow_diff import generate_change_summary
 from nexus.workflows.validators import workflow_validator
+
+if TYPE_CHECKING:
+    from nexus.workflows.models import WorkflowVersionListResponse
+    from nexus.workflows.utils.serialization import VersionPublishTimestamps
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -493,6 +497,112 @@ class WorkflowService(BaseService):
             allowed_projects=allowed_projects,
         )
 
+    async def get_publish_context(
+        self, version_ids: list[UUID]
+    ) -> tuple[set[UUID], dict[UUID, "VersionPublishTimestamps"]]:
+        """Query workflow_publish_events for publish status and timestamps."""
+        from nexus.workflows.utils.serialization import VersionPublishTimestamps  # noqa: PLC0415
+
+        ever_published: set[UUID] = set()
+        timestamps: dict[UUID, VersionPublishTimestamps] = {}
+        if not version_ids:
+            return ever_published, timestamps
+        rows = await self.session.exec(
+            select(
+                WorkflowPublishEvent.version_id,
+                WorkflowPublishEvent.action,
+                func.max(WorkflowPublishEvent.created_at),
+            )
+            .where(WorkflowPublishEvent.version_id.in_(version_ids))  # type: ignore[attr-defined]
+            .group_by(WorkflowPublishEvent.version_id, WorkflowPublishEvent.action)  # type: ignore[arg-type]
+        )
+        for vid, action, ts in rows:
+            if vid not in timestamps:
+                timestamps[vid] = VersionPublishTimestamps()
+            if action == PublishAction.PUBLISHED:
+                ever_published.add(vid)
+                timestamps[vid].published_at = ts
+            elif action == PublishAction.UNPUBLISHED:
+                timestamps[vid].unpublished_at = ts
+        return ever_published, timestamps
+
+    async def list_workflow_versions_cursor(
+        self,
+        workflow_id: UUID,
+        limit: int = 20,
+        cursor: str | None = None,
+        sort: str | None = None,
+        query_params_items: Iterable[tuple[str, str]] | None = None,
+        *,
+        include_total: bool = False,
+    ) -> "WorkflowVersionListResponse":
+        """List workflow versions with cursor-based pagination."""
+        from nexus.workflows.models import WorkflowVersionListResponse, WorkflowVersionRead  # noqa: PLC0415
+        from nexus.workflows.utils.serialization import (  # noqa: PLC0415
+            VersionPublishTimestamps,
+            deserialize_workflow_version,
+        )
+
+        workflow = await self.get_workflow_by_id(workflow_id)
+        published_version_id = workflow.published_version_id
+
+        username_map: dict[UUID, str] = {}
+        ever_published_ids: set[UUID] = set()
+        publish_ts: dict[UUID, VersionPublishTimestamps] = {}
+
+        async def populate_version_context(versions: list[WorkflowVersion]) -> None:
+            nonlocal ever_published_ids
+            if not versions:
+                return
+            user_ids = {v.created_by for v in versions if v.created_by is not None}
+            if user_ids:
+                rows = await self.session.exec(
+                    select(User.id, User.username).where(User.id.in_(user_ids))  # type: ignore[attr-defined]
+                )
+                username_map.update({row[0]: row[1] for row in rows})
+
+            version_ids = [v.id for v in versions]
+            batch_published, batch_ts = await self.get_publish_context(version_ids)
+            ever_published_ids.update(batch_published)
+            publish_ts.update(batch_ts)
+
+        def convert_version(version: WorkflowVersion) -> WorkflowVersionRead:
+            version_dict = deserialize_workflow_version(version, published_version_id, ever_published_ids, publish_ts)
+            version_read = WorkflowVersionRead.model_validate(version_dict)
+            version_read.created_by_username = username_map.get(version.created_by)
+            return version_read
+
+        merged_params = [("workflow_id", str(workflow_id))]
+        if query_params_items:
+            merged_params.extend((k, v) for k, v in query_params_items if k != "workflow_id")
+
+        return await self.list_resources(
+            model=WorkflowVersion,
+            response_type=WorkflowVersionListResponse,
+            response_type_converter=convert_version,
+            post_query_callback=populate_version_context,
+            limit=limit,
+            cursor=cursor,
+            sort=sort or "-created_at",
+            query_params_items=merged_params,
+            include_total=include_total,
+        )
+
+    async def populate_published_version_numbers(self, workflows: list[WorkflowRead]) -> None:
+        """Batch-populate published_version_number on WorkflowRead objects."""
+        version_ids = [w.published_version_id for w in workflows if w.published_version_id is not None]
+        if not version_ids:
+            return
+        rows = await self.session.exec(
+            select(WorkflowVersion.id, WorkflowVersion.version).where(
+                WorkflowVersion.id.in_(version_ids)  # type: ignore[attr-defined]
+            )
+        )
+        id_to_number = {row[0]: row[1] for row in rows}
+        for w in workflows:
+            if w.published_version_id is not None:
+                w.published_version_number = id_to_number.get(w.published_version_id)
+
     async def _get_workflow_for_update(self, workflow_id: UUID) -> Workflow:
         """Get a workflow by ID with SELECT FOR UPDATE to prevent concurrent modifications."""
         result = await self.session.exec(
@@ -517,6 +627,7 @@ class WorkflowService(BaseService):
 
         username = "unknown"
         created_at = workflow.updated_at or datetime.now(UTC)
+        version_name: str | None = None
 
         result = await self.session.exec(
             select(WorkflowVersion, User)
@@ -532,6 +643,7 @@ class WorkflowService(BaseService):
         if row:
             current_ver, user = row
             created_at = current_ver.created_at or created_at
+            version_name = current_ver.name
             if user:
                 username = user.username
 
@@ -541,40 +653,17 @@ class WorkflowService(BaseService):
             expected_version=expected_version,
             created_by_username=username,
             created_at=created_at,
+            current_version_name=version_name,
         )
-
-    async def _demote_published_version(
-        self, workflow_id: UUID, version: int, operation: str
-    ) -> WorkflowVersion | None:
-        """Demote a published version to previously_published."""
-        result = await self.session.exec(
-            select(WorkflowVersion).filter(
-                WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
-                WorkflowVersion.version == version,  # type: ignore[arg-type]
-                WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
-        )
-        prev_version = result.one_or_none()
-        if prev_version:
-            prev_version.status = WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
-        else:
-            logger.warning(
-                "Published version record not found during %s",
-                operation,
-                workflow_id=workflow_id,
-                version=version,
-            )
-        return prev_version
 
     async def _get_webhook_sync_definition(
         self, workflow_id: UUID, workflow: Workflow, fallback_definition: dict[str, Any]
     ) -> dict[str, Any]:
         """Determine the workflow definition to sync to webhook triggers."""
-        if workflow.published_version is not None:
+        if workflow.published_version_id is not None:
             pub_result = await self.session.exec(
                 select(WorkflowVersion).filter(
-                    WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
-                    WorkflowVersion.version == workflow.published_version,  # type: ignore[arg-type]
+                    WorkflowVersion.id == workflow.published_version_id,  # type: ignore[arg-type]
                     WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
                 )
             )
@@ -584,7 +673,7 @@ class WorkflowService(BaseService):
             logger.warning(
                 "Published version record not found",
                 workflow_id=workflow_id,
-                version=workflow.published_version,
+                published_version_id=workflow.published_version_id,
             )
         return fallback_definition
 
@@ -678,17 +767,17 @@ class WorkflowService(BaseService):
         self,
         workflow_id: UUID,
         version: int,
-        publish_name: str | None = None,
+        name: str | None = None,
         change_description: str | None = None,
         *,
         fields_set: set[str] | None = None,
     ) -> WorkflowVersion:
-        """Update a version's metadata (publish_name, change_description).
+        """Update a version's metadata (name, change_description).
 
         Args:
             workflow_id: Workflow UUID
             version: Version number to update
-            publish_name: New publish name (or None to clear)
+            name: New version name (or None to clear)
             change_description: New change description (or None to clear)
             fields_set: Fields explicitly present in the request body.
                 When provided, only fields in this set are updated —
@@ -707,10 +796,10 @@ class WorkflowService(BaseService):
         if not version_record:
             raise WorkflowVersionNotFoundError(workflow_id, version)
 
-        update_fields = fields_set if fields_set is not None else {"publish_name", "change_description"}
+        update_fields = fields_set if fields_set is not None else {"name", "change_description"}
         changed = False
-        if "publish_name" in update_fields:
-            version_record.publish_name = publish_name
+        if "name" in update_fields:
+            version_record.name = name
             changed = True
         if "change_description" in update_fields:
             version_record.change_description = change_description
@@ -938,21 +1027,22 @@ class WorkflowService(BaseService):
 
         return workflow, current_version
 
-    async def publish_workflow_version(
+    async def publish_workflow_version(  # noqa: C901
         self,
         workflow_id: UUID,
         version: int,
-        publish_name: str | None = None,
+        name: str | None = None,
         change_description: str | None = None,
         workflow_definition: dict[str, Any] | None = None,
         expected_version: int | None = None,
     ) -> tuple[Workflow, WorkflowVersion]:
-        """Publish a workflow version by creating a new published copy.
+        """Publish a workflow version via pointer update (no copy).
 
-        Always creates a new version record, preserving an immutable audit
-        trail. When ``workflow_definition`` is provided, the published copy
-        uses that definition directly (allowing save + publish in one call
-        without an intermediate draft).
+        Creates a ``WorkflowPublishEvent`` and points
+        ``workflow.published_version_id`` at the target version.
+        If ``workflow_definition`` is provided (atomic save-and-publish),
+        a new version is created first via ``_create_version_record``,
+        then published.
         """
         workflow = await self._get_workflow_for_update(workflow_id)
 
@@ -965,10 +1055,18 @@ class WorkflowService(BaseService):
         if not target_version:
             raise WorkflowVersionNotFoundError(workflow_id, version)
 
-        definition = workflow_definition or target_version.workflow_definition
+        if workflow_definition is not None:
+            new_version = await self._create_version_record(
+                workflow,
+                workflow_definition=workflow_definition,
+                change_description=change_description,
+            )
+            if new_version:
+                await self.session.flush()
+                target_version = new_version
+
+        definition = target_version.workflow_definition
         result = workflow_validator.collect_findings(definition)
-        # Publish-only gate: empty nodes are allowed on save (canvas-first) but not publish.
-        # Lives here rather than in the validator so collect_findings stays save-safe.
         if len(definition.get("nodes", [])) == 0:
             result = ValidationResult.from_findings(
                 [
@@ -983,51 +1081,40 @@ class WorkflowService(BaseService):
         if result.error_count > 0 or result.warning_count > 0:
             raise WorkflowPublishValidationError(result)
 
-        if workflow.published_version is not None:
-            await self._demote_published_version(workflow_id, workflow.published_version, "publish")
-            await self.session.flush()
-
-        count_result = await self.session.exec(
-            select(func.max(WorkflowVersion.version)).filter(
-                WorkflowVersion.workflow_id == workflow.id  # type: ignore[arg-type]
+        if workflow.published_version_id is not None and workflow.published_version_id != target_version.id:
+            unpublish_event = WorkflowPublishEvent(
+                workflow_id=workflow.id,
+                version_id=workflow.published_version_id,
+                action=PublishAction.UNPUBLISHED,
+                actor_id=self.user.id,
             )
-        )
-        max_version = count_result.one()
-        next_version = (max_version or 0) + 1
+            self.session.add(unpublish_event)
 
-        is_publishing_previous_version = version != workflow.current_version
-        full_description: str | None = change_description
-        if is_publishing_previous_version:
-            date_iso = target_version.created_at.isoformat() if target_version.created_at else None
-            source_label = target_version.publish_name or date_iso or f"version {version}"
-            source_info = f"Published from {source_label}"
-            full_description = f"{source_info}\n{change_description}" if change_description else source_info
-        result_version = WorkflowVersion(
-            id=uuid4(),
+        publish_event = WorkflowPublishEvent(
             workflow_id=workflow.id,
-            version=next_version,
-            schema_version=definition.get("schema_version"),
-            workflow_definition=definition,
-            change_description=full_description,
-            status=WorkflowVersionStatus.PUBLISHED,
-            created_by=self.user.id,
-            created_at=datetime.now(UTC),
+            version_id=target_version.id,
+            action=PublishAction.PUBLISHED,
+            actor_id=self.user.id,
         )
-        if publish_name is not None:
-            result_version.publish_name = publish_name
-        self.session.add(result_version)
-        workflow.current_version = next_version
+        self.session.add(publish_event)
 
-        workflow.published_version = result_version.version
+        if name is not None:
+            target_version.name = name
+        if change_description is not None:
+            target_version.change_description = change_description
+
+        workflow.published_version_id = target_version.id
         workflow.is_enabled = True
         workflow.updated_at = datetime.now(UTC)
         workflow.updated_by = self.user.id
+
+        await self._flush_with_duplicate_check(workflow.name)
 
         webhook_service = WebhookTriggerService(self.session, self.user)
         await self._sync_all_trigger_types(
             webhook_service,
             workflow.id,
-            result_version.workflow_definition,
+            target_version.workflow_definition,
             is_enabled=True,
         )
 
@@ -1037,7 +1124,7 @@ class WorkflowService(BaseService):
             AuditEventDispatcher.dispatch(
                 WorkflowVersionPublishedEvent(
                     workflow_id=workflow.id,
-                    version=result_version.version,
+                    version=target_version.version,
                     workflow_name=workflow.name,
                     project_id=workflow.project_id,
                     error_type=type(exc).__name__,
@@ -1047,19 +1134,19 @@ class WorkflowService(BaseService):
 
         await self._sync_scheduled_triggers(
             workflow.id,
-            result_version.workflow_definition,
+            target_version.workflow_definition,
         )
 
         AuditEventDispatcher.dispatch(
             WorkflowVersionPublishedEvent(
                 workflow_id=workflow.id,
-                version=result_version.version,
+                version=target_version.version,
                 workflow_name=workflow.name,
                 project_id=workflow.project_id,
             )
         )
 
-        return workflow, result_version
+        return workflow, target_version
 
     async def unpublish_workflow(self, workflow_id: UUID) -> Workflow:
         """Unpublish the currently published version."""
@@ -1068,13 +1155,27 @@ class WorkflowService(BaseService):
         if workflow.is_builtin:
             raise BuiltinWorkflowModifyError(workflow.name)
 
-        if workflow.published_version is None:
+        if workflow.published_version_id is None:
             raise WorkflowNotPublishedError(workflow_id)
 
-        version_number = workflow.published_version
-        published_version = await self._demote_published_version(workflow_id, version_number, "unpublish")
+        published_version = await self.session.get(WorkflowVersion, workflow.published_version_id)
+        if not published_version:
+            logger.warning(
+                "Published version record not found during unpublish",
+                workflow_id=str(workflow_id),
+                published_version_id=str(workflow.published_version_id),
+            )
+        version_number = published_version.version if published_version else 0
 
-        workflow.published_version = None
+        unpublish_event = WorkflowPublishEvent(
+            workflow_id=workflow.id,
+            version_id=workflow.published_version_id,
+            action=PublishAction.UNPUBLISHED,
+            actor_id=self.user.id,
+        )
+        self.session.add(unpublish_event)
+
+        workflow.published_version_id = None
         workflow.is_enabled = False
         workflow.updated_at = datetime.now(UTC)
         workflow.updated_by = self.user.id
@@ -1173,7 +1274,7 @@ class WorkflowService(BaseService):
         old_definition = current_version_record.workflow_definition if current_version_record else None
 
         date_iso = target_version.created_at.isoformat() if target_version.created_at else None
-        source_label = target_version.publish_name or date_iso or f"version {version}"
+        source_label = target_version.name or date_iso or f"version {version}"
         new_version = await self._create_version_record(
             workflow,
             workflow_definition=target_version.workflow_definition,

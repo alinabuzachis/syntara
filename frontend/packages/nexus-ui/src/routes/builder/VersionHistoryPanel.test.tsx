@@ -21,7 +21,7 @@ function createMockVersion(overrides: Record<string, unknown> = {}): WorkflowVer
     updated_at: '2026-05-19T21:59:00.000Z',
     change_description: 'Initial version',
     status: 'draft',
-    publish_name: null,
+    name: null,
     deleted_at: null,
     deleted_by: null,
     ...overrides,
@@ -90,10 +90,10 @@ describe('VersionHistoryPanel', () => {
     expect(screen.getByText('priya.patel')).toBeInTheDocument()
   })
 
-  it('renders status badges for each version', () => {
+  it('renders status badges for published and previously published versions only', () => {
     render(<VersionHistoryPanel {...defaultProps} />)
 
-    expect(screen.getByText('Draft')).toBeInTheDocument()
+    expect(screen.queryByText('Draft')).not.toBeInTheDocument()
     expect(screen.getByText('Prev. published')).toBeInTheDocument()
     expect(screen.getByText('Published')).toBeInTheDocument()
   })
@@ -232,10 +232,10 @@ describe('VersionHistoryPanel', () => {
     render(<VersionHistoryPanel {...defaultProps} onStatusFilterChange={onStatusFilterChange} />)
 
     await user.click(screen.getByText('Filter by state'))
-    const checkbox = screen.getByRole('checkbox', { name: 'Draft' })
+    const checkbox = screen.getByRole('checkbox', { name: 'Published' })
     await user.click(checkbox)
 
-    expect(onStatusFilterChange).toHaveBeenCalledWith(['draft'])
+    expect(onStatusFilterChange).toHaveBeenCalledWith(['published'])
   })
 
   it('shows change descriptions in version rows', () => {
@@ -258,7 +258,7 @@ describe('VersionHistoryPanel', () => {
     render(<VersionHistoryPanel {...defaultProps} versions={[version]} />)
 
     expect(screen.queryByText('testuser')).not.toBeInTheDocument()
-    expect(screen.getByText('Draft')).toBeInTheDocument()
+    expect(screen.queryByText('Draft')).not.toBeInTheDocument()
   })
 
   it('renders version row without status', () => {
@@ -476,10 +476,10 @@ describe('VersionHistoryPanel', () => {
     expect(publishBtn).toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('shows publish_name as primary text when set', () => {
+  it('shows name as primary text when set', () => {
     const version = createMockVersion({
       version: 1,
-      publish_name: 'Release 1.0',
+      name: 'Release 1.0',
       created_at: '2026-05-19T10:00:00.000Z',
       created_by_username: 'testuser',
     })

@@ -66,6 +66,7 @@ function createDefaultParams(overrides?: Partial<Parameters<typeof useBuilderCon
 
 const conflictInfo: ConflictInfo = {
   currentVersion: 5,
+  currentVersionName: null,
   expectedVersion: 3,
   createdByUsername: 'other',
   createdAt: '2026-01-01',
@@ -351,7 +352,7 @@ describe('useBuilderConflict', () => {
         '/workflows/{workflow_id}/versions/{version}/publish',
         expect.objectContaining({
           params: { path: { workflow_id: 'new-id', version: 1 } },
-          body: { publish_name: null, change_description: null },
+          body: { name: null, change_description: null },
         })
       )
       expect(params.setLocation).toHaveBeenCalledWith('/workflow-builder/new-id')

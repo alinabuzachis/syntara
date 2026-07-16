@@ -41,7 +41,6 @@ from nexus.workflows.models.validation_finding import (
     ValidationResult,
     ValidationSeverity,
 )
-from nexus.workflows.models.workflow_version import WorkflowVersionStatus
 from nexus.workflows.services.workflow_service import WorkflowConvertResourceMixin, WorkflowService
 
 
@@ -108,7 +107,7 @@ class TestWorkflowServiceBase:
         created_by: UUID | None = None,
         project_id: UUID | None = None,
         *,
-        is_enabled: bool = True,
+        is_enabled: bool = False,
         is_builtin: bool = False,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
@@ -126,7 +125,7 @@ class TestWorkflowServiceBase:
             project_id=project_id or self._test_project_id,
             is_enabled=is_enabled,
             is_builtin=is_builtin,
-            published_version=current_version if is_enabled else None,
+            published_version_id=None,  # Set after version is created when is_enabled
             created_at=created_at or now,
             updated_at=updated_at or now,
             deleted_at=deleted_at,
@@ -874,10 +873,20 @@ class TestWorkflowServiceListWorkflows(TestWorkflowServiceBase):
         """Test that list_workflows_cursor delegates to base list_resources method."""
         service = WorkflowService(test_db_session, test_user)
 
-        # Create some workflows for testing
+        # Create some workflows (is_enabled=False initially, set after version FK)
         workflow1 = self._create_test_workflow(name="workflow-1", created_by=test_user.id)
         workflow2 = self._create_test_workflow(name="workflow-2", created_by=test_user.id)
         test_db_session.add_all([workflow1, workflow2])
+
+        v1 = self._create_test_workflow_version(workflow_id=workflow1.id, created_by=test_user.id)
+        v2 = self._create_test_workflow_version(workflow_id=workflow2.id, created_by=test_user.id)
+        test_db_session.add_all([v1, v2])
+        await test_db_session.flush()
+
+        workflow1.published_version_id = v1.id
+        workflow1.is_enabled = True
+        workflow2.published_version_id = v2.id
+        workflow2.is_enabled = True
         await test_db_session.commit()
 
         result = await service.list_workflows_cursor(
@@ -1357,15 +1366,22 @@ class TestWorkflowServiceLabelFiltering(TestWorkflowServiceBase):
         """Test label filtering combined with other query parameters."""
         service = WorkflowService(test_db_session, test_user)
 
-        # Create enabled and disabled workflows
+        # Create enabled workflow (requires flush-then-set for CHECK constraint)
         enabled_workflow = self._create_test_workflow(
-            name="enabled-prod", labels={"environment": "production"}, is_enabled=True, created_by=test_user.id
+            name="enabled-prod", labels={"environment": "production"}, is_enabled=False, created_by=test_user.id
         )
         disabled_workflow = self._create_test_workflow(
             name="disabled-prod", labels={"environment": "production"}, is_enabled=False, created_by=test_user.id
         )
 
         test_db_session.add_all([enabled_workflow, disabled_workflow])
+
+        enabled_version = self._create_test_workflow_version(workflow_id=enabled_workflow.id, created_by=test_user.id)
+        test_db_session.add(enabled_version)
+        await test_db_session.flush()
+
+        enabled_workflow.published_version_id = enabled_version.id
+        enabled_workflow.is_enabled = True
         await test_db_session.commit()
 
         # Filter by both label and enabled status
@@ -1421,35 +1437,32 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
             result_workflow, result_version = await service.publish_workflow_version(
                 workflow_id=workflow.id,
                 version=1,
-                publish_name="v1.0",
+                name="v1.0",
                 change_description="Initial release",
             )
 
-        # The returned version is the new published copy (v2), not the source (v1)
-        assert result_version.status == WorkflowVersionStatus.PUBLISHED
-        assert result_version.version == 2
-        assert result_version.publish_name == "v1.0"
+        assert result_version.name == "v1.0"
         assert result_version.change_description == "Initial release"
-        assert result_workflow.published_version == 2
+        assert result_workflow.published_version_id == result_version.id
         assert result_workflow.is_enabled is True
 
     @pytest.mark.asyncio
-    async def test_publish_demotes_previous(
+    async def test_publish_switches_pointer(
         self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
     ) -> None:
-        """Test publishing a new version demotes the previous published copy.
+        """Test publishing a new version updates the published_version_id pointer.
 
-        With always-copy publish:
-        - Create → v1 (draft)
-        - Publish v1 → v1 stays draft, v2 created (published copy). published_version=2
-        - Update → v3 (draft)
-        - Publish v3 → v3 stays draft, v2 demoted to previously_published, v4 created (published)
+        With pointer-based publish:
+        - Create -> v1 (draft)
+        - Publish v1 -> published_version_id points to v1
+        - Create v2 (draft)
+        - Publish v2 -> published_version_id points to v2
         """
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, v1 = await service.create_workflow(
+            workflow, _v1 = await service.create_workflow(
                 name="demote-test",
                 description=None,
                 labels={},
@@ -1460,40 +1473,33 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         mock_wh_svc = MagicMock()
         mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
-            _, published_copy_v2 = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            _, _published_v1 = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
 
-        # Create update draft (v3, since v2 is the published copy)
-        v3_def = self._create_workflow_definition()
-        v3_def["description"] = "v2"
+        first_published_id = workflow.published_version_id
+
+        # Create update draft (v2)
+        v2_def = self._create_workflow_definition()
+        v2_def["description"] = "v2"
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            v3 = await service.create_workflow_version(workflow, v3_def, "v2 changes")
+            v2 = await service.create_workflow_version(workflow, v2_def, "v2 changes")
 
-        assert v3 is not None
+        assert v2 is not None
 
         mock_wh_svc2 = MagicMock()
         mock_wh_svc2.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc2):
-            await service.publish_workflow_version(workflow_id=workflow.id, version=v3.version)
+            _, published_v2 = await service.publish_workflow_version(workflow_id=workflow.id, version=v2.version)
 
         await test_db_session.refresh(workflow)
-        # v1 (source draft) stays draft — never mutated
-        await test_db_session.refresh(v1)
-        assert v1.status == WorkflowVersionStatus.DRAFT
-
-        # v2 (first published copy) is now previously_published
-        await test_db_session.refresh(published_copy_v2)
-        assert published_copy_v2.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
+        # published_version_id should now point to the newly published version
+        assert workflow.published_version_id == published_v2.id
+        assert workflow.published_version_id != first_published_id
 
     @pytest.mark.asyncio
     async def test_publish_idempotent(
         self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
     ) -> None:
-        """Test publishing the same version twice creates two copies.
-
-        With always-copy publish:
-        - Publish v1 first time → v2 created (published copy). published_version=2
-        - Publish v1 second time → v2 demoted, v3 created (published copy). published_version=3
-        """
+        """Test publishing the same version twice is idempotent with pointer-based publish."""
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
 
@@ -1509,12 +1515,10 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         mock_wh_svc = MagicMock()
         mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
-            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            _, _first_result = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
             result_workflow, result_version = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
 
-        assert result_version.status == WorkflowVersionStatus.PUBLISHED
-        assert result_version.version == 3
-        assert result_workflow.published_version == 3
+        assert result_workflow.published_version_id == result_version.id
 
     @pytest.mark.asyncio
     async def test_publish_nonexistent_version_raises(
@@ -1652,8 +1656,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
             _, published_v2 = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
 
-        assert published_v2.status == WorkflowVersionStatus.PUBLISHED
-        assert workflow.published_version == 2
+        assert workflow.published_version_id == published_v2.id
 
         v3_def = self._create_workflow_definition()
         v3_def["description"] = "updated definition"
@@ -1671,11 +1674,8 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
             await service.publish_workflow_version(workflow_id=workflow.id, version=v3.version)
 
         await test_db_session.refresh(workflow)
-        assert workflow.published_version == 2
+        assert workflow.published_version_id == published_v2.id
         assert workflow.is_enabled is True
-
-        await test_db_session.refresh(published_v2)
-        assert published_v2.status == WorkflowVersionStatus.PUBLISHED
 
 
 class TestUnpublishWorkflow(TestWorkflowServiceBase):
@@ -1687,15 +1687,15 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
     ) -> None:
         """Test unpublishing sets workflow state correctly.
 
-        With always-copy publish:
-        - Publish v1 → v1 stays draft, v2 created (published copy). published_version=2
-        - Unpublish → v2 (published copy) demoted to previously_published
+        With pointer-based publish:
+        - Publish v1 -> published_version_id points to v1
+        - Unpublish -> published_version_id set to None
         """
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, v1 = await service.create_workflow(
+            workflow, _v1 = await service.create_workflow(
                 name="unpublish-test",
                 description=None,
                 labels={},
@@ -1706,19 +1706,11 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
         mock_wh_svc = MagicMock()
         mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
-            _, published_copy_v2 = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
             result = await service.unpublish_workflow(workflow_id=workflow.id)
 
-        assert result.published_version is None
+        assert result.published_version_id is None
         assert result.is_enabled is False
-
-        # v1 (source draft) stays draft — never mutated
-        await test_db_session.refresh(v1)
-        assert v1.status == WorkflowVersionStatus.DRAFT
-
-        # v2 (published copy) is demoted to previously_published
-        await test_db_session.refresh(published_copy_v2)
-        assert published_copy_v2.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
 
     @pytest.mark.asyncio
     async def ***REMOVED***(
@@ -1829,7 +1821,6 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
         assert result_workflow.updated_by == test_user.id
         assert result_workflow.updated_at is not None
         assert result_version.version == 3
-        assert result_version.status == WorkflowVersionStatus.DRAFT
         assert result_version.change_description is not None
         assert "Restored from" in result_version.change_description
         assert result_version.workflow_definition == defn_v1
@@ -2194,10 +2185,11 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
             name="Builtin WF", created_by=test_user.id, is_builtin=True, project_id=test_project_id
         )
         version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
-        version.status = WorkflowVersionStatus.PUBLISHED
         test_db_session.add(workflow)
         test_db_session.add(version)
         await test_db_session.flush()
+        workflow.published_version_id = version.id
+        workflow.is_enabled = True
 
         service = WorkflowService(test_db_session, test_user)
         with pytest.raises(BuiltinWorkflowModifyError, match="Builtin WF"):
@@ -2209,14 +2201,15 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
     ) -> None:
         workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id, project_id=test_project_id)
         version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
-        version.status = WorkflowVersionStatus.PUBLISHED
         test_db_session.add(workflow)
         test_db_session.add(version)
         await test_db_session.flush()
+        workflow.published_version_id = version.id
+        workflow.is_enabled = True
 
         service = WorkflowService(test_db_session, test_user)
         result = await service.unpublish_workflow(workflow.id)
-        assert result.published_version is None
+        assert result.published_version_id is None
 
     @pytest.mark.asyncio
     async def test_create_workflow_in_builtin_project_raises(
@@ -2275,7 +2268,7 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
     @pytest.mark.asyncio
     async def test_publish_non_builtin_workflow_succeeds(self, test_db_session: AsyncSession, test_user: User) -> None:
         workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id, is_enabled=False)
-        workflow.published_version = None
+        workflow.published_version_id = None
         version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
         test_db_session.add(workflow)
         test_db_session.add(version)
@@ -2283,8 +2276,7 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
 
         service = WorkflowService(test_db_session, test_user)
         published, result_version = await service.publish_workflow_version(workflow.id, version=1)
-        # publish_workflow_version always creates a new published copy (max_version + 1 = 2)
-        assert published.published_version == result_version.version
+        assert published.published_version_id == result_version.id
         assert published.is_enabled is True
 
     @pytest.mark.asyncio
@@ -2415,7 +2407,7 @@ class TestWorkflowVersionConflictDetection(TestWorkflowServiceBase):
             created_by=test_user.id,
             is_enabled=False,
         )
-        workflow.published_version = None
+        workflow.published_version_id = None
         test_db_session.add(workflow)
 
         version = self._create_test_workflow_version(workflow_id=workflow.id, version=3, created_by=test_user.id)
@@ -2445,7 +2437,7 @@ class TestWorkflowVersionConflictDetection(TestWorkflowServiceBase):
             created_by=test_user.id,
             is_enabled=False,
         )
-        workflow.published_version = None
+        workflow.published_version_id = None
         test_db_session.add(workflow)
 
         version = self._create_test_workflow_version(workflow_id=workflow.id, version=3, created_by=test_user.id)
@@ -2459,12 +2451,11 @@ class TestWorkflowVersionConflictDetection(TestWorkflowServiceBase):
             patch("nexus.workflows.services.workflow_service.ScheduledTriggerService") as mock_sched,
         ):
             mock_sched.return_value.sync_scheduled_triggers = AsyncMock()
-            result_workflow, result_version = await service.publish_workflow_version(
+            result_workflow, _result_version = await service.publish_workflow_version(
                 workflow.id,
                 version=3,
             )
-            assert result_workflow.published_version is not None
-            assert result_version.status == WorkflowVersionStatus.PUBLISHED
+            assert result_workflow.published_version_id is not None
 
 
 class TestUpdateVersionMetadata(TestWorkflowServiceBase):
@@ -2475,7 +2466,7 @@ class TestUpdateVersionMetadata(TestWorkflowServiceBase):
         session: AsyncSession,
         user: User,
         *,
-        publish_name: str | None = "v1.0",
+        name: str | None = "v1.0",
         change_description: str | None = "Initial release",
     ) -> tuple[Workflow, WorkflowVersion]:
         workflow = self._create_test_workflow(name=f"meta-{uuid4().hex[:6]}", created_by=user.id)
@@ -2484,51 +2475,49 @@ class TestUpdateVersionMetadata(TestWorkflowServiceBase):
         version = self._create_test_workflow_version(
             workflow_id=workflow.id, version=1, created_by=user.id, change_description=change_description or ""
         )
-        version.publish_name = publish_name
+        version.name = name
         session.add(version)
         await session.commit()
         return workflow, version
 
     @pytest.mark.asyncio
     async def test_update_both_fields(self, test_db_session: AsyncSession, test_user: User) -> None:
-        """Test updating both publish_name and change_description."""
+        """Test updating both name and change_description."""
         service = WorkflowService(test_db_session, test_user)
         workflow, _ = await self._setup_workflow_with_version(test_db_session, test_user)
 
         result = await service.update_version_metadata(
-            workflow.id, 1, publish_name="Updated Name", change_description="Updated Desc"
+            workflow.id, 1, name="Updated Name", change_description="Updated Desc"
         )
 
-        assert result.publish_name == "Updated Name"
+        assert result.name == "Updated Name"
         assert result.change_description == "Updated Desc"
         assert result.updated_by == test_user.id
 
     @pytest.mark.asyncio
-    async def test_partial_update_publish_name_only(self, test_db_session: AsyncSession, test_user: User) -> None:
-        """Test updating only publish_name leaves change_description unchanged."""
+    async def test_partial_update_name_only(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test updating only name leaves change_description unchanged."""
         service = WorkflowService(test_db_session, test_user)
         workflow, _ = await self._setup_workflow_with_version(
             test_db_session, test_user, change_description="Original desc"
         )
 
-        result = await service.update_version_metadata(
-            workflow.id, 1, publish_name="New Name", fields_set={"publish_name"}
-        )
+        result = await service.update_version_metadata(workflow.id, 1, name="New Name", fields_set={"name"})
 
-        assert result.publish_name == "New Name"
+        assert result.name == "New Name"
         assert result.change_description == "Original desc"
 
     @pytest.mark.asyncio
     async def test_partial_update_change_description_only(self, test_db_session: AsyncSession, test_user: User) -> None:
-        """Test updating only change_description leaves publish_name unchanged."""
+        """Test updating only change_description leaves name unchanged."""
         service = WorkflowService(test_db_session, test_user)
-        workflow, _ = await self._setup_workflow_with_version(test_db_session, test_user, publish_name="Original Name")
+        workflow, _ = await self._setup_workflow_with_version(test_db_session, test_user, name="Original Name")
 
         result = await service.update_version_metadata(
             workflow.id, 1, change_description="New Desc", fields_set={"change_description"}
         )
 
-        assert result.publish_name == "Original Name"
+        assert result.name == "Original Name"
         assert result.change_description == "New Desc"
 
     @pytest.mark.asyncio
@@ -2536,18 +2525,18 @@ class TestUpdateVersionMetadata(TestWorkflowServiceBase):
         """Test clearing fields by sending explicit None values."""
         service = WorkflowService(test_db_session, test_user)
         workflow, _ = await self._setup_workflow_with_version(
-            test_db_session, test_user, publish_name="Has Name", change_description="Has Desc"
+            test_db_session, test_user, name="Has Name", change_description="Has Desc"
         )
 
         result = await service.update_version_metadata(
             workflow.id,
             1,
-            publish_name=None,
+            name=None,
             change_description=None,
-            fields_set={"publish_name", "change_description"},
+            fields_set={"name", "change_description"},
         )
 
-        assert result.publish_name is None
+        assert result.name is None
         assert result.change_description is None
 
     @pytest.mark.asyncio
@@ -2558,7 +2547,7 @@ class TestUpdateVersionMetadata(TestWorkflowServiceBase):
 
         result = await service.update_version_metadata(workflow.id, 1, fields_set=set())
 
-        assert result.publish_name == version.publish_name
+        assert result.name == version.name
         assert result.change_description == version.change_description
         assert result.updated_by != test_user.id
 
@@ -2568,7 +2557,7 @@ class TestUpdateVersionMetadata(TestWorkflowServiceBase):
         service = WorkflowService(test_db_session, test_user)
 
         with pytest.raises(WorkflowNotFoundError):
-            await service.update_version_metadata(uuid4(), 1, publish_name="x")
+            await service.update_version_metadata(uuid4(), 1, name="x")
 
     @pytest.mark.asyncio
     async def test_version_not_found_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
@@ -2577,7 +2566,7 @@ class TestUpdateVersionMetadata(TestWorkflowServiceBase):
         workflow, _ = await self._setup_workflow_with_version(test_db_session, test_user)
 
         with pytest.raises(WorkflowVersionNotFoundError):
-            await service.update_version_metadata(workflow.id, 999, publish_name="x")
+            await service.update_version_metadata(workflow.id, 999, name="x")
 
     @pytest.mark.asyncio
     async def test_default_fields_set_updates_both(self, test_db_session: AsyncSession, test_user: User) -> None:
@@ -2586,9 +2575,9 @@ class TestUpdateVersionMetadata(TestWorkflowServiceBase):
         workflow, _ = await self._setup_workflow_with_version(test_db_session, test_user)
 
         result = await service.update_version_metadata(
-            workflow.id, 1, publish_name="Default Name", change_description="Default Desc"
+            workflow.id, 1, name="Default Name", change_description="Default Desc"
         )
 
-        assert result.publish_name == "Default Name"
+        assert result.name == "Default Name"
         assert result.change_description == "Default Desc"
         assert result.updated_by == test_user.id

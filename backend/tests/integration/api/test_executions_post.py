@@ -96,7 +96,7 @@ async def test_create_execution_unpublished_workflow_succeeds(
 ) -> None:
     """Test manual execution succeeds even for unpublished workflows."""
     test_workflow.is_enabled = False
-    test_workflow.published_version = None
+    test_workflow.published_version_id = None
     await test_db_session.commit()
     response = await auth_client.post(
         "/api/v1/executions",

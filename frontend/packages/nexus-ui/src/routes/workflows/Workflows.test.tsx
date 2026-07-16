@@ -116,6 +116,7 @@ describe('Workflows Component', () => {
       updated_at: '2023-01-02T00:00:00Z',
       is_enabled: true,
       project_id: 'project-1',
+      published_version_id: 'version-1',
       labels: {
         type: 'critical',
         status: 'active',
@@ -428,7 +429,7 @@ describe('Workflows Component', () => {
       await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
-      const runWorkflowItem = await screen.findByText('Run workflow')
+      const runWorkflowItem = await screen.findByText('Run published version')
       await user.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Run now" button
@@ -438,7 +439,7 @@ describe('Workflows Component', () => {
       // Verify the mutation was called with correct parameters
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalledWith(
-          { body: { workflow_id: '1', input_data: {} } },
+          { body: { workflow_id: '1', input_data: {}, use_published: true } },
           expect.objectContaining({
             onSuccess: expect.any(Function) as unknown,
             onError: expect.any(Function) as unknown,
@@ -498,7 +499,7 @@ describe('Workflows Component', () => {
       await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
-      const runWorkflowItem = await screen.findByText('Run workflow')
+      const runWorkflowItem = await screen.findByText('Run published version')
       await user.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Run now" button
@@ -570,7 +571,7 @@ describe('Workflows Component', () => {
       await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
-      const runWorkflowItem = await screen.findByText('Run workflow')
+      const runWorkflowItem = await screen.findByText('Run published version')
       await user.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Run now" button
@@ -607,7 +608,7 @@ describe('Workflows Component', () => {
       await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
-      const runWorkflowItem = await screen.findByText('Run workflow')
+      const runWorkflowItem = await screen.findByText('Run published version')
       await user.click(runWorkflowItem)
 
       // Verify confirmation dialog is shown
@@ -666,7 +667,7 @@ describe('Workflows Component', () => {
       await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
-      const runWorkflowItem = await screen.findByText('Run workflow')
+      const runWorkflowItem = await screen.findByText('Run published version')
       await user.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Cancel" button
@@ -1325,7 +1326,7 @@ describe('Workflows Component', () => {
       const menuTrigger = buttons[buttons.length - 1]
       await user.click(menuTrigger)
 
-      const runItem = await screen.findByText('Run workflow')
+      const runItem = await screen.findByText('Run published version')
       await user.click(runItem)
 
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
@@ -2157,9 +2158,9 @@ describe('Workflows Component', () => {
 
       const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
-      const firstDataRow = rows[1]
+      const secondDataRow = rows[2]
 
-      const buttons = within(firstDataRow).getAllByRole('button')
+      const buttons = within(secondDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
       await user.click(menuTrigger)
 
@@ -2400,11 +2401,11 @@ describe('Workflows Component', () => {
     const publishedWorkflows = [
       {
         ...mockWorkflows[0],
-        published_version: 3,
+        published_version_id: 'ver-3',
       },
       {
         ...mockWorkflows[1],
-        published_version: null,
+        published_version_id: null,
       },
     ]
 

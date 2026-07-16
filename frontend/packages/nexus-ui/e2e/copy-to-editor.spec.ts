@@ -24,12 +24,12 @@ async function runWorkflowFromList(app: import('@playwright/test').Page, workflo
   const row = app.getByRole('row', { name: new RegExp(workflowName) })
   await expect(row).toBeVisible()
 
-  // Open kebab menu and click "Run workflow"
+  // Open kebab menu and click "Run published version"
   await row
     .getByRole('button', { name: /Actions|Kebab toggle/i })
     .nth(0)
     .click({ force: true })
-  await app.getByRole('menuitem', { name: 'Run workflow' }).click()
+  await app.getByRole('menuitem', { name: 'Run published version' }).click()
 
   // Confirm run in the dialog
   await app.getByRole('button', { name: 'Run now' }).click()

@@ -103,7 +103,7 @@ def sync_detailed(
 ) -> Response[Any | ErrorData | WorkflowVersionRead]:
     """Update Workflow Version Metadata
 
-     Update a workflow version's metadata (publish_name, change_description).
+     Update a workflow version's metadata (name, change_description).
 
     Args:
         workflow_id (UUID):
@@ -141,7 +141,7 @@ def sync(
 ) -> Any | ErrorData | WorkflowVersionRead | None:
     """Update Workflow Version Metadata
 
-     Update a workflow version's metadata (publish_name, change_description).
+     Update a workflow version's metadata (name, change_description).
 
     Args:
         workflow_id (UUID):
@@ -174,7 +174,7 @@ async def asyncio_detailed(
 ) -> Response[Any | ErrorData | WorkflowVersionRead]:
     """Update Workflow Version Metadata
 
-     Update a workflow version's metadata (publish_name, change_description).
+     Update a workflow version's metadata (name, change_description).
 
     Args:
         workflow_id (UUID):
@@ -210,7 +210,7 @@ async def asyncio(
 ) -> Any | ErrorData | WorkflowVersionRead | None:
     """Update Workflow Version Metadata
 
-     Update a workflow version's metadata (publish_name, change_description).
+     Update a workflow version's metadata (name, change_description).
 
     Args:
         workflow_id (UUID):

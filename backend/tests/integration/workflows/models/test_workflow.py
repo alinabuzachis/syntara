@@ -153,23 +153,36 @@ async def test_workflow_is_enabled_toggle(
     await test_db_session.commit()
 
     assert workflow.is_enabled is False
-    assert workflow.published_version is None
+    assert workflow.published_version_id is None
 
-    # Publish workflow (sets is_enabled=True with published_version)
+    # Create a version to reference
+    version_id = uuid4()
+    version = WorkflowVersion(
+        id=version_id,
+        workflow_id=workflow.id,
+        version=1,
+        schema_version="2.0.0",
+        workflow_definition={"schema_version": "2.0.0", "name": "test", "triggers": [], "nodes": [], "edges": []},
+        created_by=test_user.id,
+    )
+    test_db_session.add(version)
+    await test_db_session.flush()
+
+    # Publish workflow (sets is_enabled=True with published_version_id)
     workflow.is_enabled = True
-    workflow.published_version = 1
+    workflow.published_version_id = version_id
     await test_db_session.commit()
 
     assert workflow.is_enabled is True
-    assert workflow.published_version == 1
+    assert workflow.published_version_id == version_id
 
-    # Unpublish workflow (sets is_enabled=False with published_version=None)
+    # Unpublish workflow (sets is_enabled=False with published_version_id=None)
     workflow.is_enabled = False
-    workflow.published_version = None
+    workflow.published_version_id = None
     await test_db_session.commit()
 
     assert workflow.is_enabled is False
-    assert workflow.published_version is None
+    assert workflow.published_version_id is None
 
 
 @pytest.mark.asyncio

@@ -279,7 +279,7 @@ async def list_project_workflows(
     Requires: workflow:read permission scoped to this project.
     """
     allowed = AllowedProjectsResult(all_projects=False, project_ids=[project_id])
-    return await service.list_workflows_cursor(
+    result = await service.list_workflows_cursor(
         limit=params.limit,
         cursor=params.cursor,
         sort=params.sort,
@@ -287,6 +287,8 @@ async def list_project_workflows(
         include_total=params.include_total,
         allowed_projects=allowed,
     )
+    await service.populate_published_version_numbers(result.resources)
+    return result
 
 
 # ============================================================================

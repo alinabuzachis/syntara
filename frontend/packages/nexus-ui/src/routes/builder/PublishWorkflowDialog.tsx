@@ -20,7 +20,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 const publishWorkflowSchema = z.object({
-  publish_name: z.string().min(1, 'Version name is required').max(255),
+  name: z.string().min(1, 'Version name is required').max(255),
   description: z.string().max(1000).optional().or(z.literal('')),
 })
 
@@ -45,17 +45,17 @@ export function PublishWorkflowDialog({ isOpen, isPublishing, onClose, onPublish
     formState: { errors },
   } = useForm<PublishWorkflowFormData>({
     resolver: zodResolver(publishWorkflowSchema, undefined, { mode: 'sync' }),
-    defaultValues: { publish_name: '', description: '' },
+    defaultValues: { name: '', description: '' },
   })
 
   useEffect(() => {
     if (isOpen) {
-      reset({ publish_name: getDefaultVersionName(), description: '' })
+      reset({ name: getDefaultVersionName(), description: '' })
     }
   }, [isOpen, reset])
 
   const onSubmit = (data: PublishWorkflowFormData) => {
-    const name = data.publish_name.trim()
+    const name = data.name.trim()
     const desc = data.description?.trim()
     onPublish(name || undefined, desc || undefined)
   }
@@ -72,7 +72,7 @@ export function PublishWorkflowDialog({ isOpen, isPublishing, onClose, onPublish
         <Form onSubmit={handleSubmit(onSubmit)} id="publish-workflow-form">
           <FormGroup label="Version name" isRequired fieldId="publish-name">
             <Controller
-              name="publish_name"
+              name="name"
               control={control}
               render={({ field }) => (
                 <>
@@ -81,14 +81,14 @@ export function PublishWorkflowDialog({ isOpen, isPublishing, onClose, onPublish
                     type="text"
                     aria-label="Version name"
                     isRequired
-                    validated={errors.publish_name ? 'error' : 'default'}
+                    validated={errors.name ? 'error' : 'default'}
                     value={field.value ?? ''}
                     onChange={(_event, value) => field.onChange(value)}
                   />
-                  {errors.publish_name && (
+                  {errors.name && (
                     <FormHelperText>
                       <HelperText>
-                        <HelperTextItem variant="error">{errors.publish_name.message}</HelperTextItem>
+                        <HelperTextItem variant="error">{errors.name.message}</HelperTextItem>
                       </HelperText>
                     </FormHelperText>
                   )}

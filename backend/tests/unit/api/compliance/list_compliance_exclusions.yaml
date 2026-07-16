@@ -47,9 +47,6 @@ exclusions:
   - operation_id: list_auth_providers
     reason: "Non-standard response shape (AuthProvidersResponse), missing next/prev fields"
 
-  - operation_id: list_workflow_versions
-    reason: "Non-standard response shape (WorkflowVersionListResponse), missing next/prev fields"
-
   # Category management
   - operation_id: list_categories
     reason: "Non-standard response shape (CategoriesListResponse), missing next/prev fields"

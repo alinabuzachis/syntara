@@ -16,20 +16,20 @@ class WorkflowVersionUpdate:
     """Request body for updating version metadata (PATCH /workflows/{id}/versions/{version}).
 
     Attributes:
-        publish_name (None | str | Unset): Version name
+        name (None | str | Unset): Version name
         change_description (None | str | Unset): Description of changes
     """
 
-    publish_name: None | str | Unset = UNSET
+    name: None | str | Unset = UNSET
     change_description: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        publish_name: None | str | Unset
-        if isinstance(self.publish_name, Unset):
-            publish_name = UNSET
+        name: None | str | Unset
+        if isinstance(self.name, Unset):
+            name = UNSET
         else:
-            publish_name = self.publish_name
+            name = self.name
 
         change_description: None | str | Unset
         if isinstance(self.change_description, Unset):
@@ -40,8 +40,8 @@ class WorkflowVersionUpdate:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
-        if publish_name is not UNSET:
-            field_dict["publish_name"] = publish_name
+        if name is not UNSET:
+            field_dict["name"] = name
         if change_description is not UNSET:
             field_dict["change_description"] = change_description
 
@@ -51,14 +51,14 @@ class WorkflowVersionUpdate:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
 
-        def _parse_publish_name(data: object) -> None | str | Unset:
+        def _parse_name(data: object) -> None | str | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             return cast(None | str | Unset, data)
 
-        publish_name = _parse_publish_name(d.pop("publish_name", UNSET))
+        name = _parse_name(d.pop("name", UNSET))
 
         def _parse_change_description(data: object) -> None | str | Unset:
             if data is None:
@@ -70,7 +70,7 @@ class WorkflowVersionUpdate:
         change_description = _parse_change_description(d.pop("change_description", UNSET))
 
         workflow_version_update = cls(
-            publish_name=publish_name,
+            name=name,
             change_description=change_description,
         )
 

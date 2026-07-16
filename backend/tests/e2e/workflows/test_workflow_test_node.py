@@ -158,7 +158,7 @@ class TestTestExecutionWithConditionNode:
         publish_resp = nexus_api.workflows.publish_version(
             workflow_id=workflow.id,
             version=workflow.current_version,
-            body=PublishVersionRequest(publish_name="for-testing"),
+            body=PublishVersionRequest(name="for-testing"),
         )
         assert publish_resp.status_code == HTTPStatus.OK
 

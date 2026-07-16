@@ -40,8 +40,10 @@ function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
       </Td>
       <Td dataLabel="Status">
         <WorkflowPublishStatusBadge
-          publishedVersion={workflow.published_version}
-          currentVersion={workflow.current_version}
+          publishedVersionId={workflow.published_version_id}
+          hasUnpublishedChanges={
+            workflow.published_version_number != null && workflow.published_version_number !== workflow.current_version
+          }
         />
       </Td>
       <Td isActionCell>

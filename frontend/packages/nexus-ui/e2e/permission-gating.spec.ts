@@ -364,7 +364,10 @@ test.describe('Permission gating — Workflow actions', () => {
       await kebab.click({ force: true })
 
       await expect(viewerApp.getByRole('menuitem', { name: /Edit workflow/i })).toHaveAttribute('aria-disabled', 'true')
-      await expect(viewerApp.getByRole('menuitem', { name: /Run workflow/i })).toHaveAttribute('aria-disabled', 'true')
+      await expect(viewerApp.getByRole('menuitem', { name: /Run published version/i })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      )
       await expect(viewerApp.getByRole('menuitem', { name: /Duplicate workflow/i })).toHaveAttribute(
         'aria-disabled',
         'true'
@@ -410,7 +413,10 @@ test.describe('Permission gating — Workflow actions', () => {
         'aria-disabled',
         'true'
       )
-      await expect(auditorApp.getByRole('menuitem', { name: /Run workflow/i })).toHaveAttribute('aria-disabled', 'true')
+      await expect(auditorApp.getByRole('menuitem', { name: /Run published version/i })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      )
       await expect(auditorApp.getByRole('menuitem', { name: /Duplicate workflow/i })).toHaveAttribute(
         'aria-disabled',
         'true'

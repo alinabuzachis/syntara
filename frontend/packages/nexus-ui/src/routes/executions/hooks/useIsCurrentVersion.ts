@@ -43,7 +43,7 @@ export function useIsCurrentVersion(
     const executionVersion = versionsQuery.data?.resources?.find((v) => v.id === workflowVersionId)
 
     const versionLabel = executionVersion
-      ? (executionVersion.publish_name ?? formatDateTime(executionVersion.created_at))
+      ? (executionVersion.name ?? formatDateTime(executionVersion.created_at))
       : 'a previous version'
 
     return { isCurrentVersion: false, versionLabel, isLoading: versionsQuery.isLoading }

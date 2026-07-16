@@ -137,7 +137,7 @@ export interface components {
      * @description Schema for execution response (GET /executions/{id}).
      *
      *     Includes database table fields plus computed fields (workflow_version,
-     *     workflow_version_publish_name, workflow_version_created_at) populated
+     *     workflow_version_name, workflow_version_created_at) populated
      *     by ExecutionsConvertResourceMixin from the related WorkflowVersion.
      */
     ExecutionRead: {
@@ -162,10 +162,10 @@ export interface components {
        */
       workflow_version?: number | null
       /**
-       * Workflow Version Publish Name
-       * @description Publish name of the executed version, if it was published with a name
+       * Workflow Version Name
+       * @description Name of the executed version, if one was set
        */
-      workflow_version_publish_name?: string | null
+      workflow_version_name?: string | null
       /**
        * Workflow Version Created At
        * @description Timestamp when the executed version was created
@@ -470,6 +470,12 @@ export interface components {
        * @description Trigger node ID to start from (defaults to first trigger)
        */
       trigger_node_id?: string | null
+      /**
+       * Use Published
+       * @description If true, run the published version instead of the current version
+       * @default false
+       */
+      use_published?: boolean
     }
     /**
      * TestExecutionCreate

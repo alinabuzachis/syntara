@@ -77,7 +77,7 @@ describe('useIsCurrentVersion', () => {
     expect(result.current.isLoading).toBe(false)
   })
 
-  it('returns isCurrentVersion false with publish_name when version differs', () => {
+  it('returns isCurrentVersion false with name when version differs', () => {
     const mockWorkflowQuery = {
       data: { version: { id: 'current-version-id' } },
       isLoading: false,
@@ -86,8 +86,8 @@ describe('useIsCurrentVersion', () => {
     const mockVersionsQuery = {
       data: {
         resources: [
-          { id: 'old-version-id', publish_name: 'Release v1.0', created_at: '2024-01-15T10:00:00Z' },
-          { id: 'current-version-id', publish_name: 'Release v2.0', created_at: '2024-02-15T10:00:00Z' },
+          { id: 'old-version-id', name: 'Release v1.0', created_at: '2024-01-15T10:00:00Z' },
+          { id: 'current-version-id', name: 'Release v2.0', created_at: '2024-02-15T10:00:00Z' },
         ],
       },
       isLoading: false,
@@ -104,7 +104,7 @@ describe('useIsCurrentVersion', () => {
     expect(result.current.versionLabel).toBe('Release v1.0')
   })
 
-  it('returns formatted date when publish_name is null', () => {
+  it('returns formatted date when name is null', () => {
     const mockWorkflowQuery = {
       data: { version: { id: 'current-version-id' } },
       isLoading: false,
@@ -112,7 +112,7 @@ describe('useIsCurrentVersion', () => {
     }
     const mockVersionsQuery = {
       data: {
-        resources: [{ id: 'old-version-id', publish_name: null, created_at: '2024-01-15T10:00:00Z' }],
+        resources: [{ id: 'old-version-id', name: null, created_at: '2024-01-15T10:00:00Z' }],
       },
       isLoading: false,
       error: null,

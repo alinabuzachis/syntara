@@ -3,7 +3,8 @@
   top: var(--pf-t--global--spacer--md);
   left: var(--pf-t--global--spacer--md);
   z-index: 5;
-  max-width: 20rem;
+  min-width: 20rem;
+  max-width: 24rem;
   pointer-events: auto;
 }
 
@@ -29,4 +30,8 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
+}
+
+.timestampLabel {
+  font-weight: var(--pf-t--global--font--weight--body--bold);
 }

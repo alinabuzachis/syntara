@@ -99,7 +99,7 @@ async def test_restore_nonexistent_workflow_returns_404(jwt_client: AsyncClient)
 async def test_restore_published_version_creates_draft(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Restoring a published version creates a new draft, not a published version.
 
-    Expected: new version has status=draft, published_version is unchanged.
+    Expected: new version has status=draft, published_version_id is unchanged.
     """
     defn_v1 = create_minimal_workflow_definition(name="restore-pub", description="v1", activity_id="task1")
     defn_v2 = create_minimal_workflow_definition(name="restore-pub", description="v2", activity_id="task2")
@@ -110,24 +110,24 @@ async def test_restore_published_version_creates_draft(jwt_client: AsyncClient, 
     )
     workflow_id = create_resp.json()["id"]
 
-    # Publish v1 → v1 stays draft, v2 created (published copy). published_version=2
-    await jwt_client.post(f"/api/v1/workflows/{workflow_id}/versions/1/publish", json={})
+    # Publish v1
+    pub_resp = await jwt_client.post(f"/api/v1/workflows/{workflow_id}/versions/1/publish", json={})
+    published_id = pub_resp.json()["published_version_id"]
 
-    # Update creates v3 (draft), since v2 is the published copy
+    # Update creates v2 (draft)
     await jwt_client.patch(
         f"/api/v1/workflows/{workflow_id}",
         json={"workflow_definition": defn_v2},
     )
 
-    # Restore v1 → v4 (draft copy of v1's definition). current_version=4, published_version=2
+    # Restore v1 -> creates a new draft. published_version_id unchanged
     response = await jwt_client.post(f"/api/v1/workflows/{workflow_id}/versions/1/restore")
 
     assert response.status_code == 200
     data = response.json()
-    assert data["current_version"] == 4
     assert data["version"]["status"] == "draft"
-    # Published copy (v2) stays published
-    assert data["published_version"] == 2
+    # Published version stays the same
+    assert data["published_version_id"] == published_id
 
 
 @pytest.mark.asyncio

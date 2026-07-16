@@ -174,7 +174,7 @@ export function useBuilderConflict(params: UseBuilderConflictParams) {
           const createdVersion = created.current_version ?? 1
           await workflowFetchClient.POST('/workflows/{workflow_id}/versions/{version}/publish', {
             params: { path: { workflow_id: created.id, version: createdVersion } },
-            body: { publish_name: null, change_description: null },
+            body: { name: null, change_description: null },
           })
         }
         conflictDialog.close()

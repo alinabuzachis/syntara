@@ -137,7 +137,7 @@ export interface paths {
     }
     /**
      * List Workflow Versions
-     * @description List all versions for a workflow.
+     * @description List versions for a workflow with cursor-based pagination.
      */
     get: operations['list_workflow_versions']
     put?: never
@@ -167,7 +167,7 @@ export interface paths {
     head?: never
     /**
      * Update Workflow Version Metadata
-     * @description Update a workflow version's metadata (publish_name, change_description).
+     * @description Update a workflow version's metadata (name, change_description).
      */
     patch: operations['update_workflow_version_metadata']
     trace?: never
@@ -351,8 +351,10 @@ export interface components {
        * Format: uuid
        */
       project_id: string
-      /** Published Version */
-      published_version?: number | null
+      /** Published Version Id */
+      published_version_id?: string | null
+      /** Published Version Number */
+      published_version_number?: number | null
       /**
        * Created At
        * Format: date-time
@@ -421,8 +423,10 @@ export interface components {
        * Format: uuid
        */
       project_id: string
-      /** Published Version */
-      published_version?: number | null
+      /** Published Version Id */
+      published_version_id?: string | null
+      /** Published Version Number */
+      published_version_number?: number | null
       /**
        * Created At
        * Format: date-time
@@ -468,10 +472,18 @@ export interface components {
       }
       /** Change Description */
       change_description?: string | null
-      /** @default draft */
-      status?: components['schemas']['WorkflowVersionStatus']
-      /** Publish Name */
-      publish_name?: string | null
+      /**
+       * Status
+       * @default draft
+       * @enum {string}
+       */
+      status?: 'draft' | 'published' | 'previously_published'
+      /** Last Published At */
+      last_published_at?: string | null
+      /** Last Unpublished At */
+      last_unpublished_at?: string | null
+      /** Name */
+      name?: string | null
       /**
        * Created By
        * Format: uuid
@@ -495,21 +507,15 @@ export interface components {
       deleted_by?: string | null
     }
     /**
-     * WorkflowVersionStatus
-     * @description Publish status of a workflow version.
-     * @enum {string}
-     */
-    WorkflowVersionStatus: 'draft' | 'published' | 'previously_published'
-    /**
      * PublishVersionRequest
      * @description Request body for publishing a workflow version.
      */
     PublishVersionRequest: {
       /**
-       * Publish Name
-       * @description Optional name for this published version
+       * Name
+       * @description Optional name for this version
        */
-      publish_name?: string | null
+      name?: string | null
       /**
        * Change Description
        * @description Description of changes in this version
@@ -537,10 +543,10 @@ export interface components {
      */
     WorkflowVersionUpdate: {
       /**
-       * Publish Name
+       * Name
        * @description Version name
        */
-      publish_name?: string | null
+      name?: string | null
       /**
        * Change Description
        * @description Description of changes
@@ -774,7 +780,7 @@ export interface components {
      * @description Schema for execution response (GET /executions/{id}).
      *
      *     Includes database table fields plus computed fields (workflow_version,
-     *     workflow_version_publish_name, workflow_version_created_at) populated
+     *     workflow_version_name, workflow_version_created_at) populated
      *     by ExecutionsConvertResourceMixin from the related WorkflowVersion.
      */
     ExecutionRead: {
@@ -799,10 +805,10 @@ export interface components {
        */
       workflow_version?: number | null
       /**
-       * Workflow Version Publish Name
-       * @description Publish name of the executed version, if it was published with a name
+       * Workflow Version Name
+       * @description Name of the executed version, if one was set
        */
-      workflow_version_publish_name?: string | null
+      workflow_version_name?: string | null
       /**
        * Workflow Version Created At
        * @description Timestamp when the executed version was created
@@ -2733,7 +2739,12 @@ export interface operations {
   }
   list_workflow_versions: {
     parameters: {
-      query?: never
+      query?: {
+        limit?: number
+        cursor?: string | null
+        sort?: string | null
+        include_total?: boolean
+      }
       header?: never
       path: {
         workflow_id: string

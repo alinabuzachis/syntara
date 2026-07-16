@@ -228,6 +228,7 @@ async def create_execution(
         workflow_id=request.workflow_id,
         input_data=request.input_data,
         trigger_node_id=request.trigger_node_id,
+        use_published=request.use_published,
     )
     return execution
 

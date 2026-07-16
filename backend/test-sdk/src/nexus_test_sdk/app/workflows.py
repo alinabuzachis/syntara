@@ -10,8 +10,9 @@ import pytest_asyncio
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.workflows.models import ActivityExecution, ActivityStatus, Workflow, WorkflowVersion, WorkflowVersionStatus
+from nexus.workflows.models import ActivityExecution, ActivityStatus, Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
 
 if TYPE_CHECKING:
     from nexus.core.models import User
@@ -62,8 +63,7 @@ async def test_workflow(
         name="test-workflow",
         description="Test workflow for execution tests",
         created_by=test_user.id,
-        is_enabled=True,
-        published_version=1,
+        is_enabled=False,
         current_version=1,
         project_id=project.id,
     )
@@ -75,9 +75,19 @@ async def test_workflow(
         schema_version="2.0.0",
         workflow_definition=test_workflow_definition,
         created_by=test_user.id,
-        status=WorkflowVersionStatus.PUBLISHED,
     )
     test_db_session.add(version)
+    await test_db_session.flush()
+
+    workflow.published_version_id = version.id
+    workflow.is_enabled = True
+    publish_event = WorkflowPublishEvent(
+        workflow_id=workflow.id,
+        version_id=version.id,
+        action=PublishAction.PUBLISHED,
+        actor_id=test_user.id,
+    )
+    test_db_session.add(publish_event)
     await test_db_session.commit()
     return workflow
 

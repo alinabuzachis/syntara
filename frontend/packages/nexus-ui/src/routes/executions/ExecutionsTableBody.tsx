@@ -33,7 +33,7 @@ type Execution = {
   workflow_id?: string
   workflow_version_id?: string
   workflow_version?: number | null
-  workflow_version_publish_name?: string | null
+  workflow_version_name?: string | null
   workflow_version_created_at?: string | null
   status?: ExecutionStatus
   approval_pending?: boolean
@@ -131,7 +131,7 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
         {execution.workflow_version != null && execution.workflow_id ? (
           <LinkCell href={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}>
             <Truncate
-              content={execution.workflow_version_publish_name ?? formatDateTime(execution.workflow_version_created_at)}
+              content={execution.workflow_version_name ?? formatDateTime(execution.workflow_version_created_at)}
             />
           </LinkCell>
         ) : (

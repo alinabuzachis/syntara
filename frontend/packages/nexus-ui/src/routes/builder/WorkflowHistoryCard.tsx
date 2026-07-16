@@ -160,9 +160,7 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Truncate
-                    content={
-                      execution.workflow_version_publish_name ?? formatDateTime(execution.workflow_version_created_at)
-                    }
+                    content={execution.workflow_version_name ?? formatDateTime(execution.workflow_version_created_at)}
                   />
                 </NxLink>
               </Content>

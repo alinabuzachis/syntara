@@ -36,6 +36,7 @@ from nexus.tool_manager.models.tool import Tool
 from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter, WindowDuration
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
 
 
 class TestPeriodicAnalyticsFlow:
@@ -584,13 +585,11 @@ class TestQueryCredentialCountsRealDB:
             name=f"wf-cred-test-{uuid4().hex[:8]}",
             description="test",
             current_version=1,
-            is_enabled=True,
-            published_version=1,
+            is_enabled=False,
             project_id=project.id,
             created_by=test_user.id,
         )
         test_db_session.add(workflow)
-        await test_db_session.flush()
 
         definition = {
             "schema_version": "2.0.0",
@@ -614,6 +613,16 @@ class TestQueryCredentialCountsRealDB:
             created_by=test_user.id,
         )
         test_db_session.add(version)
+        await test_db_session.flush()
+        workflow.published_version_id = version.id
+        workflow.is_enabled = True
+        publish_event = WorkflowPublishEvent(
+            workflow_id=workflow.id,
+            version_id=version.id,
+            action=PublishAction.PUBLISHED,
+            actor_id=test_user.id,
+        )
+        test_db_session.add(publish_event)
         await test_db_session.commit()
 
         result = await query_credential_counts(test_db_session)
@@ -636,13 +645,11 @@ class TestQueryCredentialCountsRealDB:
                 name=f"wf-dedup-{i}-{uuid4().hex[:8]}",
                 description="test",
                 current_version=1,
-                is_enabled=True,
-                published_version=1,
+                is_enabled=False,
                 project_id=project.id,
                 created_by=test_user.id,
             )
             test_db_session.add(workflow)
-            await test_db_session.flush()
 
             definition = {
                 "schema_version": "2.0.0",
@@ -660,6 +667,16 @@ class TestQueryCredentialCountsRealDB:
                 created_by=test_user.id,
             )
             test_db_session.add(version)
+            await test_db_session.flush()
+            workflow.published_version_id = version.id
+            workflow.is_enabled = True
+            publish_event = WorkflowPublishEvent(
+                workflow_id=workflow.id,
+                version_id=version.id,
+                action=PublishAction.PUBLISHED,
+                actor_id=test_user.id,
+            )
+            test_db_session.add(publish_event)
 
         await test_db_session.commit()
 
@@ -681,14 +698,11 @@ class TestQueryCredentialCountsRealDB:
             name=f"wf-deleted-{uuid4().hex[:8]}",
             description="test",
             current_version=1,
-            is_enabled=True,
-            published_version=1,
+            is_enabled=False,
             project_id=project.id,
             created_by=test_user.id,
         )
-        workflow.soft_delete(test_user.id)
         test_db_session.add(workflow)
-        await test_db_session.flush()
 
         definition = {
             "schema_version": "2.0.0",
@@ -706,6 +720,17 @@ class TestQueryCredentialCountsRealDB:
             created_by=test_user.id,
         )
         test_db_session.add(version)
+        await test_db_session.flush()
+        workflow.published_version_id = version.id
+        workflow.is_enabled = True
+        publish_event = WorkflowPublishEvent(
+            workflow_id=workflow.id,
+            version_id=version.id,
+            action=PublishAction.PUBLISHED,
+            actor_id=test_user.id,
+        )
+        test_db_session.add(publish_event)
+        workflow.soft_delete(test_user.id)
         await test_db_session.commit()
 
         result = await query_credential_counts(test_db_session)

@@ -29,6 +29,7 @@ type UseBuilderVersionPanelParams = {
   onClearExecutionFilters: () => void
   executedVersionNumbers: Map<number, string>
   onDuplicateVersion: (version: WorkflowVersion) => void
+  onVersionUpdated?: (version: number) => void
 }
 
 export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
@@ -48,12 +49,14 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     onClearExecutionFilters,
     executedVersionNumbers,
     onDuplicateVersion,
+    onVersionUpdated,
   } = params
   const { isDirty } = useWorkflowStore()
   const { showSuccess, showError } = useAlerts()
 
   const {
     filteredVersions,
+    publishedVersionName,
     statusFilter,
     setStatusFilter,
     exportVersion,
@@ -63,7 +66,9 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     viewedVersionDate,
     viewedVersionStatus,
     viewedVersionDescription,
-    viewedVersionPublishName,
+    viewedVersionName,
+    viewedVersionPublishedAt,
+    viewedVersionUnpublishedAt,
     handleExitVersionView,
     handleConfirmRestore,
     restoreDialog,
@@ -83,6 +88,7 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     expandAllEvent,
     searchParams,
     setSearchParams,
+    onVersionUpdated,
   })
 
   const { refetch: refetchVersions } = versionsQuery
@@ -174,7 +180,9 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     viewedVersionDate,
     viewedVersionStatus,
     viewedVersionDescription,
-    viewedVersionPublishName,
+    viewedVersionName,
+    viewedVersionPublishedAt,
+    viewedVersionUnpublishedAt,
     handleExitVersionView,
     handleToggleVersionHistory,
     openRestoreDialogForCurrentVersion,
@@ -182,6 +190,7 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     versionSidePanel: {
       show: !isNew && !!workflowId && versionHistoryOpen,
       filteredVersions,
+      publishedVersionName,
       selectedVersion: viewingVersion,
       statusFilter,
       onStatusFilterChange: setStatusFilter,
@@ -227,7 +236,7 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
         isSaving: updateMetadataMutation.isPending,
         onClose: editVersionDialog.close,
         onSave: handleEditVersionSave,
-        initialPublishName: editVersionDialog.item?.publish_name,
+        initialName: editVersionDialog.item?.name,
         initialDescription: editVersionDialog.item?.change_description,
       },
     },

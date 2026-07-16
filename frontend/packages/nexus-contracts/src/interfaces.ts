@@ -150,7 +150,7 @@ export const WorkflowVersionStatusEnum = {
   PREVIOUSLY_PUBLISHED: 'previously_published',
 } as const
 
-export type WorkflowVersionStatus = WorkflowAPI.components['schemas']['WorkflowVersionStatus']
+export type WorkflowVersionStatus = (typeof WorkflowVersionStatusEnum)[keyof typeof WorkflowVersionStatusEnum]
 
 /**
  * Constants for integration type values

@@ -19,7 +19,7 @@ from nexus.authz.models import Project
 from nexus.core.models import User
 from nexus.workflows.constants import BUILTIN_PROJECT_NAME
 from nexus.workflows.models import Workflow, WorkflowVersion
-from nexus.workflows.models.workflow_version import WorkflowVersionStatus
+from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
 from nexus.workflows.validators import workflow_validator
 
 if TYPE_CHECKING:
@@ -155,8 +155,7 @@ async def _seed_one(
             labels={"built-in": ""},
             current_version=1,
             is_builtin=True,
-            is_enabled=True,
-            published_version=1,
+            is_enabled=False,
             created_by=creator_id,
             project_id=project_id,
         )
@@ -168,10 +167,19 @@ async def _seed_one(
             workflow_definition=workflow_dict,
             created_by=creator_id,
             change_description="Initial builtin workflow",
-            status=WorkflowVersionStatus.PUBLISHED,
         )
         session.add(workflow)
         session.add(version)
+        await session.flush()
+        workflow.published_version_id = version.id
+        workflow.is_enabled = True
+        publish_event = WorkflowPublishEvent(
+            workflow_id=workflow.id,
+            version_id=version.id,
+            action=PublishAction.PUBLISHED,
+            actor_id=creator_id,
+        )
+        session.add(publish_event)
         logger.info("Created builtin workflow", workflow_name=name)
     else:
         current_version_result = await session.exec(
@@ -192,9 +200,6 @@ async def _seed_one(
 
         new_version_num = existing.increment_version()
 
-        if current_version and current_version.status == WorkflowVersionStatus.PUBLISHED:
-            current_version.status = WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
-
         new_version = WorkflowVersion(
             id=uuid4(),
             workflow_id=existing.id,
@@ -203,9 +208,16 @@ async def _seed_one(
             workflow_definition=workflow_dict,
             created_by=creator_id,
             change_description="Updated builtin workflow definition",
-            status=WorkflowVersionStatus.PUBLISHED,
         )
-        existing.published_version = new_version_num
         existing.description = workflow_dict.get("description", "")
         session.add(new_version)
+        await session.flush()
+        existing.published_version_id = new_version.id
+        publish_event = WorkflowPublishEvent(
+            workflow_id=existing.id,
+            version_id=new_version.id,
+            action=PublishAction.PUBLISHED,
+            actor_id=creator_id,
+        )
+        session.add(publish_event)
         logger.info("Updated builtin workflow", workflow_name=name, new_version=new_version_num)

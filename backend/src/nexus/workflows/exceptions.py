@@ -219,6 +219,7 @@ class WorkflowVersionConflictError(WorkflowError):
         expected_version: int,
         created_by_username: str,
         created_at: datetime,
+        current_version_name: str | None = None,
     ) -> None:
         """Initialize with conflict metadata."""
         self.workflow_id = workflow_id
@@ -226,6 +227,7 @@ class WorkflowVersionConflictError(WorkflowError):
         self.expected_version = expected_version
         self.created_by_username = created_by_username
         self.created_at = created_at
+        self.current_version_name = current_version_name
         super().__init__(f"Workflow {workflow_id} has version {current_version} but client expected {expected_version}")
 
 

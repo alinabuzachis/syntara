@@ -101,13 +101,13 @@ class TestWorkflowVersionRestore:
     def test_restore_published_version_keeps_publish_status(
         self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
-        """Restoring a published version creates a draft; published copy keeps its status.
+        """Restoring a published version creates a draft; published pointer stays.
 
-        With always-copy publish:
-        - Create → v1 (draft)
-        - Publish v1 → v1 stays draft, v2 created (published copy). published_version=2
-        - Update → v3 (draft)
-        - Restore v1 → v4 (draft copy of v1's definition). current_version=4, published_version=2
+        With pointer-based publish:
+        - Create -> v1 (draft)
+        - Publish v1 -> published_version_id points to v1
+        - Update -> v2 (draft)
+        - Restore v1 -> v3 (draft copy). published_version_id still points to v1.
         """
         defn_v1 = _simple_definition(activity_id="pub_task1", description="published-v1")
         defn_v2 = _simple_definition(activity_id="pub_task2", description="draft-v2")
@@ -135,27 +135,27 @@ class TestWorkflowVersionRestore:
         restore_resp = nexus_api.workflows.restore_version(workflow_id=wf_id, version=1)
         assert restore_resp.status_code == HTTPStatus.OK
         assert restore_resp.parsed is not None
-        assert restore_resp.parsed.current_version == 4
-        assert restore_resp.parsed.published_version == 2
+        assert restore_resp.parsed.current_version == 3
+        assert restore_resp.parsed.published_version_id is not None
 
         versions_resp = nexus_api.workflows.list_versions(workflow_id=wf_id)
         assert versions_resp.status_code == HTTPStatus.OK
         assert versions_resp.parsed is not None
         by_ver = {v.version: v for v in versions_resp.parsed.resources}
-        assert by_ver[1].status == "draft"
-        assert by_ver[2].status == "published"
-        assert by_ver[4].status == "draft"
+        assert by_ver[1].status == "published"
+        assert by_ver[2].status == "draft"
+        assert by_ver[3].status == "draft"
 
     def ***REMOVED***(
         self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
-        """After publishing the updated draft, the previous published copy becomes previously_published.
+        """After publishing a different version, the pointer switches.
 
-        With always-copy publish:
-        - Create → v1 (draft)
-        - Publish v1 → v1 stays draft, v2 created (published copy). published_version=2
-        - Update → v3 (draft, since v2 is the published copy)
-        - Publish v3 → v3 stays draft, v2 demoted to previously_published, v4 created (published). published_version=4
+        With pointer-based publish:
+        - Create -> v1 (draft)
+        - Publish v1 -> published_version_id points to v1
+        - Update -> v2 (draft)
+        - Publish v2 -> published_version_id points to v2, v1 becomes previously_published
         """
         defn_v1 = _simple_definition(activity_id="repub_task1", description="v1")
         defn_v2 = _simple_definition(activity_id="repub_task2", description="v2")
@@ -179,16 +179,14 @@ class TestWorkflowVersionRestore:
             body=WorkflowUpdate(workflow_definition=defn_v2),
         )
 
-        nexus_api.workflows.publish_version(workflow_id=wf_id, version=3, body=PublishVersionRequest())
+        nexus_api.workflows.publish_version(workflow_id=wf_id, version=2, body=PublishVersionRequest())
 
         versions_resp = nexus_api.workflows.list_versions(workflow_id=wf_id)
         assert versions_resp.status_code == HTTPStatus.OK
         assert versions_resp.parsed is not None
         by_ver = {v.version: v for v in versions_resp.parsed.resources}
-        assert by_ver[1].status == "draft"
-        assert by_ver[2].status == "previously_published"
-        assert by_ver[3].status == "draft"
-        assert by_ver[4].status == "published"
+        assert by_ver[1].status == "previously_published"
+        assert by_ver[2].status == "published"
 
 
 class TestPublishWithUnsavedChanges:
@@ -314,7 +312,7 @@ class TestPublishWithUnsavedChanges:
 
         wf_resp = nexus_api.workflows.get(workflow_id=wf_id)
         assert wf_resp.parsed is not None
-        assert wf_resp.parsed.published_version is None
+        assert wf_resp.parsed.published_version_id is None
 
     def test_incremental_build_publish_includes_unsaved_step(
         self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
@@ -385,7 +383,7 @@ class TestPublishWithUnsavedChanges:
             version=2,
             body=PublishVersionRequest.from_dict(
                 {
-                    "publish_name": "Production Release v1.0",
+                    "name": "Production Release v1.0",
                     "change_description": "Added step3 for post-processing",
                     "workflow_definition": defn_unsaved.to_dict(),
                 }
@@ -395,11 +393,10 @@ class TestPublishWithUnsavedChanges:
         assert pub_resp.parsed is not None
         assert pub_resp.parsed.version is not None
 
-        # Published version (v3) must have all three steps
+        # Published version must have all three steps
         published = pub_resp.parsed.version
-        assert published.version == 3
         assert published.status == "published"
-        assert published.publish_name == "Production Release v1.0"
+        assert published.name == "Production Release v1.0"
         assert published.change_description == "Added step3 for post-processing"
 
         published_defn = published.workflow_definition

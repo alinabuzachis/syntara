@@ -90,6 +90,7 @@ describe('VersionConflictDialog', () => {
         {...defaultProps}
         conflictInfo={{
           currentVersion: 5,
+          currentVersionName: null,
           expectedVersion: 3,
           createdByUsername: 'alice',
           createdAt: '2026-06-01T00:00:00Z',

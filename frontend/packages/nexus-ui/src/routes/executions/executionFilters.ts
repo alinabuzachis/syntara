@@ -101,7 +101,7 @@ export const getExecutionStatusFilterDefinition = (): FilterFieldDefinition => (
 
 type ExecutionWithVersion = {
   workflow_version_id?: string
-  workflow_version_publish_name?: string | null
+  workflow_version_name?: string | null
   workflow_version_created_at?: string | null
 }
 
@@ -110,7 +110,7 @@ export function getExecutionVersionFilterFromExecutions(executions: ExecutionWit
   for (const exec of executions) {
     const id = exec.workflow_version_id
     if (id && !seen.has(id)) {
-      seen.set(id, exec.workflow_version_publish_name ?? formatDateTime(exec.workflow_version_created_at ?? ''))
+      seen.set(id, exec.workflow_version_name ?? formatDateTime(exec.workflow_version_created_at ?? ''))
     }
   }
   const options = Array.from(seen.entries()).map(([value, label]) => ({ value, label }))

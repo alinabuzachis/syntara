@@ -18,7 +18,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 const editVersionSchema = z.object({
-  publish_name: z.string().max(255).optional().or(z.literal('')),
+  name: z.string().max(255).optional().or(z.literal('')),
   change_description: z.string().max(1024).optional().or(z.literal('')),
 })
 
@@ -29,7 +29,7 @@ type EditVersionDialogProps = Readonly<{
   isSaving: boolean
   onClose: () => void
   onSave: (publishName: string | null, changeDescription: string | null) => void
-  initialPublishName?: string | null
+  initialName?: string | null
   initialDescription?: string | null
 }>
 
@@ -38,7 +38,7 @@ export function EditVersionDialog({
   isSaving,
   onClose,
   onSave,
-  initialPublishName,
+  initialName,
   initialDescription,
 }: EditVersionDialogProps) {
   const {
@@ -48,20 +48,20 @@ export function EditVersionDialog({
     formState: { errors },
   } = useForm<EditVersionFormData>({
     resolver: zodResolver(editVersionSchema, undefined, { mode: 'sync' }),
-    defaultValues: { publish_name: '', change_description: '' },
+    defaultValues: { name: '', change_description: '' },
   })
 
   useEffect(() => {
     if (isOpen) {
       reset({
-        publish_name: initialPublishName ?? '',
+        name: initialName ?? '',
         change_description: initialDescription ?? '',
       })
     }
-  }, [isOpen, initialPublishName, initialDescription, reset])
+  }, [isOpen, initialName, initialDescription, reset])
 
   const onSubmit = (data: EditVersionFormData) => {
-    const name = data.publish_name?.trim()
+    const name = data.name?.trim()
     const desc = data.change_description?.trim()
     onSave(name || null, desc || null)
   }
@@ -73,7 +73,7 @@ export function EditVersionDialog({
         <Form onSubmit={handleSubmit(onSubmit)} id="edit-version-form">
           <FormGroup label="Version name" fieldId="edit-version-name">
             <Controller
-              name="publish_name"
+              name="name"
               control={control}
               render={({ field }) => (
                 <>
@@ -81,14 +81,14 @@ export function EditVersionDialog({
                     id="edit-version-name"
                     type="text"
                     aria-label="Version name"
-                    validated={errors.publish_name ? 'error' : 'default'}
+                    validated={errors.name ? 'error' : 'default'}
                     value={field.value ?? ''}
                     onChange={(_event, value) => field.onChange(value)}
                   />
-                  {errors.publish_name && (
+                  {errors.name && (
                     <FormHelperText>
                       <HelperText>
-                        <HelperTextItem variant="error">{errors.publish_name.message}</HelperTextItem>
+                        <HelperTextItem variant="error">{errors.name.message}</HelperTextItem>
                       </HelperText>
                     </FormHelperText>
                   )}

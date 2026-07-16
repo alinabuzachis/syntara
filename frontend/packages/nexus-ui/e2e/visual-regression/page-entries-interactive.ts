@@ -30,7 +30,7 @@ async function openStepEditorFromCanvasTitle(page: Page, title: string | RegExp)
  * Returns the kebab locator that was opened.
  *
  * Project header rows have kebabs with "Edit project" / "Delete project" items.
- * Workflow rows have kebabs with "Edit workflow" / "Run workflow" / etc.
+ * Workflow rows have kebabs with "Edit workflow" / "Run published version" / etc.
  *
  * This helper iterates through all kebabs and finds one that has a workflow-specific
  * menu item (determined by the menuItemPattern parameter).
@@ -466,8 +466,8 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await openWorkflowKebab(page, /Run workflow/i)
-      await page.getByRole('menuitem', { name: /Run workflow/i }).click()
+      await openWorkflowKebab(page, /Run published version/i)
+      await page.getByRole('menuitem', { name: /Run published version/i }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
       await expect(dialog.getByRole('button', { name: /Run/i })).toBeVisible()

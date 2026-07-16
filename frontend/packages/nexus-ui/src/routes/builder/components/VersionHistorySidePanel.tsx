@@ -37,6 +37,7 @@ export function VersionHistorySidePanel({ sidePanel, isNodeEditorOpen, editPermi
             onStatusFilterChange={sidePanel.onStatusFilterChange}
             canEdit={editPermission?.canEdit}
             editTooltip={editPermission?.tooltip}
+            publishedVersionName={sidePanel.publishedVersionName}
           />
         </FlexItem>
       )}
@@ -60,7 +61,7 @@ export function VersionHistorySidePanel({ sidePanel, isNodeEditorOpen, editPermi
         isSaving={sidePanel.editDialog.isSaving}
         onClose={sidePanel.editDialog.onClose}
         onSave={sidePanel.editDialog.onSave}
-        initialPublishName={sidePanel.editDialog.initialPublishName}
+        initialName={sidePanel.editDialog.initialName}
         initialDescription={sidePanel.editDialog.initialDescription}
       />
 

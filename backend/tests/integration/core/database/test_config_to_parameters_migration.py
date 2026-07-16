@@ -141,12 +141,13 @@ async def _insert_version(
     """Insert a workflow + workflow_version row and return the version ID."""
     wf_id = str(uuid4())
     ver_id = str(uuid4())
+    # Insert workflow first (is_enabled=false, no published_version_id yet)
     await session.exec(  # type: ignore[call-overload]
         text("""
             INSERT INTO workflows
-                (id, name, current_version, is_enabled, published_version,
+                (id, name, current_version, is_enabled,
                  created_by, updated_by, labels, project_id)
-            VALUES (:wf_id, :name, 1, true, 1, :user_id, :user_id, :empty_json, :project_id)
+            VALUES (:wf_id, :name, 1, false, :user_id, :user_id, :empty_json, :project_id)
         """),
         params={
             "wf_id": wf_id,
@@ -156,6 +157,7 @@ async def _insert_version(
             "project_id": project_id,
         },
     )
+    # Insert version (FK to workflow now exists)
     await session.exec(  # type: ignore[call-overload]
         text("""
             INSERT INTO workflow_versions
@@ -172,6 +174,14 @@ async def _insert_version(
             "user_id": user_id,
             "empty_json": "{}",
         },
+    )
+    # Set published_version_id + is_enabled now that version exists
+    await session.exec(  # type: ignore[call-overload]
+        text("""
+            UPDATE workflows SET published_version_id = :ver_id, is_enabled = true
+            WHERE id = :wf_id
+        """),
+        params={"ver_id": ver_id, "wf_id": wf_id},
     )
     await session.flush()
     return ver_id

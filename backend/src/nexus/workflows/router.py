@@ -43,6 +43,7 @@ from nexus.workflows.models import (
     WorkflowValidationProblemDetail,
     WorkflowValidationResult,
     WorkflowVersion,
+    WorkflowVersionListParams,
     WorkflowVersionListResponse,
     WorkflowVersionRead,
     WorkflowVersionUpdate,
@@ -123,9 +124,31 @@ _wf_perm_create = PermissionChecker(
 WORKFLOW_NOT_FOUND: str = "Workflow not found"
 
 
-def _build_workflow_with_version_response(workflow: Workflow, version: WorkflowVersion) -> WorkflowReadWithVersion:
-    base = WorkflowRead.model_validate(workflow, from_attributes=True).model_dump()
-    base["version"] = deserialize_workflow_version(version)
+async def _populate_published_version_number(
+    workflow_read: WorkflowRead, workflow: Workflow, version: WorkflowVersion, db: AsyncSession
+) -> None:
+    """Set published_version_number on a single WorkflowRead."""
+    if workflow.published_version_id is None:
+        return
+    if version.id == workflow.published_version_id:
+        workflow_read.published_version_number = version.version
+    else:
+        result = await db.exec(
+            select(WorkflowVersion.version).where(WorkflowVersion.id == workflow.published_version_id)
+        )
+        workflow_read.published_version_number = result.one_or_none()
+
+
+async def _build_workflow_with_version_response(
+    workflow: Workflow,
+    version: WorkflowVersion,
+    service: WorkflowService,
+) -> WorkflowReadWithVersion:
+    workflow_read = WorkflowRead.model_validate(workflow, from_attributes=True)
+    await _populate_published_version_number(workflow_read, workflow, version, service.session)
+    ever_published, pub_ts = await service.get_publish_context([version.id])
+    base = workflow_read.model_dump()
+    base["version"] = deserialize_workflow_version(version, workflow.published_version_id, ever_published, pub_ts)
     return WorkflowReadWithVersion.model_validate(base)
 
 
@@ -263,7 +286,7 @@ async def list_workflows(
 
     Uses cursor-based pagination for scalability and consistency.
     """
-    return await service.list_workflows_cursor(
+    result = await service.list_workflows_cursor(
         limit=params.limit,
         cursor=params.cursor,
         sort=params.sort,
@@ -271,6 +294,8 @@ async def list_workflows(
         include_total=params.include_total,
         allowed_projects=visibility.to_allowed_projects(),
     )
+    await service.populate_published_version_numbers(result.resources)
+    return result
 
 
 @router.get(
@@ -285,8 +310,7 @@ async def get_workflow(
 ) -> WorkflowReadWithVersion:
     """Get a workflow by ID including its current active version."""
     workflow, current_version = await service.get_workflow_with_version(workflow_id)
-
-    return _build_workflow_with_version_response(workflow, current_version)
+    return await _build_workflow_with_version_response(workflow, current_version, service)
 
 
 @router.patch(
@@ -323,8 +347,7 @@ async def update_workflow(
         force_save=force_save,
         expected_version=request.expected_version,
     )
-
-    return _build_workflow_with_version_response(workflow, current_version)
+    return await _build_workflow_with_version_response(workflow, current_version, service)
 
 
 @router.delete(
@@ -383,41 +406,19 @@ async def test_workflow_node(
 )
 async def list_workflow_versions(
     workflow_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    request: Request,
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
+    params: Annotated[WorkflowVersionListParams, Query()],
 ) -> WorkflowVersionListResponse:
-    """List all versions for a workflow."""
-    # Verify workflow exists
-    workflow_result = await db.exec(
-        select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
+    """List versions for a workflow with cursor-based pagination."""
+    return await service.list_workflow_versions_cursor(
+        workflow_id=workflow_id,
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=request.query_params.items(),
+        include_total=params.include_total,
     )
-    workflow = workflow_result.one_or_none()
-
-    if not workflow:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=WORKFLOW_NOT_FOUND,
-        )
-
-    # Get versions with creator usernames
-    result = await db.exec(
-        select(WorkflowVersion, User.username)
-        .outerjoin(User, WorkflowVersion.created_by == User.id)  # type: ignore[arg-type]
-        .filter(
-            WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
-            WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
-        )
-        .order_by(WorkflowVersion.version.desc())  # type: ignore[attr-defined]
-    )
-    rows = list(result.all())
-
-    version_reads = []
-    for version, username in rows:
-        version_dict = deserialize_workflow_version(version)
-        version_read = WorkflowVersionRead.model_validate(version_dict)
-        version_read.created_by_username = username
-        version_reads.append(version_read)
-
-    return WorkflowVersionListResponse(resources=version_reads)
 
 
 @router.get(
@@ -429,10 +430,10 @@ async def list_workflow_versions(
 async def get_workflow_version(
     workflow_id: UUID,
     version: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
 ) -> WorkflowVersionRead:
     """Get a specific workflow version."""
-    # Verify workflow exists
+    db = service.session
     workflow_result = await db.exec(
         select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
     )
@@ -444,7 +445,6 @@ async def get_workflow_version(
             detail=WORKFLOW_NOT_FOUND,
         )
 
-    # Get version
     result = await db.exec(
         select(WorkflowVersion).filter(
             WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
@@ -460,8 +460,11 @@ async def get_workflow_version(
             detail=f"Version {version} not found for this workflow",
         )
 
-    # Deserialize workflow_definition from JSON string to dict and return
-    return WorkflowVersionRead.model_validate(deserialize_workflow_version(workflow_version))
+    ever_published, pub_ts = await service.get_publish_context([workflow_version.id])
+
+    return WorkflowVersionRead.model_validate(
+        deserialize_workflow_version(workflow_version, workflow.published_version_id, ever_published, pub_ts)
+    )
 
 
 @router.post(
@@ -480,14 +483,14 @@ async def publish_workflow_version(
     workflow, published_version = await service.publish_workflow_version(
         workflow_id=workflow_id,
         version=version,
-        publish_name=request.publish_name,
+        name=request.name,
         change_description=request.change_description,
         workflow_definition=_definition_to_dict(request.workflow_definition)
         if request.workflow_definition is not None
         else None,
         expected_version=request.expected_version,
     )
-    return _build_workflow_with_version_response(workflow, published_version)
+    return await _build_workflow_with_version_response(workflow, published_version, service)
 
 
 @router.post(
@@ -521,7 +524,7 @@ async def restore_workflow_version(
         workflow_id=workflow_id,
         version=version,
     )
-    return _build_workflow_with_version_response(workflow, restored_version)
+    return await _build_workflow_with_version_response(workflow, restored_version, service)
 
 
 def _sanitize_filename(name: str) -> str:
@@ -577,12 +580,16 @@ async def update_workflow_version_metadata(
     request: WorkflowVersionUpdate,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
 ) -> WorkflowVersionRead:
-    """Update a workflow version's metadata (publish_name, change_description)."""
+    """Update a workflow version's metadata (name, change_description)."""
+    workflow = await service.get_workflow_by_id(workflow_id)
     updated = await service.update_version_metadata(
         workflow_id=workflow_id,
         version=version,
-        publish_name=request.publish_name,
+        name=request.name,
         change_description=request.change_description,
         fields_set=request.model_fields_set,
     )
-    return WorkflowVersionRead.model_validate(deserialize_workflow_version(updated))
+    ever_published, pub_ts = await service.get_publish_context([updated.id])
+    return WorkflowVersionRead.model_validate(
+        deserialize_workflow_version(updated, workflow.published_version_id, ever_published, pub_ts)
+    )

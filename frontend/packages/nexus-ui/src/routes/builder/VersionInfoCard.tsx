@@ -1,4 +1,15 @@
-import { Card, CardBody, CardTitle, Content, ContentVariants, Stack, StackItem, Tooltip } from '@patternfly/react-core'
+import {
+  Card,
+  CardBody,
+  CardTitle,
+  Content,
+  ContentVariants,
+  Flex,
+  FlexItem,
+  Stack,
+  StackItem,
+  Tooltip,
+} from '@patternfly/react-core'
 import { useCallback, useRef, useState } from 'react'
 
 import { formatHistoryDateTime } from './historyDateUtils'
@@ -18,6 +29,8 @@ type VersionInfoCardProps = Readonly<{
   title?: string | null
   date?: string | null
   description?: string | null
+  publishedAt?: string | null
+  unpublishedAt?: string | null
 }>
 
 function useTruncationTooltip() {
@@ -49,27 +62,55 @@ function TruncatedText({
   return isTruncated ? <Tooltip content={text}>{content}</Tooltip> : content
 }
 
-export function VersionInfoCard({ title, date, description }: VersionInfoCardProps) {
+function TimestampRow({ label, value }: Readonly<{ label: string; value: string }>) {
+  return (
+    <StackItem>
+      <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }}>
+        <FlexItem>
+          <Content component={ContentVariants.p} className={styles.timestampLabel}>
+            {label}
+          </Content>
+        </FlexItem>
+        <FlexItem>
+          <Content component={ContentVariants.p}>{value}</Content>
+        </FlexItem>
+      </Flex>
+    </StackItem>
+  )
+}
+
+function TimestampItems({
+  formattedDate,
+  publishedAt,
+  unpublishedAt,
+}: Readonly<{ formattedDate: string | null; publishedAt?: string | null; unpublishedAt?: string | null }>) {
+  return (
+    <>
+      {formattedDate && <TimestampRow label="Created" value={formattedDate} />}
+      {publishedAt && <TimestampRow label="Published" value={formatHistoryDateTime(publishedAt)} />}
+      {unpublishedAt && <TimestampRow label="Unpublished" value={formatHistoryDateTime(unpublishedAt)} />}
+    </>
+  )
+}
+
+export function VersionInfoCard({ title, date, description, publishedAt, unpublishedAt }: VersionInfoCardProps) {
   if (!title && !date && !description) return null
 
   const formattedDate = date ? formatHistoryDateTime(date) : null
   const displayTitle = title ?? formattedDate
-  const displayDate = title ? formattedDate : null
 
   const formattedDescription = description ? formatSourceInfo(description) : null
   const lines = formattedDescription?.includes('\n') ? formattedDescription.split('\n') : null
   const sourceInfo = lines ? lines[0] : null
   const userDescription = lines ? lines.slice(1).join('\n') : formattedDescription
 
+  const showCreatedDate = title ? formattedDate : null
+  const hasBody = showCreatedDate || publishedAt || unpublishedAt || sourceInfo || userDescription
+
   return (
     <Card isCompact className={styles.card}>
       {displayTitle && <TruncatedTitle text={displayTitle} />}
-      {displayDate && (
-        <CardBody>
-          <Content component={ContentVariants.small}>{displayDate}</Content>
-        </CardBody>
-      )}
-      {(sourceInfo ?? userDescription) && (
+      {hasBody && (
         <CardBody>
           <Stack hasGutter>
             {sourceInfo && (
@@ -82,6 +123,7 @@ export function VersionInfoCard({ title, date, description }: VersionInfoCardPro
                 <TruncatedText text={userDescription} variant="p" className={styles.description} />
               </StackItem>
             )}
+            <TimestampItems formattedDate={showCreatedDate} publishedAt={publishedAt} unpublishedAt={unpublishedAt} />
           </Stack>
         </CardBody>
       )}

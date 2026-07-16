@@ -426,10 +426,10 @@ describe('BuilderContent', () => {
       })
     })
 
-    it('shows Published badge when published_version matches current_version', async () => {
+    it('shows Published badge when published_version_id matches current_version', async () => {
       const publishedWorkflow = {
         ...mockWorkflow,
-        published_version: 1,
+        published_version_id: 'ver-1',
         current_version: 1,
       } as unknown as WorkflowWithVersion
       await renderBuilder({ workflow: publishedWorkflow, isNew: false, workflowId: 'workflow-1' })
@@ -438,15 +438,15 @@ describe('BuilderContent', () => {
       })
     })
 
-    it('shows Unpublished changes badge when versions differ', async () => {
-      const changedWorkflow = {
+    it('shows Published badge when published_version_id is set', async () => {
+      const publishedWorkflow = {
         ...mockWorkflow,
-        published_version: 1,
+        published_version_id: 'ver-1',
         current_version: 2,
       } as unknown as WorkflowWithVersion
-      await renderBuilder({ workflow: changedWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: publishedWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
-        expect(screen.getByText('Unpublished changes')).toBeInTheDocument()
+        expect(screen.getByText('Published')).toBeInTheDocument()
       })
     })
 
@@ -2914,7 +2914,7 @@ describe('BuilderContent', () => {
         created_at: '2026-05-19T14:30:00.000Z',
         change_description: 'Second version',
         status: 'draft',
-        publish_name: null,
+        name: null,
         created_by: 'user-1',
         created_by_username: 'sarah.chen',
       },
@@ -2927,7 +2927,7 @@ describe('BuilderContent', () => {
         created_at: '2026-05-18T10:00:00.000Z',
         change_description: 'First version',
         status: 'published',
-        publish_name: null,
+        name: null,
         created_by: 'user-1',
         created_by_username: 'marcus.williams',
       },
@@ -3160,6 +3160,7 @@ describe('BuilderContent', () => {
           {
             code: 'WORKFLOW_VERSION_CONFLICT',
             current_version: 5,
+            current_version_name: null,
             expected_version: 3,
             created_by_username: 'alice',
             created_at: '2026-06-25T12:00:00Z',
@@ -3387,7 +3388,7 @@ describe('BuilderContent', () => {
         created_at: '2026-05-19T14:30:00.000Z',
         change_description: 'Second version',
         status: 'draft',
-        publish_name: null,
+        name: null,
         created_by: 'user-1',
         created_by_username: 'sarah.chen',
       },
@@ -3400,7 +3401,7 @@ describe('BuilderContent', () => {
         created_at: '2026-05-18T10:00:00.000Z',
         change_description: 'First version',
         status: 'published',
-        publish_name: null,
+        name: null,
         created_by: 'user-1',
         created_by_username: 'marcus.williams',
       },
@@ -3482,7 +3483,7 @@ describe('BuilderContent', () => {
         created_at: '2026-05-19T14:30:00.000Z',
         change_description: 'Second version',
         status: 'draft',
-        publish_name: null,
+        name: null,
         created_by: 'user-1',
         created_by_username: 'sarah.chen',
       },

@@ -33,10 +33,11 @@ describe('VersionInfoCard', () => {
     expect(screen.getByText('v2.0 Release')).toBeInTheDocument()
   })
 
-  it('shows formatted date as subtitle when title is provided', () => {
+  it('shows created date in card body when title is provided', () => {
     render(<VersionInfoCard title="v2.0 Release" date="2026-05-19T21:59:00.000Z" />)
 
     expect(screen.getByText('v2.0 Release')).toBeInTheDocument()
+    expect(screen.getByText('Created')).toBeInTheDocument()
     expect(screen.getByText('formatted:2026-05-19T21:59:00.000Z')).toBeInTheDocument()
   })
 
@@ -57,6 +58,7 @@ describe('VersionInfoCard', () => {
     render(<VersionInfoCard title="v2.0 Release" date="2026-05-19T21:59:00.000Z" description="Major update" />)
 
     expect(screen.getByText('v2.0 Release')).toBeInTheDocument()
+    expect(screen.getByText('Created')).toBeInTheDocument()
     expect(screen.getByText('formatted:2026-05-19T21:59:00.000Z')).toBeInTheDocument()
     expect(screen.getByText('Major update')).toBeInTheDocument()
   })

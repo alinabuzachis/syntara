@@ -8,6 +8,7 @@ import { PublishWorkflowButton } from './PublishWorkflowButton'
 const defaultProps = {
   canEdit: true,
   hasNoSteps: false,
+  hasNoChanges: false,
   validationErrorCount: 0,
   isVerifying: false,
   editTooltip: 'You need edit permission',
@@ -130,6 +131,33 @@ describe('PublishWorkflowButton', () => {
     const handleVerify = vi.fn()
 
     render(<PublishWorkflowButton {...defaultProps} handleVerify={handleVerify} canEdit={false} />)
+
+    await user.click(screen.getByRole('button', { name: /Publish workflow/i }))
+
+    expect(handleVerify).not.toHaveBeenCalled()
+  })
+
+  it('button is aria-disabled when hasNoChanges is true', () => {
+    render(<PublishWorkflowButton {...defaultProps} hasNoChanges />)
+
+    expect(screen.getByRole('button', { name: /Publish workflow/i })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows no-changes tooltip when hasNoChanges is true', async () => {
+    const user = userEvent.setup()
+
+    render(<PublishWorkflowButton {...defaultProps} hasNoChanges />)
+
+    await user.hover(screen.getByRole('button', { name: /Publish workflow/i }))
+
+    expect(await screen.findByText('No changes to publish')).toBeInTheDocument()
+  })
+
+  it('does not call handleVerify when hasNoChanges is true', async () => {
+    const user = userEvent.setup()
+    const handleVerify = vi.fn()
+
+    render(<PublishWorkflowButton {...defaultProps} handleVerify={handleVerify} hasNoChanges />)
 
     await user.click(screen.getByRole('button', { name: /Publish workflow/i }))
 

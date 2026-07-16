@@ -391,8 +391,8 @@ __all__ = (
     "WorkflowValidationResult",
     "WorkflowVersionListResponse",
     "WorkflowVersionRead",
+    "WorkflowVersionReadStatus",
     "WorkflowVersionReadWorkflowDefinition",
-    "WorkflowVersionStatus",
     "WorkflowVersionUpdate",
 )
 

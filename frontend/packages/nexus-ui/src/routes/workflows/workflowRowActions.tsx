@@ -55,9 +55,11 @@ export function buildWorkflowRowActions(
     },
     {
       key: 'run',
-      title: <IconLabel icon={<RhUiPlayIcon />}>Run workflow</IconLabel>,
-      isAriaDisabled: !permissions.canRun,
-      tooltipProps: noRun,
+      title: <IconLabel icon={<RhUiPlayIcon />}>Run published version</IconLabel>,
+      isAriaDisabled: !permissions.canRun || !workflow.published_version_id,
+      tooltipProps: !workflow.published_version_id
+        ? { content: 'No published version. Go to the workflow editor to run the current version.' }
+        : noRun,
       onClick: () => callbacks.onRun(workflow),
     },
     {
@@ -87,7 +89,7 @@ export function buildWorkflowRowActions(
       tooltipProps: noUpdate,
       onClick: () => callbacks.onPublish(workflow),
     },
-    ...(workflow.published_version == null
+    ...(workflow.published_version_id == null
       ? []
       : [
           {

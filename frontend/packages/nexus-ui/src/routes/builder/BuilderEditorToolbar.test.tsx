@@ -42,7 +42,7 @@ describe('BuilderEditorToolbar', () => {
     isDirty: true,
     lastSavedAt: '2026-01-15T14:30:00Z',
     isKebabOpen: false,
-    publishedVersion: null as number | null,
+    publishedVersionId: null as string | null,
     currentVersion: 1 as number | undefined,
     isAddNodePanelOpen: false,
     hasNoWorkflowNodes: false,
@@ -325,13 +325,13 @@ describe('BuilderEditorToolbar', () => {
   })
 
   it('renders Unpublish in kebab menu when workflow is published', () => {
-    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} publishedVersion={2} />)
+    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} publishedVersionId="ver-2" />)
 
     expect(screen.getByRole('menuitem', { name: /Unpublish workflow/i })).toBeInTheDocument()
   })
 
   it('does not render Unpublish when workflow is not published', () => {
-    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} publishedVersion={null} />)
+    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} publishedVersionId={null} />)
 
     expect(screen.queryByRole('menuitem', { name: /Unpublish workflow/i })).not.toBeInTheDocument()
   })
@@ -518,7 +518,7 @@ describe('BuilderEditorToolbar', () => {
         <BuilderEditorToolbar
           {...defaultProps}
           isKebabOpen
-          publishedVersion={2}
+          publishedVersionId="ver-2"
           builderPermissions={{ ...defaultProps.builderPermissions, canEdit: false }}
         />
       )
@@ -552,7 +552,7 @@ describe('BuilderEditorToolbar', () => {
         <BuilderEditorToolbar
           {...defaultProps}
           isKebabOpen
-          publishedVersion={2}
+          publishedVersionId="ver-2"
           onUnpublish={onUnpublish}
           builderPermissions={{ ...defaultProps.builderPermissions, canEdit: false }}
         />
@@ -614,7 +614,7 @@ describe('BuilderEditorToolbar', () => {
       <BuilderEditorToolbar
         {...defaultProps}
         isKebabOpen
-        publishedVersion={2}
+        publishedVersionId="ver-2"
         onUnpublish={onUnpublish}
         dispatch={dispatch}
       />
@@ -695,7 +695,7 @@ describe('BuilderEditorToolbar', () => {
     })
 
     it('handles re-render with kebab open', () => {
-      const props = { ...defaultProps, isKebabOpen: true, publishedVersion: 2 }
+      const props = { ...defaultProps, isKebabOpen: true, publishedVersionId: 'ver-2' }
       const { rerender } = render(<BuilderEditorToolbar {...props} />)
       rerender(<BuilderEditorToolbar {...props} />)
 
@@ -774,7 +774,13 @@ describe('BuilderEditorToolbar', () => {
 
     it('hides Run history, Delete, and Unpublish in kebab when workflow is undefined', () => {
       render(
-        <BuilderEditorToolbar {...defaultProps} isNew={false} workflow={undefined} isKebabOpen publishedVersion={2} />
+        <BuilderEditorToolbar
+          {...defaultProps}
+          isNew={false}
+          workflow={undefined}
+          isKebabOpen
+          publishedVersionId="ver-2"
+        />
       )
 
       expect(screen.queryByRole('menuitem', { name: /Run history/i })).not.toBeInTheDocument()
@@ -857,7 +863,7 @@ describe('BuilderEditorToolbar', () => {
           isNew={false}
           workflow={{ id: 'wf-1' }}
           isKebabOpen
-          publishedVersion={3}
+          publishedVersionId="ver-3"
         />
       )
 
@@ -873,7 +879,7 @@ describe('BuilderEditorToolbar', () => {
         <BuilderEditorToolbar
           {...defaultProps}
           isKebabOpen
-          publishedVersion={2}
+          publishedVersionId="ver-2"
           builderPermissions={{ ...defaultProps.builderPermissions, canEdit: false, canDelete: false }}
         />
       )

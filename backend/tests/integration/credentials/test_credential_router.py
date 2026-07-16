@@ -15,6 +15,7 @@ from nexus.core.models import User
 from nexus.credentials.lib.preseed import GA_CREDENTIAL_TYPES, preseed_credential_types
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
 
 
 @pytest.fixture
@@ -449,8 +450,7 @@ class TestCredentialWorkflows:
             name=f"cred-ref-workflow-{uuid4().hex[:8]}",
             description="Workflow referencing a credential",
             created_by=test_user.id,
-            is_enabled=True,
-            published_version=1,
+            is_enabled=False,
             current_version=1,
             project_id=UUID(test_project_id),
         )
@@ -481,6 +481,16 @@ class TestCredentialWorkflows:
             created_by=test_user.id,
         )
         test_db_session.add(version)
+        await test_db_session.flush()
+        workflow.published_version_id = version.id
+        workflow.is_enabled = True
+        publish_event = WorkflowPublishEvent(
+            workflow_id=workflow.id,
+            version_id=version.id,
+            action=PublishAction.PUBLISHED,
+            actor_id=test_user.id,
+        )
+        test_db_session.add(publish_event)
         await test_db_session.commit()
 
         resp = await auth_client.get(f"/api/v1/credentials/{cred_id}/workflows")
@@ -516,8 +526,7 @@ class TestCredentialWorkflows:
             name=f"multi-node-workflow-{uuid4().hex[:8]}",
             description="Workflow with multiple nodes using same credential",
             created_by=test_user.id,
-            is_enabled=True,
-            published_version=1,
+            is_enabled=False,
             current_version=1,
             project_id=UUID(test_project_id),
         )
@@ -568,6 +577,16 @@ class TestCredentialWorkflows:
             created_by=test_user.id,
         )
         test_db_session.add(version)
+        await test_db_session.flush()
+        workflow.published_version_id = version.id
+        workflow.is_enabled = True
+        publish_event = WorkflowPublishEvent(
+            workflow_id=workflow.id,
+            version_id=version.id,
+            action=PublishAction.PUBLISHED,
+            actor_id=test_user.id,
+        )
+        test_db_session.add(publish_event)
         await test_db_session.commit()
 
         resp = await auth_client.get(f"/api/v1/credentials/{cred_id}/workflows")

@@ -9,7 +9,8 @@ from uuid import uuid4
 import pytest
 
 from nexus.workflows.models.workflow import Workflow
-from nexus.workflows.models.workflow_version import WorkflowVersion, WorkflowVersionStatus
+from nexus.workflows.models.workflow_publish_event import WorkflowPublishEvent
+from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.seed_builtin import _BUILTIN_DEFINITIONS, seed_builtin_workflows
 
 if TYPE_CHECKING:
@@ -84,13 +85,16 @@ class TestSeedBuiltinWorkflows:
 
         for wf in workflows_added:
             assert wf.is_builtin is True
-            assert wf.published_version == 1
+            assert wf.published_version_id is not None
             assert wf.project_id == project.id
             assert wf.created_by == admin.id
 
         for ver in versions_added:
             assert ver.version == 1
-            assert ver.status == WorkflowVersionStatus.PUBLISHED
+
+        # Verify WorkflowPublishEvent was added for each workflow
+        publish_events_added = [c[0][0] for c in add_calls if isinstance(c[0][0], WorkflowPublishEvent)]
+        assert len(publish_events_added) == len(_BUILTIN_DEFINITIONS)
 
         created_names = {wf.name for wf in workflows_added}
         expected_names = {d["name"] for d in _BUILTIN_DEFINITIONS}
@@ -109,7 +113,6 @@ class TestSeedBuiltinWorkflows:
 
         cur_ver = MagicMock(spec=WorkflowVersion)
         cur_ver.workflow_definition = first_def
-        cur_ver.status = WorkflowVersionStatus.PUBLISHED
 
         # admin, project, existing workflow, current version, then remaining defs as new
         session = _mock_session(
@@ -135,7 +138,6 @@ class TestSeedBuiltinWorkflows:
 
         cur_ver = MagicMock(spec=WorkflowVersion)
         cur_ver.workflow_definition = old_def
-        cur_ver.status = WorkflowVersionStatus.PUBLISHED
 
         # admin, project, existing workflow, current version, then remaining defs as new
         session = _mock_session(
@@ -144,13 +146,14 @@ class TestSeedBuiltinWorkflows:
 
         await seed_builtin_workflows(session)
 
-        assert cur_ver.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
-
         versions_added = [c[0][0] for c in session.add.call_args_list if isinstance(c[0][0], WorkflowVersion)]
         updated_version = next(v for v in versions_added if v.version == 2)
-        assert updated_version.status == WorkflowVersionStatus.PUBLISHED
         assert updated_version.workflow_definition == first_def
-        assert existing.published_version == 2
+        assert existing.published_version_id == updated_version.id
+
+        # Verify WorkflowPublishEvent was added for the updated version
+        publish_events = [c[0][0] for c in session.add.call_args_list if isinstance(c[0][0], WorkflowPublishEvent)]
+        assert any(e.version_id == updated_version.id for e in publish_events)
 
     @pytest.mark.asyncio
     async def test_failed_seed_continues_to_next(self) -> None:

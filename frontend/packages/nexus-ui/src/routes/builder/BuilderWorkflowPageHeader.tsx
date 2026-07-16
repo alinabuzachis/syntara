@@ -43,7 +43,8 @@ type BuilderToolbarContentProps = Readonly<{
   isDirty: boolean
   lastSavedAt?: string | null
   isKebabOpen: boolean
-  publishedVersion: number | null
+  publishedVersionId: string | null
+  currentVersionId?: string | null
   handleToggleDetails: () => void
   handleSaveWorkflow: () => Promise<boolean>
   onPublishClick: () => void
@@ -87,7 +88,8 @@ function BuilderToolbarContent({
   isDirty,
   lastSavedAt,
   isKebabOpen,
-  publishedVersion,
+  publishedVersionId,
+  currentVersionId,
   handleToggleDetails,
   handleSaveWorkflow,
   onPublishClick,
@@ -173,7 +175,8 @@ function BuilderToolbarContent({
       isDirty={isDirty}
       lastSavedAt={lastSavedAt}
       isKebabOpen={isKebabOpen}
-      publishedVersion={publishedVersion}
+      publishedVersionId={publishedVersionId}
+      currentVersionId={currentVersionId}
       dispatch={dispatch}
       markDirty={markDirty}
       handleToggleHistory={handleToggleHistory}
@@ -205,8 +208,8 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   isDirty: boolean
   lastSavedAt?: string | null
   isKebabOpen: boolean
-  publishedVersion: number | null
-  currentVersion: number | undefined
+  publishedVersionId: string | null
+  currentVersionId?: string | null
   isPublishing: boolean
   isLiveRunActive?: boolean
   executionId?: string | null
@@ -251,8 +254,8 @@ export function BuilderWorkflowPageHeader({
   isDirty,
   lastSavedAt,
   isKebabOpen,
-  publishedVersion,
-  currentVersion,
+  publishedVersionId,
+  currentVersionId,
   isPublishing,
   isLiveRunActive,
   executionId,
@@ -342,7 +345,10 @@ export function BuilderWorkflowPageHeader({
             )}
             {!isNew && !isViewingVersion && (
               <FlexItem style={{ flexShrink: 0 }}>
-                <WorkflowPublishStatusBadge publishedVersion={publishedVersion} currentVersion={currentVersion} />
+                <WorkflowPublishStatusBadge
+                  publishedVersionId={publishedVersionId}
+                  currentVersionId={currentVersionId}
+                />
               </FlexItem>
             )}
             {(builderPermissions.canEdit || isBuiltin) && !isViewingVersion && (
@@ -381,7 +387,8 @@ export function BuilderWorkflowPageHeader({
             isDirty={isDirty}
             lastSavedAt={lastSavedAt}
             isKebabOpen={isKebabOpen}
-            publishedVersion={publishedVersion}
+            publishedVersionId={publishedVersionId}
+            currentVersionId={currentVersionId}
             handleToggleDetails={handleToggleDetails}
             handleSaveWorkflow={handleSaveWorkflow}
             onPublishClick={() => publishDialog.open(true)}

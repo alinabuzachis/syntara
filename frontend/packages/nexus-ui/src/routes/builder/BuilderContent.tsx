@@ -240,7 +240,7 @@ export function BuilderContent(props: BuilderContentProps) {
     currentVersion,
     workflowName,
     workflowDescription,
-    { expectedVersion: loadedVersion, onConflict: handleConflict('publish') }
+    { expectedVersion: loadedVersion, onConflict: handleConflict('publish'), onVersionUpdated }
   )
 
   const mostRecentExecution = mostRecentExecutionQuery.data
@@ -400,6 +400,7 @@ export function BuilderContent(props: BuilderContentProps) {
     onClearExecutionFilters: clearExecutionFilters,
     executedVersionNumbers: executionsByVersion,
     onDuplicateVersion: (v: WorkflowVersion) => detachPromise(handleDuplicateVersion(v)),
+    onVersionUpdated,
   })
 
   const {
@@ -480,8 +481,8 @@ export function BuilderContent(props: BuilderContentProps) {
                     isDirty={isDirty}
                     lastSavedAt={workflow?.updated_at}
                     isKebabOpen={isKebabOpen}
-                    publishedVersion={workflow?.published_version ?? null}
-                    currentVersion={currentVersion}
+                    publishedVersionId={workflow?.published_version_id ?? null}
+                    currentVersionId={workflow?.version?.id}
                     isPublishing={isPublishing}
                     ProjectSelector={ProjectSelector}
                     dispatch={dispatch}
@@ -540,9 +541,11 @@ export function BuilderContent(props: BuilderContentProps) {
                         <StackItem isFilled className={styles.filledMinHeight}>
                           <NxPanel hasNoPadding isFullHeight className={styles.canvasPanel}>
                             <VersionInfoCard
-                              title={versionPanel.viewedVersionPublishName}
+                              title={versionPanel.viewedVersionName}
                               date={versionPanel.viewedVersionDate}
                               description={versionPanel.viewedVersionDescription}
+                              publishedAt={versionPanel.viewedVersionPublishedAt}
+                              unpublishedAt={versionPanel.viewedVersionUnpublishedAt}
                             />
                             <BuilderFlow
                               workflowId={workflowId}

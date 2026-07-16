@@ -73,8 +73,8 @@ describe('BuilderWorkflowPageHeader', () => {
     isDirty: true,
     lastSavedAt: '2026-01-15T14:30:00Z',
     isKebabOpen: false,
-    publishedVersion: null,
-    currentVersion: undefined,
+    publishedVersionId: null as string | null,
+
     isPublishing: false,
     isAddNodePanelOpen: false,
     hasNoWorkflowNodes: false,
@@ -168,13 +168,7 @@ describe('BuilderWorkflowPageHeader', () => {
 
   it('shows status badge for existing workflows', () => {
     render(
-      <BuilderWorkflowPageHeader
-        {...baseProps}
-        isNew={false}
-        workflow={{ id: 'wf-1' }}
-        publishedVersion={null}
-        currentVersion={1}
-      />
+      <BuilderWorkflowPageHeader {...baseProps} isNew={false} workflow={{ id: 'wf-1' }} publishedVersionId={null} />
     )
 
     expect(screen.getByText('Draft')).toBeInTheDocument()
@@ -182,30 +176,18 @@ describe('BuilderWorkflowPageHeader', () => {
 
   it('shows Published badge when versions match', () => {
     render(
-      <BuilderWorkflowPageHeader
-        {...baseProps}
-        isNew={false}
-        workflow={{ id: 'wf-1' }}
-        publishedVersion={2}
-        currentVersion={2}
-      />
+      <BuilderWorkflowPageHeader {...baseProps} isNew={false} workflow={{ id: 'wf-1' }} publishedVersionId="ver-2" />
     )
 
     expect(screen.getByText('Published')).toBeInTheDocument()
   })
 
-  it('shows Unpublished changes badge when versions differ', () => {
+  it('shows Published badge for any non-null publishedVersionId', () => {
     render(
-      <BuilderWorkflowPageHeader
-        {...baseProps}
-        isNew={false}
-        workflow={{ id: 'wf-1' }}
-        publishedVersion={1}
-        currentVersion={2}
-      />
+      <BuilderWorkflowPageHeader {...baseProps} isNew={false} workflow={{ id: 'wf-1' }} publishedVersionId="ver-1" />
     )
 
-    expect(screen.getByText('Unpublished changes')).toBeInTheDocument()
+    expect(screen.getByText('Published')).toBeInTheDocument()
   })
 
   it('updates workflow details via popover and marks dirty', () => {
@@ -556,8 +538,7 @@ describe('BuilderWorkflowPageHeader', () => {
         isNew={false}
         isDirty={false}
         workflow={{ id: 'wf-1' }}
-        publishedVersion={null}
-        currentVersion={1}
+        publishedVersionId={null}
         onPublish={onPublish}
       />
     )
@@ -686,8 +667,7 @@ describe('BuilderWorkflowPageHeader', () => {
         {...baseProps}
         isNew={false}
         workflow={{ id: 'wf-1' }}
-        publishedVersion={2}
-        currentVersion={3}
+        publishedVersionId="ver-2"
         isViewingVersion
         onExitVersionView={vi.fn()}
       />

@@ -2,23 +2,31 @@ import { NxLabel } from './labels/NxLabel'
 import { derivePublishStatus, type PublishDisplayStatus } from './publishStatusUtils'
 
 type BadgeConfig = {
-  color: 'green' | 'yellow' | 'grey'
+  color: 'green' | 'grey' | 'yellow'
   label: string
 }
 
 const publishBadgeConfig: Record<PublishDisplayStatus, BadgeConfig> = {
   published: { color: 'green', label: 'Published' },
-  unpublished_changes: { color: 'yellow', label: 'Unpublished changes' },
   unpublished: { color: 'grey', label: 'Draft' },
+  unpublished_changes: { color: 'yellow', label: 'Unpublished changes' },
 }
 
 type WorkflowPublishStatusBadgeProps = Readonly<{
-  publishedVersion: number | null | undefined
-  currentVersion: number | undefined
+  publishedVersionId: string | null | undefined
+  currentVersionId?: string | null
+  hasUnpublishedChanges?: boolean
 }>
 
-export function WorkflowPublishStatusBadge({ publishedVersion, currentVersion }: WorkflowPublishStatusBadgeProps) {
-  const displayStatus = derivePublishStatus(publishedVersion, currentVersion)
+export function WorkflowPublishStatusBadge({
+  publishedVersionId,
+  currentVersionId,
+  hasUnpublishedChanges,
+}: WorkflowPublishStatusBadgeProps) {
+  const displayStatus =
+    hasUnpublishedChanges && publishedVersionId != null
+      ? 'unpublished_changes'
+      : derivePublishStatus(publishedVersionId, currentVersionId)
   const { color, label } = publishBadgeConfig[displayStatus]
 
   return <NxLabel color={color}>{label}</NxLabel>

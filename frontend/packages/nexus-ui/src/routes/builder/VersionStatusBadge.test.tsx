@@ -4,8 +4,13 @@ import { axe } from 'vitest-axe'
 import { VersionStatusBadge, type VersionStatus } from './VersionStatusBadge'
 
 describe('VersionStatusBadge', () => {
+  it('renders nothing for draft status', () => {
+    const { container } = render(<VersionStatusBadge status="draft" />)
+
+    expect(container.innerHTML).toBe('')
+  })
+
   it.each<{ status: VersionStatus; label: string }>([
-    { status: 'draft', label: 'Draft' },
     { status: 'published', label: 'Published' },
     { status: 'previously_published', label: 'Prev. published' },
   ])('renders "$label" for status "$status"', ({ status, label }) => {

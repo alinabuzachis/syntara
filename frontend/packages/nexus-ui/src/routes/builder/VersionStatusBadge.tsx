@@ -10,6 +10,7 @@ const statusConfig: Record<VersionStatus, { label: string; color: 'grey' | 'gree
 }
 
 export function VersionStatusBadge({ status }: Readonly<{ status: VersionStatus }>) {
+  if (status === 'draft') return null
   const { label, color } = statusConfig[status]
   return <NxLabel color={color}>{label}</NxLabel>
 }

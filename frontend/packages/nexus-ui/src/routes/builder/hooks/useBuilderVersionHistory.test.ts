@@ -42,7 +42,7 @@ vi.mock('../../../client', () => ({
         ? {
             created_at: '2026-05-19T14:30:00.000Z',
             change_description: 'Bug fix',
-            publish_name: 'Release 1.0',
+            name: 'Release 1.0',
             workflow_definition: {
               schema_version: '2.0.0',
               name: 'test',
@@ -161,7 +161,7 @@ describe('useBuilderVersionHistory', () => {
       wrapper: makeWrapper(queryClient),
     })
 
-    expect(result.current.viewedVersionPublishName).toBe('Release 1.0')
+    expect(result.current.viewedVersionName).toBe('Release 1.0')
   })
 
   it('loads version definition into store when viewing a version', () => {

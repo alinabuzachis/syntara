@@ -1,14 +1,14 @@
-export type PublishDisplayStatus = 'published' | 'unpublished_changes' | 'unpublished'
+export type PublishDisplayStatus = 'published' | 'unpublished' | 'unpublished_changes'
 
 export function derivePublishStatus(
-  publishedVersion: number | null | undefined,
-  currentVersion: number | undefined
+  publishedVersionId: string | null | undefined,
+  currentVersionId?: string | null
 ): PublishDisplayStatus {
-  if (publishedVersion == null) {
+  if (publishedVersionId == null) {
     return 'unpublished'
   }
-  if (currentVersion != null && publishedVersion === currentVersion) {
-    return 'published'
+  if (currentVersionId != null && publishedVersionId !== currentVersionId) {
+    return 'unpublished_changes'
   }
-  return 'unpublished_changes'
+  return 'published'
 }

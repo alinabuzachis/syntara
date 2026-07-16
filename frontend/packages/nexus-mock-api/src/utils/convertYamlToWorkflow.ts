@@ -202,7 +202,7 @@ export function convertYamlToWorkflow(
     created_by: createdBy,
     labels: {},
     current_version: 1,
-    published_version: null,
+    published_version_id: null,
     version: {
       workflow_definition: workflowDefinition,
       version: 1,

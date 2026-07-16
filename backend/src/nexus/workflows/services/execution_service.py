@@ -89,14 +89,14 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
         """Convert Execution to ExecutionRead format."""
         wv = resource.workflow_version
         version_number = getattr(wv, "version", None) if wv else None
-        publish_name = getattr(wv, "publish_name", None) if wv else None
+        version_name = getattr(wv, "name", None) if wv else None
         version_created_at = getattr(wv, "created_at", None) if wv else None
         result = ExecutionRead(
             id=resource.id,
             workflow_id=resource.workflow_id,
             workflow_version_id=resource.workflow_version_id,
             workflow_version=version_number,
-            workflow_version_publish_name=publish_name,
+            workflow_version_name=version_name,
             workflow_version_created_at=version_created_at,
             project_id=resource.project_id,
             temporal_workflow_id=resource.temporal_workflow_id,
@@ -289,16 +289,16 @@ class ExecutionService(BaseService):
         component = ComponentLabel.EXECUTION_SERVICE
 
         # Step 1: Validate workflow exists and resolve version
-        version_field = Workflow.published_version if use_published else Workflow.current_version
+        if use_published:
+            version_join = WorkflowVersion.id == Workflow.published_version_id
+        else:
+            version_join = and_(  # type: ignore[assignment]
+                WorkflowVersion.workflow_id == Workflow.id,
+                WorkflowVersion.version == Workflow.current_version,
+            )
         result = await self.session.exec(
             select(Workflow, WorkflowVersion)
-            .join(
-                WorkflowVersion,
-                and_(
-                    WorkflowVersion.workflow_id == Workflow.id,
-                    WorkflowVersion.version == version_field,
-                ),
-            )
+            .join(WorkflowVersion, version_join)  # type: ignore[arg-type]
             .where(Workflow.id == workflow_id)
             .where(Workflow.deleted_at.is_(None))  # type: ignore[union-attr]
         )
@@ -365,7 +365,7 @@ class ExecutionService(BaseService):
             workflow_name=workflow.name,
             workflow_id=workflow.id,
             workflow_version=workflow_version.version,
-            workflow_published=workflow.published_version is not None,
+            workflow_published=workflow.published_version_id is not None,
             workflow_author=workflow_author,
             project_id=workflow.project_id,
             execution_id=pre_generated_execution_id,
@@ -692,7 +692,7 @@ class ExecutionService(BaseService):
             workflow_name=workflow.name,
             workflow_id=workflow.id,
             workflow_version=workflow_version.version,
-            workflow_published=workflow.published_version is not None,
+            workflow_published=workflow.published_version_id is not None,
             workflow_author=workflow_author,
             project_id=workflow.project_id,
             execution_id=pre_generated_execution_id,

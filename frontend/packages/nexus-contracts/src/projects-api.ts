@@ -1101,8 +1101,10 @@ export interface components {
        * Format: uuid
        */
       project_id: string
-      /** Published Version */
-      published_version?: number | null
+      /** Published Version Id */
+      published_version_id?: string | null
+      /** Published Version Number */
+      published_version_number?: number | null
       /**
        * Created At
        * Format: date-time

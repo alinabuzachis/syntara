@@ -38,6 +38,7 @@ from .query_params import (
     ExecutionListParams,
     ExecutionStreamingQueryParams,
     WorkflowListParams,
+    WorkflowVersionListParams,
 )
 from .signal import ActivitySignalPayload, SignalResponse
 from .validation_finding import (
@@ -62,6 +63,7 @@ from .workflow import (
     WorkflowUpdate,
 )
 from .workflow_definition import WorkflowDefinition
+from .workflow_publish_event import PublishAction, WorkflowPublishEvent
 from .workflow_validation_result import (
     ValidationIssue,
     WorkflowValidateRequest,
@@ -73,7 +75,6 @@ from .workflow_version import (
     WorkflowVersion,
     WorkflowVersionListResponse,
     WorkflowVersionRead,
-    WorkflowVersionStatus,
     WorkflowVersionUpdate,
 )
 
@@ -96,6 +97,7 @@ __all__ = [
     "ExecutionStatus",
     "ExecutionStreamingQueryParams",
     "JsonPatchOperation",
+    "PublishAction",
     "PublishVersionRequest",
     "SignalResponse",
     "ValidationCategory",
@@ -110,6 +112,7 @@ __all__ = [
     "WorkflowDefinition",
     "WorkflowListParams",
     "WorkflowListResponse",
+    "WorkflowPublishEvent",
     "WorkflowRead",
     "WorkflowReadWithVersion",
     "WorkflowUpdate",
@@ -117,8 +120,8 @@ __all__ = [
     "WorkflowValidationProblemDetail",
     "WorkflowValidationResult",
     "WorkflowVersion",
+    "WorkflowVersionListParams",
     "WorkflowVersionListResponse",
     "WorkflowVersionRead",
-    "WorkflowVersionStatus",
     "WorkflowVersionUpdate",
 ]

@@ -8,15 +8,46 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
 from ...models.workflow_version_list_response import WorkflowVersionListResponse
-from ...types import Response
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     workflow_id: UUID,
+    *,
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
+    additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+    if isinstance(additional_params, dict):
+        params = additional_params
+
+    params["limit"] = limit
+
+    json_cursor: None | str | Unset
+    if isinstance(cursor, Unset):
+        json_cursor = UNSET
+    else:
+        json_cursor = cursor
+    params["cursor"] = json_cursor
+
+    json_sort: None | str | Unset
+    if isinstance(sort, Unset):
+        json_sort = UNSET
+    else:
+        json_sort = sort
+    params["sort"] = json_sort
+
+    params["include_total"] = include_total
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": f"/workflows/{workflow_id}/versions",
+        "params": params,
     }
 
     return _kwargs
@@ -93,13 +124,22 @@ def sync_detailed(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
+    additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | WorkflowVersionListResponse]:
     """List Workflow Versions
 
-     List all versions for a workflow.
+     List versions for a workflow with cursor-based pagination.
 
     Args:
         workflow_id (UUID):
+        limit (int | Unset):  Default: 20.
+        cursor (None | str | Unset):
+        sort (None | str | Unset):
+        include_total (bool | Unset):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -111,6 +151,11 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
+        limit=limit,
+        cursor=cursor,
+        sort=sort,
+        include_total=include_total,
+        additional_params=additional_params,
     )
 
     response = client.get_httpx_client().request(
@@ -124,13 +169,21 @@ def sync(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
 ) -> ErrorData | WorkflowVersionListResponse | None:
     """List Workflow Versions
 
-     List all versions for a workflow.
+     List versions for a workflow with cursor-based pagination.
 
     Args:
         workflow_id (UUID):
+        limit (int | Unset):  Default: 20.
+        cursor (None | str | Unset):
+        sort (None | str | Unset):
+        include_total (bool | Unset):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -143,6 +196,10 @@ def sync(
     return sync_detailed(
         workflow_id=workflow_id,
         client=client,
+        limit=limit,
+        cursor=cursor,
+        sort=sort,
+        include_total=include_total,
     ).parsed
 
 
@@ -150,13 +207,21 @@ async def asyncio_detailed(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
 ) -> Response[ErrorData | WorkflowVersionListResponse]:
     """List Workflow Versions
 
-     List all versions for a workflow.
+     List versions for a workflow with cursor-based pagination.
 
     Args:
         workflow_id (UUID):
+        limit (int | Unset):  Default: 20.
+        cursor (None | str | Unset):
+        sort (None | str | Unset):
+        include_total (bool | Unset):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -168,6 +233,10 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
+        limit=limit,
+        cursor=cursor,
+        sort=sort,
+        include_total=include_total,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -179,13 +248,21 @@ async def asyncio(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
 ) -> ErrorData | WorkflowVersionListResponse | None:
     """List Workflow Versions
 
-     List all versions for a workflow.
+     List versions for a workflow with cursor-based pagination.
 
     Args:
         workflow_id (UUID):
+        limit (int | Unset):  Default: 20.
+        cursor (None | str | Unset):
+        sort (None | str | Unset):
+        include_total (bool | Unset):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -199,5 +276,9 @@ async def asyncio(
         await asyncio_detailed(
             workflow_id=workflow_id,
             client=client,
+            limit=limit,
+            cursor=cursor,
+            sort=sort,
+            include_total=include_total,
         )
     ).parsed

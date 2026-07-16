@@ -12,7 +12,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.workflows.models import Workflow, WorkflowVersion, WorkflowVersionStatus
+from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 
@@ -113,8 +114,7 @@ class WorkflowFactory:
         wf = Workflow(
             name=name,
             created_by=self.user.id,
-            is_enabled=is_enabled,
-            published_version=1 if is_enabled else None,
+            is_enabled=False,
             current_version=1,
             project_id=self.project_id,
         )
@@ -125,10 +125,19 @@ class WorkflowFactory:
             schema_version="2.0.0",
             workflow_definition=create_minimal_workflow_definition(name=name),
             created_by=self.user.id,
-            status=WorkflowVersionStatus.PUBLISHED if is_enabled else WorkflowVersionStatus.DRAFT,
         )
         self.session.add(version)
         await self.session.flush()
+        if is_enabled:
+            wf.published_version_id = version.id
+            wf.is_enabled = True
+            publish_event = WorkflowPublishEvent(
+                workflow_id=wf.id,
+                version_id=version.id,
+                action=PublishAction.PUBLISHED,
+                actor_id=self.user.id,
+            )
+            self.session.add(publish_event)
         return wf, version
 
     async def create_many(

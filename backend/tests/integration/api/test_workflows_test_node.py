@@ -15,6 +15,7 @@ import pytest
 import pytest_asyncio
 
 from nexus.workflows.models.workflow import Workflow
+from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
 from nexus.workflows.models.workflow_version import WorkflowVersion
 
 if TYPE_CHECKING:
@@ -57,15 +58,13 @@ async def multi_node_workflow(test_db_session: AsyncSession, test_user: User) ->
 
     workflow = Workflow(
         name=f"multi-node-test-{uuid.uuid4().hex[:8]}",
-        is_enabled=True,
-        published_version=1,
+        is_enabled=False,
         created_by=test_user.id,
         updated_by=test_user.id,
         current_version=1,
         project_id=project.id,
     )
     test_db_session.add(workflow)
-    await test_db_session.flush()
 
     version = WorkflowVersion(
         workflow_id=workflow.id,
@@ -75,6 +74,16 @@ async def multi_node_workflow(test_db_session: AsyncSession, test_user: User) ->
         created_by=test_user.id,
     )
     test_db_session.add(version)
+    await test_db_session.flush()
+    workflow.published_version_id = version.id
+    workflow.is_enabled = True
+    publish_event = WorkflowPublishEvent(
+        workflow_id=workflow.id,
+        version_id=version.id,
+        action=PublishAction.PUBLISHED,
+        actor_id=test_user.id,
+    )
+    test_db_session.add(publish_event)
     await test_db_session.commit()
     await test_db_session.refresh(workflow)
     return workflow

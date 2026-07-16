@@ -35,6 +35,7 @@ function getDirtyWorkflowDefinition(
 type UsePublishWorkflowOptions = {
   expectedVersion?: number | null
   onConflict?: (info: ConflictInfo) => void
+  onVersionUpdated?: (version: number) => void
 }
 
 export function usePublishWorkflow(
@@ -68,16 +69,19 @@ export function usePublishWorkflow(
         {
           params: { path: { workflow_id: workflowId, version: versionToPublish } },
           body: {
-            publish_name: publishName ?? null,
+            name: publishName ?? null,
             change_description: description ?? null,
             ...(workflowDefinition ? { workflow_definition: workflowDefinition } : {}),
             ...(expectedVersion != null ? { expected_version: expectedVersion } : {}),
-          } as { publish_name: string | null; change_description: string | null },
+          } as { name: string | null; change_description: string | null },
         },
         {
-          onSuccess: () => {
+          onSuccess: (data) => {
             showSuccess({ title: 'Workflow published successfully' })
             if (workflowDefinition) useWorkflowStore.getState().markClean()
+            if (data?.current_version != null) {
+              options?.onVersionUpdated?.(data.current_version)
+            }
             detachPromise(queryClient.invalidateQueries({ predicate: isWorkflowQuery }))
           },
           onError: (error: unknown) => {

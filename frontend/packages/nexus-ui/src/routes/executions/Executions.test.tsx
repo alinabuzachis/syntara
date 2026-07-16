@@ -230,7 +230,7 @@ describe('Executions Component', () => {
       {
         ...mockExecutions[0],
         workflow_version: 3,
-        workflow_version_publish_name: 'prod release',
+        workflow_version_name: 'prod release',
         workflow_version_created_at: '2025-01-01T09:00:00Z',
       },
     ])
@@ -245,7 +245,7 @@ describe('Executions Component', () => {
       {
         ...mockExecutions[0],
         workflow_version: 2,
-        workflow_version_publish_name: null,
+        workflow_version_name: null,
         workflow_version_created_at: '2025-06-15T14:30:00Z',
       },
     ])

@@ -393,7 +393,7 @@ describe('ExecutionHistoryRow', () => {
     renderRow({
       ...baseExecution,
       workflow_version: 3,
-      workflow_version_publish_name: 'prod release',
+      workflow_version_name: 'prod release',
     })
     expect(screen.getByText(/prod release/)).toBeInTheDocument()
   })
@@ -402,7 +402,7 @@ describe('ExecutionHistoryRow', () => {
     renderRow({
       ...baseExecution,
       workflow_version: 2,
-      workflow_version_publish_name: null,
+      workflow_version_name: null,
       workflow_version_created_at: '2024-06-15T14:30:00Z',
     })
     expect(screen.getByText(/Version:/)).toBeInTheDocument()
@@ -412,7 +412,7 @@ describe('ExecutionHistoryRow', () => {
     renderRow({
       ...baseExecution,
       workflow_version: 5,
-      workflow_version_publish_name: 'v5 release',
+      workflow_version_name: 'v5 release',
     })
     const link = screen.getByRole('link', { name: /v5 release/ })
     expect(link).toHaveAttribute('href', '/workflow-builder/wf-1?version=5')
