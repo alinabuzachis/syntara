@@ -19,15 +19,19 @@ vi.mock('../../workflows/hooks/useExecutionWebSocket', () => ({
 
 vi.mock('../../workflows/stores/useExecutionStore', () => {
   const mockSetActivityExecutions = vi.fn()
+  const mockActivityStates = new Map()
   return {
     useExecutionStore: Object.assign(vi.fn(), {
-      getState: () => ({ setActivityExecutions: mockSetActivityExecutions }),
+      getState: () => ({ setActivityExecutions: mockSetActivityExecutions, activityStates: mockActivityStates }),
       __mockSet: mockSetActivityExecutions,
+      __mockActivityStates: mockActivityStates,
     }),
   }
 })
 
 const mockSetActivityExecutions = (useExecutionStore as unknown as { __mockSet: ReturnType<typeof vi.fn> }).__mockSet
+const mockActivityStates = (useExecutionStore as unknown as { __mockActivityStates: Map<string, unknown> })
+  .__mockActivityStates
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -105,6 +109,7 @@ describe('useExecutionStreaming', () => {
 describe('useSyncActivityStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockActivityStates.clear()
   })
 
   it('sets activity executions when activities are provided', () => {
@@ -179,6 +184,72 @@ describe('useSyncActivityStore', () => {
     expect(mockSetActivityExecutions).toHaveBeenCalledWith(
       expect.arrayContaining([expect.objectContaining({ id: 'node-no-name', activity_name: 'node-no-name' })])
     )
+  })
+
+  it('creates pending activities from workflow definition when paused with no activities', () => {
+    const execution = {
+      ...baseExecution,
+      status: 'paused' as const,
+      workflow_definition: {
+        schema_version: '2.0.0' as const,
+        name: 'test',
+        triggers: [],
+        edges: [],
+        nodes: [
+          { id: 'node-1', name: 'Approval' },
+          { id: 'node-2', name: 'Wait' },
+        ],
+      },
+    }
+
+    renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
+
+    expect(mockSetActivityExecutions).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'node-1', activity_name: 'Approval', status: 'pending' }),
+        expect.objectContaining({ id: 'node-2', activity_name: 'Wait', status: 'pending' }),
+      ])
+    )
+  })
+
+  it('does not overwrite store when activityStates already populated (paused)', () => {
+    mockActivityStates.set('node-1', { status: 'waiting' })
+
+    const execution = {
+      ...baseExecution,
+      status: 'paused' as const,
+      workflow_definition: {
+        schema_version: '2.0.0' as const,
+        name: 'test',
+        triggers: [],
+        edges: [],
+        nodes: [{ id: 'node-1', name: 'Approval' }],
+      },
+    }
+
+    renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
+
+    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
+  })
+
+  it('does not overwrite store when activityStates already populated (running)', () => {
+    mockActivityStates.set('node-1', { status: 'running' })
+
+    const execution = {
+      ...baseExecution,
+      status: 'running' as const,
+      workflow_definition: {
+        schema_version: '2.0.0' as const,
+        name: 'test',
+        triggers: [],
+        edges: [],
+        nodes: [{ id: 'node-1', name: 'Task A' }],
+      },
+    }
+
+    renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
+
+    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
   })
 
   it('clears activities when execution is undefined', () => {
