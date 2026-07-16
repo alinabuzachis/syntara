@@ -24,7 +24,10 @@ test.describe('Configuration Navigation & Tabs', () => {
     await expect(app.getByRole('menuitem', { name: 'Credentials', exact: true })).toBeVisible()
   })
 
-  test.skip('navigates to Credentials page from Configuration menu', async ({ app }) => {
+  test('navigates to Credentials page from Configuration menu', async ({ app }) => {
+    await app.goto(toAppUrl('/configuration/integrations'))
+    await expect(app.getByRole('heading', { name: 'Integrations', level: 1 })).toBeVisible()
+
     // Act - Open Configuration dropdown and click Credentials
     await navigateViaConfigMenu(app, 'Credentials')
 

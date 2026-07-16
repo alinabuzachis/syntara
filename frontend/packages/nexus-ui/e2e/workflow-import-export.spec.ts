@@ -1,22 +1,3 @@
-/**
- * E2E Tests: Workflow Import/Export (AAP-76711)
- *
- * Comprehensive test coverage for workflow import/export flows, validating:
- * - AC #1: Round-trip preservation (export -> import -> verify equivalence)
- * - AC #2: Import from workflows list page
- * - AC #3: Export from workflows list page
- * - AC #4a/4b: Builder toolbar kebab menu import/export
- * - AC #5: Node position round-trip (AAP-74997)
- * - AC #6: Credential reference round-trip
- * - AC #7: Malformed JSON import rejected with inline error (UI-35)
- * - AC #8: Missing required fields rejected (UI-35)
- * - AC #9: Invalid node structure rejected (UI-35)
- * - AC #10: Unsupported schema version rejected (UI-35)
- * - AC #11: Clear error and retry with valid file (UI-35)
- *
- * Related issues: AAP-73588, AAP-74997, AAP-64527
- */
-
 import fs from 'node:fs/promises'
 
 import type { V2WorkflowDefinition } from '@ansible/nexus-contracts'
@@ -115,7 +96,7 @@ async function importFromWorkflowsList(
 }
 
 test.describe('Workflow Import/Export', () => {
-  test.skip('AC #1: exports and re-imports a workflow with equivalent structure', async ({ app }) => {
+  test('exports and re-imports a workflow with equivalent structure', async ({ app }) => {
     const workflowName = buildUniqueName('roundtrip')
     const reimportedName = `${workflowName}-reimported`
 
@@ -129,7 +110,7 @@ test.describe('Workflow Import/Export', () => {
 
       await importFromWorkflowsList(app, exportedDef, reimportedName)
 
-      await app.getByRole('button', { name: reimportedName, exact: true }).click()
+      await app.getByRole('link', { name: reimportedName, exact: true }).click()
       await expect(app.getByPlaceholder('Workflow name')).toHaveValue(reimportedName)
 
       const reexportedDef = await downloadAndParseWorkflow(app, async () => {
@@ -146,8 +127,7 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  // Skipped: flaky "Import workflow" button click timeout is blocking the merge queue
-  test.skip('AC #2: imports a workflow from the workflows list page', async ({ app }) => {
+  test('imports a workflow from the workflows list page', async ({ app }) => {
     const workflowName = buildUniqueName('import-list')
     const workflowDef = {
       triggers: [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -166,7 +146,7 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test('AC #3: exports a workflow from the workflows list page', async ({ app }) => {
+  test('exports a workflow from the workflows list page', async ({ app }) => {
     const workflowName = buildUniqueName('export-list')
     try {
       await createBasicWorkflow(app, workflowName, 'Action 1')
@@ -182,7 +162,7 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test('AC #4a: imports a workflow from the builder toolbar kebab menu', async ({ app }) => {
+  test('imports a workflow from the builder toolbar kebab menu', async ({ app }) => {
     const workflowName = buildUniqueName('import-builder')
     const workflowDef = {
       triggers: [{ type: 'manual_trigger', name: 'Imported Trigger' }],
@@ -215,7 +195,7 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test.skip('AC #4b: exports a workflow from the builder toolbar kebab menu', async ({ app }) => {
+  test.skip('exports a workflow from the builder toolbar kebab menu', async ({ app }) => {
     const workflowName = buildUniqueName('export-builder')
     try {
       await createBasicWorkflow(app, workflowName, 'Builder Action')
@@ -233,7 +213,7 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test('AC #5: preserves node positions during export and import', async ({ app }) => {
+  test('preserves node positions during export and import', async ({ app }) => {
     const workflowName = buildUniqueName('positions')
     const workflowWithPositions = {
       triggers: [
@@ -279,7 +259,7 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test.skip('AC #6: preserves credential references during export and import', async ({ app }) => {
+  test('preserves credential references during export and import', async ({ app }) => {
     const workflowName = buildUniqueName('cred-roundtrip')
     const reimportedName = `${workflowName}-reimported`
     const credName = buildUniqueName('e2e-cred')
@@ -321,7 +301,7 @@ test.describe('Workflow Import/Export', () => {
 
       await importFromWorkflowsList(app, exportedDef, reimportedName)
 
-      await app.getByRole('button', { name: reimportedName, exact: true }).click()
+      await app.getByRole('link', { name: reimportedName, exact: true }).click()
       const reloadedCredentialsLoaded = app.waitForResponse(isCredentialsResponse)
       await app.getByText('API Call').click()
       await reloadedCredentialsLoaded
@@ -335,16 +315,18 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test.skip('AC #7: rejects malformed JSON import with inline error (UI-35)', async ({ app }) => {
+  test('rejects malformed JSON import with inline error', async ({ app }) => {
     const seedName = buildUniqueName('seed-malformed')
     await createBasicWorkflow(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))
+      await selectFirstProject(app)
       await app.getByPlaceholder('Filter by name').fill(seedName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+      await expect(app.getByRole('link', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
 
+      await waitForUIReady(app)
       await app.getByRole('button', { name: 'Import workflow' }).click()
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -365,16 +347,18 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test.skip('AC #8: rejects import with missing required fields (UI-35)', async ({ app }) => {
+  test('rejects import with missing required fields', async ({ app }) => {
     const seedName = buildUniqueName('seed-missing')
     await createBasicWorkflow(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))
+      await selectFirstProject(app)
       await app.getByPlaceholder('Filter by name').fill(seedName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+      await expect(app.getByRole('link', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
 
+      await waitForUIReady(app)
       await app.getByRole('button', { name: 'Import workflow' }).click()
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -397,16 +381,18 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test.skip('AC #9: rejects import with invalid node structure (UI-35)', async ({ app }) => {
+  test('rejects import with invalid node structure', async ({ app }) => {
     const seedName = buildUniqueName('seed-invalid-node')
     await createBasicWorkflow(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))
+      await selectFirstProject(app)
       await app.getByPlaceholder('Filter by name').fill(seedName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+      await expect(app.getByRole('link', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
 
+      await waitForUIReady(app)
       await app.getByRole('button', { name: 'Import workflow' }).click()
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -432,16 +418,18 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test.skip('AC #10: rejects import with unsupported schema version (UI-35)', async ({ app }) => {
+  test('rejects import with unsupported schema version', async ({ app }) => {
     const seedName = buildUniqueName('seed-version')
     await createBasicWorkflow(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))
+      await selectFirstProject(app)
       await app.getByPlaceholder('Filter by name').fill(seedName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+      await expect(app.getByRole('link', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
 
+      await waitForUIReady(app)
       await app.getByRole('button', { name: 'Import workflow' }).click()
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -468,17 +456,19 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test.skip('AC #11: clears import error and retries successfully with valid file (UI-35)', async ({ app }) => {
+  test('clears import error and retries successfully with valid file', async ({ app }) => {
     const seedName = buildUniqueName('seed-retry')
     const workflowName = buildUniqueName('retry-import')
     await createBasicWorkflow(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))
+      await selectFirstProject(app)
       await app.getByPlaceholder('Filter by name').fill(seedName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
+      await expect(app.getByRole('link', { name: seedName, exact: true })).toBeVisible({ timeout: 15_000 })
 
+      await waitForUIReady(app)
       await app.getByRole('button', { name: 'Import workflow' }).click()
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
