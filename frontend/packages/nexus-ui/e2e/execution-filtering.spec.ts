@@ -17,6 +17,7 @@
  */
 
 import { test, expect, toAppUrl, type Page } from './fixtures'
+import { apiRequest } from './utils/api'
 
 /** Select a workflow from the async typeahead, waiting for real options to load. */
 async function selectFirstWorkflowOption(app: Page): Promise<string> {
@@ -74,11 +75,12 @@ test.describe('Execution Filtering @pr-check', () => {
   })
 
   test('workflow_id filter backwards compatibility: URL parameter pre-populates filter', async ({ app }) => {
-    const response = await app.request.get(new URL('/api/v1/executions?limit=1', toAppUrl('/')).toString())
+    const response = await apiRequest(app, 'get', '/executions?limit=1')
+    test.skip(!response.ok(), 'Executions API unavailable')
     const data = (await response.json()) as {
-      resources: Array<{ workflow_id?: string }>
+      resources?: Array<{ workflow_id?: string }>
     }
-    const workflowId = data.resources[0]?.workflow_id
+    const workflowId = data.resources?.[0]?.workflow_id
     test.skip(!workflowId, 'No executions with workflow_id available')
 
     await app.goto(toAppUrl(`/executions?workflow_id=${workflowId}`))

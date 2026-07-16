@@ -270,7 +270,8 @@ describe('ExecutionDetailsPanel', () => {
     it('renders a filter toolbar in overview mode', () => {
       renderPanel(WORKFLOW_DEF)
 
-      expect(screen.getByRole('search', { name: 'Filters' })).toBeInTheDocument()
+      const region = screen.getByRole('region', { name: 'Activity filter' })
+      expect(within(region).getByRole('search', { name: 'Filters' })).toBeInTheDocument()
     })
 
     it('renders a filter toolbar in details mode', async () => {
@@ -279,7 +280,8 @@ describe('ExecutionDetailsPanel', () => {
 
       await user.click(screen.getByRole('tab', { name: 'Details' }))
 
-      expect(screen.getByRole('search', { name: 'Filters' })).toBeInTheDocument()
+      const region = screen.getByRole('region', { name: 'Activity filter' })
+      expect(within(region).getByRole('search', { name: 'Filters' })).toBeInTheDocument()
     })
 
     it('shows empty state when filters match no activities', async () => {

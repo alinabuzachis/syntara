@@ -1309,16 +1309,64 @@ export const handlers = [
 
   http.post('/api/v1/executions', async ({ request }) => {
     const body = (await request.json()) as ExecutionsAPI.components['schemas']['CreateExecutionRequest']
+    const executionId = uuidv4()
+    const workflow = workflows.find((w) => w.id === body.workflow_id)
+    const definition = workflow?.version?.workflow_definition as
+      | {
+          nodes?: Array<{ id?: string; type?: string; name?: string }>
+          triggers?: Array<{ id?: string; type?: string; name?: string }>
+        }
+      | undefined
+    // Include triggers so mock activity lists match real-backend executions.
+    const nodes = [...(definition?.triggers ?? []), ...(definition?.nodes ?? [])]
+
+    // Synthesize per-node activities so newly created executions are usable in
+    // self-contained E2E tests (GET detail / activities list).
+    const hasApproval = nodes.some((node) => node.type === 'approval')
+    const activities: ExecutionsAPI.components['schemas']['ActivityExecution'][] = nodes
+      .filter((node): node is { id: string; type?: string; name?: string } => typeof node.id === 'string')
+      .map((node, index) => {
+        const isApproval = node.type === 'approval'
+        return {
+          id: `act-${executionId}-${index + 1}`,
+          created_at: mockDate.now,
+          updated_at: mockDate.now,
+          execution_id: executionId,
+          activity_name: node.id,
+          status: isApproval ? ('waiting' as const) : ('completed' as const),
+          started_at: mockDate.now,
+          completed_at: isApproval ? null : mockDate.now,
+          input_data: {},
+          output_data: isApproval ? null : {},
+          error_details: null,
+          retry_count: 0,
+          iteration: null,
+        }
+      })
+    if (activities.length > 0) {
+      activityExecutions[executionId] = activities
+    }
+
     const execution = {
-      id: uuidv4(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      id: executionId,
+      created_at: mockDate.now,
+      updated_at: mockDate.now,
       workflow_id: body.workflow_id,
-      status: 'completed' as const,
-      started_at: new Date().toISOString(),
-      completed_at: new Date().toISOString(),
+      status: hasApproval ? ('paused' as const) : ('completed' as const),
+      approval_pending: hasApproval,
+      started_at: mockDate.now,
+      completed_at: hasApproval ? null : mockDate.now,
       started_by: 'user-1',
       input_data: body.input_data ?? {},
+      current_activities: hasApproval
+        ? activities
+            .filter((activity) => activity.status === 'waiting')
+            .map((activity) => ({
+              activity_name: activity.activity_name,
+              temporal_activity_id: activity.id,
+              iteration: null,
+            }))
+        : [],
     }
     executions.push(execution)
     return HttpResponse.json(execution, { status: 201 })
