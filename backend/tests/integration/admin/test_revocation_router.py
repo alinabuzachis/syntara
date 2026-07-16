@@ -78,6 +78,7 @@ class TestRevokeAllSessions:
     async def test_persists_timestamp_readable_via_get(
         self,
         auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         with patch("nexus.admin.services.AuditEventDispatcher"):
             await auth_client.post("/api/v1/admin/revocation")
@@ -89,7 +90,7 @@ class TestRevokeAllSessions:
         updated_at = datetime.fromisoformat(data["updated_at"])
         assert revoked_before == updated_at
         assert (datetime.now(UTC) - revoked_before).total_seconds() < 10
-        assert data["updated_by"] == "testuser"
+        assert data["updated_by"] == test_user.username
 
     async def test_response_contains_message_field(
         self,

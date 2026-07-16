@@ -79,7 +79,7 @@ async def user_factory(
 @pytest_asyncio.fixture
 async def test_user(user_factory: Callable[..., Awaitable[User]]) -> User:
     """Create test user with default attributes."""
-    return await user_factory(username="testuser", email="testuser@example.com")
+    return await user_factory()
 
 
 @pytest_asyncio.fixture
