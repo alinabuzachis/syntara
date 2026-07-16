@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -50,7 +51,7 @@ class TestDisableTokenInvalidation:
             pre_resp = httpx.get(
                 f"{nexus_base_url}/api/v1/auth/me",
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert pre_resp.status_code == HTTPStatus.OK, "Token should work before disable"
 
@@ -84,7 +85,7 @@ class TestDeleteTokenInvalidation:
         pre_resp = httpx.get(
             f"{nexus_base_url}/api/v1/auth/me",
             headers={"Authorization": f"Bearer {access_token}"},
-            verify=False,  # noqa: S501
+            verify=e2e_ssl_context(),
         )
         assert pre_resp.status_code == HTTPStatus.OK, "Token should work before delete"
 
@@ -131,7 +132,7 @@ class TestReEnableRestoresAuth:
             old_still_dead = httpx.get(
                 f"{nexus_base_url}/api/v1/auth/me",
                 headers={"Authorization": f"Bearer {old_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert old_still_dead.status_code == HTTPStatus.UNAUTHORIZED, (
                 "Old token should remain revoked after re-enable (token_version incremented on disable)"

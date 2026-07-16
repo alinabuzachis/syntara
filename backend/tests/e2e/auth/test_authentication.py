@@ -32,6 +32,7 @@ from nexus_test_sdk.e2e.auth import (
     local_login_session,
     logout_with_session,
 )
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 
 pytestmark = [pytest.mark.e2e]
 
@@ -64,7 +65,7 @@ class TestAPIConcurrentSessionHandling:
             client=AuthenticatedClient(
                 base_url=f"{nexus_base_url}/api/v1",
                 token=refreshed_b.access_token,
-                verify_ssl=False,
+                verify_ssl=e2e_ssl_context(),
             )
         )
         assert user_b.status_code == HTTPStatus.OK

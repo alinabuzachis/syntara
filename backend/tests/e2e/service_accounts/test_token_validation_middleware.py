@@ -23,6 +23,7 @@ import pytest
 from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
 from nexus_api_client.models.sa_credential_create import SACredentialCreate
 from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 from nexus_test_sdk.helpers import unique_name
 
 from tests.e2e.service_accounts import create_sa, create_sa_with_credential, token_request
@@ -56,7 +57,7 @@ class TestTokenValidationAuthorized:
             me_resp = httpx.get(
                 f"{nexus_base_url}/api/v1/auth/me",
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert me_resp.status_code == HTTPStatus.OK
             me_body = me_resp.json()
@@ -90,7 +91,7 @@ class TestTokenValidationUnauthorized:
                 f"{nexus_base_url}/api/v1/service_accounts",
                 json={"name": unique_name("unauth-sa"), "project_id": str(proj_b_id)},
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert create_resp.status_code == HTTPStatus.FORBIDDEN
         finally:
@@ -131,7 +132,7 @@ class TestExpiredTokenRejected:
         resp = httpx.get(
             f"{nexus_base_url}/api/v1/auth/me",
             headers={"Authorization": "Bearer invalid.token.here"},
-            verify=False,  # noqa: S501
+            verify=e2e_ssl_context(),
         )
         assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
@@ -170,7 +171,7 @@ class TestProjectRoleAssignment:
             list_resp = httpx.get(
                 f"{nexus_base_url}/api/v1/service_accounts",
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert list_resp.status_code == HTTPStatus.OK
             resources = list_resp.json().get("resources", [])
@@ -201,7 +202,7 @@ class TestConcurrentServiceAccounts:
                 r = httpx.get(
                     f"{nexus_base_url}/api/v1/auth/me",
                     headers={"Authorization": f"Bearer {access_token}"},
-                    verify=False,  # noqa: S501
+                    verify=e2e_ssl_context(),
                     timeout=30,
                 )
                 return r.status_code

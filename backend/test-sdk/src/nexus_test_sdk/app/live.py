@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
+
 if TYPE_CHECKING:
     from nexus_api_client import AuthenticatedClient
     from nexus_api_client.api import NexusApiRegistry
@@ -39,7 +41,7 @@ def _generate_live_token(base_url: str) -> str:
     response = httpx.post(
         f"{base_url}/api/v1/auth/login",
         json={"username": "admin", "password": password},
-        verify=False,  # noqa: S501
+        verify=e2e_ssl_context(),
         timeout=10,
     )
     response.raise_for_status()
@@ -67,7 +69,7 @@ def nexus_client(nexus_base_url: str) -> "AuthenticatedClient":
     from nexus_api_client import AuthenticatedClient
 
     try:
-        response = httpx.get(f"{nexus_base_url}/health", timeout=5, verify=False)  # noqa: S501
+        response = httpx.get(f"{nexus_base_url}/health", timeout=5, verify=e2e_ssl_context())  # noqa: S501
         response.raise_for_status()
     except (httpx.RequestError, httpx.HTTPStatusError) as exc:
         pytest.exit(
@@ -77,7 +79,8 @@ def nexus_client(nexus_base_url: str) -> "AuthenticatedClient":
         )
 
     access_token = _generate_live_token(nexus_base_url)
-    return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token=access_token, verify_ssl=False)
+    ssl_ctx = e2e_ssl_context()
+    return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token=access_token, verify_ssl=ssl_ctx)
 
 
 @pytest.fixture(scope="session")
@@ -92,7 +95,7 @@ def nexus_api(nexus_base_url: str, nexus_client: "AuthenticatedClient") -> "Nexu
     root_client = AuthenticatedClient(
         base_url=nexus_base_url,
         token=nexus_client.token,
-        verify_ssl=False,
+        verify_ssl=e2e_ssl_context(),
     )
     registry.__dict__["internal_metrics"] = InternalMetricsApi(client=root_client)
 

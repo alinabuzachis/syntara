@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
+
 import httpx
 from nexus_api_client import AuthenticatedClient, Client
 from nexus_api_client.api import NexusApiRegistry
@@ -97,7 +99,7 @@ def local_login_session(
     response = httpx.post(
         f"{base_url}/api/v1/auth/login",
         json={"username": username, "password": password},
-        verify=False,  # noqa: S501
+        verify=e2e_ssl_context(),  # noqa: S501
         timeout=30,
     )
     if response.status_code != HTTPStatus.OK:
@@ -121,14 +123,14 @@ def _csrf_headers_from_client(client: Client) -> dict[str, str]:
 def csrf_headers_for_cookies(base_url: str, cookies: dict[str, str]) -> dict[str, str]:
     """Return X-CSRF-Token header derived from the session CSRF cookie."""
     _require_session_cookies(cookies)
-    client = Client(base_url=f"{base_url}/api/v1", cookies=cookies, verify_ssl=False)
+    client = Client(base_url=f"{base_url}/api/v1", cookies=cookies, verify_ssl=e2e_ssl_context())
     return _csrf_headers_from_client(client)
 
 
 def client_with_csrf_cookies(base_url: str, cookies: dict[str, str]) -> Client:
     """Return an API client with session cookies and X-CSRF-Token for cookie-auth endpoints."""
     _require_session_cookies(cookies)
-    client = Client(base_url=f"{base_url}/api/v1", cookies=cookies, verify_ssl=False)
+    client = Client(base_url=f"{base_url}/api/v1", cookies=cookies, verify_ssl=e2e_ssl_context())
     return client.with_headers(_csrf_headers_from_client(client))
 
 
@@ -151,7 +153,7 @@ def logout_with_session(
         f"{base_url}/api/v1/auth/logout",
         headers=headers,
         cookies=cookies,
-        verify=False,  # noqa: S501
+        verify=e2e_ssl_context(),  # noqa: S501
         timeout=30,
     )
 
@@ -161,7 +163,7 @@ def get_current_user_with_token(
     access_token: str,
 ) -> Response[Any | ErrorData | UserInfo]:
     """Call GET /auth/me with a Bearer access token."""
-    client = AuthenticatedClient(base_url=f"{base_url}/api/v1", token=access_token, verify_ssl=False)
+    client = AuthenticatedClient(base_url=f"{base_url}/api/v1", token=access_token, verify_ssl=e2e_ssl_context())
     return get_user_sync(client=client)
 
 
@@ -264,7 +266,7 @@ class _AutoRefreshAuth(httpx.Auth):
 
 def _login(base_url: str, username: str, password: str) -> str:
     """Obtain a JWT access token via the generated login endpoint."""
-    unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
+    unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=e2e_ssl_context())
     resp = login_sync(client=unauthenticated, body=LoginRequest(username=username, password=password))
     if resp.status_code != HTTPStatus.OK or not isinstance(resp.parsed, AccessTokenResponse):
         msg = f"Login failed for {username}: {resp.status_code} {resp.content!r}"
@@ -278,7 +280,7 @@ def _make_client(base_url: str, token: str) -> AuthenticatedClient:
     return AuthenticatedClient(
         base_url=f"{base_url}/api/v1",
         token=token,
-        verify_ssl=False,
+        verify_ssl=e2e_ssl_context(),
         timeout=httpx.Timeout(60.0),
     )
 
@@ -304,7 +306,7 @@ def local_user_login(
     """Login local user in Unauthenticated client. By default, login built-in admin."""
     resolved_username = username or "admin"
     resolved_password = password if password else admin_password()
-    unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
+    unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=e2e_ssl_context())
     return login_sync(client=unauthenticated, body=LoginRequest(username=resolved_username, password=resolved_password))
 
 

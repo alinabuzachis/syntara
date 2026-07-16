@@ -19,6 +19,7 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead
 from nexus_api_client.models.publish_version_request import PublishVersionRequest
 from nexus_test_sdk.e2e.helpers import poll_execution_until_complete
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 from nexus_test_sdk.helpers import unique_name
 
 pytestmark = [pytest.mark.e2e]
@@ -91,7 +92,7 @@ class TestEdaTrigger:
         # Step 3: POST to the EDA webhook endpoint
         eda_url = f"{nexus_base_url}/api/v1/webhooks/eda/{webhook_path}"
         payload = {"event_type": "host_unreachable", "host": "web-01.example.com"}
-        webhook_response = httpx.post(eda_url, json=payload, verify=False, timeout=30)  # noqa: S501
+        webhook_response = httpx.post(eda_url, json=payload, verify=e2e_ssl_context(), timeout=30)
         assert webhook_response.status_code == HTTPStatus.ACCEPTED, (
             f"Expected 202 Accepted from EDA webhook, got {webhook_response.status_code}: {webhook_response.text!r}"
         )
@@ -133,7 +134,7 @@ class TestEdaTrigger:
         eda_url = f"{nexus_base_url}/api/v1/webhooks/eda/{unknown_path}"
         payload = {"event_type": "test"}
 
-        response = httpx.post(eda_url, json=payload, verify=False, timeout=30)  # noqa: S501
+        response = httpx.post(eda_url, json=payload, verify=e2e_ssl_context(), timeout=30)
         assert response.status_code == HTTPStatus.NOT_FOUND, (
             f"Expected 404 for unknown EDA path, got {response.status_code}: {response.text!r}"
         )

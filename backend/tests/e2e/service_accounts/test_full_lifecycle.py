@@ -22,6 +22,7 @@ import pytest
 from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
 from nexus_api_client.models.sa_credential_create import SACredentialCreate
 from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 
 from tests.e2e.service_accounts import create_sa, create_sa_with_credential, poll_until_status, token_request
 
@@ -74,7 +75,7 @@ class TestCrossProjectDelegation:
             me_resp = httpx.get(
                 f"{nexus_base_url}/api/v1/auth/me",
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert me_resp.status_code == HTTPStatus.OK
             assert me_resp.json()["id"] == str(sa.id)
@@ -84,7 +85,7 @@ class TestCrossProjectDelegation:
                 f"{nexus_base_url}/api/v1/service_accounts",
                 json={"name": "xproj-child-sa", "project_id": str(proj_b_id)},
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert child_resp.status_code == HTTPStatus.CREATED, (
                 f"SA should have access to Project B, got {child_resp.status_code}: {child_resp.text}"
@@ -96,7 +97,7 @@ class TestCrossProjectDelegation:
                 f"{nexus_base_url}/api/v1/service_accounts",
                 json={"name": "xproj-noaccess-sa", "project_id": str(proj_a_id)},
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert proj_a_create.status_code == HTTPStatus.FORBIDDEN, (
                 f"SA should NOT have admin access to Project A, got {proj_a_create.status_code}"
@@ -106,7 +107,7 @@ class TestCrossProjectDelegation:
             httpx.delete(
                 f"{nexus_base_url}/api/v1/service_accounts/{child_sa_id}",
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
         finally:
             admin_api.service_accounts.delete(service_account_id=sa.id)
@@ -150,7 +151,7 @@ class TestFullLifecycle:
             me_resp = httpx.get(
                 f"{nexus_base_url}/api/v1/auth/me",
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert me_resp.status_code == HTTPStatus.OK
             assert me_resp.json()["id"] == str(sa.id)
@@ -166,7 +167,7 @@ class TestFullLifecycle:
                 f"{nexus_base_url}/api/v1/service_accounts/{sa.id}/credentials/{cred_id}/rotate",
                 json={"grace_period_seconds": self.GRACE_PERIOD_SECONDS},
                 headers={"Authorization": f"Bearer {access_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert rotate_resp.status_code == HTTPStatus.OK
             new_secret = rotate_resp.json()["client_secret"]

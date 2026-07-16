@@ -21,6 +21,7 @@ from nexus_api_client.models.sa_credential_create import SACredentialCreate
 from nexus_api_client.models.sa_credential_rotate_request import SACredentialRotateRequest
 from nexus_api_client.models.service_account_create import ServiceAccountCreate
 from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 from nexus_test_sdk.helpers import unique_name
 
 if TYPE_CHECKING:
@@ -36,7 +37,7 @@ pytestmark = [pytest.mark.e2e]
 
 def _token_request(base_url: str, client_id: str, client_secret: str) -> Any:  # noqa: ANN401
     """POST /auth/token via the generated client."""
-    client = Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
+    client = Client(base_url=f"{base_url}/api/v1", verify_ssl=e2e_ssl_context())
     return sync_detailed(
         client=client,
         body=BodyToken(grant_type="client_credentials", client_id=client_id, client_secret=client_secret),

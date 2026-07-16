@@ -13,6 +13,7 @@ from nexus_api_client.models.body_token import BodyToken
 from nexus_api_client.models.sa_credential_create import SACredentialCreate
 from nexus_api_client.models.service_account_create import ServiceAccountCreate
 from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 from nexus_test_sdk.helpers import unique_name
 
 if TYPE_CHECKING:
@@ -50,7 +51,7 @@ def create_sa_with_credential(
 
 def unauth_client(base_url: str) -> Client:
     """Return an unauthenticated API client for token endpoint calls."""
-    return Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
+    return Client(base_url=f"{base_url}/api/v1", verify_ssl=e2e_ssl_context())
 
 
 def token_request(
@@ -96,7 +97,7 @@ def poll_until_status(
         resp = httpx.get(
             f"{base_url}/api/v1/auth/me",
             headers={"Authorization": f"Bearer {access_token}"},
-            verify=False,  # noqa: S501
+            verify=e2e_ssl_context(),
             timeout=10,
         )
         if resp.status_code == expected:

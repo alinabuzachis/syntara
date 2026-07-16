@@ -19,6 +19,7 @@ from nexus_api_client.models import (
 )
 from nexus_api_client.models.publish_version_request import PublishVersionRequest
 from nexus_test_sdk.e2e.helpers import poll_execution_until_complete
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 from nexus_test_sdk.helpers import unique_name
 
 pytestmark = [pytest.mark.e2e]
@@ -110,7 +111,7 @@ class TestWebhookTrigger:
         webhook_response = httpx.post(
             webhook_url,
             json={"test_key": "hello"},
-            verify=False,  # noqa: S501
+            verify=e2e_ssl_context(),
             timeout=30,
         )
 
@@ -157,7 +158,7 @@ class TestWebhookTrigger:
         response = httpx.post(
             webhook_url,
             json={"some": "data"},
-            verify=False,  # noqa: S501
+            verify=e2e_ssl_context(),
             timeout=30,
         )
 
@@ -229,7 +230,7 @@ class TestWebhookTrigger:
         response = httpx.post(
             webhook_url,
             json={"test_key": "should_not_trigger"},
-            verify=False,  # noqa: S501
+            verify=e2e_ssl_context(),
             timeout=30,
         )
 

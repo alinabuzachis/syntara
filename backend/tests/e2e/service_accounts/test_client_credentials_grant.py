@@ -23,6 +23,7 @@ import httpx
 import jwt as pyjwt
 import pytest
 from nexus_test_sdk.e2e.auth import admin_password
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 
 from tests.e2e.service_accounts import create_sa_with_credential, token_request
 
@@ -91,7 +92,7 @@ class TestClientCredentialsGrant:
             tampered_resp = httpx.get(
                 f"{nexus_base_url}/api/v1/auth/me",
                 headers={"Authorization": f"Bearer {tampered_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert tampered_resp.status_code == HTTPStatus.UNAUTHORIZED, (
                 f"Tampered token should be rejected, got {tampered_resp.status_code}"
@@ -101,7 +102,7 @@ class TestClientCredentialsGrant:
             valid_resp = httpx.get(
                 f"{nexus_base_url}/api/v1/auth/me",
                 headers={"Authorization": f"Bearer {valid_token}"},
-                verify=False,  # noqa: S501
+                verify=e2e_ssl_context(),
             )
             assert valid_resp.status_code == HTTPStatus.OK, (
                 f"Valid token should be accepted, got {valid_resp.status_code}"
@@ -239,6 +240,6 @@ class TestUnsupportedGrantType:
         resp = httpx.post(
             f"{nexus_base_url}/api/v1/auth/token",
             data={"client_id": "any", "client_secret": "any"},
-            verify=False,  # noqa: S501
+            verify=e2e_ssl_context(),
         )
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY

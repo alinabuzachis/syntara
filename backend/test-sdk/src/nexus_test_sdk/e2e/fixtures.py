@@ -18,6 +18,8 @@ import httpx
 import pytest
 from click.testing import Result
 from nexus_api_client import AuthenticatedClient, Client
+
+from nexus_test_sdk.e2e.tls import e2e_ssl_context
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import (
     ExecutionRead,
@@ -88,7 +90,7 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
     base_url = nexus_base_url
 
     try:
-        response = httpx.get(f"{base_url}/health", timeout=5, verify=False)  # noqa: S501
+        response = httpx.get(f"{base_url}/health", timeout=5, verify=e2e_ssl_context())  # noqa: S501
         response.raise_for_status()
     except (httpx.RequestError, httpx.HTTPStatusError) as exc:
         pytest.exit(
@@ -102,7 +104,7 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
     return AuthenticatedClient(
         base_url=f"{base_url}/api/v1",
         token=access_token,
-        verify_ssl=False,
+        verify_ssl=e2e_ssl_context(),
         timeout=httpx.Timeout(60.0),
         httpx_args={"auth": _AutoRefreshAuth(base_url, access_token)},
     )
@@ -129,7 +131,7 @@ def unauthenticated_client(nexus_base_url: str) -> AuthenticatedClient:
     self-signed certs). This is acceptable for test code but should NEVER be
     used in production.
     """
-    return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token="unauthenticated", verify_ssl=False)  # noqa: S106
+    return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token="unauthenticated", verify_ssl=e2e_ssl_context())  # noqa: S106
 
 
 @pytest.fixture
@@ -207,7 +209,7 @@ def viewer_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> Authentic
     return AuthenticatedClient(
         base_url=f"{nexus_base_url}/api/v1",
         token=token,
-        verify_ssl=False,
+        verify_ssl=e2e_ssl_context(),
         timeout=httpx.Timeout(60.0),
         httpx_args={"auth": _AutoRefreshAuth(nexus_base_url, token, username=username, password=password)},
     )
@@ -263,7 +265,7 @@ def auditor_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> Authenti
     return AuthenticatedClient(
         base_url=f"{nexus_base_url}/api/v1",
         token=token,
-        verify_ssl=False,
+        verify_ssl=e2e_ssl_context(),
         timeout=httpx.Timeout(60.0),
         httpx_args={"auth": _AutoRefreshAuth(nexus_base_url, token, username=username, password=password)},
     )
@@ -321,7 +323,7 @@ def mcp_integration_id(nexus_api: NexusApiRegistry) -> str:
     refresh_resources are synchronous — status is final when they return.
     """
     try:
-        resp = httpx.get(MCP_HEALTH_URL, timeout=5, verify=False)  # noqa: S501
+        resp = httpx.get(MCP_HEALTH_URL, timeout=5, verify=e2e_ssl_context())  # noqa: S501
         resp.raise_for_status()
     except (httpx.RequestError, httpx.HTTPStatusError) as exc:
         pytest.skip(f"MCP server not reachable at {MCP_HEALTH_URL}: {exc}")
