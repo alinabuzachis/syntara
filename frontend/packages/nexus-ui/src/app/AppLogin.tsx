@@ -113,7 +113,6 @@ function LocalLoginForm({
           <ExclamationCircleIcon />
         </Icon>
       }
-      isShowPasswordEnabled
       loginButtonLabel={loginButtonLabel}
       isLoginButtonDisabled={isLoggingIn}
       onLoginButtonClick={onLogin}
