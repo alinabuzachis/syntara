@@ -3,7 +3,7 @@ import { Button, Content, ContentVariants, Form, FormGroup, Title } from '@patte
 import { Controller, type Control, type UseFormSetValue } from 'react-hook-form'
 
 import { CredentialSelector } from '../../../builder/components/CredentialSelector'
-import { CREDENTIAL_TYPES_BY_INTEGRATION } from '../integrationFilters'
+import { CREDENTIAL_REQUIRED_TYPES, CREDENTIAL_TYPES_BY_INTEGRATION } from '../integrationFilters'
 
 import type { IntegrationFormData } from './integrationFormSchema'
 import styles from './WizardSteps.module.css'
@@ -43,6 +43,9 @@ export function CredentialStep({
   onTestConnection,
   onCredentialChange,
 }: CredentialStepProps) {
+  const isRequired = CREDENTIAL_REQUIRED_TYPES.has(integrationTypeValue)
+  const isTestDisabled = isRequired ? !credentialId || isTesting : isTesting
+
   return (
     <>
       <Title headingLevel="h2" size="lg" className={styles.stepTitle}>
@@ -65,6 +68,7 @@ export function CredentialStep({
               compatibleTypeNames={CREDENTIAL_TYPES_BY_INTEGRATION[integrationTypeValue]}
               label="Health check credential"
               fieldId="credential-select"
+              isRequired={isRequired}
               allowCreate
               placeholder="Select a credential"
               helpText={
@@ -76,9 +80,9 @@ export function CredentialStep({
         <FormGroup fieldId="test-connection">
           <Button
             variant="secondary"
-            onClick={!credentialId || isTesting ? undefined : onTestConnection}
+            onClick={isTestDisabled ? undefined : onTestConnection}
             isLoading={isTesting}
-            isAriaDisabled={!credentialId || isTesting}
+            isAriaDisabled={isTestDisabled}
           >
             Test connection
           </Button>

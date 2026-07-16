@@ -127,7 +127,7 @@ describe('CredentialStep', () => {
     expect(screen.getByTestId('credential-selector')).toBeInTheDocument()
   })
 
-  it('disables test connection button when no credential selected', () => {
+  it('enables test connection button for MCP when no credential selected', () => {
     render(
       <TestWrapper
         credentialId={null}
@@ -138,7 +138,7 @@ describe('CredentialStep', () => {
       />
     )
 
-    expect(screen.getByRole('button', { name: 'Test connection' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'Test connection' })).not.toHaveAttribute('aria-disabled', 'true')
   })
 
   it('enables test connection button when credential is selected', () => {
@@ -281,6 +281,48 @@ describe('CredentialStep', () => {
       )
 
       expect(screen.getByTestId('credential-selector')).toHaveAttribute('data-compatible-types', 'HTTP Bearer Token')
+    })
+
+    it('shows required description text for LLM Provider', () => {
+      render(
+        <LLMTestWrapper
+          credentialId={null}
+          integrationTypeValue={IntegrationTypeEnum.LLM_PROVIDER}
+          isTesting={false}
+          onTestConnection={vi.fn()}
+          onCredentialChange={vi.fn()}
+        />
+      )
+
+      expect(screen.getByText(/credential is used to verify that the LLM provider/i)).toBeInTheDocument()
+    })
+
+    it('disables test connection button for LLM Provider when no credential selected', () => {
+      render(
+        <LLMTestWrapper
+          credentialId={null}
+          integrationTypeValue={IntegrationTypeEnum.LLM_PROVIDER}
+          isTesting={false}
+          onTestConnection={vi.fn()}
+          onCredentialChange={vi.fn()}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: 'Test connection' })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('enables test connection button for LLM Provider when credential is selected', () => {
+      render(
+        <LLMTestWrapper
+          credentialId="cred-1"
+          integrationTypeValue={IntegrationTypeEnum.LLM_PROVIDER}
+          isTesting={false}
+          onTestConnection={vi.fn()}
+          onCredentialChange={vi.fn()}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: 'Test connection' })).not.toHaveAttribute('aria-disabled', 'true')
     })
   })
 })

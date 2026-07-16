@@ -436,7 +436,7 @@ class IntegrationTestConnection(SQLModel):
         discriminator="integration_type",
     )
 
-    credential_id: UUID = Field(description="Credential to use for the connection test")
+    credential_id: UUID | None = Field(default=None, description="Credential to use for the connection test")
 
     @model_validator(mode="after")
     def validate_type_matches_configuration(self) -> "IntegrationTestConnection":

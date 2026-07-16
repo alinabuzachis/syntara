@@ -191,7 +191,7 @@ export async function addHttpRequestNode(page: Page, name: string, url = 'https:
  * so the model dropdown has selectable options.
  */
 export async function addAgenticNode(page: Page, name: string, prompt = 'Analyze the data') {
-  const credName = await ensureLlmCredential(page)
+  const { name: credName } = await ensureLlmCredential(page)
   await openAddNodePanel(page)
   await selectDirectNodeType(page, 'Task Agent')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)

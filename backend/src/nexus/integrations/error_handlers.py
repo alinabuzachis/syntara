@@ -26,7 +26,7 @@ logger = structlog.stdlib.get_logger(__name__)
 
 def integration_not_found_handler(request: Request, exc: "IntegrationNotFoundError") -> JSONResponse:
     """Handle IntegrationNotFoundError with RFC 9457 format."""
-    logger.exception("Integration not found", integration_id=str(exc.integration_id))
+    logger.warning("Integration not found", integration_id=str(exc.integration_id))
     return create_problem_details_response(
         status_code=status.HTTP_404_NOT_FOUND,
         problem_type=PROBLEM_TYPES["resource_not_found"],
@@ -40,7 +40,7 @@ def integration_not_found_handler(request: Request, exc: "IntegrationNotFoundErr
 
 def integration_name_conflict_handler(request: Request, exc: "IntegrationNameConflictError") -> JSONResponse:
     """Handle IntegrationNameConflictError with RFC 9457 format."""
-    logger.exception("Integration name conflict", name=exc.name)
+    logger.warning("Integration name conflict", name=exc.name)
     return create_problem_details_response(
         status_code=status.HTTP_409_CONFLICT,
         problem_type=PROBLEM_TYPES["name_conflict"],
@@ -57,10 +57,10 @@ def integration_credential_required_handler(
     exc: "IntegrationCredentialRequiredError",
 ) -> JSONResponse:
     """Handle IntegrationCredentialRequiredError with RFC 9457 format."""
-    logger.exception("Integration credential required for health check", integration_id=str(exc.integration_id))
+    logger.warning("Integration credential required", integration_type=exc.integration_type)
     return create_problem_details_response(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        problem_type=PROBLEM_TYPES["integration_error"],
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        problem_type=PROBLEM_TYPES["validation_error"],
         title="Credential Required",
         detail=exc.message,
         code="INTEGRATION_CREDENTIAL_REQUIRED",
@@ -74,7 +74,7 @@ def integration_credential_not_found_handler(
     exc: "IntegrationCredentialNotFoundError",
 ) -> JSONResponse:
     """Handle IntegrationCredentialNotFoundError with RFC 9457 format."""
-    logger.exception("Integration credential not found", credential_id=str(exc.credential_id))
+    logger.warning("Integration credential not found", credential_id=str(exc.credential_id))
     return create_problem_details_response(
         status_code=status.HTTP_404_NOT_FOUND,
         problem_type=PROBLEM_TYPES["resource_not_found"],
@@ -91,7 +91,7 @@ def integration_credential_type_mismatch_handler(
     exc: "IntegrationCredentialTypeMismatchError",
 ) -> JSONResponse:
     """Handle IntegrationCredentialTypeMismatchError with RFC 9457 format."""
-    logger.exception(
+    logger.warning(
         "Credential type mismatch",
         integration_type=exc.integration_type,
         credential_type_name=exc.credential_type_name,
@@ -166,7 +166,7 @@ def integration_refresh_not_supported_handler(
 
 def integration_error_handler(request: Request, exc: "IntegrationError") -> JSONResponse:
     """Handle generic IntegrationError with RFC 9457 format."""
-    logger.exception("Integration error")
+    logger.warning("Integration error")
     return create_problem_details_response(
         status_code=status.HTTP_400_BAD_REQUEST,
         problem_type=PROBLEM_TYPES["integration_error"],

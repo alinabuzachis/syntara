@@ -13,6 +13,7 @@ Covers:
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
@@ -33,7 +34,7 @@ from nexus.integrations.models.integration import (
 )
 from nexus.integrations.models.llm_model import LLMModel
 from nexus.integrations.services.integration_service import IntegrationService
-from tests.unit.integrations.conftest import make_llm_create
+from tests.integration.integrations.conftest import make_llm_create
 
 
 def _make_discovered_model(model_id: str, name: str, description: str | None = None) -> DiscoveredLLMModel:
@@ -44,9 +45,12 @@ def _make_discovered_model(model_id: str, name: str, description: str | None = N
 async def llm_integration(
     test_db_session: AsyncSession,
     integration_service: IntegrationService,
+    llm_credential_id: UUID,
 ) -> dict[str, Any]:
     """Create an llm_provider integration and return its id."""
-    result = await integration_service.create_integration(make_llm_create("LLM Target"))
+    result = await integration_service.create_integration(
+        make_llm_create("LLM Target", management_credential_id=llm_credential_id)
+    )
     await test_db_session.flush()
     return {"integration_id": result.id}
 
@@ -64,9 +68,12 @@ class TestCreateIntegrationWithModels:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         """Creating an LLM integration without discovered_models creates no LLMModel records."""
-        result = await integration_service.create_integration(make_llm_create())
+        result = await integration_service.create_integration(
+            make_llm_create(management_credential_id=llm_credential_id)
+        )
         await test_db_session.flush()
 
         models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == result.id))).all()
@@ -77,10 +84,12 @@ class TestCreateIntegrationWithModels:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         """Creating with discovered_models creates LLMModel records with correct enabled states."""
         data = make_llm_create(
             name="LLM With Models",
+            management_credential_id=llm_credential_id,
             discovered_models=[
                 {"model_id": "gpt-4o", "name": "GPT-4o", "enabled": True},
                 {"model_id": "gpt-4o-mini", "name": "GPT-4o Mini", "enabled": False},
@@ -102,10 +111,12 @@ class TestCreateIntegrationWithModels:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         """Creating with is_default sets exactly one model as default."""
         data = make_llm_create(
             name="LLM Default",
+            management_credential_id=llm_credential_id,
             discovered_models=[
                 {"model_id": "gpt-4o", "name": "GPT-4o", "is_default": True},
                 {"model_id": "gpt-4o-mini", "name": "GPT-4o Mini", "is_default": False},
@@ -124,10 +135,12 @@ class TestCreateIntegrationWithModels:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         """Creating with discovered_models sets refresh_status=AVAILABLE."""
         data = make_llm_create(
             name="LLM Status",
+            management_credential_id=llm_credential_id,
             discovered_models=[
                 {"model_id": "gpt-4o", "name": "GPT-4o"},
             ],
@@ -141,10 +154,12 @@ class TestCreateIntegrationWithModels:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         """IntegrationRead includes model counts."""
         data = make_llm_create(
             name="LLM Counts",
+            management_credential_id=llm_credential_id,
             discovered_models=[
                 {"model_id": "gpt-4o", "name": "GPT-4o", "enabled": True},
                 {"model_id": "gpt-3.5", "name": "GPT-3.5", "enabled": False},
@@ -215,10 +230,12 @@ class TestDeleteIntegrationCascadesToModels:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         """Deleting an LLM integration hard-deletes its models."""
         data = make_llm_create(
             name="To Delete",
+            management_credential_id=llm_credential_id,
             discovered_models=[
                 {"model_id": "gpt-4o", "name": "GPT-4o"},
                 {"model_id": "gpt-4o-mini", "name": "GPT-4o Mini"},
@@ -248,9 +265,12 @@ class TestDeleteIntegrationCascadesToModels:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         """Deleting an integration with no models does not raise."""
-        created = await integration_service.create_integration(make_llm_create("No Models"))
+        created = await integration_service.create_integration(
+            make_llm_create("No Models", management_credential_id=llm_credential_id)
+        )
         await test_db_session.flush()
         await integration_service.delete_integration(created.id)
 
@@ -269,10 +289,11 @@ class TestRefreshLLMModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         """refresh_resources creates LLMModel records on success."""
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         discover_result = DiscoverResult(
             success=True,
@@ -310,10 +331,11 @@ class TestRefreshLLMModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         """refresh_resources updates name/description of existing models, preserves enabled state."""
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         # First refresh: create models
         first_discover = DiscoverResult(
@@ -369,10 +391,11 @@ class TestRefreshLLMModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         """Refresh preserves per-model enabled state when descriptions change."""
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         # First refresh: create two models (both enabled by default)
         first_discover = DiscoverResult(
@@ -433,10 +456,11 @@ class TestRefreshLLMModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         """refresh_resources preserves the user's is_default selection."""
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         # First refresh: create two models
         first_discover = DiscoverResult(
@@ -487,10 +511,11 @@ class TestRefreshLLMModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         """Models no longer returned by the provider are hard-deleted."""
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         # First refresh: create two models
         first_discover = DiscoverResult(
@@ -541,10 +566,11 @@ class TestRefreshLLMModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         """When the default model disappears from the provider, it is hard-deleted."""
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         first_discover = DiscoverResult(
             success=True,
@@ -599,10 +625,11 @@ class TestRefreshLLMModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         """Successful refresh sets refresh_status=AVAILABLE."""
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         discover_result = DiscoverResult(
             success=True,
@@ -633,10 +660,11 @@ class TestRefreshLLMModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         """Failed discover sets refresh_status=ERROR."""
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         discover_result = DiscoverResult(
             success=False,
@@ -664,10 +692,12 @@ class TestRefreshLLMModels:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         """Models not in enabled_map default to enabled=True."""
         data = make_llm_create(
             name="LLM Partial Map",
+            management_credential_id=llm_credential_id,
             discovered_models=[
                 {"model_id": "gpt-4o", "name": "GPT-4o", "enabled": False},
                 {"model_id": "gpt-4o-mini", "name": "GPT-4o Mini"},
@@ -687,10 +717,11 @@ class TestRefreshLLMModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         """Refresh without default_model_id preserves existing is_default state."""
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         first_discover = DiscoverResult(
             success=True,
@@ -748,9 +779,10 @@ class TestValidateDoesNotSyncModels:
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
     ) -> None:
         integration_id = llm_integration["integration_id"]
-        service = IntegrationService(test_db_session, test_user)
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
         success_result = ValidateResult(success=True, checked_at=datetime.now(UTC))
 

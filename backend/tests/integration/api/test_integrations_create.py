@@ -1,8 +1,9 @@
 """Contract tests for POST /api/v1/integrations."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 BASE_URL = "/api/v1/integrations"
 
@@ -18,8 +19,8 @@ def _mcp_payload(name: str | None = None) -> dict[str, object]:
     }
 
 
-def _llm_payload(name: str | None = None) -> dict[str, object]:
-    return {
+def _llm_payload(name: str | None = None, management_credential_id: UUID | None = None) -> dict[str, object]:
+    payload: dict[str, object] = {
         "name": name or f"llm-{uuid4().hex[:8]}",
         "integration_type": "llm_provider",
         "configuration": {
@@ -28,10 +29,13 @@ def _llm_payload(name: str | None = None) -> dict[str, object]:
             "provider_hint": "custom",
         },
     }
+    if management_credential_id is not None:
+        payload["management_credential_id"] = str(management_credential_id)
+    return payload
 
 
-def _aap_payload(name: str | None = None) -> dict[str, object]:
-    return {
+def _aap_payload(name: str | None = None, management_credential_id: UUID | None = None) -> dict[str, object]:
+    payload: dict[str, object] = {
         "name": name or f"aap-{uuid4().hex[:8]}",
         "integration_type": "ansible_automation_platform",
         "configuration": {
@@ -39,6 +43,9 @@ def _aap_payload(name: str | None = None) -> dict[str, object]:
             "aap_url": "https://gw.example.com",
         },
     }
+    if management_credential_id is not None:
+        payload["management_credential_id"] = str(management_credential_id)
+    return payload
 
 
 class TestIntegrationsCreate:
@@ -55,17 +62,31 @@ class TestIntegrationsCreate:
         assert "id" in data
         assert data["validation_status"] == "unknown"
 
-    async def test_create_llm_provider_returns_201(self, auth_client: AsyncClient) -> None:
+    async def test_create_llm_provider_returns_201(
+        self, auth_client: AsyncClient, test_db_session: AsyncSession, credential_factory
+    ) -> None:
         """Creating an llm_provider integration returns 201."""
-        response = await auth_client.post(BASE_URL, json=_llm_payload())
+        ct = await credential_factory.create_type("LLM Provider")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+        await test_db_session.commit()
+
+        response = await auth_client.post(BASE_URL, json=_llm_payload(management_credential_id=cred.id))
         assert response.status_code == 201
         data = response.json()
         assert data["integration_type"] == "llm_provider"
         assert data["validation_status"] == "unknown"
 
-    async def test_create_aap_returns_201(self, auth_client: AsyncClient) -> None:
+    async def test_create_aap_returns_201(
+        self, auth_client: AsyncClient, test_db_session: AsyncSession, credential_factory
+    ) -> None:
         """Creating an ansible_automation_platform integration returns 201."""
-        response = await auth_client.post(BASE_URL, json=_aap_payload())
+        ct = await credential_factory.create_type("Ansible Automation Platform")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+        await test_db_session.commit()
+
+        response = await auth_client.post(BASE_URL, json=_aap_payload(management_credential_id=cred.id))
         assert response.status_code == 201
         data = response.json()
         assert data["integration_type"] == "ansible_automation_platform"
@@ -164,6 +185,16 @@ class TestIntegrationsCreate:
             },
         }
         response = await auth_client.post(BASE_URL, json=payload)
+        assert response.status_code == 422
+
+    async def test_create_llm_without_credential_returns_422(self, auth_client: AsyncClient) -> None:
+        """LLM provider without management_credential_id returns 422."""
+        response = await auth_client.post(BASE_URL, json=_llm_payload())
+        assert response.status_code == 422
+
+    async def test_create_aap_without_credential_returns_422(self, auth_client: AsyncClient) -> None:
+        """AAP without management_credential_id returns 422."""
+        response = await auth_client.post(BASE_URL, json=_aap_payload())
         assert response.status_code == 422
 
     async def test_create_aap_rejects_http(self, auth_client: AsyncClient) -> None:
@@ -281,9 +312,16 @@ class TestIntegrationsCreate:
         response = await auth_client.post(BASE_URL, json=payload)
         assert response.status_code == 422
 
-    async def test_create_discovered_tools_rejected_for_llm_provider(self, auth_client: AsyncClient) -> None:
+    async def test_create_discovered_tools_rejected_for_llm_provider(
+        self, auth_client: AsyncClient, test_db_session: AsyncSession, credential_factory
+    ) -> None:
         """discovered_tools is rejected for non-MCP integration types."""
-        payload = _llm_payload()
+        ct = await credential_factory.create_type("LLM Provider")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+        await test_db_session.commit()
+
+        payload = _llm_payload(management_credential_id=cred.id)
         payload["discovered_tools"] = [{"name": "some_tool", "enabled": True}]
         response = await auth_client.post(BASE_URL, json=payload)
         assert response.status_code == 422

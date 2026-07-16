@@ -17,7 +17,7 @@ import { apiRequest, ensureProject } from '../utils/api'
  * Ensure an LLM Provider credential exists via the API.
  * Returns the credential name for selection in the UI dropdown.
  */
-export async function ensureLlmCredential(page: Page): Promise<string> {
+export async function ensureLlmCredential(page: Page): Promise<{ name: string; id: string }> {
   const project = await ensureProject(page)
   if (!project) throw new Error('Could not ensure project for credential creation')
 
@@ -27,7 +27,7 @@ export async function ensureLlmCredential(page: Page): Promise<string> {
   const listResp = await apiRequest(page, 'get', `/credentials?name=${encodeURIComponent(credName)}`)
   if (listResp.ok()) {
     const body = (await listResp.json()) as { resources?: Array<{ id: string; name: string }> }
-    if (body.resources?.length) return credName
+    if (body.resources?.length) return { name: credName, id: body.resources[0].id }
   }
 
   // Find LLM Provider credential type
@@ -47,7 +47,8 @@ export async function ensureLlmCredential(page: Page): Promise<string> {
     },
   })
   if (!createResp.ok()) throw new Error('Could not create LLM credential')
-  return credName
+  const cred = (await createResp.json()) as { id: string }
+  return { name: credName, id: cred.id }
 }
 
 export type SeededLlmIntegration = { id: string; name: string }
@@ -61,6 +62,7 @@ export type SeededLlmIntegration = { id: string; name: string }
  * Returns the integration id/name for cleanup in `finally`.
  */
 export async function createLlmIntegration(page: Page, name: string): Promise<SeededLlmIntegration> {
+  const credential = await ensureLlmCredential(page)
   const createResp = await apiRequest(page, 'post', '/integrations', {
     data: {
       name,
@@ -69,6 +71,7 @@ export async function createLlmIntegration(page: Page, name: string): Promise<Se
         integration_type: 'llm_provider',
         provider_hint: 'anthropic',
       },
+      management_credential_id: credential.id,
       scope: 'global',
       discovered_models: [
         {

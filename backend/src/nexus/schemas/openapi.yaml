@@ -28582,14 +28582,15 @@ components:
             - $ref: '#/components/schemas/AAPConfiguration'
           title: Configuration
         credential_id:
-          type: string
-          format: uuid
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
           title: Credential Id
           description: Credential to use for the connection test
       required:
         - integration_type
         - configuration
-        - credential_id
       title: IntegrationTestConnection
       type: object
     IntegrationRead:

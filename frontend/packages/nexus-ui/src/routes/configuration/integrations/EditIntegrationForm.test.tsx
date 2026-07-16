@@ -462,14 +462,48 @@ describe('EditIntegrationForm', () => {
       expect(screen.getByTestId('credential-selector')).toBeInTheDocument()
     })
 
-    it('renders credential section heading and description', () => {
+    it('renders credential section heading and MCP description', () => {
       render(<EditIntegrationForm />, { wrapper })
 
       expect(screen.getByText('Connection credential')).toBeInTheDocument()
-      expect(screen.getByText(/verify the connection/i)).toBeInTheDocument()
+      expect(screen.getByText(/credential is used for tool discovery/i)).toBeInTheDocument()
     })
 
-    it('disables test connection button when no credential is selected', () => {
+    it('enables test connection button for MCP when no credential is selected', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Test connection' })).not.toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('renders required description for LLM Provider', () => {
+      setupMocks({
+        integration: {
+          integration_type: 'llm_provider',
+          configuration: {
+            integration_type: 'llm_provider',
+            provider_hint: 'red_hat_ai',
+            base_url: 'https://api.redhat.ai',
+          },
+        },
+      })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByText('Connection credential')).toBeInTheDocument()
+      expect(screen.getByText(/credential is used to verify the connection/i)).toBeInTheDocument()
+    })
+
+    it('disables test connection button for LLM Provider when no credential is selected', () => {
+      setupMocks({
+        integration: {
+          integration_type: 'llm_provider',
+          management_credential_id: null,
+          configuration: {
+            integration_type: 'llm_provider',
+            provider_hint: 'red_hat_ai',
+            base_url: 'https://api.redhat.ai',
+          },
+        },
+      })
       render(<EditIntegrationForm />, { wrapper })
 
       expect(screen.getByRole('button', { name: 'Test connection' })).toHaveAttribute('aria-disabled', 'true')

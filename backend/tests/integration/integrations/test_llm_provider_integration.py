@@ -364,29 +364,25 @@ class TestLLMProviderCredentialResolution:
         response = await auth_client.post(f"{BASE_URL}/{integration_id}/refresh")
         assert response.status_code in (404, 422, 500)
 
-    async def test_validate_without_credential_succeeds(
+    async def test_create_without_credential_raises(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User
     ) -> None:
-        """Integration with no management_credential_id can still validate (empty credential)."""
+        """Creating an LLM integration without a credential raises IntegrationCredentialRequiredError."""
+        from nexus.integrations.exceptions import IntegrationCredentialRequiredError
+
         service = IntegrationService(test_db_session, test_user)
-        created = await service.create_integration(
-            IntegrationCreate(
-                name=f"llm-no-cred-{uuid4().hex[:8]}",
-                integration_type=IntegrationType.LLM_PROVIDER,
-                configuration={
-                    "integration_type": "llm_provider",
-                    "base_url": "https://api.openai.com",
-                    "provider_hint": "openai",
-                },
+        with pytest.raises(IntegrationCredentialRequiredError):
+            await service.create_integration(
+                IntegrationCreate(
+                    name=f"llm-no-cred-{uuid4().hex[:8]}",
+                    integration_type=IntegrationType.LLM_PROVIDER,
+                    configuration={
+                        "integration_type": "llm_provider",
+                        "base_url": "https://api.openai.com",
+                        "provider_hint": "openai",
+                    },
+                )
             )
-        )
-        await test_db_session.commit()
-
-        result = ValidateResult(success=True, checked_at=datetime.now(UTC))
-        with patch(LLM_VALIDATE_PATCH, new=AsyncMock(return_value=result)):
-            response = await auth_client.post(f"{BASE_URL}/{created.id}/validate")
-
-        assert response.status_code == 200
 
     async def test_refresh_with_incomplete_credential(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User

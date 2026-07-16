@@ -3,7 +3,6 @@
 from uuid import uuid4
 
 import pytest
-from nexus_test_sdk.helpers.credential import CredentialFactory
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -67,8 +66,15 @@ class TestCreateIntegration:
 
     @pytest.mark.asyncio
     async def test_create_llm_provider(
-        self, test_db_session: AsyncSession, integration_service: IntegrationService
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+        credential_factory,
     ) -> None:
+        ct = await credential_factory.create_type("LLM Provider")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
         data = IntegrationCreate(
             name="Test LLM",
             integration_type=IntegrationType.LLM_PROVIDER,
@@ -77,6 +83,7 @@ class TestCreateIntegration:
                 "base_url": "http://localhost:11434",
                 "provider_hint": "custom",
             },
+            management_credential_id=cred.id,
         )
         result = await integration_service.create_integration(data)
 
@@ -85,7 +92,16 @@ class TestCreateIntegration:
         assert result.configuration.provider_hint == "custom"  # type: ignore[union-attr]
 
     @pytest.mark.asyncio
-    async def test_create_aap(self, test_db_session: AsyncSession, integration_service: IntegrationService) -> None:
+    async def test_create_aap(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+        credential_factory,
+    ) -> None:
+        ct = await credential_factory.create_type("Ansible Automation Platform")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
         data = IntegrationCreate(
             name="Test Gateway",
             integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
@@ -94,6 +110,7 @@ class TestCreateIntegration:
                 "aap_url": "https://gateway.example.com",
                 "insecure_skip_tls_verify": True,
             },
+            management_credential_id=cred.id,
         )
         result = await integration_service.create_integration(data)
 
@@ -235,8 +252,15 @@ class TestListIntegrations:
 
     @pytest.mark.asyncio
     async def test_list_filter_by_integration_type(
-        self, test_db_session: AsyncSession, integration_service: IntegrationService
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+        credential_factory,
     ) -> None:
+        ct = await credential_factory.create_type("LLM Provider")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
         await integration_service.create_integration(_mcp_create(name="MCP One"))
         await integration_service.create_integration(
             IntegrationCreate(
@@ -247,6 +271,7 @@ class TestListIntegrations:
                     "base_url": "http://localhost:11434",
                     "provider_hint": "custom",
                 },
+                management_credential_id=cred.id,
             )
         )
 
@@ -512,16 +537,12 @@ class TestDeleteIntegration:
 class TestCredentialTypeValidation:
     """Tests for credential type validation at create/patch time."""
 
-    @pytest.fixture
-    def credential_factory(self, test_db_session: AsyncSession, test_user: User) -> CredentialFactory:
-        return CredentialFactory(test_db_session, test_user)
-
     @pytest.mark.asyncio
     async def test_create_with_valid_credential_type(
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
-        credential_factory: CredentialFactory,
+        credential_factory,
     ) -> None:
         ct = await credential_factory.create_type("HTTP Bearer Token")
         project = await credential_factory.create_project()
@@ -536,7 +557,7 @@ class TestCredentialTypeValidation:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
-        credential_factory: CredentialFactory,
+        credential_factory,
     ) -> None:
         ct = await credential_factory.create_type("LLM Provider")
         project = await credential_factory.create_project()
@@ -571,7 +592,7 @@ class TestCredentialTypeValidation:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
-        credential_factory: CredentialFactory,
+        credential_factory,
     ) -> None:
         created = await integration_service.create_integration(_mcp_create())
 
@@ -588,7 +609,7 @@ class TestCredentialTypeValidation:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
-        credential_factory: CredentialFactory,
+        credential_factory,
     ) -> None:
         created = await integration_service.create_integration(_mcp_create())
 
@@ -614,10 +635,6 @@ class TestCredentialTypeValidation:
 
 class TestDiscover:
     """Tests for IntegrationService.discover() (formerly test_connection)."""
-
-    @pytest.fixture
-    def credential_factory(self, test_db_session: AsyncSession, test_user: User) -> CredentialFactory:
-        return CredentialFactory(test_db_session, test_user)
 
     @pytest.fixture
     def mock_secret_service(self) -> object:
@@ -650,7 +667,7 @@ class TestDiscover:
         self,
         test_db_session: AsyncSession,
         service_with_secrets: IntegrationService,
-        credential_factory: CredentialFactory,
+        credential_factory,
     ) -> None:
         ct = await credential_factory.create_type("HTTP Bearer Token")
         project = await credential_factory.create_project()

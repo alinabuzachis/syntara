@@ -75,23 +75,23 @@ class TestIntegrationNameConflictHandler:
 class TestIntegrationCredentialRequiredHandler:
     """Tests for integration_credential_required_handler."""
 
-    def test_returns_400_with_rfc9457_format(self) -> None:
+    def test_returns_422_with_rfc9457_format(self) -> None:
         request = Mock(spec=Request)
         request.url = f"https://api.example.com/integrations/{_INTEGRATION_ID}/validate"
 
-        exc = IntegrationCredentialRequiredError(UUID(_INTEGRATION_ID))
+        exc = IntegrationCredentialRequiredError("llm_provider")
         response = integration_credential_required_handler(request, exc)
 
         assert isinstance(response, JSONResponse)
-        assert response.status_code == 400
+        assert response.status_code == 422
         assert response.media_type == "application/problem+json"
 
         data = json.loads(bytes(response.body).decode())
-        assert data["type"] == PROBLEM_TYPES["integration_error"]
+        assert data["type"] == PROBLEM_TYPES["validation_error"]
         assert data["title"] == "Credential Required"
         assert data["code"] == "INTEGRATION_CREDENTIAL_REQUIRED"
         assert data["retryable"] is False
-        assert _INTEGRATION_ID in data["detail"]
+        assert "llm_provider" in data["detail"]
 
 
 class TestIntegrationCredentialNotFoundHandler:

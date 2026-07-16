@@ -19,65 +19,79 @@ import { type Page } from '@playwright/test'
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName } from './helpers/workflows'
 import { deleteIntegrationViaApi, type SeededIntegration } from './seeds/resources'
-import { apiRequest, getAuthToken } from './utils/api'
+import { apiRequest, deleteCredentialViaApi, ensureProject } from './utils/api'
 
-async function createLLMIntegrationViaApi(
-  app: Page,
-  options: { name: string; token?: string }
-): Promise<SeededIntegration | null> {
-  try {
-    const token = options.token ?? (await getAuthToken(app))
-    if (!token) return null
+async function ensureLlmCredentialId(app: Page): Promise<string> {
+  const project = await ensureProject(app)
+  if (!project) throw new Error('Could not ensure project for credential creation')
 
-    const resp = await apiRequest(app, 'post', '/integrations', {
-      token,
-      data: {
-        name: options.name,
-        integration_type: 'llm_provider',
-        configuration: {
-          integration_type: 'llm_provider',
-          provider_hint: 'custom',
-          base_url: `https://${options.name}.example.com/v1`,
-        },
-        scope: 'global',
-        discovered_models: [
-          {
-            model_id: 'model-alpha',
-            name: 'Alpha Model',
-            description: 'First test model',
-            enabled: true,
-            is_default: true,
-          },
-          {
-            model_id: 'model-beta',
-            name: 'Beta Model',
-            description: 'Second test model',
-            enabled: true,
-            is_default: false,
-          },
-          {
-            model_id: 'model-gamma',
-            name: 'Gamma Model',
-            description: 'Third test model',
-            enabled: false,
-            is_default: false,
-          },
-        ],
-      },
-    })
-    if (!resp.ok()) return null
-    const integration = (await resp.json()) as { id: string; name: string }
-    return { id: integration.id, name: integration.name }
-  } catch {
-    return null
-  }
+  const typesResp = await apiRequest(app, 'get', '/credential_types')
+  if (!typesResp.ok()) throw new Error('Could not list credential types')
+  const types = (await typesResp.json()) as { resources?: Array<{ id: string; name: string }> }
+  const llmType = types.resources?.find((t) => t.name === 'LLM Provider')
+  if (!llmType) throw new Error('LLM Provider credential type not found')
+
+  const credName = `e2e-llm-models-cred-${Date.now()}`
+  const createResp = await apiRequest(app, 'post', '/credentials', {
+    data: {
+      name: credName,
+      credential_type_id: llmType.id,
+      project_id: project.id,
+      inputs: { api_key: 'sk-e2e-test-key' },
+    },
+  })
+  if (!createResp.ok()) throw new Error('Could not create LLM credential')
+  const cred = (await createResp.json()) as { id: string }
+  return cred.id
 }
 
-async function createLLMIntegration(app: Page, name: string): Promise<SeededIntegration> {
-  const token = await getAuthToken(app)
-  const integration = await createLLMIntegrationViaApi(app, { name, token: token ?? undefined })
-  if (!integration) throw new Error(`Failed to create LLM integration "${name}" via API`)
-  return integration
+type LLMIntegrationResult = SeededIntegration & { credentialId: string }
+
+async function createLLMIntegration(app: Page, name: string): Promise<LLMIntegrationResult> {
+  const credentialId = await ensureLlmCredentialId(app)
+
+  const resp = await apiRequest(app, 'post', '/integrations', {
+    data: {
+      name,
+      integration_type: 'llm_provider',
+      configuration: {
+        integration_type: 'llm_provider',
+        provider_hint: 'custom',
+        base_url: `https://${name}.example.com/v1`,
+      },
+      management_credential_id: credentialId,
+      scope: 'global',
+      discovered_models: [
+        {
+          model_id: 'model-alpha',
+          name: 'Alpha Model',
+          description: 'First test model',
+          enabled: true,
+          is_default: true,
+        },
+        {
+          model_id: 'model-beta',
+          name: 'Beta Model',
+          description: 'Second test model',
+          enabled: true,
+          is_default: false,
+        },
+        {
+          model_id: 'model-gamma',
+          name: 'Gamma Model',
+          description: 'Third test model',
+          enabled: false,
+          is_default: false,
+        },
+      ],
+    },
+  })
+  if (!resp.ok()) {
+    const text = await resp.text()
+    throw new Error(`Failed to create LLM integration "${name}" via API: ${resp.status()} ${text}`)
+  }
+  const integration = (await resp.json()) as { id: string; name: string }
+  return { id: integration.id, name: integration.name, credentialId }
 }
 
 async function navigateToModelsTab(app: Page, integrationName: string) {
@@ -107,6 +121,7 @@ test.describe('LLM Provider Models Tab', () => {
       expect(count).toBeGreaterThan(0)
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 
@@ -131,6 +146,7 @@ test.describe('LLM Provider Models Tab', () => {
       await expect(gammaCheckbox).not.toBeChecked()
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 
@@ -160,6 +176,7 @@ test.describe('LLM Provider Models Tab', () => {
       }
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 
@@ -182,6 +199,7 @@ test.describe('LLM Provider Models Tab', () => {
       await expect(alphaRow.getByText('Default')).not.toBeVisible()
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 
@@ -205,6 +223,7 @@ test.describe('LLM Provider Models Tab', () => {
       await expect(modelsTable.getByText('Default')).not.toBeVisible()
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 
@@ -236,6 +255,7 @@ test.describe('LLM Provider Models Tab', () => {
       await expect(gammaRevisit.getByRole('checkbox')).toBeChecked()
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 
@@ -257,6 +277,7 @@ test.describe('LLM Provider Models Tab', () => {
       await expect(visibleRows.nth(0)).toContainText('Alpha Model')
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 
@@ -276,6 +297,7 @@ test.describe('LLM Provider Models Tab', () => {
       await expect(app.getByRole('button', { name: /Clear all filters/i }).last()).toBeVisible()
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 
@@ -299,6 +321,7 @@ test.describe('LLM Provider Models Tab', () => {
       await expect(modelsTable.locator('tbody tr')).toHaveCount(initialRows)
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 
@@ -327,6 +350,7 @@ test.describe('LLM Provider Models Tab', () => {
       await expect(app.getByText('Failed to update models')).toBeVisible()
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
     }
   })
 })

@@ -33,12 +33,14 @@ class IntegrationNameConflictError(IntegrationError):
 
 @fastapi_exception(handler="nexus.integrations.error_handlers.integration_credential_required_handler")
 class IntegrationCredentialRequiredError(IntegrationError):
-    """Exception raised when a health check is attempted without a management credential."""
+    """Exception raised when credential is required but missing for an integration type."""
 
-    def __init__(self, integration_id: UUID) -> None:
-        """Initialize exception with integration ID."""
-        self.integration_id = integration_id
-        super().__init__(f"Integration {integration_id} requires a management credential for health checks")
+    def __init__(self, integration_type: str) -> None:
+        """Initialize exception with integration type."""
+        self.integration_type = integration_type
+        super().__init__(
+            f"{integration_type} integrations require a management credential for discovery and validation"
+        )
 
 
 @fastapi_exception(handler="nexus.integrations.error_handlers.integration_credential_not_found_handler")

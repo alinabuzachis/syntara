@@ -65,7 +65,8 @@ async def resolve_mcp_bearer_token(
     """
     integration = await session.get(Integration, integration_id)
     if not integration or not integration.management_credential_id:
-        raise IntegrationCredentialRequiredError(integration_id)
+        itype = integration.integration_type.value if integration else "mcp_server"
+        raise IntegrationCredentialRequiredError(itype)
 
     credential, cred_type = await fetch_credential_with_type(session, integration.management_credential_id)
     # fetch_credential_with_type raises if secret_id is None
@@ -73,5 +74,5 @@ async def resolve_mcp_bearer_token(
     resolved = InjectorResolver.resolve(cred_type.injectors or {}, decrypted)
     token: str | None = resolved.extra_vars.get("bearer_token")
     if not token:
-        raise IntegrationCredentialRequiredError(integration_id)
+        raise IntegrationCredentialRequiredError(integration.integration_type.value)
     return token

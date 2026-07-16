@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 import pytest
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
     from nexus_api_client.api import NexusApiRegistry
 
@@ -25,6 +25,8 @@ if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
 from nexus_api_client.models.aap_configuration import AAPConfiguration
+from nexus_api_client.models.credential_create import CredentialCreate
+from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.integration_create import IntegrationCreate
 from nexus_api_client.models.integration_patch import IntegrationPatch
 from nexus_api_client.models.integration_type import IntegrationType
@@ -36,6 +38,72 @@ from nexus_test_sdk.helpers import unique_name
 pytestmark = [pytest.mark.e2e]
 
 
+# ---------------------------------------------------------------------------
+# Credential helpers
+# ---------------------------------------------------------------------------
+
+
+def _find_credential_type_id(nexus_api: NexusApiRegistry, name_fragment: str) -> UUID:
+    """Find a credential type ID by partial name match."""
+    types_list = nexus_api.credentials.list_types().assert_and_get()
+    for ct in types_list.resources:
+        if name_fragment.lower() in ct.name.lower():
+            return UUID(str(ct.id))
+    msg = f"Credential type matching '{name_fragment}' not found — is the database seeded?"
+    raise AssertionError(msg)
+
+
+def _create_credential(
+    nexus_api: NexusApiRegistry,
+    type_name_fragment: str,
+    project_id: UUID,
+    inputs: dict[str, str],
+) -> UUID:
+    """Create a credential via the API and return its UUID."""
+    type_id = _find_credential_type_id(nexus_api, type_name_fragment)
+    cred = nexus_api.credentials.create(
+        body=CredentialCreate(
+            name=unique_name(f"e2e-cred-{type_name_fragment.lower().replace(' ', '-')}"),
+            credential_type_id=type_id,
+            project_id=project_id,
+            inputs=CredentialCreateInputs.from_dict(inputs),
+        ),
+    ).assert_and_get()
+    return UUID(str(cred.id))
+
+
+@pytest.fixture
+def e2e_llm_credential_id(nexus_api: NexusApiRegistry, first_project_id: UUID) -> Generator[UUID, None, None]:
+    """Create an LLM Provider credential for integration e2e tests."""
+    cred_id = _create_credential(nexus_api, "LLM Provider", first_project_id, {"api_key": "test-key"})
+    yield cred_id
+    try:
+        nexus_api.credentials.delete(credential_id=cred_id)
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def e2e_aap_credential_id(nexus_api: NexusApiRegistry, first_project_id: UUID) -> Generator[UUID, None, None]:
+    """Create an AAP credential for integration e2e tests."""
+    cred_id = _create_credential(
+        nexus_api,
+        "Ansible Automation Platform",
+        first_project_id,
+        {"host": "https://aap.example.com", "oauth_token": "test-token"},
+    )
+    yield cred_id
+    try:
+        nexus_api.credentials.delete(credential_id=cred_id)
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Integration create helpers
+# ---------------------------------------------------------------------------
+
+
 def _mcp_create(name: str | None = None) -> IntegrationCreate:
     return IntegrationCreate(
         name=name or unique_name("e2e-mcp"),
@@ -44,7 +112,7 @@ def _mcp_create(name: str | None = None) -> IntegrationCreate:
     )
 
 
-def _llm_create(name: str | None = None) -> IntegrationCreate:
+def _llm_create(name: str | None = None, management_credential_id: UUID | None = None) -> IntegrationCreate:
     return IntegrationCreate(
         name=name or unique_name("e2e-llm"),
         integration_type=IntegrationType.LLM_PROVIDER,
@@ -52,10 +120,11 @@ def _llm_create(name: str | None = None) -> IntegrationCreate:
             base_url="https://api.openai.com",
             provider_hint=LLMProviderHint.OPENAI,
         ),
+        management_credential_id=management_credential_id,
     )
 
 
-def _aap_create(name: str | None = None) -> IntegrationCreate:
+def _aap_create(name: str | None = None, management_credential_id: UUID | None = None) -> IntegrationCreate:
     return IntegrationCreate(
         name=name or unique_name("e2e-aap"),
         integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
@@ -63,6 +132,7 @@ def _aap_create(name: str | None = None) -> IntegrationCreate:
             aap_url="https://gateway.example.com",
             insecure_skip_tls_verify=False,
         ),
+        management_credential_id=management_credential_id,
     )
 
 
@@ -77,15 +147,25 @@ class TestCreateIntegration:
         assert result["enabled"] is True
         assert result["scope"] == "global"
 
-    def test_create_llm_provider(self, integration_factory: Callable[..., dict[str, Any]]) -> None:
-        result = integration_factory(_llm_create())
+    def test_create_llm_provider(
+        self, integration_factory: Callable[..., dict[str, Any]], e2e_llm_credential_id: UUID
+    ) -> None:
+        result = integration_factory(_llm_create(management_credential_id=e2e_llm_credential_id))
         assert result["integration_type"] == "llm_provider"
         assert result["configuration"]["provider_hint"] == "openai"
 
-    def test_create_aap(self, integration_factory: Callable[..., dict[str, Any]]) -> None:
-        result = integration_factory(_aap_create())
+    def test_create_aap(self, integration_factory: Callable[..., dict[str, Any]], e2e_aap_credential_id: UUID) -> None:
+        result = integration_factory(_aap_create(management_credential_id=e2e_aap_credential_id))
         assert result["integration_type"] == "ansible_automation_platform"
         assert result["configuration"]["insecure_skip_tls_verify"] is False
+
+    def test_create_llm_without_credential_returns_422(self, nexus_api: NexusApiRegistry) -> None:
+        resp = nexus_api.integrations.create(body=_llm_create())
+        assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+    def test_create_aap_without_credential_returns_422(self, nexus_api: NexusApiRegistry) -> None:
+        resp = nexus_api.integrations.create(body=_aap_create())
+        assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
     def test_create_duplicate_name_returns_409(
         self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
@@ -123,10 +203,13 @@ class TestListIntegrations:
         assert created["id"] in ids
 
     def test_list_filter_by_type(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self,
+        nexus_api: NexusApiRegistry,
+        integration_factory: Callable[..., dict[str, Any]],
+        e2e_llm_credential_id: UUID,
     ) -> None:
         integration_factory(_mcp_create())
-        integration_factory(_llm_create())
+        integration_factory(_llm_create(management_credential_id=e2e_llm_credential_id))
         result = nexus_api.integrations.list(integration_type=IntegrationType.MCP_SERVER).assert_and_get()
         for r in result.resources:
             assert r.integration_type == IntegrationType.MCP_SERVER

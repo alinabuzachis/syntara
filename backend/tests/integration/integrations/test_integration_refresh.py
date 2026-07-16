@@ -51,9 +51,13 @@ class TestIntegrationRefreshContract:
         assert response.status_code == 422
 
     async def test_refresh_unsupported_type_returns_422(
-        self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User
+        self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User, credential_factory
     ) -> None:
         """Refreshing an Ansible Automation Platform integration type returns 422."""
+        ct = await credential_factory.create_type("Ansible Automation Platform")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
         service = IntegrationService(test_db_session, test_user)
         created = await service.create_integration(
             IntegrationCreate(
@@ -63,6 +67,7 @@ class TestIntegrationRefreshContract:
                     "integration_type": "ansible_automation_platform",
                     "aap_url": "https://gateway.example.com",
                 },
+                management_credential_id=cred.id,
             )
         )
         await test_db_session.commit()

@@ -26,6 +26,7 @@ import { useAlerts } from '../../../../providers/alerts'
 import { getErrorMessage } from '../../../../utils/apiErrors'
 import { detachPromise } from '../../../../utils/detachPromise'
 import { useDocLink } from '../../../../utils/docs/useDocLink'
+import { CREDENTIAL_REQUIRED_TYPES } from '../integrationFilters'
 
 import { CredentialStep } from './CredentialStep'
 import { EnableModelsWrapper } from './EnableModelsStep'
@@ -54,6 +55,7 @@ type WizardNavFooterProps = Readonly<{
   onSubmit: () => void
   credentialId: string | null | undefined
   integrationTypeValue: string
+  isCredentialRequired: boolean
   onDetailsStepValidated: () => void
 }>
 
@@ -62,6 +64,7 @@ function WizardNavFooter({
   onSubmit,
   credentialId,
   integrationTypeValue,
+  isCredentialRequired,
   onDetailsStepValidated,
 }: WizardNavFooterProps) {
   const { goToNextStep, goToPrevStep, activeStep } = useWizardContext()
@@ -87,8 +90,8 @@ function WizardNavFooter({
     await goToNextStep()
   }, [trigger, isFirst, goToNextStep, integrationTypeValue, onDetailsStepValidated])
 
-  const isNextDisabled = isSecond && !credentialId
-  const isSaveDisabled = isSecond && !credentialId
+  const isNextDisabled = isSecond && isCredentialRequired && !credentialId
+  const isSaveDisabled = isSecond && isCredentialRequired && !credentialId
 
   return (
     <WizardFooterWrapper>
@@ -199,7 +202,7 @@ function useDiscoverConnection(getValues: () => IntegrationFormData) {
   const handleTestConnection = useCallback(() => {
     const values = getValues()
     const credId = values.management_credential_id
-    if (!credId) return
+    if (!credId && CREDENTIAL_REQUIRED_TYPES.has(values.integration_type)) return
 
     resetTestState()
 
@@ -209,7 +212,7 @@ function useDiscoverConnection(getValues: () => IntegrationFormData) {
         body: {
           integration_type: values.integration_type,
           configuration: values.configuration,
-          credential_id: credId,
+          credential_id: credId ?? undefined,
         },
       },
       {
@@ -273,6 +276,7 @@ export function IntegrationForm() {
   const [isDetailsStepValid, setIsDetailsStepValid] = useState(false)
   const { showAlert } = useAlerts()
   const isLLM = integrationTypeValue === IntegrationTypeEnum.LLM_PROVIDER
+  const isCredentialRequired = CREDENTIAL_REQUIRED_TYPES.has(integrationTypeValue)
 
   const onTypeChange = useCallback(
     (newType: string) => {
@@ -335,6 +339,7 @@ export function IntegrationForm() {
                 onSubmit={() => detachPromise(onSubmit())}
                 credentialId={credentialId}
                 integrationTypeValue={integrationTypeValue}
+                isCredentialRequired={isCredentialRequired}
                 onDetailsStepValidated={() => setIsDetailsStepValid(true)}
               />
             }
@@ -359,24 +364,29 @@ export function IntegrationForm() {
               name="Enable tools"
               id="enable-tools"
               isHidden={integrationTypeValue !== IntegrationTypeEnum.MCP_SERVER}
-              isDisabled={!credentialId}
+              isDisabled={isCredentialRequired && !credentialId}
             >
               <EnableToolsWrapper
                 testResult={testResult}
                 selectedNames={selectedToolNames}
                 onSelectionChange={setSelectedToolNames}
                 onTestConnection={handleTestConnection}
-                isTestDisabled={!credentialId || isTesting}
+                isTestDisabled={(isCredentialRequired && !credentialId) || isTesting}
               />
             </WizardStep>
 
-            <WizardStep name="Enable models" id="enable-models" isHidden={!isLLM} isDisabled={!credentialId}>
+            <WizardStep
+              name="Enable models"
+              id="enable-models"
+              isHidden={!isLLM}
+              isDisabled={isCredentialRequired && !credentialId}
+            >
               <EnableModelsWrapper
                 testResult={testResult}
                 selectedModels={selectedModels}
                 onSelectionChange={setSelectedModels}
                 onTestConnection={handleTestConnection}
-                isTestDisabled={!credentialId || isTesting}
+                isTestDisabled={(isCredentialRequired && !credentialId) || isTesting}
               />
             </WizardStep>
           </Wizard>

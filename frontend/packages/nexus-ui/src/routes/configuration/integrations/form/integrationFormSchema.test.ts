@@ -26,6 +26,7 @@ const validLlmBase = {
     provider_hint: 'red_hat_ai' as const,
     base_url: 'https://api.example.com',
   },
+  management_credential_id: 'cred-llm-123',
   scope: 'global' as const,
 }
 

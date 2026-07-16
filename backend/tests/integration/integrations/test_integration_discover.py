@@ -4,6 +4,7 @@ The discover endpoint tests an unsaved connection and returns a DiscoverResult
 with tool information. No integration is persisted.
 """
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -29,26 +30,62 @@ def _fake_discovered_tool(name: str, *, with_params: bool = False) -> Discovered
     return DiscoveredTool(name=name, description=f"Description for {name}", parameters=params)
 
 
-def _mcp_body(credential_id: str) -> dict[str, object]:
-    return {
+def _mcp_body(credential_id: str | None = None) -> dict[str, object]:
+    body: dict[str, object] = {
         "integration_type": "mcp_server",
         "configuration": {
             "integration_type": "mcp_server",
             "base_url": "http://localhost:8080",
         },
-        "credential_id": credential_id,
     }
+    if credential_id is not None:
+        body["credential_id"] = credential_id
+    return body
+
+
+def _llm_body(credential_id: str | None = None) -> dict[str, object]:
+    body: dict[str, object] = {
+        "integration_type": "llm_provider",
+        "configuration": {
+            "integration_type": "llm_provider",
+            "base_url": "http://localhost:11434",
+            "provider_hint": "custom",
+        },
+    }
+    if credential_id is not None:
+        body["credential_id"] = credential_id
+    return body
+
+
+def _aap_body(credential_id: str | None = None) -> dict[str, object]:
+    body: dict[str, object] = {
+        "integration_type": "ansible_automation_platform",
+        "configuration": {
+            "integration_type": "ansible_automation_platform",
+            "aap_url": "https://gateway.example.com",
+        },
+    }
+    if credential_id is not None:
+        body["credential_id"] = credential_id
+    return body
 
 
 @pytest.mark.asyncio
 class TestIntegrationDiscoverContract:
     """Contract tests for POST /integrations/discover."""
 
-    async def test_nonexistent_credential_returns_404(self, auth_client: AsyncClient) -> None:
-        """A credential_id that does not exist returns 404."""
+    @pytest.mark.parametrize(
+        "body_fn",
+        [_mcp_body, _llm_body, _aap_body],
+        ids=["mcp_server", "llm_provider", "aap"],
+    )
+    async def test_nonexistent_credential_returns_404(
+        self, auth_client: AsyncClient, body_fn: Callable[[str], dict[str, object]]
+    ) -> None:
+        """A credential_id that does not exist returns 404 for any integration type."""
         response = await auth_client.post(
             f"{BASE_URL}/discover",
-            json=_mcp_body(str(uuid4())),
+            json=body_fn(str(uuid4())),
         )
         assert response.status_code == 404
         data = response.json()
@@ -252,6 +289,42 @@ class TestIntegrationDiscoverContract:
             await test_db_session.exec(select(Integration).where(Integration.deleted_at.is_(None)))  # type: ignore[union-attr]
         ).all()
         assert len(integrations_after) == len(integrations_before)
+
+    async def test_mcp_discover_without_credential_succeeds(self, auth_client: AsyncClient) -> None:
+        """MCP Server discover without a credential returns 200 (unauthenticated server)."""
+        discover_result = DiscoverResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_tools=[_fake_discovered_tool("public_tool")],
+        )
+
+        with patch(MCP_DISCOVER_PATCH, new=AsyncMock(return_value=discover_result)):
+            response = await auth_client.post(
+                f"{BASE_URL}/discover",
+                json={
+                    "integration_type": "mcp_server",
+                    "configuration": {
+                        "integration_type": "mcp_server",
+                        "base_url": "https://mcp.example.com",
+                    },
+                },
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert len(data["discovered_tools"]) == 1
+        assert data["discovered_tools"][0]["name"] == "public_tool"
+
+    async def test_llm_discover_without_credential_returns_422(self, auth_client: AsyncClient) -> None:
+        """LLM provider discover without credential_id returns 422."""
+        response = await auth_client.post(f"{BASE_URL}/discover", json=_llm_body())
+        assert response.status_code == 422
+
+    async def test_aap_discover_without_credential_returns_422(self, auth_client: AsyncClient) -> None:
+        """AAP discover without credential_id returns 422."""
+        response = await auth_client.post(f"{BASE_URL}/discover", json=_aap_body())
+        assert response.status_code == 422
 
 
 # ---------------------------------------------------------------------------

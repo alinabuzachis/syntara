@@ -453,10 +453,9 @@ export interface components {
         | components['schemas']['AAPConfiguration']
       /**
        * Credential Id
-       * Format: uuid
        * @description Credential to use for the connection test
        */
-      credential_id: string
+      credential_id?: string | null
     }
     /** @description Schema for integration API responses. */
     IntegrationRead: components['schemas']['Resource'] & {

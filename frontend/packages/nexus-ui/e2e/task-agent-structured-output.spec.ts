@@ -52,7 +52,7 @@ test.describe('Task Agent Structured Output', () => {
       await addManualTrigger(app)
 
       // Ensure LLM credential exists (required for AI Agent form submission)
-      const credName = await ensureLlmCredential(app)
+      const { name: credName } = await ensureLlmCredential(app)
 
       const layoutButton = app.getByRole('button', { name: 'Layout' })
       await layoutButton.click()
@@ -102,7 +102,7 @@ test.describe('Task Agent Structured Output', () => {
       await addManualTrigger(app)
 
       // Ensure LLM credential exists (required for AI Agent form submission)
-      const credName = await ensureLlmCredential(app)
+      const { name: credName } = await ensureLlmCredential(app)
 
       const layoutButton = app.getByRole('button', { name: 'Layout' })
       await layoutButton.click()
@@ -152,7 +152,7 @@ test.describe('Task Agent Structured Output', () => {
       await addManualTrigger(app)
 
       // Ensure LLM credential exists (required for AI Agent form submission)
-      const credName = await ensureLlmCredential(app)
+      const { name: credName } = await ensureLlmCredential(app)
 
       const layoutButton = app.getByRole('button', { name: 'Layout' })
       await layoutButton.click()

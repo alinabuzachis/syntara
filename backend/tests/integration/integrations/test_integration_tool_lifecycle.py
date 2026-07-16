@@ -11,6 +11,7 @@ Covers:
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
@@ -26,7 +27,7 @@ from nexus.integrations.models.integration import (
 )
 from nexus.integrations.services.integration_service import IntegrationService
 from nexus.tool_manager.models.tool import Tool
-from tests.unit.integrations.conftest import make_mcp_create
+from tests.integration.integrations.conftest import make_mcp_create
 
 
 def _make_discovered_tool(name: str, description: str = "") -> DiscoveredTool:
@@ -71,6 +72,7 @@ class TestCreateIntegration:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         data = IntegrationCreate(
             name="LLM Provider",
@@ -80,6 +82,7 @@ class TestCreateIntegration:
                 "base_url": "https://llm.example.com",
                 "provider_hint": "custom",
             },
+            management_credential_id=llm_credential_id,
         )
         result = await integration_service.create_integration(data)
         await test_db_session.flush()
@@ -140,6 +143,7 @@ class TestDeleteIntegrationCascadesToTools:
         self,
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
+        llm_credential_id: UUID,
     ) -> None:
         data = IntegrationCreate(
             name="No Tools",
@@ -149,6 +153,7 @@ class TestDeleteIntegrationCascadesToTools:
                 "base_url": "https://llm.example.com",
                 "provider_hint": "custom",
             },
+            management_credential_id=llm_credential_id,
         )
         created = await integration_service.create_integration(data)
         await test_db_session.flush()
@@ -381,6 +386,7 @@ class TestRefreshIntegrationResources:
         self,
         test_db_session: AsyncSession,
         test_user: User,
+        aap_credential_id: UUID,
     ) -> None:
         """refresh_resources raises for unsupported integration types (ansible_automation_platform)."""
         from nexus.integrations.exceptions import IntegrationRefreshNotSupportedError
@@ -393,6 +399,7 @@ class TestRefreshIntegrationResources:
                 "integration_type": "ansible_automation_platform",
                 "aap_url": "https://gateway.example.com",
             },
+            management_credential_id=aap_credential_id,
         )
         created = await service.create_integration(data)
         await test_db_session.flush()

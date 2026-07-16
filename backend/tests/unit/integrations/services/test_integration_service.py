@@ -1,5 +1,7 @@
 """Unit tests for IntegrationService."""
 
+from collections.abc import Generator
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -20,6 +22,16 @@ from nexus.integrations.models.integration import (
     IntegrationType,
 )
 from nexus.integrations.services.integration_service import IntegrationService
+
+
+@pytest.fixture(autouse=True)
+def _skip_credential_validation() -> Generator[None, None, None]:
+    """Bypass credential requirements in unit tests (no real credential store)."""
+    with patch(
+        "nexus.integrations.services.integration_service.CREDENTIAL_REQUIRED_TYPES",
+        frozenset(),
+    ):
+        yield
 
 
 @pytest.fixture

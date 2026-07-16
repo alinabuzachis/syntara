@@ -43,6 +43,7 @@ import styles from './EditIntegrationForm.module.css'
 import type { EditIntegrationFormValues, IntegrationRead } from './editIntegrationFormSchema'
 import { buildConfiguration, buildEditSchema, editIntegrationSchema } from './editIntegrationFormSchema'
 import {
+  CREDENTIAL_REQUIRED_TYPES,
   CREDENTIAL_TYPES_BY_INTEGRATION,
   INTEGRATION_TYPE_LABELS,
   PROVIDER_HINT_LABELS,
@@ -51,6 +52,15 @@ import {
 } from './integrationFilters'
 import { getProviderHint, isLLMProvider } from './integrationUtils'
 import { useEditTestConnection } from './useEditTestConnection'
+
+const CREDENTIAL_DESCRIPTION: Record<string, string> = {
+  [IntegrationTypeEnum.MCP_SERVER]:
+    'This credential is used for tool discovery and connection status checks. MCP servers that do not require authentication can be configured without one.',
+  [IntegrationTypeEnum.LLM_PROVIDER]:
+    'This credential is used to verify the connection to this integration and perform periodic health checks. Workflow credentials are configured separately in the workflow builder.',
+  [IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM]:
+    'This credential is used to verify the connection to the Ansible Automation Platform. Workflow credentials are configured separately in the workflow builder.',
+}
 
 function AapConfigurationFields({
   control,
@@ -133,10 +143,15 @@ function EditIntegrationFormFields({
   setValue,
   onTestConnection,
 }: FormFieldsProps) {
+  const isCredentialRequired = CREDENTIAL_REQUIRED_TYPES.has(integration.integration_type ?? '')
+  const isTestDisabled = (isCredentialRequired && !credentialId) || isTesting
   const isAnsibleAutomationPlatform = integration.integration_type === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM
   const isLLM = isLLMProvider(integration)
   const hideBaseUrl =
     isAnsibleAutomationPlatform || (isLLM && PROVIDERS_HIDING_BASE_URL.has(getProviderHint(integration)))
+
+  const credentialDescription =
+    CREDENTIAL_DESCRIPTION[integration.integration_type ?? ''] ?? CREDENTIAL_DESCRIPTION[IntegrationTypeEnum.MCP_SERVER]
 
   return (
     <>
@@ -253,9 +268,7 @@ function EditIntegrationFormFields({
           Connection credential
         </Title>
         <Content component={ContentVariants.p} className={styles.credentialDescription}>
-          {isAnsibleAutomationPlatform
-            ? 'This credential is used to verify the connection to the Ansible Automation Platform. Workflow credentials are configured separately in the workflow builder.'
-            : 'This credential is used to verify the connection to this integration and perform periodic health checks. Workflow credentials are configured separately in the workflow builder.'}
+          {credentialDescription}
         </Content>
       </div>
 
@@ -271,6 +284,7 @@ function EditIntegrationFormFields({
             }
             label="Health check credential"
             fieldId="edit-credential-select"
+            isRequired={isCredentialRequired}
             allowCreate
             placeholder="Select a credential"
             helpText={
@@ -285,9 +299,9 @@ function EditIntegrationFormFields({
       <FormGroup fieldId="test-connection">
         <Button
           variant="secondary"
-          onClick={!credentialId || isTesting ? undefined : onTestConnection}
+          onClick={isTestDisabled ? undefined : onTestConnection}
           isLoading={isTesting}
-          isAriaDisabled={!credentialId || isTesting}
+          isAriaDisabled={isTestDisabled}
         >
           Test connection
         </Button>

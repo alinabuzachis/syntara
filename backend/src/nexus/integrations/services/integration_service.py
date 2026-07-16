@@ -69,6 +69,13 @@ ALLOWED_CREDENTIAL_TYPES: dict[IntegrationType, frozenset[str]] = {
     IntegrationType.ANSIBLE_AUTOMATION_PLATFORM: frozenset({"Ansible Automation Platform"}),
 }
 
+CREDENTIAL_REQUIRED_TYPES: frozenset[IntegrationType] = frozenset(
+    {
+        IntegrationType.LLM_PROVIDER,
+        IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
+    }
+)
+
 _REFRESHABLE_TYPES: frozenset[IntegrationType] = frozenset(
     {
         IntegrationType.MCP_SERVER,
@@ -253,6 +260,8 @@ class IntegrationService(BaseService):
         """
         if data.management_credential_id is not None:
             await self._validate_credential_type(data.integration_type, data.management_credential_id)
+        elif data.integration_type in CREDENTIAL_REQUIRED_TYPES:
+            raise IntegrationCredentialRequiredError(data.integration_type.value)
 
         integration = Integration(
             name=data.name,
@@ -521,6 +530,9 @@ class IntegrationService(BaseService):
             )
             raise
 
+        if integration.management_credential_id is None and integration.integration_type in CREDENTIAL_REQUIRED_TYPES:
+            raise IntegrationCredentialRequiredError(integration.integration_type.value)
+
         resolved_credential: dict[str, object] = {}
         if integration.management_credential_id:
             resolved_credential = await self._resolve_credential(integration.management_credential_id)
@@ -577,7 +589,12 @@ class IntegrationService(BaseService):
         Resolves the credential, creates an adapter from the provided
         configuration, and runs discover(). No database writes.
         """
-        resolved_credential = await self._resolve_credential(data.credential_id)
+        if data.credential_id is None and data.integration_type in CREDENTIAL_REQUIRED_TYPES:
+            raise IntegrationCredentialRequiredError(data.integration_type.value)
+
+        resolved_credential: dict[str, object] = {}
+        if data.credential_id is not None:
+            resolved_credential = await self._resolve_credential(data.credential_id)
 
         timeout_seconds: int = await get_runtime_settings().get("integrations.connection_test_timeout_seconds")
 
@@ -611,6 +628,9 @@ class IntegrationService(BaseService):
 
         if integration.integration_type not in _REFRESHABLE_TYPES:
             raise IntegrationRefreshNotSupportedError(integration_id, integration.integration_type.value)
+
+        if integration.management_credential_id is None and integration.integration_type in CREDENTIAL_REQUIRED_TYPES:
+            raise IntegrationCredentialRequiredError(integration.integration_type.value)
 
         resolved_credential: dict[str, object] = {}
         if integration.management_credential_id:
@@ -721,7 +741,7 @@ class IntegrationService(BaseService):
             return None
 
         if self._secret_service is None:
-            raise IntegrationCredentialRequiredError(integration.id)
+            raise IntegrationCredentialRequiredError(integration.integration_type.value)
 
         return await resolve_mcp_bearer_token(self.session, self._secret_service, integration.id)
 

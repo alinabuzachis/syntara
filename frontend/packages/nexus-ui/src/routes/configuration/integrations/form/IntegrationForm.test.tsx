@@ -257,13 +257,13 @@ describe('IntegrationForm', () => {
   })
 
   describe('Step 2 credential requirement', () => {
-    it('disables Next button on step 2 when no credential is selected', async () => {
+    it('enables Next button on step 2 for MCP when no credential is selected', async () => {
       const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
       await advanceToStep2(user)()
 
-      expect(screen.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true')
+      expect(screen.getByRole('button', { name: 'Next' })).not.toHaveAttribute('aria-disabled', 'true')
     })
 
     it('enables Next button on step 2 after selecting a credential', async () => {
@@ -291,7 +291,6 @@ describe('IntegrationForm', () => {
       render(<IntegrationForm />, { wrapper })
 
       await advanceToStep2(user)()
-      await user.click(screen.getByTestId('select-credential'))
       await user.click(screen.getByRole('button', { name: 'Next' }))
       await user.click(screen.getByRole('button', { name: 'Back' }))
 
@@ -536,15 +535,28 @@ describe('IntegrationForm', () => {
       expect(screen.getByText('create_pr')).toBeInTheDocument()
     })
 
-    it('does not call discover when no credential is selected', async () => {
-      const { discoverMutate } = mockMutations()
+    it('enables test connection for MCP when no credential is selected', async () => {
       const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
       await advanceToStep2(user)()
 
-      expect(screen.getByRole('button', { name: 'Test connection' })).toHaveAttribute('aria-disabled', 'true')
-      expect(discoverMutate).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: 'Test connection' })).not.toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('calls discover for MCP without credential', async () => {
+      const { discoverMutate } = mockMutations()
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await advanceToStep2(user)()
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      expect(discoverMutate).toHaveBeenCalledOnce()
+      const [reqArg] = discoverMutate.mock.calls[0] as [Record<string, unknown>]
+      expect(reqArg.body).toMatchObject({
+        integration_type: 'mcp_server',
+      })
     })
   })
 
@@ -714,7 +726,34 @@ describe('IntegrationForm', () => {
       await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
       await user.click(screen.getByRole('button', { name: 'Next' }))
 
-      expect(screen.getByText(/This credential is used to discover/)).toBeInTheDocument()
+      expect(screen.getByText(/credential is used to discover/i)).toBeInTheDocument()
+    })
+
+    it('LLM Provider disables Next on step 2 without credential', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await user.click(screen.getByText('MCP Server'))
+      await user.click(screen.getByRole('option', { name: 'LLM Provider' }))
+      await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Test LLM')
+      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'https://api.example.com')
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+
+      expect(screen.getByText(/credential is used to verify/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('LLM Provider disables test connection without credential', async () => {
+      const user = userEvent.setup()
+      render(<IntegrationForm />, { wrapper })
+
+      await user.click(screen.getByText('MCP Server'))
+      await user.click(screen.getByRole('option', { name: 'LLM Provider' }))
+      await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Test LLM')
+      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'https://api.example.com')
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+
+      expect(screen.getByRole('button', { name: 'Test connection' })).toHaveAttribute('aria-disabled', 'true')
     })
   })
 
