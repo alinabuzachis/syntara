@@ -382,13 +382,17 @@ function TriggerFormFields({
 
       {triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER && (
         <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
-          <WebhookFields errors={errors} />
+          <Stack hasGutter>
+            <WebhookFields errors={errors} />
+          </Stack>
         </fieldset>
       )}
 
       {triggerType === TriggerTypeEnum.EDA_TRIGGER && (
         <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
-          <EdaFields errors={errors} />
+          <Stack hasGutter>
+            <EdaFields errors={errors} />
+          </Stack>
         </fieldset>
       )}
     </Stack>
