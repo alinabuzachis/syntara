@@ -70,7 +70,7 @@ class LLMProviderConfiguration(SQLModel):
     @classmethod
     def validate_base_url(cls, v: str | None) -> str | None:
         """Validate and normalize URL to prevent SSRF."""
-        if v is None:
+        if not v:
             return None
         return _validate_http_endpoint_url(v)
 

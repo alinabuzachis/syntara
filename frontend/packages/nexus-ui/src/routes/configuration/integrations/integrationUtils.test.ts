@@ -101,11 +101,44 @@ describe('integrationUtils', () => {
       expect(getBaseUrl(buildIntegration({ configuration: undefined } as never))).toBe('')
     })
 
-    it('returns empty string when base_url is null', () => {
+    it('resolves default URL for well-known provider when base_url is null', () => {
       const integration = buildLLMIntegration({
         configuration: {
           integration_type: 'llm_provider',
           provider_hint: 'anthropic',
+          base_url: null,
+        },
+      })
+      expect(getBaseUrl(integration)).toBe('https://api.anthropic.com/v1')
+    })
+
+    it('resolves default URL for OpenAI when base_url is null', () => {
+      const integration = buildLLMIntegration({
+        configuration: {
+          integration_type: 'llm_provider',
+          provider_hint: 'openai',
+          base_url: null,
+        },
+      })
+      expect(getBaseUrl(integration)).toBe('https://api.openai.com')
+    })
+
+    it('resolves default URL for Gemini when base_url is null', () => {
+      const integration = buildLLMIntegration({
+        configuration: {
+          integration_type: 'llm_provider',
+          provider_hint: 'gemini',
+          base_url: null,
+        },
+      })
+      expect(getBaseUrl(integration)).toBe('https://generativelanguage.googleapis.com/v1')
+    })
+
+    it('returns empty string for custom provider when base_url is null', () => {
+      const integration = buildLLMIntegration({
+        configuration: {
+          integration_type: 'llm_provider',
+          provider_hint: 'custom',
           base_url: null,
         },
       })

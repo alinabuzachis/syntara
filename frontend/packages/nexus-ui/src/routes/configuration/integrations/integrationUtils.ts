@@ -1,5 +1,5 @@
 import type { IntegrationsAPI } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum, LLMProviderHintEnum } from '@ansible/nexus-contracts'
 import { z } from 'zod'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
@@ -10,10 +10,22 @@ const integrationTypeSchema = z.discriminatedUnion('integration_type', [
   z.object({ integration_type: z.literal(IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM) }),
 ])
 
+const PROVIDER_DEFAULT_URLS: Record<string, string> = {
+  [LLMProviderHintEnum.OPENAI]: 'https://api.openai.com',
+  [LLMProviderHintEnum.ANTHROPIC]: 'https://api.anthropic.com/v1',
+  [LLMProviderHintEnum.GEMINI]: 'https://generativelanguage.googleapis.com/v1',
+}
+
 export function getBaseUrl(integration: IntegrationRead): string {
   const config = integration.configuration
   if (!config) return ''
-  if ('base_url' in config) return String(config.base_url ?? '')
+  if ('base_url' in config) {
+    if (config.base_url) return String(config.base_url)
+    if ('provider_hint' in config && typeof config.provider_hint === 'string') {
+      return PROVIDER_DEFAULT_URLS[config.provider_hint] ?? ''
+    }
+    return ''
+  }
   if ('aap_url' in config) return String(config.aap_url ?? '')
   return ''
 }

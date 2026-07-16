@@ -292,7 +292,10 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
                     const validProvider = PROVIDER_HINT_OPTIONS.find((opt) => opt.value === value)
                     if (!validProvider) return
                     field.onChange(validProvider.value)
-                    setValue('configuration.base_url', '')
+                    setValue(
+                      'configuration.base_url',
+                      PROVIDERS_HIDING_BASE_URL.has(validProvider.value) ? undefined : ''
+                    )
                     setIsProviderOpen(false)
                   }}
                   renderToggle={renderProviderToggle}

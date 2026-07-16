@@ -80,6 +80,18 @@ class TestURLValidation:
         with pytest.raises(ValidationError, match="scheme must be"):
             LLMProviderConfiguration(base_url="ftp://example.com", provider_hint="custom")
 
+    def test_llm_provider_empty_string_base_url_coerced_to_none(self) -> None:
+        config = LLMProviderConfiguration(base_url="", provider_hint="openai")
+        assert config.base_url is None
+
+    def test_llm_provider_none_base_url_accepted_for_well_known_provider(self) -> None:
+        config = LLMProviderConfiguration(base_url=None, provider_hint="openai")
+        assert config.base_url is None
+
+    def test_llm_provider_empty_base_url_rejected_for_custom(self) -> None:
+        with pytest.raises(ValidationError, match="base_url is required"):
+            LLMProviderConfiguration(base_url="", provider_hint="custom")
+
     def test_aap_rejects_http(self) -> None:
         with pytest.raises(ValidationError, match="scheme must be"):
             AAPConfiguration(aap_url="http://gateway.example.com")

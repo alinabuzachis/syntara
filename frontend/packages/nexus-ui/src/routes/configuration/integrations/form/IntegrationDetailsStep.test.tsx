@@ -234,6 +234,18 @@ describe('IntegrationDetailsStep', () => {
       expect(screen.getByRole('button', { name: 'OpenAI' })).toBeInTheDocument()
     })
 
+    it('hides base URL field when selecting a provider with a default URL', async () => {
+      const user = userEvent.setup()
+      render(<LLMTestWrapper />)
+
+      expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
+
+      await user.click(screen.getByText('Red Hat AI'))
+      await user.click(screen.getByRole('option', { name: 'OpenAI' }))
+
+      expect(screen.queryByRole('textbox', { name: /base url/i })).not.toBeInTheDocument()
+    })
+
     it('has no accessibility violations with LLM Provider selected', async () => {
       const { container } = render(<LLMTestWrapper />)
 
