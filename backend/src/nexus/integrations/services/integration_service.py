@@ -578,6 +578,7 @@ class IntegrationService(BaseService):
                 integration_type=integration.integration_type.value,
                 result_status=integration.validation_status,
                 error_type=None if result.success else "HealthCheckFailed",
+                error_message=result.error,
             )
         )
 

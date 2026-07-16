@@ -292,3 +292,47 @@ class TestIntegrationServiceAuditEvents:
         assert event.event_status == EventStatus.ERROR
         assert event.structured_data.error_type == "HealthCheckFailed"
         assert event.structured_data.result_status == "error"  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_validate_integration_failure_preserves_error_message(
+        self,
+        integration_service: IntegrationService,
+    ) -> None:
+        """Verify ValidateResult.error message is preserved in audit event.
+
+        This test ensures that error messages from the health check adapter
+        flow end-to-end through integration_service.py (line 475) and
+        integration_validate.py (lines 71-72) into the audit event.
+        """
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from nexus.integrations.adapters.protocol import ValidateResult
+
+        fail_result = ValidateResult(
+            success=False,
+            error="Connection refused: socket timeout after 30s",
+            checked_at=datetime.now(UTC),
+        )
+        mock_settings = MagicMock()
+        mock_settings.get = AsyncMock(return_value=10)
+
+        created = await integration_service.create_integration(_mcp_create("Slow Server"))
+
+        with (
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
+            patch(
+                "nexus.integrations.adapters.mcp_server.MCPServerAdapter.validate",
+                new=AsyncMock(return_value=fail_result),
+            ),
+            patch(
+                "nexus.integrations.services.integration_service.get_runtime_settings",
+                return_value=mock_settings,
+            ),
+        ):
+            await integration_service.validate_integration(created.id)
+
+        assert mock_do_emit.call_count == 1
+        event: AuditEvent = mock_do_emit.call_args.args[0]
+
+        # Verify the error message from ValidateResult is preserved in the audit event
+        assert event.structured_data.error_message == "Connection refused: socket timeout after 30s"

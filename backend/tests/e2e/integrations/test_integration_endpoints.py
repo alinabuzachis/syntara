@@ -33,6 +33,7 @@ from nexus_api_client.models.integration_type import IntegrationType
 from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
 from nexus_api_client.models.llm_provider_hint import LLMProviderHint
 from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
+from nexus_test_sdk.e2e.fixtures import MCP_PROVIDER_URL
 from nexus_test_sdk.helpers import unique_name
 
 pytestmark = [pytest.mark.e2e]
@@ -320,11 +321,48 @@ class TestValidateIntegration:
         resp = nexus_api.integrations.validate(integration_id=uuid4())
         assert resp.status_code == HTTPStatus.NOT_FOUND
 
-    def test_validate_without_credential_returns_200(
+    def test_validate_unreachable_server_returns_200_with_connection_error(
         self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
-        """Validate is a no-op ping — it succeeds even without a configured credential."""
+        """Validate returns 200 OK with success=False and connection_error/timeout when MCP server is unreachable.
+
+        The integration is properly configured (valid URL, no credential required),
+        but the external MCP server at https://mcp.example.com does not exist.
+        This is not a client error (4xx) — the request is valid. It's an external
+        service failure, communicated via the success/error/error_type fields in the response.
+        """
         created = integration_factory(_mcp_create())
         integration_id = UUID(created["id"])
         resp = nexus_api.integrations.validate(integration_id=integration_id)
+
+        # HTTP 200 OK — the API request itself succeeded
         assert resp.status_code == HTTPStatus.OK
+
+        # But validation failed because the external MCP server is unreachable
+        result = resp.assert_and_get()
+        assert result.success is False
+        assert result.error is not None
+        assert result.error_type in ["connection_error", "timeout"]
+
+    def test_validate_success_against_real_mcp_server(
+        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+    ) -> None:
+        """Validate performs real MCP ping against test server — succeeds and returns success=True."""
+        created = integration_factory(
+            IntegrationCreate(
+                name=unique_name("e2e-mcp-real"),
+                integration_type=IntegrationType.MCP_SERVER,
+                configuration=MCPServerConfigurationInput(base_url=MCP_PROVIDER_URL),
+            )
+        )
+        integration_id = UUID(created["id"])
+        resp = nexus_api.integrations.validate(integration_id=integration_id)
+
+        # Validate endpoint returns 200 with successful ping result
+        assert resp.status_code == HTTPStatus.OK
+
+        result = resp.assert_and_get()
+        assert result.success is True
+        assert result.error is None
+        assert result.error_type is None
+        assert result.checked_at is not None

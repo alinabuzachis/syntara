@@ -1,7 +1,6 @@
 """MCP server adapter implementing validate() and discover().
 
-validate(): Lightweight ping — currently returns success=True with a TODO
-  because the MCP spec ping utility is not yet exposed by langchain-mcp-adapters.
+validate(): Run a spec-compliant MCP ping against the server using streamable-http transport.
 
 discover(): Connects to the MCP server via MCPProvider.refresh_tools() and
   converts the full Tool objects (including parameters) into DiscoverResult.
@@ -22,6 +21,11 @@ if TYPE_CHECKING:
 import httpx
 import structlog
 from httpx import HTTPStatusError
+from httpx_sse import SSEError
+from langchain_core._security._ssrf_protection import validate_safe_url
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+from mcp.shared.exceptions import McpError
 
 from nexus.core.utils.exceptions import extract_all_exceptions
 from nexus.integrations.adapters.factory import register_health_check_adapter
@@ -39,6 +43,8 @@ from nexus.tool_manager.lib.providers.mcp.mcp_provider import MCPProvider
 
 logger = structlog.stdlib.get_logger(__name__)
 
+__all__ = ["MCPServerAdapter"]
+
 # MCP servers authenticate via Bearer token. The expected credential type
 # is "HTTP Bearer Token", whose InjectorResolver output maps the raw
 # "token" input to "bearer_token" in extra_vars.
@@ -52,29 +58,216 @@ class MCPServerAdapter:
         """Initialize with MCP server configuration."""
         self._config = config
 
-    async def validate(
+    async def validate(  # noqa: C901 — complexity 11 due to SSRF validation + 7 exception handlers
         self,
-        resolved_credential: dict[str, Any],  # noqa: ARG002
-        timeout_seconds: int,  # noqa: ARG002
+        resolved_credential: dict[str, Any],
+        timeout_seconds: int,
     ) -> ValidateResult:
-        """Run a lightweight connectivity ping against the MCP server.
+        """Run a spec-compliant MCP ping against the server using streamable-http transport.
 
-        # TODO: implement MCP ping when available in langchain-mcp-adapters.
-        # The MCP specification defines a ping utility at
-        # https://modelcontextprotocol.io/specification/2025-03-26/basic/utilities/ping
-        # but it is not yet exposed by the langchain-mcp-adapters library.
-        # For now we return success=True without making a real network call.
-        # When the library exposes a ping method, replace this no-op with an
-        # actual ping call and propagate connection errors properly.
+        Uses the MCP SDK's streamable_http_client with ClientSession for:
+        - Session initialization
+        - JSON-RPC 2.0 message formatting
+        - Response parsing
+        - Protocol validation
+
+        Note: This creates a fresh MCP session for each ping. MCPProvider (used by discover())
+        manages sessions via MultiServerMCPClient from langchain-mcp-adapters. These two
+        session management approaches could be unified in future work.
+
+        See AAP-81945 for session reuse optimization investigation.
         """
-        logger.info(
-            "MCP validate (ping no-op — ping not yet available in library)",
-            base_url=self._config.base_url,
-        )
-        return ValidateResult(
-            success=True,
+        # Initialize with failure state to ensure result is never None, even if
+        # an exception occurs before the try block or during credential extraction
+        result = ValidateResult(
+            success=False,
             checked_at=datetime.now(UTC),
+            error="Validation was not attempted",
+            error_type=HealthCheckErrorType.CONNECTION_ERROR,
         )
+
+        try:
+            # SECURITY: Validate URL to prevent SSRF attacks, including cloud metadata endpoints.
+            # validate_endpoint_url() (called by MCPServerConfigurationInput.validate_base_url())
+            # only checks URL structure. validate_safe_url() resolves DNS and blocks:
+            # - Cloud metadata endpoints (169.254.169.254, fd00:ec2::254) - ALWAYS blocked
+            # - Private networks (RFC1918, localhost) - allowed via allow_private=True
+            #   since MCP servers are often deployed internally
+            try:
+                validate_safe_url(self._config.base_url, allow_private=True, allow_http=True)
+            except ValueError as e:
+                logger.warning(
+                    "MCP validate blocked by SSRF protection",
+                    base_url=self._config.base_url,
+                    error=str(e),
+                )
+                return ValidateResult(
+                    success=False,
+                    checked_at=datetime.now(UTC),
+                    error="Unable to connect to the service",
+                    error_type=HealthCheckErrorType.CONNECTION_ERROR,
+                )
+
+            api_key = cast("str | None", resolved_credential.get(_MCP_CREDENTIAL_KEY))
+
+            # Prepare httpx client with auth headers and timeout
+            http_headers = {}
+            if api_key:
+                http_headers["Authorization"] = f"Bearer {api_key}"
+
+            # NOTE: http_client must be managed as a context manager here because
+            # streamable_http_client only manages the lifecycle of clients it creates
+            # internally (when http_client=None). Since we pass a pre-configured client
+            # for auth headers/timeout, we own its lifecycle. Nested context managers
+            # ensure http_client is always closed, even if streamable_http_client
+            # construction fails.
+            async with (
+                httpx.AsyncClient(
+                    headers=http_headers,
+                    timeout=httpx.Timeout(timeout_seconds),
+                ) as http_client,
+                streamable_http_client(
+                    url=self._config.base_url,
+                    http_client=http_client,
+                ) as (read, write, _get_session_id),
+                ClientSession(read, write) as session,
+            ):
+                # Apply timeout only to MCP protocol operations, not context manager setup.
+                # httpx.AsyncClient already has timeout configured for HTTP operations.
+                async with asyncio.timeout(timeout_seconds):
+                    await session.initialize()
+                    await session.send_ping()
+
+            logger.info(
+                "MCP validate succeeded",
+                base_url=self._config.base_url,
+            )
+
+            result = ValidateResult(
+                success=True,
+                checked_at=datetime.now(UTC),
+            )
+
+        except* (TimeoutError, httpx.TimeoutException):
+            # NOTE: This handler must come before ConnectError handler because
+            # httpx.ConnectTimeout inherits from TimeoutException only (via NetworkError).
+            # Exception group handlers evaluate in order, so timeout takes precedence.
+            logger.warning(
+                "MCP validate timed out",
+                base_url=self._config.base_url,
+                timeout_seconds=timeout_seconds,
+            )
+            result = ValidateResult(
+                success=False,
+                checked_at=datetime.now(UTC),
+                error=f"Connection timed out after {timeout_seconds}s",
+                error_type=HealthCheckErrorType.TIMEOUT,
+            )
+
+        except* HTTPStatusError as eg:
+            errors = extract_all_exceptions(eg)
+            error_type, error_msg = classify_http_error(errors)
+            logger.warning(
+                "MCP validate HTTP error",
+                base_url=self._config.base_url,
+                error_type=error_type.value,
+                status_codes=[e.response.status_code for e in errors if isinstance(e, HTTPStatusError)],
+            )
+            result = ValidateResult(
+                success=False,
+                checked_at=datetime.now(UTC),
+                error=error_msg,
+                error_type=error_type,
+            )
+
+        except* McpError as eg:
+            # MCP SDK raises McpError when the server returns non-MCP content (e.g., HTML 404 pages)
+            # or when the MCP session terminates unexpectedly
+            errors = extract_all_exceptions(eg)
+            logger.warning(
+                "MCP validate protocol error",
+                base_url=self._config.base_url,
+                error=str(errors[0]),
+            )
+            result = ValidateResult(
+                success=False,
+                checked_at=datetime.now(UTC),
+                error="Not an MCP endpoint (invalid response format)",
+                error_type=HealthCheckErrorType.CONNECTION_ERROR,
+            )
+
+        except* SSEError as eg:
+            errors = extract_all_exceptions(eg)
+            logger.warning(
+                "MCP validate SSE error",
+                base_url=self._config.base_url,
+                error=str(errors[0]),
+            )
+            result = ValidateResult(
+                success=False,
+                checked_at=datetime.now(UTC),
+                error="Not an MCP endpoint (invalid response format)",
+                error_type=HealthCheckErrorType.CONNECTION_ERROR,
+            )
+
+        except* (ssl.SSLError, ssl.SSLCertVerificationError) as eg:
+            errors = extract_all_exceptions(eg)
+            logger.warning(
+                "MCP validate SSL error",
+                base_url=self._config.base_url,
+                error=str(errors[0]),
+            )
+            result = ValidateResult(
+                success=False,
+                checked_at=datetime.now(UTC),
+                error="SSL/TLS certificate verification failed",
+                error_type=HealthCheckErrorType.SSL_ERROR,
+            )
+
+        except* (httpx.ConnectError, ConnectionError, OSError) as eg:
+            errors = extract_all_exceptions(eg)
+            logger.warning(
+                "MCP validate connection error",
+                base_url=self._config.base_url,
+                error=str(errors[0]),
+            )
+            result = ValidateResult(
+                success=False,
+                checked_at=datetime.now(UTC),
+                error="Unable to connect to the service",
+                error_type=HealthCheckErrorType.CONNECTION_ERROR,
+            )
+
+        except* httpx.HTTPError as eg:
+            # Catch other HTTP errors not already handled (e.g., protocol errors, stream errors)
+            errors = extract_all_exceptions(eg)
+            logger.warning(
+                "MCP validate HTTP transport error",
+                base_url=self._config.base_url,
+                error=str(errors[0]),
+            )
+            result = ValidateResult(
+                success=False,
+                checked_at=datetime.now(UTC),
+                error="Not an MCP endpoint (HTTP protocol error)",
+                error_type=HealthCheckErrorType.CONNECTION_ERROR,
+            )
+
+        except* Exception as eg:
+            errors = extract_all_exceptions(eg)
+            logger.exception(
+                "Unexpected error during MCP validate",
+                base_url=self._config.base_url,
+                error=str(errors[0]) if errors else None,
+            )
+            result = ValidateResult(
+                success=False,
+                checked_at=datetime.now(UTC),
+                error="Validation failed unexpectedly",
+                error_type=HealthCheckErrorType.CONNECTION_ERROR,
+            )
+
+        return result
 
     async def discover(
         self,

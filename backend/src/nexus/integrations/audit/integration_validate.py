@@ -31,6 +31,8 @@ class IntegrationValidateEvent:
     The error_type field can be:
     - None: Success (validation passed)
     - str: Technical exception class name or sentinel (e.g., "HealthCheckFailed", "TimeoutError")
+
+    The error_message field contains the user-facing error message from the validation result.
     """
 
     integration_name: str
@@ -39,6 +41,7 @@ class IntegrationValidateEvent:
     timeout: bool = field(default=False)
     result_status: IntegrationStatus | None = field(default=None)
     error_type: str | None = field(default=None)
+    error_message: str | None = field(default=None)
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +68,8 @@ class IntegrationValidateHandler(AuditEventHandler[IntegrationValidateEvent]):
                 severity = EventSeverity.WARNING
                 status = EventStatus.ERROR
                 message = f"Integration validation failed: {event.integration_name}"
-            error_message: str | None = OPERATIONAL_LOGS_HINT
+            # Use the actual error message from the validation result instead of generic hint
+            error_message: str | None = event.error_message or OPERATIONAL_LOGS_HINT
         else:
             category = EventCategory.SYSTEM_OPERATION
             severity = EventSeverity.INFO

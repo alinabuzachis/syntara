@@ -124,8 +124,9 @@ def validate_url_no_ssrf(url: str) -> None:
     Delegates to langchain-core's validate_safe_url which resolves the hostname
     and rejects private, loopback, link-local, reserved, cloud metadata, and
     Kubernetes internal DNS addresses. Hosts in the
-    workflow_http_request_allowed_hosts setting bypass the private IP check but
-    cloud metadata endpoints are always blocked.
+    workflow_http_request_allowed_hosts setting bypass the private IP check
+    (allowing RFC1918 addresses) but cloud metadata endpoints are always blocked
+    regardless of the allowlist.
 
     Raises:
         ValueError: If the URL fails validation.

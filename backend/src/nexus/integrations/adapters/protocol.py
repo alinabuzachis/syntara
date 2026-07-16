@@ -86,25 +86,37 @@ def classify_http_error(
     """Classify HTTP status errors into auth vs. connection failures.
 
     Shared by all adapter implementations. Iterates errors and returns
-    AUTH_FAILURE for 401/403, CONNECTION_ERROR for other HTTP statuses.
+    AUTH_FAILURE for 401/403, RATE_LIMIT for 429, CONNECTION_ERROR for other HTTP statuses.
     """
+    # Guard against empty errors list (defensive programming for error handling code)
+    if not errors:
+        return (HealthCheckErrorType.CONNECTION_ERROR, "Request failed: unknown")
+
+    # Find first HTTP status error
     for error in errors:
         if isinstance(error, HTTPStatusError):
             status = error.response.status_code
+
+            # Map specific status codes to error types and messages
             if status in (codes.UNAUTHORIZED, codes.FORBIDDEN):
-                return (
-                    HealthCheckErrorType.AUTH_FAILURE,
-                    f"Authentication failed: HTTP {status}",
-                )
-            if status == codes.TOO_MANY_REQUESTS:
-                return (
-                    HealthCheckErrorType.RATE_LIMIT,
-                    f"Rate limit exceeded: HTTP {status}",
-                )
-            return (
-                HealthCheckErrorType.CONNECTION_ERROR,
-                f"HTTP error: {status}",
-            )
+                error_type = HealthCheckErrorType.AUTH_FAILURE
+                message = f"Authentication failed: HTTP {status}"
+            elif status == codes.TOO_MANY_REQUESTS:
+                error_type = HealthCheckErrorType.RATE_LIMIT
+                message = f"Rate limit exceeded: HTTP {status}"
+            elif status == codes.METHOD_NOT_ALLOWED:
+                error_type = HealthCheckErrorType.CONNECTION_ERROR
+                message = f"Method not allowed: HTTP {status}"
+            elif status == codes.NOT_FOUND:
+                error_type = HealthCheckErrorType.CONNECTION_ERROR
+                message = f"Endpoint not found: HTTP {status}"
+            else:
+                error_type = HealthCheckErrorType.CONNECTION_ERROR
+                message = f"HTTP error: {status}"
+
+            return (error_type, message)
+
+    # No HTTP status error found
     return (
         HealthCheckErrorType.CONNECTION_ERROR,
         f"Request failed: {type(errors[0]).__name__}" if errors else "HTTP error: unknown",

@@ -45,11 +45,11 @@ class TestIntegrationValidateContract:
     async def test_validate_without_credential_returns_200(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User
     ) -> None:
-        """Integration with no management_credential_id returns 200 (validate is a no-op ping).
+        """Integration with no management_credential_id returns 200 with validation result.
 
-        The old behavior returned 400 because _sync_mcp_tools required a credential.
-        Now that validate is purely a connectivity ping (no-op until MCP ping utility is
-        available), it returns 200 even without a credential configured.
+        Validate performs a real MCP SDK ping. For a non-existent server (localhost:8080),
+        the ping will fail with CONNECTION_ERROR or TIMEOUT, but the endpoint still returns
+        200 OK with the validation result (success=False, error populated).
         """
         service = IntegrationService(test_db_session, test_user)
         created = await service.create_integration(
@@ -63,7 +63,12 @@ class TestIntegrationValidateContract:
 
         response = await auth_client.post(f"{BASE_URL}/{created.id}/validate")
         assert response.status_code == 200
-        assert response.json()["success"] is True
+
+        # Validation result should indicate failure for non-existent server
+        result = response.json()
+        assert result["success"] is False
+        assert result["error"] is not None
+        assert result["error_type"] in ["connection_error", "timeout"]
 
     async def test_validate_success_returns_validate_result_fields(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User
