@@ -463,6 +463,7 @@ async def execute_aap_job_template_activity(
             if isinstance(final_status, str) and final_status.lower() in {
                 AAPJobTerminalStatus.FAILED.lower(),
                 AAPJobTerminalStatus.ERROR.lower(),
+                AAPJobTerminalStatus.CANCELED.lower(),
             }:
                 msg = f"AAP job {job_id} failed with status: {final_status}"
                 raise ApplicationError(  # noqa: TRY301

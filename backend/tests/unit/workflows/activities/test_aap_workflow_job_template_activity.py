@@ -193,6 +193,23 @@ class TestAAPWorkflowJobTemplateExecution:
             assert "456" in str(exc_info.value)
 
     @pytest.mark.asyncio
+    async def test_canceled_workflow_job_raises_application_error(self, mock_activity_context: object) -> None:
+        """Test canceled workflow job raises ApplicationError with correct type."""
+        launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/workflow_jobs/456/"})
+        canceled_status_response = create_workflow_workflow_job_status_response(workflow_job_id=456, status="canceled")
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=canceled_status_response),
+        ):
+            activity_config = build_activity_config(workflow_job_template_id=99)
+
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_workflow_job_template_activity(activity_config, None)
+            assert exc_info.value.type == "AAPWorkflowJobExecutionError"
+            assert "456" in str(exc_info.value)
+
+    @pytest.mark.asyncio
     async def test_extra_vars_forwarded_to_aap(self, mock_activity_context: object) -> None:
         """Test extra_vars are forwarded correctly to AAP API.
 

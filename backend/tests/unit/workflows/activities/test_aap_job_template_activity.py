@@ -225,17 +225,52 @@ class TestAAPJobTemplateExecution:
         assert "execution/jobs/playbook/456/output" in details["output"]["job_url"]
 
     @pytest.mark.asyncio
+    async def test_canceled_job_raises_application_error(self, mock_activity_context: object) -> None:
+        """Test canceled job raises ApplicationError with correct type."""
+        launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/jobs/456/"})
+        canceled_status_response = create_job_status_response(job_id=456, status="canceled")
+        activity_config = build_activity_config(job_template_id=99)
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=canceled_status_response),
+            pytest.raises(ApplicationError) as exc_info,
+        ):
+            await execute_aap_job_template_activity(activity_config, None)
+
+        assert exc_info.value.type == "AAPJobExecutionError"
+        assert "456" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_canceled_job_includes_job_url_in_error_details(self, mock_activity_context: object) -> None:
+        """Test canceled job error details include job_url."""
+        launch_response = create_http_response(200, {"id": 789, "url": "/api/v2/jobs/789/"})
+        canceled_status_response = create_job_status_response(job_id=789, status="canceled")
+        activity_config = build_activity_config(job_template_id=99)
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=canceled_status_response),
+            pytest.raises(ApplicationError) as exc_info,
+        ):
+            await execute_aap_job_template_activity(activity_config, None)
+
+        details = exc_info.value.details[0]
+        assert details["output"]["job_url"] is not None
+        assert "execution/jobs/playbook/789/output" in details["output"]["job_url"]
+
+    @pytest.mark.asyncio
     async def test_error_status_includes_job_url_in_error_details(self, mock_activity_context: object) -> None:
         """Test error status job error details include job_url."""
         launch_response = create_http_response(200, {"id": 789, "url": "/api/v2/jobs/789/"})
         error_status_response = create_job_status_response(job_id=789, status="error")
+        activity_config = build_activity_config(job_template_id=99)
 
         with (
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=error_status_response),
             pytest.raises(ApplicationError) as exc_info,
         ):
-            activity_config = build_activity_config(job_template_id=99)
             await execute_aap_job_template_activity(activity_config, None)
 
         details = exc_info.value.details[0]
@@ -246,6 +281,7 @@ class TestAAPJobTemplateExecution:
     async def test_unexpected_error_includes_job_url(self, mock_activity_context: object) -> None:
         """Test unexpected errors after launch include job_url in output."""
         launch_response = create_http_response(200, {"id": 321, "url": "/api/v2/jobs/321/"})
+        activity_config = build_activity_config(job_template_id=42)
 
         with (
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
@@ -256,7 +292,6 @@ class TestAAPJobTemplateExecution:
             ),
             pytest.raises(ApplicationError) as exc_info,
         ):
-            activity_config = build_activity_config(job_template_id=42)
             await execute_aap_job_template_activity(activity_config, None)
 
         details = exc_info.value.details[0]
