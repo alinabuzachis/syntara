@@ -1,4 +1,4 @@
-import { TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { MissedSchedulePolicyEnum, TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import { isValidWebhookPath, normalizeWebhookPath, triggerFormSchema } from './triggerFormSchema'
@@ -337,5 +337,47 @@ describe('triggerFormSchema — EDA trigger (permissive)', () => {
 
   it('rejects invalid inputSchema', () => {
     expect(parseEda('eda-events', 'not-json').success).toBe(false)
+  })
+})
+
+describe('triggerFormSchema — missed schedule policy (overlap)', () => {
+  function parseWithPolicy(policy: string) {
+    return triggerFormSchema.safeParse({
+      triggerType: TriggerTypeEnum.SCHEDULED,
+      scheduleType: 'cron',
+      cron: '0 9 * * *',
+      missedSchedulePolicy: policy,
+    })
+  }
+
+  it.each([
+    MissedSchedulePolicyEnum.SKIP,
+    MissedSchedulePolicyEnum.BUFFER_ONE,
+    MissedSchedulePolicyEnum.BUFFER_ALL,
+    MissedSchedulePolicyEnum.ALLOW_ALL,
+    MissedSchedulePolicyEnum.CANCEL_OTHER,
+  ])('accepts valid policy "%s"', (policy) => {
+    expect(parseWithPolicy(policy).success).toBe(true)
+  })
+
+  it('rejects unknown policy value', () => {
+    expect(parseWithPolicy('terminate_other').success).toBe(false)
+  })
+
+  it('rejects the old "run_once" policy value', () => {
+    expect(parseWithPolicy('run_once').success).toBe(false)
+  })
+
+  it('rejects the old "run_all" policy value', () => {
+    expect(parseWithPolicy('run_all').success).toBe(false)
+  })
+
+  it('accepts omitted policy (optional field)', () => {
+    const result = triggerFormSchema.safeParse({
+      triggerType: TriggerTypeEnum.SCHEDULED,
+      scheduleType: 'cron',
+      cron: '0 9 * * *',
+    })
+    expect(result.success).toBe(true)
   })
 })

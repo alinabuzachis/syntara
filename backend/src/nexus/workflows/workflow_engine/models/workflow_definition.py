@@ -1036,15 +1036,17 @@ class ScheduleType(StrEnum):
 
 
 class MissedSchedulePolicy(StrEnum):
-    """Policy for handling missed schedule executions.
+    """Policy for handling overlapping and missed schedule executions.
 
-    Determines what happens when the scheduler detects that one or more
-    scheduled invocations were missed (e.g., due to downtime).
+    Determines what happens when a schedule fires while a previous execution
+    from the same schedule is still running.
     """
 
     SKIP = "skip"
-    RUN_ONCE = "run_once"
-    RUN_ALL = "run_all"
+    BUFFER_ONE = "buffer_one"
+    BUFFER_ALL = "buffer_all"
+    ALLOW_ALL = "allow_all"
+    CANCEL_OTHER = "cancel_other"
 
 
 # Standard 5-field cron: minute hour day-of-month month day-of-week
@@ -1126,7 +1128,7 @@ class ScheduledTriggerConfig(TemplateAwareBaseModel):
     )
     missed_schedule_policy: MissedSchedulePolicy = Field(
         default=MissedSchedulePolicy.SKIP,
-        description="How to handle missed schedule invocations: skip, run_once, or run_all",
+        description="How to handle overlapping schedule executions",
     )
 
     @field_validator("cron")

@@ -283,28 +283,25 @@ def build_schedule_policy(missed_policy: MissedSchedulePolicy) -> SchedulePolicy
     """Map a MissedSchedulePolicy to a Temporal SchedulePolicy.
 
     Args:
-        missed_policy: How to handle missed schedule invocations.
+        missed_policy: How to handle overlapping schedule executions.
 
     Returns:
         Temporal SchedulePolicy with appropriate catchup_window and overlap policy.
 
     """
-    if missed_policy == MissedSchedulePolicy.SKIP:
-        return SchedulePolicy(
-            catchup_window=_CATCHUP_WINDOW_SKIP,
-            overlap=ScheduleOverlapPolicy.SKIP,
-        )
-
-    if missed_policy == MissedSchedulePolicy.RUN_ONCE:
-        return SchedulePolicy(
-            catchup_window=_CATCHUP_WINDOW_RECOVER,
-            overlap=ScheduleOverlapPolicy.BUFFER_ONE,
-        )
-
-    return SchedulePolicy(
-        catchup_window=_CATCHUP_WINDOW_RECOVER,
-        overlap=ScheduleOverlapPolicy.BUFFER_ALL,
-    )
+    overlap_map = {
+        MissedSchedulePolicy.SKIP: ScheduleOverlapPolicy.SKIP,
+        MissedSchedulePolicy.BUFFER_ONE: ScheduleOverlapPolicy.BUFFER_ONE,
+        MissedSchedulePolicy.BUFFER_ALL: ScheduleOverlapPolicy.BUFFER_ALL,
+        MissedSchedulePolicy.ALLOW_ALL: ScheduleOverlapPolicy.ALLOW_ALL,
+        MissedSchedulePolicy.CANCEL_OTHER: ScheduleOverlapPolicy.CANCEL_OTHER,
+    }
+    overlap = overlap_map[missed_policy]
+    # SKIP and CANCEL_OTHER discard missed fires — no catchup.
+    # BUFFER_ONE, BUFFER_ALL, ALLOW_ALL recover missed fires within 48h.
+    no_catchup = missed_policy in (MissedSchedulePolicy.SKIP, MissedSchedulePolicy.CANCEL_OTHER)
+    catchup = _CATCHUP_WINDOW_SKIP if no_catchup else _CATCHUP_WINDOW_RECOVER
+    return SchedulePolicy(catchup_window=catchup, overlap=overlap)
 
 
 def build_schedule_id(workflow_id: str, trigger_node_id: str) -> str:

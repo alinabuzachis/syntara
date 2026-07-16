@@ -4,6 +4,7 @@ Covers:
 - execution_metadata populated with trigger_type, schedule_id, scheduled_at, triggered_at
 - Prometheus metrics recorded on success and failure
 - Timing captured from activity.info()
+- Setup activity returns child workflow data without calling TemporalExecutionService
 """
 
 from datetime import UTC, datetime, timedelta
@@ -65,10 +66,6 @@ class TestExecutionMetadata:
             "edges": [],
         }
 
-        mock_temporal_result = MagicMock()
-        mock_temporal_result.execution_id = str(uuid4())
-        mock_temporal_result.temporal_workflow_id = "temporal-wf-123"
-
         with (
             patch.object(launcher, "_load_published_workflow", return_value=(mock_workflow, mock_version)),
             patch("nexus.workflows.workflow_engine.scheduled_launcher.get_settings") as mock_get_settings,
@@ -76,14 +73,8 @@ class TestExecutionMetadata:
                 "nexus.workflows.workflow_engine.scheduled_launcher.resolve_user_display_name",
                 return_value="Author Name",
             ),
-            patch(
-                "nexus.workflows.workflow_engine.scheduled_launcher.create_temporal_execution_service"
-            ) as mock_create_svc,
         ):
             mock_get_settings.return_value.service_identity = service_identity
-            mock_svc = AsyncMock()
-            mock_svc.start_workflow.return_value = mock_temporal_result
-            mock_create_svc.return_value = mock_svc
 
             mock_session = AsyncMock()
             launcher._session_factory = MagicMock()
@@ -110,11 +101,10 @@ class TestExecutionMetadata:
         assert metadata["triggered_at"] == triggered_at.isoformat()
 
         assert result["execution_id"] is not None
-        assert result["temporal_workflow_id"] == "temporal-wf-123"
+        assert result["temporal_workflow_id"] == f"test-workflow-{result['execution_id']}"
 
-        # Verify workflow_metadata was passed to start_workflow
-        call_kwargs = mock_svc.start_workflow.call_args[1]
-        wf_meta = call_kwargs["workflow_metadata"]
+        # Verify workflow_metadata is returned for child workflow start
+        wf_meta = result["workflow_metadata"]
         assert wf_meta["workflow_context"]["workflow"]["project_id"] == str(mock_workflow.project_id)
         assert wf_meta["workflow_context"]["workflow"]["name"] == "test-workflow"
         assert wf_meta["workflow_context"]["execution"]["mode"] == "scheduled"
@@ -220,6 +210,200 @@ class TestMetricsRecording:
 
             with pytest.raises(ValueError, match="workflow not found"):
                 await launcher.run(workflow_id_str, "trigger_1")
+
+
+class TestSetupActivityNoTemporalStart:
+    """Tests that the setup activity does NOT start workflows via TemporalExecutionService.
+
+    After the child-workflow refactor (AAP-82536), the activity only handles
+    DB operations. Starting NexusWorkflow is the launcher workflow's
+    responsibility via execute_child_workflow.
+    """
+
+    def test_setup_does_not_import_temporal_execution_service(self) -> None:
+        """The scheduled launcher module must NOT import TemporalExecutionService."""
+        import nexus.workflows.workflow_engine.scheduled_launcher as launcher_module
+
+        assert not hasattr(launcher_module, "create_temporal_execution_service")
+
+    async def test_setup_returns_child_workflow_data(self) -> None:
+        """The setup activity result must include all data needed for child workflow start."""
+        launcher = _make_launcher()
+        workflow_id = uuid4()
+        scheduled_at = datetime(2024, 1, 1, 9, 0, 0, tzinfo=UTC)
+        triggered_at = datetime(2024, 1, 1, 9, 0, 3, tzinfo=UTC)
+        workflow_def = {
+            "schema_version": "2.0.0",
+            "triggers": [],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_workflow = MagicMock()
+        mock_workflow.id = workflow_id
+        mock_workflow.name = "test-workflow"
+        mock_workflow.project_id = uuid4()
+        mock_workflow.created_by = uuid4()
+        mock_version = MagicMock()
+        mock_version.id = uuid4()
+        mock_version.version = 1
+        mock_version.workflow_definition = workflow_def
+
+        with (
+            patch.object(launcher, "_load_published_workflow", return_value=(mock_workflow, mock_version)),
+            patch("nexus.workflows.workflow_engine.scheduled_launcher.get_settings") as mock_get_settings,
+            patch(
+                "nexus.workflows.workflow_engine.scheduled_launcher.resolve_user_display_name",
+                return_value="Author Name",
+            ),
+        ):
+            mock_get_settings.return_value.service_identity = "backend.ao.svc"
+
+            mock_session = AsyncMock()
+            launcher._session_factory = MagicMock()
+            launcher._session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            launcher._session_factory.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await launcher._create_execution(workflow_id, "trigger_1", scheduled_at, triggered_at)
+
+        assert "execution_id" in result
+        assert "temporal_workflow_id" in result
+        assert "workflow_definition" in result
+        assert result["workflow_definition"] == workflow_def
+        assert "trigger_node_id" in result
+        assert result["trigger_node_id"] == "trigger_1"
+        assert "input_data" in result
+        assert "task_queue" in result
+        assert result["task_queue"] == "test-queue"
+        assert "workflow_metadata" in result
+
+    async def test_setup_generates_temporal_workflow_id_directly(self) -> None:
+        """The temporal_workflow_id must be generated as {name}-{execution_id} without TemporalExecutionService."""
+        launcher = _make_launcher()
+        workflow_id = uuid4()
+        scheduled_at = datetime(2024, 1, 1, 9, 0, 0, tzinfo=UTC)
+        triggered_at = datetime(2024, 1, 1, 9, 0, 3, tzinfo=UTC)
+
+        mock_workflow = MagicMock()
+        mock_workflow.id = workflow_id
+        mock_workflow.name = "my-workflow"
+        mock_workflow.project_id = uuid4()
+        mock_workflow.created_by = uuid4()
+        mock_version = MagicMock()
+        mock_version.id = uuid4()
+        mock_version.version = 1
+        mock_version.workflow_definition = {
+            "schema_version": "2.0.0",
+            "triggers": [],
+            "nodes": [],
+            "edges": [],
+        }
+
+        with (
+            patch.object(launcher, "_load_published_workflow", return_value=(mock_workflow, mock_version)),
+            patch("nexus.workflows.workflow_engine.scheduled_launcher.get_settings") as mock_get_settings,
+            patch(
+                "nexus.workflows.workflow_engine.scheduled_launcher.resolve_user_display_name",
+                return_value="Author Name",
+            ),
+        ):
+            mock_get_settings.return_value.service_identity = "backend.ao.svc"
+
+            mock_session = AsyncMock()
+            launcher._session_factory = MagicMock()
+            launcher._session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            launcher._session_factory.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await launcher._create_execution(workflow_id, "trigger_1", scheduled_at, triggered_at)
+
+        execution_id = result["execution_id"]
+        expected_temporal_id = f"my-workflow-{execution_id}"
+        assert result["temporal_workflow_id"] == expected_temporal_id
+
+
+class TestLauncherWorkflow:
+    """Tests for the ScheduledWorkflowLauncher workflow."""
+
+    async def test_run_starts_child_workflow_with_correct_args(self) -> None:
+        """The launcher must call execute_child_workflow with the setup activity result."""
+        from nexus.workflows.workflow_engine.scheduled_launcher import ScheduledWorkflowLauncher
+
+        setup_data = {
+            "execution_id": "exec-123",
+            "temporal_workflow_id": "wf-exec-123",
+            "workflow_definition": {"schema_version": "2.0.0", "triggers": [], "nodes": [], "edges": []},
+            "trigger_node_id": "trigger_1",
+            "input_data": {"scheduled_at": "2024-01-01T09:00:00", "triggered_at": "2024-01-01T09:00:03"},
+            "task_queue": "test-queue",
+            "workflow_metadata": {"workflow_context": {}},
+        }
+
+        launcher = ScheduledWorkflowLauncher()
+
+        with (
+            patch("temporalio.workflow.execute_activity", new_callable=AsyncMock, return_value=setup_data),
+            patch("temporalio.workflow.execute_child_workflow", new_callable=AsyncMock) as mock_child,
+        ):
+            result = await launcher.run("wf-id", "trigger_1")
+
+        mock_child.assert_called_once()
+        call_kwargs = mock_child.call_args
+        assert call_kwargs[0][0] == "nexus_workflow"
+        assert call_kwargs[1]["id"] == "wf-exec-123"
+        assert call_kwargs[1]["task_queue"] == "test-queue"
+        assert result == {"execution_id": "exec-123", "temporal_workflow_id": "wf-exec-123"}
+
+    async def test_run_uses_request_cancel_parent_close_policy(self) -> None:
+        """Child workflow must use REQUEST_CANCEL so cancel_other works correctly."""
+        from temporalio.workflow import ParentClosePolicy
+
+        from nexus.workflows.workflow_engine.scheduled_launcher import ScheduledWorkflowLauncher
+
+        setup_data = {
+            "execution_id": "exec-123",
+            "temporal_workflow_id": "wf-exec-123",
+            "workflow_definition": {},
+            "trigger_node_id": "trigger_1",
+            "input_data": {},
+            "task_queue": "test-queue",
+            "workflow_metadata": {},
+        }
+
+        launcher = ScheduledWorkflowLauncher()
+
+        with (
+            patch("temporalio.workflow.execute_activity", new_callable=AsyncMock, return_value=setup_data),
+            patch("temporalio.workflow.execute_child_workflow", new_callable=AsyncMock) as mock_child,
+        ):
+            await launcher.run("wf-id", "trigger_1")
+
+        assert mock_child.call_args[1]["parent_close_policy"] == ParentClosePolicy.REQUEST_CANCEL
+
+
+class TestActivityRegistration:
+    """Guards against regressions in activity naming and launcher architecture."""
+
+    def test_activity_name_is_setup(self) -> None:
+        """Activity must be named 'setup_scheduled_execution'.
+
+        The old name 'launch_scheduled_execution' reflected the fire-and-forget
+        pattern where the activity started NexusWorkflow. After the child-workflow
+        refactor (AAP-82536), the activity only sets up DB records.
+        """
+        from nexus.workflows.workflow_engine.scheduled_launcher import _LAUNCHER_ACTIVITY_NAME
+
+        assert _LAUNCHER_ACTIVITY_NAME == "setup_scheduled_execution"
+
+    def test_launcher_workflow_name_unchanged(self) -> None:
+        """The Temporal workflow name must stay 'scheduled_workflow_launcher'.
+
+        Temporal Schedules reference this name in their action config. Changing
+        it would break all existing schedules.
+        """
+        from nexus.workflows.workflow_engine.scheduled_launcher import ScheduledWorkflowLauncher
+
+        defn = getattr(ScheduledWorkflowLauncher, "__temporal_workflow_definition")
+        assert defn.name == "scheduled_workflow_launcher"
 
 
 class TestLoadPublishedWorkflow:

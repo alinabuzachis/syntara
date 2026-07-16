@@ -1,17 +1,20 @@
 """Scheduled workflow launcher for Temporal Schedule integration.
 
 When a Temporal Schedule fires, it starts the ``ScheduledWorkflowLauncher``
-workflow which delegates to the ``ScheduledExecutionLauncher`` activity.
-The activity replicates the ``ExecutionService.create_execution()`` flow
-in the worker context: loads the published workflow definition, starts
-NexusWorkflow via Temporal, and creates the Execution record in the database.
+workflow which delegates DB setup to the ``ScheduledExecutionLauncher``
+activity, then starts ``NexusWorkflow`` as a child workflow and waits for
+it to complete. This keeps the launcher alive for the full execution
+lifecycle so Temporal's schedule overlap policy (Skip/Buffer/etc.) applies
+to the actual work, not just the setup phase.
 """
 
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
 from temporalio import activity, workflow
+from temporalio.workflow import ParentClosePolicy
 
 with workflow.unsafe.imports_passed_through():
     import structlog
@@ -29,15 +32,12 @@ with workflow.unsafe.imports_passed_through():
     from nexus.workflows.utils.schedule_parser import build_schedule_id
     from nexus.workflows.utils.workflow_metadata import build_workflow_metadata, resolve_user_display_name
     from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
-    from nexus.workflows.workflow_engine.services.temporal_execution_service import (
-        create_temporal_execution_service,
-    )
 
     logger = structlog.stdlib.get_logger(__name__)
 
-# Timeout for the launcher activity. This covers DB queries + Temporal
-# workflow start, so 60 seconds provides ample headroom.
-_LAUNCHER_ACTIVITY_NAME = "launch_scheduled_execution"
+# Timeout for the setup activity. This covers DB queries + metadata
+# preparation, so 60 seconds provides ample headroom.
+_LAUNCHER_ACTIVITY_NAME = "setup_scheduled_execution"
 _LAUNCHER_ACTIVITY_TIMEOUT_SECONDS = 60
 
 
@@ -46,7 +46,12 @@ class ScheduledWorkflowLauncher:
     """Temporal workflow that launches a NexusWorkflow on behalf of a schedule.
 
     This is the action target for Temporal Schedules. When a schedule fires,
-    Temporal starts this workflow which delegates to the launcher activity.
+    Temporal starts this workflow which delegates to a setup activity for DB
+    operations, then starts NexusWorkflow as a child workflow.
+
+    The launcher stays alive while NexusWorkflow runs, so Temporal's schedule
+    overlap policy (Skip/Buffer One/Buffer All) correctly detects whether a
+    previous execution is still in progress.
     """
 
     @workflow.run
@@ -61,26 +66,53 @@ class ScheduledWorkflowLauncher:
             Dict with execution_id and temporal_workflow_id of the started workflow.
 
         """
-        result: dict[str, str] = await workflow.execute_activity(
+        setup_result: dict[str, Any] = await workflow.execute_activity(
             _LAUNCHER_ACTIVITY_NAME,
             args=[workflow_id, trigger_node_id],
             start_to_close_timeout=timedelta(seconds=_LAUNCHER_ACTIVITY_TIMEOUT_SECONDS),
         )
-        return result
+
+        execution_id = setup_result["execution_id"]
+        temporal_workflow_id = setup_result["temporal_workflow_id"]
+
+        await workflow.execute_child_workflow(
+            "nexus_workflow",
+            args=[
+                setup_result["workflow_definition"],
+                execution_id,
+                trigger_node_id,
+                setup_result["input_data"],
+                False,
+                None,
+                None,
+                None,
+                setup_result["workflow_metadata"],
+            ],
+            id=temporal_workflow_id,
+            task_queue=setup_result["task_queue"],
+            parent_close_policy=ParentClosePolicy.REQUEST_CANCEL,
+        )
+
+        return {
+            "execution_id": execution_id,
+            "temporal_workflow_id": temporal_workflow_id,
+        }
 
 
 class ScheduledExecutionLauncher:
-    """Class-based Temporal activity that launches scheduled workflow executions.
+    """Class-based Temporal activity that sets up scheduled workflow executions.
 
     Receives a ``session_factory`` and ``task_queue`` at construction time
     (injected during worker startup) to avoid creating new DB engines and
     Temporal clients per invocation.
 
-    The activity replicates the three-phase flow from
-    ``ExecutionService.create_execution()``:
+    The activity handles DB operations for the launcher workflow:
     1. Load published workflow definition from DB
-    2. Start NexusWorkflow via ``TemporalExecutionService``
+    2. Prepare execution identity and metadata
     3. Create Execution record in DB
+
+    Starting NexusWorkflow is handled by the launcher workflow via
+    ``execute_child_workflow``.
 
     """
 
@@ -100,19 +132,20 @@ class ScheduledExecutionLauncher:
         self._task_queue = task_queue
 
     @activity.defn(name=_LAUNCHER_ACTIVITY_NAME)
-    async def run(self, workflow_id_str: str, trigger_node_id: str) -> dict[str, str]:
-        """Launch a scheduled workflow execution.
+    async def run(self, workflow_id_str: str, trigger_node_id: str) -> dict[str, Any]:
+        """Set up a scheduled workflow execution.
 
-        Loads the published workflow version, starts NexusWorkflow via Temporal,
-        and creates the Execution record in the database using the service
-        principal identity. Records schedule timing metadata and Prometheus metrics.
+        Loads the published workflow version, creates the Execution record in
+        the database using the service principal identity, and returns all data
+        needed for the launcher workflow to start NexusWorkflow as a child
+        workflow. Records schedule timing metadata and Prometheus metrics.
 
         Args:
             workflow_id_str: UUID of the workflow (as string).
             trigger_node_id: Trigger node ID to start from.
 
         Returns:
-            Dict with ``execution_id`` and ``temporal_workflow_id``.
+            Dict with execution setup data for child workflow start.
 
         Raises:
             WorkflowNotPublishedError: If the workflow is not published.
@@ -126,7 +159,7 @@ class ScheduledExecutionLauncher:
         triggered_at = info.started_time
 
         logger.info(
-            "Launching scheduled execution",
+            "Setting up scheduled execution",
             workflow_id=workflow_id_str,
             trigger_node_id=trigger_node_id,
             scheduled_at=scheduled_at.isoformat(),
@@ -171,20 +204,15 @@ class ScheduledExecutionLauncher:
         trigger_node_id: str,
         scheduled_at: datetime,
         triggered_at: datetime,
-    ) -> dict[str, str]:
-        """Three-phase execution creation (mirrors ExecutionService.create_execution).
+    ) -> dict[str, Any]:
+        """Set up execution record and return data for child workflow start.
 
         Phase 1: Load workflow + published version (read session)
-        Phase 2: Start NexusWorkflow via Temporal (no DB session held)
+        Phase 2: Prepare execution identity and metadata
         Phase 3: Create Execution record in DB (write session)
 
-        Uses separate sessions for read and write phases so the DB
-        connection pool slot is released during the Temporal RPC.
-
-        Not fully idempotent: a process crash between Phase 3 commit and
-        return could cause Temporal to retry, creating a duplicate.  The
-        window is a few microseconds of logging/dict construction, and
-        retries are sequential, so the practical risk is negligible.
+        Returns all data the launcher workflow needs to start NexusWorkflow
+        as a child workflow.
         """
         # Phase 1: Load published workflow definition (read-only session)
         settings = get_settings()
@@ -199,8 +227,9 @@ class ScheduledExecutionLauncher:
 
             author_name = await resolve_user_display_name(session, wf_workflow.created_by)
 
-        # Phase 2: Start NexusWorkflow via Temporal (no DB session held)
+        # Phase 2: Prepare execution identity and metadata
         pre_generated_execution_id = str(uuid4())
+        temporal_workflow_id = f"{wf_name}-{pre_generated_execution_id}"
         workflow_metadata = build_workflow_metadata(
             workflow_name=wf_name,
             workflow_id=wf_id,
@@ -215,27 +244,17 @@ class ScheduledExecutionLauncher:
             created_at=triggered_at.isoformat(),
             workflow_version_id=wf_version_id,
         )
+        input_data = {
+            "scheduled_at": scheduled_at.isoformat(),
+            "triggered_at": triggered_at.isoformat(),
+        }
 
-        temporal_service = await create_temporal_execution_service(task_queue=self._task_queue)
-        temporal_result = await temporal_service.start_workflow(
-            workflow_def=workflow_def,
-            workflow_name=wf_name,
-            input_data={
-                "scheduled_at": scheduled_at.isoformat(),
-                "triggered_at": triggered_at.isoformat(),
-            },
-            workflow_id=str(workflow_id),
-            trigger_node_id=trigger_node_id,
-            workflow_metadata=workflow_metadata,
-            execution_id=pre_generated_execution_id,
-        )
-
-        execution_id = UUID(temporal_result.execution_id)
+        execution_id = UUID(pre_generated_execution_id)
 
         logger.info(
-            "NexusWorkflow started by schedule",
+            "Scheduled execution prepared",
             execution_id=str(execution_id),
-            temporal_workflow_id=temporal_result.temporal_workflow_id,
+            temporal_workflow_id=temporal_workflow_id,
         )
 
         # Phase 3: Create Execution record in DB with schedule metadata
@@ -245,7 +264,7 @@ class ScheduledExecutionLauncher:
                 workflow_id=wf_id,
                 workflow_version_id=wf_version_id,
                 project_id=wf_project_id,
-                temporal_workflow_id=temporal_result.temporal_workflow_id,
+                temporal_workflow_id=temporal_workflow_id,
                 status=ExecutionStatus.PENDING,
                 input_data={},
                 trigger_node_id=trigger_node_id,
@@ -271,7 +290,12 @@ class ScheduledExecutionLauncher:
 
         return {
             "execution_id": str(execution_id),
-            "temporal_workflow_id": temporal_result.temporal_workflow_id,
+            "temporal_workflow_id": temporal_workflow_id,
+            "workflow_definition": workflow_def,
+            "trigger_node_id": trigger_node_id,
+            "input_data": input_data,
+            "task_queue": self._task_queue,
+            "workflow_metadata": workflow_metadata,
         }
 
     @staticmethod

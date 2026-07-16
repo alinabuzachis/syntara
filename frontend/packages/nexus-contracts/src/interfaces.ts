@@ -65,8 +65,10 @@ export type ScheduleType = (typeof ScheduleTypeEnum)[keyof typeof ScheduleTypeEn
  */
 export const MissedSchedulePolicyEnum = {
   SKIP: 'skip',
-  RUN_ONCE: 'run_once',
-  RUN_ALL: 'run_all',
+  BUFFER_ONE: 'buffer_one',
+  BUFFER_ALL: 'buffer_all',
+  ALLOW_ALL: 'allow_all',
+  CANCEL_OTHER: 'cancel_other',
 } as const
 
 export type MissedSchedulePolicy = (typeof MissedSchedulePolicyEnum)[keyof typeof MissedSchedulePolicyEnum]

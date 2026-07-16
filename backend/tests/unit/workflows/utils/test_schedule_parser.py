@@ -188,22 +188,40 @@ class TestBuildSchedulePolicy:
         assert policy.overlap == ScheduleOverlapPolicy.SKIP
         assert policy.catchup_window == timedelta(seconds=1)
 
-    async def test_run_once_policy(self) -> None:
-        """Run-once policy should use BUFFER_ONE overlap and 48h catchup window."""
-        policy = build_schedule_policy(MissedSchedulePolicy.RUN_ONCE)
+    async def test_buffer_one_policy(self) -> None:
+        """Buffer-one policy should use BUFFER_ONE overlap and 48h catchup window."""
+        policy = build_schedule_policy(MissedSchedulePolicy.BUFFER_ONE)
         assert policy.overlap == ScheduleOverlapPolicy.BUFFER_ONE
         assert policy.catchup_window == timedelta(hours=48)
 
-    async def test_run_all_policy(self) -> None:
-        """Run-all policy should use BUFFER_ALL overlap and 48h catchup window."""
-        policy = build_schedule_policy(MissedSchedulePolicy.RUN_ALL)
+    async def test_buffer_all_policy(self) -> None:
+        """Buffer-all policy should use BUFFER_ALL overlap and 48h catchup window."""
+        policy = build_schedule_policy(MissedSchedulePolicy.BUFFER_ALL)
         assert policy.overlap == ScheduleOverlapPolicy.BUFFER_ALL
         assert policy.catchup_window == timedelta(hours=48)
+
+    async def test_allow_all_policy(self) -> None:
+        """Allow-all policy should use ALLOW_ALL overlap and 48h catchup window."""
+        policy = build_schedule_policy(MissedSchedulePolicy.ALLOW_ALL)
+        assert policy.overlap == ScheduleOverlapPolicy.ALLOW_ALL
+        assert policy.catchup_window == timedelta(hours=48)
+
+    async def test_cancel_other_policy(self) -> None:
+        """Cancel-other policy should use CANCEL_OTHER overlap and short catchup window."""
+        policy = build_schedule_policy(MissedSchedulePolicy.CANCEL_OTHER)
+        assert policy.overlap == ScheduleOverlapPolicy.CANCEL_OTHER
+        assert policy.catchup_window == timedelta(seconds=1)
 
     async def test_string_policy_values(self) -> None:
         """String policy values should work via StrEnum coercion."""
         policy = build_schedule_policy(MissedSchedulePolicy("skip"))
         assert policy.overlap == ScheduleOverlapPolicy.SKIP
+
+    def test_all_enum_members_have_mapping(self) -> None:
+        """build_schedule_policy must handle every MissedSchedulePolicy member."""
+        for policy in MissedSchedulePolicy:
+            result = build_schedule_policy(policy)
+            assert result.overlap is not None
 
 
 class TestBuildScheduleId:
@@ -247,16 +265,28 @@ class TestConfigToTemporalSchedule:
         assert len(spec.intervals) == 1
         assert spec.intervals[0].every == timedelta(days=1)
 
-    async def test_custom_missed_policy(self) -> None:
-        """Custom missed_schedule_policy should be applied."""
+    @pytest.mark.parametrize(
+        ("policy_value", "expected_overlap"),
+        [
+            ("skip", ScheduleOverlapPolicy.SKIP),
+            ("buffer_one", ScheduleOverlapPolicy.BUFFER_ONE),
+            ("buffer_all", ScheduleOverlapPolicy.BUFFER_ALL),
+            ("allow_all", ScheduleOverlapPolicy.ALLOW_ALL),
+            ("cancel_other", ScheduleOverlapPolicy.CANCEL_OTHER),
+        ],
+    )
+    async def test_all_policies_pass_through_config(
+        self, policy_value: str, expected_overlap: ScheduleOverlapPolicy
+    ) -> None:
+        """Every MissedSchedulePolicy value must produce the correct Temporal overlap policy."""
         _spec, policy = config_to_temporal_schedule(
             {
                 "schedule_type": "cron",
                 "cron": "0 9 * * *",
-                "missed_schedule_policy": "run_all",
+                "missed_schedule_policy": policy_value,
             }
         )
-        assert policy.overlap == ScheduleOverlapPolicy.BUFFER_ALL
+        assert policy.overlap == expected_overlap
 
     async def test_rejects_unknown_schedule_type(self) -> None:
         """Unknown schedule_type should raise SafeValueError."""

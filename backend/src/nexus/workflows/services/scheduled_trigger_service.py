@@ -17,6 +17,7 @@ from temporalio.client import (
     Client,
     Schedule,
     ScheduleActionStartWorkflow,
+    ScheduleAlreadyRunningError,
     ScheduleState,
     ScheduleUpdate,
     ScheduleUpdateInput,
@@ -38,6 +39,24 @@ _client_lock = asyncio.Lock()
 _cached_client: Client | None = None
 
 _CONNECTION_ERRORS = frozenset({RPCStatusCode.UNAVAILABLE, RPCStatusCode.DEADLINE_EXCEEDED})
+
+
+async def _update_schedule_with_retry(client: Client, schedule_id: str, schedule: Schedule) -> None:
+    """Update an existing Temporal Schedule, retrying if the action is in-flight."""
+    handle = client.get_schedule_handle(schedule_id)
+
+    def _updater(_: ScheduleUpdateInput) -> ScheduleUpdate:
+        return ScheduleUpdate(schedule=schedule)
+
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            await handle.update(_updater)
+            return
+        except ScheduleAlreadyRunningError:
+            if attempt == max_retries - 1:
+                raise
+            await asyncio.sleep(2)
 
 
 def _invalidate_client_cache() -> None:
@@ -263,21 +282,18 @@ class ScheduledTriggerService:
                 workflow_id=workflow_id,
                 trigger_node_id=trigger_node_id,
             )
-        except RPCError as e:
-            if e.status == RPCStatusCode.ALREADY_EXISTS:
-                handle = client.get_schedule_handle(schedule_id)
-
-                def _updater(_: ScheduleUpdateInput) -> ScheduleUpdate:
-                    return ScheduleUpdate(schedule=schedule)
-
-                await handle.update(_updater)
+        except (RPCError, ScheduleAlreadyRunningError) as e:
+            if isinstance(e, ScheduleAlreadyRunningError) or (
+                isinstance(e, RPCError) and e.status == RPCStatusCode.ALREADY_EXISTS
+            ):
+                await _update_schedule_with_retry(client, schedule_id, schedule)
                 logger.info(
                     "Updated Temporal Schedule",
                     schedule_id=schedule_id,
                     workflow_id=workflow_id,
                     trigger_node_id=trigger_node_id,
                 )
-            elif e.status in _CONNECTION_ERRORS:
+            elif isinstance(e, RPCError) and e.status in _CONNECTION_ERRORS:
                 _invalidate_client_cache()
                 raise
             else:

@@ -24,7 +24,13 @@ const triggerFormSchemaBase = z.object({
   cron: z.string().max(256).optional(),
   timezone: z.string().optional(),
   missedSchedulePolicy: z
-    .enum([MissedSchedulePolicyEnum.SKIP, MissedSchedulePolicyEnum.RUN_ONCE, MissedSchedulePolicyEnum.RUN_ALL])
+    .enum([
+      MissedSchedulePolicyEnum.SKIP,
+      MissedSchedulePolicyEnum.BUFFER_ONE,
+      MissedSchedulePolicyEnum.BUFFER_ALL,
+      MissedSchedulePolicyEnum.ALLOW_ALL,
+      MissedSchedulePolicyEnum.CANCEL_OTHER,
+    ])
     .optional(),
   inputSchema: z.string().optional(),
   webhookPath: z.string().optional(),

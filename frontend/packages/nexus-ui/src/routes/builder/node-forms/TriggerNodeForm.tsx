@@ -60,18 +60,31 @@ type TriggerNodeFormProps = Readonly<{
 const conflictPolicyOptions = [
   {
     value: MissedSchedulePolicyEnum.SKIP,
-    label: 'Skip',
-    description: 'Only one run at a time; skip if the previous run is still in progress',
+    label: 'Skip (Default)',
+    description:
+      'If the previous run is still in progress, the new run is ignored. Only one instance of the workflow runs at a time.',
   },
   {
-    value: MissedSchedulePolicyEnum.RUN_ONCE,
-    label: 'Run once',
-    description: 'Queue one catch-up execution if runs were skipped',
+    value: MissedSchedulePolicyEnum.BUFFER_ONE,
+    label: 'Buffer one',
+    description:
+      'If runs were skipped because the previous one was still in progress, the system will queue one catch-up execution and then resume the normal schedule.',
   },
   {
-    value: MissedSchedulePolicyEnum.RUN_ALL,
-    label: 'Run all',
-    description: 'Queue every scheduled run, even if previous runs are still in progress',
+    value: MissedSchedulePolicyEnum.BUFFER_ALL,
+    label: 'Buffer all',
+    description: 'Every scheduled run is queued, even if previous runs are still in progress.',
+  },
+  {
+    value: MissedSchedulePolicyEnum.ALLOW_ALL,
+    label: 'Allow all',
+    description:
+      'Start every scheduled run immediately, even if previous runs are still in progress. Multiple runs may execute concurrently.',
+  },
+  {
+    value: MissedSchedulePolicyEnum.CANCEL_OTHER,
+    label: 'Cancel other',
+    description: 'Cancel the currently in-progress run and start the new one. Only the latest scheduled run executes.',
   },
 ]
 

@@ -29,8 +29,8 @@
       },
       "missed_schedule_policy": {
         "type": "string",
-        "description": "How to handle missed schedule invocations: 'skip' (ignore missed), 'run_once' (run the most recent missed), or 'run_all' (run all missed). Defaults to 'skip'.",
-        "enum": ["skip", "run_once", "run_all"],
+        "description": "How to handle overlapping schedule executions. Defaults to 'skip'.",
+        "enum": ["skip", "buffer_one", "buffer_all", "allow_all", "cancel_other"],
         "default": "skip"
       }
     },

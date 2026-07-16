@@ -62,7 +62,7 @@ async def test_scheduled_config_valid_with_missed_policy(scheduled_schema: dict[
     config = {
         "schedule_type": "cron",
         "cron": "0 9 * * *",
-        "missed_schedule_policy": "run_once",
+        "missed_schedule_policy": "buffer_one",
     }
     jsonschema.validate(instance=config, schema=scheduled_schema["parameterSchema"])
 

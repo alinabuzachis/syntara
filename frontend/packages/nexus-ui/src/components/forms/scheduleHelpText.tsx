@@ -88,11 +88,19 @@ export const EXECUTION_CONFLICT_HELP = (
         instance of the workflow runs at a time.
       </ListItem>
       <ListItem>
-        <strong>Run once</strong>: If runs were skipped because the previous one was still in progress, the system will
-        queue one catch-up execution and then resume the normal schedule.
+        <strong>Buffer one</strong>: If runs were skipped because the previous one was still in progress, the system
+        will queue one catch-up execution and then resume the normal schedule.
       </ListItem>
       <ListItem>
-        <strong>Run all</strong>: Every scheduled run is queued, even if previous runs are still in progress.
+        <strong>Buffer all</strong>: Every scheduled run is queued, even if previous runs are still in progress.
+      </ListItem>
+      <ListItem>
+        <strong>Allow all</strong>: Start every scheduled run immediately, even if previous runs are still in progress.
+        Multiple runs may execute concurrently.
+      </ListItem>
+      <ListItem>
+        <strong>Cancel other</strong>: Cancel the currently in-progress run and start the new one. Only the latest
+        scheduled run executes.
       </ListItem>
     </List>
   </>

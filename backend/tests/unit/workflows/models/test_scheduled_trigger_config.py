@@ -85,6 +85,20 @@ class TestValidConfigurations:
 class TestMissedSchedulePolicy:
     """Tests for missed_schedule_policy field."""
 
+    @pytest.mark.parametrize(
+        "value",
+        ["skip", "buffer_one", "buffer_all", "allow_all", "cancel_other"],
+    )
+    def test_enum_from_string(self, value: str) -> None:
+        """Every policy string must round-trip through the StrEnum."""
+        import importlib
+
+        import nexus.workflows.workflow_engine.models.workflow_definition as mod
+
+        importlib.reload(mod)
+        reloaded = mod.MissedSchedulePolicy(value)
+        assert reloaded.value == value
+
     async def test_defaults_to_skip(self) -> None:
         """missed_schedule_policy should default to 'skip'."""
         config = ScheduledTriggerConfig(
@@ -93,23 +107,41 @@ class TestMissedSchedulePolicy:
         )
         assert config.missed_schedule_policy == MissedSchedulePolicy.SKIP
 
-    async def test_run_once_accepted(self) -> None:
-        """missed_schedule_policy 'run_once' should be accepted."""
+    async def test_buffer_one_accepted(self) -> None:
+        """missed_schedule_policy 'buffer_one' should be accepted."""
         config = ScheduledTriggerConfig(
             schedule_type=ScheduleType.CRON,
             cron="0 9 * * *",
-            missed_schedule_policy=MissedSchedulePolicy.RUN_ONCE,
+            missed_schedule_policy=MissedSchedulePolicy.BUFFER_ONE,
         )
-        assert config.missed_schedule_policy == MissedSchedulePolicy.RUN_ONCE
+        assert config.missed_schedule_policy == MissedSchedulePolicy.BUFFER_ONE
 
-    async def test_run_all_accepted(self) -> None:
-        """missed_schedule_policy 'run_all' should be accepted."""
+    async def test_buffer_all_accepted(self) -> None:
+        """missed_schedule_policy 'buffer_all' should be accepted."""
         config = ScheduledTriggerConfig(
             schedule_type=ScheduleType.CRON,
             cron="0 9 * * *",
-            missed_schedule_policy=MissedSchedulePolicy.RUN_ALL,
+            missed_schedule_policy=MissedSchedulePolicy.BUFFER_ALL,
         )
-        assert config.missed_schedule_policy == MissedSchedulePolicy.RUN_ALL
+        assert config.missed_schedule_policy == MissedSchedulePolicy.BUFFER_ALL
+
+    async def test_allow_all_accepted(self) -> None:
+        """missed_schedule_policy 'allow_all' should be accepted."""
+        config = ScheduledTriggerConfig(
+            schedule_type=ScheduleType.CRON,
+            cron="0 9 * * *",
+            missed_schedule_policy=MissedSchedulePolicy.ALLOW_ALL,
+        )
+        assert config.missed_schedule_policy == MissedSchedulePolicy.ALLOW_ALL
+
+    async def test_cancel_other_accepted(self) -> None:
+        """missed_schedule_policy 'cancel_other' should be accepted."""
+        config = ScheduledTriggerConfig(
+            schedule_type=ScheduleType.CRON,
+            cron="0 9 * * *",
+            missed_schedule_policy=MissedSchedulePolicy.CANCEL_OTHER,
+        )
+        assert config.missed_schedule_policy == MissedSchedulePolicy.CANCEL_OTHER
 
 
 class TestRequiredFieldValidation:

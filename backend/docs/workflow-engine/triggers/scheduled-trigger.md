@@ -69,17 +69,19 @@ If Temporal is unreachable during `sync_scheduled_triggers()` or `delete_trigger
 | Workflow unpublished | `delete_triggers_for_workflow()` removes all Temporal Schedules for the workflow. Already-running executions are not affected — only future firings are prevented. If schedule deletion fails (Temporal unavailable), the launcher will fail with `WorkflowNotPublishedError` on the next firing. |
 | Workflow deleted | `delete_triggers_for_workflow()` removes all Temporal Schedules for the workflow |
 
-## Missed Schedule Policy
+## Execution Conflict Policy
 
-Controls what happens when a schedule fires while the system is unavailable or a previous execution is still running. Each policy maps to a combination of Temporal's `ScheduleOverlapPolicy` and a catchup window (see `_missed_schedule_to_temporal_policy()` in `schedule_parser.py`).
+Controls what happens when a schedule fires while a previous execution from the same schedule is still running. Each policy maps to a Temporal `ScheduleOverlapPolicy` and a catchup window (see `build_schedule_policy()` in `schedule_parser.py`).
 
 | Policy | Overlap behavior | Catchup behavior | Use Case |
 |--------|-----------------|-------------------|----------|
 | `skip` (default) | If a previous execution is still running, the new firing is skipped | Firings missed during downtime are also skipped (1-second catchup window) | High-frequency checks where stale runs are not useful |
-| `run_once` | If the current execution is still running, one additional execution is buffered | Missed firings within a 48-hour window trigger a single catch-up | Nightly jobs where you want at most one catch-up |
-| `run_all` | All firings are buffered and run sequentially | All missed firings within a 48-hour window are caught up | Audit or compliance workflows where every scheduled run must be recorded |
+| `buffer_one` | If the current execution is still running, one additional execution is buffered | Missed firings within a 48-hour window trigger a single catch-up | Nightly jobs where you want at most one catch-up |
+| `buffer_all` | All firings are buffered and run sequentially | All missed firings within a 48-hour window are caught up | Audit or compliance workflows where every scheduled run must be recorded |
+| `allow_all` | Start immediately, even if previous runs are still in progress (concurrent) | Missed firings within a 48-hour window are caught up | Independent runs where concurrent execution is acceptable |
+| `cancel_other` | Cancel the in-progress run and start a new one | Firings missed during downtime are skipped (1-second catchup window) | Only the latest scheduled run matters; stale runs should be cancelled |
 
-**Warning**: `run_all` can cause a burst of executions if the system was down for an extended period. Use it only when every missed firing must produce an execution record.
+**Warning**: `buffer_all` and `allow_all` can cause a burst of executions if the system was down for an extended period. Use them only when every missed firing must produce an execution record.
 
 ## Schedule Types
 

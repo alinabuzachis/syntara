@@ -13,6 +13,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from temporalio.client import ScheduleAlreadyRunningError, ScheduleOverlapPolicy
 from temporalio.service import RPCError, RPCStatusCode
 
 from nexus.workflows.exceptions import TriggerValidationError
@@ -108,6 +109,25 @@ class TestSyncScheduledTriggers:
         # Verify the schedule ID convention
         call_args = client.create_schedule.call_args
         assert call_args[0][0] == "nexus-sched-wf-123-trigger_1"
+
+    async def test_schedule_action_targets_launcher_workflow(self) -> None:
+        """The schedule action must target 'scheduled_workflow_launcher'.
+
+        This is the critical coupling: the overlap policy applies to this
+        workflow. If the action target changes, the overlap policy breaks.
+        """
+        client = _make_mock_client()
+        service = ScheduledTriggerService(temporal_client=client)
+
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        await service.sync_scheduled_triggers(
+            workflow_id="wf-123",
+            workflow_definition=definition,
+        )
+
+        schedule = client.create_schedule.call_args[0][1]
+        assert schedule.action.workflow == "scheduled_workflow_launcher"
 
     async def test_sync_updates_existing_schedule(self) -> None:
         """Should update an existing Temporal Schedule when trigger config changes."""
@@ -364,3 +384,111 @@ class TestGracefulTemporalUnavailability:
             )
 
         assert deleted == 0
+
+
+class TestOverlapPolicyPassthrough:
+    """Tests that the overlap policy from the trigger config is set on the Temporal Schedule."""
+
+    @pytest.mark.parametrize(
+        ("policy_value", "expected_overlap"),
+        [
+            ("skip", ScheduleOverlapPolicy.SKIP),
+            ("buffer_one", ScheduleOverlapPolicy.BUFFER_ONE),
+            ("buffer_all", ScheduleOverlapPolicy.BUFFER_ALL),
+            ("allow_all", ScheduleOverlapPolicy.ALLOW_ALL),
+            ("cancel_other", ScheduleOverlapPolicy.CANCEL_OTHER),
+        ],
+    )
+    async def test_schedule_created_with_correct_overlap_policy(
+        self, policy_value: str, expected_overlap: ScheduleOverlapPolicy
+    ) -> None:
+        """Each missed_schedule_policy value must produce a Schedule with the correct Temporal overlap policy."""
+        client = _make_mock_client()
+        service = ScheduledTriggerService(temporal_client=client)
+
+        definition = _make_workflow_definition(
+            triggers=[
+                _make_scheduled_trigger(
+                    "trigger_1",
+                    missed_schedule_policy=policy_value,
+                )
+            ]
+        )
+
+        await service.sync_scheduled_triggers(
+            workflow_id="wf-123",
+            workflow_definition=definition,
+        )
+
+        client.create_schedule.assert_called_once()
+        schedule = client.create_schedule.call_args[0][1]
+        assert schedule.policy.overlap == expected_overlap
+
+
+class TestScheduleAlreadyRunningError:
+    """Tests for ScheduleAlreadyRunningError handling during create/update.
+
+    Temporal raises this when the schedule's action workflow is in-flight.
+    The service must handle it gracefully to avoid 500 errors on publish.
+    """
+
+    async def test_create_schedule_already_running_falls_through_to_update(self) -> None:
+        """ScheduleAlreadyRunningError on create_schedule should fall through to update."""
+        client = _make_mock_client()
+        client.create_schedule = AsyncMock(side_effect=ScheduleAlreadyRunningError())
+        handle = client.get_schedule_handle.return_value
+
+        service = ScheduledTriggerService(temporal_client=client)
+
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        count = await service.sync_scheduled_triggers(
+            workflow_id="wf-123",
+            workflow_definition=definition,
+        )
+
+        assert count == 1
+        handle.update.assert_called_once()
+
+    async def test_update_schedule_already_running_retries(self) -> None:
+        """ScheduleAlreadyRunningError on handle.update should retry after delay."""
+        client = _make_mock_client()
+        client.create_schedule = AsyncMock(side_effect=RPCError("already exists", RPCStatusCode.ALREADY_EXISTS, b""))
+        handle = client.get_schedule_handle.return_value
+        # First update raises ScheduleAlreadyRunningError, second succeeds
+        handle.update = AsyncMock(side_effect=[ScheduleAlreadyRunningError(), None])
+
+        service = ScheduledTriggerService(temporal_client=client)
+
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        sleep_path = "nexus.workflows.services.scheduled_trigger_service.asyncio.sleep"
+        with patch(sleep_path, new_callable=AsyncMock) as mock_sleep:
+            count = await service.sync_scheduled_triggers(
+                workflow_id="wf-123",
+                workflow_definition=definition,
+            )
+
+        assert count == 1
+        assert handle.update.call_count == 2
+        mock_sleep.assert_called_once_with(2)
+
+    async def test_update_schedule_already_running_exhausts_retries(self) -> None:
+        """ScheduleAlreadyRunningError should propagate after all retries are exhausted."""
+        client = _make_mock_client()
+        client.create_schedule = AsyncMock(side_effect=RPCError("already exists", RPCStatusCode.ALREADY_EXISTS, b""))
+        handle = client.get_schedule_handle.return_value
+        handle.update = AsyncMock(side_effect=ScheduleAlreadyRunningError())
+
+        service = ScheduledTriggerService(temporal_client=client)
+
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        sleep_path = "nexus.workflows.services.scheduled_trigger_service.asyncio.sleep"
+        with patch(sleep_path, new_callable=AsyncMock), pytest.raises(ScheduleAlreadyRunningError):
+            await service.sync_scheduled_triggers(
+                workflow_id="wf-123",
+                workflow_definition=definition,
+            )
+
+        assert handle.update.call_count == 3
