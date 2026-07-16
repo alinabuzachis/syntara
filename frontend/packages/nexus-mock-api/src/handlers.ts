@@ -2974,7 +2974,7 @@ export const handlers = [
       enabled: true,
       created_at: now,
       updated_at: now,
-      created_by: 'user-001',
+      created_by: { id: '550e8400-e29b-41d4-a716-446655440001', name: 'user-001' },
       labels: {},
       deleted_at: null,
       deleted_by: null,

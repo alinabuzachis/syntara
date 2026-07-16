@@ -1,5 +1,7 @@
 """Approvals component models."""
 
+from nexus.core.models.user_reference import UserReference
+
 from .api_models import (
     ActivitySummary,
     ApprovalCreateRequest,
@@ -12,7 +14,6 @@ from .api_models import (
     BatchApprovalDecisionStatus,
     BatchApprovalRequest,
     PreviousStepContext,
-    UserReference,
     WorkflowContext,
 )
 from .approval_approvers import ApprovalApproverGroup, ApprovalApproverUser

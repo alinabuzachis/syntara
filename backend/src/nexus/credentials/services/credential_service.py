@@ -321,15 +321,15 @@ class CredentialService(BaseService):
         }
         return read
 
-    async def _resolve_user_fields(
+    async def _lookup_users(
         self,
         objects: Sequence[Any],
         field_names: Sequence[str] = ("created_by", "updated_by"),
-    ) -> None:
-        """Resolve user UUID fields to usernames in-place.
+    ) -> dict[str | UUID, tuple[UUID, str]] | None:
+        """Collect user UUIDs from *objects* and batch-resolve them.
 
-        This is cosmetic enrichment — if the query fails, UUIDs are left
-        in place so the caller's already-committed operation still succeeds.
+        Returns a mapping {uuid: (uuid, username)} on success, or
+        None when the lookup query fails (caller decides fallback).
         """
         user_ids: set[str | UUID] = set()
         for obj in objects:
@@ -338,24 +338,61 @@ class CredentialService(BaseService):
                 if val:
                     user_ids.add(val)
         if not user_ids:
-            return
+            return {}
         try:
             stmt = select(User.id, User.username).where(User.id.in_(user_ids))  # type: ignore[attr-defined]
             result = await self.session.exec(stmt)
-            user_map: dict[str | UUID, str] = {row[0]: row[1] for row in result}
+            return {row[0]: (row[0], row[1]) for row in result}
         except (SQLAlchemyError, OSError):
-            logger.warning("Failed to resolve usernames; returning UUIDs", exc_info=True)
+            logger.warning("Failed to resolve usernames", exc_info=True)
+            return None
+
+    async def _resolve_user_references(
+        self,
+        objects: Sequence[Any],
+        field_names: Sequence[str] = ("created_by", "updated_by"),
+    ) -> None:
+        """Resolve user UUID fields to UserReference objects in-place.
+
+        Unresolvable UUIDs (e.g. deleted users) produce None rather than
+        an empty object, per AC-4 of AAP-79148.
+        """
+        from nexus.core.models.user_reference import UserReference  # noqa: PLC0415
+
+        user_map = await self._lookup_users(objects, field_names)
+        if user_map is None:
+            for obj in objects:
+                for field in field_names:
+                    setattr(obj, field, None)
             return
-        unresolved = user_ids - set(user_map.keys())
-        if unresolved:
-            logger.debug(
-                "Some user UUIDs could not be resolved to usernames", unresolved_ids=[str(uid) for uid in unresolved]
-            )
+        for obj in objects:
+            for field in field_names:
+                val = getattr(obj, field, None)
+                if val is not None and val in user_map:
+                    uid, username = user_map[val]
+                    setattr(obj, field, UserReference(id=uid, name=username))
+                elif val is not None:
+                    setattr(obj, field, None)
+
+    async def _resolve_user_fields(
+        self,
+        objects: Sequence[Any],
+        field_names: Sequence[str] = ("created_by", "updated_by"),
+    ) -> None:
+        """Resolve user UUID fields to username strings in-place.
+
+        Used by endpoints that still return plain-string user fields
+        (e.g. CredentialWorkflowRef).
+        """
+        user_map = await self._lookup_users(objects, field_names)
+        if user_map is None:
+            return
         for obj in objects:
             for field in field_names:
                 val = getattr(obj, field, None)
                 if val and val in user_map:
-                    setattr(obj, field, user_map[val])
+                    _, username = user_map[val]
+                    setattr(obj, field, username)
 
     async def create_credential(self, data: CredentialCreate) -> CredentialRead:
         """Create a new credential with encrypted inputs via SecretService."""
@@ -404,7 +441,7 @@ class CredentialService(BaseService):
 
         decrypted_inputs = data.inputs or {}
         read = self._build_masked_response(credential, credential_type, decrypted_inputs)
-        await self._resolve_user_fields([read])
+        await self._resolve_user_references([read])
         return read
 
     @staticmethod
@@ -436,7 +473,7 @@ class CredentialService(BaseService):
 
         counts = await self.get_workflow_counts([credential_id])
         read.workflow_count = counts.get(credential_id, 0)
-        await self._resolve_user_fields([read])
+        await self._resolve_user_references([read])
 
         return read
 
@@ -468,7 +505,7 @@ class CredentialService(BaseService):
             for resource in response.resources:
                 resource.workflow_count = workflow_counts.get(resource.id, 0)
 
-        await self._resolve_user_fields(response.resources)
+        await self._resolve_user_references(response.resources)
 
         return response
 
@@ -533,7 +570,7 @@ class CredentialService(BaseService):
         counts = await self.get_workflow_counts([credential_id])
         read.workflow_count = counts.get(credential_id, 0)
 
-        await self._resolve_user_fields([read])
+        await self._resolve_user_references([read])
 
         return read
 

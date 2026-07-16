@@ -51,6 +51,16 @@ class TestCreateCredential:
         assert "id" in body
         assert "created_at" in body
 
+        # created_by/updated_by must be UserReference objects ({id, name})
+        assert body["created_by"] is not None
+        assert isinstance(body["created_by"], dict)
+        assert "id" in body["created_by"]
+        assert "name" in body["created_by"]
+        assert body["updated_by"] is not None
+        assert isinstance(body["updated_by"], dict)
+        assert "id" in body["updated_by"]
+        assert "name" in body["updated_by"]
+
     @pytest.mark.asyncio
     async def test_create_duplicate_name_returns_409(
         self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
@@ -155,6 +165,11 @@ class TestGetCredential:
         assert body["inputs"]["username"] == "admin"  # non-secret: decrypted
         assert body["inputs"]["password"] == "$encrypted$"  # noqa: S105  # secret: masked
 
+        # created_by/updated_by must be UserReference objects ({id, name})
+        assert isinstance(body["created_by"], dict)
+        assert "id" in body["created_by"]
+        assert "name" in body["created_by"]
+
     @pytest.mark.asyncio
     async def test_get_not_found_returns_404(self, auth_client: AsyncClient, test_project_id: str) -> None:
         resp = await auth_client.get(f"/api/v1/credentials/{uuid4()}")
@@ -189,6 +204,10 @@ class TestListCredentials:
             if resource["inputs"]:
                 for value in resource["inputs"].values():
                     assert value == "$encrypted$"
+            # created_by must be UserReference objects in list responses
+            assert isinstance(resource["created_by"], dict)
+            assert "id" in resource["created_by"]
+            assert "name" in resource["created_by"]
 
 
 class TestUpdateCredential:
@@ -244,7 +263,110 @@ class TestUpdateCredential:
             json={"name": "New Name"},
         )
         assert update_resp.status_code == 200
-        assert update_resp.json()["name"] == "New Name"
+        body = update_resp.json()
+        assert body["name"] == "New Name"
+
+        # updated_by must be UserReference object after update
+        assert isinstance(body["updated_by"], dict)
+        assert "id" in body["updated_by"]
+        assert "name" in body["updated_by"]
+
+
+class TestUserReferenceFields:
+    """Verify created_by/updated_by return UserReference objects."""
+
+    @pytest.mark.asyncio
+    async def test_create_returns_user_reference_with_correct_user(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str, test_user: User
+    ) -> None:
+        """created_by and updated_by should be {id, name} matching the authenticated user."""
+        resp = await auth_client.post(
+            "/api/v1/credentials",
+            json={
+                "name": f"UserRef Test {uuid4().hex[:8]}",
+                "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
+                "inputs": {"token": "abc"},
+            },
+        )
+        assert resp.status_code == 201
+        body = resp.json()
+
+        assert body["created_by"]["id"] == str(test_user.id)
+        assert body["created_by"]["name"] == test_user.username
+        assert body["updated_by"]["id"] == str(test_user.id)
+        assert body["updated_by"]["name"] == test_user.username
+
+    @pytest.mark.asyncio
+    async def test_get_returns_user_reference(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str, test_user: User
+    ) -> None:
+        """GET should also return UserReference objects."""
+        create_resp = await auth_client.post(
+            "/api/v1/credentials",
+            json={
+                "name": f"UserRef Get Test {uuid4().hex[:8]}",
+                "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
+                "inputs": {"token": "abc"},
+            },
+        )
+        cred_id = create_resp.json()["id"]
+
+        get_resp = await auth_client.get(f"/api/v1/credentials/{cred_id}")
+        assert get_resp.status_code == 200
+        body = get_resp.json()
+
+        assert body["created_by"]["id"] == str(test_user.id)
+        assert body["created_by"]["name"] == test_user.username
+
+    @pytest.mark.asyncio
+    async def test_list_returns_user_references(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str, test_user: User
+    ) -> None:
+        """List endpoint should return UserReference objects for all resources."""
+        await auth_client.post(
+            "/api/v1/credentials",
+            json={
+                "name": f"UserRef List Test {uuid4().hex[:8]}",
+                "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
+                "inputs": {"token": "abc"},
+            },
+        )
+
+        resp = await auth_client.get("/api/v1/credentials")
+        assert resp.status_code == 200
+        for resource in resp.json()["resources"]:
+            assert isinstance(resource["created_by"], dict)
+            assert resource["created_by"]["id"] == str(test_user.id)
+            assert resource["created_by"]["name"] == test_user.username
+
+    @pytest.mark.asyncio
+    async def test_update_returns_user_reference(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str, test_user: User
+    ) -> None:
+        """PATCH response should have UserReference for updated_by."""
+        create_resp = await auth_client.post(
+            "/api/v1/credentials",
+            json={
+                "name": f"UserRef Update Test {uuid4().hex[:8]}",
+                "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
+                "inputs": {"token": "abc"},
+            },
+        )
+        cred_id = create_resp.json()["id"]
+
+        update_resp = await auth_client.patch(
+            f"/api/v1/credentials/{cred_id}",
+            json={"description": "Updated"},
+        )
+        assert update_resp.status_code == 200
+        body = update_resp.json()
+
+        assert body["updated_by"]["id"] == str(test_user.id)
+        assert body["updated_by"]["name"] == test_user.username
 
 
 class TestDeleteCredential:

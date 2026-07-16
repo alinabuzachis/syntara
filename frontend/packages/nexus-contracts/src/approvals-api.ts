@@ -477,22 +477,16 @@ export interface components {
     /**
      * UserReference
      * @description Minimal user identification for embedding in other resources.
-     *
-     *     Matches the UserReference schema from the OpenAPI specification.
      *     This model captures user identity at the time of an action, providing
      *     a snapshot that doesn't change even if the user's details are updated later.
      */
     UserReference: {
       /**
-       * Id
        * Format: uuid
        * @description User's unique identifier
        */
       id: string
-      /**
-       * Name
-       * @description User's display name at time of action
-       */
+      /** @description User's display name at time of action */
       name: string
     }
     /**

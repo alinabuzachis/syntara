@@ -17,13 +17,13 @@ from nexus.approvals.models.api_models import (
     ApprovalRequestStatus,
     ApproverGroupSummary,
     ApproverUserSummary,
-    UserReference,
     WorkflowContext,
 )
 from nexus.approvals.models.approval_approvers import ApprovalApproverGroup, ApprovalApproverUser
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
 from nexus.core.models.pagination import ResourcesResponse
+from nexus.core.models.user_reference import UserReference
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:

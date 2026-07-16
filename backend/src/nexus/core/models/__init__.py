@@ -12,6 +12,7 @@ from nexus.core.models.principal import (
 from nexus.core.models.secret import EncryptedSecret, Secret
 from nexus.core.models.user import User
 from nexus.core.models.user_identity import UserIdentity
+from nexus.core.models.user_reference import UserReference
 
 __all__ = [
     "EncryptedSecret",
@@ -21,5 +22,6 @@ __all__ = [
     "Secret",
     "User",
     "UserIdentity",
+    "UserReference",
     "user_groups",
 ]

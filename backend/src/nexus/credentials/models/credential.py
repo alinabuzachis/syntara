@@ -16,6 +16,7 @@ from nexus.core.models.base.base_resource import AuditLevel
 from nexus.core.models.base.named import NamedResource
 from nexus.core.models.base.user_owned import UserOwnedResource
 from nexus.core.models.pagination import ResourcesResponse
+from nexus.core.models.user_reference import UserReference
 from nexus.credentials.models.credential_type import CredentialType
 
 
@@ -109,19 +110,24 @@ class CredentialCreate(SQLModel):
 class CredentialRead(NamedResource, UserOwnedResource):
     """Schema for credential API responses. Secret fields masked as $encrypted$."""
 
-    # Override ownership fields: accept username strings or UUIDs (resolved by service layer).
-    # Preserves type/format/readOnly/example metadata expected by the spec via FIELD_SCHEMA_EXTRAS.
-    created_by: str | UUID | None = Field(description="Username or UUID of the credential creator")  # type: ignore[assignment]
-    updated_by: str | UUID | None = Field(default=None, description="Username or UUID of the last modifier")  # type: ignore[assignment]
+    created_by: UserReference | UUID | str | None = Field(default=None, description="User who created the credential")  # type: ignore[assignment]
+    updated_by: UserReference | UUID | str | None = Field(
+        default=None, description="User who last modified the credential"
+    )  # type: ignore[assignment]
+
+    _USER_REF_SCHEMA: ClassVar[dict[str, Any]] = {
+        "readOnly": True,
+        "anyOf": [
+            {"$ref": "#/components/schemas/UserReference"},
+            {"type": "null"},
+        ],
+    }
 
     FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
         **NamedResource.FIELD_SCHEMA_EXTRAS,
         **UserOwnedResource.FIELD_SCHEMA_EXTRAS,
-        "created_by": {
-            **UserOwnedResource.FIELD_SCHEMA_EXTRAS["created_by"],
-            "type": "string",
-            "format": "uuid",
-        },
+        "created_by": _USER_REF_SCHEMA,
+        "updated_by": _USER_REF_SCHEMA,
     }
 
     credential_type_id: UUID

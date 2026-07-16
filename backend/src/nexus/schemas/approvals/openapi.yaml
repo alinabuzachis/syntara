@@ -779,27 +779,7 @@ components:
           description: Array of resources in current page
 
     UserReference:
-      type: object
-      title: UserReference
-      description: |-
-        Minimal user identification for embedding in other resources.
-
-        Matches the UserReference schema from the OpenAPI specification.
-        This model captures user identity at the time of an action, providing
-        a snapshot that doesn't change even if the user's details are updated later.
-      required:
-        - id
-        - name
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: User's unique identifier
-          title: Id
-        name:
-          type: string
-          description: User's display name at time of action
-          title: Name
+      $ref: "../base/shared-resources.openapi.yaml#/components/schemas/UserReference"
 
     ApproverUserSummary:
       type: object

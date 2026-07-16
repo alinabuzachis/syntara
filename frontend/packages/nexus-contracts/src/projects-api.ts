@@ -798,44 +798,43 @@ export interface components {
       }
     }
     /** @description Schema for credential API responses. Secret fields masked as $encrypted$. */
-    CredentialRead: components['schemas']['UserOwnedResource'] &
-      components['schemas']['NamedResource'] & {
-        /**
-         * Created By
-         * @description Username or UUID of the credential creator
-         */
-        created_by?: string | null
-        /**
-         * Updated By
-         * @description Username or UUID of the last modifier
-         */
-        updated_by?: string | null
-        /**
-         * Credential Type Id
-         * Format: uuid
-         */
-        credential_type_id: string
-        /**
-         * Enabled
-         * @default true
-         */
-        enabled?: boolean
-        /** Inputs */
-        inputs?: {
-          [key: string]: unknown
-        }
-        /**
-         * Project Id
-         * Format: uuid
-         */
-        project_id: string
-        /**
-         * Workflow Count
-         * @description Number of workflows referencing this credential
-         * @default 0
-         */
-        workflow_count?: number
+    CredentialRead: components['schemas']['NamedResource'] & {
+      /**
+       * Created By
+       * @description User who created the credential
+       */
+      readonly created_by?: components['schemas']['UserReference'] | null
+      /**
+       * Updated By
+       * @description User who last modified the credential
+       */
+      readonly updated_by?: components['schemas']['UserReference'] | null
+      /**
+       * Credential Type Id
+       * Format: uuid
+       */
+      credential_type_id: string
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled?: boolean
+      /** Inputs */
+      inputs?: {
+        [key: string]: unknown
       }
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
+      /**
+       * Workflow Count
+       * @description Number of workflows referencing this credential
+       * @default 0
+       */
+      workflow_count?: number
+    }
     /**
      * CredentialUpdate
      * @description Schema for partially updating a credential. $encrypted$ preserves existing values.
@@ -1250,22 +1249,16 @@ export interface components {
     /**
      * UserReference
      * @description Minimal user identification for embedding in other resources.
-     *
-     *     Matches the UserReference schema from the OpenAPI specification.
      *     This model captures user identity at the time of an action, providing
      *     a snapshot that doesn't change even if the user's details are updated later.
      */
     UserReference: {
       /**
-       * Id
        * Format: uuid
        * @description User's unique identifier
        */
       id: string
-      /**
-       * Name
-       * @description User's display name at time of action
-       */
+      /** @description User's display name at time of action */
       name: string
     }
     ApprovalRequestRead: components['schemas']['BaseResource'] & {
@@ -1329,21 +1322,6 @@ export interface components {
        * @description Notes provided with decision
        */
       decision_notes?: string | null
-    }
-    UserOwnedResource: components['schemas']['BaseResource'] & {
-      /**
-       * Created By
-       * Format: uuid
-       * @description User (or automation) that created the resource
-       * @example 770e8400-e29b-41d4-a716-446655440000
-       */
-      readonly created_by: string
-      /**
-       * Updated By
-       * @description User (or automation) that last updated the resource
-       * @example 880e8400-e29b-41d4-a716-446655440000
-       */
-      readonly updated_by?: string | null
     }
     NamedResource: components['schemas']['BaseResource'] & {
       /**

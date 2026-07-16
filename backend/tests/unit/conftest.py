@@ -4,28 +4,39 @@ Eagerly initialises the resource-actions registry so that unit tests calling
 ``validate_statements`` (e.g. via ``PolicyService.create_policy``) work
 without booting the full app lifespan.  Integration tests get the registry
 via the ``session_app`` fixture's lifespan startup instead.
+
+Application imports are deferred to ``pytest_configure`` and fixture bodies
+so that ``pytest-cov`` starts tracking *before* the modules are loaded.
 """
 
-from collections.abc import Generator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.engine import clear_authz_cache, init_authz_cache
-from nexus.authz.models.project import Project
-from nexus.authz.resource_actions import _registry, build_resource_actions
-from nexus.core.models import User
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
-if _registry is None:
-    from nexus.core.router_discovery import discover_and_register_routers
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
-    _init_app = FastAPI()
-    discover_and_register_routers(app=_init_app, prefix="", enable_validation=False)
-    build_resource_actions(_init_app)
-    del _init_app
+    from nexus.core.models import User
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Build the resource-actions registry once, after coverage tracking starts."""
+    from nexus.authz.resource_actions import _registry, build_resource_actions
+
+    if _registry is None:
+        from fastapi import FastAPI
+
+        from nexus.core.router_discovery import discover_and_register_routers
+
+        _init_app = FastAPI()
+        discover_and_register_routers(app=_init_app, prefix="", enable_validation=False)
+        build_resource_actions(_init_app)
 
 
 TEST_ENCRYPTION_KEY = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
@@ -43,6 +54,8 @@ def _set_encryption_key(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(autouse=True)
 def _reset_opa_cache() -> Generator[None, None, None]:
     """Disable Rego cache between unit tests to prevent cross-test pollution."""
+    from nexus.authz.engine import clear_authz_cache, init_authz_cache
+
     init_authz_cache(enabled=False)
     yield
     clear_authz_cache()
@@ -52,6 +65,8 @@ def _reset_opa_cache() -> Generator[None, None, None]:
 @pytest_asyncio.fixture
 async def test_project_id(test_db_session: AsyncSession) -> UUID:
     """Create a test project and return its ID."""
+    from nexus.authz.models.project import Project
+
     project = Project(name=f"unit-test-project-{uuid4().hex[:8]}", description="Unit test project")
     test_db_session.add(project)
     await test_db_session.flush()
@@ -65,6 +80,7 @@ async def users(test_db_session: AsyncSession) -> dict[str, User]:
     Returns a dict of users keyed by user_1, user_2, etc.
     """
     from nexus.auth.passwords import hash_password
+    from nexus.core.models import User
 
     test_users = {
         "user_1": User(

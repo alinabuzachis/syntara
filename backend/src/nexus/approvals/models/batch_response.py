@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlmodel import Field, SQLModel
 
 from nexus.approvals.models import ApprovalRequestStatus
-from nexus.approvals.models.api_models import UserReference
+from nexus.core.models.user_reference import UserReference
 
 
 class BatchApprovalResult(SQLModel):

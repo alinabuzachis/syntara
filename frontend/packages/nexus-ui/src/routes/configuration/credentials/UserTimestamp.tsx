@@ -1,16 +1,25 @@
+import type { CredentialsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants } from '@patternfly/react-core'
 
 import { formatDateTime } from '../../../utils/dateUtils'
 
 import styles from './UserTimestamp.module.css'
 
+type UserReference = CredentialsAPI.components['schemas']['UserReference']
+
 type UserTimestampProps = {
-  user?: string | null
+  user?: UserReference | string | null
   timestamp?: string
   /** Use subtle color for the timestamp (default: true). Set false for neutral color. */
   subtleTimestamp?: boolean
   /** Render user and date on a single line (default: false). Use true for table columns. */
   inline?: boolean
+}
+
+function resolveDisplayName(user: UserReference | string | null | undefined): string | undefined {
+  if (!user) return undefined
+  if (typeof user === 'string') return user
+  return user.name
 }
 
 /**
@@ -24,15 +33,16 @@ export function UserTimestamp({
   subtleTimestamp = true,
   inline = false,
 }: Readonly<UserTimestampProps>) {
+  const displayName = resolveDisplayName(user)
   const formattedDate = formatDateTime(timestamp)
 
   if (inline) {
     return (
       <Content component={ContentVariants.p} className={styles.inlineWrapper}>
-        {user && (
+        {displayName && (
           <>
             <Content component={ContentVariants.a} className={styles.inlineUser}>
-              {user}
+              {displayName}
             </Content>
             {' · '}
           </>
@@ -49,9 +59,9 @@ export function UserTimestamp({
 
   return (
     <>
-      {user && (
+      {displayName && (
         <Content component={ContentVariants.p} className={styles.user}>
-          {user}
+          {displayName}
         </Content>
       )}
       <Content

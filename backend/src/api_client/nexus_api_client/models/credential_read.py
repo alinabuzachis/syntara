@@ -13,6 +13,7 @@ from ..types import UNSET, Unset
 if TYPE_CHECKING:
     from ..models.credential_read_inputs import CredentialReadInputs
     from ..models.credential_read_labels import CredentialReadLabels
+    from ..models.user_reference import UserReference
 
 
 T = TypeVar("T", bound="CredentialRead")
@@ -23,7 +24,7 @@ class CredentialRead:
     """Schema for credential API responses. Secret fields masked as $encrypted$.
 
     Attributes:
-        created_by (None | str | UUID): Username or UUID of the credential creator Example:
+        created_by (None | UserReference): User who created the credential Example:
             770e8400-e29b-41d4-a716-446655440000.
         name (str): Human-readable name for the resource Example: Authentication Service.
         credential_type_id (UUID):
@@ -33,7 +34,7 @@ class CredentialRead:
         updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
         labels (CredentialReadLabels | Unset): Key-value pairs for resource labeling and filtering Example:
             {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
-        updated_by (None | str | Unset | UUID): Username or UUID of the last modifier Example:
+        updated_by (None | Unset | UserReference): User who last modified the credential Example:
             880e8400-e29b-41d4-a716-446655440000.
         description (None | str | Unset): Detailed description of the resource Example: Handles user authentication and
             authorization workflows.
@@ -42,7 +43,7 @@ class CredentialRead:
         workflow_count (int | Unset): Number of workflows referencing this credential Default: 0.
     """
 
-    created_by: None | str | UUID
+    created_by: None | UserReference
     name: str
     credential_type_id: UUID
     project_id: UUID
@@ -50,16 +51,18 @@ class CredentialRead:
     created_at: datetime.datetime | Unset = UNSET
     updated_at: datetime.datetime | Unset = UNSET
     labels: CredentialReadLabels | Unset = UNSET
-    updated_by: None | str | Unset | UUID = UNSET
+    updated_by: None | Unset | UserReference = UNSET
     description: None | str | Unset = UNSET
     enabled: bool | Unset = True
     inputs: CredentialReadInputs | Unset = UNSET
     workflow_count: int | Unset = 0
 
     def to_dict(self) -> dict[str, Any]:
-        created_by: None | str
-        if isinstance(self.created_by, UUID):
-            created_by = str(self.created_by)
+        from ..models.user_reference import UserReference
+
+        created_by: dict[str, Any] | None
+        if isinstance(self.created_by, UserReference):
+            created_by = self.created_by.to_dict()
         else:
             created_by = self.created_by
 
@@ -85,11 +88,11 @@ class CredentialRead:
         if not isinstance(self.labels, Unset):
             labels = self.labels.to_dict()
 
-        updated_by: None | str | Unset
+        updated_by: dict[str, Any] | None | Unset
         if isinstance(self.updated_by, Unset):
             updated_by = UNSET
-        elif isinstance(self.updated_by, UUID):
-            updated_by = str(self.updated_by)
+        elif isinstance(self.updated_by, UserReference):
+            updated_by = self.updated_by.to_dict()
         else:
             updated_by = self.updated_by
 
@@ -142,21 +145,22 @@ class CredentialRead:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.credential_read_inputs import CredentialReadInputs
         from ..models.credential_read_labels import CredentialReadLabels
+        from ..models.user_reference import UserReference
 
         d = dict(src_dict)
 
-        def _parse_created_by(data: object) -> None | str | UUID:
+        def _parse_created_by(data: object) -> None | UserReference:
             if data is None:
                 return data
             try:
-                if not isinstance(data, str):
+                if not isinstance(data, dict):
                     raise TypeError()
-                created_by_type_1 = UUID(data)
+                created_by_type_0 = UserReference.from_dict(data)
 
-                return created_by_type_1
+                return created_by_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(None | str | UUID, data)
+            return cast(None | UserReference, data)
 
         created_by = _parse_created_by(d.pop("created_by"))
 
@@ -194,20 +198,20 @@ class CredentialRead:
         else:
             labels = CredentialReadLabels.from_dict(_labels)
 
-        def _parse_updated_by(data: object) -> None | str | Unset | UUID:
+        def _parse_updated_by(data: object) -> None | Unset | UserReference:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             try:
-                if not isinstance(data, str):
+                if not isinstance(data, dict):
                     raise TypeError()
-                updated_by_type_1 = UUID(data)
+                updated_by_type_0 = UserReference.from_dict(data)
 
-                return updated_by_type_1
+                return updated_by_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(None | str | Unset | UUID, data)
+            return cast(None | Unset | UserReference, data)
 
         updated_by = _parse_updated_by(d.pop("updated_by", UNSET))
 

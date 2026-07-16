@@ -27056,6 +27056,24 @@ paths:
                 retryable: true
 components:
   schemas:
+    UserReference:
+      type: object
+      title: UserReference
+      description: |-
+        Minimal user identification for embedding in other resources.
+        This model captures user identity at the time of an action, providing
+        a snapshot that doesn't change even if the user's details are updated later.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User's unique identifier
+        name:
+          type: string
+          description: User's display name at time of action
     ErrorData:
       type: object
       title: ErrorData
@@ -28244,28 +28262,6 @@ components:
             $ref: '#/components/schemas/ApprovalRequestRead'
           title: Resources
           description: Array of resources in current page
-    UserReference:
-      type: object
-      title: UserReference
-      description: |-
-        Minimal user identification for embedding in other resources.
-
-        Matches the UserReference schema from the OpenAPI specification.
-        This model captures user identity at the time of an action, providing
-        a snapshot that doesn't change even if the user's details are updated later.
-      required:
-        - id
-        - name
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: User's unique identifier
-          title: Id
-        name:
-          type: string
-          description: User's display name at time of action
-          title: Name
     ApproverUserSummary:
       type: object
       title: ApproverUserSummary
@@ -29541,28 +29537,6 @@ components:
             environment: production
             region: us-east-1
             team: platform
-        created_by:
-          type: string
-          format: uuid
-          readOnly: true
-          title: Created By
-          description: Username or UUID of the credential creator
-          example: 770e8400-e29b-41d4-a716-446655440000
-          anyOf:
-            - type: string
-            - type: string
-              format: uuid
-            - type: 'null'
-        updated_by:
-          anyOf:
-            - type: string
-            - type: string
-              format: uuid
-            - type: 'null'
-          readOnly: true
-          title: Updated By
-          description: Username or UUID of the last modifier
-          example: 880e8400-e29b-41d4-a716-446655440000
         name:
           type: string
           minLength: 1
@@ -29578,6 +29552,20 @@ components:
           title: Description
           description: Detailed description of the resource
           example: Handles user authentication and authorization workflows
+        created_by:
+          anyOf:
+            - $ref: '#/components/schemas/UserReference'
+            - type: 'null'
+          description: User who created the credential
+          readOnly: true
+          title: Created By
+        updated_by:
+          anyOf:
+            - $ref: '#/components/schemas/UserReference'
+            - type: 'null'
+          description: User who last modified the credential
+          readOnly: true
+          title: Updated By
         credential_type_id:
           format: uuid
           title: Credential Type Id
@@ -29600,7 +29588,6 @@ components:
           title: Workflow Count
           type: integer
       required:
-        - created_by
         - name
         - credential_type_id
         - project_id
