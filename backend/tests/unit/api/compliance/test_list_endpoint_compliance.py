@@ -27,12 +27,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from _pytest.outcomes import Failed, Skipped
 
 from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.pagination import ResourcesResponse
-from nexus.core.router.loader import load_openapi_schema
 from nexus.core.utils.filters import FilterOperator
+from tests.unit.api.compliance.conftest import (
+    MIN_EXCLUSION_REASON_LENGTH,
+    check_passes,
+    get_operation,
+)
 from tests.unit.api.compliance.endpoint_discovery import (
     discover_list_endpoints,
     discover_testable_list_endpoints,
@@ -41,18 +44,6 @@ from tests.unit.api.compliance.endpoint_discovery import (
 
 if TYPE_CHECKING:
     from tests.unit.api.compliance.endpoint_discovery import EndpointInfo
-
-# Minimum length for exclusion justifications - ensures they are meaningful, not just "todo"
-MIN_EXCLUSION_REASON_LENGTH = 20
-
-
-@pytest.fixture(scope="module")
-def openapi_spec():
-    """Load OpenAPI spec once for all tests."""
-    schema = load_openapi_schema("openapi.yaml")
-    if schema is None:
-        pytest.fail("Failed to load OpenAPI spec")
-    return schema.schema_data
 
 
 @pytest.mark.unit
@@ -65,16 +56,9 @@ class TestListEndpointCompliance:
     and sorting standards by checking OpenAPI spec structure.
     """
 
-    def _get_operation(self, endpoint: EndpointInfo, openapi_spec: dict[str, Any]) -> dict[str, Any]:
-        """Get the OpenAPI operation object for the given endpoint."""
-        paths = openapi_spec.get("paths", {})
-        path_item = paths.get(endpoint.path, {})
-        result: dict[str, Any] = path_item.get(endpoint.method.lower(), {})
-        return result
-
     def _get_parameters(self, endpoint: EndpointInfo, openapi_spec: dict[str, Any]) -> list[Any]:
         """Get parameters list from OpenAPI spec for the given endpoint."""
-        operation = self._get_operation(endpoint, openapi_spec)
+        operation = get_operation(endpoint, openapi_spec)
         return operation.get("parameters", [])  # type: ignore[no-any-return]
 
     def _get_request_body_properties(self, endpoint: EndpointInfo, openapi_spec: dict[str, Any]) -> dict[str, Any]:
@@ -82,7 +66,7 @@ class TestListEndpointCompliance:
 
         Resolves the $ref in requestBody to get the schema properties.
         """
-        operation = self._get_operation(endpoint, openapi_spec)
+        operation = get_operation(endpoint, openapi_spec)
         request_body = operation.get("requestBody", {})
         content = request_body.get("content", {})
         json_content = content.get("application/json", {})
@@ -331,17 +315,6 @@ class TestExclusionListMaintenance:
         """Extract set of all operation IDs."""
         return {ep.operation_id for ep in all_list_endpoints}
 
-    @staticmethod
-    def _check_passes(check_fn, endpoint: EndpointInfo, openapi_spec: dict[str, Any]) -> bool:
-        """Run a compliance check and return True if it passes or is skipped, False if it fails."""
-        try:
-            check_fn(endpoint, openapi_spec)
-            return True
-        except (AssertionError, Failed):
-            return False
-        except Skipped:
-            return True
-
     def test_exclusions_have_justifications(self, exclusions_list):
         """Validates all exclusions have meaningful justification."""
         for exc in exclusions_list:
@@ -397,9 +370,7 @@ class TestExclusionListMaintenance:
         for endpoint in excluded_endpoints:
             # Run all compliance checks against this endpoint
             # If ALL checks pass, this endpoint is now compliant and should be removed from exclusions
-            checks_failed = sum(
-                1 for check in compliance_checks if not self._check_passes(check, endpoint, openapi_spec)
-            )
+            checks_failed = sum(1 for check in compliance_checks if not check_passes(check, endpoint, openapi_spec))
 
             # If all checks passed (no failures), this exclusion is stale
             if checks_failed == 0:
