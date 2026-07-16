@@ -5,6 +5,7 @@ import { axe } from 'vitest-axe'
 import { useCanI } from '../hooks/useCanI'
 
 import { makeRouteComponent } from './makeRouteComponent'
+import { configurationRoutes } from './routes/configuration'
 
 vi.mock('../hooks/useCanI', () => ({
   useCanI: vi.fn(() => ({ allowed: true, isChecking: false, isError: false })),
@@ -53,5 +54,23 @@ describe('makeRouteComponent', () => {
     const { container } = render(<RouteComponent />)
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+})
+
+describe('integration route permission guards', () => {
+  function findRouteComponent(path: string) {
+    const route = configurationRoutes.find((r) => (r.options as { path?: string }).path === path)
+    return (route?.options as { component?: React.ComponentType }).component
+  }
+
+  it.each([
+    { path: '/configuration/integrations/configure', action: 'create', label: 'configure' },
+    { path: '/configuration/integrations/$integrationId/edit', action: 'update', label: 'edit' },
+  ])('guards the integration $label route with integration:$action permission', ({ path, action }) => {
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
+    const Component = findRouteComponent(path)!
+    render(<Component />)
+    expect(useCanI).toHaveBeenCalledWith(action, 'integration')
+    expect(screen.getByText('Access denied')).toBeInTheDocument()
   })
 })

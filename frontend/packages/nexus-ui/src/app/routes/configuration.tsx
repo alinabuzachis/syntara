@@ -31,12 +31,12 @@ export const configurationRoutes = [
   createRoute({
     getParentRoute: () => rootRoute,
     path: '/configuration/integrations/configure',
-    component: makeRouteComponent(<IntegrationForm />),
+    component: makeRouteComponent(<IntegrationForm />, { action: 'create', resourceType: 'integration' }),
   }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: '/configuration/integrations/$integrationId/edit',
-    component: makeRouteComponent(<EditIntegration />),
+    component: makeRouteComponent(<EditIntegration />, { action: 'update', resourceType: 'integration' }),
   }),
   createRoute({
     getParentRoute: () => rootRoute,
