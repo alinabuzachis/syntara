@@ -198,6 +198,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /aap/job_templates:
@@ -344,6 +356,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /aap/job_templates/{job_template_id}:
@@ -487,6 +511,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -634,6 +670,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /aap/workflow_job_templates/{workflow_job_template_id}:
@@ -777,6 +825,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -924,6 +984,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /aap/execution_environments:
@@ -1070,6 +1142,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /aap/credentials:
@@ -1206,6 +1290,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -1344,6 +1440,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /aap/labels:
@@ -1476,6 +1584,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       x-app-permission:
         resource: null
         action: null
@@ -1582,6 +1702,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     post:
@@ -1686,6 +1818,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /admin/revocation/users/{username}:
@@ -1788,6 +1932,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /admin/revocation/identity_providers/{idp_name}:
@@ -1889,6 +2045,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -2061,6 +2229,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     post:
@@ -2175,6 +2355,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -2294,6 +2486,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -2422,6 +2626,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /approvals/batch:
@@ -2546,6 +2762,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /auth/login:
@@ -2651,6 +2879,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /auth/token:
     post:
       summary: OAuth 2.0 token endpoint
@@ -2734,6 +2974,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -2844,6 +3096,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /auth/ws-ticket:
     post:
       summary: Exchange JWT for a WebSocket connection ticket
@@ -2931,6 +3195,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -3042,6 +3318,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /auth/logout:
     post:
       summary: Terminate session
@@ -3150,6 +3438,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /auth/me:
     get:
       summary: Get current user
@@ -3244,6 +3544,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -3352,6 +3664,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
   /auth/oidc/authorize:
     get:
@@ -3494,6 +3818,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /auth/oidc/callback:
     get:
       summary: OIDC callback
@@ -3626,6 +3962,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /authz/can_i:
     post:
       summary: Check if the current user can perform an action
@@ -3734,6 +4082,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -3846,6 +4206,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /authz/what_can_i:
@@ -3957,6 +4329,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /authz/resource_actions:
@@ -4061,6 +4445,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
   /authz/validate_name:
     get:
@@ -4190,6 +4586,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /policies:
     post:
       summary: Create Policy
@@ -4298,6 +4706,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -4489,6 +4909,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /policies/{policy_id}:
@@ -4601,6 +5033,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -4720,6 +5164,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     put:
@@ -4838,6 +5294,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -4945,6 +5413,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -5056,6 +5536,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -5248,6 +5740,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /roles/{role_id}:
@@ -5360,6 +5864,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -5479,6 +5995,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     put:
@@ -5597,6 +6125,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -5704,6 +6244,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -5819,6 +6371,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -6016,6 +6580,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /role_assignments/{assignment_id}:
@@ -6133,6 +6709,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -6240,6 +6828,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -6409,6 +7009,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     post:
@@ -6518,6 +7130,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -6631,6 +7255,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -6750,6 +7386,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -6857,6 +7505,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -6974,6 +7634,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /credential_types:
@@ -7081,6 +7753,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -7194,6 +7878,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -7318,6 +8014,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /files/metadata:
@@ -7424,6 +8132,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -7550,6 +8270,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -7696,6 +8428,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       tags:
         - IdentityProviders
       security:
@@ -7805,6 +8549,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       tags:
         - IdentityProviders
@@ -7918,6 +8674,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       tags:
         - IdentityProviders
@@ -8037,6 +8805,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       tags:
         - IdentityProviders
       security:
@@ -8144,6 +8924,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       tags:
         - IdentityProviders
@@ -8256,6 +9048,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       tags:
         - IdentityProviders
       security:
@@ -8366,6 +9170,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       tags:
         - IdentityProviders
@@ -8553,6 +9369,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     post:
@@ -8662,6 +9490,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -8775,6 +9615,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -8894,6 +9746,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -9002,6 +9866,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /integrations/discover:
@@ -9107,6 +9983,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -9238,6 +10126,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /integrations/{integration_id}/validate:
@@ -9356,6 +10256,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /integrations/{integration_id}/refresh:
@@ -9462,6 +10374,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -9614,6 +10538,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -9734,6 +10670,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -9859,6 +10807,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -9978,6 +10938,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -10093,6 +11065,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       x-app-permission:
         resource: null
@@ -10249,6 +11233,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       x-app-permission:
         resource: null
         action: null
@@ -10356,6 +11352,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       x-app-permission:
         resource: null
@@ -10467,6 +11475,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       x-app-permission:
         resource: null
         action: null
@@ -10576,6 +11596,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       x-app-permission:
         resource: null
@@ -10702,6 +11734,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -10895,6 +11939,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /invocations/chat:
@@ -11005,6 +12061,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -11126,6 +12194,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -11257,6 +12337,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /projects:
@@ -11372,6 +12464,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -11546,6 +12650,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /projects/{project_id}:
@@ -11659,6 +12775,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -11779,6 +12907,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     put:
@@ -11898,6 +13038,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -12006,6 +13158,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -12165,6 +13329,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -12344,6 +13520,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /projects/{project_id}/role_assignments:
@@ -12463,6 +13651,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -12659,6 +13859,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /projects/{project_id}/role_assignments/{assignment_id}:
@@ -12776,6 +13988,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -12896,6 +14120,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -13092,6 +14328,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /projects/{project_id}/roles/{role_id}:
@@ -13213,6 +14461,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -13341,6 +14601,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     put:
@@ -13468,6 +14740,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -13584,6 +14868,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -13704,6 +15000,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -13900,6 +15208,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /projects/{project_id}/policies/{policy_id}:
@@ -14021,6 +15341,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -14149,6 +15481,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     put:
@@ -14276,6 +15620,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -14392,6 +15748,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -14512,6 +15880,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -14684,6 +16064,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /projects/{project_id}/credentials/{credential_id}:
@@ -14805,6 +16197,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -14933,6 +16337,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -15049,6 +16465,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -15175,6 +16603,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /service_accounts:
@@ -15273,6 +16713,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -15439,6 +16891,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -15552,6 +17016,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -15670,6 +17146,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -15778,6 +17266,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -15891,6 +17391,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -16004,6 +17516,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -16123,6 +17647,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -16296,6 +17832,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -16416,6 +17964,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -16531,6 +18091,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -16657,6 +18229,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -16777,6 +18361,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -16897,6 +18493,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -17073,6 +18681,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     patch:
@@ -17183,6 +18803,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /settings/categories:
@@ -17287,6 +18919,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -17400,6 +19044,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -17518,6 +19174,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -17659,6 +19327,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -17853,6 +19533,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
       tags:
@@ -18007,6 +19699,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -18120,6 +19824,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -18238,6 +19954,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -18351,6 +20079,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -18557,6 +20297,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     post:
@@ -18667,6 +20419,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /users/me:
@@ -18771,6 +20535,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -18884,6 +20660,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -19006,6 +20794,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -19113,6 +20913,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -19268,6 +21080,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     put:
@@ -19390,6 +21214,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /users/{user_id}/identities:
@@ -19502,6 +21338,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -19621,6 +21469,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /users/{user_id}/identities/{identity_id}:
@@ -19736,6 +21596,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -19894,6 +21766,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /groups_directory:
@@ -20051,6 +21935,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /groups:
@@ -20202,6 +22098,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     post:
@@ -20311,6 +22219,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -20425,6 +22345,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -20545,6 +22477,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     delete:
@@ -20653,6 +22597,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -20809,6 +22765,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
     post:
@@ -20928,6 +22896,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /groups/{group_id}/members/{user_id}:
@@ -21044,6 +23024,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -21163,6 +23155,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -21334,6 +23338,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /users/{user_id}/role_assignments/{assignment_id}:
@@ -21449,6 +23465,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -21568,6 +23596,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -21739,6 +23779,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
       security:
         - bearerAuth: []
   /groups/{group_id}/role_assignments/{assignment_id}:
@@ -21854,6 +23906,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
       security:
         - bearerAuth: []
@@ -22004,6 +24068,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
     post:
       summary: Create execution
       description: Start a new workflow execution.
@@ -22113,6 +24189,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
   /executions/{execution_id}:
     get:
@@ -22236,6 +24324,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /executions/{execution_id}/cancel:
     post:
       summary: Cancel execution
@@ -22345,6 +24445,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /executions/{execution_id}/retry:
     post:
       summary: Retry execution
@@ -22446,6 +24558,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -22612,6 +24736,18 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
   /executions/{execution_id}/activities/{activity_id}/signal:
     post:
       summary: Send signal to activity in workflow
@@ -22736,6 +24872,18 @@ paths:
                 title: Internal Server Error
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
+                retryable: true
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
                 retryable: true
   /workflows:
     get:
@@ -22880,6 +25028,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -22999,6 +25159,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -23103,6 +25275,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/WorkflowValidationProblemDetail'
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -23207,6 +25391,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/DetailedValidationProblemDetail'
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -23320,6 +25516,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -23452,6 +25660,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -23560,6 +25780,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -23679,6 +25911,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -23792,6 +26036,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -23912,6 +26168,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -24022,6 +26290,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -24148,6 +26428,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -24261,6 +26553,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -24381,6 +26685,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -24488,6 +26804,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -24589,6 +26917,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:
@@ -24690,6 +27030,18 @@ paths:
                 code: VALIDATION_ERROR
                 retryable: false
                 instance: /api/v1/workflows
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/rate-limited
+                title: Too Many Requests
+                detail: Rate limit exceeded. Try again in 60 seconds.
+                code: RATE_LIMITED
+                retryable: true
         '500':
           description: Internal Server Error
           content:

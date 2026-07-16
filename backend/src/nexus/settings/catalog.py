@@ -78,6 +78,12 @@ CATEGORY_CATALOG: list[CategoryDefinition] = [
         description="Integration health check and connection test settings",
         display_order=50,
     ),
+    CategoryDefinition(
+        slug="rate_limiting",
+        name="Rate Limiting",
+        description="API rate limiting and throttling settings",
+        display_order=55,
+    ),
 ]
 
 
@@ -939,5 +945,34 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         ),
         helper_text="Minimum 1 second. Default: 10 seconds.",
         validation_schema={"min": 1},
+    ),
+    # Rate Limiting
+    SettingDefinition(
+        key="rate_limiting.requests_per_window",
+        name="Requests per window",
+        category=SettingCategory.RATE_LIMITING,
+        value_type=SettingValueType.INTEGER,
+        default_value=0,
+        description=(
+            "Maximum number of API requests a single user can make within "
+            "the configured time window. Set to 0 to disable rate limiting "
+            "(default)."
+        ),
+        helper_text="0 = disabled. Example: 100 requests per 60-second window. Maximum: 10000.",
+        validation_schema={"min": 0, "max": 10000},
+    ),
+    SettingDefinition(
+        key="rate_limiting.window_duration_seconds",
+        name="Window duration (seconds)",
+        category=SettingCategory.RATE_LIMITING,
+        value_type=SettingValueType.INTEGER,
+        default_value=60,
+        description=(
+            "Duration of the rate limiting time window in seconds. "
+            "The request allowance (above) refills continuously over this "
+            "interval using a token bucket algorithm."
+        ),
+        helper_text="Range: 1-86400 seconds. Default: 60 seconds.",
+        validation_schema={"min": 1, "max": 86400},
     ),
 ]

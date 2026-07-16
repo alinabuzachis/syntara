@@ -41,6 +41,7 @@ PROBLEM_TYPES = {
     "internal_error": "https://api.nexus.com/errors/internal-error",
     "definition_warnings": "https://api.nexus.com/errors/definition-warnings",
     "publish_validation": "https://api.nexus.com/errors/publish-validation",
+    "rate_limited": "https://api.nexus.com/errors/rate-limited",
 }
 
 
@@ -89,6 +90,13 @@ _ERROR_RESPONSE_EXAMPLES: dict[int, dict[str, object]] = {
         "retryable": False,
         "instance": "/api/v1/workflows",
     },
+    429: {
+        "type": "https://api.nexus.com/errors/rate-limited",
+        "title": "Too Many Requests",
+        "detail": "Rate limit exceeded. Try again in 60 seconds.",
+        "code": "RATE_LIMITED",
+        "retryable": True,
+    },
     500: {
         "type": "https://api.nexus.com/errors/internal-error",
         "title": "Internal Server Error",
@@ -117,6 +125,7 @@ def problem_details_response_map() -> dict[int | str, dict[str, Any]]:
         404: "Not Found",
         409: "Conflict",
         422: "Validation Error",
+        429: "Too Many Requests",
         500: "Internal Server Error",
     }
 

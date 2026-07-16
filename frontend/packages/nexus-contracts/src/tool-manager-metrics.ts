@@ -478,6 +478,24 @@ export interface components {
         'application/problem+json': components['schemas']['ErrorData']
       }
     }
+    /** @description Too Many Requests */
+    RateLimitError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/rate-limited",
+         *       "title": "Too Many Requests",
+         *       "detail": "Rate limit exceeded. Try again in 60 seconds.",
+         *       "code": "RATE_LIMITED",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
     /** @description Internal Server Error */
     InternalServerError: {
       headers: {
@@ -544,6 +562,7 @@ export interface operations {
       404: components['responses']['NotFoundError']
       409: components['responses']['ConflictError']
       422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
       500: components['responses']['InternalServerError']
     }
   }
@@ -588,6 +607,7 @@ export interface operations {
       404: components['responses']['NotFoundError']
       409: components['responses']['ConflictError']
       422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
       500: components['responses']['InternalServerError']
     }
   }

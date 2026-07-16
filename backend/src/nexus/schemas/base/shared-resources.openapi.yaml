@@ -544,6 +544,19 @@ components:
             code: CONFLICT
             retryable: false
 
+    RateLimitError:
+      description: Too Many Requests
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorData'
+          example:
+            type: https://api.nexus.com/errors/rate-limited
+            title: Too Many Requests
+            detail: Rate limit exceeded. Try again in 60 seconds.
+            code: RATE_LIMITED
+            retryable: true
+
     InternalServerError:
       description: Internal Server Error
       content:

@@ -67,6 +67,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
 
   /auth/token:
     post:
@@ -109,6 +111,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
@@ -148,6 +152,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
 
   /auth/ws-ticket:
     post:
@@ -184,6 +190,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         '422':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
@@ -224,6 +232,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
 
   /auth/logout:
     post:
@@ -271,6 +281,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
 
   /auth/me:
     get:
@@ -305,6 +317,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
 
       security:
         - bearerAuth: []
@@ -342,6 +356,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
 
   /auth/oidc/authorize:
     get:
@@ -412,6 +428,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
 
   /auth/oidc/callback:
     get:
@@ -483,6 +501,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
 
 components:
   securitySchemes:

@@ -41,6 +41,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       x-app-permission:
         resource: null
         action: null
@@ -124,6 +126,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       x-app-permission:
         resource: null
         action: null
@@ -155,6 +159,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       x-app-permission:
         resource: null
         action: null
@@ -193,6 +199,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       x-app-permission:
         resource: null
         action: null
@@ -231,6 +239,8 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       x-app-permission:
         resource: null
         action: null

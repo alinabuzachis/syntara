@@ -6,6 +6,7 @@ import importlib
 import importlib.util
 import json
 import re
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -18,6 +19,9 @@ import typer
 
 from .auth import save_token
 from .benchmark import note, phase
+
+_MAX_RATE_LIMIT_RETRIES = 3
+_HTTP_429_TOO_MANY_REQUESTS = 429
 
 # ---------------------------------------------------------------------------
 # Helpers (ported from tools/generate_cli.py)
@@ -295,7 +299,42 @@ def _format_response(response: Any) -> dict[str, Any] | None:
     return None
 
 
-def _make_command_callback(  # noqa: PLR0915
+def _call_with_rate_limit_retry(ep_mod: Any, client: object, api_kwargs: dict[str, Any]) -> Any:
+    """Execute an API call, retrying on 429 with Retry-After backoff."""
+    for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+        with phase("request.api_call"):
+            response = ep_mod.sync_detailed(client=client, **api_kwargs)
+
+        if response.status_code.value != _HTTP_429_TOO_MANY_REQUESTS:
+            if not response.is_success:
+                with phase("request.parse_error"):
+                    try:
+                        err = json.loads(response.content)
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        err = response.content.decode()
+                typer.echo(
+                    json.dumps({"error": err, "status": response.status_code.value}, indent=2),
+                    err=True,
+                )
+                raise typer.Exit(1)
+            return response
+
+        if attempt >= _MAX_RATE_LIMIT_RETRIES:
+            typer.echo("Error: rate limited after maximum retries", err=True)
+            raise typer.Exit(1)
+
+        retry_after = int(response.headers.get("retry-after", "5"))
+        typer.echo(
+            f"Rate limited by server. Retrying in {retry_after} seconds... "
+            f"(attempt {attempt + 1}/{_MAX_RATE_LIMIT_RETRIES})",
+            err=True,
+        )
+        time.sleep(retry_after)
+
+    return response  # pragma: no cover
+
+
+def _make_command_callback(
     ep: dict[str, Any],
     tag_module: str,
     endpoint_module: str,
@@ -357,20 +396,8 @@ def _make_command_callback(  # noqa: PLR0915
 
             with phase("request.import_endpoint_module"):
                 ep_mod = importlib.import_module(f"nexus_api_client.api.{tag_module}.{endpoint_module}")
-            with phase("request.api_call"):
-                response = ep_mod.sync_detailed(client=client, **api_kwargs)
 
-            if not response.is_success:
-                with phase("request.parse_error"):
-                    try:
-                        err = json.loads(response.content)
-                    except (json.JSONDecodeError, UnicodeDecodeError):
-                        err = response.content.decode()
-                typer.echo(
-                    json.dumps({"error": err, "status": response.status_code.value}, indent=2),
-                    err=True,
-                )
-                raise typer.Exit(1)
+            response = _call_with_rate_limit_retry(ep_mod, client, api_kwargs)
 
             with phase("request.format_response"):
                 parsed_dict = _format_response(response)

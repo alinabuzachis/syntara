@@ -134,7 +134,7 @@ class BaseRedisClient:
                 await self._client.aclose()
                 self._client = None
                 logger.info("cache_client_disconnected", client=self._client_name)
-            except (RedisConnectionError, OSError) as e:
+            except (RedisConnectionError, OSError, RuntimeError) as e:
                 logger.warning("cache_client_disconnect_error", client=self._client_name, error=str(e))
                 self._client = None
 

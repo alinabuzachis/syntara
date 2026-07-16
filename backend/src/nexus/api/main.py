@@ -67,6 +67,9 @@ from nexus.metrics.internal_api import (
 from nexus.metrics.middleware import MetricsMiddleware
 from nexus.metrics.openmetrics import openmetrics_endpoint
 from nexus.metrics.queue_depth_poller import get_queue_depth_poller
+from nexus.rate_limiting.middleware import RateLimitMiddleware
+from nexus.rate_limiting.redis_client import RateLimitRedisClient
+from nexus.rate_limiting.token_bucket import TokenBucket
 from nexus.settings.cache.settings_cache import SettingsCache, set_runtime_settings
 from nexus.settings.store import check_catalog_completeness
 from nexus.telemetry.client import flush_telemetry, get_telemetry_registry, initialize_telemetry
@@ -96,6 +99,16 @@ async def _check_settings_catalog(session_factory: Any = None) -> None:  # noqa:
             f"Missing keys: {sorted_keys}"
         )
         raise RuntimeError(msg)
+
+
+def _init_rate_limiting(app: FastAPI) -> RateLimitRedisClient:
+    """Create rate limiting components and attach them to ``app.state``."""
+    redis_client = RateLimitRedisClient()
+    redis_client.connect()
+    app.state.rate_limit_redis = redis_client
+    app.state.rate_limit_token_bucket = TokenBucket(redis_client=redis_client)
+    logger.info("Rate limiting components initialized")
+    return redis_client
 
 
 async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
@@ -209,6 +222,8 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     periodic_collector.start()
     logger.info("Periodic analytics collector started")
 
+    rate_limit_redis = _init_rate_limiting(app)
+
     return {
         "authz_evaluator": authz_evaluator,
         "lifecycle_manager": lifecycle_manager,
@@ -219,6 +234,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         "session_cleanup_worker": session_cleanup_worker,
         "multipart_cleanup_worker": multipart_cleanup_worker,
         "runtime_settings": runtime_settings,
+        "rate_limit_redis": rate_limit_redis,
     }
 
 
@@ -237,6 +253,9 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
 
     resources["lifecycle_manager"].stop_monitoring()
     logger.info("WebSocket connection health monitoring stopped")
+
+    # Disconnect rate limiting Redis client
+    await resources["rate_limit_redis"].disconnect()
 
     # Stop settings watcher (also disconnects Redis) before disposing DB connections
     await resources["runtime_settings"].stop_watching()
@@ -306,6 +325,12 @@ app.add_middleware(
 
 # Register stale token rejection middleware.
 app.add_middleware(StaleTokenMiddleware)
+
+# Register rate limiting middleware.
+# Executes after AuditMiddleware (which sets actor_context_var) and
+# before MetricsMiddleware (so 429s appear in metrics).
+# Components are initialised during lifespan and stored on app.state.
+app.add_middleware(RateLimitMiddleware, fastapi_app=app)
 
 # Register metrics middleware.
 app.add_middleware(MetricsMiddleware, recorder=get_metrics_recorder())
