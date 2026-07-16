@@ -17,7 +17,12 @@ with workflow.unsafe.imports_passed_through():
     from nexus.core.constants import FieldLimits
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.constants import DEFAULT_ACTIVITY_TIMEOUT_SECONDS
-    from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeType
+    from nexus.workflows.workflow_engine.models.workflow_definition import (
+        ActivityName,
+        ActivityTerminalStatus,
+        ApprovalOutput,
+        NodeType,
+    )
     from nexus.workflows.workflow_engine.node_settings_resolver import (
         resolve_decision_window,
         resolve_retry_policy,
@@ -234,9 +239,8 @@ class WorkflowApprovalMixin:
     ) -> dict[str, Any]:
         """Execute an approval node and build the resultSchema output from the signal payload.
 
-        Suspends via Temporal async completion until an external decision is received.
-        Signal payload fields already match resultSchema names; this method picks
-        them explicitly and adds status: "completed".
+        Suspends via Temporal async completion until an external decision is
+        received.
         """
         node_id = node.id
         approval_args = await self._prepare_approval_args(node, graph, resolved_parameters)
@@ -260,28 +264,29 @@ class WorkflowApprovalMixin:
         raw = result.get("output", {})
         # Pick fields explicitly to match resultSchema; don't pass signal data through blindly.
         decision = raw.get("decision") if isinstance(raw, dict) else None
-        output: dict[str, Any] = {
-            "status": "completed",
-            "decision": decision,
-            "decided_by": raw.get("decided_by") if isinstance(raw, dict) else None,
-            "decided_at": raw.get("decided_at") if isinstance(raw, dict) else None,
-        }
-        if isinstance(raw, dict) and raw.get("decision_notes") is not None:
-            output["decision_notes"] = raw["decision_notes"][:_APPROVAL_COMMENTS_MAX_LENGTH]
-        result["output"] = output
+        approval_output = ApprovalOutput(
+            status=ActivityTerminalStatus.COMPLETED,
+            decision=decision,
+            decided_by=raw.get("decided_by") if isinstance(raw, dict) else None,
+            decided_at=raw.get("decided_at") if isinstance(raw, dict) else None,
+            decision_notes=raw["decision_notes"][:_APPROVAL_COMMENTS_MAX_LENGTH]
+            if isinstance(raw, dict) and raw.get("decision_notes") is not None
+            else None,
+        )
+        output = approval_output.model_dump(exclude_none=True)
         if decision in ("approved", "rejected"):
             workflow.logger.info(
                 "Approval node %s decision: %s by %s",
                 node_id,
                 decision,
-                output.get("decided_by"),
+                approval_output.decided_by,
             )
-            result["control"] = {"next_port": decision}
+            next_port = decision
         else:
-            result["control"] = {"next_port": "rejected"}
+            next_port = "rejected"
             workflow.logger.warning(
                 "Approval node %s received unexpected decision %s, routing to rejected",
                 node_id,
                 decision,
             )
-        return result
+        return {"output": output, "control": {"next_port": next_port}}

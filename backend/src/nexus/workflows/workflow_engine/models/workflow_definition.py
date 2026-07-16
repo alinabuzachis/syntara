@@ -976,10 +976,11 @@ class AgenticOutput(NodeOutput):
 class ApprovalOutput(NodeOutput):
     """Output model for approval executor nodes."""
 
-    approver: str | None = None
+    status: ActivityTerminalStatus | None = None
     decision: str | None = None
-    timestamp: str | None = None
-    comments: str | None = None
+    decided_by: str | None = None
+    decided_at: str | None = None
+    decision_notes: str | None = None
 
 
 class ConditionOutput(NodeOutput):
