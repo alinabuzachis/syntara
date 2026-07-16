@@ -1847,3 +1847,25 @@ if (isNotFound) {
 ### Consistency Rule
 
 Look at sibling pages in the same route directory. If `IdentityProviderDetail.tsx` uses `<NxEmptyState>` for its not-found state, the new `EditGroupMapping.tsx` in the same directory must match that pattern -- not introduce raw text.
+
+## 37. Browser Tab Titles -- `toPageTitle`
+
+Every top-level page component (default export with an `<NxPage>` render) must include `<title>` as the first child of `<NxPage>`. React 19 hoists it to `<head>` automatically — no third-party library needed.
+
+```tsx
+import { toPageTitle } from '../../utils/toPageTitle'
+
+export default function Workflows() {
+  return (
+    <NxPage>
+      <title>{toPageTitle(['Workflows'])}</title>
+      <NxPageHeader title="Workflows" ... />
+    </NxPage>
+  )
+}
+```
+
+- **Static pages**: pass a string literal — `toPageTitle(['Credentials'])`
+- **Dynamic pages**: pass the entity name — `toPageTitle([integration.name])` (falls back gracefully if undefined/null)
+- **Loading/error states**: use a static fallback — `toPageTitle(['Integration'])`
+- **Multi-segment pages**: `toPageTitle(['admin', 'Users'])` → `admin | Users | Nexus`

@@ -1,0 +1,103 @@
+import { RuleTester } from 'eslint'
+import { describe, it } from 'vitest'
+import rule from '../rules/require-page-title.js'
+
+RuleTester.describe = describe
+RuleTester.it = it
+
+const ruleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: 'module',
+    parserOptions: {
+      ecmaFeatures: { jsx: true },
+    },
+  },
+})
+
+ruleTester.run('nexus/require-page-title', rule, {
+  valid: [
+    // Page component using NxPageTitle — preferred pattern
+    {
+      code: `
+        export default function MyPage() {
+          return (
+            <NxPage>
+              <NxPageTitle segments={['My Page']} />
+              <NxPageHeader title="My Page" />
+            </NxPage>
+          )
+        }
+      `,
+    },
+    // Page component with a raw <title> element — also accepted
+    {
+      code: `
+        export default function MyPage() {
+          return (
+            <div>
+              <title>My Page | Nexus</title>
+              <h1>My Page</h1>
+            </div>
+          )
+        }
+      `,
+    },
+    // <title> nested inside another element — still counts
+    {
+      code: `
+        export default function MyPage() {
+          return (
+            <NxPage>
+              <title>{toPageTitle(['My Page'])}</title>
+              <NxPageHeader title="My Page" />
+            </NxPage>
+          )
+        }
+      `,
+    },
+    // Not a page component (no default export) — rule does not apply
+    {
+      code: `
+        export function HelperComponent() {
+          return <div><p>Helper</p></div>
+        }
+      `,
+    },
+    // File with no exports at all — rule does not apply
+    {
+      code: `
+        function internalHelper() {
+          return null
+        }
+      `,
+    },
+  ],
+  invalid: [
+    // Default-exported page component missing NxPageTitle or <title>
+    {
+      code: `
+        export default function MyPage() {
+          return (
+            <div>
+              <h1>My Page</h1>
+            </div>
+          )
+        }
+      `,
+      errors: [{ messageId: 'missingTitle' }],
+    },
+    // Arrow function default export without NxPageTitle or <title>
+    {
+      code: `
+        const MyPage = () => (
+          <div>
+            <NxPageHeader title="My Page" />
+          </div>
+        )
+        export default MyPage
+      `,
+      errors: [{ messageId: 'missingTitle' }],
+    },
+  ],
+})

@@ -132,7 +132,6 @@ export function NxCodeBlock(props: {
 
   return (
     <>
-      {/* eslint-disable-next-line nexus/prefer-pf-text-components -- scrollable code container with dynamic height, not text content */}
       <div
         data-testid="code-block-wrapper"
         style={{

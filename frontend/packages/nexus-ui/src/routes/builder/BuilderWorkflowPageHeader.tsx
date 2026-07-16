@@ -6,6 +6,7 @@ import { type Dispatch, type ReactNode } from 'react'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { NxLabel } from '../../components/labels/NxLabel'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxPageTitle } from '../../components/NxPageTitle'
 import { WorkflowPublishStatusBadge } from '../../components/WorkflowPublishStatusBadge'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useDocLink } from '../../utils/docs/useDocLink'
@@ -288,6 +289,7 @@ export function BuilderWorkflowPageHeader({
 
   return (
     <>
+      <NxPageTitle segments={[isNew ? 'New Workflow' : workflowName, 'Workflows']} />
       <NxPageHeader
         title={workflowName}
         docLink={builderDocLink}

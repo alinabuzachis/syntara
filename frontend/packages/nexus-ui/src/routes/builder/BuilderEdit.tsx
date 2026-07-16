@@ -8,6 +8,7 @@ import { executionsClient, workflowClient } from '../../client'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { NxPageTitle } from '../../components/NxPageTitle'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxLoadingState } from '../../components/states/NxLoadingState'
 
@@ -75,6 +76,7 @@ export default function BuilderEdit() {
   if (error) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Error loading workflow', 'Workflows']} />
         <NxPageHeader title="Error loading workflow" />
         <NxPageBody>
           <NxPanel isFullHeight>
@@ -90,6 +92,7 @@ export default function BuilderEdit() {
   if (isLoading) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Loading workflow', 'Workflows']} />
         <NxPageHeader title="Loading workflow" />
         <NxPageBody>
           <NxPanel isFullHeight>

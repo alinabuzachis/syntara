@@ -1,4 +1,5 @@
 import { test, expect, toAppUrl } from './fixtures'
+import { APP_TITLE } from './helpers/appTitle'
 import { buildUniqueName } from './helpers/workflows'
 import { createIntegrationViaApi, deleteIntegrationViaApi, type SeededIntegration } from './seeds/resources'
 import { getAuthToken } from './utils/api'
@@ -14,6 +15,7 @@ test('user configures an integration and verifies it appears', async ({ app }) =
 
     await app.goto(toAppUrl('/configuration/integrations'))
     await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
+    await expect(app).toHaveTitle(`Integrations | ${APP_TITLE}`)
 
     await app.getByPlaceholder('Filter by name').fill(integrationName)
     await app.getByRole('button', { name: 'Apply filter' }).click()

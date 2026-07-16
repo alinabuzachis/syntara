@@ -3,6 +3,7 @@ import { EmptyStateAccessDenied } from '../../../components/EmptyStateAccessDeni
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxListPanel } from '../../../components/panels/list/NxListPanel'
 import { useCanI } from '../../../hooks/useCanI'
 import { useDocLink } from '../../../utils/docs/useDocLink'
@@ -16,6 +17,7 @@ export default function Authentication() {
   if (isChecking) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Identity Providers']} />
         <NxPageHeader title="Identity Providers" breadcrumbs={breadcrumbsIdentityProvidersPage()} />
         <NxPageBody>
           <NxPanel isFullHeight />
@@ -27,6 +29,7 @@ export default function Authentication() {
   if (!canRead) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Identity Providers']} />
         <NxPageHeader title="Identity Providers" breadcrumbs={breadcrumbsIdentityProvidersPage()} />
         <NxPageBody>
           <NxPanel isFullHeight>
@@ -39,6 +42,7 @@ export default function Authentication() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Identity Providers']} />
       <NxPageHeader
         title="Identity Providers"
         docLink={authenticationDocLink}

@@ -9,6 +9,7 @@ import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxPageTitle } from '../../components/NxPageTitle'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
@@ -293,6 +294,7 @@ export default function Approvals() {
   if (permissions.isChecking) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Approvals']} />
         <NxPageHeader title="Approvals" docLink={approvalsDocLink ?? undefined} />
         <NxPageBody isCentered>
           <Spinner aria-label="Loading approval permissions" />
@@ -305,6 +307,7 @@ export default function Approvals() {
   if (!permissions.canRead) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Approvals']} />
         <NxPageHeader title="Approvals" docLink={approvalsDocLink ?? undefined} />
         <NxPageBody isCentered>
           <EmptyStateAccessDenied description="You do not have permission to view approvals. Contact your administrator to request access." />
@@ -435,6 +438,7 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
   if (queryState) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Approvals']} />
         <NxPageHeader title="Approvals" docLink={approvalsDocLink ?? undefined} projectSelector={ProjectSelector} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
@@ -458,6 +462,7 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Approvals']} />
       <NxPageHeader
         title="Approvals"
         docLink={approvalsDocLink ?? undefined}

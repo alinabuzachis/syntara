@@ -50,7 +50,6 @@ export function FileUploadItem({
   const showProgress = progress !== undefined && status !== 'pending'
 
   return (
-    // eslint-disable-next-line nexus/prefer-pf-text-components -- styled card-like container for file upload item
     <div
       className={className}
       style={{

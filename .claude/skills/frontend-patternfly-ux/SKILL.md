@@ -1,5 +1,5 @@
 ---
-description: "PatternFly 6 UX design system guide — component selection, layout patterns, accessibility, Automation Orchestrator conventions."
+description: "PatternFly 6 UX design system guide — component selection, layout patterns, accessibility, Nexus conventions."
 user-invocable: false
 ---
 
@@ -13,7 +13,7 @@ user-invocable: false
 
 > **Before writing React, Zod, Zustand, or other library code**, fetch current docs from [`.claude/skills/frontend-library-references/SKILL.md`](../frontend-library-references/SKILL.md).
 
-Your goal is to build frontend UI that adheres to PatternFly standards **and** the Automation Orchestrator UX team's opinionated component usage. This skill codifies specific "Ansible-first" patterns to ensure consistency across all feature teams and reduce cognitive load for users.
+Your goal is to build frontend UI that adheres to PatternFly standards **and** the Nexus UX team's opinionated component usage. This skill codifies specific "Ansible-first" patterns to ensure consistency across all feature teams and reduce cognitive load for users.
 
 ---
 
@@ -21,7 +21,7 @@ Your goal is to build frontend UI that adheres to PatternFly standards **and** t
 
 ### Purpose of this Framework
 
-This document serves as the definitive technical and design North Star for the **Automation Orchestrator User Experience**. It is designed specifically for engineers and designers to ensure we build a scalable, maintainable, and cohesive experience.
+This document serves as the definitive technical and design North Star for the **Nexus User Experience**. It is designed specifically for engineers and designers to ensure we build a scalable, maintainable, and cohesive experience.
 
 ### Why This Exists
 
@@ -30,7 +30,7 @@ This document serves as the definitive technical and design North Star for the *
 - **A Shared Language:** This skill codifies the UI/UX team's guidelines for this specific product. It bridges the gap between UX design and React implementation, ensuring that "Opinionated" choices are applied consistently across every feature branch.
 - **Contribution over Customization:** When you encounter a UI gap, this framework provides the process for feeding requirements back into the core PatternFly system, ensuring fixes land in the shared library rather than as "snowflake" code in the local repo.
 
-**In short:** We use this framework to build faster, stay aligned with the broader Red Hat ecosystem, and ensure that the project remains stable.
+**In short:** We use this framework to build faster, stay aligned with the broader Red Hat ecosystem, and ensure that the Nexus remains a premium, stable part of the Ansible Automation Platform.
 
 
 
@@ -46,14 +46,14 @@ This document serves as the definitive technical and design North Star for the *
 
 ## AO Design System
 
-How the Automation Orchestrator UI is anchored, and how it relates to other Red Hat design tooling:
+How the Nexus UI is anchored, and how it relates to other Red Hat design tooling:
 
 - **Foundation** — Built on top of [PatternFly](https://www.patternfly.org/) for [components](https://www.patternfly.org/components/all-components), [patterns](https://www.patternfly.org/patterns/about-patterns), and [accessibility](https://www.patternfly.org/accessibility/patternflys-accessibility) baselines.
 - **Layout** — Page and shell structure follow PatternFly's **Compass** layout architecture.
 - **Theming** — Visual treatment uses PatternFly's **Unified Theme**, accounting for layout and color palettes.
 - **Icons** — Based on the [Red Hat design system](https://ux.redhat.com/), specifically the [icon set](https://ux.redhat.com/foundations/iconography/#ui-icons) for Red Hat UI.
 - **Automation builder** — Based on [React Flow](https://reactflow.dev/) as the underlying graph/canvas foundation while PatternFly acts as a visual wrapper. The layout reads from left to right.
-- **Accessibility** — While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within the Automation Orchestrator codebase.
+- **Accessibility** — While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within the Nexus codebase.
 - **PatternFly gaps** — Before implementing a custom component or styling override:
   1. **Check first.** Search PatternFly docs and the Ansible UI Framework to confirm the need is not already covered by a component, variant, or token.
   2. **Raise it with UX.** Discuss in #forum-ansible-ux or tag @ansible-ux in your team channel. Describe the gap with a clear before/after versus what PatternFly provides today. UX will confirm whether the gap is valid or an existing pattern applies.
@@ -67,7 +67,7 @@ How the Automation Orchestrator UI is anchored, and how it relates to other Red 
 
 ## AO Research Process
 
-The Automation Orchestrator project is committed to evidence-based development, utilizing user research to steer both product capabilities and the overall user experience.
+The Nexus project is committed to evidence-based development, utilizing user research to steer both product capabilities and the overall user experience.
 
 ### Competitive Analysis
 
@@ -91,7 +91,7 @@ Research revealed critical friction points in competitor products — specifical
 
 ### Accessibility & Compliance
 
-A major finding was that basic usability and accessibility are often an "afterthought" in technical automation tools. By building on PatternFly, Automation Orchestrator meets high accessibility standards (WCAG 2.1 AA) from the start, providing a more inclusive experience than the current market leaders.
+A major finding was that basic usability and accessibility are often an "afterthought" in technical automation tools. By building on PatternFly, Nexus meets high accessibility standards (WCAG 2.1 AA) from the start, providing a more inclusive experience than the current market leaders.
 
 ---
 
@@ -534,7 +534,7 @@ Button alignment differs by context — this is intentional and follows PatternF
 Use consistent action verb pairings across the UI:
 
 - "Create" is paired with "Delete"
-- "Add" is paired with "Remove" — when the resources being added and removed exist in the Automation Orchestrator
+- "Add" is paired with "Remove" — when the resources being added and removed exist in the Nexus
 - "Add" is paired with "Disconnect" — when the resource is coming from an external source
 - "Assign" is paired with "Unassign"
 - "Transfer" is used when moving ownership of a resource between entities (e.g., "Transfer identity" — moving a federated identity from one user to another). Not "Attach" or "Connect".
@@ -1701,7 +1701,7 @@ The run history panel displays execution history for a workflow using a scrollab
 
 ## 18. Accessibility Guidelines
 
-While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within the Automation Orchestrator codebase.
+While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within the Nexus codebase.
 
 An accessible component can still be used in an inaccessible way. The goal is to ensure that the holistic user journey — including page structure, dynamic content, and complex workflows — remains fully inclusive and navigable for all users, including those relying on assistive technologies.
 

@@ -2,6 +2,7 @@ import { useParams } from '@tanstack/react-router'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { expectPageTitle } from '../../test/pageTitle'
 import { routerTestState } from '../../test/setup'
 
 let mockWorkflowQuery: { data: unknown; error: unknown; isLoading: boolean } = {
@@ -38,6 +39,7 @@ describe('BuilderEdit', () => {
     render(<BuilderEdit />)
 
     expect(screen.getByText('Loading workflow')).toBeInTheDocument()
+    expectPageTitle(['Loading workflow', 'Workflows'])
   })
 
   it('renders error state when query fails', async () => {
@@ -46,6 +48,7 @@ describe('BuilderEdit', () => {
     render(<BuilderEdit />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Error loading workflow' })).toBeInTheDocument()
+    expectPageTitle(['Error loading workflow', 'Workflows'])
   })
 
   it('renders BuilderContent with valid version param', async () => {

@@ -15,6 +15,7 @@
  * - User detail sub-tabs sync to URL
  */
 import { test, expect, toAppUrl } from './fixtures'
+import { APP_TITLE } from './helpers/appTitle'
 import { buildUniqueName } from './helpers/workflows'
 import {
   createPolicyViaApi,
@@ -69,6 +70,7 @@ test.describe('Access Management — Tab Navigation', () => {
   })
 
   test('clicking tabs updates the URL', async ({ app }) => {
+    await expect(app).toHaveTitle(`Access Management | ${APP_TITLE}`)
     // Click Roles tab
     await app.getByRole('tab', { name: /Roles/i }).click()
     await expect(app).toHaveURL(new RegExp(`${ACCESS_URL}/roles`))

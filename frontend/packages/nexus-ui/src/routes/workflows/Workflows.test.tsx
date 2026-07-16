@@ -7,6 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
+import { expectPageTitle } from '../../test/pageTitle'
 import { routerTestState } from '../../test/setup'
 import { accessClient } from '../access/accessClient'
 
@@ -226,6 +227,11 @@ describe('Workflows Component', () => {
 
       // Check table is rendered
       expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+    })
+
+    it('sets the browser tab title', () => {
+      render(<Workflows />, { wrapper })
+      expectPageTitle(['Workflows'])
     })
 
     it('renders Import workflow button before Create workflow in toolbar', () => {

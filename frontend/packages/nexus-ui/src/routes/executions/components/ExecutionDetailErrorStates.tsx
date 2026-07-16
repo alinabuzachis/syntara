@@ -1,9 +1,9 @@
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxErrorState } from '../../../components/states/NxErrorState'
 import { NxLoadingState } from '../../../components/states/NxLoadingState'
-import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 
 type ExecutionDetailErrorStatesProps = Readonly<{
@@ -26,6 +26,7 @@ export function ExecutionDetailErrorStates({
   if (!executionId) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Workflow Runs']} />
         <NxPageHeader title="Error" />
         <NxPageBody>
           <NxPanel isFullHeight>
@@ -39,14 +40,11 @@ export function ExecutionDetailErrorStates({
   if (error) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Workflow Runs']} />
         <NxPageHeader title="Error loading execution" />
         <NxPageBody>
           <NxPanel isFullHeight>
-            <NxErrorState
-              title="Error loading execution"
-              message={getErrorMessage(error)}
-              onRetry={() => detachPromise(onRetry())}
-            />
+            <NxErrorState title="Error loading execution" message={error} onRetry={() => detachPromise(onRetry())} />
           </NxPanel>
         </NxPageBody>
       </NxPage>
@@ -56,6 +54,7 @@ export function ExecutionDetailErrorStates({
   if (isLoading) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Workflow Runs']} />
         <NxPageHeader title="Loading execution" />
         <NxPageBody>
           <NxPanel isFullHeight>

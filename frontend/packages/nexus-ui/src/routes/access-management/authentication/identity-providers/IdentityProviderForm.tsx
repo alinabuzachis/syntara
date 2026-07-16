@@ -24,6 +24,7 @@ import { identityProvidersClient, OIDC_REDIRECT_URI } from '../../../../client'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../../components/NxPageTitle'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
@@ -231,6 +232,7 @@ function identityProviderFormBreadcrumbTrail(
 function ProviderNotFound({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
   return (
     <NxPage>
+      <NxPageTitle segments={['Edit OIDC provider', 'Identity Providers']} />
       <NxPageHeader
         title="Edit OIDC provider"
         breadcrumbs={breadcrumbsIdentityProviderFormLoading('Edit OIDC provider')}
@@ -413,6 +415,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
   if (isEdit && queryState) {
     return (
       <NxPage>
+        <NxPageTitle segments={[pageTitle, 'Identity Providers']} />
         <NxPageHeader title={pageTitle} breadcrumbs={breadcrumbsIdentityProviderFormLoading(pageTitle)} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
@@ -425,6 +428,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
 
   return (
     <NxPage>
+      <NxPageTitle segments={[pageTitle, 'Identity Providers']} />
       <NxPageHeader
         title={pageTitle}
         docLink={identityProvidersDocLink}

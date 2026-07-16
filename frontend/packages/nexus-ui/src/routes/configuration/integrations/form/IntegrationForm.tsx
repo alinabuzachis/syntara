@@ -21,6 +21,7 @@ import { integrationsClient } from '../../../../client'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../../components/NxPageTitle'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 import { getErrorMessage } from '../../../../utils/apiErrors'
@@ -328,6 +329,7 @@ export function IntegrationForm() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Configure integration', 'Integrations']} />
       <NxPageHeader title="Configure integration" breadcrumbs={breadcrumbsIntegrationConfigure()} docLink={docLink} />
       <NxPageBody>
         <NxPanel isFullHeight panelMainBodyProps={{ className: styles.wizardPanel }}>

@@ -320,4 +320,13 @@ describe('ExecutionDetailPageHeaderParts', () => {
     expect(screen.getByText('Completed')).toBeInTheDocument()
     expect(screen.getByText(/Viewing run:/)).toBeInTheDocument()
   })
+
+  it('renders ApprovalPendingBadge when execution has approval_pending', () => {
+    const execution = {
+      status: 'running' as const,
+      approval_pending: true,
+    } as never
+    render(<ExecutionDetailTitleRowAddons execution={execution} />)
+    expect(screen.getByText('Pending approval')).toBeInTheDocument()
+  })
 })

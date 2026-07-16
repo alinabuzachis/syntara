@@ -27,6 +27,7 @@
  */
 
 import { expect, test, toAppUrl } from './fixtures'
+import { APP_TITLE } from './helpers/appTitle'
 import { apiRequest } from './utils/api'
 
 /** Navigate to settings and click the Context Manager tab. */
@@ -112,6 +113,7 @@ test.describe('Settings', () => {
   })
 
   test('page renders with category tabs', async ({ app }) => {
+    await expect(app).toHaveTitle(`Settings | ${APP_TITLE}`)
     const tabCount = await app.getByRole('tab').count()
     expect(tabCount).toBeGreaterThanOrEqual(1)
   })

@@ -846,6 +846,50 @@ describe('ExecutionDetail', () => {
       expect(mockShowError).not.toHaveBeenCalled()
     })
 
+    it('dismisses the failure alert when close button is clicked', async () => {
+      const user = userEvent.setup()
+      // Close history card so it doesn't introduce a competing "Close" button
+      vi.mocked(useRouterState).mockReturnValue('?history=closed' as never)
+
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'running' } }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'failed' } }
+        }
+        return mockExecutionsQuery
+      })
+
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(
+        screen.getByText('View the run logs and copy to the editor to debug within the editor')
+      ).toBeInTheDocument()
+
+      // PatternFly AlertActionCloseButton aria-label includes the alert title
+      await user.click(screen.getByRole('button', { name: /close.*run failed/i }))
+
+      expect(
+        screen.queryByText('View the run logs and copy to the editor to debug within the editor')
+      ).not.toBeInTheDocument()
+    })
+
     it('does not show failure toast when execution is still running', () => {
       const queryClient = new QueryClient()
       render(

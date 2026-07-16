@@ -34,6 +34,7 @@ import { NxPanel } from '../../../components/layout/NxPanel'
 import type { KebabAction } from '../../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxLink } from '../../../components/NxLink'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
@@ -384,19 +385,27 @@ export function IntegrationDetail() {
 
   if (activeTab === 'edit') return null
 
-  const earlyState =
-    integrationId.length === 0 ? (
-      <NxErrorState title="Invalid integration" message="No integration ID provided" />
-    ) : (
-      queryState
-    )
-
-  if (earlyState) {
+  if (!integrationId) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Integration', 'Integrations']} />
+        <NxPageHeader title="Error" breadcrumbs={breadcrumbsIntegrationDetailEarlyShell()} />
+        <NxPageBody>
+          <NxPanel isFullHeight>
+            <NxErrorState title="Invalid integration" message="No integration ID provided" />
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
+    )
+  }
+
+  if (queryState) {
+    return (
+      <NxPage>
+        <NxPageTitle segments={['Integration', 'Integrations']} />
         <NxPageHeader title="Integration" breadcrumbs={breadcrumbsIntegrationDetailEarlyShell()} />
         <NxPageBody>
-          <NxPanel isFullHeight>{earlyState}</NxPanel>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
         </NxPageBody>
       </NxPage>
     )
@@ -409,6 +418,7 @@ export function IntegrationDetail() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[integration.name, 'Integrations']} />
       <NxPageHeader
         breadcrumbs={integrationCrumbs}
         title={integration.name}

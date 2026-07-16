@@ -35,6 +35,7 @@ import { IconLabel } from '../../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs } from '../../../../components/panels/list/NxListPanel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
@@ -336,6 +337,7 @@ export function IdentityProviderDetail() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[providerData.name ?? '', 'Identity Providers']} />
       <NxPageHeader
         title={providerData.name ?? ''}
         docLink={identityProvidersDocLink}

@@ -20,8 +20,8 @@ describe('useDocLink', () => {
     expect(result.current).toBe('https://docs.ansible.com/TODO_UPSTREAM_PATH/workflows')
   })
 
-  it('returns product URL when VITE_DOC_MODE is product', () => {
-    vi.stubEnv('VITE_DOC_MODE', 'product')
+  it('returns product URL when VITE_APP_MODE is product', () => {
+    vi.stubEnv('VITE_APP_MODE', 'product')
 
     const { result } = renderHook(() => useDocLink('workflows'), { wrapper })
 
@@ -33,7 +33,7 @@ describe('useDocLink', () => {
   })
 
   it('substitutes version in product base URL', () => {
-    vi.stubEnv('VITE_DOC_MODE', 'product')
+    vi.stubEnv('VITE_APP_MODE', 'product')
 
     const { result } = renderHook(() => useDocLink('credentials'), { wrapper })
 
@@ -51,8 +51,8 @@ describe('useDocLink', () => {
     expect(credentials.current).toContain('credentials')
   })
 
-  it('falls back to upstream for unknown VITE_DOC_MODE values', () => {
-    vi.stubEnv('VITE_DOC_MODE', 'something-invalid')
+  it('falls back to upstream for unknown VITE_APP_MODE values', () => {
+    vi.stubEnv('VITE_APP_MODE', 'something-invalid')
 
     const { result } = renderHook(() => useDocLink('workflows'), { wrapper })
 
@@ -83,7 +83,7 @@ describe('useDocLink', () => {
 
 describe('DocLinkProvider', () => {
   it('defaults to upstream mode and version 1.0', () => {
-    vi.stubEnv('VITE_DOC_MODE', 'product')
+    vi.stubEnv('VITE_APP_MODE', 'product')
 
     const { result: productResult } = renderHook(() => useDocLink('workflows'), { wrapper })
 

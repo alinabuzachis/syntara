@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { RETURN_TO_KEY, SESSION_EXPIRED_KEY } from '../components/session/sessionTimeoutConstants'
 import { NxLoadingState } from '../components/states/NxLoadingState'
 import { AuthError, useAuthStore, selectIsAuthenticated, selectIsRefreshing } from '../stores/useAuthStore'
+import { APP_TITLE } from '../utils/appTitle'
 
 import { resolveAuthError } from './authErrorMessages'
 import { IdentityProviderButtons } from './IdentityProviderButtons'
@@ -271,7 +272,7 @@ function AppLoginForm() {
     return (
       <LoginPage
         className="bg-deep-space-login"
-        loginTitle="Log in to Automation Orchestrator"
+        loginTitle={`Log in to ${APP_TITLE}`}
         loginSubtitle="Enter your credentials to continue"
       >
         {sessionExpiredAlert}
@@ -284,9 +285,9 @@ function AppLoginForm() {
   return (
     <LoginPage
       className="bg-deep-space-login"
-      loginTitle="Log in to Automation Orchestrator"
+      loginTitle={`Log in to ${APP_TITLE}`}
       loginSubtitle="Choose your identity provider"
-      textContent="Select your identity provider to access Automation Orchestrator. Contact your administrator if you need assistance."
+      textContent={`Select your identity provider to access ${APP_TITLE}. Contact your administrator if you need assistance.`}
     >
       {sessionExpiredAlert}
 

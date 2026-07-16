@@ -1,21 +1,14 @@
 import { useMemo, type ReactNode } from 'react'
 
+import { resolveAppMode } from '../appMode'
+
 import { DocLinkContext, type DocLinkContextValue } from './docLinkContext'
 import docsConfig from './docsConfig.json' with { type: 'json' }
-import type { DocMode } from './types'
-
-function resolveDocMode(): DocMode {
-  const raw: unknown = import.meta.env.VITE_DOC_MODE
-  if (raw === 'product') {
-    return 'product'
-  }
-  return 'upstream'
-}
 
 export function DocLinkProvider(props: Readonly<{ children: ReactNode }>) {
   const value = useMemo<DocLinkContextValue>(
     () => ({
-      mode: resolveDocMode(),
+      mode: resolveAppMode(),
       version: docsConfig.version,
     }),
     []

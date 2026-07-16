@@ -13,6 +13,7 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import type { KebabAction } from '../../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../../components/NxKebabMenu'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import {
   NxListPanel,
   NxListPanelTable,
@@ -222,6 +223,7 @@ export default function Integrations() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Integrations']} />
       <NxPageHeader
         title="Integrations"
         docLink={docLink}

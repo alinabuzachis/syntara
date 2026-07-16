@@ -13,6 +13,7 @@
  * - Kebab menu delete action
  */
 import { test, expect } from './fixtures'
+import { APP_TITLE } from './helpers/appTitle'
 import {
   createTestCredential,
   deleteCredentialByName,
@@ -72,6 +73,7 @@ test.describe('Credentials Empty State', () => {
 
   test('Create credential button is visible on credentials page', async ({ app }) => {
     await goToCredentialsList(app, { ensureCreateEnabled: true })
+    await expect(app).toHaveTitle(`Credentials | ${APP_TITLE}`)
 
     await expect(app.getByRole('button', { name: 'Create credential' })).toBeVisible()
   })

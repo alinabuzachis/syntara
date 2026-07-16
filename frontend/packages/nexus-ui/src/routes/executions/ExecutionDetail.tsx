@@ -18,6 +18,7 @@ import { executionsClient } from '../../client'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxReactFlowViewportGuard } from '../../components/layout/NxReactFlowViewportGuard'
+import { NxPageTitle } from '../../components/NxPageTitle'
 import { ResizableDivider } from '../../components/ResizableDivider'
 import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
 import { useCursorPagination } from '../../hooks/useCursorPagination'
@@ -385,6 +386,7 @@ export default function ExecutionDetail() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[executionDetailPageHeading(execution, executionId), 'Workflow Runs']} />
       <NxReactFlowViewportGuard onReturn={() => detachPromise(navigate({ to: AppRoute.Executions.Root }))}>
         <NxPageHeader
           title={executionDetailPageHeading(execution, executionId)}

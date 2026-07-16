@@ -549,7 +549,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   return (
     <ActiveExecutionContext.Provider value={isActiveExecution}>
-      {/* eslint-disable-next-line nexus/prefer-pf-text-components -- full-bleed canvas container for ReactFlow */}
       <div
         ref={containerRef}
         className={readOnlyProp ? 'version-view-readonly' : undefined}

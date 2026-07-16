@@ -1,4 +1,5 @@
 import { test, expect, toAppUrl } from './fixtures'
+import { APP_TITLE } from './helpers/appTitle'
 import {
   buildUniqueName,
   clickAddConnectedStep,
@@ -12,6 +13,7 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-multi-node')
   await app.goto(toAppUrl('/workflow-builder/new'))
   await expect(app.getByRole('heading', { name: 'Select a trigger node' })).toBeVisible()
+  await expect(app).toHaveTitle(`New Workflow | Workflows | ${APP_TITLE}`)
 
   try {
     // Act - Add manual trigger

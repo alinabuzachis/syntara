@@ -24,6 +24,7 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { NxLink } from '../../../components/NxLink'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
@@ -221,6 +222,7 @@ export function TransferIdentityWizard() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[`Transfer identity to ${targetUsername}`, 'Users']} />
       <NxPageHeader
         title={`Transfer identity to ${targetUsername}`}
         titleSlot={

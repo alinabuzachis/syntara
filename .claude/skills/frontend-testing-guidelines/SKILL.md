@@ -619,6 +619,30 @@ export default defineConfig({
 
 ---
 
+## Browser Tab Title Tests
+
+Use `expectPageTitle` from `src/test/pageTitle.ts` — takes the same segments array as `toPageTitle`:
+
+```typescript
+import { expectPageTitle } from '../../test/pageTitle'
+
+it('sets the browser tab title', () => {
+  render(<Workflows />, { wrapper })
+  expectPageTitle(['Workflows'])
+})
+```
+
+At least one unit test per page component should call `expectPageTitle`. For pages with distinct loading/error states, assert those too:
+
+```typescript
+it('shows a fallback title while loading', () => {
+  render(<BuilderEdit />) // isLoading = true in mock
+  expectPageTitle(['Loading workflow', 'Workflows'])
+})
+```
+
+**E2E:** Static page titles are covered by `e2e/page-titles.spec.ts`. Add `expect(page).toHaveTitle(...)` to feature specs that already navigate to a page as part of their setup.
+
 ## Permission Gating Tests
 
 ### Unit test mocking pattern

@@ -11,6 +11,7 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
@@ -287,6 +288,7 @@ export default function Credentials() {
   if (queryState) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Credentials']} />
         <NxPageHeader title="Credentials" docLink={credentialsDocLink} projectSelector={ProjectSelector} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
@@ -297,6 +299,7 @@ export default function Credentials() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Credentials']} />
       <NxPageHeader
         title="Credentials"
         docLink={credentialsDocLink}

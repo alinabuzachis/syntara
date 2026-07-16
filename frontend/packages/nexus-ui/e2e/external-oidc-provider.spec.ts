@@ -14,6 +14,7 @@
  */
 import { test, expect, toAppUrl } from './fixtures'
 import { AAP_AUTH_PROVIDER, KEYCLOAK_AUTH_PROVIDER, KEYCLOAK_OIDC_IDP } from './fixtures/mock-oidc-idps'
+import { APP_TITLE } from './helpers/appTitle'
 import { goToLoginPage } from './helpers/login'
 
 test.describe('IdP configuration — keycloak external OIDC', () => {
@@ -44,6 +45,7 @@ test.describe('IdP configuration — keycloak external OIDC', () => {
   })
 
   test('Verify the external keycloak IdP configuration form renders correctly and saves', async ({ app }) => {
+    await expect(app).toHaveTitle(`Add OIDC provider | Identity Providers | ${APP_TITLE}`)
     const autoDiscoveryToggle = app.getByRole('switch', { name: /Use OIDC Discovery/ })
     await expect(autoDiscoveryToggle).toBeVisible()
     await expect(autoDiscoveryToggle).toBeChecked()

@@ -2,6 +2,8 @@ import { type Page } from '@playwright/test'
 
 import { expect, appBaseUrl } from '../fixtures'
 
+import { APP_TITLE } from './appTitle'
+
 type AuthProviderFixture = {
   id: string
   name: string
@@ -56,5 +58,5 @@ export async function goToLoginPage(page: Page, options: GoToLoginPageOptions = 
 
   const url = authError ? `${appBaseUrl}?auth_error=${authError}` : appBaseUrl
   await page.goto(url)
-  await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: `Log in to ${APP_TITLE}` })).toBeVisible()
 }

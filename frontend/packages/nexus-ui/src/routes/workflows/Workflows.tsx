@@ -8,6 +8,7 @@ import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxKebabMenu } from '../../components/NxKebabMenu'
+import { NxPageTitle } from '../../components/NxPageTitle'
 import { NxListPanel } from '../../components/panels/list/NxListPanel'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -117,12 +118,11 @@ export default function Workflows() {
   const projectEditDialog = useDialogState<ProjectRead>()
   const projectDeleteDialog = useDialogState<ProjectRead>()
 
-  const projectSelectorReady = isAllProjects || !!stableProjectId
   const { workflowsQuery, workflows } = useWorkflowsQuery({
     queryParams,
     isAllProjects,
     stableProjectId,
-    projectSelectorReady,
+    projectSelectorReady: isAllProjects || !!stableProjectId,
   })
 
   const {
@@ -154,8 +154,7 @@ export default function Workflows() {
 
   const groupedWorkflows = useMemo(() => {
     if (!isAllProjects) return null
-    type WorkflowType = (typeof workflows)[number]
-    const groups = new Map<string, { project: (typeof projects)[number] | null; workflows: WorkflowType[] }>()
+    const groups = new Map<string, { project: (typeof projects)[number] | null; workflows: Workflow[] }>()
     for (const workflow of sortedWorkflows) {
       const projectId = workflow.project_id
       if (!groups.has(projectId)) {
@@ -226,10 +225,10 @@ export default function Workflows() {
     })
 
   const hasQueryState = workflowsQuery.isPending || !!workflowsQuery.error
-
   return (
     <>
       <NxPage>
+        <NxPageTitle segments={['Workflows']} />
         <NxPageHeader
           title="Workflows"
           docLink={workflowsDocLink}

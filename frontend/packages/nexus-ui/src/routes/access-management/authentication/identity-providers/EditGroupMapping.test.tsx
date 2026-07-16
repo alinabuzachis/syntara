@@ -435,11 +435,83 @@ describe('EditGroupMapping', () => {
     globalThis.open = originalOpen
   })
 
+  describe('Page shell and breadcrumbs', () => {
+    it('renders page title with proper hierarchy', async () => {
+      render(<EditGroupMapping />, { wrapper })
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+      })
+    })
+
+    it('includes breadcrumbs navigation', async () => {
+      render(<EditGroupMapping />, { wrapper })
+      await waitFor(() => {
+        const nav = screen.getByRole('navigation')
+        expect(nav).toBeInTheDocument()
+      })
+    })
+
+    it('renders page with proper heading', async () => {
+      render(<EditGroupMapping />, { wrapper })
+      await waitFor(() => {
+        const heading = screen.getByRole('heading', { level: 1 })
+        expect(heading).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Permission checking', () => {
+    it('shows empty loading state when checking permission', () => {
+      vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: true, isError: false })
+      render(<EditGroupMapping />, { wrapper })
+
+      const heading = screen.getByRole('heading', { level: 1 })
+      expect(heading).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /save mapping/i })).not.toBeInTheDocument()
+    })
+
+    it('allows form rendering only after permission check completes', async () => {
+      render(<EditGroupMapping />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 1, name: /add group mapping/i })).toBeInTheDocument()
+      })
+    })
+  })
+
   describe('Accessibility', () => {
     it('has no accessibility violations', async () => {
       const { container } = render(<EditGroupMapping />, { wrapper })
       await waitFor(() => {
         expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+      })
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations in access denied state', async () => {
+      vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
+      const { container } = render(<EditGroupMapping />, { wrapper })
+      await waitFor(() => {
+        expect(screen.getByText('Access denied')).toBeInTheDocument()
+      })
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations in not-found state', async () => {
+      vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: { response: { status: 404 } },
+        isPending: false,
+        refetch: vi.fn(),
+      } as never)
+
+      const { container } = render(<EditGroupMapping />, { wrapper })
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Identity provider not found' })).toBeInTheDocument()
       })
       const results = await axe(container)
       expect(results).toHaveNoViolations()

@@ -15,6 +15,7 @@ import {
   AAP_ADMIN_USER_INFO,
   AAP_ADMIN_USER_READ,
 } from './fixtures/mock-users'
+import { APP_TITLE } from './helpers/appTitle'
 
 const USER_MANAGEMENT_ACCESS_URL = '/system-administration/access-management/users'
 
@@ -162,7 +163,7 @@ test.describe('Disable Built-in Admin — Flow and State Update', () => {
     await expect(page.getByRole('button', { name: 'Disable and sign out' })).toBeVisible()
     await page.getByRole('button', { name: 'Disable and sign out' }).click()
 
-    await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: `Log in to ${APP_TITLE}` })).toBeVisible()
     await page.getByRole('button', { name: 'Sign in using local account' }).click()
     await expect(page.getByText(/For local account access only/)).toBeVisible()
 

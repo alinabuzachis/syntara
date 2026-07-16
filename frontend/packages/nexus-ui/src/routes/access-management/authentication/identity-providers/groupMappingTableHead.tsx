@@ -2,6 +2,8 @@ import { Button, Popover } from '@patternfly/react-core'
 import { RhUiQuestionMarkCircleIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 
+import { APP_TITLE } from '../../../../utils/appTitle'
+
 const helpIconStyle = { marginLeft: 'var(--pf-t--global--spacer--xs)', cursor: 'pointer' } as const
 
 export function GroupMappingTableHead({
@@ -42,7 +44,7 @@ export function GroupMappingTableHead({
             </Popover>
           )}
         </Th>
-        <Th width={45}>Automation Orchestrator group</Th>
+        <Th width={45}>{`${APP_TITLE} group`}</Th>
         {showActionsColumn && <Th width={10} screenReaderText="Actions" />}
       </Tr>
     </Thead>

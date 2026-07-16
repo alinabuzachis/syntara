@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { type Page } from '@playwright/test'
 
 import { expect, appBaseUrl, toAppUrl } from '../fixtures'
+import { APP_TITLE } from '../helpers/appTitle'
 import {
   createUserViaApi,
   deleteUserViaApi,
@@ -125,7 +126,7 @@ export async function cleanupPersona(app: Page, persona: Persona): Promise<void>
 export async function loginAsUser(page: Page, persona: Pick<Persona, 'username' | 'password'>): Promise<void> {
   await page.goto(appBaseUrl)
 
-  const loginHeading = page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })
+  const loginHeading = page.getByRole('heading', { name: `Log in to ${APP_TITLE}` })
   const mainNav = page.getByRole('navigation', { name: 'Main navigation' })
   await loginHeading.or(mainNav).waitFor({ timeout: 15_000 })
 
@@ -194,7 +195,7 @@ const USER_PASSWORD = `E2e-${randomUUID()}!`
 export async function loginViaUI(page: Page, username: string, password: string = USER_PASSWORD): Promise<void> {
   await page.goto(toAppUrl('/'))
 
-  const loginHeading = page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })
+  const loginHeading = page.getByRole('heading', { name: `Log in to ${APP_TITLE}` })
   const mainNav = page.getByRole('navigation', { name: 'Main navigation' })
   await loginHeading.or(mainNav).waitFor({ timeout: 15_000 })
 
@@ -219,7 +220,7 @@ export async function logoutViaUI(page: Page): Promise<void> {
   await page.context().clearCookies()
   await page.evaluate(() => localStorage.clear())
   await page.goto(toAppUrl('/'))
-  await page.getByRole('heading', { name: 'Log in to Automation Orchestrator' }).waitFor({ timeout: 30_000 })
+  await page.getByRole('heading', { name: `Log in to ${APP_TITLE}` }).waitFor({ timeout: 30_000 })
 }
 
 export async function loginAsUserApi(page: Page, username: string, password: string = USER_PASSWORD): Promise<string> {

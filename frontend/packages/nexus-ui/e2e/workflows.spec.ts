@@ -1,4 +1,5 @@
 import { test, expect, toAppUrl } from './fixtures'
+import { APP_TITLE } from './helpers/appTitle'
 import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
 
 test.skip('workflows page toolbar shows Import workflow before Create workflow', async ({ app }) => {
@@ -20,6 +21,7 @@ test.skip('workflows page toolbar shows Import workflow before Create workflow',
 test('workflows table renders data rows', async ({ app }) => {
   await app.goto(toAppUrl('/workflows'))
   await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
+  await expect(app).toHaveTitle(`Workflows | ${APP_TITLE}`)
   const workflowsTable = app.getByRole('grid', { name: 'Workflows table' })
   await expect(workflowsTable).toBeVisible()
   const pagination = app.getByText(/\d+\s*-\s*\d+\s+of\s+(\d+)/)

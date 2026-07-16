@@ -10,6 +10,7 @@ import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxPageTitle } from '../../components/NxPageTitle'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
@@ -140,6 +141,7 @@ export default function Executions() {
   if (queryState) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Workflow Runs']} />
         <NxPageHeader title="Workflow Runs" docLink={executionsDocLink} projectSelector={ProjectSelector} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
@@ -150,6 +152,7 @@ export default function Executions() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Workflow Runs']} />
       <NxPageHeader title="Workflow Runs" docLink={executionsDocLink} projectSelector={ProjectSelector} />
       <NxPageBody>
         <NxPanel isFullHeight>

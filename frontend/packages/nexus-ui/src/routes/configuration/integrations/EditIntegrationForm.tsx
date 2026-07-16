@@ -31,6 +31,7 @@ import { NxDetail } from '../../../components/details/NxDetail'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
@@ -428,6 +429,7 @@ export function EditIntegrationForm() {
   if (!integrationId || queryState) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Edit integration', 'Integrations']} />
         <NxPageHeader title="Edit integration" breadcrumbs={breadcrumbs} docLink={docLink} />
         <NxPageBody>
           <NxPanel isFullHeight>
@@ -442,6 +444,7 @@ export function EditIntegrationForm() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Edit integration', 'Integrations']} />
       <NxPageHeader title="Edit integration" breadcrumbs={breadcrumbs} docLink={docLink} />
       <NxPageBody>
         <NxPanel

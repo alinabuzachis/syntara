@@ -17,6 +17,7 @@ import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsProjectDetail, breadcrumbsProjectDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useUrlTab } from '../../../hooks/useUrlTab'
@@ -144,6 +145,7 @@ export function ProjectDetail() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[projectData.name, 'Projects']} />
       <NxPageHeader title={projectData.name} docLink={projectsDocLink} breadcrumbs={projectCrumbs} />
       <NxPageBody>
         <NxListPanel>

@@ -100,7 +100,6 @@ export function ConditionNodeDetails(props: {
             </NxDetailList>
           </NodeBody>
         </FlexItem>
-        {/* eslint-disable-next-line nexus/prefer-pf-text-components -- layout spacer for branch handles */}
         <div style={{ paddingBottom: 'var(--pf-t--global--spacer--md)' }}>{props.children}</div>
       </Flex>
     </>

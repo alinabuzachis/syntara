@@ -1,5 +1,6 @@
 import { expect, test as base, type Page, type Request } from '@playwright/test'
 
+import { APP_TITLE } from './helpers/appTitle'
 import { isSkipWebServerForPlaywrightTests } from './playwrightWebServerEnv'
 import { type RoleSetupResult, setupRoleUsers } from './utils/roleSetup'
 
@@ -15,7 +16,7 @@ export const toAppUrl = (path: string): string => new URL(path, appBaseUrl).toSt
 async function loginAs(page: Page, username: string, password?: string): Promise<void> {
   await page.goto(appBaseUrl)
 
-  const loginHeading = page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })
+  const loginHeading = page.getByRole('heading', { name: `Log in to ${APP_TITLE}` })
   const mainNav = page.getByRole('navigation', { name: 'Main navigation' })
   await loginHeading.or(mainNav).waitFor({ timeout: 15_000 })
 

@@ -1,3 +1,8 @@
+// VITE_APP_TITLE is read by appTitle.ts at module load via import.meta.env, which Vitest
+// maps from process.env. Setting it here ensures every test gets a stable 'Nexus' value
+// without per-file vi.mock('./appTitle') calls.
+process.env.VITE_APP_TITLE = 'Nexus'
+
 import '@testing-library/jest-dom/vitest'
 import 'vitest-axe/extend-expect'
 import { cleanup } from '@testing-library/react'

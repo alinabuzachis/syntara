@@ -1,6 +1,9 @@
 import { defineConfig } from '@playwright/test'
+import { config } from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
+
+config({ path: new URL('.env.local', import.meta.url).pathname })
 
 import { isSkipWebServerForPlaywrightTests } from './e2e/playwrightWebServerEnv'
 

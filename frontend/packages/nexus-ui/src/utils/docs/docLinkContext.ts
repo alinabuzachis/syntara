@@ -1,10 +1,11 @@
 import { createContext } from 'react'
 
+import type { AppMode } from '../appMode'
+
 import docsConfig from './docsConfig.json' with { type: 'json' }
-import type { DocMode } from './types'
 
 export type DocLinkContextValue = {
-  mode: DocMode
+  mode: AppMode
   version: string
 }
 

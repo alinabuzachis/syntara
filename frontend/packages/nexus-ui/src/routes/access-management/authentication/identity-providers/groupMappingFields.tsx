@@ -25,6 +25,8 @@ import {
 } from 'react'
 import { Controller, useWatch, type Control } from 'react-hook-form'
 
+import { APP_TITLE } from '../../../../utils/appTitle'
+
 import type { GroupMappingEditFormValues } from './groupMappingEditFormSchema'
 import type { GroupMappingEntry, NexusGroup } from './groupMappingUtils'
 
@@ -266,7 +268,7 @@ export function MappingRow({
         <Td dataLabel="IdP Group Value">
           <Content>{idpDisplay}</Content>
         </Td>
-        <Td dataLabel="Automation Orchestrator Group">
+        <Td dataLabel={`${APP_TITLE} Group`}>
           <Content>{groupDisplay}</Content>
         </Td>
         {showActionColumn && (
@@ -294,7 +296,7 @@ export function MappingRow({
           errorMessage={idpErrorMessage}
         />
       </Td>
-      <Td dataLabel="Automation Orchestrator Group">
+      <Td dataLabel={`${APP_TITLE} Group`}>
         <NexusGroupMappingSelect
           entry={entry}
           nexusGroups={nexusGroups}
@@ -354,7 +356,7 @@ export function EditMappingRow({
           )}
         />
       </Td>
-      <Td dataLabel="Automation Orchestrator Group">
+      <Td dataLabel={`${APP_TITLE} Group`}>
         <Controller
           name={`entries.${index}.nexusGroupId`}
           control={control}

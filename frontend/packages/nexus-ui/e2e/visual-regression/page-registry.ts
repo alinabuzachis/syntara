@@ -15,6 +15,7 @@
 import { type Page, expect } from '@playwright/test'
 
 import { AppRoute } from '../../src/app/AppRoute'
+import { APP_TITLE } from '../helpers/appTitle'
 
 import { MOCK_IDENTITY_PROVIDER_ID } from './mock-ids'
 import {
@@ -1015,7 +1016,7 @@ export const loginPages: PageEntry[] = [
     name: 'login-default',
     path: '/',
     waitFor: async (page) => {
-      await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: `Log in to ${APP_TITLE}` })).toBeVisible()
     },
   },
   {
@@ -1031,7 +1032,7 @@ export const loginPages: PageEntry[] = [
     name: 'login-local-form-expanded',
     path: '/',
     waitFor: async (page) => {
-      await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: `Log in to ${APP_TITLE}` })).toBeVisible()
     },
     setup: async (page) => {
       const localToggle = page.getByRole('button', { name: 'Sign in using local account' })
@@ -1046,7 +1047,7 @@ export const loginPages: PageEntry[] = [
     name: 'login-error',
     path: '/',
     waitFor: async (page) => {
-      await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: `Log in to ${APP_TITLE}` })).toBeVisible()
     },
     setup: async (page) => {
       // Expand the local login form (IDPs are seeded, so local login is behind a toggle)

@@ -21,7 +21,7 @@ function DroppableField({ children, onDropText, isDisabled = false }: Readonly<D
   }
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, nexus/prefer-pf-text-components -- drag-and-drop drop zone; not keyboard-accessible by design; child inputs retain their own focus and keyboard interaction
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-and-drop drop zone; not keyboard-accessible by design; child inputs retain their own focus and keyboard interaction
     <div
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}

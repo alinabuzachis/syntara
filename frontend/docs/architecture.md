@@ -1123,6 +1123,54 @@ queryClient.invalidateQueries({ queryKey: ['get', '/workflows'] })
 
 ---
 
+## Browser Tab Titles
+
+React 19 natively hoists `<title>` elements rendered anywhere in the component tree to `<head>`. No third-party library (e.g. `react-helmet`) is needed.
+
+### Pattern
+
+Every top-level page component renders `<title>` as the first child of `<NxPage>`:
+
+```tsx
+import { toPageTitle } from '../../utils/toPageTitle'
+
+export default function Workflows() {
+  return (
+    <NxPage>
+      <title>{toPageTitle(['Workflows'])}</title>
+      <NxPageHeader title="Workflows" ... />
+    </NxPage>
+  )
+}
+```
+
+### `toPageTitle` utility (`src/utils/toPageTitle.ts`)
+
+- Accepts an array of `string | null | undefined` segments (narrow → broad order)
+- Filters out falsy/blank values; trims remaining segments
+- Joins with `|` and appends the app title (from `VITE_APP_TITLE`, falls back to `'Nexus'`)
+- Returns bare app title when all segments are empty
+
+Examples:
+
+- `toPageTitle(['Workflows'])` → `'Workflows | Nexus'`
+- `toPageTitle(['admin', 'Users'])` → `'admin | Users | Nexus'`
+- `toPageTitle([undefined])` → `'Nexus'`
+
+### Dynamic pages
+
+Detail pages use the entity name from API data as the first segment, falling back to a static label during loading:
+
+```tsx
+// Loading/error state:
+<title>{toPageTitle(['Integration'])}</title>
+
+// Loaded state:
+<title>{toPageTitle([integration.name])}</title>
+```
+
+---
+
 ## Related Docs
 
 | Doc                                                             | Content                                                      |

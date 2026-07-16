@@ -11,6 +11,7 @@ import { useMemo } from 'react'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { useFuse } from '../../../hooks/useFuse'
 
@@ -28,6 +29,7 @@ export default function Glossary() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Glossary']} />
       <NxPageHeader
         title="Glossary"
         toolbar={

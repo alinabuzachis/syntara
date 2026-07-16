@@ -17,6 +17,7 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxLink } from '../../../components/NxLink'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -229,6 +230,7 @@ export function ServiceAccountDetail() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[serviceAccount.name, 'Service Accounts']} />
       <NxPageHeader
         title={serviceAccount.name}
         breadcrumbs={crumbs}

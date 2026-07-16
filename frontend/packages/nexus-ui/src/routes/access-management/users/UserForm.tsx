@@ -12,6 +12,7 @@ import type { AppBreadcrumbItem } from '../../../app/breadcrumbs/appBreadcrumbIt
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
@@ -235,6 +236,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[pageTitle, 'Users']} />
       <NxPageHeader title={pageTitle} docLink={usersDocLink} breadcrumbs={formBreadcrumbs} />
       <NxPageBody>
         <UserFormMainPanel

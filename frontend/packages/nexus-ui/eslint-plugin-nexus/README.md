@@ -127,6 +127,44 @@ Run tests for a specific rule:
 npx vitest run eslint-plugin-nexus/__tests__/no-raw-http-calls.test.js
 ```
 
+### `require-page-title`
+
+Requires every top-level page component (files with a default export) to render a `<title>` JSX element for browser tab titles.
+
+#### Rationale
+
+React 19 natively hoists `<title>` elements to `<head>`, so no third-party library (e.g. `react-helmet`) is needed. By rendering `<title>` in each page component, the browser tab always reflects the current page, improving navigation clarity and accessibility.
+
+#### Usage
+
+```tsx
+import { toPageTitle } from '../../utils/toPageTitle'
+
+export default function Workflows() {
+  return (
+    <NxPage>
+      <title>{toPageTitle(['Workflows'])}</title>
+      <NxPageHeader title="Workflows" ... />
+    </NxPage>
+  )
+}
+```
+
+#### Invalid
+
+```tsx
+// ✗ Missing <title> — tab will show the previous page's title on navigation
+export default function Workflows() {
+  return (
+    <NxPage>
+      <NxPageHeader title="Workflows" />
+    </NxPage>
+  )
+}
+```
+
+The rule only fires on files with a `default export` (i.e. page components) and is scoped via `eslint.config.js` to the explicit list of route-level page files. Sub-components and test files are not checked.
+
 ## Contributing
 
 When adding a new rule:

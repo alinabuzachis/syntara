@@ -443,6 +443,15 @@ export default tseslint.config(
     },
   },
   {
+    // Enforce browser tab titles on all top-level page components (default exports) in routes/.
+    // Any route file with `export default function Page()` must render
+    // <title>{toPageTitle(['...'])}</title>. New pages are covered automatically.
+    files: ['**/routes/**/*.tsx'],
+    rules: {
+      'nexus/require-page-title': 'error',
+    },
+  },
+  {
     files: ['e2e/**/*.{ts,tsx}'],
     rules: {
       'react-hooks/rules-of-hooks': 'off',

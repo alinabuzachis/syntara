@@ -22,6 +22,7 @@ import { authClient } from '../../../client'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs } from '../../../components/panels/list/NxListPanel'
 import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -429,6 +430,7 @@ export function UserDetail({ isMyProfile }: Readonly<UserDetailProps> = {}) {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[pageTitle, isMyProfile ? undefined : 'Users']} />
       <NxPageHeader
         title={pageTitle}
         docLink={docLink}

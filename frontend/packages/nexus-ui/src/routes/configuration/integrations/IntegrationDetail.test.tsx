@@ -832,6 +832,24 @@ describe('IntegrationDetail', () => {
     })
   })
 
+  describe('Integration detail labels and display', () => {
+    it('shows Name label for LLM provider instead of Server name', () => {
+      const llmIntegration: IntegrationRead = {
+        ...mockIntegration,
+        integration_type: 'llm_provider',
+        configuration: {
+          integration_type: 'llm_provider',
+          provider_hint: 'openai',
+        },
+      }
+      setupDefaultMocks({ integration: llmIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText('Name')).toBeInTheDocument()
+      expect(screen.queryByText('Server name / ID')).not.toBeInTheDocument()
+    })
+  })
+
   describe('Accessibility', () => {
     it('has no accessibility violations', async () => {
       const { container } = render(<IntegrationDetail />, { wrapper })

@@ -5,6 +5,8 @@ import svgr from 'vite-plugin-svgr'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
+  const appTitle = env.VITE_APP_TITLE ?? 'Nexus'
+
   const proxyConfig = {
     '/api': {
       target: env.VITE_API_URL || 'http://localhost:3000',
@@ -32,6 +34,12 @@ export default defineConfig(({ mode }) => {
         },
       }),
       svgr(),
+      {
+        name: 'app-title',
+        transformIndexHtml(html) {
+          return html.replace(/<title>[^<]*<\/title>/, `<title>${appTitle}</title>`)
+        },
+      },
     ],
     build: {
       rollupOptions: {

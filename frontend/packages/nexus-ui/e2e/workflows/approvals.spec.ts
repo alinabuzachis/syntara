@@ -9,6 +9,7 @@
 import type { Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from '../fixtures'
+import { APP_TITLE } from '../helpers/appTitle'
 import { addApprovalNodeWithBranch } from '../helpers/v2-nodes'
 import { buildUniqueName, createBasicWorkflow } from '../helpers/workflows'
 import { apiRequest } from '../utils/api'
@@ -64,6 +65,7 @@ test('user filters approvals by name and status', async ({ app }) => {
   // Navigate to approvals page
   await app.goto(toAppUrl('/approvals'))
   await expect(app.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
+  await expect(app).toHaveTitle(`Approvals | ${APP_TITLE}`)
 
   // Wait for table to load (skip if no approval data exists)
   const table = app.getByRole('grid', { name: 'Approvals table' })

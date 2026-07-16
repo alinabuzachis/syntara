@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ExecutionDetailErrorStates } from './ExecutionDetailErrorStates'
@@ -65,6 +66,23 @@ describe('ExecutionDetailErrorStates', () => {
       // The onRetry prop is wrapped with detachPromise before being passed to NxErrorState
       // This test verifies the component renders without errors when onRetry is provided
       expect(screen.getAllByText('Error loading execution').length).toBeGreaterThan(0)
+    })
+
+    it('invokes onRetry when retry button is clicked for a retryable error', async () => {
+      const mockOnRetry = vi.fn().mockResolvedValue(undefined)
+      const retryableError = { retryable: true, message: 'Service temporarily unavailable' }
+
+      render(
+        <ExecutionDetailErrorStates
+          executionId="exec-123"
+          isLoading={false}
+          error={retryableError}
+          onRetry={mockOnRetry}
+        />
+      )
+
+      await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+      expect(mockOnRetry).toHaveBeenCalledOnce()
     })
   })
 

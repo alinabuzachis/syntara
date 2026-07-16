@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
+import { expectPageTitle } from '../../../test/pageTitle'
 
 import Credentials from './Credentials'
 
@@ -712,6 +713,13 @@ describe('Credentials', () => {
       // Only 2 expand buttons for the 2 credentials with descriptions (not 3)
       const expandButtons = screen.getAllByRole('button', { name: /details/i })
       expect(expandButtons).toHaveLength(2)
+    })
+  })
+
+  describe('Page title', () => {
+    it('sets the browser tab title', () => {
+      render(<Credentials />, { wrapper })
+      expectPageTitle(['Credentials'])
     })
   })
 })

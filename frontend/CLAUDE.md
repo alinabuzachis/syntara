@@ -103,6 +103,7 @@ Items enforced by ESLint at error level are omitted -- ESLint is the source of t
 29. **New permission-gated features need mock handlers** -- add role-aware responses in `packages/nexus-mock-api/src/handlers.ts` `can_i` block for all 4 roles (admin, viewer, auditor, user) and E2E tests in `permission-gating.spec.ts`
 30. **Use `useDocLink` for documentation URLs** -- never hardcode doc URLs; use `useDocLink('workflows')` from `src/utils/docs/useDocLink.ts`; pass the result to `NxPageHeader`'s `docLink` prop; add new keys to `docsUrls.json` when adding new pages (see [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) section 33)
 31. **No `new Date()` in mock API seed data** -- seed data in `packages/nexus-mock-api/src/resources/` and `utils/` must use deterministic timestamps from `mockDates.ts`, never `new Date()`. Dynamic timestamps cause visual regression baselines to go stale across CI runs because rendered dates change daily
+32. **New pages must render `<title>{toPageTitle(['...'])}</title>`** -- every top-level page component (default export with `<NxPage>`) must render a `<title>` as its first `<NxPage>` child. Use `toPageTitle` from `src/utils/toPageTitle.ts`
 
 ### Feature Preservation Rules
 
@@ -223,6 +224,7 @@ See: [`docs/data-flow.md`](docs/data-flow.md) — "Type-Safe API Clients"
 1. Add route constant to `packages/nexus-ui/src/app/AppRoute.tsx`
 2. Add navigation item to `packages/nexus-ui/src/app/navigationItems.tsx` with lazy-loaded component
 3. The router auto-discovers it from `navigationItems` — no manual route config needed
+4. In the page component, render `<title>{toPageTitle(['Page Name'])}</title>` as the first child of `<NxPage>`; import `toPageTitle` from `src/utils/toPageTitle`
 
 #### What is the default workflow name?
 

@@ -8,6 +8,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { executionsClient, workflowClient } from '../../client'
 import { useSearchParams } from '../../hooks/routing/useSearchParams'
+import { expectPageTitle } from '../../test/pageTitle'
 
 import Executions from './Executions'
 
@@ -1018,6 +1019,14 @@ describe('Executions Component', () => {
 
       // Filter clearing calls setSearchParams to remove filter params from the URL
       expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(URLSearchParams))
+    })
+  })
+
+  describe('Page title', () => {
+    it('sets the browser tab title', () => {
+      mockExecutionsQuery(mockExecutions)
+      render(<Executions />, { wrapper: TestWrapper })
+      expectPageTitle(['Workflow Runs'])
     })
   })
 })

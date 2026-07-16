@@ -21,6 +21,7 @@ import { breadcrumbsGroupDetail, breadcrumbsGroupDetailEarlyShell } from '../../
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs } from '../../../components/panels/list/NxListPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useUrlTab } from '../../../hooks/useUrlTab'
@@ -225,6 +226,7 @@ export function GroupDetail() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[groupData.name, 'Groups']} />
       <NxPageHeader
         title={groupData.name}
         docLink={groupsDocLink}

@@ -33,7 +33,6 @@ export function NodeBody(props: Readonly<NodeBodyProps>) {
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Content container */}
-      {/* eslint-disable-next-line nexus/prefer-pf-text-components -- canvas node scroll container with layout padding */}
       <div
         data-testid="node-body-scroll-container"
         className={`nodrag nopan ${props.className ?? ''}`}

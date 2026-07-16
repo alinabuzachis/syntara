@@ -9,6 +9,7 @@ import { EmptyStateAccessDenied } from '../../../components/EmptyStateAccessDeni
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import {
@@ -175,6 +176,7 @@ export default function Settings() {
   if (!canRead || isForbidden) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Settings']} />
         <NxPageHeader title="Settings" docLink={settingsDocLink} breadcrumbs={breadcrumbsSettingsPage()} />
         <StackItem isFilled>
           <NxPanel isFullHeight>
@@ -189,6 +191,7 @@ export default function Settings() {
   if (errorOrLoadingState) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Settings']} />
         <NxPageHeader title="Settings" docLink={settingsDocLink} breadcrumbs={breadcrumbsSettingsPage()} />
         <NxPageBody>
           <NxPanel isFullHeight>{errorOrLoadingState}</NxPanel>
@@ -199,6 +202,7 @@ export default function Settings() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Settings']} />
       <NxPageHeader title="Settings" docLink={settingsDocLink} breadcrumbs={settingsBreadcrumbs} />
       <NxPageBody>
         <FileStorageAlert />

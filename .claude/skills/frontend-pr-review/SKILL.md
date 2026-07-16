@@ -122,6 +122,7 @@ Check whether the changes follow:
 | `Button` with `onClick={() => navigate(...)}`               | §34 -- use `<Link>` for navigation, `<Button>` for actions                      |
 | Same `aria-label` on repeated checkboxes/buttons            | §35 -- each instance needs a unique label (e.g., row index or resource name)    |
 | Raw text for invalid ID or not-found states                 | §36 -- use `NxEmptyState` or `Nx*` empty state components                       |
+| New page test without `expectPageTitle(...)` assertion      | testing guidelines -- add at least one `expectPageTitle` call per page component |
 | Empty-state CTA without permission check                    | UX §15 -- gate `addData` with permission flag (pass `undefined` if denied)      |
 
 ### 3b. Rule Bypass Checks (BLOCKING -- do not approve if any are found)

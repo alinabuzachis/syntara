@@ -8,6 +8,7 @@ import { EmptyStateAccessDenied } from '../../components/EmptyStateAccessDenied'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { NxPageTitle } from '../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { useUrlTab } from '../../hooks/useUrlTab'
 import { detachPromise } from '../../utils/detachPromise'
@@ -109,6 +110,7 @@ export function AccessManagement() {
   if (!isLoading && !canAccessPage) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Access Management']} />
         <NxPageHeader title="Access Management" breadcrumbs={[{ label: 'Access Management' }]} />
         <NxPageBody>
           <NxPanel isFullHeight>
@@ -124,6 +126,7 @@ export function AccessManagement() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={['Access Management']} />
       <NxPageHeader title="Access Management" docLink={accessDocLink} breadcrumbs={hubBreadcrumbs} />
       <NxPageBody>
         <NxListPanel>

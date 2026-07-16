@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 
 import '@xyflow/react/dist/style.css'
 import { workflowClient } from '../../client'
+import { NxPageTitle } from '../../components/NxPageTitle'
 import { detachPromise } from '../../utils/detachPromise'
 
 import { BuilderContent } from './BuilderContent'
@@ -21,6 +22,7 @@ export default function BuilderNew() {
 
   return (
     <ReactFlowProvider>
+      <NxPageTitle segments={['New Workflow', 'Workflows']} />
       <BuilderContent isNew={true} workflowId={null} />
     </ReactFlowProvider>
   )

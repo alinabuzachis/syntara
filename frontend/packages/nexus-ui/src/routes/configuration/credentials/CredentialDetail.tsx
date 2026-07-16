@@ -14,6 +14,7 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import type { KebabAction } from '../../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../../components/NxKebabMenu'
+import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
@@ -195,6 +196,7 @@ export default function CredentialDetail() {
   if (!credentialId) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Credential', 'Credentials']} />
         <NxPageHeader title="Error" breadcrumbs={breadcrumbsCredentialEarlyShell('Error')} />
         <NxPageBody>
           <NxPanel isFullHeight>
@@ -208,6 +210,7 @@ export default function CredentialDetail() {
   if (queryState) {
     return (
       <NxPage>
+        <NxPageTitle segments={['Credential', 'Credentials']} />
         <NxPageHeader title="Credential" breadcrumbs={breadcrumbsCredentialEarlyShell('Credential')} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
@@ -228,6 +231,7 @@ export default function CredentialDetail() {
 
   return (
     <NxPage>
+      <NxPageTitle segments={[credential.name, 'Credentials']} />
       <NxPageHeader
         breadcrumbs={credentialCrumbs}
         title={credential.name}

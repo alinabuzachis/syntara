@@ -22,8 +22,8 @@ describe('DocLinkProvider', () => {
     expect(result.current.version).toBe('1.0')
   })
 
-  it('provides product mode when VITE_DOC_MODE is product', () => {
-    vi.stubEnv('VITE_DOC_MODE', 'product')
+  it('provides product mode when VITE_APP_MODE is product', () => {
+    vi.stubEnv('VITE_APP_MODE', 'product')
 
     const { result } = renderHook(useDocLinkContext, { wrapper })
 
@@ -33,8 +33,8 @@ describe('DocLinkProvider', () => {
     vi.unstubAllEnvs()
   })
 
-  it('falls back to upstream for unknown VITE_DOC_MODE values', () => {
-    vi.stubEnv('VITE_DOC_MODE', 'invalid-mode')
+  it('falls back to upstream for unknown VITE_APP_MODE values', () => {
+    vi.stubEnv('VITE_APP_MODE', 'invalid-mode')
 
     const { result } = renderHook(useDocLinkContext, { wrapper })
 

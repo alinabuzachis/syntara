@@ -128,4 +128,44 @@ describe('Authentication', () => {
       expect(results).toHaveNoViolations()
     })
   })
+
+  describe('loading state', () => {
+    it('shows header and empty panel while permission is loading', () => {
+      vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true, isError: false })
+      setupEmptyProviders()
+      render(<Authentication />, { wrapper })
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeInTheDocument()
+      expect(screen.queryByText('Access denied')).not.toBeInTheDocument()
+      expect(screen.queryByText('No identity providers configured')).not.toBeInTheDocument()
+    })
+
+    it('has no accessibility violations while loading', async () => {
+      vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true, isError: false })
+      setupEmptyProviders()
+      const { container } = render(<Authentication />, { wrapper })
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+  })
+
+  describe('page header', () => {
+    it('includes Identity Providers heading', () => {
+      setupEmptyProviders()
+      render(<Authentication />, { wrapper })
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeInTheDocument()
+    })
+  })
+
+  describe('documentation link', () => {
+    it('passes authentication doc link to header', () => {
+      setupEmptyProviders()
+      render(<Authentication />, { wrapper })
+
+      const docLink = screen.getByRole('link', { name: /documentation/i })
+      expect(docLink).toBeInTheDocument()
+    })
+  })
 })

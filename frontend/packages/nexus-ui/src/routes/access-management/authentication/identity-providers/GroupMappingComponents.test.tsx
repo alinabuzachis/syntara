@@ -282,7 +282,7 @@ describe('MappingTable', () => {
     render(<MappingTableFormHarness {...defaultProps} />)
 
     expect(screen.getByText('IdP group value')).toBeInTheDocument()
-    expect(screen.getByText('Automation Orchestrator group')).toBeInTheDocument()
+    expect(screen.getByText('Nexus group')).toBeInTheDocument()
   })
 
   it('renders mapping entries with input values', () => {

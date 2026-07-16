@@ -12,6 +12,7 @@
 import { type Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
+import { APP_TITLE } from './helpers/appTitle'
 import { buildUniqueName } from './helpers/workflows'
 
 const VIEWER_PASSWORD = 'e2e-test-password-123!'
@@ -73,7 +74,7 @@ test('switching users reflects new permissions without hard refresh', async ({ p
 
       // Log in as viewer within the same SPA session — page.goto() would always
       // clear the cache via a full React remount, which would hide any regression.
-      await page.getByRole('heading', { name: 'Log in to Automation Orchestrator' }).waitFor({ timeout: 15_000 })
+      await page.getByRole('heading', { name: `Log in to ${APP_TITLE}` }).waitFor({ timeout: 15_000 })
       await fillLoginForm(page, viewerUsername, VIEWER_PASSWORD)
     } else {
       // Mock API tokens encode the username as mock-token-{username}, so the UI

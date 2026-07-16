@@ -9,6 +9,7 @@ import { EmptyStateAccessDenied } from '../../../../components/EmptyStateAccessD
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
+import { NxPageTitle } from '../../../../components/NxPageTitle'
 import { useCanI } from '../../../../hooks/useCanI'
 import { detachPromise } from '../../../../utils/detachPromise'
 
@@ -26,6 +27,7 @@ function GroupMappingPageShell({
 }>) {
   return (
     <NxPage>
+      <NxPageTitle segments={[title, 'Identity Providers']} />
       <NxPageHeader title={title} breadcrumbs={breadcrumbs} />
       <NxPageBody>
         <NxPanel isFullHeight>{children}</NxPanel>
