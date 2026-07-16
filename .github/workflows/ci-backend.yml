@@ -767,7 +767,7 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_BACKEND_TOKEN }}
+          SONAR_TOKEN: ${{ secrets[vars.SONAR_TOKEN_SECRET_NAME] }}
         with:
           projectBaseDir: backend
           args: >
@@ -798,7 +798,7 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_BACKEND_TOKEN }}
+          SONAR_TOKEN: ${{ secrets[vars.SONAR_TOKEN_SECRET_NAME] }}
         with:
           projectBaseDir: backend
 
