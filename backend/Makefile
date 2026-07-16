@@ -40,7 +40,8 @@ COMPOSE_FINAL_CMD := $(COMPOSE_CMD) $(COMPOSE_ARGS)
 # S2S mTLS configuration for local development
 S2S_TLS_VARS = \
 	APP_S2S_TLS_ENABLED=true \
-	APP_S2S_TLS_CA_CERT_PATH=.secrets/certs/ca.pem
+	APP_S2S_TLS_CA_CERT_PATH=.secrets/certs/ca.pem \
+	APP_S2S_TLS_CN_ALLOWLIST='["backend.ao.svc","worker.ao.svc","temporal.ao.svc"]'
 WORKER_BASE_URL = https://localhost:8000/api/v1
 
 
