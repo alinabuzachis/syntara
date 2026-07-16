@@ -53,6 +53,7 @@ from nexus.core.logging.logging import apply_runtime_log_level, build_uvicorn_lo
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
+from nexus.files.health import check_file_storage_health, validate_file_storage_at_startup
 from nexus.files.workers.file_cleanup import get_multipart_cleanup_worker
 from nexus.metrics.cleanup import get_metrics_cleanup_worker
 from nexus.metrics.completion_poller import get_completion_poller
@@ -111,12 +112,13 @@ def _init_rate_limiting(app: FastAPI) -> RateLimitRedisClient:
     return redis_client
 
 
-async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
+async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:  # noqa: PLR0915
     """Initialize application resources during startup.
 
     Returns a dict of resources needed for shutdown.
     """
     validate_encryption_key_at_startup()
+    await validate_file_storage_at_startup(get_settings())
 
     # Initialize logging and audit subsystems
     start_audit_subsystems()
@@ -388,7 +390,8 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
             "status": "healthy",
             "timestamp": "2025-10-09T12:00:00Z",
             "checks": {
-                "database": "ok"
+                "database": "ok",
+                "file_storage": "ok"
             }
         }
         ```
@@ -415,11 +418,14 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
             },
         ) from e
 
+    file_storage_status = await check_file_storage_health()
+
     return {
         "status": "healthy",
         "timestamp": timestamp,
         "checks": {
             "database": db_status,
+            "file_storage": file_storage_status,
         },
     }
 
