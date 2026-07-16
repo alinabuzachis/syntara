@@ -818,10 +818,33 @@ async def example_app_server(websocket_example_app: tuple[Path, FastAPI]) -> Asy
     config = Config(app, host="127.0.0.1", port=9999, log_level="error")
     server = Server(config)
 
-    # Run server in background task
-    server_task = asyncio.create_task(server.serve())
+    async def _serve_without_sys_exit() -> None:
+        """Wrap server.serve() to convert SystemExit into a normal exception.
 
-    await _wait_for_server("127.0.0.1", 9999)
+        Uvicorn calls sys.exit(1) on port conflicts. asyncio re-raises
+        SystemExit from tasks immediately (bypassing except Exception blocks),
+        which breaks fixture teardown and cascades failures to subsequent tests.
+        """
+        try:
+            await server.serve()
+        except SystemExit as exc:
+            msg = f"uvicorn exited with code {exc.code}"
+            raise RuntimeError(msg) from exc
+
+    server_task = asyncio.create_task(_serve_without_sys_exit())
+
+    try:
+        await _wait_for_server("127.0.0.1", 9999)
+    except (TimeoutError, OSError):
+        if server_task.done() and not server_task.cancelled():
+            try:
+                server_task.result()
+            except Exception as exc:
+                pytest.fail(f"Server failed to start: {exc}")
+        server_task.cancel()
+        with contextlib.suppress(BaseException):
+            await server_task
+        pytest.fail("Server failed to start within timeout")
 
     yield project_root, app
 
@@ -829,10 +852,10 @@ async def example_app_server(websocket_example_app: tuple[Path, FastAPI]) -> Asy
     server.should_exit = True
     try:
         await asyncio.wait_for(server_task, timeout=5.0)
-    except TimeoutError:
-        # Force cancellation if graceful shutdown times out
-        server_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
+    except (TimeoutError, Exception):
+        if not server_task.done():
+            server_task.cancel()
+        with contextlib.suppress(BaseException):
             await server_task
 
 
