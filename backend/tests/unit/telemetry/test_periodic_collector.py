@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from nexus.telemetry.api_usage_accumulator import AccumulatorSnapshot
 from nexus.telemetry.events.integration_health import (
     CredentialHealth,
     CredentialInfo,
@@ -113,6 +114,14 @@ class TestCollectAndSendFunction:
         """_collect_and_send queries the database and sends both events."""
         session_factory = _mock_session_factory()
 
+        mock_accumulator = MagicMock()
+        mock_accumulator.drain.return_value = AccumulatorSnapshot(
+            caller_ids=frozenset({"hash-1", "hash-2"}),
+            callers_by_type={"user": 1, "service_account": 1},
+            callers_by_interface={"api": 2},
+            feature_usage={("/api/v1/workflows", "GET", "api"): 5},
+        )
+
         with (
             patch(
                 "nexus.telemetry.periodic_collector.query_workflow_counts",
@@ -149,6 +158,10 @@ class TestCollectAndSendFunction:
                 "nexus.telemetry.periodic_collector.query_credential_health",
                 new_callable=AsyncMock,
             ) as mock_cred_health,
+            patch(
+                "nexus.telemetry.periodic_collector.get_accumulator",
+                return_value=mock_accumulator,
+            ),
         ):
             # Set up return values
             mock_wf.return_value = MagicMock(total=10, enabled=8, disabled=2)
@@ -185,8 +198,20 @@ class TestCollectAndSendFunction:
             mock_idp_health.assert_called_once()
             mock_cred_health.assert_called_once()
 
+            # Verify accumulator was drained
+            mock_accumulator.drain.assert_called_once()
+
             # Verify both events were sent (system analytics + integration health)
             assert mock_registry.send_event.call_count == 2
+
+            # Verify unique_callers and feature_usage in the system analytics event
+            system_event = mock_registry.send_event.call_args_list[0][0][0]
+            assert system_event.unique_callers.total == 2
+            assert system_event.unique_callers.by_principal_type == {"user": 1, "service_account": 1}
+            assert system_event.unique_callers.by_interface == {"api": 2}
+            assert len(system_event.feature_usage) == 1
+            assert system_event.feature_usage[0].endpoint_group == "/api/v1/workflows"
+            assert system_event.feature_usage[0].request_count == 5
 
     async def test_collect_and_send_propagates_exceptions(self, mock_registry: MagicMock) -> None:
         """_collect_and_send propagates exceptions (error handling is in worker)."""

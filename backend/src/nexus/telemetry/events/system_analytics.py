@@ -82,6 +82,35 @@ class ToolCounts(SQLModel):
         return self.success_count + self.error_count + self.timeout_count
 
 
+class UniqueCallerCounts(SQLModel):
+    """Unique API caller counts for the current collection period."""
+
+    total: int = Field(
+        default=0,
+        description=(
+            "Total unique callers this period (deduplicated across all dimensions). "
+            "May be less than sum(by_interface.values()) when a caller uses both interfaces."
+        ),
+    )
+    by_principal_type: dict[str, int] = Field(
+        default_factory=dict,
+        description="Unique callers per principal type",
+    )
+    by_interface: dict[str, int] = Field(
+        default_factory=dict,
+        description="Unique callers per interface (api, ui)",
+    )
+
+
+class FeatureUsageEntry(SQLModel):
+    """Per-endpoint usage count for the current collection period."""
+
+    endpoint_group: str = Field(description="Route template (e.g. /api/v1/workflows)")
+    http_method: str = Field(description="HTTP method")
+    interface: str = Field(description="Originating interface (api or ui)")
+    request_count: int = Field(description="Number of requests this period")
+
+
 class SystemAnalyticsEvent(BaseTelemetryEvent):
     """Stateless system analytics event sent to Segment.
 
@@ -100,4 +129,12 @@ class SystemAnalyticsEvent(BaseTelemetryEvent):
     model_usage: list[ModelUsage] = Field(
         default_factory=list,
         description="Aggregated token usage per LLM model",
+    )
+    unique_callers: UniqueCallerCounts = Field(
+        default_factory=UniqueCallerCounts,
+        description="Unique API caller counts for the current collection period",
+    )
+    feature_usage: list[FeatureUsageEntry] = Field(
+        default_factory=list,
+        description="Per-endpoint usage counts for the current collection period",
     )

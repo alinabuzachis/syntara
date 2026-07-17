@@ -8,7 +8,7 @@ Validates that:
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -23,6 +23,7 @@ from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
 from nexus.core.models import User
 from nexus.integrations.models.integration import Integration
+from nexus.telemetry.api_usage_accumulator import AccumulatorSnapshot
 from nexus.telemetry.client import TelemetryClientRegistry
 from nexus.telemetry.periodic_collector import _collect_and_send
 from nexus.telemetry.queries import (
@@ -193,6 +194,53 @@ class TestPeriodicAnalyticsFlow:
         assert props["tools"]["total_executions"] == 0
         assert props["tools"]["distinct_tools"] == 0
         assert props["model_usage"] == []
+
+        # Verify new fields default to empty when accumulator has no data
+        assert props["unique_callers"]["total"] == 0
+        assert props["unique_callers"]["by_principal_type"] == {}
+        assert props["unique_callers"]["by_interface"] == {}
+        assert props["feature_usage"] == []
+
+    async def test_accumulator_data_appears_in_segment_event(
+        self,
+        test_db_session: AsyncSession,
+        registry_with_mock_client: tuple[TelemetryClientRegistry, MagicMock],
+        mock_session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Accumulator snapshot data is included in the system_analytics Segment event."""
+        registry, mock_client = registry_with_mock_client
+
+        mock_accumulator = MagicMock()
+        mock_accumulator.drain.return_value = AccumulatorSnapshot(
+            caller_ids=frozenset({"hash-a", "hash-b", "hash-c"}),
+            callers_by_type={"user": 2, "service_account": 1},
+            callers_by_interface={"api": 2, "ui": 1},
+            feature_usage={
+                ("/api/v1/workflows", "GET", "api"): 10,
+                ("/api/v1/executions", "POST", "ui"): 3,
+            },
+        )
+
+        with patch(
+            "nexus.telemetry.periodic_collector.get_accumulator",
+            return_value=mock_accumulator,
+        ):
+            await _collect_and_send(mock_session_factory, registry)
+
+        calls_by_event = {c.kwargs["event"]: c.kwargs for c in mock_client.track.call_args_list}
+        props = calls_by_event["system_analytics"]["properties"]
+
+        assert props["unique_callers"]["total"] == 3
+        assert props["unique_callers"]["by_principal_type"] == {"user": 2, "service_account": 1}
+        assert props["unique_callers"]["by_interface"] == {"api": 2, "ui": 1}
+        assert len(props["feature_usage"]) == 2
+
+        usage_by_endpoint = {e["endpoint_group"]: e for e in props["feature_usage"]}
+        assert usage_by_endpoint["/api/v1/workflows"]["request_count"] == 10
+        assert usage_by_endpoint["/api/v1/workflows"]["http_method"] == "GET"
+        assert usage_by_endpoint["/api/v1/workflows"]["interface"] == "api"
+        assert usage_by_endpoint["/api/v1/executions"]["request_count"] == 3
+        assert usage_by_endpoint["/api/v1/executions"]["interface"] == "ui"
 
     async def test_soft_deleted_records_excluded(
         self,

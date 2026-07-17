@@ -8,8 +8,10 @@ from nexus.telemetry.events.system_analytics import (
     ConfigInfo,
     CredentialCounts,
     ExecutionCounts,
+    FeatureUsageEntry,
     SystemAnalyticsEvent,
     ToolCounts,
+    UniqueCallerCounts,
     WorkflowCounts,
 )
 
@@ -85,3 +87,108 @@ class TestToolCounts:
         data = counts.model_dump()
         assert data["total_executions"] == 4
         assert data["success_count"] == 3
+
+
+class TestUniqueCallerCounts:
+    """Tests for UniqueCallerCounts model."""
+
+    def test_defaults_to_zeros(self):
+        counts = UniqueCallerCounts()
+        assert counts.total == 0
+        assert counts.by_principal_type == {}
+        assert counts.by_interface == {}
+
+    def test_construction_with_values(self):
+        counts = UniqueCallerCounts(
+            total=5,
+            by_principal_type={"user": 3, "service_account": 2},
+            by_interface={"api": 4, "ui": 1},
+        )
+        assert counts.total == 5
+        assert counts.by_principal_type["user"] == 3
+        assert counts.by_interface["api"] == 4
+
+    def test_serialization(self):
+        counts = UniqueCallerCounts(
+            total=2,
+            by_principal_type={"user": 2},
+            by_interface={"api": 1, "ui": 1},
+        )
+        data = counts.model_dump()
+        assert data["total"] == 2
+        assert data["by_principal_type"] == {"user": 2}
+        assert data["by_interface"] == {"api": 1, "ui": 1}
+
+
+class TestFeatureUsageEntry:
+    """Tests for FeatureUsageEntry model."""
+
+    def test_construction(self):
+        entry = FeatureUsageEntry(
+            endpoint_group="/api/v1/workflows",
+            http_method="GET",
+            interface="api",
+            request_count=42,
+        )
+        assert entry.endpoint_group == "/api/v1/workflows"
+        assert entry.http_method == "GET"
+        assert entry.interface == "api"
+        assert entry.request_count == 42
+
+    def test_serialization(self):
+        entry = FeatureUsageEntry(
+            endpoint_group="/api/v1/executions",
+            http_method="POST",
+            interface="ui",
+            request_count=10,
+        )
+        data = entry.model_dump()
+        assert data["endpoint_group"] == "/api/v1/executions"
+        assert data["http_method"] == "POST"
+        assert data["interface"] == "ui"
+        assert data["request_count"] == 10
+
+
+class TestSystemAnalyticsEventNewFields:
+    """Tests for unique_callers and feature_usage on SystemAnalyticsEvent."""
+
+    def test_defaults_to_empty(self):
+        event = SystemAnalyticsEvent(
+            entitlement_id="ent-123",
+            workflows=WorkflowCounts(),
+            credentials=CredentialCounts(),
+            executions=ExecutionCounts(),
+            config=ConfigInfo(),
+            tools=ToolCounts(),
+        )
+        assert event.unique_callers.total == 0
+        assert event.feature_usage == []
+
+    def test_segment_event_includes_new_fields(self):
+        event = SystemAnalyticsEvent(
+            entitlement_id="ent-123",
+            workflows=WorkflowCounts(),
+            credentials=CredentialCounts(),
+            executions=ExecutionCounts(),
+            config=ConfigInfo(),
+            tools=ToolCounts(),
+            unique_callers=UniqueCallerCounts(
+                total=3,
+                by_principal_type={"user": 2, "service_account": 1},
+                by_interface={"api": 3},
+            ),
+            feature_usage=[
+                FeatureUsageEntry(
+                    endpoint_group="/api/v1/workflows",
+                    http_method="GET",
+                    interface="api",
+                    request_count=100,
+                ),
+            ],
+        )
+        props: Any = event.to_segment_event()["properties"]
+        assert props["unique_callers"]["total"] == 3
+        assert props["unique_callers"]["by_principal_type"]["user"] == 2
+        assert len(props["feature_usage"]) == 1
+        assert props["feature_usage"][0]["endpoint_group"] == "/api/v1/workflows"
+        assert props["feature_usage"][0]["request_count"] == 100

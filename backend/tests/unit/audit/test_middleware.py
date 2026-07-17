@@ -1631,3 +1631,82 @@ class TestAuditMiddlewareContentLength:
         data = _get_request_completed_data(mock_emit)
         # The middleware's loop overwrites the value, so the last header wins
         assert data[0].request_payload_size == 5678
+
+
+# =============================================================================
+# AuditMiddleware - interface and endpoint_template
+# =============================================================================
+
+_DISPATCH_PATCH = "nexus.audit.dispatcher.AuditEventDispatcher.dispatch"
+
+
+def _capture_http_events(mock_dispatch: MagicMock) -> list[HTTPRequestEvent]:
+    """Extract HTTPRequestEvent objects from dispatch calls."""
+    return [call[0][0] for call in mock_dispatch.call_args_list if isinstance(call[0][0], HTTPRequestEvent)]
+
+
+class TestAuditMiddlewareInterfaceAndEndpointTemplate:
+    """interface and endpoint_template fields on HTTPRequestEvent."""
+
+    @pytest.mark.asyncio
+    async def test_matched_route_populates_endpoint_template(self) -> None:
+        """endpoint_template is set from scope['route'].path when a route is matched."""
+
+        async def app(scope: MutableMapping[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            scope["route"] = MagicMock(path="/api/v1/workflows/{workflow_id}")
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+        with patch(_DISPATCH_PATCH) as mock_dispatch:
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        events = _capture_http_events(mock_dispatch)
+        assert len(events) == 1
+        assert events[0].endpoint_template == "/api/v1/workflows/{workflow_id}"
+
+    @pytest.mark.asyncio
+    async def test_unmatched_route_leaves_endpoint_template_none(self) -> None:
+        """endpoint_template is None when no route is matched (e.g. 404)."""
+        app = _make_app(status_code=404)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(path="/api/v1/nonexistent")
+        with patch(_DISPATCH_PATCH) as mock_dispatch:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _capture_http_events(mock_dispatch)
+        assert len(events) == 1
+        assert events[0].endpoint_template is None
+
+    @pytest.mark.asyncio
+    async def test_ui_header_sets_interface_ui(self) -> None:
+        """Interface is 'ui' when the interface context var is set."""
+        from nexus.metrics.interface_tag import INTERFACE_UI, interface_context_var
+
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        token = interface_context_var.set(INTERFACE_UI)
+        try:
+            with patch(_DISPATCH_PATCH) as mock_dispatch:
+                await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+            events = _capture_http_events(mock_dispatch)
+            assert len(events) == 1
+            assert events[0].interface == "ui"
+        finally:
+            interface_context_var.reset(token)
+
+    @pytest.mark.asyncio
+    async def test_default_interface_is_api(self) -> None:
+        """Interface defaults to 'api' when no header sets it."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        with patch(_DISPATCH_PATCH) as mock_dispatch:
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        events = _capture_http_events(mock_dispatch)
+        assert len(events) == 1
+        assert events[0].interface == "api"

@@ -18,8 +18,14 @@ import structlog
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.workers import PeriodicWorker
+from nexus.telemetry.api_usage_accumulator import get_accumulator
 from nexus.telemetry.events.integration_health import IntegrationHealthEvent
-from nexus.telemetry.events.system_analytics import ConfigInfo, SystemAnalyticsEvent
+from nexus.telemetry.events.system_analytics import (
+    ConfigInfo,
+    FeatureUsageEntry,
+    SystemAnalyticsEvent,
+    UniqueCallerCounts,
+)
 from nexus.telemetry.queries import (
     get_enabled_feature_flags,
     query_credential_counts,
@@ -65,6 +71,22 @@ async def _collect_and_send(
 
     feature_flags = get_enabled_feature_flags()
 
+    usage_snapshot = get_accumulator().drain()
+    unique_callers = UniqueCallerCounts(
+        total=len(usage_snapshot.caller_ids),
+        by_principal_type=usage_snapshot.callers_by_type,
+        by_interface=usage_snapshot.callers_by_interface,
+    )
+    feature_usage = [
+        FeatureUsageEntry(
+            endpoint_group=endpoint,
+            http_method=method,
+            interface=iface,
+            request_count=count,
+        )
+        for (endpoint, method, iface), count in usage_snapshot.feature_usage.items()
+    ]
+
     event = SystemAnalyticsEvent(
         entitlement_id=registry.entitlement_id,
         workflows=workflow_counts,
@@ -73,6 +95,8 @@ async def _collect_and_send(
         config=ConfigInfo(feature_flags_enabled=feature_flags),
         tools=tool_counts,
         model_usage=model_usage_list,
+        unique_callers=unique_callers,
+        feature_usage=feature_usage,
     )
     registry.send_event(event)
     logger.debug("periodic_analytics_event_sent")

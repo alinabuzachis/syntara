@@ -37,6 +37,8 @@ class HTTPRequestEvent:
     activity_id: str | None = field(default=None)
     response_time_ms: int = field(default=0)
     request_payload_size: int = field(default=0)
+    interface: str = field(default="api")
+    endpoint_template: str | None = field(default=None)
 
 
 # ---------------------------------------------------------------------------

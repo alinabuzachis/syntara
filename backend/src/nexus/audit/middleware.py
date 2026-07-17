@@ -38,6 +38,7 @@ from nexus.audit.events.http_request import HTTPRequestEvent
 from nexus.core.auth.jwt_utils import extract_actor_claims
 from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models.principal import PrincipalType
+from nexus.metrics.interface_tag import interface_context_var
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -419,6 +420,9 @@ class AuditMiddleware:
             # Build and dispatch the domain event
             query_params = self._parse_query_params(scope.get("query_string", b""))
 
+            route = scope.get("route")
+            endpoint_template = route.path if route is not None and hasattr(route, "path") else None
+
             event = HTTPRequestEvent(
                 method=method,
                 path=path,
@@ -431,6 +435,8 @@ class AuditMiddleware:
                 activity_id=activity_id,
                 response_time_ms=response_time_ms,
                 request_payload_size=request_payload_size,
+                interface=interface_context_var.get(),
+                endpoint_template=endpoint_template,
             )
 
             AuditEventDispatcher.dispatch(event)
