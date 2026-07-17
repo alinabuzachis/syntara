@@ -16,7 +16,7 @@ import pytest
 from temporalio.client import ScheduleAlreadyRunningError, ScheduleOverlapPolicy
 from temporalio.service import RPCError, RPCStatusCode
 
-from nexus.workflows.exceptions import TriggerValidationError
+from nexus.workflows.exceptions import ScheduledTriggerSyncError, TriggerValidationError
 from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
 
 
@@ -281,8 +281,8 @@ class TestSyncScheduledTriggers:
         assert count == 0
         client.create_schedule.assert_not_called()
 
-    async def test_sync_connection_error_invalidates_cache(self) -> None:
-        """UNAVAILABLE RPCError should invalidate client cache and re-raise."""
+    async def test_sync_connection_error_wraps_as_sync_error(self) -> None:
+        """UNAVAILABLE RPCError should invalidate client cache and raise ScheduledTriggerSyncError."""
         client = _make_mock_client()
         client.create_schedule = AsyncMock(side_effect=RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b""))
 
@@ -291,7 +291,7 @@ class TestSyncScheduledTriggers:
 
         with (
             patch("nexus.workflows.services.scheduled_trigger_service._invalidate_client_cache") as mock_invalidate,
-            pytest.raises(RPCError),
+            pytest.raises(ScheduledTriggerSyncError) as exc_info,
         ):
             await service.sync_scheduled_triggers(
                 workflow_id="wf-123",
@@ -299,6 +299,7 @@ class TestSyncScheduledTriggers:
             )
 
         mock_invalidate.assert_called_once()
+        assert exc_info.value.__cause__ is not None
 
     async def test_list_schedules_returns_empty_set(self) -> None:
         """Empty schedule list should return empty set."""
@@ -362,17 +363,53 @@ class TestDeleteTriggersForWorkflow:
 class TestGracefulTemporalUnavailability:
     """Tests for graceful handling of Temporal unavailability."""
 
-    async def test_sync_skips_when_temporal_unavailable(self) -> None:
-        """Should skip sync gracefully when Temporal is unavailable."""
+    async def test_sync_raises_when_temporal_unavailable_and_triggers_exist(self) -> None:
+        """Should raise ScheduledTriggerSyncError when Temporal is down and scheduled triggers exist."""
+        service = ScheduledTriggerService(temporal_client=None)
+
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+        with (
+            patch.object(service, "_get_client", return_value=None),
+            pytest.raises(ScheduledTriggerSyncError) as exc_info,
+        ):
+            await service.sync_scheduled_triggers(
+                workflow_id="wf-123",
+                workflow_definition=definition,
+            )
+
+        assert exc_info.value.workflow_id == "wf-123"
+        assert exc_info.value.trigger_count == 1
+
+    async def test_sync_returns_zero_when_temporal_unavailable_and_no_triggers(self) -> None:
+        """Should return 0 silently when Temporal is down but no scheduled triggers exist."""
         service = ScheduledTriggerService(temporal_client=None)
 
         with patch.object(service, "_get_client", return_value=None):
             count = await service.sync_scheduled_triggers(
                 workflow_id="wf-123",
-                workflow_definition=_make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")]),
+                workflow_definition=_make_workflow_definition(triggers=[]),
             )
 
         assert count == 0
+
+    async def test_delete_wraps_connection_error_as_sync_error(self) -> None:
+        """UNAVAILABLE RPCError during deletion should be wrapped as ScheduledTriggerSyncError."""
+        client = _make_mock_client()
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from([_make_schedule_list_entry("nexus-sched-wf-123-trigger_1")])
+        )
+        handle = client.get_schedule_handle.return_value
+        handle.delete = AsyncMock(side_effect=RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b""))
+
+        service = ScheduledTriggerService(temporal_client=client)
+
+        with (
+            patch("nexus.workflows.services.scheduled_trigger_service._invalidate_client_cache"),
+            pytest.raises(ScheduledTriggerSyncError) as exc_info,
+        ):
+            await service.delete_triggers_for_workflow(workflow_id="wf-123")
+
+        assert exc_info.value.__cause__ is not None
 
     async def test_delete_skips_when_temporal_unavailable(self) -> None:
         """Should skip deletion gracefully when Temporal is unavailable."""

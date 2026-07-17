@@ -14,7 +14,6 @@ import structlog
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from temporalio.service import RPCError
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
@@ -37,6 +36,7 @@ from nexus.workflows.audit.workflow_version import (
 from nexus.workflows.exceptions import (
     BuiltinWorkflowDeleteError,
     BuiltinWorkflowModifyError,
+    ScheduledTriggerSyncError,
     WorkflowDefinitionInvalidError,
     WorkflowDefinitionWarningsError,
     WorkflowNameConflictError,
@@ -1035,7 +1035,7 @@ class WorkflowService(BaseService):
         change_description: str | None = None,
         workflow_definition: dict[str, Any] | None = None,
         expected_version: int | None = None,
-    ) -> tuple[Workflow, WorkflowVersion]:
+    ) -> tuple[Workflow, WorkflowVersion, str]:
         """Publish a workflow version via pointer update (no copy).
 
         Creates a ``WorkflowPublishEvent`` and points
@@ -1043,6 +1043,10 @@ class WorkflowService(BaseService):
         If ``workflow_definition`` is provided (atomic save-and-publish),
         a new version is created first via ``_create_version_record``,
         then published.
+
+        Returns a tuple of (workflow, version, warning). Warning is
+        populated when the DB commit succeeds but a non-critical post-commit
+        operation fails gracefully (e.g. scheduled trigger sync).
         """
         workflow = await self._get_workflow_for_update(workflow_id)
 
@@ -1132,10 +1136,22 @@ class WorkflowService(BaseService):
             )
             raise
 
-        await self._sync_scheduled_triggers(
-            workflow.id,
-            target_version.workflow_definition,
-        )
+        warning: str = ""
+        try:
+            await self._sync_scheduled_triggers(
+                workflow.id,
+                target_version.workflow_definition,
+            )
+        except ScheduledTriggerSyncError as exc:
+            logger.warning(
+                "Scheduled trigger sync failed during publish",
+                workflow_id=str(workflow.id),
+                error=str(exc),
+            )
+            warning = (
+                "Scheduled triggers could not be activated because the scheduling service is "
+                "temporarily unavailable. Re-publish the workflow to retry."
+            )
 
         AuditEventDispatcher.dispatch(
             WorkflowVersionPublishedEvent(
@@ -1146,7 +1162,7 @@ class WorkflowService(BaseService):
             )
         )
 
-        return workflow, target_version
+        return workflow, target_version, warning
 
     async def unpublish_workflow(self, workflow_id: UUID) -> Workflow:
         """Unpublish the currently published version."""
@@ -1219,7 +1235,7 @@ class WorkflowService(BaseService):
             await scheduled_service.delete_triggers_for_workflow(
                 workflow_id=str(workflow.id),
             )
-        except (OSError, RuntimeError, RPCError):
+        except ScheduledTriggerSyncError:
             logger.warning("Failed to delete scheduled triggers", workflow_id=str(workflow.id), exc_info=True)
 
         return workflow
@@ -1378,7 +1394,7 @@ class WorkflowService(BaseService):
             await scheduled_service.delete_triggers_for_workflow(
                 workflow_id=str(workflow_id),
             )
-        except (OSError, RuntimeError, RPCError):
+        except ScheduledTriggerSyncError:
             logger.warning(
                 "Failed to delete scheduled triggers for deleted workflow — "
                 "orphaned Temporal Schedules may continue firing",

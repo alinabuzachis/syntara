@@ -1111,7 +1111,7 @@ export const handlers = [
       storeRecord.name = (body?.name as string) ?? null
     }
 
-    return HttpResponse.json(mutableWorkflow)
+    return HttpResponse.json({ ...mutableWorkflow, warning: '' })
   }),
 
   http.post('/api/v1/workflows/:workflowId/unpublish', (request) => {

@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         ExecutionNotRetryableError,
         PayloadTooLargeError,
         ScheduledTriggerNotFoundError,
+        ScheduledTriggerSyncError,
         TemporalUnavailableError,
         TriggerValidationError,
         WebhookTriggerNotFoundError,
@@ -347,6 +348,20 @@ def webhook_trigger_path_conflict_handler(request: Request, exc: "WebhookTrigger
         detail="The requested webhook path is already in use by another trigger",
         code="WEBHOOK_TRIGGER_PATH_CONFLICT",
         retryable=False,
+        instance=str(request.url),
+    )
+
+
+def scheduled_trigger_sync_handler(request: Request, exc: "ScheduledTriggerSyncError") -> JSONResponse:
+    """Handle ScheduledTriggerSyncError with RFC 9457 format."""
+    logger.warning("Scheduled trigger sync failed", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        problem_type=PROBLEM_TYPES["service_unavailable"],
+        title="Scheduled Trigger Sync Failed",
+        detail="Could not sync scheduled triggers because the scheduling service is unavailable",
+        code="SCHEDULED_TRIGGER_SYNC_FAILED",
+        retryable=True,
         instance=str(request.url),
     )
 

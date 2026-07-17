@@ -273,3 +273,14 @@ class ScheduledTriggerNotFoundError(ScheduledTriggerError):
         """Initialize exception with schedule ID."""
         self.schedule_id = schedule_id
         super().__init__(f"Scheduled trigger '{schedule_id}' not found")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.scheduled_trigger_sync_handler")
+class ScheduledTriggerSyncError(ScheduledTriggerError):
+    """Raised when Temporal is unavailable for scheduled trigger operations."""
+
+    def __init__(self, workflow_id: str, trigger_count: int) -> None:
+        """Initialize exception with workflow ID and trigger count."""
+        self.workflow_id = workflow_id
+        self.trigger_count = trigger_count
+        super().__init__(f"Scheduled trigger operation failed for workflow {workflow_id}: Temporal is unavailable")

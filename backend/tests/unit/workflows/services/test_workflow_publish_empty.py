@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from nexus.workflows.exceptions import WorkflowPublishValidationError
+from nexus.workflows.exceptions import ScheduledTriggerSyncError, WorkflowPublishValidationError
 from nexus.workflows.services.workflow_service import WorkflowService
 
 
@@ -84,7 +84,7 @@ class TestPublishEmptyWorkflow:
             patch("nexus.workflows.services.workflow_service.AuditEventDispatcher"),
             patch("nexus.workflows.services.workflow_service.WebhookTriggerService"),
         ):
-            workflow, _version = await mock_service.publish_workflow_version(workflow_id, version=1)
+            workflow, _version, _warning = await mock_service.publish_workflow_version(workflow_id, version=1)
 
         assert workflow == mock_workflow
 
@@ -122,7 +122,7 @@ class TestPublishEmptyWorkflow:
             patch("nexus.workflows.services.workflow_service.AuditEventDispatcher"),
             patch("nexus.workflows.services.workflow_service.WebhookTriggerService"),
         ):
-            workflow, version = await mock_service.publish_workflow_version(
+            workflow, version, _warning = await mock_service.publish_workflow_version(
                 workflow_id, version=1, name="Release v1.0", change_description="First release"
             )
 
@@ -184,7 +184,7 @@ class TestPublishEmptyWorkflow:
             patch("nexus.workflows.services.workflow_service.AuditEventDispatcher"),
             patch("nexus.workflows.services.workflow_service.WebhookTriggerService"),
         ):
-            workflow, published = await mock_service.publish_workflow_version(
+            workflow, published, _warning = await mock_service.publish_workflow_version(
                 workflow_id, version=1, workflow_definition=new_definition
             )
 
@@ -291,7 +291,7 @@ class TestUnpublishWorkflow:
             patch("nexus.workflows.services.workflow_service.AuditEventDispatcher"),
             patch("nexus.workflows.services.workflow_service.WebhookTriggerService"),
         ):
-            _, version = await mock_service.publish_workflow_version(workflow_id, version=1)
+            _, version, _warning = await mock_service.publish_workflow_version(workflow_id, version=1)
 
         assert version.name == "Original Name"
         assert version.change_description == "Original Desc"
@@ -553,3 +553,109 @@ class TestPublishImplicitUnpublishEvent:
         publish_events = [obj for obj in added_objects if isinstance(obj, WorkflowPublishEvent)]
         assert len(publish_events) == 1
         assert publish_events[0].action == PublishAction.PUBLISHED
+
+    @pytest.mark.asyncio
+    async def test_publish_returns_warning_when_scheduled_trigger_sync_fails(
+        self, mock_service: WorkflowService
+    ) -> None:
+        """Publish succeeds but returns a warning when Temporal is unavailable for scheduled triggers."""
+        workflow_id = uuid4()
+        mock_workflow = MagicMock()
+        mock_workflow.id = workflow_id
+        mock_workflow.is_builtin = False
+        mock_workflow.published_version_id = None
+        mock_workflow.current_version = 1
+        mock_workflow.name = "test-wf"
+        mock_workflow.project_id = uuid4()
+
+        mock_version = MagicMock()
+        mock_version.id = uuid4()
+        mock_version.version = 1
+        mock_version.workflow_definition = {
+            "schema_version": "2.0.0",
+            "name": "with-scheduled",
+            "triggers": [
+                {
+                    "id": "t1",
+                    "type": "scheduled_trigger",
+                    "parameters": {"schedule_type": "cron", "cron": "0 * * * *"},
+                },
+            ],
+            "nodes": [{"id": "n1", "type": "script", "parameters": {"language": "python", "code": "pass"}}],
+            "edges": [{"from": "t1", "to": "n1"}],
+        }
+
+        with (
+            patch.object(mock_service, "_get_workflow_for_update", return_value=mock_workflow),
+            patch.object(mock_service, "_get_version_or_none", return_value=mock_version),
+            patch.object(mock_service, "_flush_with_duplicate_check", new_callable=AsyncMock),
+            patch.object(mock_service, "_sync_all_trigger_types", new_callable=AsyncMock),
+            patch.object(
+                mock_service,
+                "_sync_scheduled_triggers",
+                new_callable=AsyncMock,
+                side_effect=ScheduledTriggerSyncError(str(workflow_id), 1),
+            ),
+            patch.object(mock_service.session, "commit", new_callable=AsyncMock),
+            patch("nexus.workflows.services.workflow_service.AuditEventDispatcher"),
+            patch("nexus.workflows.services.workflow_service.WebhookTriggerService"),
+        ):
+            workflow, _version, warning = await mock_service.publish_workflow_version(workflow_id, version=1)
+
+        assert workflow == mock_workflow
+        assert warning == (
+            "Scheduled triggers could not be activated because the scheduling service is "
+            "temporarily unavailable. Re-publish the workflow to retry."
+        )
+
+
+class TestScheduledTriggerSyncGracefulDegradation:
+    """Unpublish and delete succeed even when scheduled trigger cleanup fails."""
+
+    @pytest.mark.asyncio
+    async def test_unpublish_succeeds_when_trigger_delete_fails(self, mock_service: WorkflowService) -> None:
+        workflow_id = uuid4()
+        mock_workflow = MagicMock()
+        mock_workflow.id = workflow_id
+        mock_workflow.is_builtin = False
+        mock_workflow.published_version_id = uuid4()
+        mock_workflow.name = "test-wf"
+        mock_workflow.project_id = uuid4()
+
+        with (
+            patch.object(mock_service, "_get_workflow_for_update", return_value=mock_workflow),
+            patch.object(mock_service.session, "get", new_callable=AsyncMock, return_value=MagicMock()),
+            patch.object(mock_service.session, "commit", new_callable=AsyncMock),
+            patch("nexus.workflows.services.workflow_service.AuditEventDispatcher"),
+            patch("nexus.workflows.services.workflow_service.WebhookTriggerService") as mock_wh_cls,
+            patch("nexus.workflows.services.workflow_service.ScheduledTriggerService") as mock_sched_cls,
+        ):
+            mock_wh_cls.return_value.sync_webhook_triggers = AsyncMock()
+            mock_sched_cls.return_value.delete_triggers_for_workflow = AsyncMock(
+                side_effect=ScheduledTriggerSyncError(str(workflow_id), 0)
+            )
+            result = await mock_service.unpublish_workflow(workflow_id)
+
+        assert result == mock_workflow
+
+    @pytest.mark.asyncio
+    async def test_delete_succeeds_when_trigger_delete_fails(self, mock_service: WorkflowService) -> None:
+        workflow_id = uuid4()
+        mock_workflow = MagicMock()
+        mock_workflow.id = workflow_id
+        mock_workflow.is_builtin = False
+        mock_workflow.name = "test-wf"
+        mock_workflow.project_id = uuid4()
+
+        with (
+            patch.object(mock_service, "get_workflow_by_id", new_callable=AsyncMock, return_value=mock_workflow),
+            patch.object(mock_service.session, "commit", new_callable=AsyncMock),
+            patch("nexus.workflows.services.workflow_service.AuditEventDispatcher"),
+            patch("nexus.workflows.services.workflow_service.WebhookTriggerService") as mock_wh_cls,
+            patch("nexus.workflows.services.workflow_service.ScheduledTriggerService") as mock_sched_cls,
+        ):
+            mock_wh_cls.return_value.delete_triggers_for_workflow = AsyncMock()
+            mock_sched_cls.return_value.delete_triggers_for_workflow = AsyncMock(
+                side_effect=ScheduledTriggerSyncError(str(workflow_id), 0)
+            )
+            await mock_service.delete_workflow(workflow_id)

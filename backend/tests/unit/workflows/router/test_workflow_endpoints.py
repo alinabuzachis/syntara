@@ -221,7 +221,7 @@ class TestWorkflowEndpoints:
         mock_workflow = MagicMock()
         mock_version = MagicMock()
         mock_version.id = uuid4()
-        mock_service.publish_workflow_version.return_value = (mock_workflow, mock_version)
+        mock_service.publish_workflow_version.return_value = (mock_workflow, mock_version, "")
         mock_response = MagicMock()
         workflow_id = uuid4()
         request = PublishVersionRequest()
@@ -246,7 +246,7 @@ class TestWorkflowEndpoints:
             workflow_definition=None,
             expected_version=None,
         )
-        mock_build.assert_awaited_once_with(mock_workflow, mock_version, mock_service)
+        mock_build.assert_awaited_once_with(mock_workflow, mock_version, mock_service, warning="")
         assert result is mock_response
 
     @pytest.mark.asyncio

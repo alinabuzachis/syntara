@@ -12,6 +12,7 @@ const mockPublishMutate = vi.fn()
 const mockUnpublishMutate = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
+const mockShowAlert = vi.fn()
 const mockMarkClean = vi.fn()
 const mockBuildWorkflowDefinition = vi.fn()
 
@@ -55,6 +56,7 @@ vi.mock('../../../providers/alerts', () => ({
   useAlerts: () => ({
     showSuccess: mockShowSuccess,
     showError: mockShowError,
+    showAlert: mockShowAlert,
   }),
 }))
 
@@ -135,9 +137,11 @@ describe('usePublishWorkflow', () => {
   })
 
   it('shows success alert and invalidates queries on publish success', () => {
-    mockPublishMutate.mockImplementation((_params: unknown, callbacks?: { onSuccess?: () => void }) => {
-      callbacks?.onSuccess?.()
-    })
+    mockPublishMutate.mockImplementation(
+      (_params: unknown, callbacks?: { onSuccess?: (data: { warning?: string | null }) => void }) => {
+        callbacks?.onSuccess?.({ warning: null })
+      }
+    )
 
     // Pre-populate the query cache with a workflows query so invalidation has something to match
     queryClient.setQueryData(['get', '/workflows'], { resources: [] })
@@ -151,6 +155,52 @@ describe('usePublishWorkflow', () => {
     })
 
     expect(mockShowSuccess).toHaveBeenCalledWith({ title: 'Workflow published successfully' })
+    expect(mockShowAlert).not.toHaveBeenCalled()
+  })
+
+  it('shows persistent warning alert when publish returns a warning', () => {
+    const warningMessage =
+      'Scheduled triggers could not be activated because the scheduling service is temporarily unavailable.'
+    mockPublishMutate.mockImplementation(
+      (_params: unknown, callbacks?: { onSuccess?: (data: { warning: string }) => void }) => {
+        callbacks?.onSuccess?.({ warning: warningMessage })
+      }
+    )
+
+    const { result } = renderHook(() => usePublishWorkflow('wf-123', 3), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.publish('v1.0')
+    })
+
+    expect(mockShowAlert).toHaveBeenCalledWith({
+      variant: 'warning',
+      title: 'Workflow published with warnings',
+      description: warningMessage,
+      autoDismiss: false,
+    })
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+  })
+
+  it('falls back to success toast when warning field is absent from response', () => {
+    mockPublishMutate.mockImplementation(
+      (_params: unknown, callbacks?: { onSuccess?: (data: Record<string, unknown>) => void }) => {
+        callbacks?.onSuccess?.({})
+      }
+    )
+
+    const { result } = renderHook(() => usePublishWorkflow('wf-123', 3), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.publish('v1.0')
+    })
+
+    expect(mockShowSuccess).toHaveBeenCalledWith({ title: 'Workflow published successfully' })
+    expect(mockShowAlert).not.toHaveBeenCalled()
   })
 
   it('shows error alert on publish failure', () => {
@@ -176,8 +226,11 @@ describe('usePublishWorkflow', () => {
   it('calls onSettled callback after publish completes', () => {
     const onSettled = vi.fn()
     mockPublishMutate.mockImplementation(
-      (_params: unknown, callbacks?: { onSuccess?: () => void; onSettled?: () => void }) => {
-        callbacks?.onSuccess?.()
+      (
+        _params: unknown,
+        callbacks?: { onSuccess?: (data: { warning?: string | null }) => void; onSettled?: () => void }
+      ) => {
+        callbacks?.onSuccess?.({ warning: null })
         callbacks?.onSettled?.()
       }
     )
@@ -255,9 +308,11 @@ describe('usePublishWorkflow', () => {
       markClean: mockMarkClean,
     } as unknown as ReturnType<typeof useWorkflowStore.getState>)
 
-    mockPublishMutate.mockImplementation((_params: unknown, callbacks?: { onSuccess?: () => void }) => {
-      callbacks?.onSuccess?.()
-    })
+    mockPublishMutate.mockImplementation(
+      (_params: unknown, callbacks?: { onSuccess?: (data: { warning?: string | null }) => void }) => {
+        callbacks?.onSuccess?.({ warning: null })
+      }
+    )
 
     const { result } = renderHook(() => usePublishWorkflow('wf-123', 3), {
       wrapper: makeWrapper(queryClient),

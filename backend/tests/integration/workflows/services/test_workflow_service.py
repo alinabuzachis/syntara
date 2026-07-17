@@ -1434,7 +1434,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         mock_wh_svc = MagicMock()
         mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
-            result_workflow, result_version = await service.publish_workflow_version(
+            result_workflow, result_version, _warning = await service.publish_workflow_version(
                 workflow_id=workflow.id,
                 version=1,
                 name="v1.0",
@@ -1473,7 +1473,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         mock_wh_svc = MagicMock()
         mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
-            _, _published_v1 = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            _, _published_v1, _warning = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
 
         first_published_id = workflow.published_version_id
 
@@ -1488,7 +1488,9 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         mock_wh_svc2 = MagicMock()
         mock_wh_svc2.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc2):
-            _, published_v2 = await service.publish_workflow_version(workflow_id=workflow.id, version=v2.version)
+            _, published_v2, _warning = await service.publish_workflow_version(
+                workflow_id=workflow.id, version=v2.version
+            )
 
         await test_db_session.refresh(workflow)
         # published_version_id should now point to the newly published version
@@ -1515,8 +1517,10 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         mock_wh_svc = MagicMock()
         mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
-            _, _first_result = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
-            result_workflow, result_version = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            _, _first_result, _warning = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            result_workflow, result_version, _warning = await service.publish_workflow_version(
+                workflow_id=workflow.id, version=1
+            )
 
         assert result_workflow.published_version_id == result_version.id
 
@@ -1654,7 +1658,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         mock_wh_svc = MagicMock()
         mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
-            _, published_v2 = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            _, published_v2, _warning = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
 
         assert workflow.published_version_id == published_v2.id
 
@@ -2275,7 +2279,7 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
         await test_db_session.flush()
 
         service = WorkflowService(test_db_session, test_user)
-        published, result_version = await service.publish_workflow_version(workflow.id, version=1)
+        published, result_version, _warning = await service.publish_workflow_version(workflow.id, version=1)
         assert published.published_version_id == result_version.id
         assert published.is_enabled is True
 
@@ -2451,7 +2455,7 @@ class TestWorkflowVersionConflictDetection(TestWorkflowServiceBase):
             patch("nexus.workflows.services.workflow_service.ScheduledTriggerService") as mock_sched,
         ):
             mock_sched.return_value.sync_scheduled_triggers = AsyncMock()
-            result_workflow, _result_version = await service.publish_workflow_version(
+            result_workflow, _result_version, _warning = await service.publish_workflow_version(
                 workflow.id,
                 version=3,
             )

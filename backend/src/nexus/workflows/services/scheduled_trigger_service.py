@@ -26,7 +26,7 @@ from temporalio.service import RPCError, RPCStatusCode
 
 from nexus.core.config.base import get_settings
 from nexus.core.tls.temporal import build_temporal_tls_config
-from nexus.workflows.exceptions import TriggerValidationError
+from nexus.workflows.exceptions import ScheduledTriggerSyncError, TriggerValidationError
 from nexus.workflows.utils.schedule_parser import (
     build_schedule_id,
     config_to_temporal_schedule,
@@ -144,14 +144,6 @@ class ScheduledTriggerService:
             TriggerValidationError: If a scheduled trigger config is invalid.
 
         """
-        client = await self._get_client()
-        if client is None:
-            logger.warning(
-                "Skipping schedule sync: Temporal unavailable",
-                workflow_id=workflow_id,
-            )
-            return 0
-
         # Extract scheduled trigger nodes from definition
         triggers = workflow_definition.get("triggers", [])
         scheduled_nodes: dict[str, dict[str, Any]] = {}
@@ -166,34 +158,43 @@ class ScheduledTriggerService:
                     continue
                 scheduled_nodes[node_id] = trigger.get("parameters", {})
 
+        client = await self._get_client()
+        if client is None:
+            if scheduled_nodes:
+                raise ScheduledTriggerSyncError(workflow_id, len(scheduled_nodes))
+            return 0
+
         settings = get_settings()
         task_queue = settings.task_queue
         processed = 0
 
-        # Create or update schedules for current trigger nodes
-        for node_id, config in scheduled_nodes.items():
-            # Validate config
-            try:
-                ScheduledTriggerConfig.model_validate(config)
-            except ValidationError as e:
-                msg = f"Invalid scheduled trigger config for node '{node_id}': {e}"
-                raise TriggerValidationError(msg) from e
+        try:
+            # Create or update schedules for current trigger nodes
+            for node_id, config in scheduled_nodes.items():
+                # Validate config
+                try:
+                    ScheduledTriggerConfig.model_validate(config)
+                except ValidationError as e:
+                    msg = f"Invalid scheduled trigger config for node '{node_id}': {e}"
+                    raise TriggerValidationError(msg) from e
 
-            schedule_id = build_schedule_id(workflow_id, node_id)
-            await self._create_or_update_schedule(client, schedule_id, workflow_id, node_id, config, task_queue)
-            processed += 1
+                schedule_id = build_schedule_id(workflow_id, node_id)
+                await self._create_or_update_schedule(client, schedule_id, workflow_id, node_id, config, task_queue)
+                processed += 1
 
-        # Delete schedules for trigger nodes removed from the definition
-        expected_ids = {build_schedule_id(workflow_id, nid) for nid in scheduled_nodes}
-        existing_ids = await self._list_workflow_schedules(client, workflow_id)
-        stale_ids = existing_ids - expected_ids
-        for stale_id in stale_ids:
-            await self._delete_schedule(client, stale_id)
-            logger.info(
-                "Deleted stale Temporal Schedule for removed trigger node",
-                schedule_id=stale_id,
-                workflow_id=workflow_id,
-            )
+            # Delete schedules for trigger nodes removed from the definition
+            expected_ids = {build_schedule_id(workflow_id, nid) for nid in scheduled_nodes}
+            existing_ids = await self._list_workflow_schedules(client, workflow_id)
+            stale_ids = existing_ids - expected_ids
+            for stale_id in stale_ids:
+                await self._delete_schedule(client, stale_id)
+                logger.info(
+                    "Deleted stale Temporal Schedule for removed trigger node",
+                    schedule_id=stale_id,
+                    workflow_id=workflow_id,
+                )
+        except (OSError, RuntimeError, RPCError) as exc:
+            raise ScheduledTriggerSyncError(workflow_id, len(scheduled_nodes)) from exc
 
         logger.info(
             "Synced scheduled triggers",
@@ -228,12 +229,15 @@ class ScheduledTriggerService:
             )
             return 0
 
-        all_schedule_ids = await self._list_workflow_schedules(client, workflow_id)
-        deleted = 0
+        try:
+            all_schedule_ids = await self._list_workflow_schedules(client, workflow_id)
+            deleted = 0
 
-        for schedule_id in all_schedule_ids:
-            if await self._delete_schedule(client, schedule_id):
-                deleted += 1
+            for schedule_id in all_schedule_ids:
+                if await self._delete_schedule(client, schedule_id):
+                    deleted += 1
+        except (OSError, RuntimeError, RPCError) as exc:
+            raise ScheduledTriggerSyncError(workflow_id, 0) from exc
 
         if deleted:
             logger.info(

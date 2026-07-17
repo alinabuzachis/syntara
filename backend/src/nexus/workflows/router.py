@@ -4,7 +4,7 @@ import json
 import re
 from collections.abc import Callable, Coroutine
 from io import BytesIO
-from typing import Annotated, Any
+from typing import Annotated, Any, overload
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, Request, status
@@ -27,6 +27,7 @@ from nexus.workflows.executions_router import get_temporal_execution_service
 from nexus.workflows.models import (
     DetailedValidationProblemDetail,
     PublishVersionRequest,
+    PublishWorkflowVersionResponse,
     ValidationCategory,
     ValidationFinding,
     ValidationIssue,
@@ -139,16 +140,39 @@ async def _populate_published_version_number(
         workflow_read.published_version_number = result.one_or_none()
 
 
+@overload
 async def _build_workflow_with_version_response(
     workflow: Workflow,
     version: WorkflowVersion,
     service: WorkflowService,
-) -> WorkflowReadWithVersion:
+) -> WorkflowReadWithVersion: ...
+
+
+@overload
+async def _build_workflow_with_version_response(
+    workflow: Workflow,
+    version: WorkflowVersion,
+    service: WorkflowService,
+    *,
+    warning: str,
+) -> PublishWorkflowVersionResponse: ...
+
+
+async def _build_workflow_with_version_response(
+    workflow: Workflow,
+    version: WorkflowVersion,
+    service: WorkflowService,
+    *,
+    warning: str | None = None,
+) -> WorkflowReadWithVersion | PublishWorkflowVersionResponse:
     workflow_read = WorkflowRead.model_validate(workflow, from_attributes=True)
     await _populate_published_version_number(workflow_read, workflow, version, service.session)
     ever_published, pub_ts = await service.get_publish_context([version.id])
     base = workflow_read.model_dump()
     base["version"] = deserialize_workflow_version(version, workflow.published_version_id, ever_published, pub_ts)
+    if warning is not None:
+        base["warning"] = warning
+        return PublishWorkflowVersionResponse.model_validate(base)
     return WorkflowReadWithVersion.model_validate(base)
 
 
@@ -469,6 +493,7 @@ async def get_workflow_version(
 
 @router.post(
     "/{workflow_id}/versions/{version}/publish",
+    response_model=PublishWorkflowVersionResponse,
     dependencies=[Depends(_wf_perm_update)],
     operation_id="publish_workflow_version",
     response_description="Published workflow version",
@@ -478,9 +503,9 @@ async def publish_workflow_version(
     version: int,
     request: PublishVersionRequest,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
-) -> WorkflowReadWithVersion:
+) -> PublishWorkflowVersionResponse:
     """Publish a specific workflow version."""
-    workflow, published_version = await service.publish_workflow_version(
+    workflow, published_version, warning = await service.publish_workflow_version(
         workflow_id=workflow_id,
         version=version,
         name=request.name,
@@ -490,7 +515,7 @@ async def publish_workflow_version(
         else None,
         expected_version=request.expected_version,
     )
-    return await _build_workflow_with_version_response(workflow, published_version, service)
+    return await _build_workflow_with_version_response(workflow, published_version, service, warning=warning)
 
 
 @router.post(

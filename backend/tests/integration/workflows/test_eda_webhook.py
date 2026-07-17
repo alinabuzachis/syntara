@@ -94,7 +94,7 @@ async def eda_workflow(test_db_session: AsyncSession, test_user: User, test_proj
         workflow_definition=workflow_definition,
         project_id=test_project_id,
     )
-    workflow, _version = await service.publish_workflow_version(workflow.id, version=1)
+    workflow, _version, _warning = await service.publish_workflow_version(workflow.id, version=1)
 
     return workflow
 
@@ -141,7 +141,7 @@ async def eda_workflow_with_schema(test_db_session: AsyncSession, test_user: Use
         workflow_definition=workflow_definition,
         project_id=test_project_id,
     )
-    workflow, _version = await service.publish_workflow_version(workflow.id, version=1)
+    workflow, _version, _warning = await service.publish_workflow_version(workflow.id, version=1)
 
     return workflow
 
@@ -430,7 +430,7 @@ class TestCrossTypePathIsolation:
             },
             project_id=test_project_id,
         )
-        wf_a, _v_a = await service.publish_workflow_version(wf_a.id, version=1)
+        wf_a, _v_a, _warning = await service.publish_workflow_version(wf_a.id, version=1)
 
         # -- EDA webhook workflow (B) --
         wf_b, _v_b = await service.create_workflow(
@@ -450,7 +450,7 @@ class TestCrossTypePathIsolation:
             },
             project_id=test_project_id,
         )
-        wf_b, _v_b = await service.publish_workflow_version(wf_b.id, version=1)
+        wf_b, _v_b, _warning = await service.publish_workflow_version(wf_b.id, version=1)
 
         return wf_a, wf_b
 
@@ -535,7 +535,7 @@ class TestCrossTypePathIsolation:
             },
             project_id=test_project_id,
         )
-        wf_generic, _ = await service.publish_workflow_version(wf_generic.id, version=1)
+        wf_generic, _, _warning = await service.publish_workflow_version(wf_generic.id, version=1)
 
         # Create EDA webhook workflow with path "my-trigger"
         wf_eda, _ = await service.create_workflow(
@@ -555,7 +555,7 @@ class TestCrossTypePathIsolation:
             },
             project_id=test_project_id,
         )
-        wf_eda, _ = await service.publish_workflow_version(wf_eda.id, version=1)
+        wf_eda, _, _warning = await service.publish_workflow_version(wf_eda.id, version=1)
 
         with patch("nexus.workflows.webhook_router.ExecutionService") as mock_cls:
             mock_svc = AsyncMock()

@@ -55,6 +55,7 @@ from .visualization import (
 )
 from .webhook_trigger import WebhookTrigger, WebhookTriggerRead
 from .workflow import (
+    PublishWorkflowVersionResponse,
     Workflow,
     WorkflowCreate,
     WorkflowListResponse,
@@ -99,6 +100,7 @@ __all__ = [
     "JsonPatchOperation",
     "PublishAction",
     "PublishVersionRequest",
+    "PublishWorkflowVersionResponse",
     "SignalResponse",
     "ValidationCategory",
     "ValidationFinding",

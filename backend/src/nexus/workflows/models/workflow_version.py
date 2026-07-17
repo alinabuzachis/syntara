@@ -197,6 +197,7 @@ class PublishVersionRequest(SQLModel):
 # Rebuild models to resolve forward references
 # This is needed because WorkflowReadWithVersion references WorkflowVersionRead
 # which is defined in this module, creating a circular dependency.
-from nexus.workflows.models.workflow import WorkflowReadWithVersion  # noqa: E402
+from nexus.workflows.models.workflow import PublishWorkflowVersionResponse, WorkflowReadWithVersion  # noqa: E402
 
 WorkflowReadWithVersion.model_rebuild()
+PublishWorkflowVersionResponse.model_rebuild()

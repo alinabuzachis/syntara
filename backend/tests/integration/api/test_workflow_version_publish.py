@@ -66,6 +66,7 @@ async def test_publish_version_returns_200(jwt_client: AsyncClient, test_project
     assert data["is_enabled"] is True
     assert data["published_version_id"] is not None
     assert data["version"]["status"] == "published"
+    assert data["warning"] == ""
 
 
 @pytest.mark.asyncio

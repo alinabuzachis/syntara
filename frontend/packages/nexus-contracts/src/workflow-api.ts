@@ -445,6 +445,84 @@ export interface components {
       version: components['schemas']['WorkflowVersionRead']
     }
     /**
+     * PublishWorkflowVersionResponse
+     * @description Publish endpoint response — extends WorkflowReadWithVersion with a warning field.
+     */
+    PublishWorkflowVersionResponse: {
+      /**
+       * Name
+       * @description Workflow name
+       */
+      name: string
+      /**
+       * Description
+       * @description Workflow description
+       */
+      description?: string | null
+      /**
+       * Labels
+       * @description Workflow labels
+       */
+      labels?: {
+        [key: string]: unknown
+      }
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Current Version */
+      current_version: number
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
+      /** Is Enabled */
+      is_enabled: boolean
+      /**
+       * Has Validation Issues
+       * @default false
+       */
+      has_validation_issues?: boolean
+      /**
+       * Created By
+       * Format: uuid
+       */
+      created_by: string
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
+      /** Published Version Id */
+      published_version_id?: string | null
+      /** Published Version Number */
+      published_version_number?: number | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /** Deleted At */
+      deleted_at?: string | null
+      /** Deleted By */
+      deleted_by?: string | null
+      /** @description Current active version details */
+      version: components['schemas']['WorkflowVersionRead']
+      /**
+       * Warning
+       * @description Non-fatal warning from the publish operation
+       * @default
+       */
+      warning?: string
+    }
+    /**
      * WorkflowVersionRead
      * @description Schema for workflow version response (GET /workflows/{id}/versions/{version}).
      *     WorkflowVersion entities are read-only and managed automatically by the system.
@@ -2878,7 +2956,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['WorkflowReadWithVersion']
+          'application/json': components['schemas']['PublishWorkflowVersionResponse']
         }
       }
       400: components['responses']['BadRequestError']

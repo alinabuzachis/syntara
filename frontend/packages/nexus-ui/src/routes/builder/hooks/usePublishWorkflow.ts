@@ -46,7 +46,7 @@ export function usePublishWorkflow(
   options?: UsePublishWorkflowOptions
 ) {
   const queryClient = useQueryClient()
-  const { showSuccess, showError } = useAlerts()
+  const { showSuccess, showError, showAlert } = useAlerts()
 
   const { mutate: publishMutation, isPending: isPublishing } = workflowClient.useMutation(
     'post',
@@ -77,7 +77,16 @@ export function usePublishWorkflow(
         },
         {
           onSuccess: (data) => {
-            showSuccess({ title: 'Workflow published successfully' })
+            if (data.warning) {
+              showAlert({
+                variant: 'warning',
+                title: 'Workflow published with warnings',
+                description: data.warning,
+                autoDismiss: false,
+              })
+            } else {
+              showSuccess({ title: 'Workflow published successfully' })
+            }
             if (workflowDefinition) useWorkflowStore.getState().markClean()
             if (data?.current_version != null) {
               options?.onVersionUpdated?.(data.current_version)
@@ -105,6 +114,7 @@ export function usePublishWorkflow(
       queryClient,
       showSuccess,
       showError,
+      showAlert,
     ]
   )
 

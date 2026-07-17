@@ -102,7 +102,7 @@ class _PublishEventsTestBase:
             )
 
         with patch(_PATCH_WEBHOOK_SVC, _mock_webhook_service()):
-            result_workflow, result_version = await service.publish_workflow_version(
+            result_workflow, result_version, _warning = await service.publish_workflow_version(
                 workflow_id=workflow.id,
                 version=version,
             )
@@ -158,7 +158,7 @@ class TestPublishEventsCreation(_PublishEventsTestBase):
 
         # Publish v2
         with patch(_PATCH_WEBHOOK_SVC, _mock_webhook_service()):
-            _, v2_published = await service.publish_workflow_version(
+            _, v2_published, _warning = await service.publish_workflow_version(
                 workflow_id=workflow.id,
                 version=v2.version,
             )
