@@ -42,6 +42,7 @@ export default function BuilderEdit() {
     {
       enabled: !!workflowId,
       refetchOnMount: 'always',
+      refetchOnWindowFocus: false,
     }
   )
 
