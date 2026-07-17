@@ -1,7 +1,9 @@
 import type { CredentialsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants } from '@patternfly/react-core'
 
+import { NxLink } from '../../../components/NxLink'
 import { formatDateTime } from '../../../utils/dateUtils'
+import { getUserDetailPath } from '../../access-management/accessManagementPaths'
 
 import styles from './UserTimestamp.module.css'
 
@@ -22,8 +24,15 @@ function resolveDisplayName(user: UserReference | string | null | undefined): st
   return user.name
 }
 
+function resolveUserId(user: UserReference | string | null | undefined): string | undefined {
+  if (!user || typeof user === 'string') return undefined
+  return user.id
+}
+
 /**
- * Displays a username (brand-colored) with a formatted timestamp.
+ * Displays a username with a formatted timestamp.
+ * When the user is a UserReference (has an id), the username renders as a link
+ * to the user detail page. Plain strings render as brand-colored text.
  * In inline mode (tables): "username · date" on one line.
  * In stacked mode (detail views): username above date on separate lines.
  */
@@ -34,6 +43,7 @@ export function UserTimestamp({
   inline = false,
 }: Readonly<UserTimestampProps>) {
   const displayName = resolveDisplayName(user)
+  const userId = resolveUserId(user)
   const formattedDate = formatDateTime(timestamp)
 
   if (inline) {
@@ -41,9 +51,11 @@ export function UserTimestamp({
       <Content component={ContentVariants.p} className={styles.inlineWrapper}>
         {displayName && (
           <>
-            <Content component={ContentVariants.a} className={styles.inlineUser}>
-              {displayName}
-            </Content>
+            {userId ? (
+              <NxLink to={getUserDetailPath(userId)}>{displayName}</NxLink>
+            ) : (
+              <span className={styles.inlineUser}>{displayName}</span>
+            )}
             {' · '}
           </>
         )}
@@ -59,11 +71,14 @@ export function UserTimestamp({
 
   return (
     <>
-      {displayName && (
-        <Content component={ContentVariants.p} className={styles.user}>
-          {displayName}
-        </Content>
-      )}
+      {displayName &&
+        (userId ? (
+          <NxLink to={getUserDetailPath(userId)}>{displayName}</NxLink>
+        ) : (
+          <Content component={ContentVariants.p} className={styles.user}>
+            {displayName}
+          </Content>
+        ))}
       <Content
         component={ContentVariants.small}
         className={subtleTimestamp ? styles.timestamp : styles.timestampDefault}
