@@ -665,6 +665,7 @@ export interface MockServiceAccountCredential {
   grace_period_seconds: number
   expires_at: string | null
   last_used_at: string | null
+  old_secret_valid_until?: string | null
   created_by: string
   updated_by: string | null
   created_at: string
@@ -681,6 +682,7 @@ export const mockServiceAccountCredentials: MockServiceAccountCredential[] = [
     grace_period_seconds: 3600,
     expires_at: null,
     last_used_at: mockDate.hoursAgo2,
+    old_secret_valid_until: mockDate.hoursFromNow2,
     created_by: 'u-001',
     updated_by: null,
     created_at: '2024-03-01T10:00:00.000Z',

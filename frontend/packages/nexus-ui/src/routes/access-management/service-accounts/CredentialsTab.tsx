@@ -23,6 +23,7 @@ import { accessClient } from '../../access/accessClient'
 
 import { RotateDialogBody } from './RotateDialogBody'
 import { DEFAULT_GRACE_PERIOD, GRACE_PERIOD_OPTIONS } from './rotateDialogUtils'
+import { RotationGraceIndicator } from './RotationGraceIndicator'
 import { SecretRevealModal } from './SecretRevealModal'
 import type { SACredentialRead } from './serviceAccountTypes'
 import { useServiceAccountPermissions } from './useServiceAccountPermissions'
@@ -235,6 +236,7 @@ function CredentialsTable({
           <Th sort={getSortParams(2)}>Last used</Th>
           <Th sort={getSortParams(3)}>Expires</Th>
           <Th sort={getSortParams(4)}>State</Th>
+          <Th screenReaderText="Rotation status" />
           <Th screenReaderText="Actions" />
         </Tr>
       </Thead>
@@ -258,6 +260,9 @@ function CredentialsTable({
                 aria-label={`Toggle credential ${cred.identifier} state`}
                 aria-disabled={!permissions.canUpdate || undefined}
               />
+            </Td>
+            <Td dataLabel="Rotation status">
+              <RotationGraceIndicator oldSecretValidUntil={cred.old_secret_valid_until} />
             </Td>
             <Td isActionCell>
               <NxKebabMenu

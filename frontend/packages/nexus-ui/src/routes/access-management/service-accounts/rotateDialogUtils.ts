@@ -18,6 +18,7 @@ export const DEFAULT_GRACE_PERIOD = 3600
 export function computeRemainingGracePeriod(oldSecretValidUntil: string): {
   remainingLabel: string
   expiryFormatted: string
+  expiryShort: string
 } | null {
   const expiry = parseISO(oldSecretValidUntil)
   if (Number.isNaN(expiry.getTime())) return null
@@ -48,7 +49,16 @@ export function computeRemainingGracePeriod(oldSecretValidUntil: string): {
     timeZoneName: 'short',
   })
 
-  return { remainingLabel, expiryFormatted }
+  const expiryShort = expiry.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  })
+
+  return { remainingLabel, expiryFormatted, expiryShort }
 }
 
 export function formatGracePeriodDuration(seconds: number): string {
