@@ -1,7 +1,9 @@
 import type { ThProps } from '@patternfly/react-table'
 import { useState, useCallback, useMemo } from 'react'
 
-export type SortDirection = 'asc' | 'desc'
+import type { SortDirection } from '../types/sorting'
+
+export type { SortDirection }
 
 export type UseTableSortOptions = {
   initialSortIndex?: number
