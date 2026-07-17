@@ -127,7 +127,7 @@ class LLMRelevancyChecker(RelevancyChecker):
 
             # Get OpenRouter LLM instance
             try:
-                llm = get_openrouter_llm(model=model, temperature=temperature, api_key=api_key, base_url=base_url)
+                llm = await get_openrouter_llm(model=model, temperature=temperature, api_key=api_key, base_url=base_url)
             except Exception as e:
                 logger.exception("Failed to get OpenRouter LLM instance")
                 error_msg = f"LLM initialization failed: {e!s}"

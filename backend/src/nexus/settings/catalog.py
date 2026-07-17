@@ -653,6 +653,20 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         helper_text="OpenRouter model ID. Requires restart.",
         requires_restart=True,
     ),
+    SettingDefinition(
+        key="agentic.max_completion_tokens",
+        name="Agentic max completion tokens",
+        category=SettingCategory.AI_LLM,
+        value_type=SettingValueType.INTEGER,
+        default_value=0,
+        description=(
+            "Optional cap on the number of tokens the LLM may generate in a "
+            "single agentic response. Set to 0 (the default) to use the "
+            "provider's model-specific default (recommended). Set a positive "
+            "value to enforce a hard output-length limit."
+        ),
+        helper_text="0 = no limit (provider default).",
+    ),
     # Workflow Execution — Timeouts
     SettingDefinition(
         key="workflow_engine.max_loop_iterations",

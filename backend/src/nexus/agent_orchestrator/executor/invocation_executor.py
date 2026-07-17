@@ -602,7 +602,7 @@ class InvocationExecutor:
                     invocation_id=invocation.id,
                 )
 
-            llm = get_openrouter_llm(
+            llm = await get_openrouter_llm(
                 api_key=credential_api_key,
                 base_url=integration_base_url,
                 model=resolved_model,

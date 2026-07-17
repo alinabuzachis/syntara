@@ -55,19 +55,6 @@ class OpenRouterSettings(BaseSettings):
         description="OpenRouter API base URL",
     )
 
-    openrouter_temperature: float = Field(
-        default=0.7,
-        description="LLM temperature (0.0-1.0) for response randomness",
-        ge=0.0,
-        le=1.0,
-    )
-
-    openrouter_max_tokens: int = Field(
-        default=1000,
-        description="Maximum tokens in LLM response",
-        ge=1,
-    )
-
 
 # =============================================================================
 # File Upload Configuration

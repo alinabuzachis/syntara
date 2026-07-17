@@ -393,6 +393,16 @@ export const settings: RuntimeSetting[] = [
     default_value: 'anthropic/claude-3.5-sonnet',
     requires_restart: true,
   }),
+  makeSetting({
+    key: 'agentic.max_completion_tokens',
+    name: 'Agentic max completion tokens',
+    description:
+      "Optional cap on the number of tokens the LLM may generate in a single agentic response. Set to 0 (the default) to use the provider's model-specific default (recommended). Set a positive value to enforce a hard output-length limit.",
+    helper_text: '0 = no limit (provider default).',
+    category: 'ai_llm',
+    value_type: 'integer',
+    default_value: 0,
+  }),
 
   // ── Workflow Execution ─────────────────────────────────────────────────
   makeSetting({

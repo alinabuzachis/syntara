@@ -498,47 +498,6 @@ class TestWorkflowEngineSettings:
 
 
 # =============================================================================
-# OpenRouterSettings Extended Tests
-# =============================================================================
-
-
-class TestOpenRouterSettingsExtended:
-    """Tests for OpenRouterSettings temperature and max_tokens."""
-
-    def test_openrouter_extended_defaults(self) -> None:
-        """Test default OpenRouter temperature and max_tokens values."""
-        settings = Settings()
-        assert settings.openrouter_temperature == pytest.approx(0.7)
-        assert settings.openrouter_max_tokens == 1000
-
-    def test_openrouter_extended_settings_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test OpenRouter extended settings can be configured via environment."""
-        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "0.5")
-        monkeypatch.setenv("APP_OPENROUTER_MAX_TOKENS", "2000")
-        settings = Settings()
-        assert settings.openrouter_temperature == pytest.approx(0.5)
-        assert settings.openrouter_max_tokens == 2000
-
-    def test_openrouter_temperature_validation_too_low(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that OpenRouter temperature is validated between 0.0 and 1.0."""
-        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "-0.1")
-        with pytest.raises(ValueError, match="greater than or equal to 0"):
-            Settings()
-
-    def test_openrouter_temperature_validation_too_high(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that OpenRouter temperature is validated between 0.0 and 1.0."""
-        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "1.5")
-        with pytest.raises(ValueError, match="less than or equal to 1"):
-            Settings()
-
-    def test_openrouter_max_tokens_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that OpenRouter max_tokens must be at least 1."""
-        monkeypatch.setenv("APP_OPENROUTER_MAX_TOKENS", "0")
-        with pytest.raises(ValueError, match="greater than or equal to 1"):
-            Settings()
-
-
-# =============================================================================
 # RetrieverServiceSettings Tests
 # =============================================================================
 
