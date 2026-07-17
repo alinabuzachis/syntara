@@ -110,7 +110,7 @@ def _cred_delete(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Respo
 
 
 def _exec_run(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
-    return api.executions.create(body=ExecutionCreate(workflow_id=ctx["workflow_id"]))
+    return api.executions.create(body=ExecutionCreate(workflow_id=ctx["workflow_id"], trigger_node_id="trigger"))
 
 
 def _exec_list(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:

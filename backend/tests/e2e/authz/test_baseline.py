@@ -77,7 +77,7 @@ class TestZeroRoleBaseline:
     ) -> None:
         proj_id, _ = create_project(admin_api, "norole-ex")
         wf_id, _ = create_workflow(admin_api, proj_id, "norole-ex")
-        exec_resp = admin_api.executions.create(body=ExecutionCreate(workflow_id=wf_id))
+        exec_resp = admin_api.executions.create(body=ExecutionCreate(workflow_id=wf_id, trigger_node_id="trigger"))
         execution = exec_resp.assert_and_get()
         exec_id = str(execution.id)
         _, username, password = create_user(admin_api, "norole-ex")

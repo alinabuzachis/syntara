@@ -31,6 +31,7 @@ async def test_create_execution_success(
         json={
             "workflow_id": str(test_workflow.id),
             "input_data": {"key": "value"},
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -58,6 +59,7 @@ async def test_create_execution_with_default_input_data(
         "/api/v1/executions",
         json={
             "workflow_id": str(test_workflow.id),
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -79,6 +81,7 @@ async def test_create_execution_workflow_not_found(
         json={
             "workflow_id": str(non_existent_id),
             "input_data": {},
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -100,7 +103,7 @@ async def test_create_execution_unpublished_workflow_succeeds(
     await test_db_session.commit()
     response = await auth_client.post(
         "/api/v1/executions",
-        json={"workflow_id": str(test_workflow.id), "input_data": {}},
+        json={"workflow_id": str(test_workflow.id), "input_data": {}, "trigger_node_id": "trigger_manual"},
     )
     assert response.status_code == 201
 
@@ -182,6 +185,7 @@ async def test_create_execution_temporal_connection_failure_graceful_degradation
             json={
                 "workflow_id": str(test_workflow.id),
                 "input_data": {"key": "value"},
+                "trigger_node_id": "trigger_manual",
             },
         )
 
@@ -254,6 +258,7 @@ async def test_create_execution_temporal_workflow_start_failure(
             json={
                 "workflow_id": str(test_workflow.id),
                 "input_data": {"key": "value"},
+                "trigger_node_id": "trigger_manual",
             },
         )
 
@@ -303,13 +308,12 @@ async def test_create_execution_with_trigger_node_id(
 
 
 @pytest.mark.asyncio
-async def test_create_execution_without_trigger_node_id(
+async def test_create_execution_without_trigger_node_id_returns_422(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
     test_user: User,
     test_workflow: Workflow,
 ) -> None:
-    """Test that trigger_node_id defaults to the first manual trigger when not provided."""
+    """Test that omitting trigger_node_id returns a 422 validation error."""
     response = await auth_client.post(
         "/api/v1/executions",
         json={
@@ -318,10 +322,4 @@ async def test_create_execution_without_trigger_node_id(
         },
     )
 
-    assert response.status_code == 201
-    data = response.json()
-    assert data["trigger_node_id"] == "trigger_manual"
-
-    result = await test_db_session.exec(select(Execution).where(Execution.id == uuid.UUID(data["id"])))
-    execution = result.one()
-    assert execution.trigger_node_id == "trigger_manual"
+    assert response.status_code == 422

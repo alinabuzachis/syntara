@@ -126,7 +126,9 @@ class TestExpressionResolution:
         )
 
         # Step 2: Execute the workflow
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow_id, trigger_node_id="trigger_manual")
+        ).assert_and_get()
         execution_id = execution.id
 
         # Poll until execution completes
@@ -252,7 +254,9 @@ class TestExpressionResolution:
         )
 
         # Execute workflow
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow_id, trigger_node_id="trigger_manual")
+        ).assert_and_get()
         final_execution = poll_execution_until_complete(nexus_api, execution.id)
 
         # Verify execution completed
@@ -376,6 +380,7 @@ class TestExpressionResolution:
         execution = nexus_api.executions.create(
             body=ExecutionCreate(
                 workflow_id=workflow_id,
+                trigger_node_id="trigger_manual",
                 input_data=ExecutionCreateInputData.from_dict({"username": "test-user", "action": "deploy"}),
             )
         ).assert_and_get()
@@ -467,7 +472,9 @@ class TestExpressionResolution:
             ),
         )
 
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow_id, trigger_node_id="trigger_manual")
+        ).assert_and_get()
         execution_id = str(execution.id)
         final = poll_execution_until_complete(nexus_api, execution.id)
 
@@ -566,7 +573,9 @@ class TestUnresolvableExpressionError:
             ),
         )
 
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow_id, trigger_node_id="trigger_manual")
+        ).assert_and_get()
         final = poll_execution_until_complete(nexus_api, execution.id)
 
         assert final.status == ExecutionStatus.FAILED, (
@@ -664,7 +673,9 @@ class TestUnresolvableExpressionError:
             ),
         )
 
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow_id, trigger_node_id="trigger_manual")
+        ).assert_and_get()
         final = poll_execution_until_complete(nexus_api, execution.id)
 
         assert final.status == ExecutionStatus.COMPLETED_WITH_ERRORS, (
@@ -763,7 +774,9 @@ class TestUnresolvableExpressionError:
             force_save=True,
         )
 
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow_id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow_id, trigger_node_id="trigger_manual")
+        ).assert_and_get()
         final = poll_execution_until_complete(nexus_api, execution.id)
 
         assert final.status == ExecutionStatus.FAILED, (

@@ -86,6 +86,7 @@ class TestStartWorkflow:
             workflow_def=valid_workflow_dict,
             workflow_name="test-workflow",
             input_data={"user_id": 123},
+            trigger_node_id="trigger_manual",
         )
 
         # Verify result structure (Pydantic model)
@@ -125,6 +126,7 @@ class TestStartWorkflow:
             workflow_def=valid_workflow_dict,
             workflow_name="test-workflow",
             workflow_id="custom-workflow-id",
+            trigger_node_id="trigger_manual",
         )
 
         assert result.workflow_id == "custom-workflow-id"
@@ -144,6 +146,7 @@ class TestStartWorkflow:
             await service.start_workflow(
                 workflow_def=valid_workflow_dict,
                 workflow_name="test-workflow",
+                trigger_node_id="trigger_manual",
             )
 
     @pytest.mark.asyncio
@@ -159,16 +162,12 @@ class TestStartWorkflow:
             await service.start_workflow(
                 workflow_def=invalid_dict,
                 workflow_name="test-workflow",
+                trigger_node_id="irrelevant",
             )
 
     @pytest.mark.asyncio
-    async def test_start_workflow_defaults_to_manual_trigger(self) -> None:
-        """Test that default trigger selection prefers manual_trigger over other types.
-
-        When trigger_node_id is not specified (e.g., from the executions API),
-        the service should select the first manual_trigger rather than blindly
-        using triggers[0], which could be an eda_trigger or other type.
-        """
+    async def test_start_workflow_requires_trigger_node_id(self) -> None:
+        """Test that start_workflow uses the explicitly provided trigger_node_id."""
         multi_trigger_workflow = {
             "schema_version": "2.0.0",
             "name": "multi-trigger-workflow",
@@ -190,58 +189,13 @@ class TestStartWorkflow:
         await service.start_workflow(
             workflow_def=multi_trigger_workflow,
             workflow_name="multi-trigger-workflow",
+            trigger_node_id="eda_1",
         )
 
-        # Verify the trigger_node_id passed to Temporal is the manual_trigger, not triggers[0]
         call_kwargs = mock_client.start_workflow.call_args
         temporal_args = call_kwargs.kwargs.get("args") or call_kwargs[1].get("args")
-        # args layout: [workflow_def, execution_id, trigger_node_id, input_data, include_node_results, request_id]
         trigger_node_id_arg = temporal_args[2]
-        assert trigger_node_id_arg == "manual_1"
-
-    @pytest.mark.asyncio
-    async def test_start_workflow_raises_when_no_manual_trigger(self) -> None:
-        """Test that start_workflow raises when no manual trigger exists and trigger_node_id is None."""
-        single_eda_workflow = {
-            "schema_version": "2.0.0",
-            "name": "eda-only-workflow",
-            "triggers": [
-                {"id": "eda_1", "type": "eda_trigger", "parameters": {"webhook_path": "my-hook"}},
-            ],
-            "nodes": [],
-            "edges": [],
-        }
-
-        mock_client = Mock()
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        with pytest.raises(SafeValueError, match="No manual trigger found"):
-            await service.start_workflow(
-                workflow_def=single_eda_workflow,
-                workflow_name="eda-only-workflow",
-            )
-
-    @pytest.mark.asyncio
-    async def test_start_workflow_raises_when_manual_trigger_missing_id(self) -> None:
-        """Test that start_workflow raises when the manual trigger has no id field."""
-        workflow_def = {
-            "schema_version": "2.0.0",
-            "name": "bad-trigger-workflow",
-            "triggers": [
-                {"type": "manual_trigger", "parameters": {}},
-            ],
-            "nodes": [],
-            "edges": [],
-        }
-
-        mock_client = Mock()
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        with pytest.raises(SafeValueError, match="Manual trigger node must have an id field"):
-            await service.start_workflow(
-                workflow_def=workflow_def,
-                workflow_name="bad-trigger-workflow",
-            )
+        assert trigger_node_id_arg == "eda_1"
 
 
 class TestTriggerSelection:
@@ -259,33 +213,6 @@ class TestTriggerSelection:
             f"Expected at least {expected_min} args to NexusWorkflow.run, got {len(temporal_args)}"
         )
         return str(temporal_args[self.TRIGGER_NODE_ID_ARG_INDEX])
-
-    @pytest.mark.asyncio
-    async def test_start_workflow_defaults_to_first_trigger(self) -> None:
-        """When trigger_node_id is not specified, use triggers[0]."""
-        multi_trigger_workflow = {
-            "schema_version": "2.0.0",
-            "triggers": [
-                {"id": "trigger_1", "type": "manual_trigger", "parameters": {}},
-                {"id": "trigger_2", "type": "manual_trigger", "parameters": {}},
-            ],
-            "nodes": [],
-            "edges": [],
-        }
-
-        mock_client = Mock()
-        mock_handle = Mock()
-        mock_handle.first_execution_run_id = "run-789"
-        mock_client.start_workflow = AsyncMock(return_value=mock_handle)
-
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        await service.start_workflow(
-            workflow_def=multi_trigger_workflow,
-            workflow_name="multi-trigger-workflow",
-        )
-
-        assert self._get_trigger_node_id_from_call(mock_client) == "trigger_1"
 
     @pytest.mark.asyncio
     async def test_start_workflow_with_explicit_trigger_node_id(self) -> None:
@@ -518,6 +445,7 @@ class TestBuiltinWorkflowRouting:
         await service.start_workflow(
             workflow_def=valid_workflow_dict,
             workflow_name="builtin-workflow",
+            trigger_node_id="trigger_manual",
             is_builtin=True,
         )
 
@@ -543,6 +471,7 @@ class TestBuiltinWorkflowRouting:
         await service.start_workflow(
             workflow_def=valid_workflow_dict,
             workflow_name="user-workflow",
+            trigger_node_id="trigger_manual",
             is_builtin=False,
         )
 
@@ -576,6 +505,7 @@ class TestWorkflowDataConversion:
         await service.start_workflow(
             workflow_def=valid_workflow_dict,
             workflow_name="test-workflow",
+            trigger_node_id="trigger_manual",
         )
 
         # Verify first argument is a dict (V2 workflow definition)

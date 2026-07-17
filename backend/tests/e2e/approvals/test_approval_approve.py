@@ -101,7 +101,9 @@ class TestApproveSignal:
             )
         )
 
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger")
+        ).assert_and_get()
         exec_id = UUID(str(execution.id))
 
         approval = poll_for_pending_approval(nexus_api, exec_id, timeout=_APPROVAL_POLL_TIMEOUT)
@@ -145,7 +147,9 @@ class TestApproveSignal:
             )
         )
 
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger")
+        ).assert_and_get()
         exec_id = UUID(str(execution.id))
 
         approval = poll_for_pending_approval(nexus_api, exec_id, timeout=_APPROVAL_POLL_TIMEOUT)
@@ -197,7 +201,9 @@ class TestApproveSignal:
             )
         )
 
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger")
+        ).assert_and_get()
         exec_id = UUID(str(execution.id))
 
         approval = poll_for_pending_approval(nexus_api, exec_id, timeout=_APPROVAL_POLL_TIMEOUT)

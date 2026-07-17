@@ -107,6 +107,7 @@ class TestWaitNodeIntegration:
                 result = await execution_service.start_workflow(
                     workflow_def=workflow_def,
                     workflow_name="wait-integration-test",
+                    trigger_node_id="trigger_manual",
                 )
 
                 workflow_result = await asyncio.wait_for(
@@ -143,6 +144,7 @@ class TestWaitNodeIntegration:
                 result = await execution_service.start_workflow(
                     workflow_def=workflow_def,
                     workflow_name="wait-invalid-test",
+                    trigger_node_id="trigger_manual",
                 )
 
                 workflow_result = await asyncio.wait_for(
@@ -183,6 +185,7 @@ class TestWaitNodeIntegration:
                 result = await execution_service.start_workflow(
                     workflow_def=workflow_def,
                     workflow_name="wait-short-test",
+                    trigger_node_id="trigger_manual",
                 )
 
                 workflow_result = await asyncio.wait_for(

@@ -40,7 +40,7 @@ async function checkVersionConflictBeforeRun(
 }
 
 type ExecuteWorkflowMutate = (
-  variables: { body: { workflow_id: string; input_data?: Record<string, unknown>; trigger_node_id?: string | null } },
+  variables: { body: { workflow_id: string; input_data?: Record<string, unknown>; trigger_node_id: string } },
   options?: {
     onSuccess?: (data: { id?: string }) => void
     onError?: (error: unknown) => void
@@ -165,7 +165,7 @@ export function useBuilderToolbarHandlers({
           body: {
             workflow_id: workflow.id,
             input_data: inputData ?? {},
-            ...(triggerNodeId && { trigger_node_id: triggerNodeId }),
+            trigger_node_id: triggerNodeId ?? '',
           },
         },
         {

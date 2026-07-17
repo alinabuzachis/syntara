@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
+import { executionsFetchClient, workflowClient, workflowFetchClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
 import { expectPageTitle } from '../../test/pageTitle'
@@ -19,9 +19,8 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
-  executionsClient: {
-    useQuery: vi.fn(),
-    useMutation: vi.fn(),
+  executionsFetchClient: {
+    POST: vi.fn(),
   },
   workflowFetchClient: {
     GET: vi.fn(),
@@ -191,20 +190,16 @@ describe('Workflows Component', () => {
       submittedAt: 0,
     }
 
-    // Mock executionsClient.useMutation for execute workflow
-    vi.mocked(executionsClient.useMutation).mockReturnValue({
-      ...defaultMutationReturn,
-      mutate: vi.fn(
-        (
-          body: unknown,
-          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
-        ) => {
-          if (callbacks?.onSuccess) {
-            callbacks.onSuccess({}, body, undefined)
-          }
-        }
-      ),
-    })
+    // Mock workflowFetchClient.GET to return workflow detail with a trigger
+    vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+      data: { workflow_definition: { triggers: [{ id: 'trigger-1' }] } },
+    } as never)
+
+    // Mock executionsFetchClient.POST for execute workflow (success by default)
+    vi.mocked(executionsFetchClient.POST).mockResolvedValue({
+      data: { id: 'exec-default' },
+      error: undefined,
+    } as never)
 
     // Mock workflowClient.useMutation for delete workflow
     vi.mocked(workflowClient.useMutation).mockReturnValue({
@@ -380,34 +375,10 @@ describe('Workflows Component', () => {
 
   describe('Execute Workflow Row Action', () => {
     it('calls execute mutation when workflow is run', async () => {
-      const mockMutate = vi.fn(
-        (
-          body: unknown,
-          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
-        ) => {
-          if (callbacks?.onSuccess) {
-            callbacks.onSuccess({}, body, undefined)
-          }
-        }
-      )
-
-      vi.mocked(executionsClient.useMutation).mockReturnValue({
-        mutate: mockMutate,
-        mutateAsync: vi.fn(),
-        reset: vi.fn(),
-        isPending: false,
-        isError: false,
-        isSuccess: false,
-        isIdle: true,
-        error: null,
-        data: undefined,
-        variables: undefined,
-        context: undefined,
-        failureCount: 0,
-        failureReason: null,
-        status: 'idle',
-        submittedAt: 0,
-      })
+      vi.mocked(executionsFetchClient.POST).mockResolvedValue({
+        data: { id: 'exec-123' },
+        error: undefined,
+      } as never)
 
       const user = userEvent.setup()
       render(<Workflows />, { wrapper })
@@ -436,48 +407,18 @@ describe('Workflows Component', () => {
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
       await user.click(runButton)
 
-      // Verify the mutation was called with correct parameters
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalledWith(
-          { body: { workflow_id: '1', input_data: {}, use_published: true } },
-          expect.objectContaining({
-            onSuccess: expect.any(Function) as unknown,
-            onError: expect.any(Function) as unknown,
-          })
-        )
+        expect(executionsFetchClient.POST).toHaveBeenCalledWith('/executions', {
+          body: { workflow_id: '1', input_data: {}, trigger_node_id: 'trigger-1', use_published: true },
+        })
       })
     })
 
     it('shows error alert when workflow execution fails', async () => {
-      const mockError = new Error('Network error')
-      const mockMutate = vi.fn(
-        (
-          body: unknown,
-          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
-        ) => {
-          if (callbacks?.onError) {
-            callbacks.onError(mockError, body, undefined)
-          }
-        }
-      )
-
-      vi.mocked(executionsClient.useMutation).mockReturnValue({
-        mutate: mockMutate,
-        mutateAsync: vi.fn(),
-        reset: vi.fn(),
-        isPending: false,
-        isError: false,
-        isSuccess: false,
-        isIdle: true,
-        error: null,
+      vi.mocked(executionsFetchClient.POST).mockResolvedValue({
         data: undefined,
-        variables: undefined,
-        context: undefined,
-        failureCount: 0,
-        failureReason: null,
-        status: 'idle',
-        submittedAt: 0,
-      })
+        error: { detail: 'Network error' },
+      } as never)
 
       const user = userEvent.setup()
       render(<Workflows />, { wrapper })
@@ -506,50 +447,18 @@ describe('Workflows Component', () => {
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
       await user.click(runButton)
 
-      // Verify the mutation was called
-      await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled()
-      })
-
       // Verify error alert is shown
       await waitFor(() => {
         expect(screen.getByText('Workflow failed')).toBeInTheDocument()
-        expect(
-          screen.getByText(/Failed to start workflow "Important Project Workflow": Network error/)
-        ).toBeInTheDocument()
+        expect(screen.getByText(/Failed to start workflow "Important Project Workflow"/)).toBeInTheDocument()
       })
     })
 
     it('shows error alert with generic message when error has no message', async () => {
-      const mockError = {} // Error without message property
-      const mockMutate = vi.fn(
-        (
-          body: unknown,
-          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
-        ) => {
-          if (callbacks?.onError) {
-            callbacks.onError(mockError, body, undefined)
-          }
-        }
-      )
-
-      vi.mocked(executionsClient.useMutation).mockReturnValue({
-        mutate: mockMutate,
-        mutateAsync: vi.fn(),
-        reset: vi.fn(),
-        isPending: false,
-        isError: false,
-        isSuccess: false,
-        isIdle: true,
-        error: null,
+      vi.mocked(executionsFetchClient.POST).mockResolvedValue({
         data: undefined,
-        variables: undefined,
-        context: undefined,
-        failureCount: 0,
-        failureReason: null,
-        status: 'idle',
-        submittedAt: 0,
-      })
+        error: {},
+      } as never)
 
       const user = userEvent.setup()
       render(<Workflows />, { wrapper })
@@ -627,25 +536,7 @@ describe('Workflows Component', () => {
     })
 
     it('cancels workflow run when cancel button is clicked', async () => {
-      const mockMutate = vi.fn()
-
-      vi.mocked(executionsClient.useMutation).mockReturnValue({
-        mutate: mockMutate,
-        mutateAsync: vi.fn(),
-        reset: vi.fn(),
-        isPending: false,
-        isError: false,
-        isSuccess: false,
-        isIdle: true,
-        error: null,
-        data: undefined,
-        variables: undefined,
-        context: undefined,
-        failureCount: 0,
-        failureReason: null,
-        status: 'idle',
-        submittedAt: 0,
-      })
+      vi.mocked(executionsFetchClient.POST).mockClear()
 
       const user = userEvent.setup()
       render(<Workflows />, { wrapper })
@@ -674,10 +565,8 @@ describe('Workflows Component', () => {
       const cancelButton = await screen.findByRole('button', { name: /Cancel/i })
       await user.click(cancelButton)
 
-      // Verify the mutation was not called
-      await waitFor(() => {
-        expect(mockMutate).not.toHaveBeenCalled()
-      })
+      // Verify the fetch client was not called
+      expect(executionsFetchClient.POST).not.toHaveBeenCalled()
 
       // Verify dialog is closed
       await waitFor(() => {
@@ -1282,34 +1171,10 @@ describe('Workflows Component', () => {
   describe('Run workflow with navigation', () => {
     it('navigates to execution detail page on successful run when response has id', async () => {
       routerTestState.navigate.mockClear()
-      const mockMutate = vi.fn(
-        (
-          body: unknown,
-          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
-        ) => {
-          if (callbacks?.onSuccess) {
-            callbacks.onSuccess({ id: 'exec-123' }, body, undefined)
-          }
-        }
-      )
-
-      vi.mocked(executionsClient.useMutation).mockReturnValue({
-        mutate: mockMutate,
-        mutateAsync: vi.fn(),
-        reset: vi.fn(),
-        isPending: false,
-        isError: false,
-        isSuccess: false,
-        isIdle: true,
-        error: null,
-        data: undefined,
-        variables: undefined,
-        context: undefined,
-        failureCount: 0,
-        failureReason: null,
-        status: 'idle',
-        submittedAt: 0,
-      })
+      vi.mocked(executionsFetchClient.POST).mockResolvedValue({
+        data: { id: 'exec-123' },
+        error: undefined,
+      } as never)
 
       const user = userEvent.setup()
       render(<Workflows />, { wrapper })

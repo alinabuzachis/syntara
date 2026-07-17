@@ -55,7 +55,7 @@ test.beforeAll(async ({ browser }) => {
 
     const runResp = await apiRequest(page, 'post', '/executions', {
       token,
-      data: { workflow_id: workflowId },
+      data: { workflow_id: workflowId, trigger_node_id: 'trigger_manual' },
     })
     if (runResp.ok()) {
       const body = (await runResp.json()) as { id: string }

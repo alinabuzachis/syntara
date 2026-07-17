@@ -126,6 +126,8 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
             )
 
             self._build_converge_branch_nodes_index(graph)
+            # Scope skips non-trigger nodes; _execute_trigger handles trigger skipping separately.
+            self._apply_execution_scope(graph)
 
             pending_tasks: dict[str, asyncio.Task[Any]] = {}
             await self._execute_trigger(trigger_node_id, trigger_inputs, graph, pending_tasks)
@@ -187,6 +189,25 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
                 self.skipped_nodes.add(other_trigger.id)
                 workflow.logger.info(f"Trigger {other_trigger.id} marked as skipped (not selected)")
                 self._mark_downstream_as_skipped(other_trigger.id, graph)
+
+    def _apply_execution_scope(self, graph: WorkflowGraph) -> None:
+        """Restrict test executions to only ancestor nodes of the target.
+
+        For workflows with parallel branches, this prevents unrelated branches
+        from executing when only one branch leads to the target node.
+        """
+        if not self.stop_after_nodes:
+            return
+        scope: set[str] = set()
+        for target_id in self.stop_after_nodes:
+            scope |= self._collect_ancestors(target_id, graph)
+        skipped: set[str] = set()
+        for node in graph.get_all_nodes():
+            if not node.type.endswith("_trigger") and node.id not in scope:
+                self.skipped_nodes.add(node.id)
+                skipped.add(node.id)
+        if skipped:
+            workflow.logger.info(f"Nodes skipped (outside execution scope): {skipped}")
 
     async def _execute_trigger(
         self,

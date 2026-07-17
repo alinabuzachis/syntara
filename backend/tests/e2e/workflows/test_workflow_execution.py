@@ -100,7 +100,9 @@ class TestWorkflowExecution:
         assert workflow.name == workflow_name
 
         # Step 2: Execute the workflow
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger_manual")
+        ).assert_and_get()
 
         # Expected Result 1: 201 Created with execution object
         # Verify execution object contains required fields
@@ -215,7 +217,9 @@ class TestWorkflowExecution:
         workflow = workflow_factory(workflow_data)
 
         # Execute the workflow
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger_manual")
+        ).assert_and_get()
 
         execution_id = execution.id
 
@@ -340,7 +344,9 @@ class TestWorkflowExecution:
 
         # Create 2 successful executions
         for _ in range(2):
-            execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+            execution = nexus_api.executions.create(
+                body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger_manual")
+            ).assert_and_get()
             execution_ids.append(execution.id)
             expected_successful += 1
 
@@ -362,7 +368,9 @@ class TestWorkflowExecution:
 
         # Create 2 failed executions
         for _ in range(2):
-            execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+            execution = nexus_api.executions.create(
+                body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger_manual")
+            ).assert_and_get()
             execution_ids.append(execution.id)
             expected_failed += 1
 
@@ -498,7 +506,9 @@ class TestWorkflowExecution:
         )
         workflow = workflow_factory(workflow_data)
 
-        execution = nexus_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id)).assert_and_get()
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger_manual")
+        ).assert_and_get()
         execution_id = UUID(str(execution.id))
 
         approval = poll_for_pending_approval(nexus_api, execution_id, timeout=30)

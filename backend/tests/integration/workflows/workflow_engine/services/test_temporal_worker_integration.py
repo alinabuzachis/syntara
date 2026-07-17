@@ -195,6 +195,7 @@ class TestTemporalWorkerServiceIntegration:
             result = await execution_service.start_workflow(
                 workflow_def=workflow_def,
                 workflow_name="worker-integration-test",
+                trigger_node_id="trigger_manual",
             )
 
             # Wait for workflow to complete
@@ -238,11 +239,13 @@ class TestTemporalWorkerServiceIntegration:
             result1 = await service1.start_workflow(
                 workflow_def=workflow_def,
                 workflow_name="worker1-test",
+                trigger_node_id="trigger_manual",
             )
 
             result2 = await service2.start_workflow(
                 workflow_def=workflow_def,
                 workflow_name="worker2-test",
+                trigger_node_id="trigger_manual",
             )
 
             # Both workflows should complete
@@ -284,6 +287,7 @@ class TestTemporalWorkerServiceIntegration:
             await execution_service.start_workflow(
                 workflow_def=workflow_def,
                 workflow_name="long-running-test",
+                trigger_node_id="trigger_manual",
             )
 
             # Give workflow a moment to start
@@ -334,6 +338,7 @@ class TestWorkerServiceConfiguration:
             result = await execution_service.start_workflow(
                 workflow_def=workflow_def,
                 workflow_name="queue-test",
+                trigger_node_id="trigger_manual",
             )
 
             # Should complete successfully

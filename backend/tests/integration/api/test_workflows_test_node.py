@@ -103,6 +103,7 @@ async def test_test_workflow_node_success(
             "target_node_id": "test_activity",
             "pre_resolved_nodes": {},
             "trigger_inputs": {"key": "value"},
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -137,6 +138,7 @@ async def test_test_workflow_node_with_pre_resolved(
                 },
             },
             "trigger_inputs": {"key": "value"},
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -163,6 +165,7 @@ async def test_test_workflow_node_workflow_not_found(
             "target_node_id": "some_node",
             "pre_resolved_nodes": {},
             "trigger_inputs": {},
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -183,6 +186,7 @@ async def test_test_workflow_node_invalid_target_node(
             "target_node_id": "nonexistent_node",
             "pre_resolved_nodes": {},
             "trigger_inputs": {},
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -203,6 +207,7 @@ async def test_test_workflow_node_empty_target_node_id(
             "target_node_id": "",
             "pre_resolved_nodes": {},
             "trigger_inputs": {},
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -225,6 +230,7 @@ async def test_test_workflow_node_target_in_pre_resolved(
                 "test_activity": {"output": {"v": 1}},
             },
             "trigger_inputs": {},
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -249,6 +255,7 @@ async def test_test_workflow_node_invalid_workflow_id(
             "target_node_id": "some_node",
             "pre_resolved_nodes": {},
             "trigger_inputs": {},
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -275,6 +282,7 @@ async def ***REMOVED***(
             },
             "trigger_inputs": {"key": "value"},
             "execute_target": False,
+            "trigger_node_id": "trigger_manual",
         },
     )
 
@@ -305,6 +313,7 @@ async def test_test_node_execute_target_false_allows_target_in_pre_resolved(
             },
             "trigger_inputs": {},
             "execute_target": False,
+            "trigger_node_id": "trigger_manual",
         },
     )
 

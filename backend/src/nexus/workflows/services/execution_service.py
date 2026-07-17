@@ -259,7 +259,7 @@ class ExecutionService(BaseService):
         self,
         workflow_id: UUID,
         input_data: dict[str, Any],
-        trigger_node_id: str | None = None,
+        trigger_node_id: str,
         *,
         use_published: bool = False,
     ) -> ExecutionRead:
@@ -274,7 +274,7 @@ class ExecutionService(BaseService):
         Args:
             workflow_id: ID of workflow to execute
             input_data: Input parameters for the workflow
-            trigger_node_id: Optional trigger node ID to start from (defaults to first trigger)
+            trigger_node_id: Trigger node ID to start from
             use_published: If True, use the published version instead of current version
 
         Returns:
@@ -500,7 +500,8 @@ class ExecutionService(BaseService):
         """Look up a workflow by name within a project and start an execution.
 
         Convenience method for builtin workflows where the caller knows
-        the workflow name but not the ID.
+        the workflow name but not the ID. Automatically selects the first
+        trigger from the published workflow definition.
 
         Args:
             workflow_name: Name of the workflow (e.g., "Document Conversion")
@@ -518,26 +519,42 @@ class ExecutionService(BaseService):
 
         from nexus.authz.models import Project  # noqa: PLC0415
 
-        query = select(Workflow).where(
-            col(Workflow.name) == workflow_name,
-            Workflow.deleted_at.is_(None),  # type: ignore[union-attr]
-            Workflow.project_id
-            == select(Project.id)
-            .where(
-                Project.name == project_name,
-                Project.deleted_at.is_(None),  # type: ignore[union-attr]
+        query = (
+            select(Workflow, WorkflowVersion)
+            .join(
+                WorkflowVersion,
+                WorkflowVersion.id == Workflow.published_version_id,  # type: ignore[arg-type]
             )
-            .scalar_subquery(),
+            .where(
+                col(Workflow.name) == workflow_name,
+                Workflow.deleted_at.is_(None),  # type: ignore[union-attr]
+                Workflow.project_id
+                == select(Project.id)
+                .where(
+                    Project.name == project_name,
+                    Project.deleted_at.is_(None),  # type: ignore[union-attr]
+                )
+                .scalar_subquery(),
+            )
         )
 
         result = await self.session.exec(query)
-        workflow = result.one_or_none()
-        if workflow is None:
+        row = result.first()
+        if row is None:
             raise WorkflowNotFoundError(workflow_name=workflow_name)
+
+        workflow, workflow_version = row
+        triggers = workflow_version.workflow_definition.get("triggers", [])
+        if not triggers or not triggers[0].get("id"):
+            from nexus.core.exceptions import SafeValueError  # noqa: PLC0415
+
+            msg = f"Builtin workflow '{workflow_name}' has no triggers"
+            raise SafeValueError(msg)
 
         return await self.create_execution(
             workflow_id=workflow.id,
             input_data=input_data,
+            trigger_node_id=triggers[0]["id"],
             use_published=True,
         )
 
@@ -596,6 +613,7 @@ class ExecutionService(BaseService):
         trigger_inputs: dict[str, Any],
         *,
         execute_target: bool = True,
+        trigger_node_id: str,
     ) -> ExecutionRead:
         """Create and start a test execution for a single node.
 
@@ -607,6 +625,7 @@ class ExecutionService(BaseService):
             pre_resolved_nodes: Mock outputs for predecessor nodes
             trigger_inputs: Input data for the trigger node
             execute_target: When False, run predecessors but skip the target node
+            trigger_node_id: Trigger node ID to start from
 
         Returns:
             Created execution with mode=TEST and status=PENDING
@@ -724,7 +743,7 @@ class ExecutionService(BaseService):
                     input_data=trigger_inputs,
                     workflow_id=str(workflow.id),
                     request_id=request_id_context_var.get(),
-                    trigger_node_id=None,  # Use default trigger for test executions
+                    trigger_node_id=trigger_node_id,
                     pre_resolved_outputs=pre_resolved_dicts,
                     stop_after_nodes=[target_node_id],
                     include_node_results=True,  # Include results in response for test executions
@@ -763,7 +782,7 @@ class ExecutionService(BaseService):
             status=ExecutionStatus.PENDING,
             mode=ExecutionMode.TEST,
             input_data=trigger_inputs,
-            trigger_node_id=None,  # Test executions use default trigger
+            trigger_node_id=trigger_node_id,
             trigger_type=test_trigger_type,
             interface=interface_context_var.get(),
             execution_metadata={
@@ -1146,6 +1165,11 @@ class ExecutionService(BaseService):
 
         # Step 5: Resolve trigger node from the original version's definition
         workflow_def = workflow_version.workflow_definition
+        if original.trigger_node_id is None:
+            from nexus.core.exceptions import SafeValueError  # noqa: PLC0415
+
+            msg = "Cannot retry execution: original execution has no trigger_node_id recorded"
+            raise SafeValueError(msg)
         trigger_node_id, _ = resolve_trigger_node(workflow_def, original.trigger_node_id)
 
         recorder = get_metrics_recorder()

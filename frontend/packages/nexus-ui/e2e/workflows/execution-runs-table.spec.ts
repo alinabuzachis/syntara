@@ -33,7 +33,10 @@ test.beforeAll(async ({ browser }) => {
       workflowId = workflow.id
       const token = await getAuthToken(page)
       if (token) {
-        await apiRequest(page, 'post', '/executions', { token, data: { workflow_id: workflowId } })
+        await apiRequest(page, 'post', '/executions', {
+          token,
+          data: { workflow_id: workflowId, trigger_node_id: 'trigger_1' },
+        })
       }
     }
   } finally {

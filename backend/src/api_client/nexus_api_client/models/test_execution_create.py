@@ -22,6 +22,7 @@ class TestExecutionCreate:
 
     Attributes:
         target_node_id (str): The node to execute for real
+        trigger_node_id (str): Trigger node ID to start from
         pre_resolved_nodes (TestExecutionCreatePreResolvedNodes | Unset): Mock outputs for predecessor nodes. Keys are
             node IDs.
         trigger_inputs (TestExecutionCreateTriggerInputs | Unset): Input data for the trigger node
@@ -31,6 +32,7 @@ class TestExecutionCreate:
     """
 
     target_node_id: str
+    trigger_node_id: str
     pre_resolved_nodes: TestExecutionCreatePreResolvedNodes | Unset = UNSET
     trigger_inputs: TestExecutionCreateTriggerInputs | Unset = UNSET
     execute_target: bool | Unset = True
@@ -38,6 +40,8 @@ class TestExecutionCreate:
 
     def to_dict(self) -> dict[str, Any]:
         target_node_id = self.target_node_id
+
+        trigger_node_id = self.trigger_node_id
 
         pre_resolved_nodes: dict[str, Any] | Unset = UNSET
         if not isinstance(self.pre_resolved_nodes, Unset):
@@ -54,6 +58,7 @@ class TestExecutionCreate:
         field_dict.update(
             {
                 "target_node_id": target_node_id,
+                "trigger_node_id": trigger_node_id,
             }
         )
         if pre_resolved_nodes is not UNSET:
@@ -73,6 +78,8 @@ class TestExecutionCreate:
         d = dict(src_dict)
         target_node_id = d.pop("target_node_id")
 
+        trigger_node_id = d.pop("trigger_node_id")
+
         _pre_resolved_nodes = d.pop("pre_resolved_nodes", UNSET)
         pre_resolved_nodes: TestExecutionCreatePreResolvedNodes | Unset
         if isinstance(_pre_resolved_nodes, Unset):
@@ -91,6 +98,7 @@ class TestExecutionCreate:
 
         test_execution_create = cls(
             target_node_id=target_node_id,
+            trigger_node_id=trigger_node_id,
             pre_resolved_nodes=pre_resolved_nodes,
             trigger_inputs=trigger_inputs,
             execute_target=execute_target,

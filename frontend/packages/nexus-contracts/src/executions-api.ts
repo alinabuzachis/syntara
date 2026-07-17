@@ -477,9 +477,9 @@ export interface components {
       }
       /**
        * Trigger Node Id
-       * @description Trigger node ID to start from (defaults to first trigger)
+       * @description Trigger node ID to start from
        */
-      trigger_node_id?: string | null
+      trigger_node_id: string
       /**
        * Use Published
        * @description If true, run the published version instead of the current version
@@ -517,6 +517,11 @@ export interface components {
        * @default true
        */
       execute_target?: boolean
+      /**
+       * Trigger Node Id
+       * @description Trigger node ID to start from
+       */
+      trigger_node_id: string
     }
     /**
      * ExecutionMode

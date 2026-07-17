@@ -753,6 +753,7 @@ describe('RunStepDialog', () => {
             pre_resolved_nodes: {},
             trigger_inputs: {},
             execute_target: true,
+            trigger_node_id: '',
           },
         })
       })
@@ -804,6 +805,7 @@ describe('RunStepDialog', () => {
               },
               trigger_inputs: {},
               execute_target: true,
+              trigger_node_id: '',
             },
           })
         })
@@ -851,6 +853,7 @@ describe('RunStepDialog', () => {
               },
               trigger_inputs: {},
               execute_target: true,
+              trigger_node_id: '',
             },
           })
         })
@@ -898,6 +901,7 @@ describe('RunStepDialog', () => {
               },
               trigger_inputs: {},
               execute_target: true,
+              trigger_node_id: '',
             },
           })
         })
@@ -947,6 +951,7 @@ describe('RunStepDialog', () => {
               },
               trigger_inputs: {},
               execute_target: true,
+              trigger_node_id: '',
             },
           })
         })
@@ -1016,6 +1021,7 @@ describe('RunStepDialog', () => {
               },
               trigger_inputs: {},
               execute_target: true,
+              trigger_node_id: '',
             },
           })
         })
@@ -1095,6 +1101,7 @@ describe('RunStepDialog', () => {
               },
               trigger_inputs: {},
               execute_target: true,
+              trigger_node_id: '',
             },
           })
         })
@@ -1144,6 +1151,7 @@ describe('RunStepDialog', () => {
               },
               trigger_inputs: {},
               execute_target: true,
+              trigger_node_id: '',
             },
           })
         })
@@ -1209,6 +1217,7 @@ describe('RunStepDialog', () => {
             pre_resolved_nodes: {},
             trigger_inputs: { host: '', severity: '' },
             execute_target: true,
+            trigger_node_id: '',
           },
         })
       )
@@ -1260,6 +1269,7 @@ describe('RunStepDialog', () => {
             },
             trigger_inputs: { host: '', severity: '' },
             execute_target: true,
+            trigger_node_id: '',
           },
         })
       )
@@ -1298,6 +1308,7 @@ describe('RunStepDialog', () => {
             },
             trigger_inputs: { host: 'prod-01', severity: 'high' },
             execute_target: true,
+            trigger_node_id: '',
           },
         })
       )
@@ -1524,6 +1535,7 @@ describe('RunStepDialog', () => {
                 },
                 trigger_inputs: {},
                 execute_target: true,
+                trigger_node_id: '',
               },
             })
           },
@@ -1570,6 +1582,7 @@ describe('RunStepDialog', () => {
                 },
                 trigger_inputs: {},
                 execute_target: true,
+                trigger_node_id: '',
               },
             })
           },

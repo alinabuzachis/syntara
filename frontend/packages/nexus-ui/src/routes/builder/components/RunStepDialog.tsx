@@ -56,6 +56,7 @@ type RunStepDialogProps = Readonly<{
   predecessors?: PredecessorNode[]
   pinnedMockData?: Record<string, Record<string, unknown>>
   triggerInputSchema?: Record<string, unknown>
+  triggerNodeId?: string
 }>
 
 // Brief success state before auto-close per UX spec
@@ -377,6 +378,7 @@ export function RunStepDialog({
   predecessors = [],
   pinnedMockData,
   triggerInputSchema,
+  triggerNodeId,
 }: RunStepDialogProps) {
   const [dialogView, setDialogView] = useState<DialogView>('choice')
   const [mockJson, setMockJson] = useState('')
@@ -426,6 +428,7 @@ export function RunStepDialog({
               pre_resolved_nodes: submission.preResolvedNodes,
               trigger_inputs: submission.triggerInputs,
               execute_target: true,
+              trigger_node_id: triggerNodeId ?? '',
             } satisfies TestExecutionCreate,
           } as never
         )
@@ -449,7 +452,7 @@ export function RunStepDialog({
         setRunError(getErrorMessage(err))
       }
     },
-    [nodeId, workflowId, handleClose, onExecutionCreated, runState]
+    [nodeId, workflowId, handleClose, onExecutionCreated, runState, triggerNodeId]
   )
 
   const handleRunAllPrevious = useCallback(() => {

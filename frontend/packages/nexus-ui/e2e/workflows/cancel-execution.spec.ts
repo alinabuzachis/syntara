@@ -58,7 +58,7 @@ test.beforeAll(async ({ browser }) => {
 
     const runResp = await apiRequest(page, 'post', '/executions', {
       token,
-      data: { workflow_id: sleepWorkflowId },
+      data: { workflow_id: sleepWorkflowId, trigger_node_id: 'trigger_manual' },
     })
     if (runResp.ok()) {
       const body = (await runResp.json()) as { id: string }
@@ -83,7 +83,7 @@ test.beforeAll(async ({ browser }) => {
 
     const echoRunResp = await apiRequest(page, 'post', '/executions', {
       token,
-      data: { workflow_id: echoWorkflowId },
+      data: { workflow_id: echoWorkflowId, trigger_node_id: 'trigger_manual' },
     })
     if (echoRunResp.ok()) {
       const body = (await echoRunResp.json()) as { id: string }

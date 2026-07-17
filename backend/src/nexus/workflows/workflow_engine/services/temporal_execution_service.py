@@ -88,10 +88,10 @@ class TemporalExecutionService:
         self,
         workflow_def: dict[str, Any],
         workflow_name: str,
+        trigger_node_id: str,
         input_data: dict[str, Any] | None = None,
         workflow_id: str | None = None,
         request_id: UUID | None = None,
-        trigger_node_id: str | None = None,
         *,
         pre_resolved_outputs: dict[str, dict[str, Any]] | None = None,
         stop_after_nodes: list[str] | None = None,
@@ -108,7 +108,7 @@ class TemporalExecutionService:
             input_data: Input parameters for the workflow trigger
             workflow_id: Optional workflow ID (auto-generated if not provided)
             request_id: Optional X-Request-Id (UUID) from the originating HTTP request
-            trigger_node_id: Optional trigger node ID to start from (defaults to first trigger)
+            trigger_node_id: Trigger node ID to start from
             pre_resolved_outputs: Mock outputs for predecessor nodes (for test executions)
             stop_after_nodes: Stop execution after these nodes complete (for test executions)
             include_node_results: Include node results in workflow response (for test executions)

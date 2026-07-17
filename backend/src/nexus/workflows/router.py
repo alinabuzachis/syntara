@@ -410,6 +410,7 @@ async def test_workflow_node(
         pre_resolved_nodes=request.pre_resolved_nodes,
         trigger_inputs=request.trigger_inputs,
         execute_target=request.execute_target,
+        trigger_node_id=request.trigger_node_id,
     )
 
 

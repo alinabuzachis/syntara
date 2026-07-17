@@ -281,7 +281,7 @@ class TestExecutionCreateUsePublished:
 
     def test_use_published_field(self) -> None:
         """Instantiate ExecutionCreate with use_published=True."""
-        create = ExecutionCreate(workflow_id=uuid4(), use_published=True)
+        create = ExecutionCreate(workflow_id=uuid4(), trigger_node_id="trigger_1", use_published=True)
         assert create.use_published is True
 
 

@@ -333,7 +333,7 @@ describe('useBuilderConflict', () => {
       })
 
       expect(mockExecutionsFetchClientPOST).toHaveBeenCalledWith('/executions', {
-        body: { workflow_id: 'new-id', input_data: {} },
+        body: { workflow_id: 'new-id', input_data: {}, trigger_node_id: '' },
       })
       expect(params.setLocation).toHaveBeenCalledWith('/executions/exec-1?history=closed')
     })

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -24,13 +24,13 @@ class ExecutionCreate:
 
         Attributes:
             workflow_id (UUID): Workflow ID to execute
+            trigger_node_id (str): Trigger node ID to start from
             input_data (ExecutionCreateInputData | Unset): Input data for workflow execution
-            trigger_node_id (None | str | Unset): Trigger node ID to start from (defaults to first trigger)
     """
 
     workflow_id: UUID
+    trigger_node_id: str
     input_data: ExecutionCreateInputData | Unset = UNSET
-    trigger_node_id: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -40,23 +40,18 @@ class ExecutionCreate:
         if not isinstance(self.input_data, Unset):
             input_data = self.input_data.to_dict()
 
-        trigger_node_id: None | str | Unset
-        if isinstance(self.trigger_node_id, Unset):
-            trigger_node_id = UNSET
-        else:
-            trigger_node_id = self.trigger_node_id
+        trigger_node_id = self.trigger_node_id
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "workflow_id": workflow_id,
+                "trigger_node_id": trigger_node_id,
             }
         )
         if input_data is not UNSET:
             field_dict["input_data"] = input_data
-        if trigger_node_id is not UNSET:
-            field_dict["trigger_node_id"] = trigger_node_id
 
         return field_dict
 
@@ -74,14 +69,7 @@ class ExecutionCreate:
         else:
             input_data = ExecutionCreateInputData.from_dict(_input_data)
 
-        def _parse_trigger_node_id(data: object) -> None | str | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(None | str | Unset, data)
-
-        trigger_node_id = _parse_trigger_node_id(d.pop("trigger_node_id", UNSET))
+        trigger_node_id = d.pop("trigger_node_id")
 
         execution_create = cls(
             workflow_id=workflow_id,

@@ -95,6 +95,7 @@ class TestWorkflowTestNode:
             body=TestExecutionCreate(
                 target_node_id="node_b",
                 pre_resolved_nodes=pre_resolved,
+                trigger_node_id="trigger_manual",
             ),
         )
 
@@ -174,6 +175,7 @@ class TestTestExecutionWithConditionNode:
                         },
                     },
                     "trigger_inputs": {"test_key": "test_value"},
+                    "trigger_node_id": "trigger",
                 }
             ),
         )

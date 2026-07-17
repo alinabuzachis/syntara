@@ -826,6 +826,11 @@ export interface components {
        * @default true
        */
       execute_target?: boolean
+      /**
+       * Trigger Node Id
+       * @description Trigger node ID to start from
+       */
+      trigger_node_id: string
     }
     /**
      * PreResolvedNodeOutput

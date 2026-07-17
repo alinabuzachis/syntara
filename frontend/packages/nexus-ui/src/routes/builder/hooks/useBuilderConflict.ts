@@ -158,8 +158,13 @@ export function useBuilderConflict(params: UseBuilderConflictParams) {
           return
         }
         if (action === 'run') {
+          const firstTrigger = currentWorkflow.triggers?.[0] as { id?: string } | undefined
           const { data: runData, error: runError } = await executionsFetchClient.POST('/executions', {
-            body: { workflow_id: created.id, input_data: {} },
+            body: {
+              workflow_id: created.id,
+              input_data: {},
+              trigger_node_id: firstTrigger?.id ?? '',
+            },
           })
           conflictDialog.close()
           if (runError || !runData?.id) {

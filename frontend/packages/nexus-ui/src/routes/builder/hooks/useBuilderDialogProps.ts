@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 
 import type { DialogState } from '../../../hooks/useDialogState'
+import { parseTriggerIndex } from '../../../utils/triggerNodeIds'
 import type { BuilderAction } from '../builderReducer'
 import type { RunStepDialogData } from '../components/RunStepDialog'
 import type { PendingImportData } from '../useWorkflowImportExport'
@@ -51,6 +52,11 @@ export function useBuilderDialogProps(params: BuilderDialogPropsParams) {
   const triggers = currentWorkflow?.triggers ?? []
   const selectedTrigger = triggers[selectedTriggerIndex] ?? triggers[0]
 
+  const triggerPred = runStepDialog.item?.predecessors?.find((p) => p.isTrigger)
+  const runStepTriggerNodeId = triggerPred
+    ? (triggers[parseTriggerIndex(triggerPred.id) ?? -1] as { id?: string } | undefined)?.id
+    : undefined
+
   return {
     workflowName,
     workflowId,
@@ -64,6 +70,7 @@ export function useBuilderDialogProps(params: BuilderDialogPropsParams) {
     triggerInputSchema: ((selectedTrigger as { parameters?: Record<string, unknown> } | undefined)?.parameters
       ?.input_schema ?? undefined) as Record<string, unknown> | undefined,
     runStepDialog,
+    runStepTriggerNodeId,
     onRunStepExecutionCreated: (executionId: string, { clearMocksOnComplete }: { clearMocksOnComplete: boolean }) => {
       lastRunStepNodeIdRef.current = clearMocksOnComplete ? (runStepDialog.item?.nodeId ?? null) : null
       dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionId })

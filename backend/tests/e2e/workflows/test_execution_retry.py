@@ -144,6 +144,7 @@ class TestRetryExecution:
             body=TestExecutionCreate(
                 target_node_id="node_b",
                 pre_resolved_nodes=pre_resolved,
+                trigger_node_id="trigger",
             ),
         )
         test_execution = test_response.assert_and_get()

@@ -35045,6 +35045,7 @@ components:
         Excludes auto-generated fields: id, created_at, created_by (set by backend).
       required:
         - workflow_id
+        - trigger_node_id
       properties:
         workflow_id:
           type: string
@@ -35057,11 +35058,9 @@ components:
           title: Input Data
           description: Input data for workflow execution
         trigger_node_id:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type: string
           title: Trigger Node Id
-          description: Trigger node ID to start from (defaults to first trigger)
+          description: Trigger node ID to start from
         use_published:
           type: boolean
           title: Use Published
@@ -35073,6 +35072,7 @@ components:
       description: Request body for POST /workflows/{workflow_id}/test.
       required:
         - target_node_id
+        - trigger_node_id
       properties:
         target_node_id:
           type: string
@@ -35094,6 +35094,10 @@ components:
           title: Execute Target
           default: true
           description: When False, run predecessors up to (but not including) the target node. Useful for populating upstream data without executing the target. When True (default), target_node_id must not appear in pre_resolved_nodes.
+        trigger_node_id:
+          type: string
+          title: Trigger Node Id
+          description: Trigger node ID to start from
     ExecutionMode:
       type: string
       title: ExecutionMode

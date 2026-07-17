@@ -183,7 +183,10 @@ def create_and_run_workflow(
         workflow = create_response.assert_and_get()
         wf_id = workflow.id
 
-    exec_response = _retry_api_call(lambda: api.executions.create(body=ExecutionCreate(workflow_id=wf_id)))
+    trigger_node_id = definition.get("triggers", [{}])[0].get("id", "trigger")
+    exec_response = _retry_api_call(
+        lambda: api.executions.create(body=ExecutionCreate(workflow_id=wf_id, trigger_node_id=trigger_node_id))
+    )
     execution = exec_response.assert_and_get()
     return poll_execution(api, str(execution.id), timeout=timeout)
 

@@ -49,6 +49,7 @@ type BuilderDialogsProps = Readonly<{
   setPendingImport: (data: PendingImportData | null) => void
   importDeps: Omit<UseBuilderImportHandlersParams, 'dispatch' | 'markDirty' | 'showSuccess' | 'showError' | 'showInfo'>
   runStepDialog: DialogState<RunStepDialogData>
+  runStepTriggerNodeId?: string
   onRunStepExecutionCreated?: (executionId: string, options: RunStepExecutionCreatedOptions) => void
   pinnedMockData?: Record<string, Record<string, unknown>>
   conflictDialogProps?: {
@@ -147,6 +148,7 @@ export function BuilderDialogs({
   setPendingImport,
   importDeps,
   runStepDialog,
+  runStepTriggerNodeId,
   onRunStepExecutionCreated,
   pinnedMockData,
   conflictDialogProps,
@@ -247,6 +249,7 @@ export function BuilderDialogs({
         predecessors={runStepDialog.item?.predecessors}
         pinnedMockData={pinnedMockData}
         triggerInputSchema={triggerInputSchema}
+        triggerNodeId={runStepTriggerNodeId}
       />
       <ImportConfirmationDialog
         isOpen={pendingImport != null}

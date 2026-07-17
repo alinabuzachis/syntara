@@ -343,7 +343,10 @@ export async function tryRunExecution(
   token: string,
   workflowId: string
 ): Promise<{ ok: boolean; status: number }> {
-  const resp = await apiRequest(page, 'post', '/executions', { token, data: { workflow_id: workflowId } })
+  const resp = await apiRequest(page, 'post', '/executions', {
+    token,
+    data: { workflow_id: workflowId, trigger_node_id: 'trigger_1' },
+  })
   return { ok: resp.ok(), status: resp.status() }
 }
 

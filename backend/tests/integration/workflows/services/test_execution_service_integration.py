@@ -80,6 +80,7 @@ edges:
         result = await execution_service.start_workflow(
             workflow_def=workflow_def,
             workflow_name="integration-test",
+            trigger_node_id="trigger_manual",
             workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
@@ -125,6 +126,7 @@ edges:
             workflow_def=workflow_def,
             workflow_name="custom-id-test",
             workflow_id=custom_id,
+            trigger_node_id="trigger_manual",
             workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
@@ -163,6 +165,7 @@ edges:
             workflow_def=workflow_def,
             workflow_name="input-test",
             input_data={"user_name": "Alice"},
+            trigger_node_id="trigger_manual",
             workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
@@ -199,6 +202,7 @@ edges: []
             await execution_service.start_workflow(
                 workflow_def=workflow_def,
                 workflow_name="invalid-workflow",
+                trigger_node_id="trigger_manual",
                 workflow_metadata=TEST_WORKFLOW_METADATA,
             )
 
@@ -231,6 +235,7 @@ edges:
         result = await execution_service.start_workflow(
             workflow_def=workflow_def,
             workflow_name="status-test",
+            trigger_node_id="trigger_manual",
             workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
@@ -280,6 +285,7 @@ edges:
         result = await execution_service.start_workflow(
             workflow_def=workflow_def,
             workflow_name="cancel-test",
+            trigger_node_id="trigger_manual",
             workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
@@ -357,6 +363,7 @@ edges:
                 result = await service.start_workflow(
                     workflow_def=workflow_def,
                     workflow_name="factory-test",
+                    trigger_node_id="trigger_manual",
                     workflow_metadata=TEST_WORKFLOW_METADATA,
                 )
 

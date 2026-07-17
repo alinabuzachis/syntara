@@ -228,11 +228,11 @@ describe('useBuilderToolbarHandlers', () => {
       useBuilderToolbarHandlers(buildOptions({ executeWorkflow, setLocation, dispatch, showSuccess }))
     )
 
-    await result.current.handleRunWorkflow()
+    await result.current.handleRunWorkflow(undefined, 'trigger-1')
 
     expect(executeWorkflow).toHaveBeenCalledTimes(1)
     const [variables, options] = executeWorkflow.mock.calls[0]
-    expect(variables).toEqual({ body: { workflow_id: 'wf-1', input_data: {} } })
+    expect(variables).toEqual({ body: { workflow_id: 'wf-1', input_data: {}, trigger_node_id: 'trigger-1' } })
     expect(options?.onSuccess).toEqual(expect.any(Function))
     expect(options?.onError).toEqual(expect.any(Function))
     expect(showSuccess).not.toHaveBeenCalled()
@@ -518,14 +518,14 @@ describe('useBuilderToolbarHandlers', () => {
     expect(variables.body.input_data).toEqual({ key: 'val' })
   })
 
-  it('handleRunWorkflow omits trigger_node_id from body when not provided', async () => {
+  it('handleRunWorkflow always sends trigger_node_id in body', async () => {
     const executeWorkflow = vi.fn() as MockedFunction<ExecuteWorkflow>
 
     const { result } = renderHook(() => useBuilderToolbarHandlers(buildOptions({ executeWorkflow })))
     await result.current.handleRunWorkflow()
 
     const [variables] = executeWorkflow.mock.calls[0]
-    expect(variables.body).not.toHaveProperty('trigger_node_id')
+    expect(variables.body).toHaveProperty('trigger_node_id')
     expect(variables.body.input_data).toEqual({})
   })
 

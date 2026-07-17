@@ -70,7 +70,7 @@ async function createExecutionViaApi(page: Page, workflowId: string): Promise<st
   if (!token) return null
   const resp = await apiRequest(page, 'post', '/executions', {
     token,
-    data: { workflow_id: workflowId },
+    data: { workflow_id: workflowId, trigger_node_id: 'trigger_manual' },
   })
   if (!resp.ok()) return null
   const body = (await resp.json()) as { id: string }

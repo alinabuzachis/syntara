@@ -176,6 +176,7 @@ class TestApprovalTimeoutIntegration:
             result = await execution_service.start_workflow(
                 workflow_def=workflow_def,
                 workflow_name="approval-timeout-test",
+                trigger_node_id="trigger_manual",
             )
 
             workflow_result = await asyncio.wait_for(
@@ -224,6 +225,7 @@ class TestApprovalTimeoutIntegration:
             result = await execution_service.start_workflow(
                 workflow_def=workflow_def,
                 workflow_name=f"approval-cof-{fallback_decision}-test",
+                trigger_node_id="trigger_manual",
             )
 
             workflow_result = await asyncio.wait_for(

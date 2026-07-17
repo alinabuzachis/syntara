@@ -198,7 +198,9 @@ class TestWorkflowUnauthorizedAccess:
             )
         )
 
-        resp = unauth_api.executions.create(body=ExecutionCreate(workflow_id=workflow.id))
+        resp = unauth_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger_manual")
+        )
 
         assert resp.status_code == HTTPStatus.UNAUTHORIZED, (
             f"Expected 401 Unauthorized for unauthenticated POST /executions, got {resp.status_code}"

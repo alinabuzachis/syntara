@@ -97,6 +97,7 @@ class TestCreateTestExecution:
             target_node_id="target_node",
             pre_resolved_nodes={"node_1": PreResolvedNodeOutput(output={"v": 1})},
             trigger_inputs={"key": "val"},
+            trigger_node_id="trigger_1",
         )
 
         assert result.id == exec_id
@@ -123,6 +124,7 @@ class TestCreateTestExecution:
             target_node_id="target_node",
             pre_resolved_nodes={"node_1": PreResolvedNodeOutput(output={"r": "mocked"})},
             trigger_inputs={},
+            trigger_node_id="trigger_1",
         )
 
         execution = session.add.call_args[0][0]
@@ -151,6 +153,7 @@ class TestCreateTestExecution:
             target_node_id="target_node",
             pre_resolved_nodes={"node_1": PreResolvedNodeOutput(output={"v": 1})},
             trigger_inputs={},
+            trigger_node_id="trigger_1",
         )
 
         call_kwargs = temporal.start_workflow.call_args.kwargs
@@ -174,6 +177,7 @@ class TestCreateTestExecution:
             target_node_id="target_node",
             pre_resolved_nodes={},
             trigger_inputs={},
+            trigger_node_id="trigger_1",
         )
 
         assert result.temporal_workflow_id.startswith("test-exec-")
@@ -192,6 +196,7 @@ class TestCreateTestExecution:
                 target_node_id="target_node",
                 pre_resolved_nodes={},
                 trigger_inputs={},
+                trigger_node_id="trigger_1",
             )
         assert str(wf_id) in str(exc_info.value)
 
@@ -206,6 +211,7 @@ class TestCreateTestExecution:
             target_node_id="target_node",
             pre_resolved_nodes={},
             trigger_inputs={},
+            trigger_node_id="trigger_1",
         )
 
         assert result.mode == ExecutionMode.TEST
@@ -222,6 +228,7 @@ class TestCreateTestExecution:
                 target_node_id="nonexistent",
                 pre_resolved_nodes={},
                 trigger_inputs={},
+                trigger_node_id="trigger_1",
             )
 
         msg = str(exc_info.value)
@@ -243,6 +250,7 @@ class TestCreateTestExecution:
                     "unknown": PreResolvedNodeOutput(output={}),
                 },
                 trigger_inputs={},
+                trigger_node_id="trigger_1",
             )
 
         assert "unknown" in str(exc_info.value)
@@ -261,6 +269,7 @@ class TestCreateTestExecution:
                 target_node_id="target_node",
                 pre_resolved_nodes={},
                 trigger_inputs={},
+                trigger_node_id="trigger_1",
             )
 
     @pytest.mark.asyncio
@@ -274,6 +283,7 @@ class TestCreateTestExecution:
                 target_node_id="target_node",
                 pre_resolved_nodes={"target_node": PreResolvedNodeOutput(output={})},
                 trigger_inputs={},
+                trigger_node_id="trigger_1",
             )
 
     @pytest.mark.asyncio
@@ -296,6 +306,7 @@ class TestCreateTestExecution:
             pre_resolved_nodes={"node_1": PreResolvedNodeOutput(output={"v": 1})},
             trigger_inputs={},
             execute_target=False,
+            trigger_node_id="trigger_1",
         )
 
         # Verify Temporal was called with target_node in pre_resolved_outputs
@@ -328,6 +339,7 @@ class TestCreateTestExecution:
             pre_resolved_nodes={"target_node": PreResolvedNodeOutput(output=original_output)},
             trigger_inputs={},
             execute_target=False,
+            trigger_node_id="trigger_1",
         )
 
         # Verify the existing entry is preserved (not overwritten)
@@ -356,6 +368,7 @@ class TestCreateTestExecution:
             target_node_id="target_node",
             pre_resolved_nodes={},
             trigger_inputs={},
+            trigger_node_id="trigger_1",
         )
 
         execution = session.add.call_args[0][0]
@@ -379,6 +392,7 @@ class TestCreateTestExecution:
             target_node_id="target_node",
             pre_resolved_nodes={},
             trigger_inputs={},
+            trigger_node_id="trigger_manual",
         )
 
         execution = session.add.call_args[0][0]
@@ -397,6 +411,7 @@ class TestCreateTestExecution:
             target_node_id="target_node",
             pre_resolved_nodes={},
             trigger_inputs={},
+            trigger_node_id="trigger_manual",
         )
 
         execution = session.add.call_args[0][0]
@@ -415,6 +430,7 @@ class TestCreateTestExecution:
                 target_node_id="target_node",
                 pre_resolved_nodes={},
                 trigger_inputs={},
+                trigger_node_id="trigger_manual",
             )
 
             execution = session.add.call_args[0][0]
@@ -433,6 +449,7 @@ class TestCreateTestExecution:
             target_node_id="target_node",
             pre_resolved_nodes={},
             trigger_inputs={},
+            trigger_node_id="trigger_manual",
         )
 
         execution = session.add.call_args[0][0]
@@ -443,7 +460,7 @@ class TestCreateTestExecution:
 def test_pre_resolved_nodes_max_100_passes() -> None:
     """Validator accepts exactly 100 pre-resolved nodes."""
     nodes = {f"node_{i}": PreResolvedNodeOutput(output={}) for i in range(100)}
-    req = TestExecutionCreate(target_node_id="target", pre_resolved_nodes=nodes)
+    req = TestExecutionCreate(target_node_id="target", pre_resolved_nodes=nodes, trigger_node_id="trigger_1")
     assert len(req.pre_resolved_nodes) == 100
 
 
@@ -451,7 +468,7 @@ def test_pre_resolved_nodes_over_100_raises() -> None:
     """Validator rejects more than 100 pre-resolved nodes."""
     nodes = {f"node_{i}": PreResolvedNodeOutput(output={}) for i in range(101)}
     with pytest.raises(ValidationError):
-        TestExecutionCreate(target_node_id="target", pre_resolved_nodes=nodes)
+        TestExecutionCreate(target_node_id="target", pre_resolved_nodes=nodes, trigger_node_id="trigger_1")
 
 
 def test_empty_target_node_id_raises() -> None:
@@ -468,7 +485,7 @@ def test_whitespace_target_node_id_raises() -> None:
 
 def test_target_node_id_stripped() -> None:
     """Validator strips whitespace from target_node_id."""
-    req = TestExecutionCreate(target_node_id="  node_a  ", pre_resolved_nodes={})
+    req = TestExecutionCreate(target_node_id="  node_a  ", pre_resolved_nodes={}, trigger_node_id="trigger_1")
     assert req.target_node_id == "node_a"
 
 
@@ -478,6 +495,7 @@ def test_target_in_pre_resolved_raises_at_model_level() -> None:
         TestExecutionCreate(
             target_node_id="node_a",
             pre_resolved_nodes={"node_a": PreResolvedNodeOutput(output={})},
+            trigger_node_id="trigger_1",
         )
 
 
@@ -487,6 +505,7 @@ def test_target_in_pre_resolved_allowed_when_execute_target_false() -> None:
         target_node_id="target",
         pre_resolved_nodes={"target": PreResolvedNodeOutput(output={"v": 1})},
         execute_target=False,
+        trigger_node_id="trigger_1",
     )
     assert req.target_node_id == "target"
     assert "target" in req.pre_resolved_nodes
@@ -500,6 +519,7 @@ def test_target_in_pre_resolved_rejected_when_execute_target_true() -> None:
             target_node_id="target",
             pre_resolved_nodes={"target": PreResolvedNodeOutput(output={})},
             execute_target=True,
+            trigger_node_id="trigger_1",
         )
 
 
@@ -508,5 +528,6 @@ def test_execute_target_defaults_to_true() -> None:
     req = TestExecutionCreate(
         target_node_id="target",
         pre_resolved_nodes={},
+        trigger_node_id="trigger_1",
     )
     assert req.execute_target is True

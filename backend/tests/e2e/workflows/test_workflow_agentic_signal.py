@@ -101,7 +101,7 @@ class TestWorkflowAgenticSignal:
 
         # Step 2: Execute the workflow
         execution = nexus_api.executions.create(
-            body=ExecutionCreate(workflow_id=workflow.id),
+            body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger_manual"),
         ).assert_and_get()
         assert execution.id is not None
 

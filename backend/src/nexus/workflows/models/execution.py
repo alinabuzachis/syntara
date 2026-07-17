@@ -331,9 +331,7 @@ class ExecutionCreate(SQLModel):
 
     workflow_id: UUID = Field(..., description="Workflow ID to execute")
     input_data: dict[str, Any] = Field(default_factory=dict, description="Input data for workflow execution")
-    trigger_node_id: str | None = Field(
-        default=None, description="Trigger node ID to start from (defaults to first trigger)"
-    )
+    trigger_node_id: str = Field(description="Trigger node ID to start from")
     use_published: bool = Field(
         default=False, description="If true, run the published version instead of the current version"
     )
@@ -365,6 +363,7 @@ class TestExecutionCreate(SQLModel):
         "Useful for populating upstream data without executing the target. "
         "When True (default), target_node_id must not appear in pre_resolved_nodes.",
     )
+    trigger_node_id: str = Field(description="Trigger node ID to start from")
 
     @field_validator("target_node_id")
     @classmethod

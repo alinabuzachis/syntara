@@ -1,7 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useCallback } from 'react'
 
-import { executionsClient, workflowClient } from '../../client'
+import { executionsFetchClient, workflowClient, workflowFetchClient } from '../../client'
 import type { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 
@@ -26,7 +26,6 @@ export function useWorkflowActions({
   onPublishSettled,
   onUnpublishSettled,
 }: UseWorkflowActionsOptions) {
-  const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow, isPending: isDeleting } = workflowClient.useMutation(
     'delete',
     '/workflows/{workflow_id}'
@@ -38,26 +37,33 @@ export function useWorkflowActions({
   const { mutate: unpublishWorkflow } = workflowClient.useMutation('post', '/workflows/{workflow_id}/unpublish')
 
   const handleRunWorkflow = useCallback(
-    (workflow: Workflow) => {
+    async (workflow: Workflow) => {
       if (!workflow.id) return
-      executeWorkflow(
-        { body: { workflow_id: workflow.id, input_data: {}, use_published: true } },
-        {
-          onSuccess: (data) => {
-            if (data && 'id' in data) {
-              onNavigate(`/executions/${data.id}`)
-            }
-          },
-          onError: (error: unknown) => {
-            showError({
-              title: 'Workflow failed',
-              description: `Failed to start workflow "${workflow.name}": ${getErrorMessage(error)}`,
-            })
-          },
-        }
-      )
+
+      const { data: detail } = await workflowFetchClient.GET('/workflows/{workflow_id}', {
+        params: { path: { workflow_id: workflow.id } },
+      })
+      const triggers = (detail as { workflow_definition?: { triggers?: { id?: string }[] } } | undefined)
+        ?.workflow_definition?.triggers
+      const triggerNodeId = triggers?.[0]?.id
+      if (!triggerNodeId) {
+        showError({ title: 'Cannot run workflow', description: 'Workflow has no triggers configured' })
+        return
+      }
+
+      const { data, error } = await executionsFetchClient.POST('/executions', {
+        body: { workflow_id: workflow.id, input_data: {}, trigger_node_id: triggerNodeId, use_published: true },
+      })
+      if (error || !data?.id) {
+        showError({
+          title: 'Workflow failed',
+          description: `Failed to start workflow "${workflow.name}": ${getErrorMessage(error)}`,
+        })
+      } else {
+        onNavigate(`/executions/${data.id}`)
+      }
     },
-    [executeWorkflow, onNavigate, showError]
+    [onNavigate, showError]
   )
 
   const handleDeleteWorkflow = useCallback(

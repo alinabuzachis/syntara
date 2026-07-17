@@ -324,9 +324,9 @@ class TestExecutionCreateUsePublished:
     """ExecutionCreate.use_published field tests."""
 
     def test_use_published_defaults_to_false(self) -> None:
-        create = ExecutionCreate(workflow_id=uuid4())
+        create = ExecutionCreate(workflow_id=uuid4(), trigger_node_id="trigger_1")
         assert create.use_published is False
 
     def test_use_published_can_be_set_to_true(self) -> None:
-        create = ExecutionCreate(workflow_id=uuid4(), use_published=True)
+        create = ExecutionCreate(workflow_id=uuid4(), trigger_node_id="trigger_1", use_published=True)
         assert create.use_published is True

@@ -203,6 +203,7 @@ class TestCreateExecution:
         result = await service.create_execution(
             workflow_id=workflow_id,
             input_data={"key": "value"},
+            trigger_node_id="trigger_1",
         )
 
         # Verify
@@ -273,7 +274,7 @@ class TestCreateExecution:
         mock_user.id = user_id
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
 
-        await service.create_execution(workflow_id=workflow_id, input_data={})
+        await service.create_execution(workflow_id=workflow_id, input_data={}, trigger_node_id="trigger_1")
 
         call_kwargs = mock_temporal.start_workflow.call_args.kwargs
         assert call_kwargs["is_builtin"] is True
@@ -318,7 +319,7 @@ class TestCreateExecution:
         mock_user.id = uuid4()
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
 
-        await service.create_execution(workflow_id=workflow.id, input_data={})
+        await service.create_execution(workflow_id=workflow.id, input_data={}, trigger_node_id="trigger_1")
 
         call_kwargs = mock_temporal.start_workflow.call_args.kwargs
         wf_meta = call_kwargs["workflow_metadata"]
@@ -366,6 +367,7 @@ class TestCreateExecution:
         result = await service.create_execution(
             workflow_id=workflow_id,
             input_data={},
+            trigger_node_id="trigger_1",
         )
 
         # Verify stub temporal_workflow_id was generated
@@ -390,6 +392,7 @@ class TestCreateExecution:
             await service.create_execution(
                 workflow_id=workflow_id,
                 input_data={},
+                trigger_node_id="trigger_1",
             )
 
         assert str(workflow_id) in str(exc_info.value)
@@ -433,6 +436,7 @@ class TestCreateExecution:
             workflow_id=workflow_id,
             input_data={},
             use_published=True,
+            trigger_node_id="trigger_1",
         )
 
         assert result.temporal_workflow_id.startswith("exec-")
@@ -457,6 +461,7 @@ class TestCreateExecution:
                 workflow_id=workflow_id,
                 input_data={},
                 use_published=True,
+                trigger_node_id="trigger_1",
             )
         assert str(workflow_id) in str(exc_info.value)
 
@@ -519,7 +524,7 @@ class TestCreateExecution:
             ),
             pytest.raises(Exception, match="DB commit failed"),
         ):
-            await service.create_execution(workflow_id=workflow_id, input_data={})
+            await service.create_execution(workflow_id=workflow_id, input_data={}, trigger_node_id="t1")
 
         mock_temporal.cancel_workflow.assert_awaited_once_with(
             temporal_workflow_id=temporal_result.temporal_workflow_id
@@ -609,6 +614,7 @@ class TestCreateExecution:
         result = await service.create_execution(
             workflow_id=workflow_id,
             input_data={},
+            trigger_node_id="trigger_1",
         )
 
         # Verify the Execution object stored in the database
@@ -658,6 +664,7 @@ class TestCreateExecution:
             result = await service.create_execution(
                 workflow_id=workflow_id,
                 input_data={},
+                trigger_node_id="trigger_1",
             )
 
             # Verify the Execution object stored in the database
@@ -706,6 +713,7 @@ class TestCreateExecution:
         result = await service.create_execution(
             workflow_id=workflow_id,
             input_data={},
+            trigger_node_id="trigger_1",
         )
 
         # Verify the Execution object stored in the database
@@ -714,6 +722,142 @@ class TestCreateExecution:
 
         # Verify it propagates to the returned ExecutionRead
         assert result.interface == "api"
+
+
+class TestCreateExecutionByName:
+    """Test create_execution_by_name method."""
+
+    @pytest.mark.asyncio
+    async def test_create_execution_by_name_resolves_trigger(self) -> None:
+        """Test that create_execution_by_name extracts trigger_node_id from the published definition."""
+        mock_session = Mock(spec=AsyncSession)
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = uuid4()
+        workflow.name = "Document Conversion"
+        workflow.is_enabled = True
+        workflow.project_id = uuid4()
+
+        workflow_version = Mock(spec=WorkflowVersion)
+        workflow_version.id = uuid4()
+        workflow_version.version = 1
+        workflow_version.schema_version = "2.0.0"
+        workflow_version.workflow_definition = {
+            "triggers": [{"id": "builtin_trigger", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=(workflow, workflow_version))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        mock_user = Mock(spec=User)
+        mock_user.id = uuid4()
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
+        with patch.object(service, "create_execution", new_callable=AsyncMock) as mock_create:
+            mock_create.return_value = Mock(spec=ExecutionRead)
+            await service.create_execution_by_name(
+                workflow_name="Document Conversion",
+                input_data={"file_id": "abc"},
+                project_name="Builtin",
+            )
+
+            mock_create.assert_called_once_with(
+                workflow_id=workflow.id,
+                input_data={"file_id": "abc"},
+                trigger_node_id="builtin_trigger",
+                use_published=True,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_execution_by_name_raises_when_not_found(self) -> None:
+        """Test that create_execution_by_name raises WorkflowNotFoundError."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=None)
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        mock_user = Mock(spec=User)
+        mock_user.id = uuid4()
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
+        with pytest.raises(WorkflowNotFoundError):
+            await service.create_execution_by_name(
+                workflow_name="Nonexistent",
+                input_data={},
+                project_name="Builtin",
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_execution_by_name_raises_when_no_triggers(self) -> None:
+        """Test that create_execution_by_name raises when workflow has no triggers."""
+        mock_session = Mock(spec=AsyncSession)
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = uuid4()
+
+        workflow_version = Mock(spec=WorkflowVersion)
+        workflow_version.workflow_definition = {"triggers": [], "nodes": [], "edges": []}
+
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=(workflow, workflow_version))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        mock_user = Mock(spec=User)
+        mock_user.id = uuid4()
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
+        with pytest.raises(SafeValueError, match="has no triggers"):
+            await service.create_execution_by_name(
+                workflow_name="Bad Workflow",
+                input_data={},
+                project_name="Builtin",
+            )
+
+
+class TestRetryExecutionTriggerNodeId:
+    """Test retry_execution trigger_node_id validation."""
+
+    @pytest.mark.asyncio
+    async def test_retry_raises_when_original_has_no_trigger_node_id(self) -> None:
+        """Test that retrying an execution without trigger_node_id raises SafeValueError."""
+        mock_session = Mock(spec=AsyncSession)
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = uuid4()
+        workflow.deleted_at = None
+
+        original = Mock(spec=Execution)
+        original.id = uuid4()
+        original.workflow_id = workflow.id
+        original.workflow_version_id = uuid4()
+        original.trigger_node_id = None
+        original.status = ExecutionStatus.FAILED
+        original.mode = "standard"
+        original.retried_from_execution_id = None
+        original.workflow = workflow
+
+        workflow_version = Mock(spec=WorkflowVersion)
+        workflow_version.id = original.workflow_version_id
+        workflow_version.deleted_at = None
+        workflow_version.workflow_definition = {
+            "triggers": [{"id": "t1", "type": "manual_trigger"}],
+        }
+
+        mock_exec_result = Mock()
+        mock_exec_result.one_or_none = Mock(return_value=original)
+        mock_version_result = Mock()
+        mock_version_result.one_or_none = Mock(return_value=workflow_version)
+        mock_session.exec = AsyncMock(side_effect=[mock_exec_result, mock_version_result])
+
+        mock_user = Mock(spec=User)
+        mock_user.id = uuid4()
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
+        with pytest.raises(SafeValueError, match="no trigger_node_id recorded"):
+            await service.retry_execution(execution_id=original.id)
 
 
 class TestGetExecution(TestExecutionServiceBase):

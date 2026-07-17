@@ -69,7 +69,7 @@ class TestExecutionOperatorAllowed:
 
     def test_trigger_execution(self, execution_operator_env):
         user_api, _project_id, wf_id = execution_operator_env
-        resp = user_api.executions.create(body=ExecutionCreate(workflow_id=wf_id))
+        resp = user_api.executions.create(body=ExecutionCreate(workflow_id=wf_id, trigger_node_id="trigger"))
         assert resp.status_code == HTTPStatus.CREATED
 
     def test_list_workflows(self, execution_operator_env):

@@ -75,6 +75,7 @@ async def _create_execution(
         labels={},
         project_id=workflow.project_id,
         mode=mode,
+        trigger_node_id="trigger_manual",
     )
     session.add(execution)
     await session.commit()

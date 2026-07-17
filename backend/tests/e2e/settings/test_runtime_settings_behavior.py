@@ -74,7 +74,9 @@ def _run_workflow(
         ).assert_and_get()
         wf_id = workflow.id
 
-    execution = api.executions.create(body=ExecutionCreate(workflow_id=wf_id)).assert_and_get()
+    execution = api.executions.create(
+        body=ExecutionCreate(workflow_id=wf_id, trigger_node_id="trigger")
+    ).assert_and_get()
     return _poll(api, str(execution.id), timeout=timeout)
 
 
