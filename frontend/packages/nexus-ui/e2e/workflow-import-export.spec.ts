@@ -195,7 +195,7 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  test.skip('exports a workflow from the builder toolbar kebab menu', async ({ app }) => {
+  test('exports a workflow from the builder toolbar kebab menu', async ({ app }) => {
     const workflowName = buildUniqueName('export-builder')
     try {
       await createBasicWorkflow(app, workflowName, 'Builder Action')

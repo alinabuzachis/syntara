@@ -94,8 +94,7 @@ async function openRunStepDialog(app: import('@playwright/test').Page, nodeText:
   await expect(app.getByRole('heading', { name: `Run ${nodeText}?` })).toBeVisible({ timeout: 15_000 })
 }
 
-// Skipped: flaky openRunStepDialog timeout is blocking the merge queue
-test.describe.skip('Run Step', () => {
+test.describe('Run Step', () => {
   test('opens "Run step" dialog from step kebab menu', async ({ app }) => {
     // Arrange - Create a workflow with a script node
     const workflowName = buildUniqueName('e2e-run-step')
