@@ -28,7 +28,7 @@ These existing documents define core standards and should be consulted first:
 | [WebSocket](websocket.md) | Connection lifecycle, streaming handlers, message formats, close codes |
 | [Redis](redis.md) | Stream operations, connection management, key naming, TTL policies |
 | [Configuration](configuration.md) | Pydantic Settings patterns, env vars, constants module, adding new settings, testing |
-| [API Response Format](api-response-format.md) | List responses, pagination, filtering, sorting, model naming, field validators |
+| [API Response Format](api-response-format.md) | List responses, pagination, filtering, sorting, CRUD endpoint conventions, model naming, field validators |
 | [Database](database.md) | Connection pooling, migrations, label filtering, GIN indexes, session management |
 | [Services](services.md) | BaseService, extension mixins, dependency injection, middleware, periodic workers |
 | [Exceptions](exceptions.md) | Exception naming, error handlers, PROBLEM_TYPES, @fastapi_exception, retry classification |
