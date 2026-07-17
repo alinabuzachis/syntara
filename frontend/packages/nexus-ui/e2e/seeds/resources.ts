@@ -1,8 +1,9 @@
 /**
  * Resource seed helpers for E2E tests running against a real backend.
  *
- * Creates integrations, workflows, credentials, and identity providers via API.
- * Falls back to mock credentials (password: "mock") when NEXUS_E2E_PASSWORD is not set.
+ * Creates integrations, workflows, executions, credentials, and identity
+ * providers via API. Falls back to mock credentials (password: "mock") when
+ * NEXUS_E2E_PASSWORD is not set.
  *
  * Each spec file should use a unique prefix (via buildUniqueName) to avoid
  * conflicts with parallel Playwright workers.
@@ -10,10 +11,6 @@
 import { type Page } from '@playwright/test'
 
 import { apiRequest, createCredentialViaApi, deleteCredentialViaApi, ensureProject, getAuthToken } from '../utils/api'
-
-// ---------------------------------------------------------------------------
-// Integrations (tool providers)
-// ---------------------------------------------------------------------------
 
 export type SeededIntegration = {
   id: string
@@ -59,10 +56,6 @@ export async function deleteIntegrationViaApi(page: Page, integrationId: string)
     // Best-effort cleanup
   }
 }
-
-// ---------------------------------------------------------------------------
-// Workflows
-// ---------------------------------------------------------------------------
 
 export type SeededWorkflow = {
   id: string
@@ -121,9 +114,37 @@ export async function deleteWorkflowViaApi(page: Page, workflowId: string): Prom
   }
 }
 
-// ---------------------------------------------------------------------------
-// Identity Providers
-// ---------------------------------------------------------------------------
+export type CreatedExecution = {
+  id: string
+  status: string
+}
+
+/**
+ * Create an execution via POST /executions.
+ *
+ * Against the mock API, an optional `status` is honored so tests can seed
+ * mixed statuses without changing the handler's default (`completed`).
+ * The real backend ignores unknown fields and always starts executions as pending.
+ */
+export async function createExecutionViaApi(
+  page: Page,
+  options: { workflowId: string; status?: string; token?: string }
+): Promise<CreatedExecution | null> {
+  try {
+    const token = options.token ?? (await getAuthToken(page))
+    if (!token) return null
+
+    const data: Record<string, unknown> = { workflow_id: options.workflowId }
+    if (options.status) data.status = options.status
+
+    const resp = await apiRequest(page, 'post', '/executions', { token, data })
+    if (!resp.ok()) return null
+    const body = (await resp.json()) as { id: string; status: string }
+    return { id: body.id, status: body.status }
+  } catch {
+    return null
+  }
+}
 
 export type SeededIdentityProvider = {
   id: string
@@ -172,10 +193,7 @@ export async function deleteIdentityProviderViaApi(page: Page, idpId: string): P
   }
 }
 
-// ---------------------------------------------------------------------------
-// Credentials (re-export from utils/api for convenience)
-// ---------------------------------------------------------------------------
-
+/** Re-export credential helpers from utils/api for convenience. */
 export type SeededCredential = {
   id: string
   name: string

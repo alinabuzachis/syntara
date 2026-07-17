@@ -1312,11 +1312,18 @@ export const handlers = [
     const project_id = url.searchParams.get('project_id')
 
     const status = url.searchParams.get('status')
+    const workflow_version_id = url.searchParams.get('workflow_version_id')
 
     let filtered = workflow_id ? executions.filter((e) => e.workflow_id === workflow_id) : executions
 
     if (status) {
       filtered = filtered.filter((e) => e.status === status)
+    }
+
+    if (workflow_version_id) {
+      filtered = filtered.filter(
+        (e) => (e as { workflow_version_id?: string }).workflow_version_id === workflow_version_id
+      )
     }
 
     // Filter by project: find workflow IDs belonging to the project, then filter executions
@@ -1329,12 +1336,16 @@ export const handlers = [
     const workflowMap = new Map(workflows.map((w) => [w.id, w]))
     const enriched = filtered.map((e) => {
       const wf = e.workflow_id ? workflowMap.get(e.workflow_id) : undefined
+      const versionNum = wf?.published_version ?? wf?.current_version ?? 1
+      const existingVersionId = (e as { workflow_version_id?: string }).workflow_version_id
       return {
         ...e,
         project_id: wf?.project_id ?? null,
-        workflow_version: wf?.current_version ?? null,
+        workflow_version: versionNum,
+        workflow_version_id: existingVersionId ?? (e.workflow_id ? `wv-${e.workflow_id}-${versionNum}` : null),
         workflow_version_name: null,
-        workflow_version_created_at: e.created_at ?? null,
+        workflow_version_created_at:
+          (e as { workflow_version_created_at?: string }).workflow_version_created_at ?? e.created_at ?? null,
       }
     })
 
@@ -1343,9 +1354,15 @@ export const handlers = [
   }),
 
   http.post('/api/v1/executions', async ({ request }) => {
-    const body = (await request.json()) as ExecutionsAPI.components['schemas']['CreateExecutionRequest']
+    const body = (await request.json()) as ExecutionsAPI.components['schemas']['ExecutionCreate'] & {
+      /** Mock-only: optional status override for self-contained E2E seeding. */
+      status?: 'completed' | 'failed' | 'running' | 'cancelled' | 'pending' | 'paused'
+    }
     const executionId = uuidv4()
     const workflow = workflows.find((w) => w.id === body.workflow_id)
+    const versionNum = workflow?.published_version ?? workflow?.current_version ?? 1
+    const existingCount = executions.filter((e) => e.workflow_id === body.workflow_id).length
+
     const definition = workflow?.version?.workflow_definition as
       | {
           nodes?: Array<{ id?: string; type?: string; name?: string }>
@@ -1358,21 +1375,31 @@ export const handlers = [
     // Synthesize per-node activities so newly created executions are usable in
     // self-contained E2E tests (GET detail / activities list).
     const hasApproval = nodes.some((node) => node.type === 'approval')
+
+    // Default remains completed for suite-wide stability. Tests that need mixed
+    // statuses pass an explicit `status` (mock-only; ignored by the real API).
+    // Approval workflows still default to paused when no override is provided.
+    const status = body.status ?? (hasApproval ? 'paused' : 'completed')
+    const timestampCycle = [mockDate.hoursAgo1, mockDate.hoursAgo2, mockDate.hoursAgo3, mockDate.hoursAgo4] as const
+    const timestamp = timestampCycle[existingCount % timestampCycle.length]
+    const isTerminal = status === 'completed' || status === 'failed' || status === 'cancelled'
+    const isPaused = status === 'paused'
+
     const activities: ExecutionsAPI.components['schemas']['ActivityExecution'][] = nodes
       .filter((node): node is { id: string; type?: string; name?: string } => typeof node.id === 'string')
       .map((node, index) => {
         const isApproval = node.type === 'approval'
         return {
           id: `act-${executionId}-${index + 1}`,
-          created_at: mockDate.now,
-          updated_at: mockDate.now,
+          created_at: timestamp,
+          updated_at: timestamp,
           execution_id: executionId,
           activity_name: node.id,
-          status: isApproval ? ('waiting' as const) : ('completed' as const),
-          started_at: mockDate.now,
-          completed_at: isApproval ? null : mockDate.now,
+          status: isApproval && isPaused ? ('waiting' as const) : ('completed' as const),
+          started_at: timestamp,
+          completed_at: isApproval && isPaused ? null : timestamp,
           input_data: {},
-          output_data: isApproval ? null : {},
+          output_data: isApproval && isPaused ? null : {},
           error_details: null,
           retry_count: 0,
           iteration: null,
@@ -1384,16 +1411,16 @@ export const handlers = [
 
     const execution = {
       id: executionId,
-      created_at: mockDate.now,
-      updated_at: mockDate.now,
+      created_at: timestamp,
+      updated_at: timestamp,
       workflow_id: body.workflow_id,
-      status: hasApproval ? ('paused' as const) : ('completed' as const),
-      approval_pending: hasApproval,
-      started_at: mockDate.now,
-      completed_at: hasApproval ? null : mockDate.now,
+      status,
+      approval_pending: isPaused,
+      started_at: timestamp,
+      completed_at: isTerminal ? timestamp : null,
       started_by: 'user-1',
       input_data: body.input_data ?? {},
-      current_activities: hasApproval
+      current_activities: isPaused
         ? activities
             .filter((activity) => activity.status === 'waiting')
             .map((activity) => ({
@@ -1402,6 +1429,11 @@ export const handlers = [
               iteration: null,
             }))
         : [],
+      workflow_version: versionNum,
+      workflow_version_id: body.workflow_id ? `wv-${body.workflow_id}-${versionNum}` : null,
+      workflow_version_name: null,
+      workflow_version_created_at: mockDate.daysAgo1,
+      project_id: workflow?.project_id ?? null,
     }
     executions.push(execution)
     return HttpResponse.json(execution, { status: 201 })
