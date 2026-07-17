@@ -86,7 +86,7 @@ function SingleSelect({
       selected={value}
       toggle={toggle}
     >
-      <SelectList>
+      <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
         {options.map((opt) => (
           <SelectOption key={opt.value} value={opt.value} isSelected={opt.value === value}>
             {opt.label}
