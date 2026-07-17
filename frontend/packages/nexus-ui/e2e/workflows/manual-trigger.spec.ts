@@ -18,7 +18,6 @@ import { ensureProject } from '../utils/api'
 
 test.describe('Manual Trigger', () => {
   test('creates workflow with manual trigger and verifies canvas display', async ({ app }) => {
-    test.fixme(true, 'Flaky in CI — badge count assertion timing needs investigation')
     const workflowName = buildUniqueName('e2e-manual')
 
     await ensureProject(app)
@@ -36,9 +35,9 @@ test.describe('Manual Trigger', () => {
       await app.goto(toAppUrl('/workflows'))
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
+      await expect(app.getByRole('link', { name: workflowName, exact: true })).toBeVisible()
 
-      await app.getByRole('button', { name: workflowName, exact: true }).click()
+      await app.getByRole('link', { name: workflowName, exact: true }).click()
 
       // Wait for builder to load
       await expect(app).toHaveURL(/workflow-builder\/.+/, { timeout: 15_000 })

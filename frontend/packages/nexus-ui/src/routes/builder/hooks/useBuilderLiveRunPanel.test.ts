@@ -24,11 +24,12 @@ vi.mock('../../workflows/stores/useExecutionStore', () => ({
   ),
 }))
 
+const mockInvalidateQueries = vi.fn()
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
-    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+    useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
   }
 })
 
@@ -318,7 +319,7 @@ describe('useBuilderLiveRunPanel', () => {
     })
 
     it.each(['completed', 'failed', 'cancelled'] as const)(
-      'is disabled when active but status is %s',
+      'stays enabled when active and status is %s (WS gates on EVENTS_EXPIRED, not REST)',
       (executionStatus) => {
         renderHook(
           () =>
@@ -328,7 +329,7 @@ describe('useBuilderLiveRunPanel', () => {
           { wrapper: makeWrapper(queryClient) }
         )
 
-        expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: false }))
+        expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('exec-1', expect.objectContaining({ enabled: true }))
       }
     )
 
@@ -342,6 +343,33 @@ describe('useBuilderLiveRunPanel', () => {
       )
 
       expect(mockUseExecutionWebSocket).toHaveBeenCalledWith('', expect.objectContaining({ enabled: false }))
+    })
+  })
+
+  describe('onExecutionComplete (query invalidation)', () => {
+    it('invalidates execution queries when the WS fires EVENTS_EXPIRED', () => {
+      renderHook(
+        () =>
+          useBuilderLiveRunPanel(
+            defaultParams({ mostRecentRunPanelOpen: true, mostRecentExecutionId: 'exec-1', executionStatus: 'running' })
+          ),
+        { wrapper: makeWrapper(queryClient) }
+      )
+
+      const { onExecutionComplete } = mockUseExecutionWebSocket.mock.calls[0][1] as {
+        onExecutionComplete: () => void
+      }
+
+      act(() => {
+        onExecutionComplete()
+      })
+
+      expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['get', '/executions/{execution_id}'] })
+      expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['get', '/executions'] })
+      expect(mockInvalidateQueries).toHaveBeenCalledWith({
+        queryKey: ['get', '/executions/{execution_id}/activities'],
+      })
+      expect(mockInvalidateQueries).toHaveBeenCalledTimes(3)
     })
   })
 })

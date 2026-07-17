@@ -63,12 +63,13 @@ export function useBuilderLiveRunPanel({
   const isLiveRunActive = showMostRecentRunPanelInEditor && !isTerminalStatus
 
   useExecutionWebSocket(mostRecentExecutionId ?? '', {
-    // Connect whenever the panel is active and we haven't confirmed a terminal
-    // status from REST. Using !isTerminalStatus (rather than isRunningOrPending)
-    // means we also connect while the status query is still loading (undefined),
-    // which lets EVENTS_EXPIRED fire and refresh activity data for fast executions
-    // that complete before the first REST response arrives.
-    enabled: isActive && !isTerminalStatus,
+    // Connect whenever the panel is active, regardless of what REST says about
+    // terminal status. The WS's own EVENTS_EXPIRED event gates the disconnect via
+    // onExecutionComplete — not the REST status. This avoids a race where a fast
+    // execution completes before the WS delivers per-node activity events:
+    // if we disabled on REST terminal status, activityStates would stay empty and
+    // no canvas badges would ever appear.
+    enabled: isActive,
     onExecutionComplete: () => {
       detachPromise(
         Promise.all([

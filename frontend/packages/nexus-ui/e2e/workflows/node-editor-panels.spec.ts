@@ -1049,7 +1049,6 @@ test.describe('Node editor panels', () => {
   })
 
   test('mock data cancel flow', async ({ app }) => {
-    test.fixme(true, 'Flaky in CI')
     const workflowName = buildUniqueName('e2e-mock-cancel')
     await app.goto(toAppUrl('/workflow-builder/new'))
     await selectProjectIfRequired(app)
@@ -1087,6 +1086,7 @@ test.describe('Node editor panels', () => {
     const setMockButton = inputPanel.locator('[data-ouia-component-type="PF6/MenuToggle"]').filter({
       hasText: 'Set mock data',
     })
+    await expect(setMockButton).toBeVisible()
     await setMockButton.click()
     await clickMenuItemWhenVisible(app, 'Script A')
     await expect(app.getByRole('button', { name: 'Pin data', exact: true })).toBeVisible()
