@@ -4,6 +4,9 @@ import {
   Button,
   Divider,
   FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
   MenuToggle,
   type MenuToggleElement,
   Select,
@@ -18,9 +21,12 @@ import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { useQueries } from '@tanstack/react-query'
 import React, { useCallback, useMemo, useState } from 'react'
 
+import { AppRoute } from '../../../app/AppRoute'
 import { integrationsFetchClient, integrationsClient } from '../../../client'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { NxLabel } from '../../../components/labels/NxLabel'
+import { NxLink } from '../../../components/NxLink'
+import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 
 import styles from './LLMModelSelector.module.css'
 
@@ -277,6 +283,9 @@ export function LLMModelSelector({
 
   const formGroupLabel = helpText ? <FormLabelWithHelp label={label} helpText={helpText} /> : label
 
+  const hasNoIntegrations = integrations.length === 0 && !isPending
+  const { canCreate: canCreateIntegration } = useIntegrationPermissions()
+
   return (
     <FormGroup label={formGroupLabel} fieldId={fieldId} isRequired>
       <Select
@@ -291,7 +300,7 @@ export function LLMModelSelector({
         shouldFocusToggleOnSelect
       >
         <SelectList>
-          {integrations.length === 0 && !isPending && (
+          {hasNoIntegrations && (
             <SelectOption isAriaDisabled value="__empty__">
               No LLM provider integrations configured
             </SelectOption>
@@ -335,6 +344,25 @@ export function LLMModelSelector({
           </React.Fragment>
         ))}
       </Select>
+      {hasNoIntegrations && (
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem>
+              {canCreateIntegration ? (
+                <>
+                  An administrator must{' '}
+                  <NxLink to={AppRoute.Configuration.Integrations.Configure}>
+                    configure an LLM provider integration
+                  </NxLink>{' '}
+                  before models can be selected.
+                </>
+              ) : (
+                'An administrator must configure an LLM provider integration before models can be selected.'
+              )}
+            </HelperTextItem>
+          </HelperText>
+        </FormHelperText>
+      )}
     </FormGroup>
   )
 }

@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { integrationsClient, integrationsFetchClient } from '../../../client'
+import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 
 import { LLMModelSelector, type LLMModelSelectorProps } from './LLMModelSelector'
 
@@ -26,6 +27,14 @@ vi.mock('../../../components/FormLabelWithHelp', () => ({
 
 vi.mock('../../../components/labels/NxLabel', () => ({
   NxLabel: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+}))
+
+vi.mock('../../../components/NxLink', () => ({
+  NxLink: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
+}))
+
+vi.mock('../../configuration/integrations/useIntegrationPermissions', () => ({
+  useIntegrationPermissions: vi.fn(),
 }))
 
 const queryClient = new QueryClient({
@@ -80,6 +89,13 @@ describe('LLMModelSelector', () => {
     vi.clearAllMocks()
     queryClient.clear()
     mockClients()
+    vi.mocked(useIntegrationPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: false,
+      canDelete: false,
+      isLoading: false,
+      tooltips: { create: '', update: '', enable: '', validate: '', delete: '' },
+    })
   })
 
   it('renders with default label', () => {
@@ -99,6 +115,45 @@ describe('LLMModelSelector', () => {
     renderSelector()
 
     expect(screen.getByRole('button', { name: /model/i })).toBeInTheDocument()
+  })
+
+  it('shows guidance link when no integrations exist and user can create integrations', () => {
+    mockClients({ integrations: [] })
+    renderSelector()
+
+    const link = screen.getByRole('link', { name: /configure an LLM provider integration/i })
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/configuration/integrations/configure')
+  })
+
+  it('shows plain text guidance without link when user lacks integration:create permission', () => {
+    vi.mocked(useIntegrationPermissions).mockReturnValue({
+      canCreate: false,
+      canUpdate: false,
+      canDelete: false,
+      isLoading: false,
+      tooltips: { create: '', update: '', enable: '', validate: '', delete: '' },
+    })
+    mockClients({ integrations: [] })
+    renderSelector()
+
+    expect(screen.getByText(/An administrator must configure an LLM provider integration/i)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /configure an LLM provider integration/i })).not.toBeInTheDocument()
+  })
+
+  it('hides guidance link while permissions are loading', () => {
+    vi.mocked(useIntegrationPermissions).mockReturnValue({
+      canCreate: false,
+      canUpdate: false,
+      canDelete: false,
+      isLoading: true,
+      tooltips: { create: '', update: '', enable: '', validate: '', delete: '' },
+    })
+    mockClients({ integrations: [] })
+    renderSelector()
+
+    expect(screen.queryByRole('link', { name: /configure an LLM provider integration/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/An administrator must configure an LLM provider integration/i)).toBeInTheDocument()
   })
 
   it('calls onChange when a model is selected', async () => {

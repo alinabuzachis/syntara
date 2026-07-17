@@ -87,6 +87,16 @@ vi.mock('../components/file-upload', () => ({
   ),
 }))
 
+vi.mock('../../configuration/integrations/useIntegrationPermissions', () => ({
+  useIntegrationPermissions: vi.fn(() => ({
+    canCreate: true,
+    canUpdate: false,
+    canDelete: false,
+    isLoading: false,
+    tooltips: { create: '', update: '', enable: '', validate: '', delete: '' },
+  })),
+}))
+
 // Mock generateUUID
 vi.mock('../../../utils/generateUUID', () => ({
   generateUUID: vi.fn(() => 'mock-uuid-123'),
@@ -193,7 +203,6 @@ describe('AIAgentNodeForm', () => {
   it('hides credential section when no model is selected', () => {
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="project-789" />)
 
-    // The credential picker is contextual — it is hidden until a model is selected
     expect(screen.queryByLabelText('LLM provider credential')).not.toBeInTheDocument()
     expect(screen.queryByText(/LLM credential not configured/i)).not.toBeInTheDocument()
   })
