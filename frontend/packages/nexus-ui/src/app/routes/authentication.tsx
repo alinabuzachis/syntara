@@ -24,11 +24,6 @@ export const authenticationRoutes = [
   }),
   createRoute({
     getParentRoute: () => rootRoute,
-    path: '/system-administration/authentication/identity-providers/$providerId',
-    component: makeRouteComponent(<IdentityProviderDetail />),
-  }),
-  createRoute({
-    getParentRoute: () => rootRoute,
     path: '/system-administration/authentication/identity-providers/$providerId/edit',
     component: makeRouteComponent(<EditIdentityProvider />, { action: 'update', resourceType: 'identity-provider' }),
   }),
@@ -36,6 +31,11 @@ export const authenticationRoutes = [
     getParentRoute: () => rootRoute,
     path: '/system-administration/authentication/identity-providers/$providerId/group-mapping/edit',
     component: makeRouteComponent(<EditGroupMapping />),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/system-administration/authentication/identity-providers/$providerId',
+    component: makeRouteComponent(<IdentityProviderDetail />),
   }),
   createRoute({
     getParentRoute: () => rootRoute,

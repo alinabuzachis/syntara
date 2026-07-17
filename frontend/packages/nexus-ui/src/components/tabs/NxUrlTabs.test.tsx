@@ -77,7 +77,7 @@ describe('NxUrlTabs', () => {
     expect(screen.getByRole('tab', { name: 'Tab B' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('redirects to defaultTab when URL tab is not in validTabs', () => {
+  it('redirects to defaultTab when URL tab is not in validTabs', async () => {
     routerTestState.pathname = '/base/invalid'
     render(
       <NxUrlTabs basePath="/base" defaultTab="tab-a" validTabs={['tab-a', 'tab-b']} aria-label="Test tabs">
@@ -90,6 +90,7 @@ describe('NxUrlTabs', () => {
       </NxUrlTabs>
     )
 
+    await act(() => new Promise((r) => requestAnimationFrame(r)))
     expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/base/tab-a', replace: true })
   })
 
@@ -108,7 +109,7 @@ describe('NxUrlTabs', () => {
     expect(routerTestState.navigate).not.toHaveBeenCalled()
   })
 
-  it('redirects to first validTab when no defaultTab is provided', () => {
+  it('redirects to first validTab when no defaultTab is provided', async () => {
     routerTestState.pathname = '/base'
     render(
       <NxUrlTabs basePath="/base" validTabs={['first', 'second']} aria-label="Test tabs">
@@ -121,6 +122,7 @@ describe('NxUrlTabs', () => {
       </NxUrlTabs>
     )
 
+    await act(() => new Promise((r) => requestAnimationFrame(r)))
     expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/base/first', replace: true })
   })
 

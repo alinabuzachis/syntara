@@ -37,11 +37,6 @@ export const accessManagementRoutes = [
   }),
   createRoute({
     getParentRoute: () => rootRoute,
-    path: '/system-administration/access-management/users/$userId',
-    component: makeRouteComponent(<UserDetail />),
-  }),
-  createRoute({
-    getParentRoute: () => rootRoute,
     path: '/system-administration/access-management/users/$userId/edit',
     component: makeRouteComponent(<EditUser />, { action: 'update', resourceType: 'user' }),
   }),
@@ -49,6 +44,11 @@ export const accessManagementRoutes = [
     getParentRoute: () => rootRoute,
     path: '/system-administration/access-management/users/$userId/transfer-identity',
     component: makeRouteComponent(<TransferIdentityWizard />),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/system-administration/access-management/users/$userId',
+    component: makeRouteComponent(<UserDetail />),
   }),
   createRoute({
     getParentRoute: () => rootRoute,

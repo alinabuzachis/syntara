@@ -59,17 +59,20 @@ export function NxUrlTabs({
   const [activeTab, goToTab] = useUrlTab(basePath, defaultTab)
   const navigate = useNavigate()
 
-  /* eslint-disable reactYouMightNotNeedAnEffect/no-event-handler, reactYouMightNotNeedAnEffect/no-pass-data-to-parent */
   // validTabs arrives asynchronously (from an API); redirect when the URL tab is absent from the
   // list is an async-prop side-effect, not a user event — useEffect is correct here.
+  // Deferred via requestAnimationFrame so the router can finish transitioning to a
+  // sibling route (e.g. $userId/edit) before this component decides to redirect.
+  // Without the defer, the stale component's redirect races with the route transition.
   useEffect(() => {
     if (!validTabs || validTabs.length === 0) return
-    if (!validTabs.includes(activeTab)) {
+    if (validTabs.includes(activeTab)) return
+    const id = requestAnimationFrame(() => {
       const target = validTabs.includes(defaultTab) ? defaultTab : validTabs[0]
       detachPromise(navigate({ to: `${basePath}/${target}`, replace: true }))
-    }
+    })
+    return () => cancelAnimationFrame(id)
   }, [validTabs, activeTab, defaultTab, basePath, navigate])
-  /* eslint-enable reactYouMightNotNeedAnEffect/no-event-handler, reactYouMightNotNeedAnEffect/no-pass-data-to-parent */
 
   useEffect(() => {
     const blurStaleTab = () => {
