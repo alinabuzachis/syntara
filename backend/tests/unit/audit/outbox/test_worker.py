@@ -1,8 +1,9 @@
 """Unit tests for AuditEventWriter."""
 
 import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.exc import DatabaseError, IntegrityError, OperationalError
@@ -13,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.audit.models.audit_event import AuditEvent, EventCategory
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.outbox.models import AuditEventSource, AuditOutboxRecord
-from nexus.audit.outbox.worker import AuditOutboxWorker, publish_outbox_events
+from nexus.audit.outbox.worker import AuditOutboxWorker, _emit_otel_log_entry, publish_outbox_events
 
 # ------------------------------------------------------------------ #
 # Helpers
@@ -770,3 +771,64 @@ class TestOtelEventSourceDiscriminator:
             assert AuditEventSource.BUSINESS_EVENT in event_sources
             assert AuditEventSource.CRUD_EVENT in event_sources
             assert len(event_sources) == 2
+
+
+# ------------------------------------------------------------------ #
+# OTEL Log Entry Serialization
+# ------------------------------------------------------------------ #
+
+
+class TestEmitOtelLogEntrySerialization:
+    """Test _emit_otel_log_entry produces OTLP-safe output.
+
+    Regression: asyncpg.pgproto.pgproto.UUID in structured_data extra fields
+    caused ``Invalid type <class 'asyncpg.pgproto.pgproto.UUID'>`` errors in
+    the OTLP protobuf encoder, which only accepts JSON-native Python types.
+    """
+
+    def test_output_is_json_serializable(self) -> None:
+        """All values passed to the OTEL logger must be JSON-native types."""
+        event = _make_event(
+            actor_id=uuid4(),
+            workflow_id=uuid4(),
+            execution_id=uuid4(),
+            structured_data=AuditContextData(
+                data_type="crud_operation",
+                resource_id=str(uuid4()),
+            ),
+        )
+
+        with patch("nexus.audit.outbox.worker.audit_logger_otel") as mock_logger:
+            _emit_otel_log_entry(event, AuditEventSource.BUSINESS_EVENT)
+
+            mock_logger.info.assert_called_once()
+            args, kwargs = mock_logger.info.call_args
+
+            assert args == ("audit_event",)
+            assert kwargs["audit.event_source"] == "business_event"
+
+            # Must not raise TypeError — no UUID objects, datetimes, etc.
+            json.dumps(kwargs)
+
+    def test_uuid_subclass_in_extra_fields_coerced(self) -> None:
+        """UUID subclasses (e.g. asyncpg UUID) in extra fields become strings."""
+
+        class ForeignUUID(UUID):
+            """Simulates asyncpg.pgproto.pgproto.UUID."""
+
+        event = _make_event(
+            event_id=ForeignUUID("34929735-b33e-491d-b444-757da31dc6bf"),
+            structured_data=AuditContextData(
+                data_type="crud_operation",
+                resource_id=ForeignUUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+            ),
+        )
+
+        with patch("nexus.audit.outbox.worker.audit_logger_otel") as mock_logger:
+            _emit_otel_log_entry(event, AuditEventSource.CRUD_EVENT)
+
+            kwargs = mock_logger.info.call_args[1]
+
+            assert isinstance(kwargs["event_id"], str)
+            assert isinstance(kwargs["structured_data"]["resource_id"], str)
+            json.dumps(kwargs)

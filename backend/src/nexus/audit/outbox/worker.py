@@ -14,6 +14,7 @@ crashes between business commit and OTEL emission.
 from __future__ import annotations
 
 import asyncio
+import json
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -81,8 +82,18 @@ def _handle_crud_audit_records(records: list[AuditOutboxRecord]) -> None:
 
 
 def _emit_otel_log_entry(audit_event: AuditEvent, event_source: AuditEventSource) -> None:
-    # Emit as structured log entry to OTEL Collection
-    event_dict = audit_event.model_dump(mode="json")
+    # Emit as structured log entry to OTEL Collection.
+    #
+    # json.loads(model_dump_json()) instead of model_dump(mode="json") because the OTLP
+    # protobuf encoder only accepts basic Python types (str, int, float, bool, bytes,
+    # list, dict). SQLModel/asyncpg returns UUID columns as asyncpg.pgproto.pgproto.UUID
+    # which leaks into AuditEvent fields (actor_id, workflow_id, execution_id) and
+    # AuditContextData extra fields (extra="allow" stores values without type coercion).
+    # model_dump(mode="json") leaves these unrecognised types intact, causing:
+    #   Exception: Invalid type <class 'asyncpg.pgproto.pgproto.UUID'> of value ...
+    # The JSON round-trip guarantees only native JSON types reach the encoder.
+    # See: https://github.com/open-telemetry/opentelemetry-python/issues/3389
+    event_dict = json.loads(audit_event.model_dump_json())
     # Inject event source attribute for event type discrimination
     event_dict["audit.event_source"] = event_source.value
     audit_logger_otel.info("audit_event", **event_dict)
