@@ -281,6 +281,7 @@ markers = [
 [tool.coverage.run]
 source = ["src"]
 relative_files = true
+concurrency = ["greenlet", "thread"]
 omit = [
     "*/tests/*",
     "*/test_*",
