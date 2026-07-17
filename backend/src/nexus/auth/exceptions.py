@@ -111,6 +111,29 @@ class TokenExpiredError(AuthError):
         super().__init__(message)
 
 
+@fastapi_exception(  # pragma: no cover - registered at import time before coverage starts
+    handler="nexus.auth.error_handlers.service_account_ws_ticket_handler",
+)
+class ServiceAccountWSTicketError(AuthError):
+    """Raised when a service account attempts to obtain a WebSocket ticket (403 Forbidden)."""
+
+    def __init__(
+        self,
+        message: str = "Service accounts cannot obtain WebSocket tickets",
+        service_account_id: str | None = None,
+    ) -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Human-readable error message
+            service_account_id: The sub claim identifying the service account
+
+        """
+        self.message = message
+        self.service_account_id = service_account_id
+        super().__init__(message)
+
+
 @fastapi_exception(handler="nexus.auth.error_handlers.invalid_token_handler")
 class InvalidTokenError(AuthError):
     """Raised when token validation fails for reasons other than expiration.

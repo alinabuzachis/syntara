@@ -759,7 +759,15 @@ export interface operations {
         }
         content?: never
       }
-      403: components['responses']['ForbiddenError']
+      /** @description Service accounts cannot obtain WebSocket tickets */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
       404: components['responses']['NotFoundError']
       409: components['responses']['ConflictError']
       422: components['responses']['ValidationError']

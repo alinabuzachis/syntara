@@ -32,6 +32,7 @@ if TYPE_CHECKING:
         LastSignInMethodError,
         PasswordOnFederatedUserError,
         RefreshTokenRevokedError,
+        ServiceAccountWSTicketError,
         SessionStoreUnavailableError,
         TokenExpiredError,
         TokenGloballyRevokedError,
@@ -102,6 +103,31 @@ def csrf_validation_error_handler(
         instance=str(request.url),
     )
     response.headers["X-Auth-Failure-Type"] = "csrf_failed"
+    return response
+
+
+def service_account_ws_ticket_handler(
+    request: Request,
+    exc: ServiceAccountWSTicketError,
+) -> JSONResponse:
+    """Handle ServiceAccountWSTicketError with RFC 9457 format."""
+    logger.warning(
+        "Service account attempted WebSocket ticket",
+        service_account_id=exc.service_account_id,
+        path=str(request.url),
+        method=request.method,
+    )
+
+    response = create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Forbidden",
+        detail=exc.message,
+        code="SERVICE_ACCOUNT_WS_TICKET_FORBIDDEN",
+        retryable=False,
+        instance=str(request.url),
+    )
+    response.headers["X-Auth-Failure-Type"] = "service_account_forbidden"
     return response
 
 

@@ -59,6 +59,7 @@ from nexus.auth.exceptions import (
     OIDCCallbackError,
     OIDCErrorCode,
     RefreshTokenRevokedError,
+    ServiceAccountWSTicketError,
     SessionStoreUnavailableError,
 )
 from nexus.auth.passwords import verify_password
@@ -477,12 +478,23 @@ async def token(
     response_description="Single-use WebSocket ticket",
     responses={
         401: {"description": "Invalid or missing authentication"},
+        403: {
+            "description": "Service accounts cannot obtain WebSocket tickets",
+            "content": {
+                "application/problem+json": {
+                    "schema": {"$ref": "#/components/schemas/ErrorData"},
+                },
+            },
+        },
     },
 )
 async def create_ws_ticket(
     payload: Annotated[TokenPayload, Depends(get_token_payload)],
 ) -> WebSocketTicketResponse:
     """Issue a single-use WebSocket connection ticket."""
+    if payload.token_type == "service_account":  # noqa: S105
+        raise ServiceAccountWSTicketError(service_account_id=payload.sub)
+
     from nexus.core.websocket.ticket import get_ticket_client  # noqa: PLC0415
 
     client = get_ticket_client()

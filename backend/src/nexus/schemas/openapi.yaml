@@ -3146,17 +3146,11 @@ paths:
         '401':
           description: Invalid or missing authentication
         '403':
-          description: Forbidden
+          description: Service accounts cannot obtain WebSocket tickets
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
         '404':
           description: Not Found
           content:

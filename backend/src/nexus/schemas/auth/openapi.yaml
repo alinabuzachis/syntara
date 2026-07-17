@@ -183,7 +183,11 @@ paths:
         '401':
           description: Invalid or missing authentication
         '403':
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+          description: Service accounts cannot obtain WebSocket tickets
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
         '404':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':

@@ -15,6 +15,7 @@ from nexus.auth.error_handlers import (
     last_admin_removal_handler,
     last_sign_in_method_handler,
     password_on_federated_user_handler,
+    service_account_ws_ticket_handler,
     session_store_unavailable_handler,
     user_already_in_group_handler,
     user_identity_not_found_handler,
@@ -35,6 +36,7 @@ from nexus.auth.exceptions import (
     LastAdminRemovalError,
     LastSignInMethodError,
     PasswordOnFederatedUserError,
+    ServiceAccountWSTicketError,
     SessionStoreUnavailableError,
     UserAlreadyInGroupError,
     UserIdentityNotFoundError,
@@ -95,9 +97,32 @@ class TestExceptions:
         exc = LastSignInMethodError()
         assert "sign-in method" in str(exc).lower()
 
+    def test_service_account_ws_ticket_error_default(self) -> None:
+        exc = ServiceAccountWSTicketError()
+        assert exc.message == "Service accounts cannot obtain WebSocket tickets"
+        assert exc.service_account_id is None
+
+    def test_service_account_ws_ticket_error_with_id(self) -> None:
+        sa_id = str(uuid4())
+        exc = ServiceAccountWSTicketError(service_account_id=sa_id)
+        assert exc.service_account_id == sa_id
+        assert exc.message == "Service accounts cannot obtain WebSocket tickets"
+
+    def test_service_account_ws_ticket_error_custom_message(self) -> None:
+        exc = ServiceAccountWSTicketError("Custom message")
+        assert exc.message == "Custom message"
+
 
 class TestErrorHandlers:
     """Tests for auth error handler functions."""
+
+    def test_service_account_ws_ticket_handler_returns_403(self) -> None:
+        sa_id = str(uuid4())
+        exc = ServiceAccountWSTicketError(service_account_id=sa_id)
+        response = service_account_ws_ticket_handler(_make_request(), exc)
+        assert response.status_code == 403
+        assert b"SERVICE_ACCOUNT_WS_TICKET_FORBIDDEN" in response.body
+        assert response.headers["X-Auth-Failure-Type"] == "service_account_forbidden"
 
     def test_csrf_validation_error_handler_returns_403(self) -> None:
         exc = CSRFValidationError("CSRF token mismatch", error_code=CSRFErrorCode.TOKEN_MISMATCH)
