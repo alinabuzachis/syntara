@@ -319,38 +319,6 @@ jobs:
         run: make verify-test-structure
         working-directory: backend
 
-  pre-commit:
-    name: (Backend) pre-commit
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.12"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
-
-      - name: Install dependencies
-        run: make install
-        working-directory: backend
-
-      - name: Cache pre-commit
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
-
-      - name: Run pre-commit
-        run: uv run --project backend pre-commit run --all-files
-        env:
-          SKIP: frontend-prettier,frontend-eslint,frontend-tsc
-
   mypy:
     name: (Backend) mypy
     needs: changes
@@ -802,6 +770,65 @@ jobs:
         with:
           projectBaseDir: backend
 
+  shared-checks-gate:
+    name: (Backend) Shared Checks Gate
+    if: github.event_name != 'push'
+    permissions:
+      checks: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for shared checks
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const sha = context.payload.pull_request?.head?.sha ?? context.sha;
+            const timeout = 15 * 60 * 1000;
+            const interval = 30 * 1000;
+            const start = Date.now();
+            const required = ['Pre-commit'];
+
+            while (Date.now() - start < timeout) {
+              const results = [];
+              for (const checkName of required) {
+                const { data } = await github.rest.checks.listForRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: sha,
+                  check_name: checkName,
+                  per_page: 1,
+                });
+                results.push({ name: checkName, run: data.check_runs[0] });
+              }
+
+              const failed = results.find(r =>
+                r.run?.status === 'completed' &&
+                !['success', 'neutral'].includes(r.run.conclusion)
+              );
+              if (failed) {
+                core.setFailed(`${failed.name} failed (${failed.run.conclusion}): ${failed.run.html_url}`);
+                return;
+              }
+
+              const allPassed = results.every(r =>
+                r.run?.status === 'completed' &&
+                ['success', 'neutral'].includes(r.run.conclusion)
+              );
+              if (allPassed) {
+                console.log(`All shared checks passed: ${required.join(', ')}`);
+                return;
+              }
+
+              const elapsed = Math.round((Date.now() - start) / 1000);
+              const summary = results.map(r => {
+                if (!r.run) return `${r.name}: not started`;
+                return `${r.name}: ${r.run.status}`;
+              }).join(', ');
+              console.log(`${summary} (${elapsed}s elapsed)`);
+              await new Promise(r => setTimeout(r, interval));
+            }
+            core.setFailed(`Timed out waiting for shared checks: ${required.join(', ')}`);
+
   e2e-gate:
     name: (Backend) E2E Gate
     needs: changes
@@ -966,7 +993,6 @@ jobs:
       - check-orphans
       - check-openapi-breaking
       - verify-test-structure
-      - pre-commit
       - mypy
       - test-unit
       - test-cli
@@ -974,6 +1000,7 @@ jobs:
       - test-compose
       - e2e-gate
       - konflux-backend-gate
+      - shared-checks-gate
     if: always()
     steps:
       - name: Check required jobs passed
@@ -992,7 +1019,7 @@ jobs:
 
           # Check all other required jobs
           ok="success|skipped"
-          for job in api-spec-validation api-spec-bundle api-spec-drift generate-api-client check-api-paths check-dead-code check-cycles check-orphans check-openapi-breaking verify-test-structure pre-commit mypy test-unit test-cli test-integration test-compose e2e-gate konflux-backend-gate; do
+          for job in api-spec-validation api-spec-bundle api-spec-drift generate-api-client check-api-paths check-dead-code check-cycles check-orphans check-openapi-breaking verify-test-structure mypy test-unit test-cli test-integration test-compose e2e-gate konflux-backend-gate shared-checks-gate; do
             case "$job" in
               api-spec-validation)   result="${{ needs.api-spec-validation.result }}" ;;
               api-spec-bundle)       result="${{ needs.api-spec-bundle.result }}" ;;
@@ -1004,7 +1031,6 @@ jobs:
               check-orphans)         result="${{ needs.check-orphans.result }}" ;;
               check-openapi-breaking) result="${{ needs.check-openapi-breaking.result }}" ;;
               verify-test-structure) result="${{ needs.verify-test-structure.result }}" ;;
-              pre-commit)            result="${{ needs.pre-commit.result }}" ;;
               mypy)                  result="${{ needs.mypy.result }}" ;;
               test-unit)             result="${{ needs.test-unit.result }}" ;;
               test-cli)              result="${{ needs.test-cli.result }}" ;;
@@ -1012,6 +1038,7 @@ jobs:
               test-compose)          result="${{ needs.test-compose.result }}" ;;
               e2e-gate)              result="${{ needs.e2e-gate.result }}" ;;
               konflux-backend-gate)  result="${{ needs.konflux-backend-gate.result }}" ;;
+              shared-checks-gate)  result="${{ needs.shared-checks-gate.result }}" ;;
             esac
             echo "$job: $result"
             if [[ ! "$result" =~ ^($ok)$ ]]; then

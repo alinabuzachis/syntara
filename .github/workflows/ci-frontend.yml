@@ -307,6 +307,65 @@ jobs:
           push: false
           tags: nexus-mock-api:test
 
+  shared-checks-gate:
+    name: (Frontend) Shared Checks Gate
+    if: github.event_name != 'push'
+    permissions:
+      checks: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for shared checks
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const sha = context.payload.pull_request?.head?.sha ?? context.sha;
+            const timeout = 15 * 60 * 1000;
+            const interval = 30 * 1000;
+            const start = Date.now();
+            const required = ['Pre-commit'];
+
+            while (Date.now() - start < timeout) {
+              const results = [];
+              for (const checkName of required) {
+                const { data } = await github.rest.checks.listForRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: sha,
+                  check_name: checkName,
+                  per_page: 1,
+                });
+                results.push({ name: checkName, run: data.check_runs[0] });
+              }
+
+              const failed = results.find(r =>
+                r.run?.status === 'completed' &&
+                !['success', 'neutral'].includes(r.run.conclusion)
+              );
+              if (failed) {
+                core.setFailed(`${failed.name} failed (${failed.run.conclusion}): ${failed.run.html_url}`);
+                return;
+              }
+
+              const allPassed = results.every(r =>
+                r.run?.status === 'completed' &&
+                ['success', 'neutral'].includes(r.run.conclusion)
+              );
+              if (allPassed) {
+                console.log(`All shared checks passed: ${required.join(', ')}`);
+                return;
+              }
+
+              const elapsed = Math.round((Date.now() - start) / 1000);
+              const summary = results.map(r => {
+                if (!r.run) return `${r.name}: not started`;
+                return `${r.name}: ${r.run.status}`;
+              }).join(', ');
+              console.log(`${summary} (${elapsed}s elapsed)`);
+              await new Promise(r => setTimeout(r, interval));
+            }
+            core.setFailed(`Timed out waiting for shared checks: ${required.join(', ')}`);
+
   e2e-gate:
     name: (Frontend) E2E Gate
     needs: changes
@@ -473,6 +532,7 @@ jobs:
       - test-build
       - e2e-gate
       - konflux-frontend-gate
+      - shared-checks-gate
     steps:
       - name: Check required jobs passed
         run: |
@@ -482,7 +542,7 @@ jobs:
           fi
 
           ok="success|skipped"
-          for job in gen-contracts checks unit-tests coverage-report storybook-build test-build e2e-gate konflux-frontend-gate; do
+          for job in gen-contracts checks unit-tests coverage-report storybook-build test-build e2e-gate konflux-frontend-gate shared-checks-gate; do
             case "$job" in
               gen-contracts)          result="${{ needs.gen-contracts.result }}" ;;
               checks)                 result="${{ needs.checks.result }}" ;;
@@ -492,6 +552,7 @@ jobs:
               test-build)             result="${{ needs.test-build.result }}" ;;
               e2e-gate)               result="${{ needs.e2e-gate.result }}" ;;
               konflux-frontend-gate)  result="${{ needs.konflux-frontend-gate.result }}" ;;
+              shared-checks-gate)     result="${{ needs.shared-checks-gate.result }}" ;;
             esac
             echo "$job: $result"
             if [[ ! "$result" =~ ^($ok)$ ]]; then
