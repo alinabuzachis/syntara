@@ -2979,6 +2979,7 @@ export const handlers = [
   // Credential handlers
   http.get('/api/v1/credentials', ({ request }) => {
     const url = new URL(request.url)
+    const nameExact = url.searchParams.get('name')
     const nameContains = url.searchParams.get('name[contains]')
     const cursor = url.searchParams.get('cursor')
     const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
@@ -2987,6 +2988,9 @@ export const handlers = [
 
     let resources = credentials
 
+    if (nameExact) {
+      resources = resources.filter((c) => c.name === nameExact)
+    }
     if (nameContains) {
       const searchTerm = nameContains.toLowerCase()
       resources = resources.filter((c) => (c.name ?? '').toLowerCase().includes(searchTerm))
@@ -3012,6 +3016,12 @@ export const handlers = [
       credential_type_id: string
       inputs?: Record<string, unknown>
       project_id?: string
+    }
+
+    // Return existing credential for duplicate names (idempotency for parallel test workers)
+    const existing = credentials.find((c) => c.name === body.name)
+    if (existing) {
+      return HttpResponse.json(redactCredential(existing), { status: 200 })
     }
 
     // Validate credential type exists

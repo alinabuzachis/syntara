@@ -153,10 +153,7 @@ class ExampleMCPServer(BaseServer):
 
     def get_app(self) -> StarletteWithLifespan:
         """Get the Starlette application for the MCP server."""
-        # Use "http" transport which is compatible with MCP SDK's streamable_http_client
-        # Despite the client being named streamable_http_client, it connects to FastMCP's "http" transport,
-        # not "streamable-http" transport (which is a different FastMCP-specific implementation)
-        return self.mcp_app.http_app(transport="http")
+        return self.mcp_app.http_app(transport="http", host_origin_protection=False)
 
     def _setup_tools(self) -> None:
         """Set up test tools for the MCP server."""
@@ -209,9 +206,6 @@ class ForbiddenMCPServer(BaseServer):
 
     def get_app(self) -> StarletteWithLifespan:
         """Get the Starlette application for the MCP server with forbidden middleware."""
-        # Use "http" transport which is compatible with MCP SDK's streamable_http_client
-        # Despite the client being named streamable_http_client, it connects to FastMCP's "http" transport,
-        # not "streamable-http" transport (which is a different FastMCP-specific implementation)
-        http_app = self.mcp_app.http_app(transport="http")
+        http_app = self.mcp_app.http_app(transport="http", host_origin_protection=False)
         http_app.add_middleware(ForbiddenMiddleware)
         return http_app
