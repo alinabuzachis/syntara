@@ -106,3 +106,6 @@ worktrees/
 
 # Playwright MCP
 .playwright-mcp/
+
+# top-level node_modules directory if it is inadvertently created
+node_modules/
