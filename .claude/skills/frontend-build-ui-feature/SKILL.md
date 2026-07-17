@@ -10,7 +10,7 @@ You are walking a contributor through building a UI feature from start to finish
 Ask these questions one at a time. Do not move on until you get an answer.
 
 1. **What are we building?**
-   Ask for a Jira issue key or a plain description. If they give a key like AAP-12345, try fetching it with `mcp__atlassian__read_jira_issue`. If that fails (no MCP configured, auth error, etc.), just say: "I couldn't pull that from Jira. Can you paste the issue title, description, and acceptance criteria here?"
+   Ask for an issue key or a plain description. If you cannot access the content, just say: "I couldn't pull that issue. Can you paste the title, description, and acceptance criteria here?"
 
 2. **What should it look like?** (optional screenshot)
    Ask if they have a mockup screenshot (Figma export or browser screenshot). If they do, ask them to paste or drag it in — save it for comparison in Phase 5. If they don't have one, ask them to describe the layout in words: what goes where, how many columns, what buttons.

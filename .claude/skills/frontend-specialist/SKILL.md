@@ -92,7 +92,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 - [ ] CSS module classes over inline style objects -- more DOM-efficient and cacheable
 - [ ] `RhUi*` icons for all action buttons -- not PatternFly icons like `PlusCircleIcon`
 - [ ] No `eslint-disable` or `eslint-disable-next-line` in new/modified code -- fix the code so every rule passes; pre-existing suppressions are tech debt being cleaned up
-- [ ] No `// TODO` / `// FIXME` comments -- track deferred work in Jira, not code
+- [ ] No `// TODO` / `// FIXME` comments -- track deferred work in an issue, not code
 - [ ] All async server state uses TanStack Query (`useQuery`/`useMutation`/`useQueries`) -- no manual `useEffect` + `useState` for API calls (see .claude/skills/frontend-coding-standards/SKILL.md §30)
 - [ ] Hooks called unconditionally but used conditionally -- extract to wrapper component (see .claude/skills/frontend-coding-standards/SKILL.md §29)
 

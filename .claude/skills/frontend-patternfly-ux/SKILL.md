@@ -25,14 +25,16 @@ This document serves as the definitive technical and design North Star for the *
 
 ### Why This Exists
 
-- **Accelerated Velocity:** By establishing a clear UX framework and component library upfront, we eliminate "decision fatigue." Engineers can focus on implementation logic rather than debating UI patterns or custom CSS. PatternFly is that design framework for all products across the Red Hat portfolio.
+- **Accelerated Velocity:** By establishing a clear UX framework and component library upfront, we eliminate "decision fatigue." Engineers can focus on implementation logic rather than debating UI patterns or custom CSS. PatternFly is that design framework for all products across the PatternFly portfolio.
 - **The Power of PatternFly:** Our commitment to a **PatternFly-first** architecture is strategic. Utilizing the core library ensures that our UI is accessible (WCAG 2.1 AA compliant), themeable, and — most importantly — **upgrade-compatible**. Staying aligned with PF reduces long-term maintenance overhead and prevents "technical debt" through custom, one-off components.
 - **A Shared Language:** This skill codifies the UI/UX team's guidelines for this specific product. It bridges the gap between UX design and React implementation, ensuring that "Opinionated" choices are applied consistently across every feature branch.
 - **Contribution over Customization:** When you encounter a UI gap, this framework provides the process for feeding requirements back into the core PatternFly system, ensuring fixes land in the shared library rather than as "snowflake" code in the local repo.
 
-**In short:** We use this framework to build faster, stay aligned with the broader Red Hat ecosystem, and ensure that the Nexus remains a premium, stable part of the Ansible Automation Platform.
+**In short:** We use this framework to build faster, stay aligned with the broader PatternFly ecosystem, and ensure that Nexus remains a premium, stable project.
 
+### UI/UX Team
 
+For engagement questions, reach out to the UX team in the project's contributor channels.
 
 ### Tech Stack
 
@@ -46,22 +48,22 @@ This document serves as the definitive technical and design North Star for the *
 
 ## AO Design System
 
-How the Nexus UI is anchored, and how it relates to other Red Hat design tooling:
+How the Nexus UI is anchored, and how it relates to other design tooling:
 
 - **Foundation** — Built on top of [PatternFly](https://www.patternfly.org/) for [components](https://www.patternfly.org/components/all-components), [patterns](https://www.patternfly.org/patterns/about-patterns), and [accessibility](https://www.patternfly.org/accessibility/patternflys-accessibility) baselines.
 - **Layout** — Page and shell structure follow PatternFly's **Compass** layout architecture.
 - **Theming** — Visual treatment uses PatternFly's **Unified Theme**, accounting for layout and color palettes.
-- **Icons** — Based on the [Red Hat design system](https://ux.redhat.com/), specifically the [icon set](https://ux.redhat.com/foundations/iconography/#ui-icons) for Red Hat UI.
+- **Icons** — Use icons with the `RhUi` prefix (e.g., `RhUiAddIcon`, `RhUiEditIcon`).
 - **Automation builder** — Based on [React Flow](https://reactflow.dev/) as the underlying graph/canvas foundation while PatternFly acts as a visual wrapper. The layout reads from left to right.
 - **Accessibility** — While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within the Nexus codebase.
 - **PatternFly gaps** — Before implementing a custom component or styling override:
   1. **Check first.** Search PatternFly docs and the Ansible UI Framework to confirm the need is not already covered by a component, variant, or token.
-  2. **Raise it with UX.** Discuss in #forum-ansible-ux or tag @ansible-ux in your team channel. Describe the gap with a clear before/after versus what PatternFly provides today. UX will confirm whether the gap is valid or an existing pattern applies.
+  2. **Raise it with UX.** Discuss with the UX team. Describe the gap with a clear before/after versus what PatternFly provides today. UX will confirm whether the gap is valid or an existing pattern applies.
   3. **Engage PatternFly.** If UX confirms the gap, UX coordinates with PatternFly on resolution — new component, variant, token, or an accepted override — often via a PatternFly GitHub issue or direct conversation.
-  4. **Document and track.** If a temporary override is approved, create a Jira issue in AAP with the label `patternfly-override` to track technical debt. Link the PatternFly issue if one exists. The UXSC reviews active overrides periodically.
-  5. **Resolve upstream.** The aim is to remove the override by contributing back to PatternFly or the Ansible UI Framework. Overrides without a resolution path are flagged in quarterly reviews.
+  4. **Document and track.** If a temporary override is approved, create an issue with the label `patternfly-override` to track technical debt. Link the PatternFly issue if one exists.
+  5. **Resolve upstream.** The aim is to remove the override by contributing back to PatternFly or the Ansible UI Framework. Overrides without a resolution path should be periodically reviewed.
 - **`Nx` prefix convention** — AO opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) and live in `frontend/packages/nexus-ui/src/components/` organized by subdirectory: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. These wrap raw PatternFly primitives with AO-specific defaults and behavior — use the `Nx*` wrapper, not the raw PF component, for these patterns.
-- **What this is not** — The experience is **not** built on custom libraries, like the Genie proof-of-concept tech demo. Orchestrator deliberately uses a PatternFly-first stack so it stays aligned with the rest of the Red Hat portfolio.
+- **What this is not** — The experience is **not** built on custom libraries. Nexus deliberately uses a PatternFly-first stack.
 
 ---
 
@@ -71,7 +73,7 @@ The Nexus project is committed to evidence-based development, utilizing user res
 
 ### Competitive Analysis
 
-Early in the project, the UX Research team conducted a deep-dive competitive analysis of eight key players in the agentic and workflow automation space (including UiPath, ServiceNow, and n8n). This research was instrumental in defining the "PatternFly-first" strategy and identifying where we could uniquely differentiate the Ansible experience.
+Early in the project, the UX Research team conducted a competitive analysis of key players in the agentic and workflow automation space. This research was instrumental in defining the "PatternFly-first" strategy.
 
 ### Key Insights & Established Patterns
 
@@ -85,7 +87,7 @@ The study identified several "table stakes" features that users expect as standa
 
 Research revealed critical friction points in competitor products — specifically around fragmented AI integration and poor observability:
 
-- **Hybrid Workflow Debugging:** Unlike competitors who struggle to differentiate between probabilistic (AI) and deterministic (code) failures, Orchestrator provides superior debugging and observability for hybrid workflows.
+- **Hybrid Workflow Debugging:** Unlike competitors who struggle to differentiate between probabilistic (AI) and deterministic (code) failures, Nexus provides superior debugging and observability for hybrid workflows.
 - **Safety as a First-Class Object:** "Gating" steps and Human-In-The-Loop (HITL) checkpoints build trust, ensuring users can safely manage non-deterministic AI outputs before they execute against critical infrastructure.
 - **In-Context Documentation:** Context-aware help and documentation integrated directly into configuration panels to save users from switching tabs.
 
@@ -976,7 +978,7 @@ The distinguishing axis is **"live status of a monitored entity" vs. "fixed cate
 
 This mirrors common status-indicator conventions in comparable products (CI/CD pipeline status, service health badges): a single, consistent treatment is used for "current condition of a monitored entity" everywhere it appears, rather than varying by how volatile the state happens to be. A lighter outline treatment for statuses that repeat down a table column (executions list, integrations list) also keeps dense lists scannable — reserve heavier filled/saturated labels for lower-frequency categorical or single-value badges to avoid visual fatigue.
 
-> **Known inconsistency (tracked separately):** `routes/configuration/integrations/StatusLabel.tsx` currently renders integration health as **filled** rather than **outline**, which conflicts with the rule above. This is legacy drift, not an intentional exception — do not replicate it in new code. A Jira issue will track normalizing it to `variant="outline"` to match execution/activity/approval status labels.
+> **Known inconsistency (tracked separately):** `routes/configuration/integrations/StatusLabel.tsx` currently renders integration health as **filled** rather than **outline**, which conflicts with the rule above. This is legacy drift, not an intentional exception — do not replicate it in new code. An issue will track normalizing it to `variant="outline"` to match execution/activity/approval status labels.
 
 ### Building Domain Status Labels
 
@@ -1091,7 +1093,7 @@ Keep display labels in a separate constants file (e.g., `executionStatusConstant
 
 ## 12. Icons
 
-All icons **must** use the `RhUi` prefix — these are the new Red Hat icon standard from the [Red Hat Design System](https://ux.redhat.com/) [icon set](https://ux.redhat.com/foundations/iconography/#ui-icons). Examples: `RhUiAddIcon`, `RhUiEditIcon`, `RhUiTrashIcon`, `RhUiHistoryIcon`, `RhUiKeyIcon`, `RhUiPublishIcon`, `RhUiDuplicateIcon`.
+All icons **must** use the `RhUi` prefix. Examples: `RhUiAddIcon`, `RhUiEditIcon`, `RhUiTrashIcon`, `RhUiHistoryIcon`, `RhUiKeyIcon`, `RhUiPublishIcon`, `RhUiDuplicateIcon`.
 
 **Do not use** legacy PatternFly icon names (e.g., `PlusCircleIcon`, `PencilAltIcon`, `TrashIcon`). These are the old standard. The `RhUi*` icons are enforced via an ESLint `no-restricted-imports` rule that blocks non-`RhUi` icon imports on action buttons.
 
@@ -1798,7 +1800,7 @@ Follow this hierarchy when applying styles — always start from the top:
 
 ### When a Global Style Seems Necessary
 
-If you believe a global style is the only option, follow the PatternFly gaps process (see "AO Design System" → "PatternFly gaps" above): check PatternFly docs and tokens first, raise with UX, then engage PatternFly upstream. Approved temporary exceptions must be documented with a `patternfly-override` Jira label.
+If you believe a global style is the only option, follow the PatternFly gaps process (see "AO Design System" → "PatternFly gaps" above): check PatternFly docs and tokens first, raise with UX, then engage PatternFly upstream. Approved temporary exceptions must be documented with a `patternfly-override` label.
 
 ---
 

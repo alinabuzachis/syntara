@@ -1611,15 +1611,15 @@ type NxListPanelTabContextValue = { ... }
 
 ## 33. No `// TODO` Comments in Shipped Code
 
-Do not ship `// TODO`, `// FIXME`, `// HACK`, or `// XXX` comments in PRs. These represent deferred work that should be tracked in Jira, not buried in source code where it is invisible to project management and will rot.
+Do not ship `// TODO`, `// FIXME`, `// HACK`, or `// XXX` comments in PRs. These represent deferred work that should be tracked in an issue, not buried in source code where it is invisible to project management and will rot.
 
 ```typescript
 // ❌ BAD — deferred work hidden in code
 // TODO: Replace with generated type once switch schema is added to the OpenAPI spec bundle
 export type SwitchConfig = { cases: Array<{ label: string }> }
 
-// ✅ GOOD — use the best type available now, track the follow-up in Jira
-/** Switch step configuration. Uses inline type until the OpenAPI spec includes the switch schema (AAP-XXXXX). */
+// ✅ GOOD — use the best type available now, track the follow-up in an issue
+/** Switch step configuration. Uses inline type until the OpenAPI spec includes the switch schema (#XXXXX). */
 export type SwitchConfig = { cases: Array<{ label: string }> }
 ```
 
@@ -1633,14 +1633,14 @@ export type SwitchConfig = { cases: Array<{ label: string }> }
 **What to do instead:**
 
 1. If the work is needed before the PR can ship, do it now
-2. If the work is a genuine follow-up, create a Jira ticket and reference it in a brief inline comment (e.g., `// Inline type until AAP-12345 adds generated schema`)
+2. If the work is a genuine follow-up, create an issue and reference it in a brief inline comment (e.g., `// Inline type until #12345 adds generated schema`)
 3. If the work is aspirational ("it would be nice to..."), do not add a comment at all
 
 ---
 
 ## 33. Documentation Links -- `useDocLink` Hook
 
-**Never hardcode documentation URLs.** Use the `useDocLink` hook to resolve documentation links that automatically switch between upstream (community) and product (Red Hat) docs depending on the deployment mode.
+**Never hardcode documentation URLs.** Use the `useDocLink` hook to resolve documentation links that automatically switch between upstream (community) and product (downstream) docs depending on the deployment mode.
 
 ### Architecture
 
@@ -1698,7 +1698,7 @@ const docLink = useDocLink('myNewPage')
 The mode is controlled by the `VITE_DOC_MODE` environment variable:
 
 - **`upstream`** (default) -- resolves to `https://docs.ansible.com/{path}`
-- **`product`** -- resolves to `https://docs.redhat.com/en/documentation/TODO_PRODUCT_NAME/{version}/{path}`
+- **`product`** -- resolves to `https://docs.example.com/en/documentation/{product}/{version}/{path}`
 
 This follows the same pattern as the upstream `ansible-ui` repository, where the frontend contains both URL sets and the deployment context determines which to use. The same build artifact works for both upstream and product deployments.
 
