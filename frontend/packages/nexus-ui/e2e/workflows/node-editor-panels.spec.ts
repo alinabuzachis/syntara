@@ -25,7 +25,7 @@ async function layoutCanvas(app: import('@playwright/test').Page) {
   const layoutButton = app.getByRole('button', { name: 'Reset layout', exact: true })
   if ((await layoutButton.count()) > 0) {
     await layoutButton.click()
-    await app.waitForSelector('.react-flow__node', { state: 'visible', timeout: 5_000 })
+    await app.waitForSelector('[role="group"][aria-roledescription="node"]', { state: 'visible', timeout: 5_000 })
   }
   // Fit view so all nodes and edge buttons are visible in the viewport
   const fitViewButton = app.getByRole('button', { name: 'Fit view' })
@@ -38,7 +38,7 @@ async function layoutCanvas(app: import('@playwright/test').Page) {
 /** Click a React Flow node by its visible text label. */
 async function clickNode(app: import('@playwright/test').Page, nodeText: string) {
   await layoutCanvas(app)
-  const node = app.locator('.react-flow__node').filter({ hasText: nodeText })
+  const node = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: nodeText })
   await expect(node).toBeVisible({ timeout: 5_000 })
   await node.click()
 }
@@ -99,7 +99,7 @@ test.describe('Node editor panels', () => {
     await createBasicWorkflow(app, workflowName, 'Run script')
 
     // Extract node IDs and workflow ID
-    const scriptNode = app.locator('.react-flow__node').filter({ hasText: 'Run script' })
+    const scriptNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Run script' })
     await expect(scriptNode).toBeVisible()
     const scriptNodeId = await scriptNode.getAttribute('data-id')
     const workflowId = app.url().split('/').pop()
@@ -190,9 +190,9 @@ test.describe('Node editor panels', () => {
 
     // Extract node IDs from the canvas before saving (IDs are stable across save)
     await layoutCanvas(app)
-    const gatherNode = app.locator('.react-flow__node').filter({ hasText: 'Gather Info' })
-    const processNode = app.locator('.react-flow__node').filter({ hasText: 'Process Data' })
-    const alertNode = app.locator('.react-flow__node').filter({ hasText: 'Send Alert' })
+    const gatherNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Gather Info' })
+    const processNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Process Data' })
+    const alertNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Send Alert' })
     await expect(gatherNode).toBeVisible({ timeout: 5_000 })
 
     const gatherNodeId = await gatherNode.getAttribute('data-id')
@@ -381,8 +381,8 @@ test.describe('Node editor panels', () => {
 
     // Extract node IDs while edges are in the store
     await layoutCanvas(app)
-    const fetchNode = app.locator('.react-flow__node').filter({ hasText: 'Fetch Data' })
-    const analyzeNode = app.locator('.react-flow__node').filter({ hasText: 'Analyze' })
+    const fetchNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Fetch Data' })
+    const analyzeNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Analyze' })
     await expect(fetchNode).toBeVisible({ timeout: 5_000 })
     const fetchNodeId = await fetchNode.getAttribute('data-id')
     const analyzeNodeId = await analyzeNode.getAttribute('data-id')
@@ -512,7 +512,9 @@ test.describe('Node editor panels', () => {
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('link', { name: workflowName, exact: true }).click()
-    await expect(app.locator('.react-flow__node').filter({ hasText: 'Analyze' })).toBeVisible({ timeout: 15_000 })
+    await expect(app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Analyze' })).toBeVisible(
+      { timeout: 15_000 }
+    )
 
     // --- Phase 4: Click Analyze node — input should now show REAL values ---
     await clickNode(app, 'Analyze')
@@ -586,10 +588,10 @@ test.describe('Node editor panels', () => {
 
     await layoutCanvas(app)
     const workflowId = app.url().split('/').pop()
-    const fetchNode = app.locator('.react-flow__node').filter({ hasText: 'Fetch' })
+    const fetchNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Fetch' })
     await expect(fetchNode).toBeVisible({ timeout: 5_000 })
     const fetchNodeId = await fetchNode.getAttribute('data-id')
-    const analyzeNode = app.locator('.react-flow__node').filter({ hasText: 'Analyze' })
+    const analyzeNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Analyze' })
     const analyzeNodeId = await analyzeNode.getAttribute('data-id')
 
     // Mock execution data
@@ -657,7 +659,9 @@ test.describe('Node editor panels', () => {
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('link', { name: workflowName, exact: true }).click()
-    await expect(app.locator('.react-flow__node').filter({ hasText: 'Analyze' })).toBeVisible({ timeout: 15_000 })
+    await expect(app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Analyze' })).toBeVisible(
+      { timeout: 15_000 }
+    )
 
     // Click Analyze node to see Fetch's output as input
     await clickNode(app, 'Analyze')
@@ -703,9 +707,9 @@ test.describe('Node editor panels', () => {
     await layoutCanvas(app)
     const workflowId = app.url().split('/').pop()
 
-    const stepANode = app.locator('.react-flow__node').filter({ hasText: 'Step A' })
-    const stepBNode = app.locator('.react-flow__node').filter({ hasText: 'Step B' })
-    const stepCNode = app.locator('.react-flow__node').filter({ hasText: 'Step C' })
+    const stepANode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Step A' })
+    const stepBNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Step B' })
+    const stepCNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Step C' })
     await expect(stepANode).toBeVisible({ timeout: 5_000 })
     const stepAId = await stepANode.getAttribute('data-id')
     const stepBId = await stepBNode.getAttribute('data-id')
@@ -789,7 +793,9 @@ test.describe('Node editor panels', () => {
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('link', { name: workflowName, exact: true }).click()
-    await expect(app.locator('.react-flow__node').filter({ hasText: 'Step C' })).toBeVisible({ timeout: 15_000 })
+    await expect(app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Step C' })).toBeVisible({
+      timeout: 15_000,
+    })
 
     // Click Step C — it has Step B, Step A, and Trigger as upstream ancestors
     await clickNode(app, 'Step C')
@@ -816,7 +822,7 @@ test.describe('Node editor panels', () => {
 
     // Extract node ID and workflow ID
     await layoutCanvas(app)
-    const scriptNode = app.locator('.react-flow__node').filter({ hasText: 'Run script' })
+    const scriptNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Run script' })
     await expect(scriptNode).toBeVisible({ timeout: 5_000 })
     const scriptNodeId = await scriptNode.getAttribute('data-id')
     const workflowId = app.url().split('/').pop()
@@ -880,7 +886,9 @@ test.describe('Node editor panels', () => {
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('link', { name: workflowName, exact: true }).click()
-    await expect(app.locator('.react-flow__node').filter({ hasText: 'Run script' })).toBeVisible({ timeout: 15_000 })
+    await expect(
+      app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Run script' })
+    ).toBeVisible({ timeout: 15_000 })
 
     // Click the script node to open the editor
     await clickNode(app, 'Run script')

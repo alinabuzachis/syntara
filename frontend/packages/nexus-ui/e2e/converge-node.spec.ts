@@ -1,4 +1,4 @@
-import { type Page, type Request, test, expect, toAppUrl } from './fixtures'
+import { test, expect, toAppUrl } from './fixtures'
 import { addManualTrigger, addConditionNodeWithBranch } from './helpers/v2-nodes'
 import {
   addConvergeNodeWithAllStrategy,
@@ -8,46 +8,14 @@ import {
   expectConvergeNodeConfig,
   openConvergeFormOnNewWorkflow,
 } from './helpers/v2-nodes-converge'
+import { cancelAndCloseEditor, getWorkflowPayload } from './helpers/workflow-payload'
 import {
   addNodePanel,
   selectProjectIfRequired,
   deleteWorkflow,
-  closeNodeEditorPanel,
   openWorkflowInBuilder,
   triggerLayout,
 } from './helpers/workflows'
-
-type WorkflowNode = {
-  id: string
-  type: string
-  name?: string
-  parameters: Record<string, unknown>
-}
-
-type WorkflowPayload = {
-  workflow_definition: {
-    nodes: WorkflowNode[]
-  }
-}
-
-/** Extract the typed workflow payload from a Playwright request. */
-function getWorkflowPayload(request: Request): WorkflowPayload {
-  return request.postDataJSON() as WorkflowPayload
-}
-
-/** Click the cancel button if visible, then clean up any remaining panel. */
-async function cancelAndCloseEditor(app: Page) {
-  // In add mode the aria-label is "Cancel step creation";
-  // in edit mode it is "Cancel without saving".
-  for (const label of ['Cancel step creation', 'Cancel without saving']) {
-    const cancelBtn = app.getByRole('button', { name: label })
-    if ((await cancelBtn.count()) > 0) {
-      await cancelBtn.click()
-      return
-    }
-  }
-  await closeNodeEditorPanel(app)
-}
 
 test.describe('Converge Node - E2E Tests', () => {
   test.describe('Catalog', () => {

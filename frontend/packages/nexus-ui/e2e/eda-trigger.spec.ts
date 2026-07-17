@@ -60,7 +60,9 @@ test.describe('EDA Trigger', () => {
 
       // Reopen workflow and verify trigger persists on canvas
       await app.getByRole('link', { name: workflowName, exact: true }).click()
-      await expect(app.locator('.react-flow__node').filter({ hasText: 'EDA' })).toBeVisible({ timeout: 15_000 })
+      await expect(app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'EDA' })).toBeVisible({
+        timeout: 15_000,
+      })
     } finally {
       await deleteWorkflow(app, workflowName)
     }

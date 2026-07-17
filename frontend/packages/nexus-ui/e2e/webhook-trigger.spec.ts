@@ -61,9 +61,13 @@ test.describe('Webhook Trigger', () => {
 
       // Reopen workflow and verify trigger persists on canvas
       await app.getByRole('link', { name: workflowName, exact: true }).click()
-      await expect(app.locator('.react-flow__node').filter({ hasText: 'Webhook' })).toBeVisible({ timeout: 15_000 })
+      await expect(
+        app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Webhook' })
+      ).toBeVisible({ timeout: 15_000 })
 
-      const triggerNode = app.locator('.react-flow__node').filter({ hasText: `Webhook: /${webhookPath}` })
+      const triggerNode = app
+        .locator('[role="group"][aria-roledescription="node"]')
+        .filter({ hasText: `Webhook: /${webhookPath}` })
       await expect(triggerNode).toBeVisible({ timeout: 5_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
@@ -148,7 +152,9 @@ test.describe('Webhook Trigger', () => {
       await app.getByRole('button', { name: 'Save' }).click()
       await expect(app).toHaveURL(/workflow-builder\/.+/)
 
-      const triggerNode = app.locator('.react-flow__node').filter({ hasText: 'Webhook: /jira-updates' })
+      const triggerNode = app
+        .locator('[role="group"][aria-roledescription="node"]')
+        .filter({ hasText: 'Webhook: /jira-updates' })
       await expect(triggerNode).toBeVisible({ timeout: 5_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
@@ -182,7 +188,9 @@ test.describe('Webhook Trigger', () => {
       await expect(app).toHaveURL(/workflow-builder\/.+/)
 
       // Verify trigger node on canvas shows webhook path detail
-      const triggerNode = app.locator('.react-flow__node').filter({ hasText: `Webhook: /${webhookPath}` })
+      const triggerNode = app
+        .locator('[role="group"][aria-roledescription="node"]')
+        .filter({ hasText: `Webhook: /${webhookPath}` })
       await expect(triggerNode).toBeVisible({ timeout: 5_000 })
 
       // Click the trigger node to verify details panel opens

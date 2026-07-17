@@ -62,7 +62,9 @@ async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workf
   await app.getByRole('button', { name: 'Save' }).click()
   await expect(app).toHaveURL(/workflow-builder\/.+/)
   await triggerLayout(app)
-  await expect(app.locator('.react-flow__node').filter({ hasText: 'Second action' })).toBeVisible({
+  await expect(
+    app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Second action' })
+  ).toBeVisible({
     timeout: 15_000,
   })
 }
@@ -70,7 +72,7 @@ async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workf
 /** Click a React Flow node's kebab menu by its visible text label. */
 async function openNodeKebabMenu(app: import('@playwright/test').Page, nodeText: string) {
   await triggerLayout(app)
-  const node = app.locator('.react-flow__node').filter({ hasText: nodeText })
+  const node = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: nodeText })
   await expect(node).toBeVisible({ timeout: 15_000 })
 
   // Ensure node is expanded so the kebab is reachable

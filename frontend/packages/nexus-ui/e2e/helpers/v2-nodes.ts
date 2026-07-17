@@ -122,42 +122,6 @@ export async function addEdaTrigger(page: Page, name: string, webhookPath: strin
   // Panel auto-closes after adding trigger - no manual close needed
 }
 
-/** Add a scheduled trigger with interval config. Must be called on a fresh /workflow-builder/new page. */
-export async function addScheduledTrigger(
-  page: Page,
-  name: string,
-  opts: {
-    startDate: string
-    frequency?: 'none' | 'minutely' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly'
-  }
-) {
-  await expect(page.getByRole('progressbar', { name: 'Loading' })).not.toBeVisible({ timeout: 15000 })
-  await expect(page.getByRole('heading', { name: /select a trigger node/i })).toBeVisible({ timeout: 10000 })
-  await page.getByRole('button', { name: 'Schedule trigger', exact: true }).click()
-
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
-
-  // Schedule expression defaults to "Visual schedule builder" — ScheduleBuilderFields is visible
-  await expect(page.getByTestId('schedule-builder-fields')).toBeVisible({ timeout: 5_000 })
-  await page.getByLabel('Start date', { exact: true }).fill(opts.startDate)
-
-  if (opts.frequency) {
-    const frequencyLabels: Record<string, string> = {
-      none: 'Does not repeat',
-      minutely: 'Minutely',
-      hourly: 'Hourly',
-      daily: 'Daily',
-      weekly: 'Weekly',
-      monthly: 'Monthly',
-      yearly: 'Yearly',
-    }
-    await page.getByLabel('Frequency').click()
-    await page.getByRole('option', { name: frequencyLabels[opts.frequency] }).click()
-  }
-
-  await page.getByRole('button', { name: 'Create', exact: true }).click()
-}
-
 // ---------------------------------------------------------------------------
 // Executor nodes
 // ---------------------------------------------------------------------------
@@ -402,6 +366,154 @@ export async function addLoopNodeWithBody(page: Page, name: string, items = '${t
   await selectCategoryAndType(page, 'Action', 'Script')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(`${name} - loop body`)
   await fillCodeEditor(page, { value: 'print("processing item")' })
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+  await closeNodeEditorPanel(page)
+}
+
+// ---------------------------------------------------------------------------
+// Switch node
+// ---------------------------------------------------------------------------
+
+type SwitchCase = {
+  condition: string
+  label?: string
+}
+
+/**
+ * Add a switch node with the given cases.
+ *
+ * The form opens with 2 default cases. This helper:
+ * - Fills conditions from index 0 up to cases.length (adding extra paths as needed)
+ * - Removes surplus default cases if cases.length < 2
+ *
+ * Each case switches the ExpressionBuilder to raw mode before filling the condition
+ * string, matching the pattern used by addConditionNode.
+ */
+export async function addSwitchNodeWithCases(page: Page, name: string, cases: SwitchCase[]) {
+  if (cases.length === 0) throw new Error('addSwitchNodeWithCases requires at least one case')
+
+  await openAddNodePanel(page)
+  await selectCategoryAndType(page, 'Logic', 'Switch')
+
+  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
+  await expect(nameInput).toBeVisible({ timeout: 10_000 })
+  await nameInput.fill(name)
+
+  // The form defaults to 2 cases. Fill the visible ones first.
+  const defaultCaseCount = 2
+
+  for (let i = 0; i < Math.min(cases.length, defaultCaseCount); i++) {
+    // ExpressionBuilder uses a PatternFly MenuToggle — click to open, then select option
+    await page
+      .getByLabel(/Expression editor mode/i)
+      .nth(i)
+      .click()
+    await page.getByRole('option', { name: 'Custom expression', exact: true }).click()
+    await page
+      .getByLabel(/Raw expression/i)
+      .nth(i)
+      .fill(cases[i].condition)
+    const label0 = cases[i].label
+    if (label0) {
+      await page.getByLabel(`Path ${i + 1} name`).fill(label0)
+    }
+  }
+
+  // Add extra cases beyond the default 2
+  for (let i = defaultCaseCount; i < cases.length; i++) {
+    await page.getByRole('button', { name: 'Add path' }).click()
+    await page
+      .getByLabel(/Expression editor mode/i)
+      .nth(i)
+      .click()
+    await page.getByRole('option', { name: 'Custom expression', exact: true }).click()
+    await page
+      .getByLabel(/Raw expression/i)
+      .nth(i)
+      .fill(cases[i].condition)
+    const labelN = cases[i].label
+    if (labelN) {
+      await page.getByLabel(`Path ${i + 1} name`).fill(labelN)
+    }
+  }
+
+  // Remove surplus default cases (working from the last index downward to avoid re-indexing)
+  for (let i = defaultCaseCount; i > cases.length; i--) {
+    await page.getByRole('button', { name: `Remove path ${i}` }).click()
+  }
+
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+  await closeNodeEditorPanel(page)
+}
+
+// ---------------------------------------------------------------------------
+// Schedule trigger
+// ---------------------------------------------------------------------------
+
+type ScheduleTriggerConfig = {
+  /**
+   * Defaults to 'interval' (Visual schedule builder).
+   * 'continuous' is treated as 'interval' with no recurrence.
+   */
+  scheduleType?: 'interval' | 'continuous' | 'cron'
+  /**
+   * Frequency for interval mode. Maps to the Frequency dropdown.
+   * Only used when scheduleType is 'interval'.
+   */
+  cadence?: 'daily' | 'weekly' | 'monthly' | 'annually'
+  /**
+   * Start date string (MM/DD/YYYY). Only used when scheduleType is 'interval'.
+   * Defaults to '01/15/2030'.
+   */
+  startDate?: string
+}
+
+/**
+ * Add a schedule trigger. Must be called on a fresh /workflow-builder/new page.
+ *
+ * 'continuous' scheduleType maps to interval mode with no recurring cadence.
+ */
+export async function addScheduleTrigger(page: Page, name: string, config?: ScheduleTriggerConfig) {
+  await expect(page.getByRole('progressbar', { name: 'Loading' })).not.toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('heading', { name: /select a trigger node/i })).toBeVisible({ timeout: 10_000 })
+
+  await page.getByRole('button', { name: 'Schedule trigger' }).click()
+
+  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
+  await expect(nameInput).toBeVisible({ timeout: 10_000 })
+  await nameInput.fill(name)
+
+  // 'continuous' has no equivalent in the UI — map to 'interval' with no cadence
+  const uiScheduleType = config?.scheduleType === 'continuous' ? 'interval' : (config?.scheduleType ?? 'interval')
+  const scheduleExpressionSelect = page.getByLabel('Schedule expression', { exact: true })
+  await expect(scheduleExpressionSelect).toBeVisible()
+  // Schedule expression is a PatternFly MenuToggle — click to open, then select by option text
+  const scheduleTypeLabels: Record<string, string> = {
+    interval: 'Visual schedule builder',
+    cron: 'Custom cron expression',
+  }
+  await scheduleExpressionSelect.click()
+  await page.getByRole('option', { name: scheduleTypeLabels[uiScheduleType], exact: true }).click()
+
+  if (uiScheduleType === 'interval') {
+    const cadence = config?.cadence
+    if (cadence) {
+      const frequencyLabels: Record<string, string> = {
+        daily: 'Daily',
+        weekly: 'Weekly',
+        monthly: 'Monthly',
+        annually: 'Yearly',
+      }
+      await page.getByLabel('Frequency', { exact: true }).click()
+      await page.getByRole('option', { name: frequencyLabels[cadence], exact: true }).click()
+    }
+
+    const startDate = config?.startDate ?? '01/15/2030'
+    const startDateInput = page.getByLabel('Start date', { exact: true })
+    await expect(startDateInput).toBeVisible()
+    await startDateInput.fill(startDate)
+  }
+
   await page.getByRole('button', { name: 'Create', exact: true }).click()
   await closeNodeEditorPanel(page)
 }
