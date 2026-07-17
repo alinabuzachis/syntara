@@ -12,8 +12,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.audit.decorators import audit
 from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
-from nexus.authz.engine import VisibilityResult
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_authz_evaluator
+from nexus.authz.engine import VisibilityResult, resolve_credential_use_visibility, resolve_visibility
+from nexus.authz.evaluator import AuthzEvaluator
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
@@ -99,19 +100,68 @@ async def create_credential(
     return await service.create_credential(data)
 
 
+class _CredentialVisibility(VisibilityFilter):
+    """Credential list visibility: dispatches to use-scoped or read-scoped OPA path.
+
+    Subclasses VisibilityFilter so the RBAC compliance check recognises it.
+    For for_action=use: Python shortcut (0 OPA evals for standard roles).
+    For standard list: delegates to VisibilityFilter for credential:read (1 OPA eval).
+    """
+
+    def __init__(self) -> None:
+        super().__init__("credential", "read")
+
+    async def __call__(  # type: ignore[override]
+        self,
+        request: Request,
+        current_user: Annotated[User, Depends(get_current_user)],
+        db: Annotated[AsyncSession, Depends(get_db)],
+        evaluator: Annotated[AuthzEvaluator, Depends(get_authz_evaluator)],
+    ) -> VisibilityResult:
+        """Resolve visibility, skipping the read-path OPA call when for_action=use.
+
+        Uses Depends(get_authz_evaluator) so test dependency_overrides apply correctly.
+        """
+        if getattr(request.state, "is_cert_authenticated", False):
+            return VisibilityResult(unrestricted=True)
+        if request.query_params.get("for_action") == "use":
+            return await resolve_credential_use_visibility(
+                db=db,
+                evaluator=evaluator,
+                user_id=current_user.id,
+                user_labels=current_user.labels,
+                user_metadata=current_user.authz_metadata,
+            )
+        return await resolve_visibility(
+            db=db,
+            evaluator=evaluator,
+            user_id=current_user.id,
+            resource_type="credential",
+            action="read",
+            user_labels=current_user.labels,
+            user_metadata=current_user.authz_metadata,
+        )
+
+
 @router.get("/credentials", operation_id="list_credentials")
 async def list_credentials(
     request: Request,
     service: Annotated[CredentialService, Depends(get_credential_service)],
     params: Annotated[CredentialListParams, Query()],
-    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("credential", "read"))],
+    visibility: Annotated[VisibilityResult, Depends(_CredentialVisibility())],
 ) -> CredentialListResponse:
-    """List Credentials with filtering and pagination. Metadata only, no secrets."""
+    """List Credentials with filtering and pagination. Metadata only, no secrets.
+
+    When for_action=use, returns only credentials the user has credential:use
+    permission on (for workflow builder credential selection).
+    """
+    # Strip for_action from query params before passing to service (not a filterable field)
+    filtered_query_params = [(k, v) for k, v in request.query_params.items() if k != "for_action"]
     return await service.list_credentials(
         limit=params.limit,
         cursor=params.cursor,
         sort=params.sort,
-        query_params_items=request.query_params.items(),
+        query_params_items=filtered_query_params,
         include_total=params.include_total,
         allowed_projects=visibility.to_allowed_projects(),
     )

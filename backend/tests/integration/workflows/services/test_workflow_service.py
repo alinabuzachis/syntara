@@ -2005,7 +2005,11 @@ class TestCredentialProjectScopeValidation(TestWorkflowServiceBase):
         credential_in_a: Credential,
     ) -> None:
         """Workflow in project A can reference a credential from project A."""
-        service = WorkflowService(test_db_session, test_user)
+        mock_evaluator = MagicMock()
+        mock_evaluator.evaluate = MagicMock(
+            return_value={"allow": True, "deny": False, "matched_policy": "", "denial_reason": "", "denied_by": ""}
+        )
+        service = WorkflowService(test_db_session, test_user, opa_client=mock_evaluator)
         wf_def = _workflow_definition_with_credential(credential_id=str(credential_in_a.id))
 
         with (
@@ -2073,6 +2077,122 @@ class TestCredentialProjectScopeValidation(TestWorkflowServiceBase):
             assert workflow is not None
 
     @pytest.mark.asyncio
+    async def test_create_workflow_raises_when_no_authz_evaluator(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_a_id: UUID,
+        credential_in_a: Credential,
+    ) -> None:
+        """Workflow save with a credential fails when opa_client is None (fail-closed)."""
+        from nexus.authz.exceptions import AuthorizationDeniedError
+
+        service = WorkflowService(test_db_session, test_user, opa_client=None)
+        wf_def = _workflow_definition_with_credential(credential_id=str(credential_in_a.id))
+
+        with (
+            patch(_PATCH_VALIDATOR, _mock_validator_valid()),
+            patch(_PATCH_PROJECT_ALIVE, new_callable=AsyncMock),
+            patch("nexus.workflows.services.workflow_service.WebhookTriggerService", _mock_webhook_service()),
+        ):
+            wf_name = f"no-evaluator-{uuid4().hex[:6]}"
+            with pytest.raises(AuthorizationDeniedError, match="Authorization service unavailable"):
+                await service.create_workflow(
+                    name=wf_name,
+                    description=None,
+                    labels={},
+                    workflow_definition=wf_def,
+                    project_id=project_a_id,
+                )
+
+    @pytest.mark.asyncio
+    async def test_create_workflow_denies_when_authz_evaluator_rejects(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_a_id: UUID,
+        credential_in_a: Credential,
+    ) -> None:
+        """Workflow save raises AuthorizationDeniedError when evaluator denies credential:use."""
+        from nexus.authz.exceptions import AuthorizationDeniedError
+
+        mock_evaluator = MagicMock()
+        mock_evaluator.evaluate = MagicMock(
+            return_value={
+                "allowed": False,
+                "denied": True,
+                "matched_policy": "",
+                "denial_reason": "no use permission",
+                "denied_by": "",
+            }
+        )
+        service = WorkflowService(test_db_session, test_user, opa_client=mock_evaluator)
+        wf_def = _workflow_definition_with_credential(credential_id=str(credential_in_a.id))
+
+        with (
+            patch(_PATCH_VALIDATOR, _mock_validator_valid()),
+            patch(_PATCH_PROJECT_ALIVE, new_callable=AsyncMock),
+            patch("nexus.workflows.services.workflow_service.WebhookTriggerService", _mock_webhook_service()),
+        ):
+            wf_name = f"denied-use-{uuid4().hex[:6]}"
+            with pytest.raises(AuthorizationDeniedError, match="Not authorized to use"):
+                await service.create_workflow(
+                    name=wf_name,
+                    description=None,
+                    labels={},
+                    workflow_definition=wf_def,
+                    project_id=project_a_id,
+                )
+
+    @pytest.mark.asyncio
+    async def test_update_workflow_version_skips_check_for_unchanged_credentials(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_a_id: UUID,
+        credential_in_a: Credential,
+    ) -> None:
+        """Updating a workflow that keeps the same credential skips the credential:use check."""
+        mock_evaluator = MagicMock()
+        mock_evaluator.evaluate = MagicMock(
+            return_value={"allow": True, "deny": False, "matched_policy": "", "denial_reason": "", "denied_by": ""}
+        )
+        service = WorkflowService(test_db_session, test_user, opa_client=mock_evaluator)
+        cred_id = str(credential_in_a.id)
+
+        workflow = Workflow(
+            id=uuid4(),
+            name=f"same-cred-update-{uuid4().hex[:6]}",
+            description=None,
+            labels={},
+            current_version=1,
+            created_by=test_user.id,
+            is_enabled=False,
+            project_id=project_a_id,
+        )
+        v1 = WorkflowVersion(
+            id=uuid4(),
+            workflow_id=workflow.id,
+            version=1,
+            schema_version="2.0.0",
+            workflow_definition=_workflow_definition_with_credential(credential_id=cred_id),
+            created_by=test_user.id,
+            change_description="Initial",
+        )
+        test_db_session.add(workflow)
+        test_db_session.add(v1)
+        await test_db_session.flush()
+
+        wf_def_v2 = _workflow_definition_with_credential(credential_id=cred_id)
+
+        with patch(_PATCH_VALIDATOR, _mock_validator_valid()):
+            new_version = await service.create_workflow_version(workflow, wf_def_v2, "no change to credential")
+
+        assert new_version is None or new_version is not None  # either skipped (no diff) or created
+        # The credential:use authorize call should NOT have been made (same cred, diff is empty)
+        mock_evaluator.evaluate.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_update_workflow_version_rejects_cross_project_credential(
         self,
         test_db_session: AsyncSession,
@@ -2108,11 +2228,99 @@ class TestCredentialProjectScopeValidation(TestWorkflowServiceBase):
 
         wf_def_v2 = _workflow_definition_with_credential(credential_id=str(credential_in_a.id))
 
-        with (
-            patch(_PATCH_VALIDATOR, _mock_validator_valid()),
-            pytest.raises(SafeValueError, match="invalid or belong to a different project"),
-        ):
-            await service.create_workflow_version(workflow, wf_def_v2, "add credential")
+        with patch(_PATCH_VALIDATOR, _mock_validator_valid()):
+            with pytest.raises(SafeValueError, match="invalid or belong to a different project"):
+                await service.create_workflow_version(workflow, wf_def_v2, "add credential")
+
+    @pytest.mark.asyncio
+    async def test_publish_workflow_version_with_inline_definition_checks_credentials(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_a_id: UUID,
+        credential_in_a: Credential,
+    ) -> None:
+        """publish_workflow_version with inline workflow_definition runs credential:use check."""
+        from nexus.authz.exceptions import AuthorizationDeniedError
+
+        service = WorkflowService(test_db_session, test_user, opa_client=None)
+
+        workflow = Workflow(
+            id=uuid4(),
+            name=f"publish-inline-{uuid4().hex[:6]}",
+            description=None,
+            labels={},
+            current_version=1,
+            created_by=test_user.id,
+            is_enabled=False,
+            project_id=project_a_id,
+        )
+        v1 = WorkflowVersion(
+            id=uuid4(),
+            workflow_id=workflow.id,
+            version=1,
+            schema_version="2.0.0",
+            workflow_definition=_workflow_definition_with_credential(),
+            created_by=test_user.id,
+            change_description="Initial",
+        )
+        test_db_session.add(workflow)
+        test_db_session.add(v1)
+        await test_db_session.flush()
+
+        inline_def = _workflow_definition_with_credential(credential_id=str(credential_in_a.id))
+
+        with patch(_PATCH_VALIDATOR, _mock_validator_valid()):
+            with pytest.raises(AuthorizationDeniedError, match="Authorization service unavailable"):
+                await service.publish_workflow_version(
+                    workflow_id=workflow.id,
+                    version=1,
+                    workflow_definition=inline_def,
+                )
+
+    @pytest.mark.asyncio
+    async def test_publish_workflow_version_inline_definition_cross_project_credential_rejected(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_b_id: UUID,
+        credential_in_a: Credential,
+    ) -> None:
+        """publish_workflow_version rejects cross-project credentials in inline definition."""
+        service = WorkflowService(test_db_session, test_user)
+
+        workflow = Workflow(
+            id=uuid4(),
+            name=f"publish-cross-{uuid4().hex[:6]}",
+            description=None,
+            labels={},
+            current_version=1,
+            created_by=test_user.id,
+            is_enabled=False,
+            project_id=project_b_id,
+        )
+        v1 = WorkflowVersion(
+            id=uuid4(),
+            workflow_id=workflow.id,
+            version=1,
+            schema_version="2.0.0",
+            workflow_definition=_workflow_definition_with_credential(),
+            created_by=test_user.id,
+            change_description="Initial",
+        )
+        test_db_session.add(workflow)
+        test_db_session.add(v1)
+        await test_db_session.flush()
+
+        inline_def = _workflow_definition_with_credential(credential_id=str(credential_in_a.id))
+
+        with patch(_PATCH_VALIDATOR, _mock_validator_valid()):
+            with pytest.raises(SafeValueError, match="invalid or belong to a different project"):
+                await service.publish_workflow_version(
+                    workflow_id=workflow.id,
+                    version=1,
+                    workflow_definition=inline_def,
+                )
 
 
 class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):

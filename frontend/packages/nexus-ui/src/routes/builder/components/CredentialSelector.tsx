@@ -99,6 +99,84 @@ type TypeGroup = {
   credentials: Credential[]
 }
 
+type CredentialQueryParams = CredentialsAPI.operations['list_credentials']['parameters']['query'] & {
+  project_id?: string
+}
+
+type MenuToggleProps = {
+  toggleRef: React.Ref<MenuToggleElement>
+  isOpen: boolean
+  isDisabled: boolean
+  isPending: boolean
+  isReadOnlyCredential: boolean
+  hasDanger: boolean
+  label: string
+  toggleLabel: string
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>
+}
+
+function CredentialMenuToggle({
+  toggleRef,
+  isOpen,
+  isDisabled,
+  isPending,
+  isReadOnlyCredential,
+  hasDanger,
+  label,
+  toggleLabel,
+  setIsOpen,
+}: Readonly<MenuToggleProps>) {
+  return (
+    <MenuToggle
+      ref={toggleRef}
+      onClick={() => setIsOpen((prev) => !prev)}
+      isExpanded={isOpen}
+      isDisabled={isDisabled || isPending}
+      aria-describedby={isReadOnlyCredential ? 'credential-readonly-warning' : undefined}
+      isFullWidth
+      status={hasDanger ? 'danger' : undefined}
+      aria-label={label}
+    >
+      {isPending ? (
+        <>
+          <Spinner size="sm" aria-label="Loading credentials" /> {toggleLabel}
+        </>
+      ) : (
+        toggleLabel
+      )}
+    </MenuToggle>
+  )
+}
+
+function ReadOnlyCredentialWarning({ show }: { show: boolean }) {
+  if (!show) return null
+  return (
+    <FormHelperText>
+      <HelperText>
+        <HelperTextItem id="credential-readonly-warning" variant="warning">
+          You do not have permission to use this credential. Contact a project administrator for access.
+        </HelperTextItem>
+      </HelperText>
+    </FormHelperText>
+  )
+}
+
+function useReadOnlyCredential(value: string | undefined, usableCredentials: Credential[], isListPending: boolean) {
+  const selectedCredential = useMemo(() => usableCredentials.find((c) => c.id === value), [usableCredentials, value])
+
+  const { data: readOnlyCredData, isPending: isSingleCredPending } = credentialsClient.useQuery(
+    'get',
+    '/credentials/{credential_id}',
+    { params: { path: { credential_id: value ?? '' } } },
+    { enabled: !!value && !selectedCredential && !isListPending }
+  )
+
+  const isReadOnly = !!value && !selectedCredential && !isListPending && !!readOnlyCredData
+  const readOnlyLabel = isReadOnly ? `${readOnlyCredData.name} (no permission to use)` : undefined
+
+  return { selectedCredential, isReadOnly, readOnlyLabel, isSingleCredPending }
+}
+
 /**
  * A PatternFly Select dropdown for choosing a credential.
  * Fetches credentials from the API with optional type filtering.
@@ -123,12 +201,8 @@ export function CredentialSelector({
   const [isOpen, setIsOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
-  // TODO: Remove type extension when project_id is added to the OpenAPI spec
-  type CredentialQueryParams = CredentialsAPI.operations['list_credentials']['parameters']['query'] & {
-    project_id?: string
-  }
   const credentialQueryParams: CredentialQueryParams = useMemo(
-    () => (projectId ? { project_id: projectId } : {}),
+    () => ({ ...(projectId ? { project_id: projectId } : {}), for_action: 'use' }),
     [projectId]
   )
   const { data, isPending, isError, refetch } = credentialsClient.useQuery('get', '/credentials', {
@@ -164,13 +238,18 @@ export function CredentialSelector({
     [credentials, credentialTypes]
   )
 
-  const selectedCredential = useMemo(() => credentials.find((c) => c.id === value), [credentials, value])
+  const {
+    selectedCredential,
+    isReadOnly: isReadOnlyCredential,
+    readOnlyLabel,
+    isSingleCredPending,
+  } = useReadOnlyCredential(value, allCredentials, isPending)
 
   const toggleLabel = useMemo(() => {
-    if (isPending) return 'Loading credentials...'
+    if (isPending || isSingleCredPending) return 'Loading credentials...'
     if (isError) return 'Error loading credentials'
-    return selectedCredential?.name ?? placeholder
-  }, [isPending, isError, selectedCredential?.name, placeholder])
+    return readOnlyLabel ?? selectedCredential?.name ?? placeholder
+  }, [isPending, isSingleCredPending, isError, readOnlyLabel, selectedCredential?.name, placeholder])
 
   const handleSelect = useCallback(
     (_event: React.MouseEvent | undefined, selectedValue: string | number | undefined) => {
@@ -211,25 +290,19 @@ export function CredentialSelector({
 
   const renderToggle = useCallback(
     (toggleRef: React.Ref<MenuToggleElement>) => (
-      <MenuToggle
-        ref={toggleRef}
-        onClick={() => setIsOpen((prev) => !prev)}
-        isExpanded={isOpen}
-        isDisabled={isDisabled || isPending}
-        isFullWidth
-        status={hasDanger ? 'danger' : undefined}
-        aria-label={label}
-      >
-        {isPending ? (
-          <>
-            <Spinner size="sm" aria-label="Loading credentials" /> {toggleLabel}
-          </>
-        ) : (
-          toggleLabel
-        )}
-      </MenuToggle>
+      <CredentialMenuToggle
+        toggleRef={toggleRef}
+        isOpen={isOpen}
+        isDisabled={isDisabled}
+        isPending={isPending || isSingleCredPending}
+        isReadOnlyCredential={isReadOnlyCredential}
+        hasDanger={hasDanger}
+        label={label}
+        toggleLabel={toggleLabel}
+        setIsOpen={setIsOpen}
+      />
     ),
-    [isOpen, isDisabled, isPending, hasDanger, label, toggleLabel]
+    [isOpen, isDisabled, isPending, isSingleCredPending, isReadOnlyCredential, hasDanger, label, toggleLabel]
   )
 
   return (
@@ -266,6 +339,7 @@ export function CredentialSelector({
         </SelectList>
       </Select>
       <FieldError message={errorMessage} />
+      <ReadOnlyCredentialWarning show={isReadOnlyCredential} />
       {isError && (
         <Button variant="link" size="sm" onClick={() => detachPromise(refetch())}>
           Retry loading credentials

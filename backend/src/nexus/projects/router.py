@@ -774,13 +774,19 @@ async def list_project_credentials(
     service: Annotated[CredentialService, Depends(get_credential_service)],
     params: Annotated[CredentialListParams, Query()],
 ) -> CredentialListResponse:
-    """List credentials belonging to this project. Requires: credential:read permission."""
+    """List credentials belonging to this project. Requires: credential:read permission.
+
+    The ``for_action`` parameter is accepted for API consistency but not enforced here.
+    Use ``GET /credentials?for_action=use`` for use-permission-filtered listing.
+    """
     allowed = AllowedProjectsResult(all_projects=False, project_ids=[project_id])
+    # Strip for_action — not a DB-filterable field (not implemented on this endpoint)
+    filtered_query_params = [(k, v) for k, v in request.query_params.items() if k != "for_action"]
     return await service.list_credentials(
         limit=params.limit,
         cursor=params.cursor,
         sort=params.sort,
-        query_params_items=request.query_params.items(),
+        query_params_items=filtered_query_params,
         include_total=params.include_total,
         allowed_projects=allowed,
     )

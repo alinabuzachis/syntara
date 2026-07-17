@@ -284,6 +284,11 @@ export interface paths {
     /**
      * List Project Credentials
      * @description List credentials belonging to this project. Requires: credential:read permission.
+     *
+     *     The ``for_action`` parameter is accepted for API consistency but not enforced
+     *     here.
+     *
+     *     Use ``GET /credentials?for_action=use`` for use-permission-filtered listing.
      */
     get: operations['list_project_credentials']
     put?: never
@@ -2374,6 +2379,8 @@ export interface operations {
         include_total?: components['parameters']['includeTotalParam']
         credential_type_id?: string | null
         enabled?: boolean | null
+        /** @description Filter by permission action. Currently accepted but not enforced on this endpoint; use GET /credentials?for_action=use for use-filtered listing. */
+        for_action?: 'use' | null
       }
       header?: never
       path: {

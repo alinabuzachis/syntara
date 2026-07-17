@@ -14,6 +14,9 @@ export interface paths {
     /**
      * List Credentials
      * @description List Credentials with filtering and pagination. Metadata only, no secrets.
+     *
+     *     When for_action=use, returns only credentials the user has credential:use
+     *     permission on (for workflow builder credential selection).
      */
     get: operations['list_credentials']
     put?: never
@@ -678,6 +681,8 @@ export interface operations {
         credential_type_id?: string | null
         /** @description Filter by enabled status */
         enabled?: boolean | null
+        /** @description Filter by permission action. When 'use', returns only credentials with credential:use permission. */
+        for_action?: 'use' | null
       }
       header?: never
       path?: never

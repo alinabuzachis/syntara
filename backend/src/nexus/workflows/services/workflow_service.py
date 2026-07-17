@@ -16,7 +16,9 @@ from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
-from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.engine import AllowedProjectsResult, AuthzRequest, authorize
+from nexus.authz.evaluator import AuthzEvaluator
+from nexus.authz.exceptions import AuthorizationDeniedError
 from nexus.authz.models import Project
 from nexus.core.exceptions import SafeValueError, assert_project_id_unchanged
 from nexus.core.models import User
@@ -115,9 +117,10 @@ class WorkflowService(BaseService):
     including CRUD operations, validation, and version management.
     """
 
-    def __init__(self, session: AsyncSession, user: User) -> None:
+    def __init__(self, session: AsyncSession, user: User, opa_client: AuthzEvaluator | None = None) -> None:
         """Initialize WorkflowService with database session and user context."""
         super().__init__(session, user, convert_resource_mixin=WorkflowConvertResourceMixin())
+        self.opa_client = opa_client
 
     @staticmethod
     def _emit_lifecycle_event(
@@ -241,19 +244,49 @@ class WorkflowService(BaseService):
             workflow_definition=workflow_definition,
         )
 
-    async def _validate_credential_project_scope(self, workflow_definition: dict[str, Any], project_id: UUID) -> None:
-        """Reject credential references that belong to a different project.
+    @staticmethod
+    def _extract_credential_ids(workflow_definition: dict[str, Any]) -> set[str]:
+        """Return the set of credential UUIDs referenced in workflow node parameters.
+
+        Extracts from:
+        - node.parameters.credential_id (HTTP request, AAP, etc.)
+        - node.parameters.integration_connections[].credential_id (Task Agent)
+        """
+        cred_ids: set[str] = set()
+        for node in workflow_definition.get("nodes", []):
+            params = node.get("parameters", {})
+            if cred_id := params.get("credential_id"):
+                cred_ids.add(cred_id)
+            for conn in params.get("integration_connections") or []:
+                if cred_id := conn.get("credential_id"):
+                    cred_ids.add(cred_id)
+        return cred_ids
+
+    async def _validate_credential_project_scope(
+        self,
+        workflow_definition: dict[str, Any],
+        project_id: UUID,
+        previous_credential_ids: set[str] | None = None,
+    ) -> None:
+        """Validate credential references: project scope and credential:use authorization.
+
+        Checks two things:
+        1. All referenced credentials exist and belong to the specified project.
+        2. The current user has credential:use permission on newly added credentials
+           (diff-based: skips credentials already present in the previous version).
+
+        Args:
+            workflow_definition: The workflow definition containing node parameters.
+            project_id: The project the workflow belongs to.
+            previous_credential_ids: Credential IDs from the previous version
+                (None for new workflows — all credentials treated as new).
 
         Raises:
-            SafeValueError: If any credential_id in the workflow definition does
-                not belong to the specified project.
+            SafeValueError: If any credential is missing or in the wrong project.
+            AuthorizationDeniedError: If the user lacks credential:use on a new credential.
 
         """
-        credential_ids: set[str] = set()
-        for node in workflow_definition.get("nodes", []):
-            cred_id = node.get("parameters", {}).get("credential_id")
-            if cred_id:
-                credential_ids.add(cred_id)
+        credential_ids = self._extract_credential_ids(workflow_definition)
 
         if not credential_ids:
             return
@@ -271,6 +304,56 @@ class WorkflowService(BaseService):
         if missing or wrong_project:
             msg = "One or more credential references are invalid or belong to a different project."
             raise SafeValueError(msg)
+
+        await self._check_credential_use_permission(credential_ids, previous_credential_ids, project_id)
+
+    async def _check_credential_use_permission(
+        self,
+        credential_ids: set[str],
+        previous_credential_ids: set[str] | None,
+        project_id: UUID,
+    ) -> None:
+        """Check credential:use permission on newly added credentials.
+
+        Args:
+            credential_ids: All credential IDs in the current definition.
+            previous_credential_ids: Credential IDs from the previous version (None = all new).
+            project_id: The project for authorization scoping.
+
+        Raises:
+            AuthorizationDeniedError: If the user lacks credential:use on any new credential.
+
+        """
+        if self.opa_client is None:
+            msg = "Authorization service unavailable; cannot verify credential:use permission"
+            raise AuthorizationDeniedError(msg)
+
+        new_credentials = credential_ids - (previous_credential_ids or set())
+        if not new_credentials:
+            return
+
+        proj_result = await self.session.exec(
+            select(Project.name).where(Project.id == project_id, Project.deleted_at.is_(None))  # type: ignore[union-attr]
+        )
+        project_name = proj_result.first() or ""
+
+        for cred_id in new_credentials:
+            authz_result = await authorize(
+                self.session,
+                self.opa_client,
+                AuthzRequest(
+                    user_id=self.user.id,
+                    action="use",
+                    resource_type="credential",
+                    resource_id=cred_id,
+                    resource_project=project_name,
+                    user_labels=self.user.labels,
+                    user_metadata=self.user.authz_metadata,
+                ),
+            )
+            if not authz_result.allowed:
+                msg = "Not authorized to use one or more credentials in this workflow"
+                raise AuthorizationDeniedError(msg)
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate workflow name.
@@ -470,7 +553,7 @@ class WorkflowService(BaseService):
         *,
         include_total: bool = False,
         allowed_projects: AllowedProjectsResult | None = None,
-    ) -> "WorkflowListResponse":
+    ) -> WorkflowListResponse:
         """List workflows with filtering, sorting, and pagination.
 
         Args:
@@ -900,7 +983,12 @@ class WorkflowService(BaseService):
             )
 
         if workflow.project_id is not None:
-            await self._validate_credential_project_scope(workflow_definition, workflow.project_id)
+            previous_cred_ids: set[str] | None = None
+            if workflow.current_version is not None:
+                prev_version = await self._get_version_or_none(workflow.id, workflow.current_version)
+                if prev_version and prev_version.workflow_definition:
+                    previous_cred_ids = self._extract_credential_ids(prev_version.workflow_definition)
+            await self._validate_credential_project_scope(workflow_definition, workflow.project_id, previous_cred_ids)
 
         return await self._create_version_record(workflow, workflow_definition, change_description)
 
@@ -1084,6 +1172,16 @@ class WorkflowService(BaseService):
             )
         if result.error_count > 0 or result.warning_count > 0:
             raise WorkflowPublishValidationError(result)
+
+        if workflow_definition is not None and workflow.project_id is not None:
+            # Inline definition provided (atomic save-and-publish). At this point
+            # target_version already points to the newly created version, so its
+            # workflow_definition equals workflow_definition — diff-based previous_cred_ids
+            # would be empty and skip the check. Pass None to treat all credentials in the
+            # new definition as candidates for the credential:use check (safe and correct).
+            await self._validate_credential_project_scope(
+                workflow_definition, workflow.project_id, previous_credential_ids=None
+            )
 
         if workflow.published_version_id is not None and workflow.published_version_id != target_version.id:
             unpublish_event = WorkflowPublishEvent(

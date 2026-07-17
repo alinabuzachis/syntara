@@ -184,6 +184,7 @@ ignore = [
     "PT011",    # Allow broad pytest.raises for contract tests
     "PT012",    # Allow multi-statement pytest.raises blocks (async generators)
     "PGH003",   # Allow generic type: ignore comments in tests
+    "SIM117",   # Allow nested with statements (required for SonarQube S5707 — pytest.raises in own block)
 ]
 "src/nexus/api/repositories/*.py" = ["ANN401"]  # Allow Any for database row types
 "src/nexus/core/database/migrations/**/*.py" = ["INP001", "D400", "D415", "PLR0915"]  # Alembic files (auto-generated)
@@ -256,6 +257,20 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "jmespath.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "external_services.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "kubernetes.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# AuthzEvaluator module may be treated as untyped in some CI environments
+module = "nexus.authz.evaluator"
+ignore_missing_imports = true
+
 
 # Pytest configuration
 [tool.pytest.ini_options]

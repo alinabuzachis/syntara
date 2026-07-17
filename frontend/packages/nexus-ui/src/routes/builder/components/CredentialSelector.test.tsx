@@ -125,6 +125,7 @@ function mockUseQuery(
   overrides: {
     credentials?: Record<string, unknown>
     credentialTypes?: Record<string, unknown>
+    singleCredential?: Record<string, unknown> | null
   } = {}
 ) {
   const credentialsResponse = {
@@ -143,11 +144,18 @@ function mockUseQuery(
     refetch: vi.fn(),
     ...overrides.credentialTypes,
   }
+  const singleCredResponse =
+    overrides.singleCredential !== undefined
+      ? { data: overrides.singleCredential, isPending: false, error: null }
+      : { data: null, isPending: false, error: null }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vi.mocked(credentialsClient.useQuery).mockImplementation((_method: string, path: string): any => {
     if (path === '/credential_types') {
       return typesResponse
+    }
+    if (path === '/credentials/{credential_id}') {
+      return singleCredResponse
     }
     return credentialsResponse
   })
@@ -263,7 +271,7 @@ describe('CredentialSelector', () => {
     renderSelector({ compatibleTypeNames: ['HTTP Bearer Token'] })
 
     expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials', {
-      params: { query: {} },
+      params: { query: { for_action: 'use' } },
     })
   })
 
@@ -338,7 +346,7 @@ describe('CredentialSelector', () => {
       renderSelector({ projectId: 'proj-123' })
 
       expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials', {
-        params: { query: { project_id: 'proj-123' } },
+        params: { query: { project_id: 'proj-123', for_action: 'use' } },
       })
     })
 
@@ -347,7 +355,7 @@ describe('CredentialSelector', () => {
       renderSelector()
 
       expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials', {
-        params: { query: {} },
+        params: { query: { for_action: 'use' } },
       })
     })
 
@@ -567,6 +575,77 @@ describe('CredentialSelector', () => {
 
       expect(screen.queryByText('No credentials available')).not.toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Create new credential' })).toBeInTheDocument()
+    })
+  })
+
+  describe('read-only credential (credential:use denied)', () => {
+    const readOnlyCred = {
+      id: 'cred-readonly',
+      name: 'Restricted Prod Cred',
+      credential_type_id: 'type-1',
+      enabled: true,
+    }
+
+    function mockReadOnlyState() {
+      // Usable credentials list is empty (user has no credential:use)
+      // but a single credential fetch returns the credential (user has credential:read)
+      mockUseQuery({
+        credentials: { data: { resources: [] } },
+        singleCredential: readOnlyCred,
+      })
+    }
+
+    it('shows credential name with "(no permission to use)" when value is not in usable list', () => {
+      mockReadOnlyState()
+      renderSelector({ value: 'cred-readonly' })
+
+      expect(screen.getByRole('button', { name: 'Credential' })).toHaveTextContent(
+        'Restricted Prod Cred (no permission to use)'
+      )
+    })
+
+    it('disables the toggle when user can read but not use the credential', () => {
+      mockReadOnlyState()
+      renderSelector({ value: 'cred-readonly' })
+
+      expect(screen.getByRole('button', { name: 'Credential' })).toHaveAttribute(
+        'aria-describedby',
+        'credential-readonly-warning'
+      )
+    })
+
+    it('shows warning helper text when credential is read-only', () => {
+      mockReadOnlyState()
+      renderSelector({ value: 'cred-readonly' })
+
+      expect(screen.getByText(/You do not have permission to use this credential/)).toBeInTheDocument()
+    })
+
+    it('fetches the single credential by ID when value is not in usable list', () => {
+      mockReadOnlyState()
+      renderSelector({ value: 'cred-readonly' })
+
+      expect(credentialsClient.useQuery).toHaveBeenCalledWith(
+        'get',
+        '/credentials/{credential_id}',
+        { params: { path: { credential_id: 'cred-readonly' } } },
+        expect.objectContaining({ enabled: true })
+      )
+    })
+
+    it('has no accessibility violations in read-only credential state', async () => {
+      mockReadOnlyState()
+      const { container } = renderSelector({ value: 'cred-readonly' })
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('does not show warning when credential is in the usable list', () => {
+      mockUseQuery({ singleCredential: null })
+      renderSelector({ value: 'cred-1' })
+
+      expect(screen.queryByText(/You do not have permission to use this credential/)).not.toBeInTheDocument()
     })
   })
 })

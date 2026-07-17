@@ -93,6 +93,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("credential", "create", roles=("admin",)),
     PolicyInfo("credential", "update", roles=("admin",)),
     PolicyInfo("credential", "delete", roles=("admin",)),
+    PolicyInfo("credential", "use", roles=("admin",)),
     # tools
     PolicyInfo("tool", "read", roles=("admin", "auditor", "user")),
     PolicyInfo("tool", "update", roles=("admin",)),
@@ -187,6 +188,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("credential", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("credential", "update", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("credential", "delete", scope="project", roles=("project-admin",)),
+    PolicyInfo("credential", "use", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("approval", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("approval", "decide", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("project", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
@@ -302,6 +304,20 @@ def is_builtin_policy(name: str) -> bool:
 def builtin_role_policy_names(role_name: str) -> list[str]:
     """Return the policy names assigned to a built-in role."""
     return list(_ROLE_POLICY_NAMES.get(role_name, []))
+
+
+def builtin_roles_with_system_grant(resource: str, action: str) -> frozenset[str]:
+    """Return builtin role names that have a system-scope allow grant for resource:action.
+
+    System scope means scope in ("any", "system", "").  Used to build fast-path
+    sets at module load time — zero DB queries, zero OPA calls.
+    """
+    return frozenset(
+        role_name
+        for p in BUILTIN_POLICIES
+        if p.resource == resource and p.action == action and p.scope in ("any", "system", "")
+        for role_name in p.roles
+    )
 
 
 def builtin_policy_uuid(name: str) -> UUID:

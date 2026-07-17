@@ -677,15 +677,16 @@ export async function navigateToApiActionForm(page: Page) {
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
   await page.getByRole('button', { name: 'Create', exact: true }).click()
 
-  const credentialsLoaded = page.waitForResponse((resp) => resp.url().includes('/credentials') && resp.status() === 200)
   const panel = await clickAddConnectedStep(page)
   await panel.getByRole('button', { name: 'Action', exact: true }).click()
   await panel.getByRole('button', { name: 'REST API', exact: true }).click()
 
   await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
-  await credentialsLoaded
   const credToggle = page.getByRole('button', { name: 'Authentication credential', exact: true })
-  await expect(credToggle).toBeEnabled({ timeout: 10_000 })
+  // The CredentialSelector fetches with for_action=use (a separate cache key from
+  // HttpCredentialSection's query). It may re-query when projectId populates, so
+  // use a longer timeout to cover both the initial and project-scoped fetches.
+  await expect(credToggle).toBeEnabled({ timeout: 30_000 })
 }
 
 /**

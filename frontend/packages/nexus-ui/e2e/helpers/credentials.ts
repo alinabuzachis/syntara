@@ -159,7 +159,10 @@ export async function createCredentialOfTypeViaUI(
 
 /** Check if a response is a successful credentials API request (excludes credential_types). */
 export const isCredentialsResponse = (resp: Response) =>
-  resp.url().includes('/credentials') && !resp.url().includes('/credential_types') && resp.status() === 200
+  resp.url().includes('/credentials') &&
+  !resp.url().includes('/credential_types') &&
+  resp.url().includes('for_action=use') &&
+  resp.status() === 200
 
 /** Filter the credentials list by keyword. */
 export async function filterCredentialByName(app: Page, name: string) {

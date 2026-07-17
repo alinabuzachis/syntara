@@ -1,4 +1,4 @@
-# ruff: noqa: S105, S106, SIM117
+# ruff: noqa: S105, S106
 """Unit tests for OIDC service.
 
 Tests cover:

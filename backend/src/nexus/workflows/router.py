@@ -196,13 +196,14 @@ def _definition_to_dict(wf_def: WorkflowDefinition | dict[str, Any]) -> dict[str
 def get_workflow_service(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
+    request: Request,
 ) -> WorkflowService:
     """Dependency provider for WorkflowService.
 
     FastAPI will call this function automatically, injecting all dependencies.
     This centralizes WorkflowService creation across all endpoints.
     """
-    return WorkflowService(db, current_user)
+    return WorkflowService(db, current_user, request.app.state.authz_evaluator)
 
 
 def get_execution_service(

@@ -16,7 +16,13 @@ from nexus.authz.evaluator import AuthzEvaluator
 from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.authz.resolver import resolve_effective_policies, resolve_user_groups
+from nexus.authz.role_conventions import builtin_roles_with_system_grant
 from nexus.core.models.group import Group
+
+# Precomputed at import time: builtin roles that grant credential:use at system scope.
+# Used by resolve_credential_use_visibility to short-circuit to a single DB query
+# for admin users instead of the full 4-5-query resolve_effective_policies path.
+_SYSTEM_CREDENTIAL_USE_ROLES: frozenset[str] = builtin_roles_with_system_grant("credential", "use")
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -477,6 +483,94 @@ async def resolve_visibility(
         self_group_ids=group_ids,
         readable_project_ids=readable,
     )
+
+
+def _derive_allowed_projects(
+    effective_policies: list[dict[str, Any]],
+    resource_type: str,
+    action: str,
+) -> tuple[list[str], bool] | None:
+    """Derive allowed project names for a resource:action from effective_policies.
+
+    Avoids an OPA evaluation for standard built-in roles where the mapping from
+    policies to allowed_projects is fully determined by the policy list.
+
+    Returns:
+        ([], True)              — system-scope grant; all projects are allowed.
+        (["proj-a", ...], False) — project-scope grant; only listed projects.
+        None                    — shortcut not safe (deny policy or conditions present);
+                                  caller must fall back to a full Rego evaluation.
+
+    """
+    target_actions = (f"{resource_type}:{action}", f"{resource_type}:*")
+    allowed_projects: list[str] = []
+    for p in effective_policies:
+        actions: list[str] = p.get("actions", [])
+        effect: str = p.get("effect", "allow")
+        if not any(a in target_actions for a in actions):
+            continue
+        if effect == "deny":
+            return None  # Deny override — cannot shortcut without Rego
+        if effect != "allow":
+            continue
+        if p.get("conditions"):
+            return None  # Conditional grant — cannot shortcut without Rego
+        scope: str = p.get("scope", "")
+        if scope in ("any", "system", ""):
+            return ([], True)  # unrestricted — all projects
+        project: str = p.get("project", "")
+        if scope == "project" and project:
+            allowed_projects.append(project)
+
+    return (allowed_projects, False)
+
+
+async def _has_direct_system_credential_use(db: AsyncSession, user_id: UUID) -> bool:
+    """Single-query fast path: does this user have a direct system-scope role granting credential:use.
+
+    Checks only direct (non-group) role assignments with no project scope.
+    Covers the common admin case with 1 DB query instead of the 4-5 queries
+    that resolve_effective_policies requires.  Falls back to the full path
+    when False (group-based grants, project-only roles, custom roles).
+    """
+    result = await db.exec(
+        select(RoleAssignment.role_name).where(
+            RoleAssignment.principal_id == user_id,
+            RoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    return any(name in _SYSTEM_CREDENTIAL_USE_ROLES for name in result.all())
+
+
+async def resolve_credential_use_visibility(
+    db: AsyncSession,
+    evaluator: "AuthzEvaluator",
+    user_id: UUID,
+    user_labels: dict[str, str] | None = None,
+    user_metadata: dict[str, Any] | None = None,
+) -> VisibilityResult:
+    """Resolve credential:use list visibility without a Rego evaluation for standard roles.
+
+    Fast path 1 (single DB query): direct system-scope builtin role → unrestricted.
+    Fast path 2 (Python only, no OPA): resolve_effective_policies + _derive_allowed_projects.
+    Fallback: full Rego evaluation for deny overrides or conditional grants.
+    """
+    if await _has_direct_system_credential_use(db, user_id):
+        return VisibilityResult(unrestricted=True)
+
+    effective = await resolve_effective_policies(db, user_id, action_filter="credential:use")
+    derived = _derive_allowed_projects(effective, "credential", "use")
+
+    if derived is None:
+        # Deny override or conditions — fall back to full Rego eval
+        return await resolve_visibility(db, evaluator, user_id, "credential", "use", user_labels, user_metadata)
+
+    project_names, is_unrestricted = derived
+    if is_unrestricted:
+        return VisibilityResult(unrestricted=True)
+
+    project_ids = await _resolve_project_ids(db, project_names)
+    return VisibilityResult(unrestricted=False, allowed_project_ids=project_ids)
 
 
 async def assign_project_admin(

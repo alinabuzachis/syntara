@@ -127,9 +127,12 @@ export async function selectLlmCredential(page: Page, credName: string) {
   await expect(setupBtn).toBeVisible({ timeout: 5_000 })
   await setupBtn.click()
 
-  // 3. Select the credential from the dropdown
+  // 3. Select the credential from the dropdown.
+  // The CredentialSelector fetches with for_action=use, which may take several
+  // seconds on resource-constrained backends. Wait for it to be enabled (not
+  // just visible) so we don't click while it still shows "Loading credentials...".
   const credDropdown = page.getByRole('button', { name: 'Select a credential' })
-  await expect(credDropdown).toBeVisible({ timeout: 5_000 })
+  await expect(credDropdown).toBeEnabled({ timeout: 30_000 })
   await credDropdown.click()
 
   const credOption = page.getByRole('option', { name: credName })

@@ -6840,7 +6840,11 @@ paths:
   /credentials:
     get:
       summary: List Credentials
-      description: List Credentials with filtering and pagination. Metadata only, no secrets.
+      description: |-
+        List Credentials with filtering and pagination. Metadata only, no secrets.
+
+        When for_action=use, returns only credentials the user has credential:use
+        permission on (for workflow builder credential selection).
       operationId: list_credentials
       tags:
         - Credentials
@@ -6910,6 +6914,16 @@ paths:
             description: Filter by enabled status
             title: Enabled
           description: Filter by enabled status
+        - name: for_action
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - const: use
+                type: string
+              - type: 'null'
+            title: For Action
+          description: Filter by permission action. When 'use', returns only credentials with credential:use permission.
       responses:
         '200':
           description: Successful Response
@@ -15901,7 +15915,13 @@ paths:
         - bearerAuth: []
     get:
       summary: List Project Credentials
-      description: 'List credentials belonging to this project. Requires: credential:read permission.'
+      description: |-
+        List credentials belonging to this project. Requires: credential:read permission.
+
+        The ``for_action`` parameter is accepted for API consistency but not enforced
+        here.
+
+        Use ``GET /credentials?for_action=use`` for use-permission-filtered listing.
       operationId: list_project_credentials
       x-app-permission:
         resource: credential
@@ -15975,6 +15995,16 @@ paths:
               - type: boolean
               - type: 'null'
             title: Enabled
+        - name: for_action
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - const: use
+                type: string
+              - type: 'null'
+            title: For Action
+          description: Filter by permission action. Currently accepted but not enforced on this endpoint; use GET /credentials?for_action=use for use-filtered listing.
       responses:
         '200':
           description: Paginated list of credentials in the project

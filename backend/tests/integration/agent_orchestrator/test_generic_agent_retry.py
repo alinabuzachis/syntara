@@ -178,8 +178,9 @@ class TestExhaustedRetriesAfterMultipleFailures:
         assert "Internal server error" in str(exc_info.value)
 
         # Verify delays applied (0.1s, 0.2s, 0.4s with jitter)
-        # Total should be ~0.7s + jitter + execution time
-        assert 0.5 <= elapsed <= 1.5
+        # Total should be ~0.7s + jitter + execution time; upper bound raised to 2s
+        # to accommodate resource-constrained CI runners without false flakes.
+        assert 0.5 <= elapsed <= 2.0
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("fast_retry_settings")

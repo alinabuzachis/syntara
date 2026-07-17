@@ -123,6 +123,30 @@ class TestRolePolicyMapping:  # noqa: D101
         assert "user:update:self" in names
         assert "role-assignment:read:self" in names
 
+    def test_admin_has_credential_use(self) -> None:
+        names = builtin_role_policy_names("admin")
+        assert "credential:use:any" in names
+
+    def test_project_admin_has_credential_use(self) -> None:
+        names = builtin_role_policy_names("project-admin")
+        assert "credential:use:project" in names
+
+    def test_project_user_has_credential_use(self) -> None:
+        names = builtin_role_policy_names("project-user")
+        assert "credential:use:project" in names
+
+    def test_auditor_does_not_have_credential_use(self) -> None:
+        names = builtin_role_policy_names("auditor")
+        assert not any("credential:use" in n for n in names)
+
+    def test_user_does_not_have_credential_use(self) -> None:
+        names = builtin_role_policy_names("user")
+        assert not any("credential:use" in n for n in names)
+
+    def test_project_auditor_does_not_have_credential_use(self) -> None:
+        names = builtin_role_policy_names("project-auditor")
+        assert not any("credential:use" in n for n in names)
+
     def test_unknown_role_returns_empty(self) -> None:
         names = builtin_role_policy_names("nonexistent")
         assert names == []
