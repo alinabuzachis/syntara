@@ -14,6 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.models.pagination import ResourcesResponseBase
+from nexus.metrics.interface_tag import interface_context_var
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     TriggerValidationError,
@@ -523,6 +524,196 @@ class TestCreateExecution:
         mock_temporal.cancel_workflow.assert_awaited_once_with(
             temporal_workflow_id=temporal_result.temporal_workflow_id
         )
+
+    @pytest.mark.asyncio
+    async def test_create_execution_sets_trigger_type_from_resolved_trigger_node(self) -> None:
+        """Test that trigger_type is set from the resolved trigger node's type field."""
+        mock_session = Mock(spec=AsyncSession)
+
+        workflow_id = uuid4()
+        version_id = uuid4()
+        user_id = uuid4()
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = workflow_id
+        workflow.name = "test-workflow"
+        workflow.is_enabled = True
+        workflow.project_id = uuid4()
+
+        workflow_version = Mock(spec=WorkflowVersion)
+        workflow_version.id = version_id
+        workflow_version.version = 1
+        workflow_version.schema_version = "2.0.0"
+        workflow_version.workflow_definition = {
+            "triggers": [{"id": "trigger_1", "type": NodeType.WEBHOOK_TRIGGER, "parameters": {}}],
+        }
+
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=(workflow, workflow_version))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        mock_user = Mock(spec=User)
+        mock_user.id = user_id
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
+        result = await service.create_execution(
+            workflow_id=workflow_id,
+            input_data={"payload": {}},
+            trigger_node_id="trigger_1",
+        )
+
+        # Verify the Execution object stored in the database
+        execution = mock_session.add.call_args[0][0]
+        assert execution.trigger_type == NodeType.WEBHOOK_TRIGGER
+
+        # Verify it propagates to the returned ExecutionRead
+        assert result.trigger_type == NodeType.WEBHOOK_TRIGGER
+
+    @pytest.mark.asyncio
+    async def test_create_execution_sets_trigger_type_for_manual_trigger(self) -> None:
+        """Test that trigger_type is set to manual_trigger when using default trigger resolution."""
+        mock_session = Mock(spec=AsyncSession)
+
+        workflow_id = uuid4()
+        version_id = uuid4()
+        user_id = uuid4()
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = workflow_id
+        workflow.name = "test-workflow"
+        workflow.is_enabled = True
+        workflow.project_id = uuid4()
+
+        workflow_version = Mock(spec=WorkflowVersion)
+        workflow_version.id = version_id
+        workflow_version.version = 1
+        workflow_version.schema_version = "2.0.0"
+        workflow_version.workflow_definition = {
+            "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
+        }
+
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=(workflow, workflow_version))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        mock_user = Mock(spec=User)
+        mock_user.id = user_id
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
+        result = await service.create_execution(
+            workflow_id=workflow_id,
+            input_data={},
+        )
+
+        # Verify the Execution object stored in the database
+        execution = mock_session.add.call_args[0][0]
+        assert execution.trigger_type == NodeType.MANUAL_TRIGGER
+
+        # Verify it propagates to the returned ExecutionRead
+        assert result.trigger_type == NodeType.MANUAL_TRIGGER
+
+    @pytest.mark.asyncio
+    async def test_create_execution_sets_interface_from_context_var(self) -> None:
+        """Test that interface is set from interface_context_var."""
+        mock_session = Mock(spec=AsyncSession)
+
+        workflow_id = uuid4()
+        version_id = uuid4()
+        user_id = uuid4()
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = workflow_id
+        workflow.name = "test-workflow"
+        workflow.is_enabled = True
+        workflow.project_id = uuid4()
+
+        workflow_version = Mock(spec=WorkflowVersion)
+        workflow_version.id = version_id
+        workflow_version.version = 1
+        workflow_version.schema_version = "2.0.0"
+        workflow_version.workflow_definition = {
+            "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
+        }
+
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=(workflow, workflow_version))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        mock_user = Mock(spec=User)
+        mock_user.id = user_id
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
+        # Set the interface context var to "ui" and verify it propagates
+        token = interface_context_var.set("ui")
+        try:
+            result = await service.create_execution(
+                workflow_id=workflow_id,
+                input_data={},
+            )
+
+            # Verify the Execution object stored in the database
+            execution = mock_session.add.call_args[0][0]
+            assert execution.interface == "ui"
+
+            # Verify it propagates to the returned ExecutionRead
+            assert result.interface == "ui"
+        finally:
+            interface_context_var.reset(token)
+
+    @pytest.mark.asyncio
+    async def test_create_execution_sets_interface_default_api(self) -> None:
+        """Test that interface defaults to 'api' when context var is not explicitly set."""
+        mock_session = Mock(spec=AsyncSession)
+
+        workflow_id = uuid4()
+        version_id = uuid4()
+        user_id = uuid4()
+
+        workflow = Mock(spec=Workflow)
+        workflow.id = workflow_id
+        workflow.name = "test-workflow"
+        workflow.is_enabled = True
+        workflow.project_id = uuid4()
+
+        workflow_version = Mock(spec=WorkflowVersion)
+        workflow_version.id = version_id
+        workflow_version.version = 1
+        workflow_version.schema_version = "2.0.0"
+        workflow_version.workflow_definition = {
+            "triggers": [{"id": "trigger_1", "type": NodeType.MANUAL_TRIGGER, "parameters": {}}],
+        }
+
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=(workflow, workflow_version))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        mock_user = Mock(spec=User)
+        mock_user.id = user_id
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
+        result = await service.create_execution(
+            workflow_id=workflow_id,
+            input_data={},
+        )
+
+        # Verify the Execution object stored in the database
+        execution = mock_session.add.call_args[0][0]
+        assert execution.interface == "api"
+
+        # Verify it propagates to the returned ExecutionRead
+        assert result.interface == "api"
 
 
 class TestGetExecution(TestExecutionServiceBase):

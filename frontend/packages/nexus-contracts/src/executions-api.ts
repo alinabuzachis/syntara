@@ -214,6 +214,16 @@ export interface components {
       } | null
       /** Retried From Execution Id */
       retried_from_execution_id?: string | null
+      /**
+       * Trigger Type
+       * @description Trigger node type (manual_trigger, scheduled_trigger, webhook_trigger, eda_trigger)
+       */
+      trigger_type?: string | null
+      /**
+       * Interface
+       * @description Originating interface (ui or api)
+       */
+      interface?: string | null
       /** Labels */
       labels?: {
         [key: string]: unknown

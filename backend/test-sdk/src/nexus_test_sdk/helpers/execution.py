@@ -25,6 +25,8 @@ class ExecutionFactory:
         *,
         status: ExecutionStatus = ExecutionStatus.PENDING,
         completed_at: datetime | None = None,
+        trigger_type: str | None = None,
+        interface: str | None = None,
     ) -> Execution:
         """Create a single execution."""
         execution = Execution(
@@ -36,6 +38,8 @@ class ExecutionFactory:
             completed_at=completed_at,
             input_data={},
             project_id=workflow.project_id,
+            trigger_type=trigger_type,
+            interface=interface,
         )
         self.session.add(execution)
         await self.session.flush()

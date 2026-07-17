@@ -25,6 +25,7 @@ class WorkflowExecutionStartEvent(BaseTelemetryEvent):
 
     workflow_execution_id: str = Field(description="Unique workflow execution identifier (UUID v4)")
     trigger_type: ActivityName | None = Field(default=None, description="Type of trigger that started the workflow")
+    interface: str | None = Field(default=None, description="Originating interface (ui or api)")
 
 
 class WorkflowExecutionCompletedEvent(BaseTelemetryEvent):
@@ -37,6 +38,8 @@ class WorkflowExecutionCompletedEvent(BaseTelemetryEvent):
         node_count: Total number of nodes executed.
         error_count: Number of nodes that failed.
         error_type: Categorized error type if workflow failed, null otherwise.
+        trigger_type: Type of trigger that started the workflow.
+        interface: Originating interface (ui or api).
 
     """
 
@@ -49,3 +52,5 @@ class WorkflowExecutionCompletedEvent(BaseTelemetryEvent):
         default=None,
         description="Name of the exception that caused the error, null otherwise",
     )
+    trigger_type: ActivityName | None = Field(default=None, description="Type of trigger that started the workflow")
+    interface: str | None = Field(default=None, description="Originating interface (ui or api)")

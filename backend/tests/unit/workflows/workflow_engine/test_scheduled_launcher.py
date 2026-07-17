@@ -92,6 +92,10 @@ class TestExecutionMetadata:
         assert execution.created_by == expected_principal_id
         assert execution.updated_by == expected_principal_id
 
+        # Verify trigger_type and interface fields on the execution itself
+        assert execution.trigger_type == "scheduled_trigger"
+        assert execution.interface is None
+
         # Verify execution_metadata
         metadata = execution.execution_metadata
         assert metadata is not None

@@ -41,6 +41,8 @@ class WorkflowCompletedTelemetryHandler(AuditEventHandler[WorkflowCompletedEvent
                     node_count=event.node_count,
                     error_count=event.error_count,
                     error_type=event.error_type,
+                    trigger_type=event.trigger_type,
+                    interface=event.interface,
                     entitlement_id=registry.entitlement_id,
                     request_id=event.request_id,
                 )

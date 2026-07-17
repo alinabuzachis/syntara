@@ -230,6 +230,25 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         description="ID of the execution this was retried from (null if not a retry)",
     )
 
+    # Telemetry: trigger type and interface
+    trigger_type: str | None = Field(
+        default=None,
+        nullable=True,
+        max_length=50,
+        sa_type=String(50),  # type: ignore[call-overload]
+        index=True,
+        description="Trigger node type (manual_trigger, scheduled_trigger, webhook_trigger, eda_trigger)",
+    )
+
+    interface: str | None = Field(
+        default=None,
+        nullable=True,
+        max_length=10,
+        sa_type=String(10),  # type: ignore[call-overload]
+        index=True,
+        description="Originating interface (ui or api)",
+    )
+
     # Execution mode and metadata
     mode: ExecutionMode = Field(
         default=ExecutionMode.STANDARD,
@@ -438,6 +457,14 @@ class ExecutionRead(SQLModel):
     mode: ExecutionMode = ExecutionMode.STANDARD
     execution_metadata: dict[str, Any] | None = None
     retried_from_execution_id: UUID | None = None
+    trigger_type: str | None = Field(
+        default=None,
+        description="Trigger node type (manual_trigger, scheduled_trigger, webhook_trigger, eda_trigger)",
+    )
+    interface: str | None = Field(
+        default=None,
+        description="Originating interface (ui or api)",
+    )
 
     # Optional: Only populated when ?include=workflow_definition
     workflow_definition: WorkflowDefinition | None = Field(

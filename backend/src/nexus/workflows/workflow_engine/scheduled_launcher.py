@@ -268,6 +268,8 @@ class ScheduledExecutionLauncher:
                 status=ExecutionStatus.PENDING,
                 input_data={},
                 trigger_node_id=trigger_node_id,
+                trigger_type=ActivityName.SCHEDULED_TRIGGER.value,
+                interface=None,
                 created_by=svc_principal_id,
                 updated_by=svc_principal_id,
                 execution_metadata={

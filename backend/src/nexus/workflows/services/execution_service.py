@@ -25,6 +25,7 @@ from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.emission import emit_completion_metrics
+from nexus.metrics.interface_tag import interface_context_var
 from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.workflows.audit.execution_lifecycle import ExecutionAction, ExecutionLifecycleEvent
 from nexus.workflows.exceptions import (
@@ -116,6 +117,8 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
             mode=resource.mode,
             execution_metadata=resource.execution_metadata,
             retried_from_execution_id=resource.retried_from_execution_id,
+            trigger_type=resource.trigger_type,
+            interface=resource.interface,
         )
 
         if self.include and len(self.include) > 0:
@@ -414,6 +417,7 @@ class ExecutionService(BaseService):
             )
 
         # Create execution record in database ONLY after Temporal accepts workflow
+        _, trigger_node = resolve_trigger_node(workflow_version.workflow_definition, trigger_node_id)
         execution = Execution(
             id=execution_id,
             workflow_id=workflow.id,
@@ -424,6 +428,8 @@ class ExecutionService(BaseService):
             input_data=input_data,
             trigger_node_id=trigger_node_id,
             retried_from_execution_id=retried_from_execution_id,
+            trigger_type=trigger_node.get("type"),
+            interface=interface_context_var.get(),
             created_by=self.user.id,
             updated_by=self.user.id,
         )
@@ -742,6 +748,12 @@ class ExecutionService(BaseService):
             )
 
         # Step 4: Create execution record in database with TEST mode
+        test_trigger_type: str | None = None
+        for trigger in workflow_def.get("triggers", []):
+            if trigger.get("type") in {t.value for t in NodeType if t.value.endswith("_trigger")}:
+                test_trigger_type = trigger.get("type")
+                break
+
         execution = Execution(
             id=execution_id,
             workflow_id=workflow.id,
@@ -752,6 +764,8 @@ class ExecutionService(BaseService):
             mode=ExecutionMode.TEST,
             input_data=trigger_inputs,
             trigger_node_id=None,  # Test executions use default trigger
+            trigger_type=test_trigger_type,
+            interface=interface_context_var.get(),
             execution_metadata={
                 "target_node_id": target_node_id,
                 "pre_resolved_nodes": pre_resolved_dicts,

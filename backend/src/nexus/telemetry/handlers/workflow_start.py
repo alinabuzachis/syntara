@@ -37,6 +37,7 @@ class WorkflowStartTelemetryHandler(AuditEventHandler[WorkflowStartEvent]):
                 WorkflowExecutionStartEvent(
                     workflow_execution_id=str(event.execution_id),
                     trigger_type=event.trigger_type,
+                    interface=event.interface,
                     entitlement_id=registry.entitlement_id,
                     request_id=event.request_id,
                 )

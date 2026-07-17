@@ -34687,6 +34687,18 @@ components:
               format: uuid
             - type: 'null'
           title: Retried From Execution Id
+        trigger_type:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Trigger node type (manual_trigger, scheduled_trigger, webhook_trigger, eda_trigger)
+          title: Trigger Type
+        interface:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Originating interface (ui or api)
+          title: Interface
         labels:
           additionalProperties: true
           type: object

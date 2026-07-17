@@ -5,7 +5,8 @@ of the current database state. No time-based filtering.
 Soft-deleted records are excluded where applicable (workflows, executions).
 """
 
-from sqlalchemy import func, select, text
+from sqlalchemy import ColumnElement, func, select, text
+from sqlalchemy.orm import InstrumentedAttribute
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.models.invocation import Invocation
@@ -70,6 +71,9 @@ async def query_execution_counts(session: AsyncSession) -> ExecutionCounts:
         )
     )
 
+    by_trigger_type = await _query_execution_counts_by_column(session, Execution.trigger_type, not_deleted)  # type: ignore[arg-type]
+    by_interface = await _query_execution_counts_by_column(session, Execution.interface, not_deleted)  # type: ignore[arg-type]
+
     return ExecutionCounts(
         total=sum(status_counts.values()),
         completed=status_counts.get("completed", 0),
@@ -79,7 +83,23 @@ async def query_execution_counts(session: AsyncSession) -> ExecutionCounts:
         pending=status_counts.get("pending", 0),
         paused=status_counts.get("paused", 0),
         avg_duration_seconds=float(avg_duration) if avg_duration is not None else 0.0,
+        by_trigger_type=by_trigger_type,
+        by_interface=by_interface,
     )
+
+
+async def _query_execution_counts_by_column(
+    session: AsyncSession,
+    column: InstrumentedAttribute[str | None],
+    not_deleted: ColumnElement[bool],
+) -> dict[str, int]:
+    """Group execution counts by a nullable string column, excluding NULLs."""
+    result = await session.exec(
+        select(column, func.count(Execution.id))  # type: ignore[call-overload,arg-type]
+        .where(not_deleted, column.isnot(None))
+        .group_by(column)
+    )
+    return {str(key): int(count) for key, count in result}
 
 
 async def query_credential_counts(session: AsyncSession) -> CredentialCounts:

@@ -32,6 +32,14 @@ class ExecutionCounts(SQLModel):
         default=0.0,
         description="Average execution duration in seconds",
     )
+    by_trigger_type: dict[str, int] = Field(
+        default_factory=dict,
+        description="Execution count per trigger type",
+    )
+    by_interface: dict[str, int] = Field(
+        default_factory=dict,
+        description="Execution count per originating interface (ui, api)",
+    )
 
 
 class CredentialCounts(SQLModel):

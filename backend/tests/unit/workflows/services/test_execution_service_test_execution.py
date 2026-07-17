@@ -13,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
+from nexus.metrics.interface_tag import interface_context_var
 from nexus.workflows.exceptions import WorkflowNotFoundError
 from nexus.workflows.models.execution import (
     ExecutionMode,
@@ -23,6 +24,7 @@ from nexus.workflows.models.execution import (
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.execution_service import ExecutionService
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 
 
 def _make_mock_workflow(
@@ -335,6 +337,106 @@ class TestCreateTestExecution:
         # Verify execution_metadata includes execute_target
         execution = session.add.call_args[0][0]
         assert execution.execution_metadata["execute_target"] is False
+
+    @pytest.mark.asyncio
+    async def test_trigger_type_extracted_from_workflow_triggers(self) -> None:
+        """Test that trigger_type is extracted from the first matching trigger in workflow definition."""
+        wf, wv = _make_mock_workflow(node_ids=["target_node"])
+        # Override workflow_definition to include a valid trigger type
+        wv.workflow_definition = {
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger_1", "type": NodeType.WEBHOOK_TRIGGER}],
+            "nodes": [{"id": "target_node", "type": "script"}],
+            "edges": [],
+        }
+        service, session = _make_service(query_result=(wf, wv), temporal_service=None)
+
+        await service.create_test_execution(
+            workflow_id=wf.id,
+            target_node_id="target_node",
+            pre_resolved_nodes={},
+            trigger_inputs={},
+        )
+
+        execution = session.add.call_args[0][0]
+        assert execution.trigger_type == NodeType.WEBHOOK_TRIGGER
+
+    @pytest.mark.asyncio
+    async def test_trigger_type_none_when_no_triggers(self) -> None:
+        """Test that trigger_type is None when workflow has no triggers."""
+        wf, wv = _make_mock_workflow(node_ids=["target_node"])
+        # Override workflow_definition with no triggers
+        wv.workflow_definition = {
+            "schema_version": "2.0.0",
+            "triggers": [],
+            "nodes": [{"id": "target_node", "type": "script"}],
+            "edges": [],
+        }
+        service, session = _make_service(query_result=(wf, wv), temporal_service=None)
+
+        await service.create_test_execution(
+            workflow_id=wf.id,
+            target_node_id="target_node",
+            pre_resolved_nodes={},
+            trigger_inputs={},
+        )
+
+        execution = session.add.call_args[0][0]
+        assert execution.trigger_type is None
+
+    @pytest.mark.asyncio
+    async def test_trigger_type_none_when_no_matching_trigger_type(self) -> None:
+        """Test that trigger_type is None when triggers exist but none end with '_trigger'."""
+        wf, wv = _make_mock_workflow(node_ids=["target_node"])
+        # Default _make_mock_workflow uses "manual" (not "manual_trigger"),
+        # which does not match the _trigger suffix filter
+        service, session = _make_service(query_result=(wf, wv), temporal_service=None)
+
+        await service.create_test_execution(
+            workflow_id=wf.id,
+            target_node_id="target_node",
+            pre_resolved_nodes={},
+            trigger_inputs={},
+        )
+
+        execution = session.add.call_args[0][0]
+        assert execution.trigger_type is None
+
+    @pytest.mark.asyncio
+    async def test_interface_set_from_context_var(self) -> None:
+        """Test that interface is set from interface_context_var."""
+        wf, wv = _make_mock_workflow(node_ids=["target_node"])
+        service, session = _make_service(query_result=(wf, wv), temporal_service=None)
+
+        token = interface_context_var.set("ui")
+        try:
+            await service.create_test_execution(
+                workflow_id=wf.id,
+                target_node_id="target_node",
+                pre_resolved_nodes={},
+                trigger_inputs={},
+            )
+
+            execution = session.add.call_args[0][0]
+            assert execution.interface == "ui"
+        finally:
+            interface_context_var.reset(token)
+
+    @pytest.mark.asyncio
+    async def test_interface_defaults_to_api(self) -> None:
+        """Test that interface defaults to 'api' when context var is not explicitly set."""
+        wf, wv = _make_mock_workflow(node_ids=["target_node"])
+        service, session = _make_service(query_result=(wf, wv), temporal_service=None)
+
+        await service.create_test_execution(
+            workflow_id=wf.id,
+            target_node_id="target_node",
+            pre_resolved_nodes={},
+            trigger_inputs={},
+        )
+
+        execution = session.add.call_args[0][0]
+        assert execution.interface == "api"
 
 
 # Validator tests — test the Pydantic model directly

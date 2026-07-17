@@ -194,6 +194,8 @@ class TestPeriodicAnalyticsFlow:
         assert props["tools"]["total_executions"] == 0
         assert props["tools"]["distinct_tools"] == 0
         assert props["model_usage"] == []
+        assert props["executions"]["by_trigger_type"] == {}
+        assert props["executions"]["by_interface"] == {}
 
         # Verify new fields default to empty when accumulator has no data
         assert props["unique_callers"]["total"] == 0
@@ -784,3 +786,107 @@ class TestQueryCredentialCountsRealDB:
         result = await query_credential_counts(test_db_session)
 
         assert result.used_in_nodes == 0
+
+
+class TestQueryExecutionCountsByTriggerTypeRealDB:
+    """Integration tests for by_trigger_type in query_execution_counts."""
+
+    async def test_empty_database(self, test_db_session: AsyncSession):
+        result = await query_execution_counts(test_db_session)
+        assert result.by_trigger_type == {}
+
+    async def test_groups_by_trigger_type(
+        self,
+        test_db_session: AsyncSession,
+        workflow_factory: WorkflowFactory,
+        execution_factory: ExecutionFactory,
+    ):
+        wf, version = await workflow_factory.create()
+        now = datetime.now(UTC)
+        completed_at = now + timedelta(seconds=10)
+
+        await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=completed_at, trigger_type="manual_trigger"
+        )
+        await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=completed_at, trigger_type="manual_trigger"
+        )
+        await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=completed_at, trigger_type="scheduled_trigger"
+        )
+        await test_db_session.commit()
+
+        result = await query_execution_counts(test_db_session)
+
+        assert result.by_trigger_type == {"manual_trigger": 2, "scheduled_trigger": 1}
+
+    async def test_excludes_null_trigger_type(
+        self,
+        test_db_session: AsyncSession,
+        workflow_factory: WorkflowFactory,
+        execution_factory: ExecutionFactory,
+    ):
+        wf, version = await workflow_factory.create()
+        now = datetime.now(UTC)
+        completed_at = now + timedelta(seconds=10)
+
+        await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=completed_at, trigger_type="manual_trigger"
+        )
+        await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=completed_at, trigger_type=None
+        )
+        await test_db_session.commit()
+
+        result = await query_execution_counts(test_db_session)
+
+        assert result.by_trigger_type == {"manual_trigger": 1}
+
+
+class TestQueryExecutionCountsByInterfaceRealDB:
+    """Integration tests for by_interface in query_execution_counts."""
+
+    async def test_empty_database(self, test_db_session: AsyncSession):
+        result = await query_execution_counts(test_db_session)
+        assert result.by_interface == {}
+
+    async def test_groups_by_interface(
+        self,
+        test_db_session: AsyncSession,
+        workflow_factory: WorkflowFactory,
+        execution_factory: ExecutionFactory,
+    ):
+        wf, version = await workflow_factory.create()
+        now = datetime.now(UTC)
+        completed_at = now + timedelta(seconds=10)
+
+        await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=completed_at, interface="ui"
+        )
+        await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=completed_at, interface="api"
+        )
+        await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=completed_at, interface="api"
+        )
+        await test_db_session.commit()
+
+        result = await query_execution_counts(test_db_session)
+
+        assert result.by_interface == {"ui": 1, "api": 2}
+
+    async def test_excludes_null_interface(
+        self,
+        test_db_session: AsyncSession,
+        workflow_factory: WorkflowFactory,
+        execution_factory: ExecutionFactory,
+    ):
+        wf, version = await workflow_factory.create()
+
+        await execution_factory.create(wf, version, interface="ui")
+        await execution_factory.create(wf, version, interface=None)
+        await test_db_session.commit()
+
+        result = await query_execution_counts(test_db_session)
+
+        assert result.by_interface == {"ui": 1}

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
-from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, WorkflowTerminalStatus
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -30,6 +30,8 @@ class WorkflowCompletedEvent:
     node_count: int
     error_count: int
     error_type: str | None = field(default=None)
+    trigger_type: ActivityName | None = field(default=None)
+    interface: str | None = field(default=None)
     request_id: UUID | None = field(default=None)
     workflow_name: str | None = field(default=None)
 
@@ -56,6 +58,10 @@ class WorkflowCompletedHandler(AuditEventHandler[WorkflowCompletedEvent]):
             node_count=event.node_count,
             error_count=event.error_count,
         )
+        if event.trigger_type is not None:
+            data.trigger_type = event.trigger_type.value
+        if event.interface is not None:
+            data.interface = event.interface
 
         return AuditEvent(
             event_category=EventCategory.WORKFLOW_EVENT,

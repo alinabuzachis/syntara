@@ -1,7 +1,8 @@
 """Unit tests for workflow audit event emission in ActivitySyncService.
 
 Tests verify that WorkflowCompletedEvent and WorkflowExecutionErrorEvent are emitted
-with correct resource_urn and resource_name fields populated from workflow_name.
+with correct resource_urn and resource_name fields populated from workflow_name,
+and that trigger_type and interface fields are correctly forwarded.
 """
 
 from collections.abc import Callable
@@ -14,9 +15,10 @@ from temporalio.api.enums.v1 import EventType
 
 from nexus.workflows.audit.execution_completed import WorkflowCompletedEvent
 from nexus.workflows.audit.execution_error import WorkflowExecutionErrorEvent
+from nexus.workflows.audit.execution_started import WorkflowStartEvent
 from nexus.workflows.models import Execution
 from nexus.workflows.models.execution import ExecutionStatus
-from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, WorkflowTerminalStatus
 from nexus.workflows.workflow_engine.services.activity_sync_service import ActivitySyncService, ExecutionMonitorMetadata
 
 
@@ -42,6 +44,104 @@ def mock_session_factory_for_execution() -> Callable[[Execution], Mock]:
         return Mock(return_value=mock_session)
 
     return _create_mock_session_factory
+
+
+class TestWorkflowStartEventEmission:
+    """Test WorkflowStartEvent emission with trigger_type and interface fields."""
+
+    @pytest.fixture
+    def mock_start_event(self) -> AsyncMock:
+        """Create a mock Temporal workflow started event."""
+        event = AsyncMock()
+        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        event.event_id = 1
+        attrs = AsyncMock()
+        attrs.workflow_run_timeout = None
+        event.workflow_execution_started_event_attributes = attrs
+        return event
+
+    @pytest.mark.asyncio
+    async def test_start_event_forwards_interface_from_execution(
+        self,
+        mock_session_factory_for_execution: Callable[[Execution], Mock],
+        mock_start_event: AsyncMock,
+    ) -> None:
+        """WorkflowStartEvent should include execution.interface when dispatched."""
+        workflow_id = uuid4()
+        execution_id = uuid4()
+        execution = Execution(
+            id=execution_id,
+            workflow_id=workflow_id,
+            status=ExecutionStatus.PENDING,
+            created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
+            interface="api",
+        )
+
+        metadata = ExecutionMonitorMetadata(
+            execution_id=execution_id,
+            last_processed_event_id=0,
+            activity_definitions_map={"trigger_1": {"type": "manual_trigger"}},
+            activity_index_map={},
+            pending_activity_updates={},
+            workflow_id=workflow_id,
+            workflow_name="test-workflow",
+        )
+
+        mock_session_factory = mock_session_factory_for_execution(execution)
+        service = ActivitySyncService(AsyncMock(), mock_session_factory)
+
+        with patch(
+            "nexus.workflows.workflow_engine.services.activity_sync_service.AuditEventDispatcher"
+        ) as mock_dispatcher:
+            await service._update_execution_to_running(metadata, mock_start_event)
+
+            assert mock_dispatcher.dispatch.call_count == 1
+            emitted_event: WorkflowStartEvent = mock_dispatcher.dispatch.call_args[0][0]
+            assert isinstance(emitted_event, WorkflowStartEvent)
+            assert emitted_event.interface == "api"
+            assert emitted_event.trigger_type == ActivityName.MANUAL_TRIGGER
+
+    @pytest.mark.asyncio
+    async def test_start_event_interface_none_when_not_set(
+        self,
+        mock_session_factory_for_execution: Callable[[Execution], Mock],
+        mock_start_event: AsyncMock,
+    ) -> None:
+        """WorkflowStartEvent should have interface=None when execution has no interface."""
+        workflow_id = uuid4()
+        execution_id = uuid4()
+        execution = Execution(
+            id=execution_id,
+            workflow_id=workflow_id,
+            status=ExecutionStatus.PENDING,
+            created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
+            interface=None,
+        )
+
+        metadata = ExecutionMonitorMetadata(
+            execution_id=execution_id,
+            last_processed_event_id=0,
+            activity_definitions_map={},
+            activity_index_map={},
+            pending_activity_updates={},
+            workflow_id=workflow_id,
+            workflow_name="test-workflow",
+        )
+
+        mock_session_factory = mock_session_factory_for_execution(execution)
+        service = ActivitySyncService(AsyncMock(), mock_session_factory)
+
+        with patch(
+            "nexus.workflows.workflow_engine.services.activity_sync_service.AuditEventDispatcher"
+        ) as mock_dispatcher:
+            await service._update_execution_to_running(metadata, mock_start_event)
+
+            emitted_event: WorkflowStartEvent = mock_dispatcher.dispatch.call_args[0][0]
+            assert isinstance(emitted_event, WorkflowStartEvent)
+            assert emitted_event.interface is None
+            assert emitted_event.trigger_type is None
 
 
 class TestWorkflowCompletedEventEmission:
@@ -199,6 +299,154 @@ class TestWorkflowCompletedEventEmission:
             emitted_event: WorkflowCompletedEvent = mock_dispatcher.dispatch.call_args[0][0]
             assert isinstance(emitted_event, WorkflowCompletedEvent)
             assert emitted_event.workflow_name == fallback_name
+
+    @pytest.mark.asyncio
+    async def test_completed_event_converts_trigger_type_string_to_enum(
+        self,
+        mock_session_factory_for_execution: Callable[[Execution], Mock],
+    ) -> None:
+        """WorkflowCompletedEvent should convert execution.trigger_type string to ActivityName enum."""
+        workflow_id = uuid4()
+        execution_id = uuid4()
+        execution = Execution(
+            id=execution_id,
+            workflow_id=workflow_id,
+            status=ExecutionStatus.RUNNING,
+            created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
+            trigger_type="manual_trigger",
+            interface="ui",
+        )
+
+        metadata = ExecutionMonitorMetadata(
+            execution_id=execution_id,
+            last_processed_event_id=0,
+            activity_definitions_map={},
+            activity_index_map={},
+            pending_activity_updates={},
+            workflow_id=workflow_id,
+            workflow_name="test-workflow",
+        )
+
+        event = AsyncMock()
+        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        event.event_id = 100
+        event.event_time = datetime(2025, 1, 20, 12, 30, 0, tzinfo=UTC)
+        attrs = AsyncMock()
+        attrs.result = AsyncMock(payloads=[])
+        event.workflow_execution_completed_event_attributes = attrs
+
+        mock_session_factory = mock_session_factory_for_execution(execution)
+        service = ActivitySyncService(AsyncMock(), mock_session_factory)
+
+        with patch(
+            "nexus.workflows.workflow_engine.services.activity_sync_service.AuditEventDispatcher"
+        ) as mock_dispatcher:
+            await service._update_execution_status_from_event(metadata, event)
+
+            emitted_event: WorkflowCompletedEvent = mock_dispatcher.dispatch.call_args[0][0]
+            assert isinstance(emitted_event, WorkflowCompletedEvent)
+            assert emitted_event.trigger_type == ActivityName.MANUAL_TRIGGER
+            assert emitted_event.interface == "ui"
+
+    @pytest.mark.asyncio
+    async def test_completed_event_unrecognized_trigger_type_yields_none(
+        self,
+        mock_session_factory_for_execution: Callable[[Execution], Mock],
+    ) -> None:
+        """Unrecognized trigger_type string should yield trigger_type=None in the completed event."""
+        workflow_id = uuid4()
+        execution_id = uuid4()
+        execution = Execution(
+            id=execution_id,
+            workflow_id=workflow_id,
+            status=ExecutionStatus.RUNNING,
+            created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
+            trigger_type="nonexistent_trigger",
+            interface="api",
+        )
+
+        metadata = ExecutionMonitorMetadata(
+            execution_id=execution_id,
+            last_processed_event_id=0,
+            activity_definitions_map={},
+            activity_index_map={},
+            pending_activity_updates={},
+            workflow_id=workflow_id,
+            workflow_name="test-workflow",
+        )
+
+        event = AsyncMock()
+        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        event.event_id = 100
+        event.event_time = datetime(2025, 1, 20, 12, 30, 0, tzinfo=UTC)
+        attrs = AsyncMock()
+        attrs.result = AsyncMock(payloads=[])
+        event.workflow_execution_completed_event_attributes = attrs
+
+        mock_session_factory = mock_session_factory_for_execution(execution)
+        service = ActivitySyncService(AsyncMock(), mock_session_factory)
+
+        with patch(
+            "nexus.workflows.workflow_engine.services.activity_sync_service.AuditEventDispatcher"
+        ) as mock_dispatcher:
+            await service._update_execution_status_from_event(metadata, event)
+
+            emitted_event: WorkflowCompletedEvent = mock_dispatcher.dispatch.call_args[0][0]
+            assert isinstance(emitted_event, WorkflowCompletedEvent)
+            assert emitted_event.trigger_type is None
+            # interface should still be forwarded even with unrecognized trigger_type
+            assert emitted_event.interface == "api"
+
+    @pytest.mark.asyncio
+    async def test_completed_event_forwards_interface_from_execution(
+        self,
+        mock_session_factory_for_execution: Callable[[Execution], Mock],
+    ) -> None:
+        """WorkflowCompletedEvent should forward execution.interface."""
+        workflow_id = uuid4()
+        execution_id = uuid4()
+        execution = Execution(
+            id=execution_id,
+            workflow_id=workflow_id,
+            status=ExecutionStatus.RUNNING,
+            created_at=datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC),
+            project_id=uuid4(),
+            trigger_type=None,
+            interface="api",
+        )
+
+        metadata = ExecutionMonitorMetadata(
+            execution_id=execution_id,
+            last_processed_event_id=0,
+            activity_definitions_map={},
+            activity_index_map={},
+            pending_activity_updates={},
+            workflow_id=workflow_id,
+            workflow_name="test-workflow",
+        )
+
+        event = AsyncMock()
+        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        event.event_id = 100
+        event.event_time = datetime(2025, 1, 20, 12, 30, 0, tzinfo=UTC)
+        attrs = AsyncMock()
+        attrs.result = AsyncMock(payloads=[])
+        event.workflow_execution_completed_event_attributes = attrs
+
+        mock_session_factory = mock_session_factory_for_execution(execution)
+        service = ActivitySyncService(AsyncMock(), mock_session_factory)
+
+        with patch(
+            "nexus.workflows.workflow_engine.services.activity_sync_service.AuditEventDispatcher"
+        ) as mock_dispatcher:
+            await service._update_execution_status_from_event(metadata, event)
+
+            emitted_event: WorkflowCompletedEvent = mock_dispatcher.dispatch.call_args[0][0]
+            assert isinstance(emitted_event, WorkflowCompletedEvent)
+            assert emitted_event.interface == "api"
+            assert emitted_event.trigger_type is None
 
 
 class TestWorkflowExecutionErrorEventEmission:

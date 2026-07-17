@@ -31,6 +31,7 @@ class WorkflowStartEvent:
     workflow_id: UUID
     workflow_name: str
     trigger_type: ActivityName | None = field(default=None)
+    interface: str | None = field(default=None)
     request_id: UUID | None = field(default=None)
 
 
@@ -45,6 +46,8 @@ class WorkflowStartHandler(AuditEventHandler[WorkflowStartEvent]):
         )
         if event.trigger_type is not None:
             data.trigger_type = event.trigger_type.value
+        if event.interface is not None:
+            data.interface = event.interface
 
         return AuditEvent(
             event_category=EventCategory.WORKFLOW_EVENT,

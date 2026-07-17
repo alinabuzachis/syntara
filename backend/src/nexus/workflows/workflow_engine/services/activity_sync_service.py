@@ -333,6 +333,7 @@ class ActivitySyncService:
                             workflow_id=execution.workflow_id,
                             workflow_name=workflow_name,
                             trigger_type=trigger_activity_type,
+                            interface=execution.interface,
                             request_id=metadata.request_id,
                         )
                     )
@@ -1285,6 +1286,7 @@ class ActivitySyncService:
                 duration_ms = int((completed_at - execution.created_at).total_seconds() * 1000)
                 telemetry_status = _map_execution_status_to_telemetry(status)
                 error_type: str | None = "ActivityExecutionError" if error_details else None
+                trigger_type = next((a for a in ActivityName if a == execution.trigger_type), None)
 
                 AuditEventDispatcher.dispatch(
                     WorkflowCompletedEvent(
@@ -1295,6 +1297,8 @@ class ActivitySyncService:
                         node_count=node_count,
                         error_count=error_count,
                         error_type=error_type,
+                        trigger_type=trigger_type,
+                        interface=execution.interface,
                         request_id=metadata.request_id,
                         workflow_name=metadata.workflow_name,
                     )

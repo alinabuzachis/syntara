@@ -7,7 +7,10 @@ from nexus.workflows.audit.execution_completed import (
     WorkflowCompletedEvent,
     WorkflowCompletedHandler,
 )
-from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    ActivityName,
+    WorkflowTerminalStatus,
+)
 
 EXECUTION_ID = uuid4()
 WORKFLOW_ID = uuid4()
@@ -164,3 +167,41 @@ class TestWorkflowCompletedHandler:
 
         assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name is None
+
+    def test_trigger_type_and_interface_in_structured_data(self) -> None:
+        """trigger_type and interface are propagated to structured_data."""
+        event = WorkflowCompletedEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=WORKFLOW_ID,
+            status=WorkflowTerminalStatus.COMPLETED,
+            duration_ms=4000,
+            node_count=8,
+            error_count=0,
+            trigger_type=ActivityName.WEBHOOK_TRIGGER,
+            interface="rest_api",
+        )
+
+        handler = WorkflowCompletedHandler()
+        audit_event = handler.handle(event)
+
+        data = audit_event.structured_data
+        assert data.trigger_type == ActivityName.WEBHOOK_TRIGGER.value  # type: ignore[attr-defined]
+        assert data.interface == "rest_api"  # type: ignore[attr-defined]
+
+    def test_trigger_type_and_interface_absent_when_none(self) -> None:
+        """trigger_type and interface are omitted from structured_data when None."""
+        event = WorkflowCompletedEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=WORKFLOW_ID,
+            status=WorkflowTerminalStatus.COMPLETED,
+            duration_ms=4000,
+            node_count=8,
+            error_count=0,
+        )
+
+        handler = WorkflowCompletedHandler()
+        audit_event = handler.handle(event)
+
+        dumped = audit_event.structured_data.model_dump(exclude_none=True)
+        assert "trigger_type" not in dumped
+        assert "interface" not in dumped

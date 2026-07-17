@@ -46,6 +46,31 @@ class TestWorkflowStartHandler:
         assert result.structured_data.workflow_name == "Deploy to Production"
         assert result.structured_data.trigger_type == ActivityName.MANUAL_TRIGGER.value
 
+    def test_interface_in_structured_data(self) -> None:
+        """Interface is propagated to structured_data when set."""
+        event = WorkflowStartEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=WORKFLOW_ID,
+            workflow_name="Deploy to Production",
+            trigger_type=ActivityName.MANUAL_TRIGGER,
+            interface="rest_api",
+            request_id=REQUEST_ID,
+        )
+        result = WorkflowStartHandler().handle(event)
+
+        assert result.structured_data.interface == "rest_api"
+
+    def test_interface_absent_when_none(self) -> None:
+        """Interface is omitted from structured_data when None."""
+        event = WorkflowStartEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=WORKFLOW_ID,
+            workflow_name="Deploy to Production",
+        )
+        result = WorkflowStartHandler().handle(event)
+
+        assert "interface" not in result.structured_data.model_dump(exclude_none=True)
+
     def test_trigger_type_optional(self) -> None:
         event = WorkflowStartEvent(
             execution_id=EXECUTION_ID,

@@ -165,7 +165,15 @@ class TestCollectAndSendFunction:
         ):
             # Set up return values
             mock_wf.return_value = MagicMock(total=10, enabled=8, disabled=2)
-            mock_exec.return_value = MagicMock(total=100, completed=80, failed=10, running=5, pending=5)
+            mock_exec.return_value = MagicMock(
+                total=100,
+                completed=80,
+                failed=10,
+                running=5,
+                pending=5,
+                by_trigger_type={"manual_trigger": 60, "scheduled_trigger": 40},
+                by_interface={"ui": 70, "api": 30},
+            )
             mock_creds.return_value = MagicMock(total=5, type={"Bearer": 3, "LLM Provider": 2})
             mock_flags.return_value = ["feature_a"]
             mock_model_usage.return_value = []

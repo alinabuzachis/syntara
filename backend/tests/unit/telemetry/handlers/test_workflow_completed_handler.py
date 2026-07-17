@@ -6,7 +6,7 @@ from uuid import uuid4
 from nexus.telemetry.events.workflow_execution import WorkflowExecutionCompletedEvent
 from nexus.telemetry.handlers.workflow_completed import WorkflowCompletedTelemetryHandler
 from nexus.workflows.audit.execution_completed import WorkflowCompletedEvent
-from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, WorkflowTerminalStatus
 
 
 class TestWorkflowCompletedTelemetryHandler:
@@ -126,3 +126,49 @@ class TestWorkflowCompletedTelemetryHandler:
 
         event = registry.send_event.call_args[0][0]
         assert event.request_id is None
+
+    @patch("nexus.telemetry.handlers.workflow_completed.get_telemetry_registry")
+    def test_passes_trigger_type_and_interface_through(self, mock_get_registry: MagicMock) -> None:
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = "ent-iface"
+        mock_get_registry.return_value = registry
+
+        domain_event = WorkflowCompletedEvent(
+            execution_id=uuid4(),
+            workflow_id=uuid4(),
+            status=WorkflowTerminalStatus.COMPLETED,
+            duration_ms=3000,
+            node_count=2,
+            error_count=0,
+            trigger_type=ActivityName.SCHEDULED_TRIGGER,
+            interface="api",
+        )
+
+        WorkflowCompletedTelemetryHandler().handle(domain_event)
+
+        event = registry.send_event.call_args[0][0]
+        assert event.trigger_type == ActivityName.SCHEDULED_TRIGGER
+        assert event.interface == "api"
+
+    @patch("nexus.telemetry.handlers.workflow_completed.get_telemetry_registry")
+    def test_handles_none_trigger_type_and_interface(self, mock_get_registry: MagicMock) -> None:
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = "ent-none"
+        mock_get_registry.return_value = registry
+
+        domain_event = WorkflowCompletedEvent(
+            execution_id=uuid4(),
+            workflow_id=uuid4(),
+            status=WorkflowTerminalStatus.COMPLETED,
+            duration_ms=100,
+            node_count=1,
+            error_count=0,
+        )
+
+        WorkflowCompletedTelemetryHandler().handle(domain_event)
+
+        event = registry.send_event.call_args[0][0]
+        assert event.trigger_type is None
+        assert event.interface is None
