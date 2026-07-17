@@ -180,6 +180,13 @@ type ExecutionStoreActions = {
   setActivityExecutions: (activities: ActivityInput[]) => void
 
   /**
+   * Inject PENDING states for workflow nodes before backend activity records arrive.
+   * Used as a placeholder so the UI shows all nodes immediately while the execution starts.
+   * Keys are node IDs from the workflow definition, matching the backend's activity_id format.
+   */
+  injectPendingStates: (nodeIds: string[]) => void
+
+  /**
    * Inject SKIPPED states for pre-resolved nodes that lack backend activity records.
    * Handles the race condition where the backend hasn't synced ActivityExecution records yet.
    */
@@ -467,6 +474,23 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       activityStates,
       activityErrors,
     })
+  },
+
+  injectPendingStates: (nodeIds: string[]) => {
+    if (nodeIds.length === 0) return
+    const updated = new Map(get().activityStates)
+    for (const id of nodeIds) {
+      if (!updated.has(id)) {
+        updated.set(id, {
+          activityId: id,
+          status: 'pending' as const,
+          startedAt: null,
+          completedAt: null,
+          errorDetails: null,
+        })
+      }
+    }
+    set({ activityStates: updated })
   },
 
   injectPreResolvedStates: (missingNodeIds: string[]) => {

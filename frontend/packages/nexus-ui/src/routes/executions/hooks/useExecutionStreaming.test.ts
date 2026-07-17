@@ -19,17 +19,25 @@ vi.mock('../../workflows/hooks/useExecutionWebSocket', () => ({
 
 vi.mock('../../workflows/stores/useExecutionStore', () => {
   const mockSetActivityExecutions = vi.fn()
+  const mockInjectPendingStates = vi.fn()
   const mockActivityStates = new Map()
   return {
     useExecutionStore: Object.assign(vi.fn(), {
-      getState: () => ({ setActivityExecutions: mockSetActivityExecutions, activityStates: mockActivityStates }),
+      getState: () => ({
+        setActivityExecutions: mockSetActivityExecutions,
+        injectPendingStates: mockInjectPendingStates,
+        activityStates: mockActivityStates,
+      }),
       __mockSet: mockSetActivityExecutions,
+      __mockInjectPending: mockInjectPendingStates,
       __mockActivityStates: mockActivityStates,
     }),
   }
 })
 
 const mockSetActivityExecutions = (useExecutionStore as unknown as { __mockSet: ReturnType<typeof vi.fn> }).__mockSet
+const mockInjectPendingStates = (useExecutionStore as unknown as { __mockInjectPending: ReturnType<typeof vi.fn> })
+  .__mockInjectPending
 const mockActivityStates = (useExecutionStore as unknown as { __mockActivityStates: Map<string, unknown> })
   .__mockActivityStates
 
@@ -140,7 +148,7 @@ describe('useSyncActivityStore', () => {
     expect(mockSetActivityExecutions).toHaveBeenCalledWith([])
   })
 
-  it('creates pending activities from workflow definition when running with no activities', () => {
+  it('injects pending states by node ID when running with no activities', () => {
     const execution = {
       ...baseExecution,
       status: 'running' as const,
@@ -158,15 +166,11 @@ describe('useSyncActivityStore', () => {
 
     renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
-    expect(mockSetActivityExecutions).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ id: 'node-1', activity_name: 'Task A', status: 'pending' }),
-        expect.objectContaining({ id: 'node-2', activity_name: 'Task B', status: 'pending' }),
-      ])
-    )
+    expect(mockInjectPendingStates).toHaveBeenCalledWith(['node-1', 'node-2'])
+    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
   })
 
-  it('uses node id as activity name when name is missing', () => {
+  it('injects pending states for nodes without display names', () => {
     const execution = {
       ...baseExecution,
       status: 'pending' as const,
@@ -181,12 +185,11 @@ describe('useSyncActivityStore', () => {
 
     renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
-    expect(mockSetActivityExecutions).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ id: 'node-no-name', activity_name: 'node-no-name' })])
-    )
+    expect(mockInjectPendingStates).toHaveBeenCalledWith(['node-no-name'])
+    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
   })
 
-  it('creates pending activities from workflow definition when paused with no activities', () => {
+  it('injects pending states by node ID when paused with no activities', () => {
     const execution = {
       ...baseExecution,
       status: 'paused' as const,
@@ -204,12 +207,8 @@ describe('useSyncActivityStore', () => {
 
     renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
-    expect(mockSetActivityExecutions).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ id: 'node-1', activity_name: 'Approval', status: 'pending' }),
-        expect.objectContaining({ id: 'node-2', activity_name: 'Wait', status: 'pending' }),
-      ])
-    )
+    expect(mockInjectPendingStates).toHaveBeenCalledWith(['node-1', 'node-2'])
+    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
   })
 
   it('does not overwrite store when activityStates already populated (paused)', () => {

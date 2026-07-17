@@ -45,24 +45,12 @@ export function useSyncActivityStore(
     if (activities.length > 0) {
       setActivityExecutions(activities)
     } else if (execution?.status === 'pending' || execution?.status === 'running' || execution?.status === 'paused') {
-      const { activityStates } = useExecutionStore.getState()
+      const { activityStates, injectPendingStates } = useExecutionStore.getState()
       if (activityStates.size === 0) {
         const wfDef = execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined
         const workflowActivities = wfDef?.nodes ?? wfDef?.workflow?.activities
         if (workflowActivities) {
-          const pendingActivities = workflowActivities.map((activity) => ({
-            id: activity.id,
-            created_at: '',
-            updated_at: '',
-            execution_id: execution.id,
-            activity_name: activity.name ?? activity.id,
-            temporal_activity_id: '',
-            status: 'pending' as const,
-            error_details: null,
-            started_at: null,
-            completed_at: null,
-          })) as ActivityExecution[]
-          setActivityExecutions(pendingActivities)
+          injectPendingStates(workflowActivities.map((activity) => activity.id))
         }
       }
     } else {
