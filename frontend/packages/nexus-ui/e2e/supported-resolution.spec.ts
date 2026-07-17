@@ -1,13 +1,13 @@
 /**
- * E2E Tests: Supported screen resolution (720p) and cross-browser smoke
+ * E2E Tests: Supported screen resolution and cross-browser smoke
  *
  * Critical paths covered:
- * - Main pages load at the minimum supported viewport (1280 × 720)
- * - Workflow builder and execution detail are usable at 720p
- * - React Flow canvases show an empty state below 720p; other pages remain usable
+ * - Main pages load at the minimum supported viewport (1024px width)
+ * - Workflow builder and execution detail are usable at minimum supported width (1024px)
+ * - React Flow canvases show an empty state below 1024px width; other pages remain usable; height is not gated
  *
  * Cross-browser:
- * - chromium-720p runs on mock API (PR) and real-backend (E2E) CI
+ * - chromium runs on mock API (PR) and real-backend (E2E) CI
  * - Firefox and WebKit run via playwright.config when the mock API webServer is used (PR CI)
  */
 import type { Page } from '@playwright/test'
@@ -110,8 +110,8 @@ const SMOKE_PAGES: SmokePage[] = [
   },
 ]
 
-test.describe('Supported resolution (720p)', () => {
-  test.use({ viewport: MIN_SUPPORTED_VIEWPORT })
+test.describe('Supported resolution', () => {
+  test.use({ viewport: { width: MIN_SUPPORTED_VIEWPORT.width, height: 720 } })
 
   for (const { path, waitFor } of SMOKE_PAGES) {
     test(`${path} loads at minimum supported resolution`, async ({ app }) => {
@@ -121,14 +121,14 @@ test.describe('Supported resolution (720p)', () => {
     })
   }
 
-  test('workflow builder is usable at 720p', async ({ app }) => {
+  test('workflow builder is usable at minimum supported width', async ({ app }) => {
     await app.goto(toAppUrl(AppRoute.WorkflowBuilder.New))
     await expect(app.getByPlaceholder('Workflow name')).toBeVisible()
     await expect(reactFlowViewportEmptyState(app)).not.toBeVisible()
     await expect(app.locator('.react-flow')).toBeVisible()
   })
 
-  test('execution detail is usable at 720p', async ({ app }) => {
+  test('execution detail is usable at minimum supported width', async ({ app }) => {
     const executionId = await resolveExecutionId(app)
     if (!executionId) {
       test.skip(true, 'No executions available to open detail view')
@@ -148,7 +148,7 @@ test.describe('Supported resolution (720p)', () => {
 
 test.describe('React Flow viewport guard', () => {
   test('shows full-page empty state on workflow builder below minimum width', async ({ app }) => {
-    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: MIN_SUPPORTED_VIEWPORT.height })
+    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: 720 })
     await app.goto(toAppUrl(AppRoute.WorkflowBuilder.New))
     await expect(app.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
     await expect(reactFlowViewportEmptyState(app)).toBeVisible()
@@ -158,24 +158,22 @@ test.describe('React Flow viewport guard', () => {
     await expect(app.locator('.react-flow')).not.toBeVisible()
   })
 
-  test('shows full-page empty state on workflow builder below minimum height', async ({ app }) => {
-    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width, height: MIN_SUPPORTED_VIEWPORT.height - 1 })
+  test('workflow builder renders at minimum width regardless of height', async ({ app }) => {
+    await app.setViewportSize({ width: 1024, height: 400 })
     await app.goto(toAppUrl(AppRoute.WorkflowBuilder.New))
-    await expect(app.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
-    await expect(reactFlowViewportEmptyState(app)).toBeVisible()
-    await expect(app.getByPlaceholder('Workflow name')).not.toBeVisible()
-    await expect(app.locator('.react-flow')).not.toBeVisible()
+    await expect(app.locator('.react-flow')).toBeVisible()
+    await expect(reactFlowViewportEmptyState(app)).not.toBeVisible()
   })
 
-  test.skip('shows full-page empty state on execution detail below minimum width', async ({ app }) => {
-    await app.setViewportSize(MIN_SUPPORTED_VIEWPORT)
+  test('shows full-page empty state on execution detail below minimum width', async ({ app }) => {
+    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width, height: 720 })
     const executionId = await resolveExecutionId(app)
     if (!executionId) {
       test.skip(true, 'No executions available to open detail view')
       return
     }
 
-    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: MIN_SUPPORTED_VIEWPORT.height })
+    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: 720 })
     await app.goto(toAppUrl(executionDetailPath(executionId)))
     await expect(app.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
     await expect(reactFlowViewportEmptyState(app)).toBeVisible()
@@ -184,7 +182,7 @@ test.describe('React Flow viewport guard', () => {
   })
 
   test('workflows list remains usable below minimum width', async ({ app }) => {
-    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: MIN_SUPPORTED_VIEWPORT.height })
+    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: 720 })
     await app.goto(toAppUrl(AppRoute.Workflows.Root))
     await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
     await expect(app.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
@@ -192,7 +190,7 @@ test.describe('React Flow viewport guard', () => {
   })
 
   test('executions list remains usable below minimum width', async ({ app }) => {
-    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: MIN_SUPPORTED_VIEWPORT.height })
+    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: 720 })
     await app.goto(toAppUrl(AppRoute.Executions.Root))
     await expect(app.getByRole('heading', { level: 1, name: 'Workflow Runs' })).toBeVisible()
     await expect(app.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
@@ -200,7 +198,7 @@ test.describe('React Flow viewport guard', () => {
   })
 
   test('Return to Workflows navigates from builder empty state', async ({ app }) => {
-    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: MIN_SUPPORTED_VIEWPORT.height })
+    await app.setViewportSize({ width: MIN_SUPPORTED_VIEWPORT.width - 1, height: 720 })
     await app.goto(toAppUrl(AppRoute.WorkflowBuilder.New))
     await app.getByRole('button', { name: REACT_FLOW_VIEWPORT_EMPTY_STATE.returnLabel }).click()
     await expect(app).toHaveURL(/\/workflows$/)

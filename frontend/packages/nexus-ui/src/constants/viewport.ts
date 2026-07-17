@@ -1,7 +1,6 @@
-/** Minimum supported viewport for React Flow canvases: 720p (1280 × 720 pixels). */
+/** Minimum supported viewport width for React Flow canvases (1024px). Height is unconstrained. */
 export const MIN_SUPPORTED_VIEWPORT = {
-  width: 1280,
-  height: 720,
+  width: 1024,
 } as const
 
 export const REACT_FLOW_VIEWPORT_EMPTY_STATE = {

@@ -1,6 +1,6 @@
 /**
  * Viewport show/hide only — layout uses PatternFly Stack / StackItem + panelContentStackStyle.
- * SYNC: Thresholds (1279px, 719px) must match MIN_SUPPORTED_VIEWPORT in src/constants/viewport.ts (1280 × 720 / 720p).
+ * SYNC: Threshold (1023px) must match MIN_SUPPORTED_VIEWPORT.width - 1 in src/constants/viewport.ts (1024px). Height is not gated.
  */
 .content,
 .emptyState {
@@ -11,7 +11,7 @@
   display: none;
 }
 
-@media (max-width: 1279px), (max-height: 719px) {
+@media (max-width: 1023px) {
   .content {
     display: none;
   }

@@ -7,7 +7,7 @@ export type NxEmptyStateViewportTooSmallProps = {
   onReturn: () => void
 }
 
-/** Full-height empty state when the viewport is below the minimum for React Flow canvases (720p). */
+/** Full-height empty state when the viewport width is below the minimum for React Flow canvases (1024px). Height is not gated. */
 export function NxEmptyStateViewportTooSmall({ onReturn }: Readonly<NxEmptyStateViewportTooSmallProps>) {
   return (
     <EmptyState headingLevel="h2" titleText={REACT_FLOW_VIEWPORT_EMPTY_STATE.title} icon={RhUiDesktopIcon} isFullHeight>

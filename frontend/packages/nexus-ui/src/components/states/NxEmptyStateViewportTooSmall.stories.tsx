@@ -11,7 +11,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Full-height empty state displayed when the viewport is below the minimum width required for React Flow canvases (720px). Used by `NxReactFlowViewportGuard` to prevent users from attempting to use the workflow builder or execution visualizer on screens that are too small.',
+          'Full-height empty state displayed when the viewport width is below the minimum required for React Flow canvases (1024px). Used by `NxReactFlowViewportGuard` to prevent users from attempting to use the workflow builder or execution visualizer on screens that are too small.',
       },
     },
   },
@@ -25,12 +25,12 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /**
- * Default viewport too small empty state, shown when screen width < 720px
+ * Default viewport too small empty state, shown when screen width < 1024px
  */
 export const Default: Story = {}
 
 /**
- * The empty state at its minimum supported viewport (720px)
+ * The empty state at its minimum supported width (1024px)
  */
 export const AtMinimumViewport: Story = {
   parameters: {

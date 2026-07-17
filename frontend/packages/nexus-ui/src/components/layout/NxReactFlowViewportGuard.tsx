@@ -17,7 +17,7 @@ type NxReactFlowViewportGuardProps = {
 
 const guardContentStyle: CSSProperties = { ...panelContentStackStyle, padding: '0 var(--pf-t--global--spacer--sm)' }
 
-/** Hides page content and shows a full-page empty state when the viewport is below 720p (nav bar remains visible). */
+/** Hides page content and shows a full-page empty state when the viewport width is below 1024px (nav bar remains visible). Height is not gated. */
 export function NxReactFlowViewportGuard({ children, onReturn }: NxReactFlowViewportGuardProps) {
   const navigate = useNavigate()
   const handleReturn = onReturn ?? (() => detachPromise(navigate({ to: AppRoute.Workflows.Root })))
