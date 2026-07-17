@@ -5,6 +5,7 @@ import { assignRoleSchema } from './assignRoleSchema'
 const validBase = {
   userId: '',
   groupId: '',
+  serviceAccountId: '',
   projectId: '',
   roleName: '',
 }
@@ -14,7 +15,7 @@ describe('assignRoleSchema', () => {
     it('passes when userId, projectId, and roleName are provided', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'principal',
+        principalType: 'user',
         scope: 'project',
         userId: 'u1',
         projectId: 'p1',
@@ -26,7 +27,7 @@ describe('assignRoleSchema', () => {
     it('fails when userId is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'principal',
+        principalType: 'user',
         scope: 'project',
         projectId: 'p1',
         roleName: 'admin',
@@ -40,7 +41,7 @@ describe('assignRoleSchema', () => {
     it('fails when projectId is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'principal',
+        principalType: 'user',
         scope: 'project',
         userId: 'u1',
         roleName: 'admin',
@@ -54,7 +55,7 @@ describe('assignRoleSchema', () => {
     it('fails when roleName is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'principal',
+        principalType: 'user',
         scope: 'project',
         userId: 'u1',
         projectId: 'p1',
@@ -70,7 +71,7 @@ describe('assignRoleSchema', () => {
     it('passes when groupId, projectId, and roleName are provided', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'group',
+        principalType: 'group',
         scope: 'project',
         groupId: 'g1',
         projectId: 'p1',
@@ -82,7 +83,7 @@ describe('assignRoleSchema', () => {
     it('fails when groupId is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'group',
+        principalType: 'group',
         scope: 'project',
         projectId: 'p1',
         roleName: 'viewer',
@@ -98,7 +99,7 @@ describe('assignRoleSchema', () => {
     it('passes when userId and roleName are provided', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'principal',
+        principalType: 'user',
         scope: 'system',
         userId: 'u1',
         roleName: 'r1',
@@ -109,7 +110,7 @@ describe('assignRoleSchema', () => {
     it('fails when roleName is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'principal',
+        principalType: 'user',
         scope: 'system',
         userId: 'u1',
       })
@@ -122,7 +123,7 @@ describe('assignRoleSchema', () => {
     it('does not require projectId', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'principal',
+        principalType: 'user',
         scope: 'system',
         userId: 'u1',
         roleName: 'r1',
@@ -135,7 +136,7 @@ describe('assignRoleSchema', () => {
     it('passes when groupId and roleName are provided', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'group',
+        principalType: 'group',
         scope: 'system',
         groupId: 'g1',
         roleName: 'r1',
@@ -146,7 +147,7 @@ describe('assignRoleSchema', () => {
     it('fails when groupId is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'group',
+        principalType: 'group',
         scope: 'system',
         roleName: 'r1',
       })
@@ -159,7 +160,7 @@ describe('assignRoleSchema', () => {
     it('fails when roleName is empty', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'group',
+        principalType: 'group',
         scope: 'system',
         groupId: 'g1',
       })
@@ -170,11 +171,93 @@ describe('assignRoleSchema', () => {
     })
   })
 
-  describe('invalid principalOrGroup', () => {
+  describe('service_account-project assignment', () => {
+    it('passes when serviceAccountId, projectId, and roleName are provided', () => {
+      const result = assignRoleSchema.safeParse({
+        ...validBase,
+        principalType: 'service_account',
+        scope: 'project',
+        serviceAccountId: 'sa-1',
+        projectId: 'p1',
+        roleName: 'editor',
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('fails when serviceAccountId is empty', () => {
+      const result = assignRoleSchema.safeParse({
+        ...validBase,
+        principalType: 'service_account',
+        scope: 'project',
+        projectId: 'p1',
+        roleName: 'editor',
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.path.includes('serviceAccountId'))).toBe(true)
+      }
+    })
+
+    it('fails when projectId is empty', () => {
+      const result = assignRoleSchema.safeParse({
+        ...validBase,
+        principalType: 'service_account',
+        scope: 'project',
+        serviceAccountId: 'sa-1',
+        roleName: 'editor',
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.path.includes('projectId'))).toBe(true)
+      }
+    })
+
+    it('fails when roleName is empty', () => {
+      const result = assignRoleSchema.safeParse({
+        ...validBase,
+        principalType: 'service_account',
+        scope: 'project',
+        serviceAccountId: 'sa-1',
+        projectId: 'p1',
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.path.includes('roleName'))).toBe(true)
+      }
+    })
+  })
+
+  describe('service_account-system assignment', () => {
+    it('passes when serviceAccountId and roleName are provided', () => {
+      const result = assignRoleSchema.safeParse({
+        ...validBase,
+        principalType: 'service_account',
+        scope: 'system',
+        serviceAccountId: 'sa-1',
+        roleName: 'r1',
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('fails when serviceAccountId is empty', () => {
+      const result = assignRoleSchema.safeParse({
+        ...validBase,
+        principalType: 'service_account',
+        scope: 'system',
+        roleName: 'r1',
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.path.includes('serviceAccountId'))).toBe(true)
+      }
+    })
+  })
+
+  describe('invalid principalType', () => {
     it('fails for unknown principal type', () => {
       const result = assignRoleSchema.safeParse({
         ...validBase,
-        principalOrGroup: 'invalid',
+        principalType: 'invalid',
         scope: 'system',
       })
       expect(result.success).toBe(false)

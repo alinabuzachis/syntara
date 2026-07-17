@@ -33,6 +33,7 @@ import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { GroupFormModal } from '../GroupFormModal'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
+import { RolePrincipalType } from '../RoleAssignmentTypes'
 import { useGroupPermissions } from '../useGroupPermissions'
 
 import { GroupMembersPanel } from './GroupMembersPanel'
@@ -135,7 +136,7 @@ function GroupTabContent({
         <GroupMembersPanel groupId={groupId} onMembershipChange={onMembersChange} />
       )}
       {activeTab === 'roles' && showAssignments && (
-        <RoleAssignmentsPanel principalOrGroup="group" principalId={groupId} />
+        <RoleAssignmentsPanel principalType={RolePrincipalType.GROUP} principalId={groupId} />
       )}
     </>
   )

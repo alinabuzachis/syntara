@@ -5,18 +5,26 @@ import { useSortState } from '../../hooks/useSortState'
 import { useAlerts } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { RolePrincipalType } from '../access-management/RoleAssignmentTypes'
 
 import { accessClient } from './accessClient'
 import type { PermissionRow, RoleAssignmentRead } from './types'
 import { useAllProjects } from './useAllProjects'
 
+// SA detection is not possible from RoleAssignmentRead (no discriminator field); SAs appear as users until the API adds one.
+function derivePrincipalType(a: RoleAssignmentRead): RolePrincipalType {
+  if (a.group_id) return RolePrincipalType.GROUP
+  return RolePrincipalType.USER
+}
+
 function buildPermissionRows(assignments: RoleAssignmentRead[]): PermissionRow[] {
   return assignments.map((a) => {
     const isProject = !!a.project_id
+    const principalType = derivePrincipalType(a)
     return {
       id: a.id,
-      groupId: a.group_id ?? null,
-      principalId: a.principal_id ?? null,
+      principalType,
+      principalId: a.principal_id ?? a.group_id ?? '',
       principalName: a.principal_name,
       assignmentType: 'role' as const,
       assignmentName: a.role_name,
@@ -42,7 +50,7 @@ function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): Permissio
         case 'role_name':
           return row.assignmentName.toLowerCase().includes(value.toLowerCase())
         case 'type':
-          return value === 'group' ? row.groupId != null : row.groupId == null
+          return row.principalType === value
         case 'scope':
           return row.scopeType === value
         case 'project':
@@ -110,7 +118,7 @@ export function useAssignmentsData() {
   )
 
   const allRows = useMemo(
-    () => buildPermissionRows((allAssignmentsQuery.data?.resources ?? []) as RoleAssignmentRead[]),
+    () => buildPermissionRows(allAssignmentsQuery.data?.resources ?? []),
     [allAssignmentsQuery.data]
   )
 

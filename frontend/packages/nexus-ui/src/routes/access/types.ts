@@ -11,6 +11,8 @@ import type * as ProjectsAPI from '@ansible/nexus-contracts/src/projects-api.js'
 import type * as RoleAssignmentsAPI from '@ansible/nexus-contracts/src/role-assignments-api.js'
 import type * as RolesAPI from '@ansible/nexus-contracts/src/roles-api.js'
 
+import type { RolePrincipalType } from '../access-management/RoleAssignmentTypes'
+
 // ── Project ───────────────────────────────────────────────────────────────
 
 export type ProjectRead = ProjectsAPI.components['schemas']['ProjectRead']
@@ -74,8 +76,8 @@ export type ResourceActionsResponse = AuthzAPI.components['schemas']['ResourceAc
 
 export type PermissionRow = {
   id: string
-  groupId: string | null
-  principalId: string | null
+  principalType: RolePrincipalType
+  principalId: string
   principalName: string
   assignmentType: 'role'
   assignmentName: string

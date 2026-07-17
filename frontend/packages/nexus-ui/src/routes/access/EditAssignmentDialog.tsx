@@ -19,6 +19,7 @@ import { z } from 'zod'
 
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
+import { buildAssignmentBody } from '../access-management/RoleAssignmentTypes'
 
 import { accessClient } from './accessClient'
 import { assignNewThenDeleteOldWithRollback } from './editAssignmentMutations'
@@ -96,10 +97,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
           return
         }
         const pid = row.projectId
-        const projectBody =
-          row.groupId != null
-            ? { group_id: row.groupId, role_name: newRole }
-            : { principal_id: row.principalId!, role_name: newRole }
+        const projectBody = buildAssignmentBody(row.principalType, row.principalId, newRole)
         await assignNewThenDeleteOldWithRollback({
           assignNew: () =>
             createProjectRoleAssignment({
@@ -112,10 +110,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
             deleteProjectRoleAssignment({ params: { path: { project_id: pid, assignment_id: newAssignmentId } } }),
         })
       } else {
-        const globalBody =
-          row.groupId != null
-            ? { group_id: row.groupId, role_name: newRole }
-            : { principal_id: row.principalId!, role_name: newRole }
+        const globalBody = buildAssignmentBody(row.principalType, row.principalId, newRole)
         await assignNewThenDeleteOldWithRollback({
           assignNew: () =>
             createRoleAssignment({

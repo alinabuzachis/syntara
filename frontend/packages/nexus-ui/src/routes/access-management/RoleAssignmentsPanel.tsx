@@ -1,13 +1,14 @@
-import { Alert, Button, Flex, FlexItem, Label, LabelGroup, StackItem, Truncate } from '@patternfly/react-core'
+import { Alert, Button, Flex, FlexItem, LabelGroup, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { type ReactNode, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
+import { NxLabel } from '../../components/labels/NxLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
@@ -18,117 +19,31 @@ import { NxScrollableTableContainer } from '../../components/table/NxScrollableT
 import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
 import { useAlerts } from '../../providers/alerts'
-import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
-import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import { getErrorCode, getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
+import type { FilterConfig } from '../../types/filters'
+import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
-import { accessClient } from '../access/accessClient'
 import { useAssignmentPermissions } from '../access/useAssignmentPermissions'
 
 import { AssignRoleModal } from './AssignRoleModal'
+import type { RoleAssignmentColumnKey, ColumnDefinition } from './roleAssignmentColumns'
+import {
+  allFilterFieldDefinitions,
+  applyRoleAssignmentFilters,
+  buildSortMaps,
+  filterKeyToColumn,
+  getVisibleColumns,
+  sortRoleAssignmentRows,
+} from './roleAssignmentColumns'
+import { principalTypeLabel, RolePrincipalType } from './RoleAssignmentTypes'
+import type { RoleAssignmentRow } from './useRoleAssignmentData'
+import { useRoleAssignmentData } from './useRoleAssignmentData'
 
-const filterFieldDefinitions: FilterFieldDefinition[] = [
-  {
-    key: 'name',
-    label: 'Role Name',
-    type: FilterTypeEnum.TEXT,
-    operators: [FilterOperatorEnum.CONTAINS],
-    defaultOperator: FilterOperatorEnum.CONTAINS,
-    placeholder: 'Filter by role name',
-  },
-  {
-    key: 'scope',
-    label: 'Scope',
-    type: FilterTypeEnum.SELECT,
-    options: [
-      { value: 'system', label: 'System' },
-      { value: 'project', label: 'Project' },
-    ],
-    placeholder: 'Filter by scope',
-  },
-  {
-    key: 'project',
-    label: 'Project',
-    type: FilterTypeEnum.TEXT,
-    operators: [FilterOperatorEnum.CONTAINS],
-    defaultOperator: FilterOperatorEnum.CONTAINS,
-    placeholder: 'Filter by project',
-  },
-]
-
-const sortFieldByColumn: Record<number, string> = {
-  0: 'role_name',
-  1: 'description',
-  2: 'scope_type',
-  3: 'project',
-  4: 'policies',
-}
-
-const sortFieldToRowKey: Record<string, keyof RoleAssignmentRow> = {
-  role_name: 'roleName',
-  description: 'roleDescription',
-  scope_type: 'scopeType',
-  project: 'scope',
-  policies: 'roleName',
-}
-
-function sortRoleAssignmentRows(
-  rows: RoleAssignmentRow[],
-  activeSortIndex: number | undefined,
-  sortDirection: 'asc' | 'desc'
-): RoleAssignmentRow[] {
-  if (activeSortIndex === undefined) return rows
-  const sortField = sortFieldByColumn[activeSortIndex]
-  const rowKey = sortField ? sortFieldToRowKey[sortField] : undefined
-  if (!rowKey) return rows
-
-  return [...rows].sort((a, b) => {
-    const rawA = a[rowKey]
-    const rawB = b[rowKey]
-    const aVal = typeof rawA === 'string' ? rawA : ''
-    const bVal = typeof rawB === 'string' ? rawB : ''
-    const cmp = aVal.localeCompare(bVal)
-    return sortDirection === 'asc' ? cmp : -cmp
-  })
-}
-
-function applyRoleAssignmentFilters(rows: RoleAssignmentRow[], filters: FilterConfig[]): RoleAssignmentRow[] {
-  if (filters.length === 0) return rows
-  return rows.filter((row) =>
-    filters.every((filter) => {
-      const value = typeof filter.value === 'string' ? filter.value : String(filter.value)
-      switch (filter.key) {
-        case 'name':
-          return row.roleName.toLowerCase().includes(value.toLowerCase())
-        case 'scope':
-          return row.scopeType === value
-        case 'project':
-          return (row.scope ?? '').toLowerCase().includes(value.toLowerCase())
-        default:
-          return true
-      }
-    })
-  )
-}
-
-type PolicyInfo = {
-  name: string
-}
-
-type RoleAssignmentRow = {
-  id: string
-  roleName: string
-  roleDescription: string | null
-  policies: PolicyInfo[]
-  scope: string
-  scopeType: 'system' | 'project'
-  createdAt: string | null
-  projectId?: string
-}
+export type { RoleAssignmentColumnKey } from './roleAssignmentColumns'
 
 type RoleAssignmentsPanelProps = {
-  principalOrGroup: 'principal' | 'group'
+  principalType: RolePrincipalType
   principalId: string
+  hiddenColumns?: RoleAssignmentColumnKey[]
 }
 
 function getAssignmentActions(
@@ -146,82 +61,6 @@ function getAssignmentActions(
   ]
 }
 
-function useRoleAssignmentData(principalOrGroup: 'principal' | 'group', principalId: string) {
-  const userAssignmentsQuery = accessClient.useQuery(
-    'get',
-    '/users/{user_id}/role_assignments',
-    { params: { path: { user_id: principalId } } },
-    { enabled: principalOrGroup === 'principal', retry: false }
-  )
-
-  const groupAssignmentsQuery = accessClient.useQuery(
-    'get',
-    '/groups/{group_id}/role_assignments',
-    { params: { path: { group_id: principalId } } },
-    { enabled: principalOrGroup === 'group', retry: false }
-  )
-
-  const activeQuery = principalOrGroup === 'principal' ? userAssignmentsQuery : groupAssignmentsQuery
-
-  const queryForbidden = useMemo(() => {
-    if (!activeQuery.isError) return false
-    const status = getErrorStatus(activeQuery.error)
-    if (status === 403) return true
-    return getErrorCode(activeQuery.error) === 'AUTHORIZATION_DENIED'
-  }, [activeQuery.isError, activeQuery.error])
-
-  const assignmentRows = useMemo((): RoleAssignmentRow[] => {
-    if (queryForbidden) return []
-
-    const assignments = activeQuery.data?.resources ?? []
-
-    return assignments.map((a) => {
-      const policyNames = a.role_policies ?? []
-      const isProject = !!a.project_id
-      return {
-        id: a.id,
-        roleName: a.role_name,
-        roleDescription: a.role_description ?? null,
-        policies: policyNames.map((name) => ({ name })),
-        scope: isProject ? (a.project_name ?? a.project_id!) : 'System',
-        scopeType: isProject ? ('project' as const) : ('system' as const),
-        createdAt: a.created_at ?? null,
-        projectId: a.project_id ?? undefined,
-      }
-    })
-  }, [queryForbidden, activeQuery.data])
-
-  const { mutate: deleteRoleAssignment } = accessClient.useMutation('delete', '/role_assignments/{assignment_id}')
-  const { mutate: deleteProjectRoleAssignment } = accessClient.useMutation(
-    'delete',
-    '/projects/{project_id}/role_assignments/{assignment_id}'
-  )
-
-  const deleteAssignment = (
-    row: RoleAssignmentRow,
-    callbacks: { onSuccess: () => void; onError: (err: unknown) => void; onSettled: () => void }
-  ) => {
-    if (row.projectId) {
-      deleteProjectRoleAssignment({ params: { path: { project_id: row.projectId, assignment_id: row.id } } }, callbacks)
-    } else {
-      deleteRoleAssignment({ params: { path: { assignment_id: row.id } } }, callbacks)
-    }
-  }
-
-  const refetch = () => {
-    detachPromise(activeQuery.refetch())
-  }
-
-  return {
-    rows: assignmentRows,
-    queryForbidden,
-    activeQuery,
-    isLoading: activeQuery.isPending,
-    deleteAssignment,
-    refetch,
-  }
-}
-
 function RoleAssignmentsTable({
   paginatedRows,
   sortedRows,
@@ -233,6 +72,7 @@ function RoleAssignmentsTable({
   onNext,
   onPerPageChange,
   permissions,
+  visibleColumns,
 }: Readonly<{
   paginatedRows: RoleAssignmentRow[]
   sortedRows: RoleAssignmentRow[]
@@ -244,7 +84,11 @@ function RoleAssignmentsTable({
   onNext: () => void
   onPerPageChange: (perPage: number) => void
   permissions: ReturnType<typeof useAssignmentPermissions>
+  visibleColumns: ColumnDefinition[]
 }>) {
+  const isVisible = (key: RoleAssignmentColumnKey) => visibleColumns.some((col) => col.key === key)
+  const sortIndex = (key: RoleAssignmentColumnKey) => visibleColumns.findIndex((col) => col.key === key)
+
   return (
     <NxScrollableTableContainer
       caption="Role assignments table"
@@ -260,42 +104,48 @@ function RoleAssignmentsTable({
     >
       <Thead>
         <Tr>
-          <Th sort={getSortParams(0)}>Role Name</Th>
-          <Th sort={getSortParams(1)}>Description</Th>
-          <Th sort={getSortParams(2)}>Scope</Th>
-          <Th sort={getSortParams(3)}>Project</Th>
-          <Th>Policies</Th>
+          {isVisible('roleName') && <Th sort={getSortParams(sortIndex('roleName'))}>Role Name</Th>}
+          {isVisible('description') && <Th sort={getSortParams(sortIndex('description'))}>Description</Th>}
+          {isVisible('scope') && <Th sort={getSortParams(sortIndex('scope'))}>Scope</Th>}
+          {isVisible('project') && <Th sort={getSortParams(sortIndex('project'))}>Project</Th>}
+          {isVisible('policies') && <Th>Policies</Th>}
           <Th screenReaderText="Actions" />
         </Tr>
       </Thead>
       <Tbody>
         {paginatedRows.map((row) => (
           <Tr key={row.id}>
-            <Td dataLabel="Role Name">
-              <Truncate content={row.roleName} />
-            </Td>
-            <Td dataLabel="Description">
-              <Truncate content={row.roleDescription ?? '-'} />
-            </Td>
-            <Td dataLabel="Scope">
-              <Label isCompact color={row.scopeType === 'system' ? 'blue' : 'green'}>
-                {row.scopeType === 'system' ? 'System' : 'Project'}
-              </Label>
-            </Td>
-            <Td dataLabel="Project">{row.scopeType === 'project' ? row.scope : '-'}</Td>
-            <Td dataLabel="Policies">
-              {row.policies.length > 0 ? (
-                <LabelGroup numLabels={3}>
-                  {row.policies.map((policy) => (
-                    <Label key={policy.name} isCompact>
-                      {policy.name}
-                    </Label>
-                  ))}
-                </LabelGroup>
-              ) : (
-                '-'
-              )}
-            </Td>
+            {isVisible('roleName') && (
+              <Td dataLabel="Role Name">
+                <Truncate content={row.roleName} />
+              </Td>
+            )}
+            {isVisible('description') && (
+              <Td dataLabel="Description">
+                <Truncate content={row.roleDescription ?? '-'} />
+              </Td>
+            )}
+            {isVisible('scope') && (
+              <Td dataLabel="Scope">
+                <NxLabel color={row.scopeType === 'system' ? 'blue' : 'green'}>
+                  {row.scopeType === 'system' ? 'System' : 'Project'}
+                </NxLabel>
+              </Td>
+            )}
+            {isVisible('project') && <Td dataLabel="Project">{row.scopeType === 'project' ? row.scope : '-'}</Td>}
+            {isVisible('policies') && (
+              <Td dataLabel="Policies">
+                {row.policies.length > 0 ? (
+                  <LabelGroup numLabels={3}>
+                    {row.policies.map((policy) => (
+                      <NxLabel key={policy.name}>{policy.name}</NxLabel>
+                    ))}
+                  </LabelGroup>
+                ) : (
+                  '-'
+                )}
+              </Td>
+            )}
             <Td isActionCell>
               <ActionsColumn items={getAssignmentActions(row, onUnassign, permissions)} />
             </Td>
@@ -306,20 +156,109 @@ function RoleAssignmentsTable({
   )
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- permission gating adds necessary branches
-export function RoleAssignmentsPanel({ principalOrGroup, principalId }: Readonly<RoleAssignmentsPanelProps>) {
+function TableContent({
+  filteredRows,
+  rows,
+  principalType,
+  openAssignIfAllowed,
+  clearAllFilters,
+  resetPage,
+  paginatedRows,
+  sortedRows,
+  page,
+  perPage,
+  getSortParams,
+  onUnassign,
+  onPrev,
+  onNext,
+  onPerPageChange,
+  permissions,
+  visibleColumns,
+}: Readonly<{
+  filteredRows: RoleAssignmentRow[]
+  rows: RoleAssignmentRow[]
+  principalType: RolePrincipalType
+  openAssignIfAllowed: (() => void) | undefined
+  clearAllFilters: () => void
+  resetPage: () => void
+  paginatedRows: RoleAssignmentRow[]
+  sortedRows: RoleAssignmentRow[]
+  page: number
+  perPage: number
+  getSortParams: (columnIndex: number) => ThProps['sort']
+  onUnassign: (row: RoleAssignmentRow) => void
+  onPrev: () => void
+  onNext: () => void
+  onPerPageChange: (perPage: number) => void
+  permissions: ReturnType<typeof useAssignmentPermissions>
+  visibleColumns: ColumnDefinition[]
+}>) {
+  if (filteredRows.length === 0) {
+    if (rows.length === 0) {
+      return (
+        <NxPageBody isCentered>
+          <NxEmptyStateNoData
+            title="No role assignments"
+            description={`No project-scoped roles have been assigned to this ${principalTypeLabel[principalType]}.`}
+            buttonText="Assign role"
+            addData={openAssignIfAllowed}
+          />
+        </NxPageBody>
+      )
+    }
+    return (
+      <NxPageBody isCentered>
+        <NxEmptyStateFilter
+          clearAllFilters={() => {
+            clearAllFilters()
+            resetPage()
+          }}
+        />
+      </NxPageBody>
+    )
+  }
+
+  return (
+    <RoleAssignmentsTable
+      paginatedRows={paginatedRows}
+      sortedRows={sortedRows}
+      page={page}
+      perPage={perPage}
+      getSortParams={getSortParams}
+      onUnassign={onUnassign}
+      onPrev={onPrev}
+      onNext={onNext}
+      onPerPageChange={onPerPageChange}
+      permissions={permissions}
+      visibleColumns={visibleColumns}
+    />
+  )
+}
+
+export function RoleAssignmentsPanel({
+  principalType,
+  principalId,
+  hiddenColumns,
+}: Readonly<RoleAssignmentsPanelProps>) {
+  const visibleColumns = useMemo(() => getVisibleColumns(hiddenColumns), [hiddenColumns])
+  const sortMaps = useMemo(() => buildSortMaps(visibleColumns), [visibleColumns])
+  const activeFilterFieldDefinitions = useMemo(() => {
+    if (!hiddenColumns?.length) return allFilterFieldDefinitions
+    return allFilterFieldDefinitions.filter((f) => !hiddenColumns.includes(filterKeyToColumn[f.key]))
+  }, [hiddenColumns])
+
   const assignmentPermissions = useAssignmentPermissions()
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const openAssignIfAllowed = assignmentPermissions.canAssign ? () => setAssignModalOpen(true) : undefined
   const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
-  const { activeSortIndex, sortDirection, getSortParams } = useSortState(sortFieldByColumn)
+  const { activeSortIndex, sortDirection, getSortParams } = useSortState(sortMaps.sortFieldByColumn)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(20)
   const { showAlert } = useAlerts()
 
   const { rows, queryForbidden, activeQuery, isLoading, deleteAssignment, refetch } = useRoleAssignmentData(
-    principalOrGroup,
+    principalType,
     principalId
   )
 
@@ -336,8 +275,8 @@ export function RoleAssignmentsPanel({ principalOrGroup, principalId }: Readonly
   const filteredRows = useMemo(() => applyRoleAssignmentFilters(rows, filters), [rows, filters])
 
   const sortedRows = useMemo(
-    () => sortRoleAssignmentRows(filteredRows, activeSortIndex, sortDirection),
-    [filteredRows, activeSortIndex, sortDirection]
+    () => sortRoleAssignmentRows(filteredRows, activeSortIndex, sortDirection, sortMaps),
+    [filteredRows, activeSortIndex, sortDirection, sortMaps]
   )
 
   const paginatedRows = useMemo(() => {
@@ -387,60 +326,18 @@ export function RoleAssignmentsPanel({ principalOrGroup, principalId }: Readonly
       <>
         <NxEmptyStateNoData
           title="No role assignments"
-          description={`No roles have been assigned to this ${principalOrGroup === 'group' ? 'group' : 'user'}.`}
+          description={`No roles have been assigned to this ${principalTypeLabel[principalType]}.`}
           buttonText="Assign role"
           addData={openAssignIfAllowed}
         />
         <AssignRoleModal
-          principalOrGroup={principalOrGroup}
+          principalType={principalType}
           principalId={principalId}
           isOpen={assignModalOpen}
           onClose={() => setAssignModalOpen(false)}
           onSuccess={refetch}
         />
       </>
-    )
-  }
-
-  let tableContent: ReactNode
-  if (filteredRows.length === 0) {
-    if (rows.length === 0) {
-      tableContent = (
-        <NxPageBody isCentered>
-          <NxEmptyStateNoData
-            title="No role assignments"
-            description={`No project-scoped roles have been assigned to this ${principalOrGroup === 'group' ? 'group' : 'user'}.`}
-            buttonText="Assign role"
-            addData={openAssignIfAllowed}
-          />
-        </NxPageBody>
-      )
-    } else {
-      tableContent = (
-        <NxPageBody isCentered>
-          <NxEmptyStateFilter
-            clearAllFilters={() => {
-              clearAllFilters()
-              setPage(1)
-            }}
-          />
-        </NxPageBody>
-      )
-    }
-  } else {
-    tableContent = (
-      <RoleAssignmentsTable
-        paginatedRows={paginatedRows}
-        sortedRows={sortedRows}
-        page={page}
-        perPage={perPage}
-        getSortParams={getSortParams}
-        onUnassign={setRowToUnassign}
-        onPrev={() => setPage((p) => Math.max(1, p - 1))}
-        onNext={() => setPage((p) => p + 1)}
-        onPerPageChange={handlePerPageChange}
-        permissions={assignmentPermissions}
-      />
     )
   }
 
@@ -465,7 +362,7 @@ export function RoleAssignmentsPanel({ principalOrGroup, principalId }: Readonly
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
               <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
+                fieldDefinitions={activeFilterFieldDefinitions}
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 showClearAll={true}
@@ -493,11 +390,29 @@ export function RoleAssignmentsPanel({ principalOrGroup, principalId }: Readonly
           </Flex>
         </StackItem>
 
-        {tableContent}
+        <TableContent
+          filteredRows={filteredRows}
+          rows={rows}
+          principalType={principalType}
+          openAssignIfAllowed={openAssignIfAllowed}
+          clearAllFilters={clearAllFilters}
+          resetPage={() => setPage(1)}
+          paginatedRows={paginatedRows}
+          sortedRows={sortedRows}
+          page={page}
+          perPage={perPage}
+          getSortParams={getSortParams}
+          onUnassign={setRowToUnassign}
+          onPrev={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => p + 1)}
+          onPerPageChange={handlePerPageChange}
+          permissions={assignmentPermissions}
+          visibleColumns={visibleColumns}
+        />
       </NxPanelContentStack>
 
       <AssignRoleModal
-        principalOrGroup={principalOrGroup}
+        principalType={principalType}
         principalId={principalId}
         isOpen={assignModalOpen}
         onClose={() => setAssignModalOpen(false)}

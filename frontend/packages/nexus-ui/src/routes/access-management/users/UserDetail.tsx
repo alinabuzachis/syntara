@@ -39,6 +39,7 @@ import { AUTH_TYPE_LOCAL } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { DisabledBadge } from '../DisabledBadge'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
+import { RolePrincipalType } from '../RoleAssignmentTypes'
 import { useUserPermissions } from '../useUserPermissions'
 
 import type { UserIdentity } from './identityUtils'
@@ -322,7 +323,7 @@ function UserDetailTabContent({
         />
       )}
       {activeTab === 'roles' && validTabs.includes('roles') && (
-        <RoleAssignmentsPanel principalOrGroup="principal" principalId={userId} />
+        <RoleAssignmentsPanel principalType={RolePrincipalType.USER} principalId={userId} />
       )}
       {activeTab === 'permissions' && isOwnProfile && <MyPermissionsView />}
       {activeTab === 'check-access' && isOwnProfile && <UserCheckAccessTab />}

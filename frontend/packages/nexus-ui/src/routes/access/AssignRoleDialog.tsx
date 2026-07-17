@@ -23,6 +23,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
+import { buildAssignmentBody, RolePrincipalType } from '../access-management/RoleAssignmentTypes'
 
 import { accessClient } from './accessClient'
 import { assignRoleSchema } from './assignRoleSchema'
@@ -33,16 +34,75 @@ import { useAllProjects } from './useAllProjects'
 
 const PAGE_SIZE = 20
 
+// ── Principal selector field ──────────────────────────────────────────────
+
+type PrincipalFieldProps = {
+  control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
+  name: 'userId' | 'groupId' | 'serviceAccountId'
+  label: string
+  fieldId: string
+  options: { value: string; label: string }[]
+  placeholder: string
+  onSearchChange?: (term: string) => void
+  hasMore?: boolean
+  isLoading?: boolean
+}
+
+function PrincipalField({
+  control,
+  name,
+  label,
+  fieldId,
+  options,
+  placeholder,
+  onSearchChange,
+  hasMore,
+  isLoading,
+}: Readonly<PrincipalFieldProps>) {
+  return (
+    <FormGroup label={label} isRequired fieldId={fieldId}>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field, fieldState }) => (
+          <>
+            <TypeaheadSelect
+              id={fieldId}
+              ariaLabel={label}
+              options={options}
+              selected={field.value ?? ''}
+              onChange={field.onChange}
+              placeholder={placeholder}
+              hasError={!!fieldState.error}
+              onSearchChange={onSearchChange}
+              hasMore={hasMore}
+              isLoading={isLoading}
+            />
+            {fieldState.error && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </>
+        )}
+      />
+    </FormGroup>
+  )
+}
+
 // ── Form body (extracted to stay within max-lines-per-function) ───────────
 
 type AssignRoleFormBodyProps = {
   control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
   setValue: ReturnType<typeof useForm<AssignRoleFormData>>['setValue']
-  principalOrGroup: string
+  principalType: RolePrincipalType
   isProjectScoped: boolean
   projectOptions: { value: string; label: string }[]
   userOptions: { value: string; label: string }[]
   groupOptions: { value: string; label: string }[]
+  serviceAccountOptions: { value: string; label: string }[]
   roleOptions: { value: string; label: string }[]
   roleDisabled: boolean
   isProjectsLoading: boolean
@@ -52,6 +112,9 @@ type AssignRoleFormBodyProps = {
   onGroupSearchChange: (term: string) => void
   hasMoreGroups: boolean
   isGroupsLoading: boolean
+  onServiceAccountSearchChange: (term: string) => void
+  hasMoreServiceAccounts: boolean
+  isServiceAccountsLoading: boolean
   onRoleSearchChange: (term: string) => void
   hasMoreRoles: boolean
   isRolesLoading: boolean
@@ -92,11 +155,12 @@ function ScopeSelect({ value, onChange }: { value: string; onChange: (value: str
 function AssignRoleFormBody({
   control,
   setValue,
-  principalOrGroup,
+  principalType,
   isProjectScoped,
   projectOptions,
   userOptions,
   groupOptions,
+  serviceAccountOptions,
   roleOptions,
   roleDisabled,
   isProjectsLoading,
@@ -106,6 +170,9 @@ function AssignRoleFormBody({
   onGroupSearchChange,
   hasMoreGroups,
   isGroupsLoading,
+  onServiceAccountSearchChange,
+  hasMoreServiceAccounts,
+  isServiceAccountsLoading,
   onRoleSearchChange,
   hasMoreRoles,
   isRolesLoading,
@@ -114,7 +181,7 @@ function AssignRoleFormBody({
     <>
       <FormGroup label="Principal type" isRequired fieldId="principal-type">
         <Controller
-          name="principalOrGroup"
+          name="principalType"
           control={control}
           render={({ field }) => (
             <PrincipalTypeSelect
@@ -123,6 +190,7 @@ function AssignRoleFormBody({
                 field.onChange(value)
                 setValue('userId', '')
                 setValue('groupId', '')
+                setValue('serviceAccountId', '')
               }}
             />
           )}
@@ -178,68 +246,46 @@ function AssignRoleFormBody({
         </FormGroup>
       )}
 
-      {principalOrGroup === 'principal' && (
-        <FormGroup label="User" isRequired fieldId="user-id">
-          <Controller
-            name="userId"
-            control={control}
-            render={({ field, fieldState }) => (
-              <>
-                <TypeaheadSelect
-                  id="user-id"
-                  ariaLabel="User"
-                  options={userOptions}
-                  selected={field.value ?? ''}
-                  onChange={field.onChange}
-                  placeholder="Select a user..."
-                  hasError={!!fieldState.error}
-                  onSearchChange={onUserSearchChange}
-                  hasMore={hasMoreUsers}
-                  isLoading={isUsersLoading}
-                />
-                {fieldState.error && (
-                  <FormHelperText>
-                    <HelperText>
-                      <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
-                    </HelperText>
-                  </FormHelperText>
-                )}
-              </>
-            )}
-          />
-        </FormGroup>
+      {principalType === RolePrincipalType.USER && (
+        <PrincipalField
+          control={control}
+          name="userId"
+          label="User"
+          fieldId="user-id"
+          options={userOptions}
+          placeholder="Select a user..."
+          onSearchChange={onUserSearchChange}
+          hasMore={hasMoreUsers}
+          isLoading={isUsersLoading}
+        />
       )}
 
-      {principalOrGroup === 'group' && (
-        <FormGroup label="Group" isRequired fieldId="group-id">
-          <Controller
-            name="groupId"
-            control={control}
-            render={({ field, fieldState }) => (
-              <>
-                <TypeaheadSelect
-                  id="group-id"
-                  ariaLabel="Group"
-                  options={groupOptions}
-                  selected={field.value ?? ''}
-                  onChange={field.onChange}
-                  placeholder="Select a group..."
-                  hasError={!!fieldState.error}
-                  onSearchChange={onGroupSearchChange}
-                  hasMore={hasMoreGroups}
-                  isLoading={isGroupsLoading}
-                />
-                {fieldState.error && (
-                  <FormHelperText>
-                    <HelperText>
-                      <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
-                    </HelperText>
-                  </FormHelperText>
-                )}
-              </>
-            )}
-          />
-        </FormGroup>
+      {principalType === RolePrincipalType.GROUP && (
+        <PrincipalField
+          control={control}
+          name="groupId"
+          label="Group"
+          fieldId="group-id"
+          options={groupOptions}
+          placeholder="Select a group..."
+          onSearchChange={onGroupSearchChange}
+          hasMore={hasMoreGroups}
+          isLoading={isGroupsLoading}
+        />
+      )}
+
+      {principalType === RolePrincipalType.SERVICE_ACCOUNT && (
+        <PrincipalField
+          control={control}
+          name="serviceAccountId"
+          label="Service account"
+          fieldId="service-account-id"
+          options={serviceAccountOptions}
+          placeholder="Select a service account..."
+          onSearchChange={onServiceAccountSearchChange}
+          hasMore={hasMoreServiceAccounts}
+          isLoading={isServiceAccountsLoading}
+        />
       )}
 
       <FormGroup label="Role" isRequired fieldId="role-select">
@@ -289,16 +335,17 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const { handleSubmit, control, setValue, setError } = useForm<AssignRoleFormData>({
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: {
-      principalOrGroup: 'principal',
+      principalType: RolePrincipalType.USER,
       scope: 'project',
       projectId: '',
       userId: '',
       groupId: '',
+      serviceAccountId: '',
       roleName: '',
     },
   })
 
-  const principalOrGroup = useWatch({ control, name: 'principalOrGroup' })
+  const principalType = useWatch({ control, name: 'principalType' })
   const scope = useWatch({ control, name: 'scope' })
   const selectedProjectId = useWatch({ control, name: 'projectId' })
   const isProjectScoped = scope === 'project'
@@ -332,6 +379,23 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const groupOptions = useMemo(
     () => (groupsQuery.data?.resources ?? []).map((g) => ({ value: g.id, label: g.name })),
     [groupsQuery.data]
+  )
+
+  const [saSearchTerm, setSaSearchTerm] = useState('')
+  const debouncedSaSearch = useDebouncedValue(saSearchTerm)
+  const serviceAccountsQuery = accessClient.useQuery(
+    'get',
+    '/service_accounts',
+    {
+      params: {
+        query: { limit: PAGE_SIZE, ...(debouncedSaSearch ? { name: debouncedSaSearch } : {}) },
+      },
+    },
+    { enabled: principalType === RolePrincipalType.SERVICE_ACCOUNT }
+  )
+  const serviceAccountOptions = useMemo(
+    () => (serviceAccountsQuery.data?.resources ?? []).map((sa) => ({ value: sa.id, label: sa.name })),
+    [serviceAccountsQuery.data]
   )
 
   const [roleSearchTerm, setRoleSearchTerm] = useState('')
@@ -381,10 +445,13 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
       onClose()
     }
     const onMutationError = handleError({ title: 'Failed to add assignment' })
-    const body =
-      data.principalOrGroup === 'group'
-        ? { group_id: data.groupId, role_name: data.roleName }
-        : { principal_id: data.userId, role_name: data.roleName }
+    const principalIdByType: Record<RolePrincipalType, string> = {
+      [RolePrincipalType.USER]: data.userId,
+      [RolePrincipalType.GROUP]: data.groupId,
+      [RolePrincipalType.SERVICE_ACCOUNT]: data.serviceAccountId,
+    }
+    const principalId = principalIdByType[data.principalType]
+    const body = buildAssignmentBody(data.principalType, principalId, data.roleName)
 
     if (data.scope === 'project') {
       createProjectRoleAssignment(
@@ -404,11 +471,12 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
           <AssignRoleFormBody
             control={control}
             setValue={setValue}
-            principalOrGroup={principalOrGroup}
+            principalType={principalType}
             isProjectScoped={isProjectScoped}
             projectOptions={projectOptions}
             userOptions={userOptions}
             groupOptions={groupOptions}
+            serviceAccountOptions={serviceAccountOptions}
             roleOptions={roleOptions}
             roleDisabled={isProjectScoped && !selectedProjectId}
             isProjectsLoading={isProjectsLoading}
@@ -418,6 +486,9 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
             onGroupSearchChange={setGroupSearchTerm}
             hasMoreGroups={!!groupsQuery.data?.next}
             isGroupsLoading={groupsQuery.isFetching}
+            onServiceAccountSearchChange={setSaSearchTerm}
+            hasMoreServiceAccounts={!!serviceAccountsQuery.data?.next}
+            isServiceAccountsLoading={serviceAccountsQuery.isFetching}
             onRoleSearchChange={setRoleSearchTerm}
             hasMoreRoles={!!activeRolesQuery.data?.next}
             isRolesLoading={activeRolesQuery.isFetching}

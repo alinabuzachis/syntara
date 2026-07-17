@@ -90,7 +90,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 const sampleRows: PermissionRow[] = [
   {
     id: 'pr1',
-    groupId: null,
+    principalType: 'user',
     principalId: 'u1',
     principalName: 'alice',
     assignmentType: 'role',
@@ -104,7 +104,7 @@ const sampleRows: PermissionRow[] = [
   },
   {
     id: 'pgr1',
-    groupId: 'g1',
+    principalType: 'group',
     principalId: 'g1',
     principalName: 'Devs',
     assignmentType: 'role',
@@ -118,7 +118,7 @@ const sampleRows: PermissionRow[] = [
   },
   {
     id: 'sur1',
-    groupId: null,
+    principalType: 'user',
     principalId: 'u2',
     principalName: 'bob',
     assignmentType: 'role',
@@ -128,6 +128,20 @@ const sampleRows: PermissionRow[] = [
     roleDescription: null,
     rolePolicies: [],
     sourceEndpoint: 'role-assignments',
+  },
+  {
+    id: 'sar1',
+    principalType: 'service_account',
+    principalId: 'sa-1',
+    principalName: 'my-service-account',
+    assignmentType: 'role',
+    assignmentName: 'Project Editor',
+    scopeType: 'project',
+    scopeName: 'Project Alpha',
+    projectId: 'p1',
+    roleDescription: 'Edit project resources',
+    rolePolicies: ['project.edit'],
+    sourceEndpoint: 'project-role-assignments',
   },
 ]
 
@@ -256,6 +270,15 @@ describe('AssignmentsTab', () => {
       const rows = within(table).getAllByRole('row')
       // Row 2 is Devs (group)
       expect(within(rows[2]).getByText('Group')).toBeInTheDocument()
+    })
+
+    it('renders Service Account label for service_account principal type', () => {
+      render(<AssignmentsTab />, { wrapper })
+
+      const table = screen.getByRole('grid', { name: 'Role assignments' })
+      const rows = within(table).getAllByRole('row')
+      // Row 4 is my-service-account (service_account)
+      expect(within(rows[4]).getByText('Service Account')).toBeInTheDocument()
     })
 
     it('renders role names as labels', () => {

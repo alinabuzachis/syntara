@@ -23,6 +23,7 @@ import { accessClient } from '../access/accessClient'
 import { useAllProjects } from '../access/useAllProjects'
 
 import { MultiRoleSelect, type RoleOption } from './MultiRoleSelect'
+import { buildAssignmentBody, RolePrincipalType } from './RoleAssignmentTypes'
 
 const assignRoleSchema = z.discriminatedUnion('scope', [
   z.object({
@@ -42,7 +43,7 @@ type AssignRoleFormData = z.infer<typeof assignRoleSchema>
 const ROLE_PAGE_SIZE = 20
 
 type AssignRoleModalProps = {
-  principalOrGroup: 'principal' | 'group'
+  principalType: RolePrincipalType
   principalId: string
   isOpen: boolean
   onClose: () => void
@@ -98,7 +99,7 @@ function SingleSelect({
 }
 
 export function AssignRoleModal({
-  principalOrGroup,
+  principalType,
   principalId,
   isOpen,
   onClose,
@@ -106,19 +107,20 @@ export function AssignRoleModal({
 }: Readonly<AssignRoleModalProps>) {
   const [isPending, setIsPending] = useState(false)
   const { showAlert } = useAlerts()
+  const defaultScope = principalType === RolePrincipalType.SERVICE_ACCOUNT ? 'project' : 'system'
 
   const { control, handleSubmit, setValue, reset, formState } = useForm<AssignRoleFormData>({
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
-    defaultValues: { scope: 'system', projectId: '', roleIds: [] },
+    defaultValues: { scope: defaultScope, projectId: '', roleIds: [] },
   })
 
   const scope = useWatch({ control, name: 'scope' })
 
   useEffect(() => {
     if (isOpen) {
-      reset({ scope: 'system', projectId: '', roleIds: [] })
+      reset({ scope: defaultScope, projectId: '', roleIds: [] })
     }
-  }, [isOpen, reset])
+  }, [isOpen, reset, defaultScope])
 
   const { projects: allProjects } = useAllProjects()
 
@@ -161,7 +163,7 @@ export function AssignRoleModal({
   )
 
   const handleClose = () => {
-    reset({ scope: 'system', projectId: '', roleIds: [] })
+    reset({ scope: defaultScope, projectId: '', roleIds: [] })
     setRoleSearch('')
     onClose()
   }
@@ -171,10 +173,7 @@ export function AssignRoleModal({
     try {
       const results = await Promise.allSettled(
         data.roleIds.map((roleKey) => {
-          const body =
-            principalOrGroup === 'group'
-              ? { group_id: principalId, role_name: roleKey }
-              : { principal_id: principalId, role_name: roleKey }
+          const body = buildAssignmentBody(principalType, principalId, roleKey)
           if (data.scope === 'system') {
             return createRoleAssignment({ body })
           }
@@ -221,27 +220,29 @@ export function AssignRoleModal({
       <ModalHeader title="Assign roles" />
       <ModalBody>
         <Form id="assign-role-form" onSubmit={onSubmit}>
-          <FormGroup label="Scope" fieldId="scope-select" isRequired>
-            <Controller
-              name="scope"
-              control={control}
-              render={({ field }) => (
-                <SingleSelect
-                  id="scope-select"
-                  ariaLabel="Scope"
-                  value={field.value}
-                  onChange={(value) => {
-                    field.onChange(value)
-                    setValue('roleIds', [], { shouldValidate: true })
-                  }}
-                  options={[
-                    { value: 'system', label: 'System' },
-                    { value: 'project', label: 'Project' },
-                  ]}
-                />
-              )}
-            />
-          </FormGroup>
+          {principalType !== RolePrincipalType.SERVICE_ACCOUNT && (
+            <FormGroup label="Scope" fieldId="scope-select" isRequired>
+              <Controller
+                name="scope"
+                control={control}
+                render={({ field }) => (
+                  <SingleSelect
+                    id="scope-select"
+                    ariaLabel="Scope"
+                    value={field.value}
+                    onChange={(value) => {
+                      field.onChange(value)
+                      setValue('roleIds', [], { shouldValidate: true })
+                    }}
+                    options={[
+                      { value: 'system', label: 'System' },
+                      { value: 'project', label: 'Project' },
+                    ]}
+                  />
+                )}
+              />
+            </FormGroup>
+          )}
           {scope === 'project' && (
             <FormGroup label="Project" fieldId="project-select" isRequired>
               <Controller

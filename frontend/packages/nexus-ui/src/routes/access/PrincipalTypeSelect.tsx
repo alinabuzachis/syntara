@@ -1,6 +1,14 @@
 import { MenuToggle, type MenuToggleElement, Select, SelectList, SelectOption } from '@patternfly/react-core'
 import { useState } from 'react'
 
+import { RolePrincipalType } from '../access-management/RoleAssignmentTypes'
+
+const principalTypeLabels: Record<string, string> = {
+  [RolePrincipalType.USER]: 'User',
+  [RolePrincipalType.GROUP]: 'Group',
+  [RolePrincipalType.SERVICE_ACCOUNT]: 'Service Account',
+}
+
 export function PrincipalTypeSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [isOpen, setIsOpen] = useState(false)
   return (
@@ -21,13 +29,14 @@ export function PrincipalTypeSelect({ value, onChange }: { value: string; onChan
           isFullWidth
           aria-label="Principal type"
         >
-          {value === 'principal' ? 'User' : 'Group'}
+          {principalTypeLabels[value] ?? value}
         </MenuToggle>
       )}
     >
       <SelectList>
-        <SelectOption value="principal">User</SelectOption>
-        <SelectOption value="group">Group</SelectOption>
+        <SelectOption value={RolePrincipalType.USER}>User</SelectOption>
+        <SelectOption value={RolePrincipalType.GROUP}>Group</SelectOption>
+        <SelectOption value={RolePrincipalType.SERVICE_ACCOUNT}>Service Account</SelectOption>
       </SelectList>
     </Select>
   )

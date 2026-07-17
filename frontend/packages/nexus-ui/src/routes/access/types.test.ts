@@ -11,7 +11,7 @@ describe('access/types', () => {
   it('supports PermissionRow objects used by assignment tables', () => {
     const row: PermissionRow = {
       id: 'p1',
-      groupId: 'g1',
+      principalType: 'group',
       principalId: 'g1',
       principalName: 'Admins',
       assignmentType: 'role',

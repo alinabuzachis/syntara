@@ -243,7 +243,7 @@ describe('useAssignmentsData', () => {
 
       const projectRole = result.current.allRows.find((r) => r.id === 'pr1')
       expect(projectRole).toMatchObject({
-        groupId: null,
+        principalType: 'user',
         principalId: 'u1',
         principalName: 'alice',
         assignmentName: 'Admin',
@@ -261,8 +261,8 @@ describe('useAssignmentsData', () => {
 
       const groupRole = result.current.allRows.find((r) => r.id === 'pgr1')
       expect(groupRole).toMatchObject({
-        groupId: 'g1',
-        principalId: null,
+        principalType: 'group',
+        principalId: 'g1',
         principalName: 'Devs',
         assignmentName: 'Editor',
         scopeType: 'project',
@@ -278,7 +278,7 @@ describe('useAssignmentsData', () => {
 
       const sysUserRole = result.current.allRows.find((r) => r.id === 'sur1')
       expect(sysUserRole).toMatchObject({
-        groupId: null,
+        principalType: 'user',
         principalId: 'u2',
         principalName: 'bob',
         assignmentName: 'Viewer',
@@ -296,8 +296,8 @@ describe('useAssignmentsData', () => {
 
       const sysGroupRole = result.current.allRows.find((r) => r.id === 'sgr1')
       expect(sysGroupRole).toMatchObject({
-        groupId: 'g2',
-        principalId: null,
+        principalType: 'group',
+        principalId: 'g2',
         principalName: 'Ops',
         assignmentName: 'Admin',
         scopeType: 'system',
@@ -431,7 +431,7 @@ describe('useAssignmentsData', () => {
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
-      expect(result.current.sortedRows.every((r) => r.groupId == null)).toBe(true)
+      expect(result.current.sortedRows.every((r) => r.principalType === 'user')).toBe(true)
     })
 
     it('filters by type (group)', () => {
@@ -443,7 +443,7 @@ describe('useAssignmentsData', () => {
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
-      expect(result.current.sortedRows.every((r) => r.groupId != null)).toBe(true)
+      expect(result.current.sortedRows.every((r) => r.principalType === 'group')).toBe(true)
     })
 
     it('filters by scope (system)', () => {
@@ -634,7 +634,7 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'pr1',
-        groupId: null,
+        principalType: 'user',
         principalId: 'u1',
         principalName: 'alice',
         assignmentType: 'role',
@@ -671,8 +671,8 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'pgr1',
-        groupId: 'g1',
-        principalId: null,
+        principalType: 'group',
+        principalId: 'g1',
         principalName: 'Devs',
         assignmentType: 'role',
         assignmentName: 'Editor',
@@ -707,7 +707,7 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'sur1',
-        groupId: null,
+        principalType: 'user',
         principalId: 'u2',
         principalName: 'bob',
         assignmentType: 'role',
@@ -742,8 +742,8 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'sgr1',
-        groupId: 'g2',
-        principalId: null,
+        principalType: 'group',
+        principalId: 'g2',
         principalName: 'Ops',
         assignmentType: 'role',
         assignmentName: 'Admin',
@@ -778,7 +778,7 @@ describe('useAssignmentsData', () => {
       const onSettled = vi.fn()
       const row: PermissionRow = {
         id: 'sur1',
-        groupId: null,
+        principalType: 'user',
         principalId: 'u2',
         principalName: 'bob',
         assignmentType: 'role',
@@ -814,7 +814,7 @@ describe('useAssignmentsData', () => {
 
       const row: PermissionRow = {
         id: 'pr-missing',
-        groupId: null,
+        principalType: 'user',
         principalId: 'u1',
         principalName: 'alice',
         assignmentType: 'role',

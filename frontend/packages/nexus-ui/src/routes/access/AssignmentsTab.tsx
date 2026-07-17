@@ -1,4 +1,4 @@
-import { Button, Content, Label, LabelGroup, Truncate } from '@patternfly/react-core'
+import { Button, Content, LabelGroup, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -7,10 +7,12 @@ import { useCallback, useMemo, useState } from 'react'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { IconLabel } from '../../components/IconLabel'
+import { NxLabel } from '../../components/labels/NxLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
+import { RolePrincipalType } from '../access-management/RoleAssignmentTypes'
 
 import { AssignRoleDialog } from './AssignRoleDialog'
 import { EditAssignmentDialog } from './EditAssignmentDialog'
@@ -42,8 +44,9 @@ const baseFilterDefs: FilterFieldDefinition[] = [
     label: 'Principal Type',
     type: FilterTypeEnum.SELECT,
     options: [
-      { value: 'user', label: 'User' },
-      { value: 'group', label: 'Group' },
+      { value: RolePrincipalType.USER, label: 'User' },
+      { value: RolePrincipalType.GROUP, label: 'Group' },
+      { value: RolePrincipalType.SERVICE_ACCOUNT, label: 'Service Account' },
     ],
     placeholder: 'Filter by principal type',
   },
@@ -88,6 +91,12 @@ function getAssignmentRowActions(
     },
   ]
 }
+
+const principalTypeFieldMapping = {
+  [RolePrincipalType.USER]: { text: 'User', color: 'blue' },
+  [RolePrincipalType.GROUP]: { text: 'Group', color: 'teal' },
+  [RolePrincipalType.SERVICE_ACCOUNT]: { text: 'Service Account', color: 'green' },
+} as const
 
 export function AssignmentsTab() {
   const permissions = useAssignmentPermissions()
@@ -191,7 +200,7 @@ export function AssignmentsTab() {
         body={
           <>
             <Content>
-              Assignments connect users and groups to roles, determining what each person can do. Each assignment can be
+              Assignments connect principals to roles, determining what each person can do. Each assignment can be
               scoped to a specific project or apply system-wide. Use this page to review, create, or revoke access in
               one place.
             </Content>
@@ -220,14 +229,12 @@ export function AssignmentsTab() {
                       <Truncate content={row.principalName} />
                     </Td>
                     <Td dataLabel="Principal Type">
-                      <Label color={row.groupId == null ? 'teal' : 'orange'} isCompact>
-                        {row.groupId == null ? 'User' : 'Group'}
-                      </Label>
+                      <NxLabel color={principalTypeFieldMapping[row.principalType].color}>
+                        {principalTypeFieldMapping[row.principalType].text}
+                      </NxLabel>
                     </Td>
                     <Td dataLabel="Role Name">
-                      <Label color="purple" isCompact>
-                        {row.assignmentName}
-                      </Label>
+                      <NxLabel color="purple">{row.assignmentName}</NxLabel>
                     </Td>
                     <Td dataLabel="Scope">
                       <ScopeLabel scope={row.scopeType} />
@@ -239,9 +246,7 @@ export function AssignmentsTab() {
                       {row.rolePolicies.length > 0 ? (
                         <LabelGroup numLabels={3}>
                           {row.rolePolicies.map((name) => (
-                            <Label key={name} isCompact>
-                              {name}
-                            </Label>
+                            <NxLabel key={name}>{name}</NxLabel>
                           ))}
                         </LabelGroup>
                       ) : (

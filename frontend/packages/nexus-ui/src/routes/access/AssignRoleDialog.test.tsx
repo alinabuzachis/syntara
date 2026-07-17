@@ -185,6 +185,18 @@ function setupDefaultMocks() {
         },
       } as never
     }
+    if (path === '/service_accounts') {
+      return {
+        ...defaultQueryReturn,
+        data: {
+          resources: [
+            { id: 'sa-1', name: 'my-service-account' },
+            { id: 'sa-2', name: 'another-sa' },
+          ],
+          next: null,
+        },
+      } as never
+    }
     return { ...defaultQueryReturn } as never
   })
   vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn as never)
@@ -638,6 +650,82 @@ describe('AssignRoleDialog', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
       expect(screen.getByText('Add Assignment')).toBeInTheDocument()
+    })
+  })
+
+  describe('Service Account Principal Type', () => {
+    it('shows Service Account field when principal type changed to service_account', async () => {
+      const user = userEvent.setup()
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
+
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Service Account' }))
+
+      expect(screen.getByPlaceholderText('Select a service account...')).toBeInTheDocument()
+    })
+
+    it('hides User and Group fields when Service Account is selected', async () => {
+      const user = userEvent.setup()
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
+
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Service Account' }))
+
+      expect(screen.queryByPlaceholderText('Select a user...')).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Select a group...')).not.toBeInTheDocument()
+    })
+
+    it('calls project role mutation with service_account principal type', async () => {
+      const mockMutate = vi.fn()
+      vi.mocked(accessClient.useMutation).mockReturnValue({
+        ...mockMutationReturn,
+        mutate: mockMutate,
+      } as never)
+
+      const user = userEvent.setup()
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
+
+      // Switch principal type to service_account
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Service Account' }))
+
+      // Select a project first
+      const projectInput = screen.getByPlaceholderText('Select a project...')
+      await user.click(projectInput)
+      const projectOption = await screen.findByRole('option', { name: 'Project Alpha' })
+      await user.click(projectOption)
+
+      // Select a service account
+      const saInput = screen.getByPlaceholderText('Select a service account...')
+      await user.click(saInput)
+      const saOption = await screen.findByRole('option', { name: 'my-service-account' })
+      await user.click(saOption)
+
+      // Select a role
+      const roleInput = screen.getByPlaceholderText('Select a role...')
+      await user.click(roleInput)
+      const roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
+      await user.click(roleOption)
+
+      await user.click(screen.getByRole('button', { name: 'Add assignment' }))
+
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalled()
+      })
+
+      const callArgs = mockMutate.mock.calls[0] as [
+        {
+          params: { path: { project_id: string } }
+          body: { principal_id: string; role_name: string }
+        },
+      ]
+      expect(callArgs[0].body).toEqual({
+        principal_id: 'sa-1',
+        role_name: 'ProjectAdmin',
+      })
     })
   })
 

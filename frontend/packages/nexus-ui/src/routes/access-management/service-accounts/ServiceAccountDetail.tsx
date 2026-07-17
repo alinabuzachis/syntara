@@ -19,7 +19,6 @@ import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxLink } from '../../../components/NxLink'
 import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../../components/panels/list/NxListPanel'
-import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useDialogState } from '../../../hooks/useDialogState'
@@ -31,6 +30,8 @@ import { useDocLink } from '../../../utils/docs/useDocLink'
 import { accessClient } from '../../access/accessClient'
 import { getProjectDetailPath } from '../accessManagementPaths'
 import { DetailPageShell } from '../DetailPageShell'
+import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
+import { RolePrincipalType } from '../RoleAssignmentTypes'
 
 import { CredentialsTab } from './CredentialsTab'
 import { EditServiceAccountModal } from './EditServiceAccountModal'
@@ -273,24 +274,11 @@ export function ServiceAccountDetail() {
           {activeTab === 'credentials' && (
             <CredentialsTab serviceAccountId={serviceAccount.id} serviceAccountName={serviceAccount.name} />
           )}
-          {/* Assignments UI: AAP-78750 */}
           {activeTab === 'assignments' && (
-            <NxListPanelView
-              tabKey="assignments"
-              tabLabel="Assignments"
-              isPending={false}
-              error={null}
-              isEmpty={true}
-              hasActiveFilters={false}
-              onRetry={noop}
-              onClearAllFilters={noop}
-              noDataState={
-                <NxEmptyStateNoData
-                  title="No assignments yet"
-                  description="Role assignments for this service account will be available here."
-                />
-              }
-              body={null}
+            <RoleAssignmentsPanel
+              principalType={RolePrincipalType.SERVICE_ACCOUNT}
+              principalId={serviceAccount.id}
+              hiddenColumns={['scope']}
             />
           )}
         </NxListPanel>
