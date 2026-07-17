@@ -166,6 +166,7 @@ Different node types expose different settings:
 
 ## Related Documentation
 
+- [Workflow Engine Architecture](workflow-engine-overview.md) — error handling and timeout margin shared by every node type
 - [Workflow Definition Guide](workflow-definition-guide.md)
 - [V2 Workflow Definition Schema](../../src/nexus/schemas/workflows/v2/workflow_definition.schema.json)
 - [Error Handling Best Practices](error-handling.md)

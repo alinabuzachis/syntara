@@ -121,6 +121,7 @@ The shared infrastructure you get for free: output mapping, namespace registrati
 
 ## Related Documentation
 
+- [Workflow Engine Architecture](../workflow-engine-overview.md) — the shared graph/dispatch engine trigger nodes hand off into
 - [Manual Trigger](manual-trigger.md) — user-initiated via the executions API
 - [Webhook Triggers](webhook-triggers.md) — HTTP webhooks and EDA events
 - [Scheduled Trigger](scheduled-trigger.md) — cron and interval schedules

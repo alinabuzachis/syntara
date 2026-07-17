@@ -288,4 +288,5 @@ If you have 3+ binary conditions checking the same variable, replace them with a
 
 ## Related Documentation
 
+- [Workflow Engine Architecture](workflow-engine-overview.md) - Shared dispatch and data-flow mechanics
 - [Workflow Definition Guide](workflow-definition-guide.md) - Complete guide to defining V2 workflows

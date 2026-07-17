@@ -351,5 +351,6 @@ A converge node named `join` tells a reader nothing. Prefer names that describe 
 
 ## Related Documentation
 
+- [Workflow Engine Architecture](workflow-engine-overview.md) - Shared dispatch and data-flow mechanics
 - [Workflow Definition Guide](workflow-definition-guide.md) - Complete guide to defining V2 workflows with retry policies
 - [Retry Policies](retry-policies.md) - Retry policy configuration for individual nodes
