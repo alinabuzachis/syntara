@@ -1,15 +1,25 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { List, ListItem, Stack, StackItem } from '@patternfly/react-core'
+import { useCallback, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import type { DialogState } from '../../hooks/useDialogState'
+import { useAlerts } from '../../providers/alerts'
+import { detachPromise } from '../../utils/detachPromise'
 import type { ProjectRead } from '../access/types'
 import { ProjectFormModal } from '../access-management/ProjectFormModal'
+import { RunWorkflowModal } from '../builder/components/RunWorkflowModal'
 import { PublishWorkflowDialog } from '../builder/PublishWorkflowDialog'
 
 import { ImportWorkflowDialog } from './ImportWorkflowDialog'
+import { hasTriggerInputSchema, resolveWorkflowRunTrigger, type WorkflowRunTrigger } from './resolveWorkflowRunTrigger'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
+
+type PendingRunInput = {
+  workflow: Workflow
+  trigger: WorkflowRunTrigger
+}
 
 /**
  * Props for WorkflowDialogs component
@@ -31,8 +41,8 @@ type WorkflowDialogsProps = {
   projectEditDialog: DialogState<ProjectRead>
   /** Dialog state for project deletion confirmation */
   projectDeleteDialog: DialogState<ProjectRead>
-  /** Handler to execute a workflow immediately */
-  onRunWorkflow: (workflow: Workflow) => void
+  /** Handler to execute a workflow with optional trigger inputs */
+  onRunWorkflow: (workflow: Workflow, inputData?: Record<string, unknown>, triggerNodeId?: string) => void
   /** Handler to delete a workflow - dialog closes in onSettled callback */
   onDeleteWorkflow: (workflow: Workflow) => void
   /** Handler to publish a workflow - dialog closes in onSettled callback */
@@ -73,23 +83,86 @@ export function WorkflowDialogs({
   isPublishing,
   isDeletingProject,
 }: WorkflowDialogsProps) {
+  const { showError } = useAlerts()
+  const [isResolvingRun, setIsResolvingRun] = useState(false)
+  const [pendingRunInput, setPendingRunInput] = useState<PendingRunInput | null>(null)
+
+  const closeRunInput = useCallback(() => {
+    setPendingRunInput(null)
+  }, [])
+
+  const closeRunDialog = runDialog.close
+  const workflowToRun = runDialog.item
+
+  const handleConfirmRun = useCallback(() => {
+    if (!workflowToRun) return
+
+    setIsResolvingRun(true)
+    detachPromise(
+      resolveWorkflowRunTrigger(workflowToRun)
+        .then((trigger) => {
+          if (!trigger) {
+            showError({ title: 'Cannot run workflow', description: 'Workflow has no triggers configured' })
+            closeRunDialog()
+            return
+          }
+
+          if (hasTriggerInputSchema(trigger.inputSchema)) {
+            setPendingRunInput({ workflow: workflowToRun, trigger })
+            closeRunDialog()
+            return
+          }
+
+          onRunWorkflow(workflowToRun, {}, trigger.triggerNodeId)
+          closeRunDialog()
+        })
+        .catch((error: unknown) => {
+          showError({
+            title: 'Cannot run workflow',
+            description: error instanceof Error ? error.message : 'Failed to load workflow trigger details',
+          })
+          closeRunDialog()
+        })
+        .finally(() => {
+          setIsResolvingRun(false)
+        })
+    )
+  }, [closeRunDialog, onRunWorkflow, showError, workflowToRun])
+
+  const handleRunWithInputs = useCallback(
+    (inputData: Record<string, unknown>, triggerNodeId?: string) => {
+      if (!pendingRunInput) return
+      onRunWorkflow(pendingRunInput.workflow, inputData, triggerNodeId ?? pendingRunInput.trigger.triggerNodeId)
+      setPendingRunInput(null)
+    },
+    [onRunWorkflow, pendingRunInput]
+  )
+
   return (
     <>
       <NxConfirmationDialog
         isOpen={runDialog.isOpen}
         onClose={runDialog.close}
-        onConfirm={() => {
-          if (runDialog.item) {
-            onRunWorkflow(runDialog.item)
-          }
-          runDialog.close()
-        }}
+        onConfirm={handleConfirmRun}
         title={`Run ${runDialog.item?.name}?`}
         confirmLabel="Run now"
+        confirmLoading={isResolvingRun}
       >
         You are about to manually run this workflow. This action will start the workflow immediately, bypassing its
         normal trigger conditions.
       </NxConfirmationDialog>
+
+      <RunWorkflowModal
+        key={pendingRunInput ? `open-${pendingRunInput.trigger.triggerNodeId}` : 'closed'}
+        isOpen={pendingRunInput != null}
+        onClose={closeRunInput}
+        onConfirm={handleRunWithInputs}
+        workflowName={pendingRunInput?.workflow.name ?? ''}
+        triggerName={pendingRunInput?.trigger.triggerName ?? 'Trigger'}
+        triggerNodeId={pendingRunInput?.trigger.triggerNodeId}
+        inputSchema={pendingRunInput?.trigger.inputSchema}
+        workflowId={pendingRunInput?.workflow.id}
+      />
 
       <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}

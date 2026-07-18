@@ -1,9 +1,11 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useCallback } from 'react'
 
-import { executionsFetchClient, workflowClient, workflowFetchClient } from '../../client'
+import { executionsFetchClient, workflowClient } from '../../client'
 import type { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
+
+import { resolveWorkflowRunTrigger } from './resolveWorkflowRunTrigger'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
@@ -37,22 +39,26 @@ export function useWorkflowActions({
   const { mutate: unpublishWorkflow } = workflowClient.useMutation('post', '/workflows/{workflow_id}/unpublish')
 
   const handleRunWorkflow = useCallback(
-    async (workflow: Workflow) => {
+    async (workflow: Workflow, inputData: Record<string, unknown> = {}, triggerNodeId?: string) => {
       if (!workflow.id) return
 
-      const { data: detail } = await workflowFetchClient.GET('/workflows/{workflow_id}', {
-        params: { path: { workflow_id: workflow.id } },
-      })
-      const triggers = (detail as { workflow_definition?: { triggers?: { id?: string }[] } } | undefined)
-        ?.workflow_definition?.triggers
-      const triggerNodeId = triggers?.[0]?.id
-      if (!triggerNodeId) {
-        showError({ title: 'Cannot run workflow', description: 'Workflow has no triggers configured' })
-        return
+      let resolvedTriggerNodeId = triggerNodeId
+      if (!resolvedTriggerNodeId) {
+        const trigger = await resolveWorkflowRunTrigger(workflow)
+        if (!trigger) {
+          showError({ title: 'Cannot run workflow', description: 'Workflow has no triggers configured' })
+          return
+        }
+        resolvedTriggerNodeId = trigger.triggerNodeId
       }
 
       const { data, error } = await executionsFetchClient.POST('/executions', {
-        body: { workflow_id: workflow.id, input_data: {}, trigger_node_id: triggerNodeId, use_published: true },
+        body: {
+          workflow_id: workflow.id,
+          input_data: inputData,
+          trigger_node_id: resolvedTriggerNodeId,
+          use_published: true,
+        },
       })
       if (error || !data?.id) {
         showError({

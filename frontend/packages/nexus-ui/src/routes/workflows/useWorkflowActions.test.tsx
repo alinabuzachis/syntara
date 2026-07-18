@@ -4,6 +4,8 @@ import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { executionsFetchClient, workflowFetchClient } from '../../client'
+
 import { useWorkflowActions } from './useWorkflowActions'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
@@ -42,6 +44,12 @@ vi.mock('../../client', () => ({
       }),
       isPending: false,
     })),
+  },
+  executionsFetchClient: {
+    POST: vi.fn(),
+  },
+  workflowFetchClient: {
+    GET: vi.fn(),
   },
   workflowClient: {
     useMutation: vi.fn((_method: unknown, path: unknown) => {
@@ -101,6 +109,8 @@ describe('useWorkflowActions', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(executionsFetchClient.POST).mockReset()
+    vi.mocked(workflowFetchClient.GET).mockReset()
   })
 
   describe('onSettled callbacks', () => {
@@ -237,6 +247,114 @@ describe('useWorkflowActions', () => {
       await waitFor(() => {
         expect(mockOnRefetch).toHaveBeenCalledTimes(1)
       })
+    })
+  })
+
+  describe('handleRunWorkflow', () => {
+    it('posts collected input_data when triggerNodeId is provided', async () => {
+      vi.mocked(executionsFetchClient.POST).mockResolvedValue({
+        data: { id: 'exec-1' },
+        error: undefined,
+      } as never)
+
+      const { result } = renderHook(
+        () =>
+          useWorkflowActions({
+            showSuccess: mockShowSuccess,
+            showError: mockShowError,
+            onNavigate: mockOnNavigate,
+            onRefetch: mockOnRefetch,
+          }),
+        { wrapper: createWrapper() }
+      )
+
+      await result.current.handleRunWorkflow(mockWorkflow(), { version: '1.2.3' }, 'trigger-1')
+
+      expect(executionsFetchClient.POST).toHaveBeenCalledWith('/executions', {
+        body: {
+          workflow_id: 'wf-1',
+          input_data: { version: '1.2.3' },
+          trigger_node_id: 'trigger-1',
+          use_published: true,
+        },
+      })
+      expect(mockOnNavigate).toHaveBeenCalledWith('/executions/exec-1')
+      expect(workflowFetchClient.GET).not.toHaveBeenCalled()
+    })
+
+    it('resolves the trigger when triggerNodeId is omitted', async () => {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: 'wf-1',
+          current_version: 1,
+          published_version_number: 1,
+          version: {
+            workflow_definition: {
+              triggers: [{ id: 'resolved-trigger', name: 'Manual Trigger', parameters: {} }],
+            },
+          },
+        },
+        error: undefined,
+        response: new Response(),
+      } as never)
+      vi.mocked(executionsFetchClient.POST).mockResolvedValue({
+        data: { id: 'exec-2' },
+        error: undefined,
+      } as never)
+
+      const { result } = renderHook(
+        () =>
+          useWorkflowActions({
+            showSuccess: mockShowSuccess,
+            showError: mockShowError,
+            onNavigate: mockOnNavigate,
+            onRefetch: mockOnRefetch,
+          }),
+        { wrapper: createWrapper() }
+      )
+
+      await result.current.handleRunWorkflow(mockWorkflow())
+
+      expect(executionsFetchClient.POST).toHaveBeenCalledWith('/executions', {
+        body: {
+          workflow_id: 'wf-1',
+          input_data: {},
+          trigger_node_id: 'resolved-trigger',
+          use_published: true,
+        },
+      })
+    })
+
+    it('shows an error when the workflow has no triggers', async () => {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: 'wf-1',
+          current_version: 1,
+          published_version_number: 1,
+          version: { workflow_definition: { triggers: [] } },
+        },
+        error: undefined,
+        response: new Response(),
+      } as never)
+
+      const { result } = renderHook(
+        () =>
+          useWorkflowActions({
+            showSuccess: mockShowSuccess,
+            showError: mockShowError,
+            onNavigate: mockOnNavigate,
+            onRefetch: mockOnRefetch,
+          }),
+        { wrapper: createWrapper() }
+      )
+
+      await result.current.handleRunWorkflow(mockWorkflow())
+
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Cannot run workflow',
+        description: 'Workflow has no triggers configured',
+      })
+      expect(executionsFetchClient.POST).not.toHaveBeenCalled()
     })
   })
 })

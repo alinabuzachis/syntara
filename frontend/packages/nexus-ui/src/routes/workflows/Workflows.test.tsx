@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { executionsFetchClient, workflowClient, workflowFetchClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
+import { ColorSchemeProvider } from '../../providers/theme/ColorSchemeProvider'
 import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
 import { expectPageTitle } from '../../test/pageTitle'
 import { routerTestState } from '../../test/setup'
@@ -18,6 +19,9 @@ vi.mock('../../client', () => ({
   workflowClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
+  },
+  executionsClient: {
+    useQuery: vi.fn(() => ({ data: undefined, isLoading: false })),
   },
   executionsFetchClient: {
     POST: vi.fn(),
@@ -101,7 +105,9 @@ const queryClient = new QueryClient({
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <QueryClientProvider client={queryClient}>
-    <AlertProvider>{children}</AlertProvider>
+    <ColorSchemeProvider>
+      <AlertProvider>{children}</AlertProvider>
+    </ColorSchemeProvider>
   </QueryClientProvider>
 )
 
@@ -192,7 +198,16 @@ describe('Workflows Component', () => {
 
     // Mock workflowFetchClient.GET to return workflow detail with a trigger
     vi.mocked(workflowFetchClient.GET).mockResolvedValue({
-      data: { workflow_definition: { triggers: [{ id: 'trigger-1' }] } },
+      data: {
+        id: '1',
+        current_version: 1,
+        published_version_number: 1,
+        version: {
+          workflow_definition: {
+            triggers: [{ id: 'trigger-1', name: 'Manual Trigger', parameters: {} }],
+          },
+        },
+      },
     } as never)
 
     // Mock executionsFetchClient.POST for execute workflow (success by default)
@@ -571,6 +586,67 @@ describe('Workflows Component', () => {
       // Verify dialog is closed
       await waitFor(() => {
         expect(screen.queryByText('Run Important Project Workflow?')).not.toBeInTheDocument()
+      })
+    })
+
+    it('shows input modal and sends collected input_data when trigger has input schema', async () => {
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: '1',
+          current_version: 1,
+          published_version_number: 1,
+          version: {
+            workflow_definition: {
+              triggers: [
+                {
+                  id: 'trigger-1',
+                  name: 'Manual Trigger',
+                  parameters: {
+                    input_schema: {
+                      type: 'object',
+                      properties: { version: { type: 'string' } },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      } as never)
+      vi.mocked(executionsFetchClient.POST).mockResolvedValue({
+        data: { id: 'exec-with-inputs' },
+        error: undefined,
+      } as never)
+
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const buttons = within(rows[1]).getAllByRole('button')
+      await user.click(buttons[buttons.length - 1])
+
+      await user.click(await screen.findByText('Run published version'))
+      await user.click(await screen.findByRole('button', { name: /^Run now$/i }))
+
+      expect(await screen.findByText('Set mock output data for Manual Trigger')).toBeInTheDocument()
+      expect(executionsFetchClient.POST).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: /^Run$/i }))
+
+      await waitFor(() => {
+        expect(executionsFetchClient.POST).toHaveBeenCalledWith('/executions', {
+          body: {
+            workflow_id: '1',
+            input_data: { version: '' },
+            trigger_node_id: 'trigger-1',
+            use_published: true,
+          },
+        })
       })
     })
 
