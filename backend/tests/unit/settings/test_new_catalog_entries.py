@@ -8,7 +8,6 @@ from nexus.settings.models.runtime_setting import SettingCategory, SettingValueT
 _NEW_KEYS = [
     "document_conversion.timeout_seconds",
     "document_conversion.overwrite_existing",
-    "retriever.llm_model",
     "workflow_engine.max_loop_iterations",
     "workflow_engine.script_timeout_seconds",
     "workflow_engine.agentic_timeout_seconds",
@@ -42,20 +41,10 @@ class TestNewCatalogEntries:
         assert d.value_type == SettingValueType.BOOLEAN
         assert d.default_value is False
 
-    def test_retriever_llm_model(self) -> None:
-        d = _catalog_by_key["retriever.llm_model"]
-        assert d.category == SettingCategory.AI_LLM
-        assert d.value_type == SettingValueType.STRING
-        assert d.default_value == "anthropic/claude-3.5-sonnet"
-        assert d.requires_restart is True
-
-    def test_only_retriever_requires_restart(self) -> None:
+    def test_no_new_settings_require_restart(self) -> None:
         for key in _NEW_KEYS:
             d = _catalog_by_key[key]
-            if key == "retriever.llm_model":
-                assert d.requires_restart is True
-            else:
-                assert d.requires_restart is False, f"{key} should not require restart"
+            assert d.requires_restart is False, f"{key} should not require restart"
 
     def test_workflow_settings_have_min_constraint(self) -> None:
         keys = [
@@ -71,6 +60,7 @@ class TestNewCatalogEntries:
 
     def test_removed_settings_not_in_catalog(self) -> None:
         removed = [
+            "retriever.llm_model",
             "workflow_engine.api_timeout_seconds",
             "workflow_engine.max_duration_hours",
             "workflow_engine.max_duration_minutes",

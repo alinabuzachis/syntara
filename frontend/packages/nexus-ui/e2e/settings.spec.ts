@@ -46,14 +46,6 @@ async function goToSystem(app: import('@playwright/test').Page) {
   await expect(app.locator('[id="logging.log_level"]')).toBeVisible({ timeout: 5000 })
 }
 
-/** Navigate to settings and click the AI / LLM tab. */
-async function goToAiLlm(app: import('@playwright/test').Page) {
-  await app.goto(toAppUrl('/system-administration/settings'))
-  const aiTab = app.getByRole('tab', { name: /AI \/ LLM/i })
-  await aiTab.click()
-  await expect(app.locator('[id="retriever.llm_model"]')).toBeVisible({ timeout: 5000 })
-}
-
 /** Reset a single setting via its kebab menu then save. */
 async function resetSingleSetting(app: import('@playwright/test').Page, settingName: string) {
   const kebab = app.getByLabel(`Actions for ${settingName}`)
@@ -104,7 +96,7 @@ test.describe('Settings', () => {
     test.skip(!hasPage, 'Settings page not available; backend may not be running')
     // Wait for content to fully load (tabs + save button)
     const hasTabs = await app
-      .getByRole('tab', { name: /Context Manager|System|AI \/ LLM|Authentication/i })
+      .getByRole('tab', { name: /Context Manager|System|Authentication/i })
       .waitFor({ state: 'visible', timeout: 10_000 })
       .then(() => true)
       .catch(() => false)
@@ -456,16 +448,16 @@ test.describe('Settings', () => {
   })
 
   test('modify freeform string setting', async ({ app }) => {
-    await goToAiLlm(app)
+    await goToSystem(app)
 
-    const formGroup = app.locator('[id="retriever.llm_model"]').locator('..')
+    const formGroup = app.locator('[id="telemetry.segment_endpoint"]').locator('..')
     await formGroup.scrollIntoViewIfNeeded()
     await expect(formGroup).toBeVisible({ timeout: 5000 })
     const input = formGroup.locator('input')
 
     try {
       // Change value
-      await input.fill('claude-3-opus')
+      await input.fill('https://test.segment.io')
 
       // Save
       const saveButton = app.getByRole('button', { name: 'Save changes' })
@@ -474,12 +466,12 @@ test.describe('Settings', () => {
       await expect(saveButton).toBeDisabled({ timeout: 5000 })
 
       // Reload and verify persisted
-      await goToAiLlm(app)
-      const reloadedInput = app.locator('[id="retriever.llm_model"]').locator('..').locator('input')
-      await expect(reloadedInput).toHaveValue('claude-3-opus')
+      await goToSystem(app)
+      const reloadedInput = app.locator('[id="telemetry.segment_endpoint"]').locator('..').locator('input')
+      await expect(reloadedInput).toHaveValue('https://test.segment.io')
     } finally {
-      await goToAiLlm(app)
-      await resetSingleSetting(app, 'Retriever LLM model')
+      await goToSystem(app)
+      await resetSingleSetting(app, 'Segment endpoint URL')
     }
   })
 

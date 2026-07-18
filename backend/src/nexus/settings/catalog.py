@@ -636,23 +636,6 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         group=ContextManagerGroup.COMPRESSION,
         validation_schema={"min": 1},
     ),
-    # AI / LLM
-    SettingDefinition(
-        key="retriever.llm_model",
-        name="Retriever LLM model",
-        category=SettingCategory.AI_LLM,
-        value_type=SettingValueType.STRING,
-        default_value="anthropic/claude-3.5-sonnet",
-        description=(
-            "The OpenRouter model used for LLM-based relevancy checking "
-            "during document retrieval. Higher-tier models provide better "
-            "accuracy in filtering and understanding nuance, resulting in "
-            "more relevant results, but with higher latency and API costs. "
-            "Changing this setting requires an application restart."
-        ),
-        helper_text="OpenRouter model ID. Requires restart.",
-        requires_restart=True,
-    ),
     SettingDefinition(
         key="agentic.max_completion_tokens",
         name="Agentic max completion tokens",

@@ -61,7 +61,6 @@ class ConfigurationManager:
                 "recency": settings.retriever_llm_ranking_recency,
             },
             algorithm_parameters={
-                "model": settings.retriever_llm_model,
                 "temperature": settings.retriever_llm_temperature,
                 "max_tokens": settings.retriever_llm_max_tokens,
                 "system_prompt": settings.retriever_llm_system_prompt,
@@ -114,7 +113,6 @@ class ConfigurationManager:
         self._loaded = True
         logger.info(
             "Loaded configurations from settings",
-            llm_model=settings.retriever_llm_model,
             llm_threshold=settings.retriever_llm_similarity_threshold,
             keyword_threshold=settings.retriever_keyword_similarity_threshold,
         )

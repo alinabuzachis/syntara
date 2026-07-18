@@ -33,7 +33,6 @@ class TestConfigurationManager:
         assert config.checker_type == "llm"
         assert config.similarity_threshold == pytest.approx(RetrieverServiceDefaults.LLM_SIMILARITY_THRESHOLD)
         assert config.max_results == RetrieverServiceDefaults.LLM_MAX_RESULTS
-        assert config.algorithm_parameters["model"] is None
         assert config.algorithm_parameters["temperature"] == pytest.approx(RetrieverServiceDefaults.LLM_TEMPERATURE)
         assert config.algorithm_parameters["max_tokens"] == RetrieverServiceDefaults.LLM_MAX_TOKENS
         assert config.algorithm_parameters["system_prompt"] == RetrieverServiceDefaults.LLM_SYSTEM_PROMPT
@@ -120,8 +119,6 @@ class TestConfigurationManager:
         for param in required_algorithm_params:
             assert param in config.algorithm_parameters, f"Missing required algorithm parameter: {param}"
             assert config.algorithm_parameters[param] is not None, f"Algorithm parameter {param} is None"
-        # model comes from LLMCredentialConfig at runtime, defaults to None in settings
-        assert "model" in config.algorithm_parameters
 
         # All grounding parameters required by LLMRelevancyChecker
         required_grounding_params = ["include_file_metadata", "use_title_weighting", "context_window_size"]

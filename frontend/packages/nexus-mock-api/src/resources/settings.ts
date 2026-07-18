@@ -16,7 +16,7 @@ export const settingsCategories: SettingCategory[] = [
     slug: 'system',
     name: 'System',
     description: 'System-level settings including observability and diagnostics',
-    group_names: ['Observability'],
+    group_names: ['Observability', 'Segment'],
   },
   {
     slug: 'context_manager',
@@ -370,6 +370,17 @@ export const settings: RuntimeSetting[] = [
     } as unknown as Record<string, never>,
   }),
   makeSetting({
+    key: 'telemetry.segment_endpoint',
+    name: 'Segment endpoint URL',
+    description:
+      'Segment API endpoint URL. When set, overrides the static APP_SEGMENT_ENDPOINT environment variable. Changing this reinitializes the telemetry client across all instances. Set to an empty string to fall back to the environment variable.',
+    helper_text: 'Full URL (e.g. https://api.segment.io). Leave empty to use the environment variable.',
+    category: 'system',
+    group: 'Segment',
+    value_type: 'string',
+    default_value: '',
+  }),
+  makeSetting({
     key: 'metrics.perf_test_mode',
     name: 'Performance test mode',
     description:
@@ -379,19 +390,6 @@ export const settings: RuntimeSetting[] = [
     group: 'Observability',
     value_type: 'boolean',
     default_value: false,
-  }),
-
-  // ── AI / LLM ──────────────────────────────────────────────────────────
-  makeSetting({
-    key: 'retriever.llm_model',
-    name: 'Retriever LLM model',
-    description:
-      'The OpenRouter model used for LLM-based relevancy checking during document retrieval. Higher-tier models provide better accuracy in filtering and understanding nuance, resulting in more relevant results, but with higher latency and API costs. Changing this setting requires an application restart.',
-    helper_text: 'OpenRouter model ID. Requires restart.',
-    category: 'ai_llm',
-    value_type: 'string',
-    default_value: 'anthropic/claude-3.5-sonnet',
-    requires_restart: true,
   }),
   makeSetting({
     key: 'agentic.max_completion_tokens',

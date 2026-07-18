@@ -46,7 +46,7 @@ class LLMRelevancyChecker(RelevancyChecker):
     with keyword-based fallback when LLM calls fail.
 
     Features:
-    - Configurable model selection via OpenRouter
+    - Model selection via LLMCredentialConfig
     - Temperature and max_tokens control
     - Custom system prompts for scoring guidance
     - File metadata integration for enhanced context
@@ -59,14 +59,16 @@ class LLMRelevancyChecker(RelevancyChecker):
         config = RelevancyConfiguration(
             checker_type="llm",
             algorithm_parameters={
-                "model": "anthropic/claude-3.5-sonnet",
                 "temperature": 0.3,
                 "max_tokens": 150,
                 "system_prompt": "Score document relevance from 0.0 to 1.0..."
             }
         )
 
-        score = await checker.check_relevancy(document, "machine learning", config)
+        score = await checker.check_relevancy(
+            document, "machine learning", config,
+            llm_credential_config=credential,
+        )
         ```
     """
 
@@ -105,7 +107,7 @@ class LLMRelevancyChecker(RelevancyChecker):
             temperature = cast("float", params.get("temperature"))
             max_tokens = cast("int", params.get("max_tokens"))
             system_prompt = cast("str", params.get("system_prompt"))
-            api_key, base_url, model = self._resolve_llm_params(llm_credential_config, params)
+            api_key, base_url, model = self._resolve_llm_params(llm_credential_config)
 
             # Build context with file metadata if enabled
             grounding_params = config.grounding_parameters
@@ -304,12 +306,12 @@ class LLMRelevancyChecker(RelevancyChecker):
     @staticmethod
     def _resolve_llm_params(
         llm_credential_config: LLMCredentialConfig | None,
-        params: dict[str, object],
-    ) -> tuple[str | None, str | None, str | None]:
-        """Extract api_key, base_url, model from credential config or algorithm params."""
-        if llm_credential_config:
-            return llm_credential_config.api_key, llm_credential_config.base_url, llm_credential_config.model
-        return None, None, cast("str | None", params.get("model"))
+    ) -> tuple[str, str, str]:
+        """Extract api_key, base_url, model from the node's credential config."""
+        if not llm_credential_config:
+            msg = "LLM credential config is required for LLM relevancy checking"
+            raise RelevancyCheckError(msg)
+        return llm_credential_config.api_key, llm_credential_config.base_url, llm_credential_config.model
 
     def _get_default_score(self) -> float:
         """Get default score when parsing fails."""

@@ -675,11 +675,6 @@ class RetrieverServiceSettings(BaseSettings):
     """
 
     # LLM Relevancy Checker Configuration
-    retriever_llm_model: str | None = Field(
-        default=None,
-        description="OpenRouter model for LLM relevancy checking (defaults to node credential model at runtime)",
-    )
-
     retriever_llm_temperature: float = Field(
         default=RetrieverServiceDefaults.LLM_TEMPERATURE,
         description="Temperature for LLM relevancy checking",

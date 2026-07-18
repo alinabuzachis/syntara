@@ -26,7 +26,6 @@ _COMPRESSION_TEMP_KEY = "context_manager.compression_temperature"
 _TIMEOUT_SECONDS_KEY = "document_conversion.timeout_seconds"
 _SCRIPT_TIMEOUT_KEY = "workflow_engine.script_timeout_seconds"
 _OVERWRITE_KEY = "document_conversion.overwrite_existing"
-_RETRIEVER_MODEL_KEY = "retriever.llm_model"
 
 
 def _get_setting(api: NexusApiRegistry, key: str) -> RuntimeSettingRead:
@@ -163,11 +162,6 @@ class TestNewSettings:
         assert setting.category == "workflow_execution"
         assert setting.value_type.value == "integer"
         assert setting.default_value == 300
-
-    def test_retriever_setting_requires_restart(self, nexus_api: NexusApiRegistry) -> None:
-        """GET /settings/retriever.llm_model shows requires_restart=True."""
-        setting = _get_setting(nexus_api, _RETRIEVER_MODEL_KEY)
-        assert setting.requires_restart is True
 
     def test_all_settings_have_requires_restart(self, nexus_api: NexusApiRegistry) -> None:
         """Every setting in the list response includes a requires_restart boolean."""
@@ -348,7 +342,7 @@ class TestSettingsValidation:
 
     def test_oversized_value(self, nexus_api: NexusApiRegistry) -> None:
         """Value exceeding 64KB returns 422."""
-        resp = nexus_api.settings.update(key=_RETRIEVER_MODEL_KEY, body=SettingUpdate(value="x" * 70_000))
+        resp = nexus_api.settings.update(key="telemetry.segment_endpoint", body=SettingUpdate(value="x" * 70_000))
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 

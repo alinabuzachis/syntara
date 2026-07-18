@@ -17,7 +17,14 @@ from nexus.agent_orchestrator.context_manager.retriever_service.config.configura
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RelevancyCheckError
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+from nexus.agent_orchestrator.models.llm_credential_config import LLMCredentialConfig
 from nexus.files.models import FileMetadata
+
+_TEST_CREDENTIAL = LLMCredentialConfig(
+    api_key="test-key",
+    base_url="https://openrouter.ai/api/v1",
+    model="anthropic/claude-sonnet-4",
+)
 
 
 @pytest.mark.integration
@@ -68,7 +75,9 @@ class TestLLMRelevancyCheckerIntegration:
             checker = LLMRelevancyChecker()
             query = "Explain Python programming language features"
 
-            relevancy_score = await checker.check_relevancy(relevant_document, query, config)
+            relevancy_score = await checker.check_relevancy(
+                relevant_document, query, config, llm_credential_config=_TEST_CREDENTIAL
+            )
 
             # Should score highly relevant content with high relevancy
             assert 0.7 <= relevancy_score <= 1.0
@@ -117,7 +126,9 @@ class TestLLMRelevancyCheckerIntegration:
             checker = LLMRelevancyChecker()
             query = "Explain machine learning algorithms"
 
-            relevancy_score = await checker.check_relevancy(irrelevant_document, query, config)
+            relevancy_score = await checker.check_relevancy(
+                irrelevant_document, query, config, llm_credential_config=_TEST_CREDENTIAL
+            )
 
             # Should score irrelevant content with low relevancy
             assert 0.0 <= relevancy_score <= 0.3
@@ -165,7 +176,9 @@ class TestLLMRelevancyCheckerIntegration:
             checker = LLMRelevancyChecker()
             query = "artificial intelligence research papers"
 
-            relevancy_score = await checker.check_relevancy(document, query, config)
+            relevancy_score = await checker.check_relevancy(
+                document, query, config, llm_credential_config=_TEST_CREDENTIAL
+            )
 
             # Should leverage filename context for higher relevancy
             assert relevancy_score >= 0.6
@@ -218,8 +231,12 @@ class TestLLMRelevancyCheckerIntegration:
             checker = LLMRelevancyChecker()
             query = "database performance optimization"
 
-            conservative_score = await checker.check_relevancy(document, query, conservative_config)
-            creative_score = await checker.check_relevancy(document, query, creative_config)
+            conservative_score = await checker.check_relevancy(
+                document, query, conservative_config, llm_credential_config=_TEST_CREDENTIAL
+            )
+            creative_score = await checker.check_relevancy(
+                document, query, creative_config, llm_credential_config=_TEST_CREDENTIAL
+            )
 
             # Both should be valid scores
             assert 0.0 <= conservative_score <= 1.0
@@ -247,10 +264,14 @@ class TestLLMRelevancyCheckerIntegration:
             retrieval_metadata={},
         )
 
-        # Configuration with invalid model
         config_manager = ConfigurationManager()
         invalid_config = config_manager.get_llm_configuration()
-        invalid_config.algorithm_parameters["model"] = "nonexistent/invalid-model"
+
+        invalid_credential = LLMCredentialConfig(
+            api_key="test-key",
+            base_url="https://openrouter.ai/api/v1",
+            model="nonexistent/invalid-model",
+        )
 
         # Mock the get_openrouter_llm to raise an exception
         with patch(
@@ -262,7 +283,7 @@ class TestLLMRelevancyCheckerIntegration:
 
             # Should raise RelevancyCheckError for invalid model (wrapping the ValueError)
             with pytest.raises(RelevancyCheckError):
-                await checker.check_relevancy(document, query, invalid_config)
+                await checker.check_relevancy(document, query, invalid_config, llm_credential_config=invalid_credential)
 
     @pytest.mark.asyncio
     async def test_openrouter_integration(self) -> None:
@@ -304,14 +325,20 @@ class TestLLMRelevancyCheckerIntegration:
             query = "LangChain integration testing"
 
             # Should successfully use OpenRouter LLM
-            relevancy_score = await checker.check_relevancy(document, query, config)
+            relevancy_score = await checker.check_relevancy(
+                document, query, config, llm_credential_config=_TEST_CREDENTIAL
+            )
 
             assert 0.0 <= relevancy_score <= 1.0
             assert isinstance(relevancy_score, float)
             assert relevancy_score == pytest.approx(0.68)
 
-            # Verify that get_openrouter_llm was called (model from config defaults to None)
-            mock_get_llm.assert_called_once_with(model=None, temperature=0.3, api_key=None, base_url=None)
+            mock_get_llm.assert_called_once_with(
+                model=_TEST_CREDENTIAL.model,
+                temperature=0.3,
+                api_key=_TEST_CREDENTIAL.api_key,
+                base_url=_TEST_CREDENTIAL.base_url,
+            )
 
     @pytest.mark.asyncio
     async def test_empty_content_handling(self) -> None:
@@ -351,9 +378,38 @@ class TestLLMRelevancyCheckerIntegration:
             query = "machine learning algorithms"
 
             # Should handle minimal content gracefully
-            relevancy_score = await checker.check_relevancy(minimal_document, query, config)
+            relevancy_score = await checker.check_relevancy(
+                minimal_document, query, config, llm_credential_config=_TEST_CREDENTIAL
+            )
             assert 0.0 <= relevancy_score <= 1.0
             assert relevancy_score == pytest.approx(0.45)
+
+    @pytest.mark.asyncio
+    async def test_missing_credential_config_raises_error(self) -> None:
+        """Test that check_relevancy raises when no LLMCredentialConfig is provided."""
+        file_metadata = FileMetadata(
+            file_id=str(uuid4()),
+            filename="test.txt",
+            size_bytes=256,
+            mime_type="text/plain",
+            file_path="/path/to/test.txt",
+            status="converted",
+        )
+
+        document = RelevantDocument(
+            content="Test content",
+            relevancy_score=1.0,
+            file_metadata=file_metadata,
+            source_type="uploaded_file",
+            retrieval_metadata={},
+        )
+
+        config_manager = ConfigurationManager()
+        config = config_manager.get_llm_configuration()
+
+        checker = LLMRelevancyChecker()
+        with pytest.raises(RelevancyCheckError, match="LLM credential config is required"):
+            await checker.check_relevancy(document, "test query", config)
 
 
 class TestLLMRelevancyCheckerUnit:
