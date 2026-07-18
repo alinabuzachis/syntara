@@ -1,7 +1,7 @@
 # UI Architecture (nexus-ui)
 
-> **Reading time**: ~30 minutes  
-> **Diagrams**: 18 Mermaid diagrams for visual learners  
+> **Reading time**: ~35 minutes  
+> **Diagrams**: 20 Mermaid diagrams for visual learners  
 > **Audience**: New team members joining the Nexus UI project
 
 This document explains **how the Nexus UI is organized**, **how it fetches data from the backend**, and **how backend workflow activities become canvas steps** (implemented as React Flow **nodes**) on the builder.
@@ -25,7 +25,9 @@ This document explains **how the Nexus UI is organized**, **how it fetches data 
 13. [Workflow Builder](#workflow-builder-backend-workflow--ui-graph-react-flow)
 14. [React Flow Integration](#react-flow-integration-nodes-edges-and-layout)
 15. [Where to Look for Common Changes](#where-to-look-for-common-changes)
-16. [Related Docs](#related-docs)
+16. [API Filtering Architecture](#api-filtering-architecture)
+17. [Browser Tab Titles](#browser-tab-titles)
+18. [Related Docs](#related-docs)
 
 ---
 
@@ -59,6 +61,8 @@ Nice to have (but we'll explain the basics):
 | **Step**              | User-facing term for a workflow unit on the canvas. In code, each step is rendered as a React Flow **node**.                |                                                            |
 | **Node**              | React Flow API term for a vertex on the graph (`Node`, `nodes[]`). Prefer **step** in UI copy and user-facing docs.         |                                                            |
 | **Edge**              | React Flow term for a connection line between nodes (between workflow steps on the canvas).                                 |                                                            |
+| **FilterBar**         | PatternFly toolbar that renders attribute search, standalone filters, and removable chips for API list filtering.           | [API Filtering](#api-filtering-architecture)               |
+| **FilterConfig**      | In-memory filter: `{ key, operator?, value }` converted to API/URL query params.                                            | `src/types/filters.ts`                                     |
 
 ---
 
@@ -1121,6 +1125,250 @@ queryClient.invalidateQueries({ queryKey: ['get', '/workflows'] })
 2. `NodeRegistry` auto-discovers it at startup
 3. Add/extend the React Flow node component in `routes/workflows/canvas/nodes/` (maps activities to canvas steps)
 
+### Add filters to a list page
+
+1. Define `FilterFieldDefinition[]` in a colocated `*Filters.ts` / `*FilterDefinitions.ts`
+2. Use `useCursorPagination` for filters + cursor + `queryParams`
+3. Render `FilterBar` (or `NxListPanelToolbar`) with those definitions
+4. Pass `queryParams` into the typed client's `useQuery`
+5. Use `NxEmptyStateFilter` when filters are active and the list is empty
+
+See [API Filtering Architecture](#api-filtering-architecture) and [`docs/user-guides/filtering.md`](./user-guides/filtering.md).
+
+---
+
+## API Filtering Architecture
+
+List pages filter **on the server** via OpenAPI query parameters. Filter state is synced to the URL so filtered views are shareable. Cursor pagination stays in component state (not the URL).
+
+For end-user guidance (how to search, filter types, shareable URLs), see [`docs/user-guides/filtering.md`](./user-guides/filtering.md). For unit-test helpers, see [`docs/TEST_HELPERS_FILTER_TESTING.md`](./TEST_HELPERS_FILTER_TESTING.md).
+
+### Filter flow
+
+```mermaid
+flowchart LR
+  UI["FilterBar / TextFilter"] --> HFC["handleFilterChange"]
+  HFC --> UFS["useFilterState\nsetAllFilters"]
+  UFS --> URL["URL search params\nname[contains]=deploy"]
+  URL --> PARSE["parseFiltersFromUrl"]
+  PARSE --> BUILD["buildFilterParams\n→ queryParams"]
+  BUILD --> API["client.useQuery\nparams.query"]
+```
+
+1. User applies a filter in `FilterBar` (attribute search or standalone control).
+2. The page's `handleFilterChange` (from `useCursorPagination`) resets the cursor and writes filters to the URL.
+3. `useFilterState` re-parses the URL into `FilterConfig[]`.
+4. `buildFilterParams` converts configs into API query keys (`name[contains]=…`, `status=failed`, …).
+5. The typed OpenAPI client fetches with those params.
+
+### FilterBar component
+
+**Location:** `packages/nexus-ui/src/components/filters/FilterBar.tsx`  
+**Barrel:** `packages/nexus-ui/src/components/filters/index.ts`  
+**List layout wrapper:** `NxListPanelToolbar` in `packages/nexus-ui/src/components/panels/list/NxListPanel.tsx`
+
+```typescript
+export type FilterBarProps = {
+  fieldDefinitions: FilterFieldDefinition[]
+  filters: FilterConfig[]
+  onFilterChange: (filters: FilterConfig[]) => void
+  showClearAll?: boolean
+  clearAllFilters?: () => void
+  isCompact?: boolean
+  className?: string
+  toolbarItemsAfterFilters?: ReactNode // refresh, etc. — not keyword search
+  toolbarEnd?: ReactNode // primary actions
+}
+```
+
+**How it renders:**
+
+| Field types                        | UI control                                                      | Apply behavior                                                                                           |
+| ---------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `text`, `select`, `daterange`      | Attribute search (`TextFilter`): field dropdown + value control | TEXT: **Enter** or **Apply filter** button; SELECT: on option select; DATERANGE: start/end → `gte`/`lte` |
+| `boolean`, `multiselect`, `labels` | Standalone controls via `FilterTypeRenderer`                    | Immediate apply                                                                                          |
+
+Active filters appear as removable chips (`ActiveFilterChips`). Clear-all calls `clearAllFilters` when provided, otherwise `onFilterChange([])`.
+
+Related components live under `packages/nexus-ui/src/components/filters/`:
+
+| File                     | Role                               |
+| ------------------------ | ---------------------------------- |
+| `TextFilter.tsx`         | Attribute selector + value control |
+| `FilterTypeRenderer.tsx` | BOOLEAN / MULTISELECT / LABELS     |
+| `BooleanFilter.tsx`      | Toggle                             |
+| `DateRangeFilter.tsx`    | Start/end pickers                  |
+| `MultiSelectFilter.tsx`  | Multi-value → `in`                 |
+| `LabelFilter.tsx`        | Key/value labels                   |
+| `ActiveFilterChips.tsx`  | Chip row                           |
+| `filterBarUtils.ts`      | Add/remove/replace helpers         |
+
+### Types and utilities
+
+**Types** — `packages/nexus-ui/src/types/filters.ts`:
+
+| Symbol                  | Purpose                                                                   |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `FilterOperatorEnum`    | `eq`, `contains`, `starts_with`, `gt`/`gte`/`lt`/`lte`, `in`              |
+| `FilterTypeEnum`        | `text`, `select`, `multiselect`, `date`, `daterange`, `boolean`, `labels` |
+| `FilterConfig`          | `{ key, operator?, value }` — runtime filter                              |
+| `FilterFieldDefinition` | UI field definition (label, type, options, `asyncOptions`, …)             |
+
+**URL / API mapping** (`eq` omits brackets; others use `key[operator]=value`):
+
+| Operator      | Example URL / API param                     |
+| ------------- | ------------------------------------------- |
+| `eq`          | `status=failed`                             |
+| `contains`    | `name[contains]=deploy`                     |
+| `starts_with` | `name[starts_with]=prod`                    |
+| `gte` / `lte` | `created_at[gte]=2024-01-01T00:00:00.000Z`  |
+| `in`          | `status[in]=running,failed`                 |
+| labels        | `labels[env]=prod` (via `buildLabelParams`) |
+
+**Utilities** — `packages/nexus-ui/src/utils/filterUtils.ts`:
+
+- `buildFilterParams(filters)` → API/URL param object
+- `parseFiltersFromUrl(searchParams)` → `FilterConfig[]`
+- Reserved non-filter keys: `sort`, `page`, `perPage`, `cursor`
+
+**State hooks:**
+
+| Hook                        | Role                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| `useFilterState`            | URL ↔ `FilterConfig[]` (`setFilter`, `setAllFilters`, `clearAllFilters`)       |
+| `createFilterChangeHandler` | Reset cursor + write filters (optional `transformFilters`)                     |
+| `useCursorPagination`       | **Preferred for list pages** — filters + cursor + `queryParams` + footer props |
+| `useFilteredQuery`          | Lower-level: builds filter params and calls `client.useQuery` (see below)      |
+
+### List page pattern (preferred)
+
+Use `useCursorPagination` — do not hand-roll cursor + `useFilterState` + `buildFilterParams`. Colocate field definitions in `*Filters.ts` / `*FilterDefinitions.ts`.
+
+```typescript
+// routes/workflows/workflowFilterDefinitions.ts
+export const workflowFilterDefinitions: FilterFieldDefinition[] = [
+  {
+    key: 'name',
+    label: 'Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by name',
+  },
+  {
+    key: 'is_enabled',
+    label: 'State',
+    type: FilterTypeEnum.SELECT,
+    options: [
+      { value: 'true', label: 'Enabled' },
+      { value: 'false', label: 'Disabled' },
+    ],
+  },
+]
+
+// In the page (e.g. Workflows.tsx)
+const transformIsEnabledFilter = (filters: FilterConfig[]) =>
+  filters.map((filter) =>
+    filter.key === 'is_enabled' && typeof filter.value === 'string'
+      ? { ...filter, value: filter.value === 'true' }
+      : filter
+  )
+
+const {
+  cursor,
+  setCursor,
+  filters,
+  hasActiveFilters,
+  queryParams,
+  handleFilterChange,
+  handleClearAllFilters,
+  getFooterProps,
+} = useCursorPagination({
+  transformFilters: transformIsEnabledFilter,
+  extraParams: projectExtraParams,
+})
+
+const query = workflowClient.useQuery('get', '/workflows', {
+  params: { query: queryParams },
+})
+```
+
+Wire `filters` / `handleFilterChange` / `handleClearAllFilters` into `FilterBar` or `NxListPanelToolbar`. Use `NxEmptyStateFilter` when filters are active but the list is empty.
+
+### Keyword search default behavior
+
+There is **no separate free-standing keyword `SearchInput`** on `FilterBar`. “Keyword” in the product is a **TEXT** attribute filter (often labeled `"Keyword"` or `"Name"`) with `contains`:
+
+```typescript
+{
+  key: 'name',
+  label: 'Keyword',
+  type: FilterTypeEnum.TEXT,
+  operators: [FilterOperatorEnum.CONTAINS],
+  defaultOperator: FilterOperatorEnum.CONTAINS,
+  placeholder: 'Filter by keyword',
+}
+```
+
+- TEXT values apply on **Enter** or the **Apply filter** control (or when cleared), not on every keystroke.
+- Default operator for TEXT is `defaultOperator ?? 'contains'`.
+- SELECT / MULTISELECT default to `eq` / `in` respectively unless overridden.
+
+### `useFilteredQuery` (lower-level)
+
+**Location:** `packages/nexus-ui/src/hooks/useFilteredQuery.ts`
+
+Builds `buildFilterParams(filters)` plus sort/limit/cursor/`include_total`, then calls `client.useQuery` and wraps loading/error via `useQueryState`. Useful when you need a filtered query **without** the full list-page pagination orchestration.
+
+```typescript
+const { filters } = useFilterState()
+
+const { data, queryState, refetch } = useFilteredQuery({
+  client: workflowClient,
+  method: 'get',
+  path: '/workflows',
+  filters,
+  limit: 20,
+  includeTotalCount: true,
+  errorOptions: {
+    title: 'Error loading workflows',
+    onRetry: () => detachPromise(refetch()),
+  },
+})
+
+if (queryState) return queryState
+```
+
+For new **list pages**, prefer `useCursorPagination` + `client.useQuery` (coding standards §14). Production list pages use that pattern today.
+
+### Usage examples in the codebase
+
+| Page                                      | Definitions                                             | Notes                                                    |
+| ----------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------- |
+| Workflows                                 | `routes/workflows/workflowFilterDefinitions.ts`         | TEXT name + SELECT state with boolean `transformFilters` |
+| Credentials                               | `routes/configuration/credentials/credentialFilters.ts` | Keyword TEXT → `name[contains]`                          |
+| Executions                                | `routes/executions/executionFilters.ts`                 | Async SELECT for `workflow_id`; status SELECT            |
+| Approvals / Integrations / Users / Groups | `*Filters.ts` under each route                          | Same FilterBar + `useCursorPagination` pattern           |
+| Execution activity (builder)              | `routes/builder/activityFilterDefinitions.ts`           | **Client-side** filters (React state; not URL-synced)    |
+
+### Shareable filtered URLs
+
+Filters are the URL search string. Opening the same path + query restores filters (page 1 — cursor is not in the URL).
+
+Examples:
+
+- `/workflows?name[contains]=deploy&is_enabled=true`
+- `/executions?workflow_id=<uuid>&status=failed`
+- `/credentials?name[contains]=vault`
+
+### Gotchas
+
+1. Boolean SELECT options are **strings** (`'true'` / `'false'`) until `transformFilters` converts them for the API.
+2. Prefer `daterange` in the UI; the `date` enum value has no dedicated control in current FilterBar usage.
+3. Confirm the backend supports the operator you choose (`in`, AND date ranges, etc.) — some endpoints do not.
+4. Put scoped params like `project_id` in `useCursorPagination({ extraParams })`, not as fake filters.
+5. Filter chips / system badges use `NxLabel` (not raw PatternFly `Label`).
+
 ---
 
 ## Browser Tab Titles
@@ -1173,8 +1421,10 @@ Detail pages use the entity name from API data as the first segment, falling bac
 
 ## Related Docs
 
-| Doc                                                             | Content                                                      |
-| --------------------------------------------------------------- | ------------------------------------------------------------ |
-| [`docs/zustand-architecture.md`](./zustand-architecture.md)     | Deep dive into workflow store, actions, and state management |
-| [`docs/websocket-architecture.md`](./websocket-architecture.md) | WebSocket infrastructure, hooks, and real-time patterns      |
-| [`CLAUDE.md`](../CLAUDE.md)                                     | Quick reference for AI assistants and developers             |
+| Doc                                                                       | Content                                                      |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`docs/zustand-architecture.md`](./zustand-architecture.md)               | Deep dive into workflow store, actions, and state management |
+| [`docs/websocket-architecture.md`](./websocket-architecture.md)           | WebSocket infrastructure, hooks, and real-time patterns      |
+| [`docs/user-guides/filtering.md`](./user-guides/filtering.md)             | How to use search and filters in the UI; shareable URLs      |
+| [`docs/TEST_HELPERS_FILTER_TESTING.md`](./TEST_HELPERS_FILTER_TESTING.md) | Unit-test helpers for filter URL assertions                  |
+| [`CLAUDE.md`](../CLAUDE.md)                                               | Quick reference for AI assistants and developers             |

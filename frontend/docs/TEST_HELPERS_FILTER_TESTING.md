@@ -2,6 +2,8 @@
 
 This guide explains how to use the shared filter test helpers to write better tests for server-side filtering across list pages.
 
+For architecture and end-user filter UX, see [API Filtering Architecture](./architecture.md#api-filtering-architecture) and [Using search and filters](./user-guides/filtering.md).
+
 ## Overview
 
 The filter test helpers in `src/test/filter-test-helpers.ts` provide utilities for testing URL parameter updates when filters are applied. They simplify test code and provide clear error messages when assertions fail.

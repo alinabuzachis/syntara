@@ -170,11 +170,12 @@ npm start
 
 For how the UI is structured, see these comprehensive guides:
 
-- [`docs/architecture.md`](docs/architecture.md) - Main architecture guide covering routing, state management, and the workflow builder
+- [`docs/architecture.md`](docs/architecture.md) - Main architecture guide covering routing, state management, the workflow builder, and [API filtering](docs/architecture.md#api-filtering-architecture)
 - [`docs/data-flow.md`](docs/data-flow.md) - Deep dive into OpenAPI contract generation, type-safe API clients, and workflow transformations (nested ↔ flat)
 - [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Workflow store details, state management patterns, and best practices
 - [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - WebSocket infrastructure, multi-channel architecture, and real-time features
 - [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - Execution visualizer WebSocket protocol, endpoints, and data structures
+- [`docs/user-guides/filtering.md`](docs/user-guides/filtering.md) - End-user guide for search, filter types, and shareable filtered URLs
 
 ### Quick Navigation by Task
 
@@ -188,6 +189,7 @@ For how the UI is structured, see these comprehensive guides:
 | **State management**                | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) -- Zustand guide                                                                                                                                                                                                                      |
 | **WebSocket / real-time**           | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) -- multi-channel infrastructure                                                                                                                                                                                                   |
 | **Execution visualization**         | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) -- protocol, endpoints, data specs                                                                                                                                                                                  |
+| **List filters / search**           | [`docs/architecture.md`](docs/architecture.md#api-filtering-architecture) -- FilterBar, `useCursorPagination`, types; [`docs/user-guides/filtering.md`](docs/user-guides/filtering.md) -- UX guide                                                                                                   |
 | **PR sizing / stacking**            | [`.github/pull_request_template.md`](.github/pull_request_template.md) -- PR template and guidelines                                                                                                                                                                                                 |
 | **List page with pagination**       | [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) -- `useCursorPagination` pattern                                                                                                                                                            |
 | **Full list (dropdowns, settings)** | [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) -- section 22: `fetchAllPages` + `useAll*` hooks (not `limit: 100` single queries)                                                                                                          |
@@ -225,6 +227,96 @@ See: [`docs/data-flow.md`](docs/data-flow.md) — "Type-Safe API Clients"
 2. Add navigation item to `packages/nexus-ui/src/app/navigationItems.tsx` with lazy-loaded component
 3. The router auto-discovers it from `navigationItems` — no manual route config needed
 4. In the page component, render `<title>{toPageTitle(['Page Name'])}</title>` as the first child of `<NxPage>`; import `toPageTitle` from `src/utils/toPageTitle`
+
+#### How do I add filters to a list page?
+
+Use **`FilterBar` + `useCursorPagination`** (not a hand-rolled cursor/`useFilterState` stack). Keyword search is a TEXT field with `contains` applied on **Enter** or the **Apply filter** control — there is no separate free-standing search input on `FilterBar`.
+
+1. **Define fields** in a colocated `*Filters.ts` / `*FilterDefinitions.ts` using `FilterFieldDefinition` + `FilterTypeEnum` / `FilterOperatorEnum` from `src/types/filters.ts`.
+2. **Wire pagination + filters** with `useCursorPagination` — it owns URL-synced filters, cursor reset, and `queryParams`.
+3. **Render** `FilterBar` (or `NxListPanelToolbar`) with `fieldDefinitions`, `filters`, `onFilterChange={handleFilterChange}`, and `clearAllFilters={handleClearAllFilters}`.
+4. **Query** with the typed client: `client.useQuery('get', '/resource', { params: { query: queryParams } })`.
+5. **Empty filtered results** → `NxEmptyStateFilter` with clear-all; unfiltered empty → `NxEmptyStateNoData`.
+
+```typescript
+import { FilterBar } from '../../components/filters/FilterBar'
+import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
+import type { FilterFieldDefinition } from '../../types/filters'
+
+const fieldDefinitions: FilterFieldDefinition[] = [
+  {
+    key: 'name',
+    label: 'Keyword',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by keyword',
+  },
+]
+
+function MyListPage() {
+  const {
+    cursor,
+    setCursor,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    getFooterProps,
+  } = useCursorPagination()
+
+  const query = myClient.useQuery('get', '/items', { params: { query: queryParams } })
+  const items = query.data?.resources ?? []
+  useCursorReset(items.length, hasActiveFilters, cursor, query.isFetching, setCursor)
+
+  return (
+    <>
+      <FilterBar
+        fieldDefinitions={fieldDefinitions}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        clearAllFilters={handleClearAllFilters}
+      />
+      {/* table + getFooterProps(query.data) */}
+    </>
+  )
+}
+```
+
+**Best practices for field definitions:**
+
+- Prefer factory helpers (`getXFilterDefinition()`) when options are dynamic or shared.
+- TEXT keyword/name fields: `defaultOperator: FilterOperatorEnum.CONTAINS`; apply on Enter or Apply filter.
+- SELECT boolean-looking options stay as strings (`'true'`/`'false'`) until `transformFilters` converts them for the API.
+- Use `asyncOptions` for server typeahead (for example executions → workflow picker).
+- Put scoped params (`project_id`) in `useCursorPagination({ extraParams })`, not as fake filters.
+- Confirm the backend supports the operator (`in`, date AND ranges, etc.) before exposing the UI control.
+
+**`useFilteredQuery`** (`src/hooks/useFilteredQuery.ts`) builds filter query params and calls `client.useQuery` with `useQueryState`. Use it for filtered fetches **without** full list pagination. For list pages, prefer `useCursorPagination` + `client.useQuery`.
+
+```typescript
+import { useFilteredQuery } from '../../hooks/useFilteredQuery'
+import { useFilterState } from '../../hooks/useFilterState'
+import { detachPromise } from '../../utils/detachPromise'
+
+const { filters } = useFilterState()
+const { data, queryState, refetch } = useFilteredQuery({
+  client: workflowClient,
+  method: 'get',
+  path: '/workflows',
+  filters,
+  limit: 20,
+  includeTotalCount: true,
+  errorOptions: {
+    title: 'Error loading workflows',
+    onRetry: () => detachPromise(refetch()),
+  },
+})
+```
+
+See: [`docs/architecture.md`](docs/architecture.md#api-filtering-architecture) · [`docs/user-guides/filtering.md`](docs/user-guides/filtering.md) · [`docs/TEST_HELPERS_FILTER_TESTING.md`](docs/TEST_HELPERS_FILTER_TESTING.md)
 
 #### What is the default workflow name?
 
