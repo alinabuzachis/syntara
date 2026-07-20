@@ -44,6 +44,7 @@ class FilterOperator(str, Enum):
     """
 
     EQ = "eq"
+    IN = "in"
     CONTAINS = "contains"
     STARTS_WITH = "starts_with"
     GT = "gt"
@@ -91,12 +92,26 @@ def matches_query_param(value: str, field: str, query_params: dict[str, str]) ->
         if not m or m.group(1) != field:
             continue
         op = m.group(2)
+        if op == "in":
+            return value in [v.strip() for v in param_val.split(",")]
         if op == "contains":
             return param_val.lower() in value.lower()
         if op == "startswith":
             return value.lower().startswith(param_val.lower())
         return value == param_val
     return True
+
+
+def _split_values(raw: str, field: str, operator: FilterOperator) -> list[Filter]:
+    """Split a comma-separated parameter value into Filter objects.
+
+    For the IN operator, blank segments are skipped (e.g. ``status[in]=a,,b``
+    produces two filters). For all other operators, empty strings are preserved
+    so that ``?field=`` still filters for the empty value.
+    """
+    if operator == FilterOperator.IN:
+        return [Filter(field=field, operator=operator, value=v) for val in raw.split(",") if (v := val.strip())]
+    return [Filter(field=field, operator=operator, value=val.strip()) for val in raw.split(",")]
 
 
 def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Filter]:
@@ -151,10 +166,7 @@ def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Fil
 
             operator = FilterOperator(operator_str)
 
-            # Handle comma-separated values (OR logic)
-            values = param_str.split(",")
-            for value in values:
-                filters.extend([Filter(field=field_name, operator=operator, value=value.strip())])
+            filters.extend(_split_values(param_str, field_name, operator))
 
         else:
             # Shorthand notation: field=value (implies equality)
@@ -165,10 +177,7 @@ def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Fil
                 msg = f"Invalid field: {field_name}"
                 raise SafeValueError(msg)
 
-            # Handle comma-separated values (OR logic)
-            values = param_str.split(",")
-            for value in values:
-                filters.extend([Filter(field=field_name, operator=FilterOperator.EQ, value=value.strip())])
+            filters.extend(_split_values(param_str, field_name, FilterOperator.EQ))
 
     return filters
 
@@ -389,7 +398,7 @@ def _build_condition(field_attr: Any, operator: FilterOperator, value: FilterVal
     converted_value = _convert_filter_value(value, field_attr)
 
     match operator:
-        case FilterOperator.EQ:
+        case FilterOperator.EQ | FilterOperator.IN:
             return field_attr == converted_value
         case FilterOperator.CONTAINS:
             sanitized_value = _sanitize_like_value(converted_value)

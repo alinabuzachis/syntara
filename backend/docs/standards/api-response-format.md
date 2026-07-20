@@ -2,6 +2,185 @@
 
 This document defines the standard response formats, endpoint conventions, and compliance testing for Nexus REST API endpoints. It covers shared conventions (model naming, URL paths, base models), list endpoint patterns (pagination, filtering, sorting), and CRUD endpoint patterns (status codes, error responses, service layer patterns).
 
+## List Response Shape
+
+All list/collection endpoints return a `ResourcesResponse[T]`:
+
+```json
+{
+  "resources": [ ... ],
+  "next": "eyJpZCI6Ii4uLiIsImNyZWF0ZWRfYXQiOiIuLi4iLCJkaXJlY3Rpb24iOiJuZXh0In0=",
+  "prev": null,
+  "total": 42
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `resources` | `list[T]` | Array of resources (max 100 items) |
+| `next` | `str \| null` | Opaque cursor for the next page |
+| `prev` | `str \| null` | Opaque cursor for the previous page |
+| `total` | `int \| null` | Total count (only present when `include_total=true`) |
+
+The response model is defined generically in `nexus.core.models.pagination`:
+
+```python
+class ResourcesResponse[T](ResourcesResponseBase):
+    resources: list[T]
+    next: str | None
+    prev: str | None
+    total: int | None
+```
+
+## Pagination
+
+### Strategy: Cursor-Based Keyset Pagination
+
+Nexus uses cursor-based pagination, not offset-based. This avoids the consistency problems of offset pagination (duplicates/skips when data changes between requests).
+
+### Query Parameters
+
+Pagination parameters are defined in `BaseListParams`:
+
+```python
+class BaseListParams(SQLModel):
+    limit: int = Field(default=20, gt=0, le=100)
+    cursor: str | None = Field(default=None)
+    sort: str | None = Field(default=None)
+    include_total: bool = Field(default=False)
+```
+
+| Parameter | Default | Constraints | Description |
+|---|---|---|---|
+| `limit` | 20 | 1–100 | Maximum items to return |
+| `cursor` | `null` | Max 1024 bytes | Opaque pagination token |
+| `sort` | `-created_at` | Must be in `__sortable_fields__` | Sort field and direction |
+| `include_total` | `false` | — | Include total count in response |
+
+### Cursor Format
+
+Cursors are opaque Base64-encoded JSON tokens. Clients must not parse or construct them.
+
+**Default sort** (sorting by `created_at`):
+
+```json
+{
+    "id": "uuid-of-boundary-item",
+    "created_at": "2025-01-01T12:00:00.000000",
+    "direction": "next"
+}
+```
+
+**Custom sort** (sorting by a non-default field, e.g., `?sort=name`):
+
+```json
+{
+    "id": "uuid-of-boundary-item",
+    "created_at": "2025-01-01T12:00:00.000000",
+    "direction": "next",
+    "sort_field": "name",
+    "sort_direction": "asc",
+    "sort_value": "my-resource"
+}
+```
+
+The `sort_field`, `sort_direction`, and `sort_value` fields are only present when the client requests a non-default sort. They store the boundary item's sort column value so the next page fetch can use keyset comparison on the custom sort field.
+
+### N+1 Fetch Pattern
+
+The pagination implementation fetches `limit + 1` items to definitively detect whether more pages exist, then trims the response to `limit` items. This avoids an extra count query.
+
+### Stable Ordering
+
+The resource `id` is always appended as a tiebreaker to the sort order. This prevents duplicate or missing items when multiple resources share the same sort value (e.g., identical `created_at` timestamps). Without a deterministic tiebreaker, cursor boundaries between items sharing the same sort value would be ambiguous, causing items to appear on multiple pages or be skipped entirely.
+
+## Constants
+
+Defined in `nexus.core.constants`:
+
+| Constant | Value | Description |
+|---|---|---|
+| `MAX_ITEMS_PER_PAGE` | 100 | Absolute maximum for `limit` |
+| `MAX_CURSOR_SIZE` | 1024 | Maximum cursor token size in bytes |
+
+## Filtering
+
+### Query Parameter Syntax
+
+Two formats are supported:
+
+1. **Shorthand equality:** `?field=value`
+2. **Bracket notation:** `?field[operator]=value`
+
+### Supported Operators
+
+| Operator | Description | Example |
+|---|---|---|
+| `eq` | Exact equality (default) | `?status=ACTIVE` or `?status[eq]=ACTIVE` |
+| `in` | Multi-value equality (OR) | `?status[in]=pending,expired` |
+| `contains` | Substring match (case-insensitive) | `?name[contains]=test` |
+| `starts_with` | Prefix match (case-insensitive) | `?name[starts_with]=prod` |
+| `gt` | Greater than | `?created_at[gt]=2025-01-01` |
+| `gte` | Greater than or equal | `?created_at[gte]=2025-01-01` |
+| `lt` | Less than | `?size[lt]=1000` |
+| `lte` | Less than or equal | `?size[lte]=1000` |
+
+### Label Filters
+
+Labels use bracket notation with the label key:
+
+- `?labels[environment]=production` — filter by label key-value pair
+- `?labels[environment]=` — check label key exists (any value)
+
+### Filterable Fields
+
+Each model declares which fields can be filtered via `__filterable_fields__`:
+
+```python
+class MyModel(BaseResource, table=True):
+    __filterable_fields__: ClassVar[list[str]] = [
+        *BaseResource.__filterable_fields__,
+        "status",
+        "name",
+    ]
+```
+
+Requests filtering on undeclared fields return a `422` error (`SafeValueError`).
+
+### Filter Combination Logic
+
+Filters are combined using AND/OR semantics based on how they are specified:
+
+| Pattern | Logic | Example | Effect |
+|---|---|---|---|
+| Same field, same operator, comma-separated values | **OR** | `?status=active,pending` | `status='active' OR status='pending'` |
+| Same field, different operators | **AND** | `?created_at[gte]=2025-01-01&created_at[lte]=2025-06-01` | Range filter (both conditions must match) |
+| Different fields | **AND** | `?name[contains]=test&status=active` | Both conditions must match |
+| Multiple label filters | **AND** | `?labels[env]=prod&labels[team]=platform` | All label conditions must match |
+
+Comma-separated values on the same parameter create multiple `Filter` objects with the same `(field, operator)` tuple, which are grouped and combined with `or_()`. All other filter groups are combined with `and_()`.
+
+## Sorting
+
+### Query Parameter Syntax
+
+`?sort=field` for ascending, `?sort=-field` for descending.
+
+**Default sort:** `-created_at` (newest first).
+
+### Sortable Fields
+
+Each model declares sortable fields via `__sortable_fields__`:
+
+```python
+class MyModel(BaseResource, table=True):
+    __sortable_fields__: ClassVar[list[str]] = [
+        *BaseResource.__sortable_fields__,
+        "name",
+        "status",
+    ]
+```
+
 ## URL Path Conventions
 
 Router URL prefixes use **snake_case** (underscores), matching the Python module name:

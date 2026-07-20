@@ -261,6 +261,71 @@ async def test_list_policies_filter_by_builtin(
 
 
 # ============================================================================
+# IN Operator on Builtins
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_builtin_policies_with_name_in_operator(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Builtin policies are returned when filtering with name[in].
+
+    Builtins are filtered in-memory via matches_query_param, not SQL.
+    This locks the path so builtins don't silently drop when the [in]
+    operator is used.
+    """
+    await _make_admin(test_db_session, test_user)
+
+    # First, get two known builtin policy names
+    response = await auth_client.get("/api/v1/policies?is_builtin=true&limit=100")
+    assert response.status_code == 200
+    builtins = response.json()["resources"]
+    assert len(builtins) >= 2
+
+    target_names = [builtins[0]["name"], builtins[1]["name"]]
+    in_value = ",".join(target_names)
+
+    # Filter builtins using name[in]
+    response = await auth_client.get(
+        "/api/v1/policies",
+        params={"is_builtin": "true", "name[in]": in_value},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    returned_names = {p["name"] for p in data["resources"]}
+    assert returned_names == set(target_names)
+
+
+@pytest.mark.asyncio
+async def test_list_builtin_policies_with_scope_in_operator(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Builtin policies with scope[in] returns policies matching any listed scope.
+
+    Exercises the in-memory matches_query_param path for the scope field,
+    which is the filter that originally caused builtins to silently drop.
+    """
+    await _make_admin(test_db_session, test_user)
+
+    response = await auth_client.get(
+        "/api/v1/policies",
+        params={"is_builtin": "true", "scope[in]": "any,self", "limit": "100"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    scopes = {p["scope"] for p in data["resources"]}
+    assert scopes <= {"any", "self"}
+    assert len(data["resources"]) >= 2
+
+
+# ============================================================================
 # Not Found
 # ============================================================================
 

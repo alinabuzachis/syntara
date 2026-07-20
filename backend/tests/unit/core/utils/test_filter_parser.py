@@ -16,6 +16,7 @@ from nexus.core.utils.filters import (
     FilterOperator,
     _convert_filter_value,
     _sanitize_like_value,
+    matches_query_param,
     parse_filters,
 )
 
@@ -35,6 +36,7 @@ class TestFilterParser:
         """Test that FilterOperator enum has expected values."""
         # Check all required operators exist
         assert FilterOperator.EQ.value == "eq"
+        assert FilterOperator.IN.value == "in"
         assert FilterOperator.CONTAINS.value == "contains"
         assert FilterOperator.STARTS_WITH.value == "starts_with"
         assert FilterOperator.GT.value == "gt"
@@ -106,6 +108,7 @@ class TestFilterParser:
         """Test parsing filters with all supported operators."""
         params = {
             "name[eq]": "exact",
+            "name[in]": "val1,val2",
             "name[contains]": "substring",
             "name[starts_with]": "prefix",
             "created_at[gt]": "2025-01-01T00:00:00Z",
@@ -118,13 +121,14 @@ class TestFilterParser:
 
         filters = parse_filters(params, allowed_fields)
 
-        # Should have 8 filters total
-        assert len(filters) == 8
+        # 9 params but name[in]=val1,val2 splits into 2 filters → 10 total
+        assert len(filters) == 10
 
         # Check each operator was parsed correctly
         operators_found = {f.operator for f in filters}
         expected_operators = {
             FilterOperator.EQ,
+            FilterOperator.IN,
             FilterOperator.CONTAINS,
             FilterOperator.STARTS_WITH,
             FilterOperator.GT,
@@ -487,6 +491,97 @@ class TestFilterParser:
         assert all(f.field == "status" for f in filters)
         assert all(f.operator == FilterOperator.EQ for f in filters)
         assert {f.value for f in filters} == {"active", "pending", "draft"}
+
+    def test_parse_in_operator_single_value(self) -> None:
+        """Test that ``status[in]=pending`` produces a single IN filter."""
+        params = {"status[in]": "pending"}
+        allowed_fields = ["status"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 1
+        assert filters[0].field == "status"
+        assert filters[0].operator == FilterOperator.IN
+        assert filters[0].value == "pending"
+
+    def test_parse_in_operator_comma_separated(self) -> None:
+        """Test that ``status[in]=pending,expired`` produces multiple IN filters for OR logic."""
+        params = {"status[in]": "pending,expired"}
+        allowed_fields = ["status"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 2
+        assert all(f.field == "status" for f in filters)
+        assert all(f.operator == FilterOperator.IN for f in filters)
+        assert {f.value for f in filters} == {"pending", "expired"}
+
+    def test_parse_in_operator_with_whitespace(self) -> None:
+        """Test that ``status[in]=pending, expired , cancelled`` trims whitespace."""
+        params = {"status[in]": "pending, expired , cancelled"}
+        allowed_fields = ["status"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 3
+        assert {f.value for f in filters} == {"pending", "expired", "cancelled"}
+
+    def test_parse_in_operator_empty_value_skipped(self) -> None:
+        """Test that ``field[in]=`` produces no filters (blank values are skipped)."""
+        params = {"status[in]": ""}
+        allowed_fields = ["status"]
+
+        filters = parse_filters(params, allowed_fields)
+        assert len(filters) == 0
+
+    def test_parse_in_operator_trailing_comma_skips_blank(self) -> None:
+        """Test that ``field[in]=pending,`` skips the trailing blank."""
+        params = {"status[in]": "pending,"}
+        allowed_fields = ["status"]
+
+        filters = parse_filters(params, allowed_fields)
+        assert len(filters) == 1
+        assert filters[0].value == "pending"
+
+    def test_parse_shorthand_empty_value_preserved(self) -> None:
+        """Test that ``field=`` produces a filter for the empty string."""
+        params = {"status": ""}
+        allowed_fields = ["status"]
+
+        filters = parse_filters(params, allowed_fields)
+        assert len(filters) == 1
+        assert filters[0].value == ""
+        assert filters[0].operator == FilterOperator.EQ
+
+    def test_parse_shorthand_trailing_comma_preserves_blank(self) -> None:
+        """Test that ``field=active,`` preserves the trailing blank segment."""
+        params = {"status": "active,"}
+        allowed_fields = ["status"]
+
+        filters = parse_filters(params, allowed_fields)
+        assert len(filters) == 2
+        assert filters[0].value == "active"
+        assert filters[1].value == ""
+
+    def test_parse_in_operator_with_other_filters(self) -> None:
+        """Test ``[in]`` combined with other operators using AND logic between fields."""
+        params = {
+            "status[in]": "pending,expired",
+            "name[contains]": "workflow",
+        }
+        allowed_fields = ["status", "name"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 3
+
+        status_filters = [f for f in filters if f.field == "status"]
+        assert len(status_filters) == 2
+        assert all(f.operator == FilterOperator.IN for f in status_filters)
+
+        name_filters = [f for f in filters if f.field == "name"]
+        assert len(name_filters) == 1
+        assert name_filters[0].operator == FilterOperator.CONTAINS
 
 
 class MockStatus(str, Enum):
@@ -907,7 +1002,51 @@ class TestSensitiveFieldProtection:
         """Every filter operator is rejected for password_hash."""
         from nexus.core.models.user import User
 
-        operators = ["eq", "contains", "starts_with", "gt", "gte", "lt", "lte"]
+        operators = ["eq", "in", "contains", "starts_with", "gt", "gte", "lt", "lte"]
         for op in operators:
             with pytest.raises(SafeValueError, match="Invalid field: password_hash"):
                 parse_filters({f"password_hash[{op}]": "value"}, User.__filterable_fields__)
+
+
+class TestMatchesQueryParam:
+    """Test in-memory query param matching used by builtin policy/role filtering."""
+
+    def test_in_operator_single_match(self) -> None:
+        """Test that [in] matches when value is in the comma-separated list."""
+        assert matches_query_param("global", "scope", {"scope[in]": "global,project"}) is True
+
+    def test_in_operator_second_value_match(self) -> None:
+        """Test that [in] matches the second value in the list."""
+        assert matches_query_param("project", "scope", {"scope[in]": "global,project"}) is True
+
+    def test_in_operator_no_match(self) -> None:
+        """Test that [in] returns False when value is not in the list."""
+        assert matches_query_param("namespace", "scope", {"scope[in]": "global,project"}) is False
+
+    def test_in_operator_single_value(self) -> None:
+        """Test that [in] works with a single value (no commas)."""
+        assert matches_query_param("global", "scope", {"scope[in]": "global"}) is True
+        assert matches_query_param("project", "scope", {"scope[in]": "global"}) is False
+
+    def test_in_operator_whitespace_handling(self) -> None:
+        """Test that [in] strips whitespace from comma-separated values."""
+        assert matches_query_param("project", "scope", {"scope[in]": "global, project"}) is True
+
+    def test_no_constraint_returns_true(self) -> None:
+        """Test that missing param means no constraint (returns True)."""
+        assert matches_query_param("anything", "scope", {}) is True
+
+    def test_exact_match(self) -> None:
+        """Test plain param=value exact matching."""
+        assert matches_query_param("global", "scope", {"scope": "global"}) is True
+        assert matches_query_param("project", "scope", {"scope": "global"}) is False
+
+    def test_contains_operator(self) -> None:
+        """Test [contains] operator."""
+        assert matches_query_param("my-policy", "name", {"name[contains]": "poli"}) is True
+        assert matches_query_param("my-role", "name", {"name[contains]": "poli"}) is False
+
+    def test_startswith_operator(self) -> None:
+        """Test [startswith] operator."""
+        assert matches_query_param("admin-role", "name", {"name[startswith]": "admin"}) is True
+        assert matches_query_param("user-role", "name", {"name[startswith]": "admin"}) is False

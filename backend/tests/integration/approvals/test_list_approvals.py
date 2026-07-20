@@ -320,6 +320,42 @@ class TestListApprovalsContract:
             assert approval["execution_id"] == execution_id
 
     @pytest.mark.asyncio
+    async def test_list_approvals_in_operator_filters_by_status(
+        self,
+        auth_client: AsyncClient,
+        approvals_factory: ApprovalsFactory,
+        executions_factory: ExecutionsFactory,
+    ) -> None:
+        """Test that status[in]=pending,expired returns only matching approvals.
+
+        Covers the primary UI use case for multi-value OR filtering on a
+        story endpoint (approvals) rather than just tools.
+        """
+        executions = await executions_factory.create_executions(count=5)
+        await approvals_factory.create_approvals(
+            count=5,
+            statuses=[
+                ApprovalRequestStatus.PENDING,
+                ApprovalRequestStatus.APPROVED,
+                ApprovalRequestStatus.REJECTED,
+                ApprovalRequestStatus.EXPIRED,
+                ApprovalRequestStatus.CANCELLED,
+            ],
+            execution_id=executions[0].id,
+        )
+
+        response = await auth_client.get(
+            "/api/v1/approvals",
+            params={"status[in]": "pending,expired"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["resources"]) == 2
+        returned_statuses = {a["status"] for a in data["resources"]}
+        assert returned_statuses == {"pending", "expired"}
+
+    @pytest.mark.asyncio
     async def test_list_approvals_invalid_parameters_error_response(
         self,
         auth_client: AsyncClient,

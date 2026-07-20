@@ -1092,6 +1092,73 @@ class TestLogicalORFiltering:
 
 
 @pytest.mark.asyncio
+class TestLogicalINOperator:
+    """Test the ``[in]`` operator for multi-value OR filtering."""
+
+    async def test_in_operator_single_value(self, test_users: list[User], test_db_session: AsyncSession) -> None:
+        """``username[in]=alice`` behaves like a single equality filter."""
+        params = {"username[in]": "alice"}
+        filters = parse_filters(params, ["username"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        assert len(result) == 1
+        assert result[0].username == "alice"
+
+    async def test_in_operator_multiple_values(self, test_users: list[User], test_db_session: AsyncSession) -> None:
+        """``username[in]=alice,charlie,eve`` returns matching users via OR logic."""
+        params = {"username[in]": "alice,charlie,eve"}
+        filters = parse_filters(params, ["username"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        target = {"alice", "charlie", "eve"}
+        expected = [u for u in test_users if u.username in target]
+        assert len(result) == len(expected)
+        assert {u.username for u in result} == {u.username for u in expected}
+
+    async def test_in_operator_combined_with_other_field(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """``username[in]=...`` AND ``is_enabled=true`` applies AND between fields."""
+        params = {
+            "username[in]": "alice,bob,charlie,eve",
+            "is_enabled": "true",
+        }
+        filters = parse_filters(params, ["username", "is_enabled"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        target = {"alice", "bob", "charlie", "eve"}
+        expected = [u for u in test_users if u.username in target and u.is_enabled]
+        assert len(result) == len(expected)
+        assert {u.username for u in result} == {u.username for u in expected}
+
+    async def test_in_operator_with_whitespace(self, test_users: list[User], test_db_session: AsyncSession) -> None:
+        """Whitespace around comma-separated values is trimmed."""
+        params = {"username[in]": " alice , bob "}
+        filters = parse_filters(params, ["username"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        assert {u.username for u in result} == {"alice", "bob"}
+
+    async def test_in_operator_no_match(self, test_users: list[User], test_db_session: AsyncSession) -> None:
+        """``username[in]=nonexistent`` returns empty results."""
+        params = {"username[in]": "nonexistent,also_nonexistent"}
+        filters = parse_filters(params, ["username"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        assert result == []
+
+
+@pytest.mark.asyncio
 class TestLogicalANDFiltering:
     """Test AND semantics when multiple filters target the same field with different operators.
 

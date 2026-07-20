@@ -323,6 +323,46 @@ async def test_list_roles_filter_by_policy_name_contains(
 
 
 # ============================================================================
+# IN Operator on Builtins
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Builtin roles are returned when filtering with name[in].
+
+    Builtins are filtered in-memory via matches_query_param, not SQL.
+    This locks the path so builtins don't silently drop when the [in]
+    operator is used.
+    """
+    await make_admin(test_db_session, test_user)
+
+    # Get known builtin role names
+    response = await auth_client.get("/api/v1/roles?is_builtin=true")
+    assert response.status_code == 200
+    builtins = response.json()["resources"]
+    assert len(builtins) >= 2
+
+    target_names = [builtins[0]["name"], builtins[1]["name"]]
+    in_value = ",".join(target_names)
+
+    # Filter builtins using name[in]
+    response = await auth_client.get(
+        "/api/v1/roles",
+        params={"is_builtin": "true", "name[in]": in_value},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    returned_names = {r["name"] for r in data["resources"]}
+    assert returned_names == set(target_names)
+
+
+# ============================================================================
 # Not Found
 # ============================================================================
 

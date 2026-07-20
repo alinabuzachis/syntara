@@ -215,6 +215,70 @@ class TestFilteringORLogic:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("filtering_test_tools")
+    async def test_in_operator_single_field(
+        self,
+        jwt_client: AsyncClient,
+    ) -> None:
+        """Test filtering with the [in] operator for multi-value OR logic."""
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"status[in]": "available,missing"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "resources" in data
+
+        # All 6 test tools are either available or missing, so all should match
+        assert len(data["resources"]) == 6
+
+        for tool in data["resources"]:
+            assert tool["status"] in ("available", "missing")
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("filtering_test_tools")
+    async def test_in_operator_combined_with_and(
+        self,
+        jwt_client: AsyncClient,
+    ) -> None:
+        """Test [in] operator combined with another filter using AND logic."""
+        response = await jwt_client.get(
+            "/api/v1/tool_manager/tools",
+            params={
+                "status[in]": "available,missing",
+                "enabled[eq]": "true",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "resources" in data
+
+        # 4 enabled tools (Alpha, Gamma, Delta, Foxtrot) - all are available
+        assert len(data["resources"]) == 4
+
+        for tool in data["resources"]:
+            assert tool["enabled"] is True
+            assert tool["status"] in ("available", "missing")
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("filtering_test_tools")
+    async def test_in_operator_single_value(
+        self,
+        jwt_client: AsyncClient,
+    ) -> None:
+        """Test [in] operator with a single value behaves like equality."""
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"status[in]": "missing"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "resources" in data
+
+        # Beta and Echo are the only tools with status=missing
+        assert len(data["resources"]) == 2
+
+        returned_names = {tool["name"] for tool in data["resources"]}
+        assert returned_names == {"Beta Service", "Echo Provider"}
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("filtering_test_tools")
     async def test_multiple_fields_both_with_or_logic(
         self,
         jwt_client: AsyncClient,
