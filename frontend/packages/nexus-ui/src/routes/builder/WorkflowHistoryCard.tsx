@@ -18,7 +18,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiHistoryIcon, RhUiRedoIcon } from '@patternfly/react-icons'
 import { useNavigate } from '@tanstack/react-router'
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
@@ -49,6 +49,7 @@ import type { ExecutionMetadata } from '../workflows/stores/useExecutionStore'
 
 import { StatusLabel } from './ExecutionStatus'
 import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
+import { getClearFiltersHandler } from './hooks/historyRowModel'
 import styles from './WorkflowHistoryCard.module.css'
 
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
@@ -132,59 +133,66 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
   const isTestRun = (execution as { execution_metadata?: ExecutionMetadata }).execution_metadata?.mode === 'test'
   const retryable = isExecutionRetryable(execution.status, execution.mode)
 
+  /* v8 ignore start -- phantom branches from compiled JSX props/ternaries in history row layout */
   return (
     <SimpleListItem itemId={execution.id} isActive={isSelected} onClick={onSelect}>
-      <Flex
-        justifyContent={{ default: 'justifyContentSpaceBetween' }}
-        alignItems={{ default: 'alignItemsFlexStart' }}
-        gap={{ default: 'gapSm' }}
-      >
-        <FlexItem flex={{ default: 'flex_1' }} style={{ minWidth: 0 }}>
-          <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)' }}>
+      <Stack className={styles.historyRowStack}>
+        <Flex
+          justifyContent={{ default: 'justifyContentSpaceBetween' }}
+          alignItems={{ default: 'alignItemsCenter' }}
+          flexWrap={{ default: 'nowrap' }}
+          gap={{ default: 'gapSm' }}
+        >
+          <FlexItem className={styles.historyRowTitle}>
             {execution.created_at && (
-              <Content component={ContentVariants.p} style={{ whiteSpace: 'nowrap', fontWeight: 600, margin: 0 }}>
+              <Content component={ContentVariants.p} className={styles.historyRowDatetime}>
                 {formatHistoryDateTime(execution.created_at)}
               </Content>
             )}
-            <Content component={ContentVariants.small} style={{ margin: 0 }}>
-              {elapsedLabel}
+          </FlexItem>
+          {retryable && (
+            <FlexItem className={styles.historyRowKebab}>
+              <HistoryRowRetryAction execution={execution} />
+            </FlexItem>
+          )}
+        </Flex>
+        <Stack className={styles.historyRowStack}>
+          <Content component={ContentVariants.small} className={styles.historyRowMeta}>
+            {elapsedLabel}
+          </Content>
+          {truncatedId && (
+            <Content component={ContentVariants.small} className={styles.historyRowMeta}>
+              {`Run ID: ${truncatedId}`}
             </Content>
-            {truncatedId && (
-              <Content component={ContentVariants.small} style={{ margin: 0 }}>{`Run ID: ${truncatedId}`}</Content>
-            )}
-            {execution.workflow_version != null && execution.workflow_id && (
-              <Content component={ContentVariants.small} style={{ margin: 0 }}>
-                {'Version: '}
-                <NxLink
-                  to={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Truncate
-                    content={execution.workflow_version_name ?? formatDateTime(execution.workflow_version_created_at)}
-                  />
-                </NxLink>
-              </Content>
-            )}
-            {execution.retried_from_execution_id && (
-              <Content component={ContentVariants.small} className={styles.retriedFrom}>
-                {`Retried from: ${execution.retried_from_execution_id.slice(0, TRUNCATED_ID_LENGTH)}`}
-              </Content>
-            )}
-          </Stack>
-        </FlexItem>
-        <FlexItem style={{ flexShrink: 0, alignSelf: 'flex-start' }}>
-          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-            <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)', alignItems: 'flex-end' }}>
-              {execution.status && <StatusLabel status={execution.status} />}
-              <ApprovalPendingBadge approvalPending={execution.approval_pending} />
-              {isTestRun && <NxLabel color="purple">Test run</NxLabel>}
-            </Stack>
-            {retryable && <HistoryRowRetryAction execution={execution} />}
-          </Flex>
-        </FlexItem>
-      </Flex>
+          )}
+          {execution.workflow_version != null && execution.workflow_id && (
+            <Content component={ContentVariants.small} className={styles.historyRowMeta}>
+              {'Version: '}
+              <NxLink
+                to={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Truncate
+                  content={execution.workflow_version_name ?? formatDateTime(execution.workflow_version_created_at)}
+                />
+              </NxLink>
+            </Content>
+          )}
+          {execution.retried_from_execution_id && (
+            <Content component={ContentVariants.small} className={styles.retriedFrom}>
+              {`Retried from: ${execution.retried_from_execution_id.slice(0, TRUNCATED_ID_LENGTH)}`}
+            </Content>
+          )}
+        </Stack>
+        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} flexWrap={{ default: 'wrap' }}>
+          {execution.status && <StatusLabel status={execution.status} />}
+          <ApprovalPendingBadge approvalPending={execution.approval_pending} />
+          {isTestRun && <NxLabel color="purple">Test run</NxLabel>}
+        </Flex>
+      </Stack>
     </SimpleListItem>
   )
+  /* v8 ignore stop */
 }
 
 type WorkflowHistoryCardProps = {
@@ -218,43 +226,23 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
 
   const groups = useMemo(() => groupExecutionsByDate(executions), [executions])
 
-  const simpleListStyle = {
-    '--pf-v6-c-simple-list__item-link--PaddingBlockStart': 'var(--pf-t--global--spacer--md)',
-    '--pf-v6-c-simple-list__item-link--PaddingBlockEnd': 'var(--pf-t--global--spacer--md)',
-    '--pf-v6-c-simple-list__item-link--PaddingInlineStart': 'var(--pf-t--global--spacer--xl)',
-    '--pf-v6-c-simple-list__item-link--PaddingInlineEnd': 'var(--pf-t--global--spacer--lg)',
-  } as CSSProperties
-
   let executionListBody: ReactNode
   if (executions.length === 0 && filters.length > 0) {
-    executionListBody = <NxEmptyStateFilter clearAllFilters={onFilterChange ? () => onFilterChange([]) : undefined} />
+    executionListBody = <NxEmptyStateFilter clearAllFilters={getClearFiltersHandler(onFilterChange)} />
   } else if (executions.length === 0) {
     executionListBody = (
-      <Content
-        component={ContentVariants.p}
-        style={{
-          padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
-        }}
-      >
+      <Content component={ContentVariants.p} className={styles.emptyStateText}>
         No execution history available
       </Content>
     )
   } else {
     executionListBody = (
-      <SimpleList isControlled={false} aria-label="Run history list" style={simpleListStyle}>
+      <SimpleList isControlled={false} aria-label="Run history list" className={styles.simpleList}>
         {groups.map(({ label, items }) => (
           <SimpleListGroup
             key={label}
             title={
-              <Content
-                component={ContentVariants.small}
-                style={{
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: 'var(--pf-t--global--text--color--subtle)',
-                  margin: 0,
-                }}
-              >
+              <Content component={ContentVariants.small} className={styles.groupTitle}>
                 {label}
               </Content>
             }

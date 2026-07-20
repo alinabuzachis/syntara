@@ -2,3 +2,43 @@
   margin: 0;
   font-style: italic;
 }
+
+.historyRowStack {
+  gap: var(--pf-t--global--spacer--sm);
+}
+
+.historyRowTitle {
+  min-width: 0;
+}
+
+.historyRowDatetime {
+  white-space: nowrap;
+  font-weight: 600;
+  margin: 0;
+}
+
+.historyRowKebab {
+  flex-shrink: 0;
+}
+
+.historyRowMeta {
+  margin: 0;
+}
+
+.simpleList {
+  --pf-v6-c-simple-list__item-link--PaddingBlockStart: var(--pf-t--global--spacer--md);
+  --pf-v6-c-simple-list__item-link--PaddingBlockEnd: var(--pf-t--global--spacer--md);
+  --pf-v6-c-simple-list__item-link--PaddingInlineStart: var(--pf-t--global--spacer--md);
+  --pf-v6-c-simple-list__item-link--PaddingInlineEnd: var(--pf-t--global--spacer--md);
+}
+
+.emptyStateText {
+  padding: var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg);
+}
+
+.groupTitle {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pf-t--global--text--color--subtle);
+  margin: 0;
+}

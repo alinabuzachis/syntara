@@ -6,6 +6,12 @@ import { axe } from 'vitest-axe'
 import { VersionHistoryPanel } from './VersionHistoryPanel'
 import type { VersionStatus } from './VersionStatusBadge'
 
+vi.mock('../../components/table/PaginationFooter', () => ({
+  PaginationFooter: ({ total, perPage }: { total: number; perPage: number }) => (
+    <div data-testid="pagination-footer">{`1 - ${perPage} of ${total}`}</div>
+  ),
+}))
+
 type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionRead']
 
 function createMockVersion(overrides: Record<string, unknown> = {}): WorkflowVersion {
@@ -94,7 +100,7 @@ describe('VersionHistoryPanel', () => {
     render(<VersionHistoryPanel {...defaultProps} />)
 
     expect(screen.queryByText('Draft')).not.toBeInTheDocument()
-    expect(screen.getByText('Prev. published')).toBeInTheDocument()
+    expect(screen.getByText('Previously published')).toBeInTheDocument()
     expect(screen.getByText('Published')).toBeInTheDocument()
   })
 
@@ -234,6 +240,74 @@ describe('VersionHistoryPanel', () => {
     await user.click(screen.getByText('Filter by state'))
     const checkbox = screen.getByRole('checkbox', { name: 'Published' })
     await user.click(checkbox)
+
+    expect(onStatusFilterChange).toHaveBeenCalledWith(['published'])
+  })
+
+  it('shows Previously published as a filter option', async () => {
+    const user = userEvent.setup()
+    render(<VersionHistoryPanel {...defaultProps} />)
+
+    await user.click(screen.getByText('Filter by state'))
+
+    expect(screen.getByRole('checkbox', { name: 'Previously published' })).toBeInTheDocument()
+  })
+
+  it('renders publish name with secondary datetime under the title', () => {
+    const version = createMockVersion({
+      version: 4,
+      name: 'Release 1.0',
+      status: 'published',
+      created_at: '2026-05-19T21:59:00.000Z',
+      created_by_username: 'sarah.chen',
+    })
+    render(<VersionHistoryPanel {...defaultProps} versions={[version]} />)
+
+    expect(screen.getByText('Release 1.0')).toBeInTheDocument()
+    expect(screen.getAllByText(/May 19, 2026/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+    expect(screen.getByText('Published')).toBeInTheDocument()
+  })
+
+  it('renders publish name without secondary datetime when created_at is missing', () => {
+    const version = createMockVersion({
+      version: 4,
+      name: 'Named only',
+      created_at: null,
+      status: 'published',
+    })
+    render(<VersionHistoryPanel {...defaultProps} versions={[version]} />)
+
+    expect(screen.getByText('Named only')).toBeInTheDocument()
+    expect(screen.queryByText(/May /)).not.toBeInTheDocument()
+  })
+
+  it('places username above the status badge in the row', () => {
+    const version = createMockVersion({
+      version: 2,
+      status: 'previously_published',
+      created_by_username: 'marcus.williams',
+    })
+    const { container } = render(<VersionHistoryPanel {...defaultProps} versions={[version]} />)
+
+    expect(screen.getByText('marcus.williams')).toBeInTheDocument()
+    expect(screen.getByText('Previously published')).toBeInTheDocument()
+    const rowText = container.textContent ?? ''
+    expect(rowText.indexOf('marcus.williams')).toBeLessThan(rowText.indexOf('Previously published'))
+  })
+
+  it('filters to published when currently published name is clicked', async () => {
+    const onStatusFilterChange = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <VersionHistoryPanel
+        {...defaultProps}
+        publishedVersionName="Release 1.0"
+        onStatusFilterChange={onStatusFilterChange}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Release 1.0' }))
 
     expect(onStatusFilterChange).toHaveBeenCalledWith(['published'])
   })
@@ -526,6 +600,34 @@ describe('VersionHistoryPanel', () => {
       'aria-disabled',
       'true'
     )
+  })
+
+  describe('pagination', () => {
+    const mockOnPrev = vi.fn()
+    const mockOnNext = vi.fn()
+    const mockOnPerPageChange = vi.fn()
+
+    it('renders pagination footer when paginationFooterProps is provided', () => {
+      const paginationFooterProps = {
+        page: 1,
+        perPage: 20,
+        total: 50,
+        hasNext: true,
+        onPrev: mockOnPrev,
+        onNext: mockOnNext,
+        onPerPageChange: mockOnPerPageChange,
+      }
+
+      render(<VersionHistoryPanel {...defaultProps} paginationFooterProps={paginationFooterProps} />)
+
+      expect(screen.getByTestId('pagination-footer')).toBeInTheDocument()
+      expect(screen.getByText('1 - 20 of 50')).toBeInTheDocument()
+    })
+
+    it('does not render pagination footer when paginationFooterProps is not provided', () => {
+      render(<VersionHistoryPanel {...defaultProps} />)
+      expect(screen.queryByTestId('pagination-footer')).not.toBeInTheDocument()
+    })
   })
 
   it('has no accessibility violations', async () => {

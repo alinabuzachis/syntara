@@ -8,7 +8,13 @@ import type { VersionSidePanelState } from '../hooks/useBuilderVersionPanel'
 import { VersionHistorySidePanel } from './VersionHistorySidePanel'
 
 vi.mock('../VersionHistoryPanel', () => ({
-  VersionHistoryPanel: () => <div data-testid="version-history-panel" />,
+  VersionHistoryPanel: (props: { paginationFooterProps?: { page: number; perPage: number } }) => (
+    <div
+      data-testid="version-history-panel"
+      data-page={props.paginationFooterProps?.page}
+      data-per-page={props.paginationFooterProps?.perPage}
+    />
+  ),
 }))
 
 vi.mock('../PublishWorkflowDialog', () => ({
@@ -29,6 +35,15 @@ function createSidePanelState(overrides: Partial<VersionSidePanelState> = {}): V
     selectedVersion: null,
     statusFilter: [],
     onStatusFilterChange: vi.fn(),
+    paginationFooterProps: {
+      page: 1,
+      perPage: 20,
+      total: null,
+      hasNext: false,
+      onPrev: vi.fn(),
+      onNext: vi.fn(),
+      onPerPageChange: vi.fn(),
+    },
     onClose: vi.fn(),
     onSelectVersion: vi.fn(),
     onRestoreVersion: vi.fn(),
@@ -70,6 +85,25 @@ describe('VersionHistorySidePanel', () => {
     render(<VersionHistorySidePanel sidePanel={createSidePanelState()} isNodeEditorOpen={false} />)
 
     expect(screen.getByTestId('version-history-panel')).toBeInTheDocument()
+  })
+
+  it('forwards paginationFooterProps to VersionHistoryPanel', () => {
+    const sidePanel = createSidePanelState({
+      paginationFooterProps: {
+        page: 2,
+        perPage: 10,
+        total: 25,
+        hasNext: true,
+        onPrev: vi.fn(),
+        onNext: vi.fn(),
+        onPerPageChange: vi.fn(),
+      },
+    })
+    render(<VersionHistorySidePanel sidePanel={sidePanel} isNodeEditorOpen={false} />)
+
+    const panel = screen.getByTestId('version-history-panel')
+    expect(panel).toHaveAttribute('data-page', '2')
+    expect(panel).toHaveAttribute('data-per-page', '10')
   })
 
   it('does not render VersionHistoryPanel when show is false', () => {

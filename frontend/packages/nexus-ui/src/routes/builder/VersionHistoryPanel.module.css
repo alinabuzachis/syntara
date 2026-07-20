@@ -12,8 +12,26 @@
   -webkit-box-orient: vertical;
 }
 
+.secondaryDatetime {
+  margin: 0;
+}
+
 .kebabFlexItem {
   flex-shrink: 0;
+}
+
+.labelsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pf-t--global--spacer--sm);
+  align-items: center;
+}
+
+.paginationFooter {
+  flex: 0 0 auto;
+  width: 100%;
+  border-top: var(--pf-t--global--border--width--divider--default) solid var(--pf-t--global--border--color--default);
+  padding-bottom: var(--pf-t--global--spacer--sm);
 }
 
 .emptyStateText {

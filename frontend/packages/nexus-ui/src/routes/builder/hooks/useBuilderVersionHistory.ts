@@ -86,6 +86,7 @@ export function useBuilderVersionHistory({
     versionsQuery,
     updateVersionMetadata,
     updateMetadataMutation,
+    paginationFooterProps,
   } = useVersionHistory({ workflowId, isNew, onVersionUpdated })
 
   const viewedVersionQuery = workflowClient.useQuery(
@@ -198,5 +199,6 @@ export function useBuilderVersionHistory({
     versionsQuery,
     updateVersionMetadata,
     updateMetadataMutation,
+    paginationFooterProps,
   }
 }

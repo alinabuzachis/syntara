@@ -77,6 +77,7 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
     versionsQuery,
     updateVersionMetadata,
     updateMetadataMutation,
+    paginationFooterProps,
   } = useBuilderVersionHistory({
     workflowId,
     isNew,
@@ -194,6 +195,7 @@ export function useBuilderVersionPanel(params: UseBuilderVersionPanelParams) {
       selectedVersion: viewingVersion,
       statusFilter,
       onStatusFilterChange: setStatusFilter,
+      paginationFooterProps,
       onClose: () => dispatch({ type: 'SET_VERSION_HISTORY_OPEN', payload: false }),
       onSelectVersion: handleSelectVersion,
       onRestoreVersion: (v: number, createdAt: string) => restoreDialog.open({ version: v, dateTime: createdAt }),

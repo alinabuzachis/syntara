@@ -78,11 +78,15 @@ type MockVersionRecord = {
   status: string
   name: string | null
   created_by: string
+  created_by_username: string
   created_at: string
   updated_at: string
   deleted_at: null
   deleted_by: null
 }
+
+const MOCK_VERSION_CREATED_BY = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+const MOCK_VERSION_CREATED_BY_USERNAME = 'demo'
 
 /** Creates a 409 WORKFLOW_VERSION_CONFLICT response for save/publish mock handlers. */
 function workflowVersionConflictResponse(
@@ -129,7 +133,8 @@ function getOrCreateVersionStore(workflowId: string, workflow: WorkflowWithVersi
         change_description: 'Initial version',
         status: 'draft',
         name: null,
-        created_by: 'user-1',
+        created_by: MOCK_VERSION_CREATED_BY,
+        created_by_username: MOCK_VERSION_CREATED_BY_USERNAME,
         created_at: now,
         updated_at: now,
         deleted_at: null,
@@ -937,7 +942,8 @@ export const handlers = [
         change_description: workflow.version?.change_description ?? `Version ${currentVersionNum}`,
         status: 'draft',
         name: null,
-        created_by: workflow.version?.created_by ?? 'user-1',
+        created_by: workflow.version?.created_by ?? MOCK_VERSION_CREATED_BY,
+        created_by_username: MOCK_VERSION_CREATED_BY_USERNAME,
         created_at: workflow.version?.created_at ?? now,
         updated_at: workflow.version?.created_at ?? now,
         deleted_at: null,
@@ -975,7 +981,8 @@ export const handlers = [
       change_description: mutableWorkflow.version.change_description ?? '',
       status: 'draft',
       name: null,
-      created_by: mutableWorkflow.version.created_by ?? 'user-1',
+      created_by: mutableWorkflow.version.created_by ?? MOCK_VERSION_CREATED_BY,
+      created_by_username: MOCK_VERSION_CREATED_BY_USERNAME,
       created_at: now,
       updated_at: now,
       deleted_at: null,
@@ -1172,8 +1179,8 @@ export const handlers = [
     return HttpResponse.json(found)
   }),
 
-  http.get('/api/v1/workflows/:workflowId/versions', (request) => {
-    const workflowId = String(request.params.workflowId)
+  http.get('/api/v1/workflows/:workflowId/versions', ({ request, params }) => {
+    const workflowId = String(params.workflowId)
     const workflow = workflows.find((w) => w.id === workflowId)
     if (!workflow) {
       return HttpResponse.json(
@@ -1182,10 +1189,21 @@ export const handlers = [
       )
     }
 
-    const versions = getOrCreateVersionStore(workflowId, workflow)
-    const sorted = [...versions].sort((a, b) => b.version - a.version)
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
 
-    return HttpResponse.json({ resources: sorted })
+    const versions = getOrCreateVersionStore(workflowId, workflow)
+    const sorted = [...versions]
+      .sort((a, b) => b.version - a.version)
+      .map((version) => ({
+        ...version,
+        created_by_username: version.created_by_username ?? MOCK_VERSION_CREATED_BY_USERNAME,
+      }))
+
+    return HttpResponse.json(paginate(sorted, cursor, limit, includeTotal))
   }),
 
   http.get('/api/v1/workflows/:workflowId/versions/:version', (request) => {
@@ -1249,7 +1267,8 @@ export const handlers = [
       change_description: `Restored from version ${restoredVersionNum}`,
       status: 'draft',
       name: null,
-      created_by: 'user-1',
+      created_by: MOCK_VERSION_CREATED_BY,
+      created_by_username: MOCK_VERSION_CREATED_BY_USERNAME,
       created_at: now,
       updated_at: now,
       deleted_at: null,

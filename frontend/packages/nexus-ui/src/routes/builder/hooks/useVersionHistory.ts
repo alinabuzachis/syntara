@@ -3,10 +3,15 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
 import { workflowClient } from '../../../client'
+import type { PaginationFooterProps } from '../../../components/table/PaginationFooter'
+import { useCursorPagination } from '../../../hooks/useCursorPagination'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { downloadVersionExport } from '../../../utils/downloadWorkflowExport'
+
+import { buildWorkflowVersionsQuery } from './buildWorkflowVersionsQuery'
+import { resolvePublishedVersionName } from './versionHistoryHelpers'
 
 export type VersionStatus = 'draft' | 'published' | 'previously_published'
 
@@ -24,9 +29,32 @@ type UseVersionHistoryParams = {
 }
 
 export function useVersionHistory({ workflowId, isNew, onVersionUpdated }: UseVersionHistoryParams) {
-  const [statusFilter, setStatusFilter] = useState<VersionStatus[]>([])
+  const [statusFilter, setStatusFilterState] = useState<VersionStatus[]>([])
   const queryClient = useQueryClient()
   const { showSuccess, showError } = useAlerts()
+
+  const {
+    cursor: versionsCursor,
+    perPage: versionsPerPage,
+    resetPagination,
+    getFooterProps: getVersionsPaginationFooterProps,
+  } = useCursorPagination({
+    limit: 20,
+    extraParams: { workflow_id: workflowId ?? '' },
+  })
+
+  const setStatusFilter = useCallback(
+    (statuses: VersionStatus[]) => {
+      setStatusFilterState(statuses)
+      resetPagination()
+    },
+    [resetPagination]
+  )
+
+  const versionsQueryParams = useMemo(
+    () => buildWorkflowVersionsQuery(versionsPerPage, versionsCursor),
+    [versionsCursor, versionsPerPage]
+  )
 
   const versionsQuery = workflowClient.useQuery(
     'get',
@@ -34,6 +62,7 @@ export function useVersionHistory({ workflowId, isNew, onVersionUpdated }: UseVe
     {
       params: {
         path: { workflow_id: workflowId ?? '' },
+        query: versionsQueryParams,
       },
     },
     {
@@ -46,18 +75,20 @@ export function useVersionHistory({ workflowId, isNew, onVersionUpdated }: UseVe
   const updateMetadataMutation = workflowClient.useMutation('patch', '/workflows/{workflow_id}/versions/{version}')
 
   const allVersions = versionsQuery.data?.resources
-  const publishedVersionName = useMemo(() => {
-    const pub = allVersions?.find((v) => (v as { status?: string }).status === 'published') as
-      | WorkflowVersion
-      | undefined
-    if (!pub) return null
-    return pub.name ?? `Version ${pub.version}`
-  }, [allVersions])
+  const publishedVersionName = useMemo(
+    () => resolvePublishedVersionName(allVersions as WorkflowVersion[] | undefined),
+    [allVersions]
+  )
   const filteredVersions = useMemo((): WorkflowVersion[] => {
     if (!allVersions) return []
     if (statusFilter.length === 0) return allVersions as WorkflowVersion[]
     return (allVersions as WorkflowVersion[]).filter((v) => statusFilter.includes(v.status as VersionStatus))
   }, [allVersions, statusFilter])
+
+  const paginationFooterProps = useMemo(
+    (): PaginationFooterProps => getVersionsPaginationFooterProps(versionsQuery.data),
+    [getVersionsPaginationFooterProps, versionsQuery.data]
+  )
 
   const exportVersion = useCallback(
     (version: number) => {
@@ -146,5 +177,6 @@ export function useVersionHistory({ workflowId, isNew, onVersionUpdated }: UseVe
     publishVersion,
     updateVersionMetadata,
     updateMetadataMutation,
+    paginationFooterProps,
   }
 }

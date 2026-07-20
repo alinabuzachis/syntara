@@ -42,10 +42,13 @@ import pageMainSlotStyles from '../../components/layout/NxPage.module.css'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxLink } from '../../components/NxLink'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
+import { PaginationFooter } from '../../components/table/PaginationFooter'
 import type { FilterConfig } from '../../types/filters'
 
 import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
-import { isVersionStatus } from './hooks/useVersionHistory'
+import { resolveVersionStatusForBadge, shouldShowSecondaryVersionDatetime } from './hooks/historyRowModel'
+import { closeWhenDropdownCloses, nextOpenKebabVersionId } from './hooks/versionHistoryHelpers'
 import styles from './VersionHistoryPanel.module.css'
 import { VersionStatusBadge, type VersionStatus } from './VersionStatusBadge'
 
@@ -136,9 +139,7 @@ function VersionKebabMenu({
     <Dropdown
       isOpen={isOpen}
       onSelect={onClose}
-      onOpenChange={(open) => {
-        if (!open) onClose()
-      }}
+      onOpenChange={(open) => closeWhenDropdownCloses(open, onClose)}
       toggle={renderToggle}
       popperProps={{ position: 'end' }}
     >
@@ -245,6 +246,9 @@ function VersionRow({
   editTooltip,
   scrollRef,
 }: VersionRowProps) {
+  const badgeStatus = resolveVersionStatusForBadge(version.status)
+  const showSecondaryDatetime = shouldShowSecondaryVersionDatetime(version.name, version.created_at)
+
   return (
     <SimpleListItem itemId={version.id} isActive={isSelected} onClick={onSelect}>
       <span ref={scrollRef} />
@@ -261,41 +265,32 @@ function VersionRow({
                 {version.name || (version.created_at ? formatHistoryDateTime(version.created_at) : '')}
               </Content>
             </Tooltip>
-            {version.name && version.created_at && (
-              <Content component={ContentVariants.small}>{formatHistoryDateTime(version.created_at)}</Content>
-            )}
+            {showSecondaryDatetime && version.created_at ? (
+              <Content component={ContentVariants.small} className={styles.secondaryDatetime}>
+                {formatHistoryDateTime(version.created_at)}
+              </Content>
+            ) : null}
           </FlexItem>
-          <Flex
-            alignItems={{ default: 'alignItemsCenter' }}
-            flexWrap={{ default: 'nowrap' }}
-            gap={{ default: 'gapSm' }}
-          >
-            {version.status && isVersionStatus(version.status) && (
-              <FlexItem className={styles.kebabFlexItem}>
-                <VersionStatusBadge status={version.status} />
-              </FlexItem>
-            )}
-            <FlexItem className={styles.kebabFlexItem} onClick={(e) => e.stopPropagation()}>
-              <VersionKebabMenu
-                version={version}
-                isOpen={isKebabOpen}
-                onToggle={onKebabToggle}
-                onClose={onKebabClose}
-                onRestore={onRestore}
-                onExport={onExport}
-                onOpenInNewWindow={onOpenInNewWindow}
-                onPublish={onPublish}
-                onViewRunHistory={onViewRunHistory}
-                hasRunHistory={hasRunHistory}
-                onEdit={onEdit}
-                onDuplicate={onDuplicate}
-                canEdit={canEdit}
-                editTooltip={editTooltip}
-              />
-            </FlexItem>
-          </Flex>
+          <FlexItem className={styles.kebabFlexItem} onClick={(e) => e.stopPropagation()}>
+            <VersionKebabMenu
+              version={version}
+              isOpen={isKebabOpen}
+              onToggle={onKebabToggle}
+              onClose={onKebabClose}
+              onRestore={onRestore}
+              onExport={onExport}
+              onOpenInNewWindow={onOpenInNewWindow}
+              onPublish={onPublish}
+              onViewRunHistory={onViewRunHistory}
+              hasRunHistory={hasRunHistory}
+              onEdit={onEdit}
+              onDuplicate={onDuplicate}
+              canEdit={canEdit}
+              editTooltip={editTooltip}
+            />
+          </FlexItem>
         </Flex>
-        {version.created_by_username && (
+        {version.created_by_username ? (
           <NxLink
             to={AppRoute.AccessManagement.UserDetail.replace(':userId', version.created_by)}
             className={styles.usernameLink}
@@ -303,7 +298,12 @@ function VersionRow({
           >
             {version.created_by_username}
           </NxLink>
-        )}
+        ) : null}
+        {badgeStatus ? (
+          <div className={styles.labelsRow}>
+            <VersionStatusBadge status={badgeStatus} />
+          </div>
+        ) : null}
       </Stack>
     </SimpleListItem>
   )
@@ -327,11 +327,12 @@ type VersionHistoryPanelProps = Readonly<{
   canEdit?: boolean
   editTooltip?: string
   publishedVersionName?: string | null
+  paginationFooterProps?: PaginationFooterProps
 }>
 
 const STATUS_FILTER_OPTIONS: { label: string; value: string }[] = [
   { label: 'Published', value: 'published' },
-  { label: 'Prev. published', value: 'previously_published' },
+  { label: 'Previously published', value: 'previously_published' },
 ]
 
 export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
@@ -353,6 +354,7 @@ export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
     canEdit = true,
     editTooltip,
     publishedVersionName,
+    paginationFooterProps,
   } = props
 
   const groups = useMemo(() => groupVersionsByDate(versions), [versions])
@@ -403,7 +405,7 @@ export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
                   onDuplicate={() => onDuplicateVersion(version)}
                   isSelected={isActive}
                   isKebabOpen={openKebabVersionId === version.id}
-                  onKebabToggle={() => setOpenKebabVersionId(openKebabVersionId === version.id ? null : version.id)}
+                  onKebabToggle={() => setOpenKebabVersionId(nextOpenKebabVersionId(openKebabVersionId, version.id))}
                   onKebabClose={() => setOpenKebabVersionId(null)}
                   canEdit={canEdit}
                   editTooltip={editTooltip}
@@ -479,6 +481,12 @@ export function VersionHistoryPanel(props: VersionHistoryPanelProps) {
           <StackItem isFilled className={`${pageMainSlotStyles.main} ${styles.scrollableBody}`}>
             {listBody}
           </StackItem>
+
+          {paginationFooterProps && (
+            <StackItem className={styles.paginationFooter}>
+              <PaginationFooter {...paginationFooterProps} />
+            </StackItem>
+          )}
         </Stack>
       </div>
     </NxPanel>

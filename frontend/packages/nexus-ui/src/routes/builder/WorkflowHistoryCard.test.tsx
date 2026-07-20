@@ -71,6 +71,10 @@ vi.mock('../../components/table/PaginationFooter', () => ({
   ),
 }))
 
+vi.mock('../../hooks/useCanI', () => ({
+  useCanI: () => ({ allowed: true, isChecking: false, isError: false }),
+}))
+
 const baseExecution: Execution = {
   id: '12345678-abcd-ef01-2345-678901234567',
   workflow_id: 'wf-1',
@@ -248,6 +252,33 @@ describe('WorkflowHistoryCard', () => {
     })
   })
 
+  it('shows empty filter state when filters are active and there are no executions', () => {
+    const onFilterChange = vi.fn()
+    renderCard(
+      <WorkflowHistoryCard
+        {...defaultProps}
+        executions={[]}
+        filters={[{ key: 'status', operator: 'eq', value: 'failed' }]}
+        onFilterChange={onFilterChange}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /clear all filters/i })).toBeInTheDocument()
+  })
+
+  it('shows empty filter state without a clear action when onFilterChange is omitted', () => {
+    renderCard(
+      <WorkflowHistoryCard
+        {...defaultProps}
+        executions={[]}
+        filters={[{ key: 'status', operator: 'eq', value: 'failed' }]}
+        onFilterChange={undefined}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /clear all filters/i })).not.toBeInTheDocument()
+  })
+
   describe('pagination', () => {
     const mockOnPrev = vi.fn()
     const mockOnNext = vi.fn()
@@ -423,6 +454,16 @@ describe('ExecutionHistoryRow', () => {
     expect(screen.queryByText(/Version:/)).not.toBeInTheDocument()
   })
 
+  it('does not display version when workflow_id is missing', () => {
+    renderRow({ ...baseExecution, workflow_version: 5, workflow_id: undefined as unknown as string })
+    expect(screen.queryByText(/Version:/)).not.toBeInTheDocument()
+  })
+
+  it('does not render run id when execution id is missing', () => {
+    renderRow({ ...baseExecution, id: undefined as unknown as string })
+    expect(screen.queryByText(/Run ID:/)).not.toBeInTheDocument()
+  })
+
   it('renders approval pending badge when approval_pending is true', () => {
     const execution: Execution = { ...baseExecution, approval_pending: true }
     renderRow(execution)
@@ -473,5 +514,39 @@ describe('ExecutionHistoryRow', () => {
     renderRow(execution)
     expect(screen.getByTestId('approval-pending-badge')).toBeInTheDocument()
     expect(screen.getByText('Test run')).toBeInTheDocument()
+  })
+
+  it('anchors the kebab menu with the timestamp for retryable executions', () => {
+    renderRow({ ...baseExecution, status: 'failed' })
+
+    expect(screen.getByRole('button', { name: /Actions for execution/ })).toBeInTheDocument()
+    expect(screen.getByText(/Jan 15, 2024/)).toBeInTheDocument()
+    expect(screen.getByTestId('status-label')).toHaveTextContent('failed')
+  })
+
+  it('does not render the kebab for non-retryable running executions', () => {
+    renderRow({ ...baseExecution, status: 'running' })
+
+    expect(screen.queryByRole('button', { name: /Actions for execution/ })).not.toBeInTheDocument()
+  })
+
+  it('opens the retry dialog from the kebab menu', async () => {
+    const user = userEvent.setup()
+    renderRow({ ...baseExecution, status: 'failed' })
+
+    await user.click(screen.getByRole('button', { name: /Actions for execution/ }))
+    await user.click(screen.getByText('Retry run'))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('renders retried-from metadata when present', () => {
+    renderRow({
+      ...baseExecution,
+      status: 'completed',
+      retried_from_execution_id: 'abcdef12-3456-7890-abcd-ef1234567890',
+    })
+
+    expect(screen.getByText('Retried from: abcdef12')).toBeInTheDocument()
   })
 })

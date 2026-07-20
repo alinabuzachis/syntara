@@ -6,7 +6,7 @@ export type { VersionStatus }
 const statusConfig: Record<VersionStatus, { label: string; color: 'grey' | 'green' | 'teal' }> = {
   draft: { label: 'Draft', color: 'grey' },
   published: { label: 'Published', color: 'green' },
-  previously_published: { label: 'Prev. published', color: 'teal' },
+  previously_published: { label: 'Previously published', color: 'teal' },
 }
 
 export function VersionStatusBadge({ status }: Readonly<{ status: VersionStatus }>) {

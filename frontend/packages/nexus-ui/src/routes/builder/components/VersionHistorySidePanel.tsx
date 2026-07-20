@@ -38,6 +38,7 @@ export function VersionHistorySidePanel({ sidePanel, isNodeEditorOpen, editPermi
             canEdit={editPermission?.canEdit}
             editTooltip={editPermission?.tooltip}
             publishedVersionName={sidePanel.publishedVersionName}
+            paginationFooterProps={sidePanel.paginationFooterProps}
           />
         </FlexItem>
       )}

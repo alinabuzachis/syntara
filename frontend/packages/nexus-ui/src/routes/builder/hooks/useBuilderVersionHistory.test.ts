@@ -32,6 +32,15 @@ vi.mock('./useVersionHistory', () => ({
     publishVersion: vi.fn(),
     restoreMutation: { mutate: mockRestoreMutate, isPending: false },
     versionsQuery: { refetch: mockRefetch },
+    paginationFooterProps: {
+      page: 1,
+      perPage: 20,
+      total: null,
+      hasNext: false,
+      onPrev: vi.fn(),
+      onNext: vi.fn(),
+      onPerPageChange: vi.fn(),
+    },
   }),
 }))
 
@@ -113,6 +122,21 @@ describe('useBuilderVersionHistory', () => {
     })
 
     expect(result.current.filteredVersions).toEqual(mockVersions)
+  })
+
+  it('exposes paginationFooterProps from useVersionHistory', () => {
+    const params = createDefaultParams()
+    const { result } = renderHook(() => useBuilderVersionHistory(params), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    expect(result.current.paginationFooterProps).toEqual(
+      expect.objectContaining({
+        page: 1,
+        perPage: 20,
+        hasNext: false,
+      })
+    )
   })
 
   it('returns isViewingVersion false when viewingVersion is null', () => {

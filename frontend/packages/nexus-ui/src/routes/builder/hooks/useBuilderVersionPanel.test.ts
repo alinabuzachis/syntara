@@ -48,6 +48,15 @@ vi.mock('./useBuilderVersionHistory', () => ({
     versionsQuery: { refetch: mockRefetch },
     updateVersionMetadata: mockUpdateVersionMetadata,
     updateMetadataMutation: { isPending: false },
+    paginationFooterProps: {
+      page: 1,
+      perPage: 20,
+      total: null,
+      hasNext: false,
+      onPrev: vi.fn(),
+      onNext: vi.fn(),
+      onPerPageChange: vi.fn(),
+    },
   }),
 }))
 
@@ -122,6 +131,20 @@ describe('useBuilderVersionPanel', () => {
     const { result } = renderHook(() => useBuilderVersionPanel(createParams()))
 
     expect(result.current.openRestoreDialogForCurrentVersion).toBeUndefined()
+  })
+
+  it('exposes paginationFooterProps on versionSidePanel', () => {
+    const { result } = renderHook(() =>
+      useBuilderVersionPanel(createParams({ isNew: false, workflowId: 'wf-1', versionHistoryOpen: true }))
+    )
+
+    expect(result.current.versionSidePanel.paginationFooterProps).toEqual(
+      expect.objectContaining({
+        page: 1,
+        perPage: 20,
+        hasNext: false,
+      })
+    )
   })
 
   it('versionSidePanel.show is true when conditions are met', () => {

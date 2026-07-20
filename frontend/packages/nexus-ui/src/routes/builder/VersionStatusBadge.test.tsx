@@ -12,7 +12,7 @@ describe('VersionStatusBadge', () => {
 
   it.each<{ status: VersionStatus; label: string }>([
     { status: 'published', label: 'Published' },
-    { status: 'previously_published', label: 'Prev. published' },
+    { status: 'previously_published', label: 'Previously published' },
   ])('renders "$label" for status "$status"', ({ status, label }) => {
     render(<VersionStatusBadge status={status} />)
 
