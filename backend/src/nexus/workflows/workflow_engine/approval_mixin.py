@@ -126,7 +126,7 @@ class WorkflowApprovalMixin:
                 previous_output = None
         return {
             "id": prev_node.id,
-            "name": prev_node.parameters.get("name", prev_node.id),
+            "name": prev_node.name or prev_node.id,
             "type": prev_node.type,
             "output": previous_output,
         }
@@ -154,7 +154,7 @@ class WorkflowApprovalMixin:
             [9] project_id:         str | None      — project ID for the approval request
 
         """
-        name = resolved_parameters.get("name") or f"Approval for {node.id}"
+        name = node.name or f"Approval for {node.id}"
 
         # Build previous step context
         previous_step = self._get_previous_step_context(node.id, graph)
@@ -182,7 +182,7 @@ class WorkflowApprovalMixin:
         first_approved = approved_successors[0]
         next_step_approved = {
             "id": first_approved.id,
-            "name": first_approved.parameters.get("name", first_approved.id),
+            "name": first_approved.name or first_approved.id,
             "type": first_approved.type,
             "parameters": first_approved.parameters,
         }
@@ -193,7 +193,7 @@ class WorkflowApprovalMixin:
             first_rejected = rejected_successors[0]
             next_step_rejected = {
                 "id": first_rejected.id,
-                "name": first_rejected.parameters.get("name", first_rejected.id),
+                "name": first_rejected.name or first_rejected.id,
                 "type": first_rejected.type,
                 "parameters": first_rejected.parameters,
             }

@@ -71,14 +71,15 @@ def _build_approval_graph(*, with_predecessor: bool = True, with_successor: bool
         {
             "id": "approval",
             "type": "approval",
-            "parameters": {"name": "Review Deployment"},
+            "name": "Review Deployment",
+            "parameters": {},
         },
     )
 
     if with_predecessor:
         backend.add_node(
             "scan",
-            {"id": "scan", "type": "script", "parameters": {"name": "Security Scan"}},
+            {"id": "scan", "type": "script", "name": "Security Scan", "parameters": {}},
         )
         backend.add_edge("trigger", "scan", None)
         backend.add_edge("scan", "approval", None)
@@ -88,7 +89,7 @@ def _build_approval_graph(*, with_predecessor: bool = True, with_successor: bool
     if with_successor:
         backend.add_node(
             "deploy",
-            {"id": "deploy", "type": "script", "parameters": {"name": "Deploy to Prod"}},
+            {"id": "deploy", "type": "script", "name": "Deploy to Prod", "parameters": {}},
         )
         backend.add_edge("approval", "deploy", {"from_port": "approved"})
 
@@ -187,7 +188,7 @@ class TestPrepareApprovalArgs:
         resolver.set_namespace("trigger", {"env": "production"})
         wf = _make_workflow(execution_id="exec-456", resolver=resolver)
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review Deployment"})
+        node = ActivityNode("approval", "approval", {}, name="Review Deployment")
 
         # When no approvers configured, the resolution activity is skipped (optimization)
         # and approver IDs are set to None
@@ -210,11 +211,10 @@ class TestPrepareApprovalArgs:
         wf = _make_workflow()
         graph = _build_approval_graph()
         config = {
-            "name": "Security Review",
             "approver_users": ["alice", "bob"],
             "approver_groups": ["security-team", "admins"],
         }
-        node = ActivityNode("approval", "approval", config)
+        node = ActivityNode("approval", "approval", config, name="Security Review")
 
         alice_id = str(uuid4())
         bob_id = str(uuid4())
@@ -241,7 +241,7 @@ class TestPrepareApprovalArgs:
         """next_step_approved built from first graph successor."""
         wf = _make_workflow()
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review"})
+        node = ActivityNode("approval", "approval", {}, name="Review")
 
         mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
@@ -259,7 +259,7 @@ class TestPrepareApprovalArgs:
 
         wf = _make_workflow()
         graph = _build_approval_graph(with_successor=False)
-        node = ActivityNode("approval", "approval", {"name": "Review"})
+        node = ActivityNode("approval", "approval", {}, name="Review")
 
         with pytest.raises(SafeValueError, match="has no approved successor"):
             await wf._prepare_approval_args(node, graph, node.parameters)
@@ -271,7 +271,7 @@ class TestPrepareApprovalArgs:
         resolver.set_namespace("trigger", {"target": "prod", "version": "2.0"})
         wf = _make_workflow(resolver=resolver)
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review"})
+        node = ActivityNode("approval", "approval", {}, name="Review")
 
         mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
@@ -287,7 +287,7 @@ class TestPrepareApprovalArgs:
         """Inputs default to empty dict when trigger namespace is missing."""
         wf = _make_workflow()
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review"})
+        node = ActivityNode("approval", "approval", {}, name="Review")
 
         mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
@@ -301,7 +301,7 @@ class TestPrepareApprovalArgs:
         """timeout_at is ISO string set to now + decision_window when configured."""
         wf = _make_workflow()
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review", "decision_window": 3600})
+        node = ActivityNode("approval", "approval", {"decision_window": 3600}, name="Review")
 
         mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
@@ -318,7 +318,7 @@ class TestPrepareApprovalArgs:
         """timeout_at falls back to the catalog default (86400s) when approver_timeout is absent."""
         wf = _make_workflow()
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review"})
+        node = ActivityNode("approval", "approval", {}, name="Review")
 
         mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
@@ -335,7 +335,7 @@ class TestPrepareApprovalArgs:
         """next_step_rejected is None (port-based routing not yet implemented)."""
         wf = _make_workflow()
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review"})
+        node = ActivityNode("approval", "approval", {}, name="Review")
 
         mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
@@ -350,7 +350,7 @@ class TestPrepareApprovalArgs:
         backend = InMemoryGraphBackend()
         backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
         backend.add_node("my_approval", {"id": "my_approval", "type": "approval", "parameters": {}})
-        backend.add_node("next", {"id": "next", "type": "script", "parameters": {"name": "Next Step"}})
+        backend.add_node("next", {"id": "next", "type": "script", "name": "Next Step", "parameters": {}})
         backend.add_edge("trigger", "my_approval", None)
         backend.add_edge("my_approval", "next", {"from_port": "approved"})
         graph = WorkflowGraph(backend)
@@ -369,7 +369,7 @@ class TestPrepareApprovalArgs:
         wf = _make_workflow()
         graph = _build_approval_graph()
         graph.metadata = {}
-        node = ActivityNode("approval", "approval", {"name": "Review"})
+        node = ActivityNode("approval", "approval", {}, name="Review")
 
         mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
@@ -384,7 +384,7 @@ class TestPrepareApprovalArgs:
         wf = _make_workflow()
         graph = _build_approval_graph()
         graph.metadata = {"name": None}
-        node = ActivityNode("approval", "approval", {"name": "Review"})
+        node = ActivityNode("approval", "approval", {}, name="Review")
 
         mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
@@ -411,7 +411,7 @@ class TestDispatchApprovalNode:
         mock_activity = AsyncMock(return_value={"output": {"id": "apr-1", "decision": "approved"}})
 
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            await wf._dispatch_node_to_executor(node, {"name": "Review Deployment"}, graph, timeout_seconds=300)
+            await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         # With no approvers configured, only approval creation is called (resolution is skipped)
         assert mock_activity.call_count == 1
@@ -423,7 +423,7 @@ class TestDispatchApprovalNode:
         assert len(activity_args) == 10
         assert activity_args[0] == "exec-789"  # execution_id
         assert activity_args[1] == "approval"  # approval_node_id
-        assert activity_args[2] == "Review Deployment"  # name
+        assert activity_args[2] == "Review Deployment"  # name (from node.name)
         assert activity_args[3]["id"] == "deploy"  # next_step_approved
         assert activity_args[4]["workflow_name"] == "Production Pipeline"  # workflow_context
 
@@ -437,7 +437,7 @@ class TestDispatchApprovalNode:
         mock_activity = AsyncMock(return_value={"output": {"decision": "approved", "approval_id": "apr-1"}})
 
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         assert result["control"] == {"next_port": "approved"}
 
@@ -451,7 +451,7 @@ class TestDispatchApprovalNode:
         mock_activity = AsyncMock(return_value={"output": {"decision": "rejected", "approval_id": "apr-1"}})
 
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         assert result["control"] == {"next_port": "rejected"}
 
@@ -465,7 +465,7 @@ class TestDispatchApprovalNode:
         mock_activity = AsyncMock(return_value={"output": {"decision": "cancelled"}})
 
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         assert result["control"] == {"next_port": "rejected"}
 
@@ -480,7 +480,7 @@ class TestDispatchApprovalNode:
         mock_activity = AsyncMock(return_value={"output": {"decision": approval_status, "approval_id": "apr-1"}})
 
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         assert "control" in result
         assert result["control"]["next_port"] == approval_status
@@ -495,7 +495,7 @@ class TestDispatchApprovalNode:
         mock_activity = AsyncMock(return_value={"output": {"decision": "pending", "approval_id": "apr-1"}})
 
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         assert result["control"]["next_port"] == "rejected"
 
@@ -518,7 +518,7 @@ class TestDispatchApprovalNode:
         )
 
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         output = result["output"]
         assert output["status"] == "completed"
@@ -545,7 +545,7 @@ class TestDispatchApprovalNode:
         )
 
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         output = result["output"]
         assert output["status"] == "completed"
@@ -574,7 +574,7 @@ class TestDispatchApprovalNode:
         )
 
         with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         assert len(result["output"]["decision_notes"]) == 2000
 
@@ -597,7 +597,7 @@ class TestDispatchApprovalNode:
         ):
             mock_wf.logger = MagicMock()
             mock_wf.execute_activity = mock_activity
-            await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+            await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
         mock_wf.logger.info.assert_called_once_with(
             "Approval node %s decision: %s by %s",

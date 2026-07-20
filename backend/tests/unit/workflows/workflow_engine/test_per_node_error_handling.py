@@ -378,8 +378,8 @@ class TestContinueOnFailureApproval:
     async def test_reject_fallback_sets_control_data(self) -> None:
         """Explicit fallback_decision='reject' routes to the rejected port."""
         wf = _make_workflow()
-        node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "reject"})
-        wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "reject"}
+        node = ActivityNode("approval_1", "approval", {"fallback_decision": "reject"}, name="Review")
+        wf.node_inputs["approval_1"] = {"fallback_decision": "reject"}
 
         await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
 
@@ -389,8 +389,8 @@ class TestContinueOnFailureApproval:
     async def test_approve_fallback_sets_control_data(self) -> None:
         """Explicit fallback_decision='approve' routes to the approved port."""
         wf = _make_workflow()
-        node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "approve"})
-        wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "approve"}
+        node = ActivityNode("approval_1", "approval", {"fallback_decision": "approve"}, name="Review")
+        wf.node_inputs["approval_1"] = {"fallback_decision": "approve"}
 
         await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
 
@@ -400,8 +400,8 @@ class TestContinueOnFailureApproval:
     async def test_default_fallback_is_reject(self) -> None:
         """When fallback_decision is absent the safe default 'reject' is used."""
         wf = _make_workflow()
-        node = ActivityNode("approval_1", "approval", {"name": "Review"})
-        wf.node_inputs["approval_1"] = {"name": "Review"}
+        node = ActivityNode("approval_1", "approval", {}, name="Review")
+        wf.node_inputs["approval_1"] = {}
 
         await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
 
@@ -411,9 +411,9 @@ class TestContinueOnFailureApproval:
     async def test_uses_resolved_parameters_not_raw_config(self) -> None:
         """fallback_decision is read from node_inputs (resolved), not node.parameters (raw template)."""
         wf = _make_workflow()
-        node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "${vars.decision}"})
+        node = ActivityNode("approval_1", "approval", {"fallback_decision": "${vars.decision}"}, name="Review")
         # Engine stored the resolved value in node_inputs before the activity ran
-        wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "approve"}
+        wf.node_inputs["approval_1"] = {"fallback_decision": "approve"}
 
         await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
 
@@ -423,8 +423,8 @@ class TestContinueOnFailureApproval:
     async def test_invalid_fallback_raises_non_retryable_config_error(self) -> None:
         """An unrecognised fallback_decision value raises ConfigError immediately."""
         wf = _make_workflow()
-        node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "defer"})
-        wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "defer"}
+        node = ActivityNode("approval_1", "approval", {"fallback_decision": "defer"}, name="Review")
+        wf.node_inputs["approval_1"] = {"fallback_decision": "defer"}
 
         with pytest.raises(ApplicationError) as exc_info:
             await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})

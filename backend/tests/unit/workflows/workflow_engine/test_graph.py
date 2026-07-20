@@ -81,6 +81,7 @@ class TestActivityNodeFromDict:
         node = ActivityNode.from_dict({"id": "n1", "type": "script"})
         assert node.id == "n1"
         assert node.type == "script"
+        assert node.name is None
         assert node.parameters == {}
         assert node.outputs is None
 
@@ -89,14 +90,24 @@ class TestActivityNodeFromDict:
             {
                 "id": "n2",
                 "type": "http_request",
+                "name": "Fetch Data",
                 "parameters": {"url": "https://example.com"},
                 "outputs": {"body": "response.body"},
             }
         )
         assert node.id == "n2"
+        assert node.name == "Fetch Data"
         assert node.type == "http_request"
         assert node.parameters == {"url": "https://example.com"}
         assert node.outputs == {"body": "response.body"}
+
+    def test_name_preserved_from_dict(self) -> None:
+        node = ActivityNode.from_dict({"id": "step1", "type": "approval", "name": "Review Deployment"})
+        assert node.name == "Review Deployment"
+
+    def test_name_defaults_to_none(self) -> None:
+        node = ActivityNode.from_dict({"id": "step1", "type": "script"})
+        assert node.name is None
 
     def test_config_defaults_to_empty_dict(self) -> None:
         node = ActivityNode.from_dict({"id": "x", "type": "t"})
@@ -184,6 +195,12 @@ class TestActivityNodeToDict:
         node = ActivityNode.from_dict(original)
         assert node.to_dict() == original
 
+    def test_round_trip_with_name(self) -> None:
+        original = {"id": "n1", "type": "approval", "name": "Review", "parameters": {}}
+        node = ActivityNode.from_dict(original)
+        result = node.to_dict()
+        assert result["name"] == "Review"
+
     def test_round_trip_with_outputs(self) -> None:
         original = {
             "id": "n1",
@@ -194,6 +211,10 @@ class TestActivityNodeToDict:
         node = ActivityNode.from_dict(original)
         result = node.to_dict()
         assert result["outputs"] == {"result": "out"}
+
+    def test_none_name_omitted(self) -> None:
+        node = ActivityNode(node_id="n1", node_type="t", parameters={})
+        assert "name" not in node.to_dict()
 
     def test_none_outputs_omitted(self) -> None:
         node = ActivityNode(node_id="n1", node_type="t", parameters={}, outputs=None)

@@ -42,6 +42,7 @@ class ActivityNode:
     """Domain object representing an activity node in the workflow."""
 
     id: str
+    name: str | None
     type: str
     parameters: dict[str, Any]
     outputs: dict[str, str] | None
@@ -52,6 +53,7 @@ class ActivityNode:
         node_id: str,
         node_type: str,
         parameters: dict[str, Any],
+        name: str | None = None,
         outputs: dict[str, str] | None = None,
         settings: NodeSettingsBase | None = None,
     ) -> None:
@@ -61,11 +63,13 @@ class ActivityNode:
             node_id: Unique node identifier
             node_type: Type of the activity node
             parameters: Node parameters dictionary
+            name: Human-readable display name (optional)
             outputs: Output extraction mapping (optional)
             settings: Node level overrides of general behaviors
 
         """
         self.id = node_id
+        self.name = name
         self.type = node_type
         self.parameters = parameters
         self.outputs = outputs
@@ -79,13 +83,16 @@ class ActivityNode:
             node_id=data["id"],
             node_type=node_type,
             parameters=data.get("parameters", {}),
+            name=data.get("name"),
             outputs=data.get("outputs"),
             settings=_parse_node_settings(node_type, data.get("settings")),
         )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
-        result = {"id": self.id, "type": self.type, "parameters": self.parameters}
+        result: dict[str, Any] = {"id": self.id, "type": self.type, "parameters": self.parameters}
+        if self.name:
+            result["name"] = self.name
         if self.outputs:
             result["outputs"] = self.outputs
         return result
