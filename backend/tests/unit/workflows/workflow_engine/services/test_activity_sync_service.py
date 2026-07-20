@@ -3190,3 +3190,258 @@ class TestUpdateApprovalPendingFlag:
 
         assert result is None
         assert execution.approval_pending is False
+
+
+class TestReconcileStaleExecutions:
+    """Tests for reconcile_stale_executions startup recovery."""
+
+    def _make_service(self) -> tuple[ActivitySyncService, AsyncMock, AsyncMock]:
+        """Create a service with mocked temporal client and session factory."""
+        mock_client = AsyncMock()
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        mock_factory = Mock(return_value=mock_session)
+
+        service = ActivitySyncService(
+            temporal_client=mock_client,
+            session_factory=mock_factory,
+        )
+        return service, mock_session, mock_client
+
+    def _make_stale_execution(self, *, execution_id: UUID | None = None) -> Mock:
+        """Create a mock execution in RUNNING state."""
+        execution = Mock(spec=Execution)
+        execution.id = execution_id or uuid4()
+        execution.temporal_workflow_id = f"workflow-{execution.id}"
+        execution.status = ExecutionStatus.RUNNING
+        execution.created_at = datetime(2026, 1, 1, tzinfo=UTC)
+        execution.activities = []
+        return execution
+
+    @pytest.mark.asyncio
+    async def test_no_stale_executions(self) -> None:
+        """No-op when no RUNNING executions exist."""
+        service, mock_session, _mock_client = self._make_service()
+        mock_result = Mock()
+        mock_result.all.return_value = []
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        await service.reconcile_stale_executions()
+
+    def _make_temporal_handle(
+        self,
+        status_name: str,
+        *,
+        events: list[Mock] | None = None,
+    ) -> AsyncMock:
+        """Create a mock Temporal workflow handle with describe() and fetch_history()."""
+        mock_handle = AsyncMock()
+        mock_description = Mock()
+        mock_description.status = Mock()
+        mock_description.status.name = status_name
+        mock_handle.describe = AsyncMock(return_value=mock_description)
+        if events is not None:
+            mock_history = Mock()
+            mock_history.events = events
+            mock_handle.fetch_history = AsyncMock(return_value=mock_history)
+        return mock_handle
+
+    @pytest.mark.asyncio
+    async def test_completed_workflow_updates_db(self) -> None:
+        """Execution is updated to terminal status when Temporal workflow is done."""
+        service, mock_session, mock_client = self._make_service()
+        execution = self._make_stale_execution()
+
+        mock_result_list = Mock()
+        mock_result_list.all.return_value = [execution]
+        mock_result_single = Mock()
+        mock_result_single.one_or_none.return_value = execution
+        mock_session.exec = AsyncMock(side_effect=[mock_result_list, mock_result_single])
+
+        mock_event = Mock()
+        mock_event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        mock_event.event_time = datetime(2026, 1, 1, 0, 5, tzinfo=UTC)
+        mock_event.workflow_execution_completed_event_attributes = None
+        mock_client.get_workflow_handle = Mock(
+            return_value=self._make_temporal_handle("COMPLETED", events=[mock_event]),
+        )
+
+        with patch.object(service, "_publish_snapshot", new_callable=AsyncMock) as mock_snapshot:
+            await service.reconcile_stale_executions()
+            mock_snapshot.assert_awaited_once()
+
+        assert execution.status == ExecutionStatus.COMPLETED
+        mock_session.commit.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_failed_workflow_updates_db(self) -> None:
+        """Execution is updated to FAILED when Temporal workflow failed."""
+        service, mock_session, mock_client = self._make_service()
+        execution = self._make_stale_execution()
+
+        mock_result_list = Mock()
+        mock_result_list.all.return_value = [execution]
+        mock_result_single = Mock()
+        mock_result_single.one_or_none.return_value = execution
+        mock_session.exec = AsyncMock(side_effect=[mock_result_list, mock_result_single])
+
+        mock_event = Mock()
+        mock_event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED
+        mock_event.event_time = datetime(2026, 1, 1, 0, 5, tzinfo=UTC)
+        mock_event.workflow_execution_failed_event_attributes = Mock()
+        mock_event.workflow_execution_failed_event_attributes.failure = Mock()
+        mock_event.workflow_execution_failed_event_attributes.failure.message = "activity timed out"
+        mock_client.get_workflow_handle = Mock(
+            return_value=self._make_temporal_handle("FAILED", events=[mock_event]),
+        )
+
+        with patch.object(service, "_publish_snapshot", new_callable=AsyncMock):
+            await service.reconcile_stale_executions()
+
+        assert execution.status == ExecutionStatus.FAILED
+        assert execution.error_details == "activity timed out"
+
+    @pytest.mark.asyncio
+    async def test_still_running_in_temporal_is_skipped(self) -> None:
+        """Executions still running in Temporal are skipped to avoid duplicate monitoring."""
+        service, mock_session, mock_client = self._make_service()
+        execution = self._make_stale_execution()
+
+        mock_result = Mock()
+        mock_result.all.return_value = [execution]
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        mock_client.get_workflow_handle = Mock(return_value=self._make_temporal_handle("RUNNING"))
+
+        await service.reconcile_stale_executions()
+
+        mock_session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_temporal_error_continues_to_next(self) -> None:
+        """A Temporal error on one execution doesn't block reconciling others."""
+        from temporalio.exceptions import TemporalError
+
+        service, mock_session, mock_client = self._make_service()
+        exec_bad = self._make_stale_execution()
+        exec_good = self._make_stale_execution()
+
+        mock_result_list = Mock()
+        mock_result_list.all.return_value = [exec_bad, exec_good]
+        mock_result_single = Mock()
+        mock_result_single.one_or_none.return_value = exec_good
+        mock_session.exec = AsyncMock(side_effect=[mock_result_list, mock_result_single])
+
+        mock_handle_bad = AsyncMock()
+        mock_handle_bad.describe = AsyncMock(side_effect=TemporalError("connection lost"))
+
+        mock_event = Mock()
+        mock_event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        mock_event.event_time = datetime(2026, 1, 1, 0, 5, tzinfo=UTC)
+        mock_event.workflow_execution_completed_event_attributes = None
+
+        mock_client.get_workflow_handle = Mock(
+            side_effect=lambda wf_id: mock_handle_bad
+            if wf_id == exec_bad.temporal_workflow_id
+            else self._make_temporal_handle("COMPLETED", events=[mock_event]),
+        )
+
+        with patch.object(service, "_publish_snapshot", new_callable=AsyncMock):
+            await service.reconcile_stale_executions()
+
+        assert exec_good.status == ExecutionStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_missing_close_event_forces_failed(self) -> None:
+        """Execution is forced to FAILED when Temporal says done but has no close event."""
+        service, mock_session, mock_client = self._make_service()
+        execution = self._make_stale_execution()
+
+        mock_result_list = Mock()
+        mock_result_list.all.return_value = [execution]
+        mock_result_single = Mock()
+        mock_result_single.one_or_none.return_value = execution
+        mock_session.exec = AsyncMock(side_effect=[mock_result_list, mock_result_single])
+
+        mock_client.get_workflow_handle = Mock(
+            return_value=self._make_temporal_handle("COMPLETED", events=[]),
+        )
+
+        with patch.object(service, "_publish_snapshot", new_callable=AsyncMock):
+            await service.reconcile_stale_executions()
+
+        assert execution.status == ExecutionStatus.FAILED
+        assert "close event could not be retrieved" in execution.error_details
+        mock_session.commit.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(self) -> None:
+        """A non-Temporal exception on one execution doesn't block others."""
+        service, mock_session, mock_client = self._make_service()
+        exec_bad = self._make_stale_execution()
+        exec_good = self._make_stale_execution()
+
+        mock_result_list = Mock()
+        mock_result_list.all.return_value = [exec_bad, exec_good]
+        mock_result_single = Mock()
+        mock_result_single.one_or_none.return_value = exec_good
+        mock_session.exec = AsyncMock(side_effect=[mock_result_list, mock_result_single])
+
+        mock_handle_bad = AsyncMock()
+        mock_handle_bad.describe = AsyncMock(side_effect=RuntimeError("unexpected"))
+
+        mock_event = Mock()
+        mock_event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        mock_event.event_time = datetime(2026, 1, 1, 0, 5, tzinfo=UTC)
+        mock_event.workflow_execution_completed_event_attributes = None
+
+        mock_client.get_workflow_handle = Mock(
+            side_effect=lambda wf_id: mock_handle_bad
+            if wf_id == exec_bad.temporal_workflow_id
+            else self._make_temporal_handle("COMPLETED", events=[mock_event]),
+        )
+
+        with patch.object(service, "_publish_snapshot", new_callable=AsyncMock):
+            await service.reconcile_stale_executions()
+
+        assert exec_good.status == ExecutionStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_db_query_failure_is_caught(self) -> None:
+        """Exception during initial DB query is caught and logged."""
+        service, mock_session, _mock_client = self._make_service()
+        mock_session.exec = AsyncMock(side_effect=RuntimeError("db connection lost"))
+
+        await service.reconcile_stale_executions()
+
+    @pytest.mark.asyncio
+    async def test_already_reconciled_execution_skipped(self) -> None:
+        """Execution that was already updated by another worker is skipped."""
+        service, mock_session, mock_client = self._make_service()
+        execution = self._make_stale_execution()
+
+        mock_result_list = Mock()
+        mock_result_list.all.return_value = [execution]
+
+        fresh_execution = self._make_stale_execution(execution_id=execution.id)
+        fresh_execution.status = ExecutionStatus.FAILED
+        mock_result_single = Mock()
+        mock_result_single.one_or_none.return_value = fresh_execution
+        mock_session.exec = AsyncMock(side_effect=[mock_result_list, mock_result_single])
+
+        mock_event = Mock()
+        mock_event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        mock_event.event_time = datetime(2026, 1, 1, 0, 5, tzinfo=UTC)
+        mock_event.workflow_execution_completed_event_attributes = None
+        mock_client.get_workflow_handle = Mock(
+            return_value=self._make_temporal_handle("COMPLETED", events=[mock_event]),
+        )
+
+        with patch.object(service, "_publish_snapshot", new_callable=AsyncMock) as mock_snapshot:
+            await service.reconcile_stale_executions()
+            mock_snapshot.assert_not_awaited()
+
+        mock_session.commit.assert_not_awaited()

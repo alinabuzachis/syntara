@@ -11,7 +11,7 @@ from typing import Any
 from temporalio.common import RetryPolicy
 from temporalio.exceptions import ApplicationError
 
-from nexus.workflows.workflow_engine.constants import DEFAULT_ACTIVITY_TIMEOUT_SECONDS
+from nexus.workflows.workflow_engine.constants import DEFAULT_ACTIVITY_TIMEOUT_SECONDS, DEFAULT_MAX_OUTPUT_BYTES
 from nexus.workflows.workflow_engine.graph import ActivityNode
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     NodeSettingsCof,
@@ -29,6 +29,10 @@ _TIMEOUT_CATALOG_KEYS: dict[str, str] = {
     NodeType.AAP_JOB_TEMPLATE: "workflow_engine.aap_timeout_seconds",
     NodeType.AAP_WORKFLOW_JOB_TEMPLATE: "workflow_engine.aap_timeout_seconds",
     NodeType.AGENTIC: "workflow_engine.agentic_timeout_seconds",
+}
+
+_MAX_OUTPUT_CATALOG_KEYS: dict[str, str] = {
+    NodeType.SCRIPT: "workflow_engine.script_max_output_mb",
 }
 
 
@@ -95,6 +99,23 @@ def resolve_timeout(node: ActivityNode, runtime_settings: dict[str, Any]) -> int
     if isinstance(node.settings, NodeSettingsNoRetry) and node.settings.timeout is not None:
         return node.settings.timeout
     return get_default_timeout(node.type, runtime_settings)
+
+
+_BYTES_PER_MB = 1024 * 1024
+
+
+def resolve_max_output_bytes(node: ActivityNode, runtime_settings: dict[str, Any]) -> int:
+    """Return the max output bytes for a node.
+
+    The catalog setting is in MB; this returns bytes.
+    Resolution: catalog global (MB → bytes) → DEFAULT_MAX_OUTPUT_BYTES.
+    """
+    key = _MAX_OUTPUT_CATALOG_KEYS.get(node.type)
+    if key:
+        value = runtime_settings.get(key)
+        if value is not None:
+            return int(value) * _BYTES_PER_MB
+    return DEFAULT_MAX_OUTPUT_BYTES
 
 
 def resolve_continue_on_failure(node: ActivityNode, runtime_settings: dict[str, Any]) -> bool:

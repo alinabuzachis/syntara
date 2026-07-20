@@ -533,3 +533,41 @@ class TestTemporalWorkerServiceLogging:
 
             # Verify error was logged (using exception which includes traceback)
             mock_logger.exception.assert_called_once_with("Failed to start Temporal worker")
+
+
+class TestStartupReconciliation:
+    """Test that reconciliation is called on startup and failures are non-fatal."""
+
+    @pytest.mark.asyncio
+    async def test_reconciliation_failure_does_not_block_startup(self) -> None:
+        """Worker starts successfully even if reconciliation raises."""
+        service = TemporalWorkerService(
+            temporal_address="test-address", namespace="test-namespace", task_queue="test-queue"
+        )
+
+        mock_client = MagicMock()
+        mock_worker = MagicMock()
+
+        async def mock_run() -> None:
+            await asyncio.sleep(0)
+
+        mock_worker.run = mock_run
+
+        mock_sync_service = AsyncMock()
+        mock_sync_service.reconcile_stale_executions = AsyncMock(side_effect=RuntimeError("db down"))
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            patch("nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.ActivitySyncService",
+                return_value=mock_sync_service,
+            ),
+            patch("asyncio.create_task"),
+        ):
+            await service.start()
+
+        assert service.worker == mock_worker

@@ -1,5 +1,6 @@
 """Unit tests for script activity executor (V2 unified bash/python)."""
 
+import asyncio
 import sys
 from collections.abc import Generator
 from typing import ClassVar
@@ -11,7 +12,10 @@ from temporalio.exceptions import ApplicationError
 from nexus.workflows.workflow_engine.activities.script_activity import (
     SAFE_ENV_ALLOWLIST,
     ScriptExecutionError,
+    _communicate_limited,
+    _get_cgroup_memory_limit,
     _prepare_script_env,
+    _prepend_memory_limit,
     _process_script_result,
     _sanitize_env_value,
     execute_script_activity,
@@ -805,22 +809,29 @@ class TestScriptActivityTimeoutAndInputs:
 
     @pytest.mark.asyncio
     async def test_timeout_raises_application_error(self) -> None:
-        """TimeoutError from asyncio.wait_for propagates as ApplicationError."""
+        """TimeoutError from asyncio.wait_for propagates as ApplicationError with specific message."""
+        mock_process = AsyncMock()
+        mock_process.returncode = None
+        mock_process.stdin = None
+        mock_process._transport = None
         with (
             patch(
                 "nexus.workflows.workflow_engine.activities.script_activity.asyncio.create_subprocess_exec",
                 new_callable=AsyncMock,
-            ) as mock_create,
+                return_value=mock_process,
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.script_activity._communicate_limited",
+                new_callable=AsyncMock,
+                side_effect=TimeoutError(),
+            ),
             pytest.raises(ApplicationError) as exc_info,
         ):
-            mock_process = AsyncMock()
-            mock_create.return_value = mock_process
-            mock_process.communicate.side_effect = TimeoutError()
-            mock_process.returncode = None
-            mock_process.stdin = None
-            mock_process._transport = None
-            await execute_script_activity({"language": "bash", "code": "sleep 999", "timeout": 1}, None)
+            await execute_script_activity(
+                {"language": "bash", "code": "sleep 999", "_engine_timeout_seconds": 10}, None
+            )
         assert exc_info.value.non_retryable is True
+        assert "timed out after 10 seconds" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_inputs_with_none_value_skipped(self) -> None:
@@ -957,3 +968,134 @@ print(json.dumps(env_keys))
         env_keys = output["stdout_json"]
         app_keys = [k for k in env_keys if k.startswith("APP_")]
         assert app_keys == [], f"APP_* vars leaked into script: {app_keys}"
+
+
+def _make_stream_reader(data: bytes) -> asyncio.StreamReader:
+    """Create an asyncio.StreamReader pre-loaded with data."""
+    reader = asyncio.StreamReader()
+    reader.feed_data(data)
+    reader.feed_eof()
+    return reader
+
+
+class TestCommunicateLimited:
+    """Test _communicate_limited with concurrent stdout/stderr."""
+
+    @pytest.mark.asyncio
+    async def test_both_under_cap(self) -> None:
+        process = AsyncMock()
+        process.stdout = _make_stream_reader(b"out")
+        process.stderr = _make_stream_reader(b"err")
+        process.wait = AsyncMock()
+        stdout, stderr, st, se = await _communicate_limited(process, 1024)
+        assert stdout == b"out"
+        assert stderr == b"err"
+        assert st is False
+        assert se is False
+
+    @pytest.mark.asyncio
+    async def test_stdout_truncated(self) -> None:
+        process = AsyncMock()
+        process.stdout = _make_stream_reader(b"x" * 200)
+        process.stderr = _make_stream_reader(b"err")
+        process.wait = AsyncMock()
+        stdout, stderr, st, se = await _communicate_limited(process, 50)
+        assert len(stdout) == 50
+        assert st is True
+        assert stderr == b"err"
+        assert se is False
+
+    @pytest.mark.asyncio
+    async def test_raises_when_stdout_is_none(self) -> None:
+        """RuntimeError raised when process.stdout is None."""
+        process = AsyncMock()
+        process.stdout = None
+        process.stderr = AsyncMock()
+        with pytest.raises(RuntimeError, match="without PIPE"):
+            await _communicate_limited(process, 1024)
+
+
+class TestOutputLimitIntegration:
+    """Test that output limiting works end-to-end via execute_script_activity."""
+
+    @pytest.mark.asyncio
+    async def test_truncated_output_includes_notice(self) -> None:
+        """When output exceeds limit, stderr should contain truncation notice."""
+        input_config = {
+            "language": "bash",
+            "code": "for i in $(seq 1 1000); do echo line$i; done",
+            "_engine_max_output_bytes": 100,
+        }
+        result = await execute_script_activity(input_config, None)
+        assert "[Output truncated:" in result["output"]["stderr"]
+
+    @pytest.mark.asyncio
+    async def test_small_output_no_truncation(self) -> None:
+        """Normal output under the limit should not be truncated."""
+        input_config = {
+            "language": "bash",
+            "code": "echo hello",
+            "_engine_max_output_bytes": 10_485_760,
+        }
+        result = await execute_script_activity(input_config, None)
+        assert result["output"]["stdout"].strip() == "hello"
+        assert "[Output truncated:" not in result["output"]["stderr"]
+
+
+class TestCgroupMemoryLimit:
+    """Tests for _get_cgroup_memory_limit."""
+
+    def test_returns_none_when_no_cgroup_files(self) -> None:
+        """Returns None when cgroup files don't exist."""
+        with patch("nexus.workflows.workflow_engine.activities.script_activity.Path") as mock_path:
+            mock_path.return_value.read_text.side_effect = FileNotFoundError
+            result = _get_cgroup_memory_limit()
+        assert result is None
+
+    def test_returns_none_for_max_value(self) -> None:
+        """Returns None when cgroup reports 'max' (no limit)."""
+        with patch("nexus.workflows.workflow_engine.activities.script_activity.Path") as mock_path:
+            mock_path.return_value.read_text.return_value = "max\n"
+            result = _get_cgroup_memory_limit()
+        assert result is None
+
+    def test_returns_integer_limit(self) -> None:
+        """Returns the parsed integer limit."""
+        with patch("nexus.workflows.workflow_engine.activities.script_activity.Path") as mock_path:
+            mock_path.return_value.read_text.return_value = "1073741824\n"
+            result = _get_cgroup_memory_limit()
+        assert result == 1073741824
+
+
+class TestPrependMemoryLimit:
+    """Tests for _prepend_memory_limit."""
+
+    def test_python_preamble(self) -> None:
+        """Python scripts get resource.setrlimit prepended."""
+        result = _prepend_memory_limit("print('hi')", "python", 768_000_000)
+        assert result.startswith("import resource")
+        assert "768000000" in result
+        assert result.endswith("print('hi')")
+
+    def test_bash_preamble(self) -> None:
+        """Bash scripts get ulimit -v prepended."""
+        result = _prepend_memory_limit("echo hi", "bash", 768_000_000)
+        assert "ulimit -v" in result
+        assert result.endswith("echo hi")
+
+
+class TestMemoryLimitIntegration:
+    """Test cgroup memory limit injection in execute_script_activity."""
+
+    @pytest.mark.asyncio
+    async def test_cgroup_limit_injects_preamble(self) -> None:
+        """When cgroup limit exists, script runs with memory limit and still works."""
+        with patch(
+            "nexus.workflows.workflow_engine.activities.script_activity._get_cgroup_memory_limit",
+            return_value=1_073_741_824,
+        ):
+            result = await execute_script_activity(
+                {"language": "bash", "code": "echo wrapped"},
+                None,
+            )
+        assert result["output"]["stdout"].strip() == "wrapped"

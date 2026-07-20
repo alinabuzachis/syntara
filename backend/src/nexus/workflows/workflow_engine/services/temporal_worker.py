@@ -112,6 +112,12 @@ class TemporalWorkerService:
             # Register in global registry for access by internal activities
             set_activity_sync_service(self.activity_sync_service)
 
+            # Reconcile any executions stuck in non-terminal state from a previous worker crash
+            try:
+                await self.activity_sync_service.reconcile_stale_executions()
+            except Exception:
+                logger.exception("Startup reconciliation failed (non-fatal), worker continues")
+
             # Initialize telemetry (reads installation ID from database)
             await initialize_telemetry()
 

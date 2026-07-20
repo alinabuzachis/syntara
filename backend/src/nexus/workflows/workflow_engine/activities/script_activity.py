@@ -10,6 +10,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 from temporalio import activity
@@ -134,6 +135,85 @@ async def _cleanup_process(process: asyncio.subprocess.Process) -> None:
             process._transport.close()  # noqa: SLF001
 
 
+def _get_cgroup_memory_limit() -> int | None:
+    """Read the container's cgroup memory limit, returning None if unavailable."""
+    for cgroup_path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            value = Path(cgroup_path).read_text().strip()
+            if value == "max":
+                return None
+            return int(value)
+        except (ValueError, OSError):
+            continue
+    return None
+
+
+def _prepend_memory_limit(code: str, language: str, max_bytes: int) -> str:
+    """Prepend a memory limit preamble to the script code."""
+    if language == "python":
+        return f"import resource as __r; __r.setrlimit(__r.RLIMIT_AS, ({max_bytes}, {max_bytes}))\n{code}"
+    return f"ulimit -v $(({max_bytes} / 1024))\n{code}"
+
+
+async def _read_stream_limited(
+    stream: asyncio.StreamReader,
+    max_bytes: int,
+) -> tuple[bytes, bool]:
+    """Read from an asyncio stream up to max_bytes, draining any excess.
+
+    After max_bytes have been buffered, continues reading and discarding
+    data so the subprocess pipe doesn't block.
+
+    Returns:
+        Tuple of (buffered_bytes, was_truncated)
+
+    """
+    chunks: list[bytes] = []
+    total_buffered = 0
+    truncated = False
+
+    while True:
+        chunk = await stream.read(65536)
+        if not chunk:
+            break
+        if not truncated:
+            remaining = max_bytes - total_buffered
+            if len(chunk) <= remaining:
+                chunks.append(chunk)
+                total_buffered += len(chunk)
+            else:
+                chunks.append(chunk[:remaining])
+                total_buffered += remaining
+                truncated = True
+        # When truncated, we still read (drain) but discard
+
+    return b"".join(chunks), truncated
+
+
+async def _communicate_limited(
+    process: asyncio.subprocess.Process,
+    max_output_bytes: int,
+) -> tuple[bytes, bytes, bool, bool]:
+    """Read stdout/stderr concurrently with size limits, then wait for exit.
+
+    Reads both streams in parallel to avoid deadlock when both pipe buffers
+    fill up. Each stream is independently capped at max_output_bytes.
+
+    Returns:
+        Tuple of (stdout_bytes, stderr_bytes, stdout_truncated, stderr_truncated)
+
+    """
+    if process.stdout is None or process.stderr is None:
+        msg = "subprocess created without PIPE for stdout/stderr"
+        raise RuntimeError(msg)
+    (stdout_bytes, stdout_truncated), (stderr_bytes, stderr_truncated) = await asyncio.gather(
+        _read_stream_limited(process.stdout, max_output_bytes),
+        _read_stream_limited(process.stderr, max_output_bytes),
+    )
+    await process.wait()
+    return stdout_bytes, stderr_bytes, stdout_truncated, stderr_truncated
+
+
 def _sanitize_env_value(value: object) -> str:
     """Sanitize value for use in environment variable.
 
@@ -229,6 +309,7 @@ async def _execute_script_common(
     command: list[str],
     environment: dict[str, str] | None = None,
     timeout_seconds: float | None = None,
+    max_output_bytes: int = constants.DEFAULT_MAX_OUTPUT_BYTES,
 ) -> dict[str, Any]:
     """Execute a script with common subprocess handling logic (DRY).
 
@@ -236,6 +317,7 @@ async def _execute_script_common(
         command: Command to execute (e.g., ["bash", "-c", script] or ["python", "-c", script])
         environment: Optional environment variables from parameters.environment
         timeout_seconds: Optional timeout in seconds (uses default if not provided)
+        max_output_bytes: Max bytes to capture per stream (stdout/stderr independently)
 
     Returns:
         dict with keys:
@@ -261,12 +343,21 @@ async def _execute_script_common(
             env=env,
         )
 
-        # Wait for completion with timeout and process result
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            process.communicate(),
+        # Read stdout/stderr with size limits to prevent worker OOM,
+        # then wait for process exit — all within the timeout window.
+        stdout_bytes, stderr_bytes, stdout_truncated, stderr_truncated = await asyncio.wait_for(
+            _communicate_limited(process, max_output_bytes),
             timeout=timeout_seconds,
         )
-        return _process_script_result(process.returncode, stdout_bytes, stderr_bytes)
+        result = _process_script_result(process.returncode, stdout_bytes, stderr_bytes)
+        if stdout_truncated or stderr_truncated:
+            truncation_notice = (
+                f"\n[Output truncated: exceeded {max_output_bytes} byte limit"
+                f" (stdout: {'truncated' if stdout_truncated else 'complete'}"
+                f", stderr: {'truncated' if stderr_truncated else 'complete'})]"
+            )
+            result["stderr"] = result["stderr"] + truncation_notice
+        return result
 
     except (ScriptExecutionError, RuntimeError, SafeValueError):
         # Re-raise these errors as-is
@@ -346,12 +437,20 @@ async def execute_script_activity(
         environment = dict(config.environment)
 
         timeout = int(input_config.get(constants.ENGINE_TIMEOUT_SECONDS_KEY, 300))
+        max_output_bytes = int(
+            input_config.get(constants.ENGINE_MAX_OUTPUT_BYTES_KEY, constants.DEFAULT_MAX_OUTPUT_BYTES)
+        )
+
+        # Inject subprocess memory limit from the container's cgroup limit
+        cgroup_limit = _get_cgroup_memory_limit()
+        if cgroup_limit:
+            code = _prepend_memory_limit(code, language, int(cgroup_limit * 0.75))
 
         # Build command based on language
         command = ["bash", "-c", code] if language == "bash" else [sys.executable, "-c", code]
 
         # Execute script
-        result = await _execute_script_common(command, environment, timeout)
+        result = await _execute_script_common(command, environment, timeout, max_output_bytes)
 
         # For Python scripts, try to parse stdout as JSON
         if language == "python" and result["stdout"].strip():
@@ -380,6 +479,12 @@ async def execute_script_activity(
         output = ScriptOutput(return_code=e.exit_code, stdout=e.stdout, stderr=e.stderr)
         raise ApplicationError(
             str(e), {"output": output.dump(output_config)}, type="ScriptExecutionError", non_retryable=True
+        ) from None
+    except TimeoutError:
+        output = ScriptOutput()
+        msg = f"Script execution timed out after {timeout} seconds"
+        raise ApplicationError(
+            msg, {"output": output.dump(output_config)}, type="TimeoutError", non_retryable=True
         ) from None
     except Exception as e:  # noqa: BLE001
         output = ScriptOutput()

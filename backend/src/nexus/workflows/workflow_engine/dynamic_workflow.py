@@ -18,11 +18,16 @@ with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
     from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait
-    from nexus.workflows.workflow_engine.constants import DEFAULT_ACTIVITY_TIMEOUT_SECONDS, ENGINE_TIMEOUT_SECONDS_KEY
+    from nexus.workflows.workflow_engine.constants import (
+        DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
+        ENGINE_MAX_OUTPUT_BYTES_KEY,
+        ENGINE_TIMEOUT_SECONDS_KEY,
+    )
     from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
     from nexus.workflows.workflow_engine.node_settings_resolver import (
         resolve_continue_on_failure,
         resolve_max_iterations,
+        resolve_max_output_bytes,
         resolve_retry_policy,
         resolve_timeout,
     )
@@ -1327,6 +1332,10 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
             # Inject the operational timeout BEFORE adding the Temporal margin so
             # activities use the operator-configured deadline, not the Temporal ceiling.
             parameters_with_timeout = {**resolved_parameters, ENGINE_TIMEOUT_SECONDS_KEY: timeout_seconds}
+            if node_type == NodeType.SCRIPT:
+                parameters_with_timeout[ENGINE_MAX_OUTPUT_BYTES_KEY] = resolve_max_output_bytes(
+                    node, self._runtime_settings
+                )
             temporal_timeout = (
                 timeout_seconds + self._TEMPORAL_MARGIN
                 if node_type in self._EXECUTOR_TIMEOUT_MARGIN_TYPES

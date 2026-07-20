@@ -32,3 +32,5 @@ DEFAULT_ACTIVITY_TIMEOUT_SECONDS = 30
 # can use the already-resolved timeout without re-querying the catalog.
 # Must be popped by agentic_activity before forwarding config to the orchestrator.
 ENGINE_TIMEOUT_SECONDS_KEY = "_engine_timeout_seconds"
+ENGINE_MAX_OUTPUT_BYTES_KEY = "_engine_max_output_bytes"
+DEFAULT_MAX_OUTPUT_BYTES = 10_485_760

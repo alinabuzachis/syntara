@@ -1,8 +1,9 @@
 """Tests for node_settings_resolver pure functions."""
 
 from nexus.settings.catalog import SETTINGS_CATALOG
+from nexus.workflows.workflow_engine.constants import DEFAULT_MAX_OUTPUT_BYTES
 from nexus.workflows.workflow_engine.graph import ActivityNode
-from nexus.workflows.workflow_engine.node_settings_resolver import resolve_retry_policy
+from nexus.workflows.workflow_engine.node_settings_resolver import resolve_max_output_bytes, resolve_retry_policy
 
 
 def _catalog_defaults() -> dict[str, object]:
@@ -28,3 +29,24 @@ def test_resolve_retry_policy_inline_fallbacks_match_catalog_defaults() -> None:
         "Update the hardcoded fallback values in node_settings_resolver.py to match "
         "the default_value entries in settings/catalog.py."
     )
+
+
+def test_resolve_max_output_bytes_from_catalog() -> None:
+    """Catalog value (MB) is converted to bytes."""
+    node = ActivityNode(node_id="n", node_type="script", parameters={})
+    result = resolve_max_output_bytes(node, {"workflow_engine.script_max_output_mb": 5})
+    assert result == 5 * 1024 * 1024
+
+
+def test_resolve_max_output_bytes_fallback() -> None:
+    """Default is used when no catalog value is present."""
+    node = ActivityNode(node_id="n", node_type="script", parameters={})
+    result = resolve_max_output_bytes(node, {})
+    assert result == DEFAULT_MAX_OUTPUT_BYTES
+
+
+def test_resolve_max_output_bytes_non_script_node() -> None:
+    """Non-script nodes fall back to default (no catalog key mapped)."""
+    node = ActivityNode(node_id="n", node_type="http_request", parameters={})
+    result = resolve_max_output_bytes(node, {"workflow_engine.script_max_output_mb": 5})
+    assert result == DEFAULT_MAX_OUTPUT_BYTES

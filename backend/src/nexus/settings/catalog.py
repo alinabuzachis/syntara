@@ -682,6 +682,22 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         validation_schema={"min": 1},
     ),
     SettingDefinition(
+        key="workflow_engine.script_max_output_mb",
+        name="Script max output (MB)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=10,
+        description=(
+            "Maximum megabytes of stdout or stderr captured from a script activity. "
+            "This limit applies independently to each stream. Output beyond this "
+            "limit is discarded to prevent worker memory exhaustion. The script "
+            "continues running until it exits or the timeout fires."
+        ),
+        helper_text="Minimum 1 MB. Default: 10 MB.",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
         key="workflow_engine.agentic_timeout_seconds",
         name="Agentic timeout (seconds)",
         category=SettingCategory.WORKFLOW_EXECUTION,

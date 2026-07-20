@@ -19,7 +19,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from temporalio.api.enums.v1 import EventType, PendingActivityState
 from temporalio.api.history.v1 import HistoryEvent
-from temporalio.client import Client, WorkflowHandle
+from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilterType
 from temporalio.exceptions import TemporalError
 
 from nexus.audit.context_managers import actor_context
@@ -364,6 +364,118 @@ class ActivitySyncService:
 
         self._sync_tasks.clear()
         logger.info("Activity sync service shutdown complete")
+
+    _TEMPORAL_TERMINAL_STATUSES: frozenset[str] = frozenset(
+        {
+            "COMPLETED",
+            "FAILED",
+            "CANCELED",
+            "CANCELLED",
+            "TIMED_OUT",
+            "TERMINATED",
+        }
+    )
+
+    async def reconcile_stale_executions(self) -> None:
+        """Reconcile executions stuck in RUNNING status after a worker restart.
+
+        Queries the database for executions in RUNNING status, checks each
+        one's Temporal workflow status, and updates the DB for any that have
+        already completed in Temporal. Executions still running in Temporal
+        are skipped to avoid duplicate monitoring across workers.
+        """
+        try:
+            async with self.session_factory() as session:
+                query = (
+                    select(Execution)
+                    .where(Execution.status == ExecutionStatus.RUNNING)
+                    .options(selectinload(Execution.activities))  # type: ignore[arg-type]
+                )
+                result = await session.exec(query)
+                stale_executions = result.all()
+
+            if not stale_executions:
+                logger.info("No stale executions found during startup reconciliation")
+                return
+
+            logger.info("Found executions to reconcile", count=len(stale_executions))
+
+            reconciled = 0
+
+            for execution in stale_executions:
+                try:
+                    outcome = await self._reconcile_single_execution(execution)
+                    if outcome == "reconciled":
+                        reconciled += 1
+                except TemporalError:
+                    logger.warning(
+                        "Temporal error during reconciliation, skipping",
+                        execution_id=execution.id,
+                        exc_info=True,
+                    )
+                except Exception:
+                    logger.exception("Error reconciling execution, skipping", execution_id=execution.id)
+
+            logger.info(
+                "Startup reconciliation complete",
+                reconciled_to_terminal=reconciled,
+                total_checked=len(stale_executions),
+            )
+
+        except Exception:
+            logger.exception("Failed to query stale executions during reconciliation")
+
+    async def _reconcile_single_execution(
+        self,
+        execution: Execution,
+    ) -> Literal["reconciled", "skipped"]:
+        """Reconcile a single stale execution against Temporal."""
+        handle = self.temporal_client.get_workflow_handle(execution.temporal_workflow_id)
+        description = await handle.describe()
+        status_name = description.status.name.upper() if description.status else "UNKNOWN"
+
+        if status_name not in self._TEMPORAL_TERMINAL_STATUSES:
+            return "skipped"
+
+        # Workflow completed in Temporal — fetch the close event and update DB
+        history = await handle.fetch_history(
+            event_filter_type=WorkflowHistoryEventFilterType.CLOSE_EVENT,
+        )
+        close_event = next(iter(history.events), None)
+        if close_event:
+            status, completed_at, error_details = self._extract_execution_status_from_event(close_event)
+        else:
+            logger.warning(
+                "No close event found for completed workflow, forcing FAILED",
+                execution_id=execution.id,
+                temporal_workflow_id=execution.temporal_workflow_id,
+            )
+            status = ExecutionStatus.FAILED
+            completed_at = datetime.now(UTC)
+            error_details = "Workflow completed in Temporal but close event could not be retrieved"
+
+        async with self.session_factory() as session:
+            query = (
+                select(Execution).where(Execution.id == execution.id).options(selectinload(Execution.activities))  # type: ignore[arg-type]
+            )
+            result = await session.exec(query)
+            fresh_execution = result.one_or_none()
+            if not fresh_execution or fresh_execution.status != ExecutionStatus.RUNNING:
+                return "skipped"
+
+            if completed_at <= fresh_execution.created_at:
+                completed_at = fresh_execution.created_at + timedelta(microseconds=1)
+
+            fresh_execution.status = status
+            fresh_execution.completed_at = completed_at
+            if error_details:
+                fresh_execution.error_details = error_details
+            fresh_execution.updated_at = datetime.now(UTC)
+            await session.commit()
+
+        await self._publish_snapshot(execution.id, "final_snapshot")
+        logger.info("Reconciled stale execution", execution_id=execution.id, new_status=status.value)
+        return "reconciled"
 
     async def _initialize_monitoring(
         self,
