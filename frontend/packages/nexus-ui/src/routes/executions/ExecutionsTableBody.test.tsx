@@ -1,8 +1,16 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { useCanI } from '../../hooks/useCanI'
+import { useExecutionWebSocket } from '../workflows/hooks/useExecutionWebSocket'
+
 import { FlatExecutionsTableBody } from './ExecutionsTableBody'
+import { useCancelExecution } from './useCancelExecution'
+
+const mockHandleCancel = vi.fn()
 
 vi.mock('../../hooks/routing/useLocation', () => ({
   useLocation: vi.fn(() => '/executions'),
@@ -17,11 +25,50 @@ vi.mock('../../components/table/LinkCell', () => ({
   LinkCell: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }))
 
+vi.mock('../../hooks/useCanI', () => ({
+  useCanI: vi.fn(() => ({ allowed: true, isChecking: false, isError: false })),
+}))
+
+vi.mock('./useCancelExecution', () => ({
+  useCancelExecution: vi.fn(() => ({ handleCancel: mockHandleCancel, isPending: false })),
+}))
+
+vi.mock('../workflows/hooks/useExecutionWebSocket', () => ({
+  useExecutionWebSocket: vi.fn(() => ({
+    isConnected: false,
+    isStale: false,
+    isComplete: false,
+    error: undefined,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  })),
+}))
+
+vi.mock('./useRetryExecution', () => ({
+  useRetryExecution: vi.fn(() => ({ handleRetry: vi.fn(), isPending: false })),
+}))
+
+vi.mock('./hooks/useIsCurrentVersion', () => ({
+  useIsCurrentVersion: vi.fn(() => ({ isCurrentVersion: true, versionLabel: 'v1', isLoading: false })),
+}))
+
+vi.mock('../../client', () => ({
+  executionsClient: {
+    useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+    useQuery: vi.fn(() => ({ data: undefined, isLoading: false })),
+  },
+  authMiddleware: { onRequest: vi.fn() },
+  interfaceTagMiddleware: { onRequest: vi.fn() },
+}))
+
 function renderTable(executions: Parameters<typeof FlatExecutionsTableBody>[0]['executions']) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <table>
-      <FlatExecutionsTableBody executions={executions} />
-    </table>
+    <QueryClientProvider client={queryClient}>
+      <table>
+        <FlatExecutionsTableBody executions={executions} />
+      </table>
+    </QueryClientProvider>
   )
 }
 
@@ -92,6 +139,211 @@ describe('ExecutionsTableBody - Pending Approval Badge', () => {
         completed_at: null,
       },
     ])
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+})
+
+describe('ExecutionsTableBody - Cancel Run Action', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: false, isError: false })
+    vi.mocked(useCancelExecution).mockReturnValue({ handleCancel: mockHandleCancel, isPending: false })
+  })
+
+  it.each(['running', 'pending', 'paused'] as const)(
+    'shows kebab with "Cancel run" for %s executions',
+    async (status) => {
+      const user = userEvent.setup()
+      renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status, completed_at: null }])
+
+      const kebab = screen.getByRole('button', { name: /actions for execution/i })
+      await user.click(kebab)
+
+      expect(screen.getByText('Cancel run')).toBeInTheDocument()
+    }
+  )
+
+  it.each(['completed', 'completed_with_errors', 'failed', 'cancelled'] as const)(
+    'does not show "Cancel run" for %s executions',
+    async (status) => {
+      const user = userEvent.setup()
+      renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status, completed_at: '2026-01-01T00:00:00Z' }])
+
+      const kebab = screen.getByRole('button', { name: /actions for execution/i })
+      await user.click(kebab)
+
+      expect(screen.queryByText('Cancel run')).not.toBeInTheDocument()
+    }
+  )
+
+  it('calls handleCancel when "Cancel run" is clicked', async () => {
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'running', completed_at: null }])
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+    await user.click(screen.getByText('Cancel run'))
+
+    expect(mockHandleCancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes the execution id to useCancelExecution', () => {
+    renderTable([{ id: 'exec-abc', workflow_id: 'wf-1', status: 'running', completed_at: null }])
+
+    expect(useCancelExecution).toHaveBeenCalledWith('exec-abc')
+  })
+
+  it('disables "Cancel run" when user lacks execution:run permission', async () => {
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'running', completed_at: null }])
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+
+    expect(screen.getByRole('menuitem', { name: /cancel run/i })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('disables "Cancel run" while cancel mutation is pending', async () => {
+    vi.mocked(useCancelExecution).mockReturnValue({ handleCancel: mockHandleCancel, isPending: true })
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'running', completed_at: null }])
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+
+    expect(screen.getByRole('menuitem', { name: /cancel run/i })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows "Cancellation in progress" tooltip while cancel mutation is pending', async () => {
+    vi.mocked(useCancelExecution).mockReturnValue({ handleCancel: mockHandleCancel, isPending: true })
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'running', completed_at: null }])
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+    await user.hover(screen.getByRole('menuitem', { name: /cancel run/i }))
+
+    expect(await screen.findByText(/cancellation in progress/i)).toBeInTheDocument()
+  })
+
+  it('stays disabled after cancel is clicked to prevent duplicate requests', async () => {
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'running', completed_at: null }])
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+    await user.click(screen.getByText('Cancel run'))
+
+    await user.click(kebab)
+    expect(screen.getByRole('menuitem', { name: /cancel run/i })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('does not show a confirmation dialog when "Cancel run" is clicked', async () => {
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'running', completed_at: null }])
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+    await user.click(screen.getByText('Cancel run'))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('shows "Retry run" for retryable statuses (not cancel)', async () => {
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'failed', completed_at: '2026-01-01T00:00:00Z' }])
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+
+    expect(screen.getByText('Retry run')).toBeInTheDocument()
+    expect(screen.queryByText('Cancel run')).not.toBeInTheDocument()
+  })
+
+  it('enables WebSocket streaming after cancel to detect status change', async () => {
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'running', completed_at: null }])
+
+    expect(useExecutionWebSocket).toHaveBeenLastCalledWith('exec-1', expect.objectContaining({ enabled: false }))
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+    await user.click(screen.getByText('Cancel run'))
+
+    expect(useExecutionWebSocket).toHaveBeenLastCalledWith('exec-1', expect.objectContaining({ enabled: true }))
+  })
+
+  it('invokes query invalidation when WebSocket fires onExecutionComplete after cancel', async () => {
+    let capturedOnComplete: (() => void) | undefined
+    vi.mocked(useExecutionWebSocket).mockImplementation((_id, opts) => {
+      capturedOnComplete = opts?.onExecutionComplete
+      return {
+        isConnected: false,
+        isStale: false,
+        isComplete: false,
+        error: undefined,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }
+    })
+
+    const user = userEvent.setup()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue()
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <table>
+          <FlatExecutionsTableBody
+            executions={[{ id: 'exec-ws', workflow_id: 'wf-1', status: 'running', completed_at: null }]}
+          />
+        </table>
+      </QueryClientProvider>
+    )
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+    await user.click(screen.getByText('Cancel run'))
+
+    expect(capturedOnComplete).toBeDefined()
+    capturedOnComplete!()
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['get', '/executions/{execution_id}'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['get', '/executions'] })
+  })
+
+  it('shows permission tooltip when user lacks execution:run and hovers cancel', async () => {
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'running', completed_at: null }])
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+    await user.hover(screen.getByRole('menuitem', { name: /cancel run/i }))
+
+    expect(await screen.findByText(/execution:run/i)).toBeInTheDocument()
+  })
+
+  it('opens retry dialog when "Retry run" is clicked and closes on cancel', async () => {
+    const user = userEvent.setup()
+    renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'failed', completed_at: '2026-01-01T00:00:00Z' }])
+
+    const kebab = screen.getByRole('button', { name: /actions for execution/i })
+    await user.click(kebab)
+    await user.click(screen.getByText('Retry run'))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('has no accessibility violations for a running execution with kebab', async () => {
+    const { container } = renderTable([{ id: 'exec-1', workflow_id: 'wf-1', status: 'running', completed_at: null }])
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()

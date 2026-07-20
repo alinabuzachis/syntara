@@ -1,7 +1,8 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Flex, FlexItem, Truncate } from '@patternfly/react-core'
-import { RhUiRedoIcon } from '@patternfly/react-icons'
+import { RhUiBanIcon, RhUiRedoIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -20,10 +21,13 @@ import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 import type { ProjectRead } from '../access/types'
 import { StatusLabel } from '../builder/ExecutionStatus'
+import { useExecutionWebSocket } from '../workflows/hooks/useExecutionWebSocket'
 
+import { isExecutionCancellable } from './executionCancellable'
 import { isExecutionRetryable } from './executionRetryable'
 import { useIsCurrentVersion } from './hooks/useIsCurrentVersion'
 import { RetryExecutionDialog } from './RetryExecutionDialog'
+import { useCancelExecution } from './useCancelExecution'
 import { useRetryExecution } from './useRetryExecution'
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
@@ -48,10 +52,17 @@ type ExecutionRowProps = {
 }
 
 const retryTooltip = permissionTooltip('retry this execution', 'execution:run')
+const cancelTooltip = permissionTooltip('cancel this execution', 'execution:run')
 
-function ExecutionRowRetryAction({ execution }: Readonly<{ execution: Execution }>) {
+function ExecutionRowActions({
+  execution,
+  cancellable,
+  retryable,
+}: Readonly<{ execution: Execution; cancellable: boolean; retryable: boolean }>) {
   const [retryDialogOpen, setRetryDialogOpen] = useState(false)
+  const [cancelRequested, setCancelRequested] = useState(false)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   /* v8 ignore start -- v8 emits phantom branches from compiled hook destructuring */
   const { allowed: canRun, isChecking } = useCanI('run', 'execution')
@@ -64,36 +75,78 @@ function ExecutionRowRetryAction({ execution }: Readonly<{ execution: Execution 
     setRetryDialogOpen(false)
     detachPromise(navigate({ to: AppRoute.Executions.Execution.replace(':executionId', newId) }))
   })
+  const cancel = useCancelExecution(execution.id)
   /* v8 ignore stop */
 
-  const kebabActions: KebabAction[] = [
-    {
+  useExecutionWebSocket(execution.id, {
+    enabled: cancellable && cancelRequested,
+    onExecutionComplete: () => {
+      detachPromise(
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['get', '/executions/{execution_id}'] }),
+          queryClient.invalidateQueries({ queryKey: ['get', '/executions'] }),
+        ])
+      )
+    },
+  })
+
+  const kebabActions: KebabAction[] = []
+
+  if (retryable) {
+    kebabActions.push({
       key: 'retry',
       title: <IconLabel icon={<RhUiRedoIcon />}>Retry run</IconLabel>,
       isAriaDisabled: !canRun || isChecking,
       tooltipProps: !canRun && !isChecking ? { content: retryTooltip } : undefined,
       onClick: () => setRetryDialogOpen(true),
-    },
-  ]
+    })
+  }
+
+  if (cancellable) {
+    const cancelInFlight = cancel.isPending || cancelRequested
+    const cancelDisabled = !canRun || isChecking || cancelInFlight
+    let cancelActionTooltip: KebabAction['tooltipProps']
+    if (cancelInFlight) {
+      cancelActionTooltip = { content: 'Cancellation in progress…' }
+    } else if (!canRun && !isChecking) {
+      cancelActionTooltip = { content: cancelTooltip }
+    }
+
+    kebabActions.push({
+      key: 'cancel',
+      title: <IconLabel icon={<RhUiBanIcon />}>Cancel run</IconLabel>,
+      isDanger: true,
+      isAriaDisabled: cancelDisabled,
+      tooltipProps: cancelActionTooltip,
+      onClick: () => {
+        cancel.handleCancel()
+        setCancelRequested(true)
+      },
+    })
+  }
 
   return (
     <>
       <NxKebabMenu aria-label={`Actions for execution ${execution.id}`} actions={kebabActions} />
-      <RetryExecutionDialog
-        isOpen={retryDialogOpen}
-        onClose={() => setRetryDialogOpen(false)}
-        onConfirm={retry.handleRetry}
-        confirmLoading={retry.isPending || isVersionLoading}
-        isCurrentVersion={isCurrentVersion}
-        isVersionLoading={isVersionLoading}
-        versionLabel={dialogVersionLabel}
-      />
+      {retryDialogOpen && (
+        <RetryExecutionDialog
+          isOpen={retryDialogOpen}
+          onClose={() => setRetryDialogOpen(false)}
+          onConfirm={retry.handleRetry}
+          confirmLoading={retry.isPending || isVersionLoading}
+          isCurrentVersion={isCurrentVersion}
+          isVersionLoading={isVersionLoading}
+          versionLabel={dialogVersionLabel}
+        />
+      )}
     </>
   )
 }
 
 function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
   const retryable = isExecutionRetryable(execution.status, execution.mode)
+  const cancellable = isExecutionCancellable(execution.status)
+  const hasActions = retryable || cancellable
 
   return (
     <Tr>
@@ -153,7 +206,9 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
           </Content>
         )}
       </Td>
-      <Td isActionCell>{retryable && <ExecutionRowRetryAction execution={execution} />}</Td>
+      <Td isActionCell>
+        {hasActions && <ExecutionRowActions execution={execution} cancellable={cancellable} retryable={retryable} />}
+      </Td>
     </Tr>
   )
 }
