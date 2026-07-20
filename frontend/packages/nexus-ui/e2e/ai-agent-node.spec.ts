@@ -19,10 +19,7 @@ function canvasNode(app: Page, name: string) {
   return app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: name })
 }
 
-// Skipped: All tests use selectLlmCredential which waits for the credential dropdown
-// enabled via for_action=use. E2E deploys devel backend (OPA eval >30s under Konflux
-// load). Re-enable after this PR merges to devel.
-test.describe.skip('AI Agent Node @pr-check', () => {
+test.describe('AI Agent Node @pr-check', () => {
   test('can create AI Agent node with model and credential', async ({ app }) => {
     const integrationName = buildUniqueName('e2e-llm-integ')
     let integration: SeededLlmIntegration | undefined

@@ -91,9 +91,7 @@ test.describe('Credential Persistence', () => {
     }
   })
 
-  // Skipped: selectCredential waits for the credential toggle via for_action=use.
-  // Devel backend OPA eval exceeds 30s under Konflux load. Re-enable post-merge.
-  test.skip('REST API node credential persists after save/reload', async ({ app }) => {
+  test('REST API node credential persists after save/reload', async ({ app }) => {
     const credName = buildUniqueName('e2e-persist-http')
     const workflowName = buildUniqueName('e2e-persist-api')
 

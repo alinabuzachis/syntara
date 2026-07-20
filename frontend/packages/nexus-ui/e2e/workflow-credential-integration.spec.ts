@@ -30,13 +30,12 @@ async function navigateToApiActionForm(app: Page) {
   await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
   await credentialsLoaded
   const credToggle = app.getByRole('button', { name: 'Authentication credential', exact: true })
-  await expect(credToggle).toBeEnabled({ timeout: 10_000 })
+  // The CredentialSelector re-queries when projectId populates (initial fetch without project_id,
+  // then a second fetch with project_id). Use 30s to cover both fetches.
+  await expect(credToggle).toBeEnabled({ timeout: 30_000 })
 }
 
-// Skipped: E2E deploys the devel backend image (ao-version: devel default), not the PR image.
-// The PR frontend sends ?for_action=use; the devel backend handles it via a full OPA evaluation
-// that exceeds 30s under Konflux resource pressure. Re-enable after this PR merges to devel.
-test.describe.skip('Credential Selector', () => {
+test.describe('Credential Selector', () => {
   test('credential selector appears in API action node form', async ({ app }) => {
     // Arrange & Act
     await navigateToApiActionForm(app)
@@ -155,8 +154,7 @@ test.describe.skip('Credential Selector', () => {
   })
 })
 
-// Skipped: same as above — devel backend OPA latency blocks the credential toggle.
-test.describe.skip('Inline Credential Creation', () => {
+test.describe('Inline Credential Creation', () => {
   test('open inline credential creation modal', async ({ app }) => {
     // Arrange
     await navigateToApiActionForm(app)

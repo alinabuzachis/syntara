@@ -259,9 +259,7 @@ test.describe('Workflow Import/Export', () => {
     }
   })
 
-  // Skipped: waits for credToggle.toBeEnabled via for_action=use; devel backend OPA eval
-  // exceeds 30s under Konflux load. Re-enable after this PR merges to devel.
-  test.skip('preserves credential references during export and import', async ({ app }) => {
+  test('preserves credential references during export and import', async ({ app }) => {
     const workflowName = buildUniqueName('cred-roundtrip')
     const reimportedName = `${workflowName}-reimported`
     const credName = buildUniqueName('e2e-cred')
