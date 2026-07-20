@@ -39,6 +39,7 @@ describe('useApprovalDecideProjects', () => {
     expect(result.current.isLoading).toBe(true)
     expect(result.current.canDecideAllProjects).toBe(false)
     expect(result.current.canDecideProjectNames).toEqual(new Set())
+    expect(result.current.canReadProjectNames).toEqual(new Set())
   })
 
   it('detects system-level approval:decide permission', () => {
@@ -261,5 +262,83 @@ describe('useApprovalDecideProjects', () => {
 
     expect(result.current.canDecideProjectNames.size).toBe(1)
     expect(result.current.canDecideProjectNames).toEqual(new Set(['duplicate-project']))
+  })
+
+  it('extracts read project names but does not expose canReadAllProjects', () => {
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:read'],
+        scope: 'system',
+      },
+    ])
+
+    const { result } = renderHook(() => useApprovalDecideProjects())
+
+    expect(result.current.canReadProjectNames).toEqual(new Set())
+    expect(result.current).not.toHaveProperty('canReadAllProjects')
+  })
+
+  it('extracts project-scoped approval:read permissions', () => {
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:read'],
+        scope: 'project',
+        project: 'read-project-1',
+      },
+      {
+        effect: 'allow',
+        actions: ['approval:read'],
+        scope: 'project',
+        project: 'read-project-2',
+      },
+    ])
+
+    const { result } = renderHook(() => useApprovalDecideProjects())
+
+    expect(result.current.canReadProjectNames).toEqual(new Set(['read-project-1', 'read-project-2']))
+  })
+
+  it('ignores deny effect for approval:read', () => {
+    mockPermissions([
+      {
+        effect: 'deny',
+        actions: ['approval:read'],
+        scope: 'system',
+      },
+    ])
+
+    const { result } = renderHook(() => useApprovalDecideProjects())
+
+    expect(result.current.canReadProjectNames).toEqual(new Set())
+  })
+
+  it('handles mixed read and decide permissions across scopes', () => {
+    mockPermissions([
+      {
+        effect: 'allow',
+        actions: ['approval:decide'],
+        scope: 'project',
+        project: 'decide-only',
+      },
+      {
+        effect: 'allow',
+        actions: ['approval:read'],
+        scope: 'project',
+        project: 'read-only',
+      },
+      {
+        effect: 'allow',
+        actions: ['approval:read'],
+        scope: 'system',
+      },
+    ])
+
+    const { result } = renderHook(() => useApprovalDecideProjects())
+
+    expect(result.current.canDecideAllProjects).toBe(false)
+    expect(result.current.canDecideProjectNames).toEqual(new Set(['decide-only']))
+    expect(result.current.canReadProjectNames).toEqual(new Set(['read-only']))
   })
 })

@@ -93,7 +93,7 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
   // Backend ALWAYS validates and returns 403 via ApprovalService._is_user_authorized_approver()
 
   // Check 1: RBAC permission check (approval:decide)
-  const permissions = useApprovalPermissions()
+  const permissions = useApprovalPermissions(approval.project_id)
 
   // Check 2: Approver list check (user is in approver_users or approver_groups)
   const { canDecide: canDecideBasedOnApproverList, isLoading: isCheckingApproverList } = useCanDecideApproval(approval)

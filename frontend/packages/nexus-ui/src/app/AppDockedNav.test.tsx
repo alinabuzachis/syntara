@@ -70,6 +70,16 @@ vi.mock('../hooks/usePermissionChecks', () => ({
   }),
 }))
 
+// Mock useAllPermissions used by useFilteredNavigationItems for project-scoped grants
+vi.mock('../routes/access/useAllPermissions', () => ({
+  useAllPermissions: () => ({
+    permissions: [],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}))
+
 // Mock useAuthStore used by UserMenuDropdown
 const mockLogout = vi.fn().mockResolvedValue(undefined)
 vi.mock('../stores/useAuthStore', () => ({

@@ -58,6 +58,19 @@ function mockCanI(permissions: Record<string, boolean>) {
   )
 }
 
+function mockProjectPermissions(
+  perms: { effect?: string; actions: string[]; scope?: string; project?: string; policy_name?: string }[]
+) {
+  vi.mocked(useAllPermissions).mockReturnValue({
+    permissions: perms.map((p) => ({ policy_name: 'test', ...p })) as ReturnType<
+      typeof useAllPermissions
+    >['permissions'],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn() as ReturnType<typeof useAllPermissions>['refetch'],
+  })
+}
+
 describe('useApprovalPermissions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -151,20 +164,9 @@ describe('useApprovalPermissions', () => {
     // Global decide is denied, but user has project-scoped permission for 'Project Alpha'
     mockCanI({ read: true, decide: false })
 
-    vi.mocked(useAllPermissions).mockReturnValue({
-      permissions: [
-        {
-          policy_name: 'test',
-          effect: 'allow',
-          actions: ['approval:decide'],
-          scope: 'project',
-          project: 'Project Alpha',
-        },
-      ] as ReturnType<typeof useAllPermissions>['permissions'],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn() as ReturnType<typeof useAllPermissions>['refetch'],
-    })
+    mockProjectPermissions([
+      { effect: 'allow', actions: ['approval:decide'], scope: 'project', project: 'Project Alpha' },
+    ])
 
     const { result } = renderHook(() => useApprovalPermissions('Project Alpha'), { wrapper: createWrapper() })
 
@@ -180,20 +182,9 @@ describe('useApprovalPermissions', () => {
     // Global decide is denied, user has project-scoped permission for 'Project Alpha' but not 'Project Beta'
     mockCanI({ read: true, decide: false })
 
-    vi.mocked(useAllPermissions).mockReturnValue({
-      permissions: [
-        {
-          policy_name: 'test',
-          effect: 'allow',
-          actions: ['approval:decide'],
-          scope: 'project',
-          project: 'Project Alpha',
-        },
-      ] as ReturnType<typeof useAllPermissions>['permissions'],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn() as ReturnType<typeof useAllPermissions>['refetch'],
-    })
+    mockProjectPermissions([
+      { effect: 'allow', actions: ['approval:decide'], scope: 'project', project: 'Project Alpha' },
+    ])
 
     const { result } = renderHook(() => useApprovalPermissions('Project Beta'), { wrapper: createWrapper() })
 
@@ -216,5 +207,84 @@ describe('useApprovalPermissions', () => {
 
     expect(result.current.canRead).toBe(true)
     expect(result.current.canDecide).toBe(true) // Should use global permission
+  })
+
+  describe('project-scoped approval:read', () => {
+    it('returns canRead true when global read is denied but user has project-scoped read for the given projectId', async () => {
+      mockCanI({ read: false, decide: false })
+
+      mockProjectPermissions([
+        { effect: 'allow', actions: ['approval:read'], scope: 'project', project: 'Project Alpha' },
+      ])
+
+      const { result } = renderHook(() => useApprovalPermissions('Project Alpha'), { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(result.current.isChecking).toBe(false)
+      })
+
+      expect(result.current.canRead).toBe(true)
+      expect(result.current.canDecide).toBe(false)
+    })
+
+    it('returns canRead false when global read is denied and user has project-scoped read for a different project', async () => {
+      mockCanI({ read: false, decide: false })
+
+      mockProjectPermissions([
+        { effect: 'allow', actions: ['approval:read'], scope: 'project', project: 'Project Alpha' },
+      ])
+
+      const { result } = renderHook(() => useApprovalPermissions('Project Beta'), { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(result.current.isChecking).toBe(false)
+      })
+
+      expect(result.current.canRead).toBe(false)
+    })
+
+    it('returns canRead true on list page (no projectId) when user has any project-scoped read', async () => {
+      mockCanI({ read: false, decide: false })
+
+      mockProjectPermissions([
+        { effect: 'allow', actions: ['approval:read'], scope: 'project', project: 'Project Alpha' },
+      ])
+
+      const { result } = renderHook(() => useApprovalPermissions(), { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(result.current.isChecking).toBe(false)
+      })
+
+      expect(result.current.canRead).toBe(true)
+    })
+
+    it('defers to can_i for system-level read (what_can_i system-scope alone does not grant canRead)', async () => {
+      mockCanI({ read: false, decide: false })
+
+      mockProjectPermissions([{ effect: 'allow', actions: ['approval:read'], scope: 'system' }])
+
+      const { result } = renderHook(() => useApprovalPermissions(), { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(result.current.isChecking).toBe(false)
+      })
+
+      expect(result.current.canRead).toBe(false)
+    })
+
+    it('defers to can_i for system-level decide (what_can_i system-scope alone does not grant canDecide)', async () => {
+      mockCanI({ read: false, decide: false })
+
+      mockProjectPermissions([{ effect: 'allow', actions: ['approval:decide'], scope: 'system' }])
+
+      const { result } = renderHook(() => useApprovalPermissions(), { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(result.current.isChecking).toBe(false)
+      })
+
+      expect(result.current.canDecide).toBe(false)
+    })
   })
 })

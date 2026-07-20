@@ -37,6 +37,23 @@ export type ResourceCrudPermissions = {
   isLoading: boolean
 }
 
+type PermissionScopeEntry = { project?: string; scope?: string }
+
+export function isSystemScope(p: PermissionScopeEntry): boolean {
+  return !p.project && (!p.scope || p.scope === 'system' || p.scope === 'any')
+}
+
+export function projectScopedNames(entries: PermissionScopeEntry[]): Set<string> {
+  return new Set(entries.filter((p) => p.scope === 'project' && p.project).map((p) => p.project!))
+}
+
+export function hasPermissionGrant(
+  allPerms: { effect?: string; actions: string[]; scope?: string }[],
+  actionKey: string
+): boolean {
+  return allPerms.some((p) => p.effect === 'allow' && p.actions.includes(actionKey) && p.scope === 'project')
+}
+
 /**
  * Shared hook for create/update/delete permission checks on a resource type.
  * All values default to `false` (safe-false) until the checks resolve.

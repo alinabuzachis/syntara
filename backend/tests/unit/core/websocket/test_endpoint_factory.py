@@ -5,7 +5,8 @@ import json
 import types
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -13,6 +14,7 @@ from nexus.core.exceptions import SafeValueError
 from nexus.core.websocket.endpoint_factory import (
     _HANDLER_MODULE_CACHE,
     _SPEC_CACHE,
+    _check_websocket_authorization,
     create_websocket_endpoint,
     scan_handler_specs,
 )
@@ -99,7 +101,7 @@ class TestAutomaticPathMapping:
 
         # Monkeypatch __file__ and files() function
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         # Mock importlib.resources.files to return our temp directory
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
@@ -129,7 +131,7 @@ class TestAutomaticPathMapping:
         handler_file.write_text("# Handler without spec\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         # Mock importlib.resources.files
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
@@ -154,7 +156,7 @@ class TestAutomaticPathMapping:
         spec_file.write_text("asyncapi: 3.0.0\nchannels: {}\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         # Mock importlib.resources.files
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
@@ -180,7 +182,7 @@ class TestAutomaticPathMapping:
         spec_file.write_text("asyncapi: 3.0.0\nchannels: {}\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         # Should not raise error - component without ws/ is skipped
         result = scan_handler_specs()
@@ -209,7 +211,7 @@ class TestAutomaticPathMapping:
             spec_file.write_text(f"asyncapi: 3.0.0\nchannels:\n  {handler_name}:\n    address: /ws/{handler_name}\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         # Mock importlib.resources.files
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
@@ -241,7 +243,7 @@ class TestAutomaticPathMapping:
         handler_file.write_text("# Handler\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         # Mock importlib.resources.files
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
@@ -326,7 +328,7 @@ class TestAutomaticPathMapping:
         handler_file.write_text("# Handler for JSON spec\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         # Mock importlib.resources.files
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
@@ -387,7 +389,7 @@ class TestAutomaticPathMapping:
         spec_file.write_text("asyncapi: 3.0.0\nchannels: {}\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         # Mock importlib.resources.files
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
@@ -412,7 +414,7 @@ class TestAutomaticPathMapping:
             handler_file.write_text("# Should be skipped\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         result = scan_handler_specs()
 
@@ -441,7 +443,7 @@ class TestAutomaticPathMapping:
         spec_file.write_text("asyncapi: 3.0.0\nchannels: {}\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
-        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory._get_module_file", lambda: str(fake_file))
 
         # Mock importlib.resources.files
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
@@ -702,3 +704,171 @@ class TestCacheClearing:
             channels1 = result1[component_name].get("channels", {})
             channels2 = result2[component_name].get("channels", {})
             assert channels1.keys() == channels2.keys()
+
+
+def _make_ws(component: str, resource_id: str) -> MagicMock:
+    """Create a mock WebSocket with path_params and app.state.authz_evaluator."""
+    ws = MagicMock()
+    param_map = {"workflows": "execution_id", "agent_orchestrator": "invocation_id"}
+    param_name = param_map.get(component, "id")
+    ws.path_params = {param_name: resource_id}
+    ws.app.state.authz_evaluator = MagicMock()
+    return ws
+
+
+def _make_user() -> MagicMock:
+    user = MagicMock()
+    user.id = uuid4()
+    return user
+
+
+_PATCH_SESSION = "nexus.core.websocket.endpoint_factory.AsyncSessionLocal"
+_PATCH_AUTHORIZE = "nexus.core.websocket.endpoint_factory.authorize"
+
+
+def _mock_session_factory(mock_db: AsyncMock) -> MagicMock:
+    """Create a session factory mock that works as an async context manager."""
+    factory = MagicMock()
+    factory.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+    factory.return_value.__aexit__ = AsyncMock(return_value=False)
+    return factory
+
+
+class TestCheckWebSocketAuthorization:
+    """Unit tests for _check_websocket_authorization project resolution."""
+
+    @pytest.mark.asyncio
+    async def test_execution_resolves_project_name(self) -> None:
+        execution_id = str(uuid4())
+        ws = _make_ws("workflows", execution_id)
+        user = _make_user()
+
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = "MyProject"
+        mock_db.execute.return_value = mock_result
+
+        mock_authz_result = MagicMock(allowed=True, denied=False)
+
+        with (
+            patch(_PATCH_SESSION, _mock_session_factory(mock_db)),
+            patch(_PATCH_AUTHORIZE, AsyncMock(return_value=mock_authz_result)) as mock_authorize,
+        ):
+            result = await _check_websocket_authorization(ws, user, "test-channel", "workflows")
+
+        assert result is True
+        authz_request = mock_authorize.call_args[0][2]
+        assert authz_request.resource_project == "MyProject"
+        assert authz_request.resource_type == "execution"
+
+    @pytest.mark.asyncio
+    async def test_invocation_resolves_project_name(self) -> None:
+        invocation_id = str(uuid4())
+        ws = _make_ws("agent_orchestrator", invocation_id)
+        user = _make_user()
+
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = "AgentProject"
+        mock_db.execute.return_value = mock_result
+
+        mock_authz_result = MagicMock(allowed=True, denied=False)
+
+        with (
+            patch(_PATCH_SESSION, _mock_session_factory(mock_db)),
+            patch(_PATCH_AUTHORIZE, AsyncMock(return_value=mock_authz_result)) as mock_authorize,
+        ):
+            result = await _check_websocket_authorization(ws, user, "test-channel", "agent_orchestrator")
+
+        assert result is True
+        authz_request = mock_authorize.call_args[0][2]
+        assert authz_request.resource_project == "AgentProject"
+        assert authz_request.resource_type == "invocation"
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(self) -> None:
+        resource_id = str(uuid4())
+        ws = MagicMock()
+        ws.path_params = {"task_id": resource_id}
+        ws.app.state.authz_evaluator = MagicMock()
+        user = _make_user()
+
+        mock_db = AsyncMock()
+        with (
+            patch(
+                "nexus.core.websocket.endpoint_factory._COMPONENT_RESOURCE_PARAM_MAP",
+                {"tasks": "task_id"},
+            ),
+            patch(_PATCH_SESSION, _mock_session_factory(mock_db)),
+        ):
+            result = await _check_websocket_authorization(ws, user, "test-channel", "tasks")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_missing_resource_id_returns_false(self) -> None:
+        ws = MagicMock()
+        ws.path_params = {}
+        user = _make_user()
+
+        result = await _check_websocket_authorization(ws, user, "test-channel", "workflows")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_unmapped_component_returns_false(self) -> None:
+        ws = _make_ws("unknown_component", str(uuid4()))
+        ws.path_params = {"id": str(uuid4())}
+        user = _make_user()
+
+        result = await _check_websocket_authorization(ws, user, "test-channel", "unknown_component")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_resource_not_found_returns_false(self) -> None:
+        execution_id = str(uuid4())
+        ws = _make_ws("workflows", execution_id)
+        user = _make_user()
+
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db.execute.return_value = mock_result
+
+        with patch(_PATCH_SESSION, _mock_session_factory(mock_db)):
+            result = await _check_websocket_authorization(ws, user, "test-channel", "workflows")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_authorization_denied_returns_false(self) -> None:
+        execution_id = str(uuid4())
+        ws = _make_ws("workflows", execution_id)
+        user = _make_user()
+
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = "SomeProject"
+        mock_db.execute.return_value = mock_result
+
+        mock_authz_result = MagicMock(allowed=False, denied=True)
+
+        with (
+            patch(_PATCH_SESSION, _mock_session_factory(mock_db)),
+            patch(_PATCH_AUTHORIZE, AsyncMock(return_value=mock_authz_result)),
+        ):
+            result = await _check_websocket_authorization(ws, user, "test-channel", "workflows")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_db_exception_returns_false(self) -> None:
+        execution_id = str(uuid4())
+        ws = _make_ws("workflows", execution_id)
+        user = _make_user()
+
+        with patch(_PATCH_SESSION, side_effect=RuntimeError("DB connection failed")):
+            result = await _check_websocket_authorization(ws, user, "test-channel", "workflows")
+
+        assert result is False

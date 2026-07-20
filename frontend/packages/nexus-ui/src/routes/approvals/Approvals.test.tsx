@@ -67,6 +67,7 @@ vi.mock('./useApprovalDecideProjects', () => ({
   useApprovalDecideProjects: vi.fn(() => ({
     canDecideAllProjects: false,
     canDecideProjectNames: EMPTY_PROJECT_NAMES,
+    canReadProjectNames: EMPTY_PROJECT_NAMES,
     isLoading: false,
     error: null,
   })),

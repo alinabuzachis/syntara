@@ -51,6 +51,10 @@ _SPEC_CACHE: dict[str, dict[str, Any]] = {}
 _HANDLER_MODULE_CACHE: dict[str, dict[str, types.ModuleType]] = {}
 
 
+def _get_module_file() -> str:
+    return __file__
+
+
 async def _send_error_response(websocket: WebSocket, error_dict: dict[str, Any], channel_name: str) -> bool:
     """Send error response to client.
 
@@ -571,7 +575,7 @@ def scan_handler_specs() -> dict[str, dict[str, Any]]:
     _SPEC_CACHE.clear()
     _HANDLER_MODULE_CACHE.clear()
 
-    current_file = Path(__file__)
+    current_file = Path(_get_module_file())
     nexus_dir = current_file.parent.parent.parent  # src/nexus/
     project_root = nexus_dir.parent.parent
 
@@ -820,6 +824,9 @@ async def _check_websocket_authorization(
     Extracts the resource ID from path params, maps the component to a
     resource type, and evaluates the authorization request via OPA.
 
+    For project-scoped resources (executions, invocations), queries the database
+    to resolve the resource's project_id before authorization.
+
     Returns False (fail-closed) on any error.
     """
     try:
@@ -841,17 +848,62 @@ async def _check_websocket_authorization(
 
         evaluator = websocket.app.state.authz_evaluator
 
-        authz_request = AuthzRequest(
-            user_id=user.id,
-            action="read",
-            resource_type=resource_type,
-            resource_id=resource_id,
-        )
-
+        # Resolve resource project NAME for project-scoped authorization
+        # The authorization engine expects project name, not project ID
+        resource_project = None
         async with AsyncSessionLocal() as db:
-            result = await authorize(db, evaluator, authz_request)
+            from sqlmodel import select  # noqa: PLC0415
 
-        return result.allowed and not result.denied
+            from nexus.authz.models.project import Project  # noqa: PLC0415
+
+            if resource_type == "execution":
+                from nexus.workflows.models.execution import Execution  # noqa: PLC0415
+
+                stmt = (
+                    select(Project.name)
+                    .join(Execution, Execution.project_id == Project.id)  # type: ignore[arg-type]
+                    .where(Execution.id == uuid.UUID(resource_id), Project.deleted_at.is_(None))  # type: ignore[union-attr]
+                )
+            elif resource_type == "invocation":
+                from nexus.agent_orchestrator.models.invocation import Invocation  # noqa: PLC0415
+
+                stmt = (
+                    select(Project.name)
+                    .join(Invocation, Invocation.project_id == Project.id)  # type: ignore[arg-type]
+                    .where(Invocation.id == uuid.UUID(resource_id), Project.deleted_at.is_(None))  # type: ignore[union-attr]
+                )
+            else:
+                # Fail closed: new resource types must add a branch here
+                logger.warning(
+                    "Unknown resource type for WebSocket project resolution",
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                )
+                return False
+
+            db_result = await db.execute(stmt)
+            project_name = db_result.scalar_one_or_none()
+            if project_name:
+                resource_project = project_name
+            else:
+                logger.warning(
+                    "Resource or project not found for WebSocket auth check",
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                )
+                return False
+
+            authz_request = AuthzRequest(
+                user_id=user.id,
+                action="read",
+                resource_type=resource_type,
+                resource_id=resource_id,
+                resource_project=resource_project or "",
+            )
+
+            authz_result = await authorize(db, evaluator, authz_request)
+
+        return authz_result.allowed and not authz_result.denied
     except Exception:
         logger.exception("WebSocket authorization check failed", channel=channel_name)
         return False

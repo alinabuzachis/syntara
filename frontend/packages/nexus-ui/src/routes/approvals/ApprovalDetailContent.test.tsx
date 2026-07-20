@@ -50,6 +50,7 @@ vi.mock('./useApprovalDecideProjects', () => ({
   useApprovalDecideProjects: vi.fn(() => ({
     canDecideAllProjects: true, // Default: user can decide on all projects
     canDecideProjectNames: new Set<string>(),
+    canReadProjectNames: new Set<string>(),
     isLoading: false,
     error: null,
   })),
@@ -475,6 +476,7 @@ describe('ApprovalDetailContent', () => {
     vi.mocked(useApprovalDecideProjects).mockReturnValue({
       canDecideAllProjects: true,
       canDecideProjectNames: new Set<string>(),
+      canReadProjectNames: new Set<string>(),
       isLoading: true, // checking permission
       error: null,
     })

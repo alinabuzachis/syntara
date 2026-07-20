@@ -16,12 +16,12 @@ import { Fragment } from 'react'
 import groupedTableStyles from '../../components/groupedTable.module.css'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
-import { permissionTooltip } from '../../hooks/permissionUtils'
 import type { ProjectRead } from '../access/types'
 
 import type { ApprovalWithDetails } from './Approvals'
 import styles from './ApprovalsTableBody.module.css'
 import { ApprovalStatusBadges } from './approvalUtils'
+import { getDisabledTooltip } from './getDisabledTooltip'
 import { isApprovalSelectable } from './isApprovalSelectable'
 import { useCanDecideApproval } from './useCanDecideApproval'
 
@@ -45,9 +45,6 @@ function DecidedCell({ approval }: Readonly<{ approval: ApprovalWithDetails }>) 
     </>
   )
 }
-
-const RBAC_DECIDE_TOOLTIP = permissionTooltip('approve or reject this approval', 'approval:decide')
-const APPROVER_LIST_TOOLTIP = 'You are not on the approver list for this approval'
 
 function SelectCheckboxCell({
   approval,
@@ -78,8 +75,7 @@ function SelectCheckboxCell({
     isCheckingApproverList
   )
 
-  // Determine which tooltip to show: RBAC permission missing vs not on approver list
-  const disabledTooltip = canDecideOnThisApproval ? APPROVER_LIST_TOOLTIP : RBAC_DECIDE_TOOLTIP
+  const disabledTooltip = getDisabledTooltip(approval.status ?? '', canDecideOnThisApproval)
 
   if (showDisabledWithTooltip) {
     return (

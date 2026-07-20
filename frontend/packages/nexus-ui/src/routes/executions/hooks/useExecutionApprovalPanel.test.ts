@@ -2,7 +2,50 @@ import type { Approval } from '@ansible/nexus-contracts'
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
+import { useExecutionStore } from '../../workflows/stores/useExecutionStore'
+
 import { useExecutionApprovalPanel } from './useExecutionApprovalPanel'
+
+vi.mock('../../workflows/stores/useExecutionStore', () => {
+  const activityStates = new Map<string, { status: string }>()
+  const subscribers = new Set<() => void>()
+
+  return {
+    useExecutionStore: Object.assign(
+      vi.fn(() => ({ activityStates })),
+      {
+        getState: () => ({ activityStates }),
+        subscribe: (fn: () => void) => {
+          subscribers.add(fn)
+          return () => subscribers.delete(fn)
+        },
+        __test__: {
+          activityStates,
+          subscribers,
+          setStatus: (nodeId: string, status: string) => {
+            activityStates.set(nodeId, { status })
+            for (const fn of subscribers) fn()
+          },
+          clear: () => {
+            activityStates.clear()
+            subscribers.clear()
+          },
+        },
+      }
+    ),
+  }
+})
+
+const storeHelpers = (
+  useExecutionStore as unknown as {
+    __test__: {
+      activityStates: Map<string, { status: string }>
+      subscribers: Set<() => void>
+      setStatus: (nodeId: string, status: string) => void
+      clear: () => void
+    }
+  }
+).__test__
 
 const mockApproval: Approval = {
   id: 'approval-1',
@@ -60,10 +103,12 @@ describe('useExecutionApprovalPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
+    storeHelpers.clear()
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    storeHelpers.clear()
   })
 
   it('starts with panel closed', () => {
@@ -461,5 +506,46 @@ describe('useExecutionApprovalPanel', () => {
 
     // handledApprovalId should be cleared - verify no error thrown
     expect(result.current).toBeDefined()
+  })
+
+  it('auto-dismisses panel when activity transitions to terminal state', async () => {
+    mockFetchApprovals.mockResolvedValue([])
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+
+    // Set activity to waiting state initially
+    storeHelpers.setStatus('node-1', 'waiting')
+
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', nodeClick, undefined))
+
+    act(() => result.current.open())
+    expect(result.current.panelOpen).toBe(true)
+
+    // Simulate the activity transitioning to "failed" (e.g., timeout)
+    await act(async () => {
+      storeHelpers.setStatus('node-1', 'failed')
+      await vi.runAllTimersAsync()
+    })
+
+    // Panel should auto-close because dismiss() was called and no pending approvals remain
+    expect(result.current.panelOpen).toBe(false)
+    expect(mockClearApprovals).toHaveBeenCalled()
+  })
+
+  it('does not auto-dismiss when activity is still waiting', async () => {
+    const nodeClick = makeNodeClick(mockApproval, [mockApproval])
+
+    storeHelpers.setStatus('node-1', 'waiting')
+
+    const { result } = renderHook(() => useExecutionApprovalPanel('exec-1', '', nodeClick, undefined))
+
+    act(() => result.current.open())
+    expect(result.current.panelOpen).toBe(true)
+
+    // Activity stays in waiting — panel should remain open
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(result.current.panelOpen).toBe(true)
   })
 })

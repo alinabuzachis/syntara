@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { usePermissionChecks as UsePermissionChecksFn } from '../hooks/usePermissionChecks'
+import { useAllPermissions } from '../routes/access/useAllPermissions'
 
 import { useFilteredNavigationItems } from './useFilteredNavigationItems'
 
@@ -22,6 +23,28 @@ vi.mock('../routes/access/accessClient', () => ({
     use: vi.fn(),
   },
 }))
+
+vi.mock('../routes/access/useAllPermissions', () => ({
+  useAllPermissions: vi.fn(() => ({
+    permissions: [],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+}))
+
+function mockProjectPermissions(
+  perms: { effect?: string; actions: string[]; scope?: string; project?: string; policy_name?: string }[]
+) {
+  vi.mocked(useAllPermissions).mockReturnValue({
+    permissions: perms.map((p) => ({ policy_name: 'test', ...p })) as ReturnType<
+      typeof useAllPermissions
+    >['permissions'],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn() as ReturnType<typeof useAllPermissions>['refetch'],
+  })
+}
 
 /** Helper: find a nav item by label at any depth */
 function findItem(
@@ -222,6 +245,34 @@ describe('useFilteredNavigationItems', () => {
       expect(findItem(result.current, 'Configuration')).toBeDefined()
       expect(findItem(result.current, 'Integrations')).toBeUndefined()
       expect(findItem(result.current, 'Credentials')).toBeDefined()
+    })
+  })
+
+  describe('project-scoped permissions via what_can_i', () => {
+    it('shows Approvals when user has project-scoped approval:read via what_can_i', () => {
+      setPermissions({ 'approval:read': false, 'approval:decide': false })
+      mockProjectPermissions([{ effect: 'allow', actions: ['approval:read'], scope: 'project', project: 'my-project' }])
+      const { result } = renderHook(() => useFilteredNavigationItems())
+
+      expect(findItem(result.current, 'Approvals')).toBeDefined()
+    })
+
+    it('shows Approvals when user has project-scoped approval:decide via what_can_i', () => {
+      setPermissions({ 'approval:read': false, 'approval:decide': false })
+      mockProjectPermissions([
+        { effect: 'allow', actions: ['approval:decide'], scope: 'project', project: 'my-project' },
+      ])
+      const { result } = renderHook(() => useFilteredNavigationItems())
+
+      expect(findItem(result.current, 'Approvals')).toBeDefined()
+    })
+
+    it('still hides Approvals when user has no approval permissions at any scope', () => {
+      setPermissions({ 'approval:read': false, 'approval:decide': false })
+      mockProjectPermissions([{ effect: 'allow', actions: ['workflow:read'], scope: 'system' }])
+      const { result } = renderHook(() => useFilteredNavigationItems())
+
+      expect(findItem(result.current, 'Approvals')).toBeUndefined()
     })
   })
 })

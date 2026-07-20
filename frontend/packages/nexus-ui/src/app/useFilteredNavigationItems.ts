@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 
 import type { PermissionRequirement } from '../hooks/permissionUtils'
-import { permissionKey } from '../hooks/permissionUtils'
+import { hasPermissionGrant, permissionKey } from '../hooks/permissionUtils'
 import { usePermissionChecks } from '../hooks/usePermissionChecks'
+import { useAllPermissions } from '../routes/access/useAllPermissions'
 
 import type { TNavigationItem } from './navigationItems'
 import { NAV_ITEMS } from './navigationItems'
@@ -63,15 +64,33 @@ function filterNavItems(items: readonly TNavigationItem[], permissions: Record<s
   return filtered
 }
 
+function deriveProjectScopedPermissions(
+  allPerms: { effect?: string; actions: string[]; scope?: string }[],
+  requirements: readonly PermissionRequirement[]
+): Record<string, boolean> {
+  const result: Record<string, boolean> = {}
+  for (const req of requirements) {
+    if (hasPermissionGrant(allPerms, `${req.resourceType}:${req.action}`)) {
+      result[permissionKey(req)] = true
+    }
+  }
+  return result
+}
+
 /**
  * Returns the nav tree with permission-gated items removed.
  *
- * Automatically collects all `requiredPermissions` from NAV_ITEMS,
- * checks them via `usePermissionChecks`, and filters the tree.
- * Items are visible when at least one of their required permissions is granted.
+ * Uses global can_i checks (which also pre-warm the cache for downstream
+ * useCanI consumers) supplemented by what_can_i for project-scoped grants.
  */
 export function useFilteredNavigationItems(): TNavigationItem[] {
-  const { permissions } = usePermissionChecks(ALL_NAV_PERMISSIONS)
+  const { permissions: globalPermissions } = usePermissionChecks(ALL_NAV_PERMISSIONS)
+  const { permissions: allPerms } = useAllPermissions()
+
+  const permissions = useMemo(() => {
+    const projectScoped = deriveProjectScopedPermissions(allPerms, ALL_NAV_PERMISSIONS)
+    return { ...globalPermissions, ...projectScoped }
+  }, [globalPermissions, allPerms])
 
   return useMemo(() => filterNavItems(NAV_ITEMS, permissions), [permissions])
 }

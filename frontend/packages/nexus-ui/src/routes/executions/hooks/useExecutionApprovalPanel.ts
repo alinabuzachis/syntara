@@ -2,6 +2,8 @@ import type { Approval } from '@ansible/nexus-contracts'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'
+import { ACTIVITY_STATUS, isTerminalState } from '../../builder/utils/executionState/executionHelpers'
+import { useExecutionStore } from '../../workflows/stores/useExecutionStore'
 
 import { useAutoApprovalDetection } from './useAutoApprovalDetection'
 import type { useExecutionNodeClick } from './useExecutionNodeClick'
@@ -74,24 +76,26 @@ export function useExecutionApprovalPanel(
     setPanelOpen(false)
   }, [])
 
+  const dismissInFlightRef = useRef(false)
   const dismiss = useCallback(() => {
-    // After a decision is submitted, check if there are still pending approvals
-    // The refetchQueries in onSuccess ensures the cache is fresh before this fires
+    if (dismissInFlightRef.current) return
+    dismissInFlightRef.current = true
+
     fetchApprovals()
       .then((fetchedApprovals) => {
         if (fetchedApprovals.length > 0) {
-          // Still have pending approvals - navigate to the first one and keep panel open
           setApprovalsAndIndex(fetchedApprovals, 0)
         } else {
-          // No more pending approvals - close the panel
           setPanelOpen(false)
           clearApprovals()
         }
       })
       .catch(() => {
-        // Fetch failed - close panel to avoid showing stale state
         setPanelOpen(false)
         clearApprovals()
+      })
+      .finally(() => {
+        dismissInFlightRef.current = false
       })
   }, [fetchApprovals, setApprovalsAndIndex, clearApprovals])
 
@@ -147,6 +151,24 @@ export function useExecutionApprovalPanel(
     // Track length changes
     prevApprovalsLengthRef.current = currentLength
   }, [panelOpen, approvals.length, clearApprovals])
+
+  // Auto-dismiss when the current approval's activity leaves "waiting" status
+  // (e.g., timed out / failed / cancelled via WebSocket update)
+  useEffect(() => {
+    if (!panelOpen || !currentApproval) return
+
+    const nodeId = currentApproval.approval_node_id
+
+    const unsubscribe = useExecutionStore.subscribe(() => {
+      const activityState = useExecutionStore.getState().activityStates.get(nodeId)
+      const status = activityState?.status
+      if (status && status !== ACTIVITY_STATUS.WAITING && isTerminalState(status)) {
+        dismiss()
+      }
+    })
+
+    return unsubscribe
+  }, [panelOpen, currentApproval, dismiss])
 
   const approvalMessage = useMemo(() => {
     if (!currentApproval || !workflowDefinition) return undefined

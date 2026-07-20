@@ -37,29 +37,22 @@ import { useApprovalDecideProjects } from './useApprovalDecideProjects'
  * ```
  */
 export function useApprovalPermissions(projectId?: string | null) {
-  // Check global read/decide permissions
   const canReadGlobalQuery = useCanI('read', 'approval')
   const canDecideGlobalQuery = useCanI('decide', 'approval')
 
-  // Get project-scoped approval:decide permissions using what_can_i endpoint
-  // This returns ALL permissions and we parse them to find project-scoped ones
-  const {
-    canDecideAllProjects,
-    canDecideProjectNames,
-    isLoading: isLoadingDecideProjects,
-  } = useApprovalDecideProjects()
+  const { canDecideProjectNames, canReadProjectNames, isLoading: isLoadingProjectPerms } = useApprovalDecideProjects()
 
   return useMemo(() => {
-    // User can decide if they have:
-    // 1. Global approval:decide permission (canDecideGlobalQuery.allowed OR canDecideAllProjects)
-    // 2. Project-scoped approval:decide for THIS specific project
     const hasProjectDecide = projectId ? canDecideProjectNames.has(projectId) : false
-    const canDecide = canDecideGlobalQuery.allowed || canDecideAllProjects || hasProjectDecide
+    const canDecide = canDecideGlobalQuery.allowed || hasProjectDecide
+
+    const hasProjectRead = projectId ? canReadProjectNames.has(projectId) : canReadProjectNames.size > 0
+    const canRead = canReadGlobalQuery.allowed || hasProjectRead
 
     return {
-      canRead: canReadGlobalQuery.allowed,
+      canRead,
       canDecide,
-      isChecking: canReadGlobalQuery.isChecking || canDecideGlobalQuery.isChecking || isLoadingDecideProjects,
+      isChecking: canReadGlobalQuery.isChecking || canDecideGlobalQuery.isChecking || isLoadingProjectPerms,
       tooltips: {
         decide: permissionTooltip('decide on approvals', 'approval:decide'),
       },
@@ -69,9 +62,9 @@ export function useApprovalPermissions(projectId?: string | null) {
     canReadGlobalQuery.isChecking,
     canDecideGlobalQuery.allowed,
     canDecideGlobalQuery.isChecking,
-    canDecideAllProjects,
     canDecideProjectNames,
-    isLoadingDecideProjects,
+    canReadProjectNames,
+    isLoadingProjectPerms,
     projectId,
   ])
 }
