@@ -1,13 +1,13 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Label, Stack, StackItem, Truncate } from '@patternfly/react-core'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
 
 import { stackPaddingLgOnlyStyle } from '../../../app/panelContentStackStyle'
 import { credentialsClient } from '../../../client'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxLink } from '../../../components/NxLink'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
@@ -25,12 +25,10 @@ type CredentialWorkflowsTabProps = {
 
 const DASH = '\u2014'
 
-const nameStyle = { fontWeight: 600, margin: 0, color: 'var(--pf-t--global--color--brand--default)' } as const
 const descriptionStyle = { margin: 0, color: 'var(--pf-t--global--text--color--subtle)' } as const
 const labelMarginStyle = { marginRight: 'var(--pf-t--global--spacer--xs)' } as const
 
 export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWorkflowsTabProps>) {
-  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(20)
 
@@ -95,17 +93,9 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
           </Thead>
           <Tbody>
             {paginatedWorkflows.map((workflow) => (
-              <Tr
-                key={workflow.id}
-                isClickable
-                onRowClick={() => {
-                  detachPromise(navigate({ to: '/workflow-builder/$workflowId', params: { workflowId: workflow.id } }))
-                }}
-              >
+              <Tr key={workflow.id}>
                 <Td dataLabel="Workflow Name">
-                  <Content component={ContentVariants.p} style={nameStyle}>
-                    {workflow.name}
-                  </Content>
+                  <NxLink to={`/workflow-builder/${workflow.id}`}>{workflow.name}</NxLink>
                   {workflow.description && (
                     <Content component={ContentVariants.small} style={descriptionStyle}>
                       {workflow.description}

@@ -1,5 +1,4 @@
 import {
-  Button,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -7,10 +6,8 @@ import {
 } from '@patternfly/react-core'
 
 type ApprovalSummaryListProps = {
-  workflowLink?: string
   workflowName: string
   approvalInitiated: string
-  onWorkflowClick?: (link: string) => void
 }
 
 export function ApprovalSummaryList(props: ApprovalSummaryListProps) {
@@ -23,25 +20,12 @@ export function ApprovalSummaryList(props: ApprovalSummaryListProps) {
       <DescriptionListGroup>
         <DescriptionListTerm>Approval type</DescriptionListTerm>
         <DescriptionListDescription>
-          Approval step {/** TODO: make this use real type when we have multiple types implemented */}
+          Approval step {/** display of step type is hardcoded; multiple approval types are not yet implemented */}
         </DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
         <DescriptionListTerm>Workflow</DescriptionListTerm>
-        <DescriptionListDescription>
-          {props.workflowLink && props.onWorkflowClick ? (
-            <Button
-              variant="link"
-              isInline
-              onClick={() => props.onWorkflowClick!(props.workflowLink!)}
-              style={{ paddingLeft: 0 }}
-            >
-              {props.workflowName}
-            </Button>
-          ) : (
-            props.workflowName
-          )}
-        </DescriptionListDescription>
+        <DescriptionListDescription>{props.workflowName}</DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
         <DescriptionListTerm>Approval initiated</DescriptionListTerm>

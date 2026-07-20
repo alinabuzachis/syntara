@@ -279,16 +279,12 @@ describe('IdentityProvidersTab', () => {
       expect(screen.getByText('5')).toBeInTheDocument()
     })
 
-    it('navigates to provider detail page when provider name link is clicked', async () => {
-      const user = userEvent.setup()
+    it('renders provider name as a navigational link to the provider detail page', () => {
       setupProviders()
       render(<IdentityProvidersTab />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Azure AD' }))
-
-      expect(routerTestState.navigate).toHaveBeenCalledWith({
-        to: '/system-administration/authentication/identity-providers/provider-1',
-      })
+      const link = screen.getByRole('link', { name: 'Azure AD' })
+      expect(link).toHaveAttribute('href', '/system-administration/authentication/identity-providers/provider-1')
     })
 
     it('opens delete confirmation dialog when delete action is clicked', async () => {

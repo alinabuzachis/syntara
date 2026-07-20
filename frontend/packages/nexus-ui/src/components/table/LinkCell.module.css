@@ -1,12 +1,10 @@
 .root {
   max-width: 100%;
   overflow: hidden;
-  text-decoration: none;
 }
 
 /* The Truncate component's outer span uses overflow:hidden which clips the text-decoration
-   underline drawn below the baseline. A small bottom padding keeps truncation intact while
-   giving the underline space to render. */
+   underline drawn below the baseline. A small bottom padding gives the underline room to render. */
 .root :global(.pf-v6-c-truncate) {
   padding-bottom: 3px;
 }

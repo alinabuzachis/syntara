@@ -3,8 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { routerTestState } from '../../test/setup'
-
 import { BUILTIN_ADMIN_TOGGLE_DISABLED_REASON } from './adminConstants'
 import { BuiltInAdminCard } from './BuiltInAdminCard'
 
@@ -52,15 +50,11 @@ describe('BuiltInAdminCard', () => {
     expect(onToggle).toHaveBeenCalledWith(false)
   })
 
-  it('navigates to user detail when name link is clicked', async () => {
-    const user = userEvent.setup()
+  it('renders admin account name as a navigational link to the user detail page', () => {
     render(<BuiltInAdminCard {...defaultProps} />)
 
-    await user.click(screen.getByRole('button', { name: 'Built-in Administrator Account' }))
-
-    expect(routerTestState.navigate).toHaveBeenCalledWith({
-      to: '/system-administration/access-management/users/user-123',
-    })
+    const link = screen.getByRole('link', { name: 'Built-in Administrator Account' })
+    expect(link).toHaveAttribute('href', '/system-administration/access-management/users/user-123')
   })
 
   it('shows tooltip when canToggle=false', async () => {
