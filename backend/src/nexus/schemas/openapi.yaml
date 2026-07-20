@@ -30469,24 +30469,6 @@ components:
           title: Updated By
           description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
-        deleted_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          readOnly: true
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-          example: '2025-10-09T14:00:00Z'
-        deleted_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          readOnly: true
-          title: Deleted By
-          description: User who performed the soft delete
-          example: 660e8400-e29b-41d4-a716-446655440000
         name:
           type: string
           minLength: 1

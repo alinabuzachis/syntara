@@ -4,15 +4,16 @@ This module contains the IdentityProvider SQLModel class that extends the Resour
 with identity provider specific fields as defined in the OpenAPI specification.
 """
 
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
-from sqlalchemy import Index, String, text
+from sqlalchemy import Index, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from nexus.core.constants import FieldLimits
-from nexus.core.models.base import Resource
+from nexus.core.models.base.named import NamedResource
+from nexus.core.models.base.user_owned import UserOwnedResource
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import DiscriminatedJSONB
 from nexus.identity_providers.models.identity_provider_configuration import (
@@ -23,12 +24,18 @@ from nexus.identity_providers.models.identity_provider_configuration import (
 )
 
 
-class IdentityProviderBase(Resource):
+class IdentityProviderBase(NamedResource, UserOwnedResource):
     """IdentityProvider base model.
 
     Represents an external identity provider for authentication.
-    Extends the Resource base class with provider-specific fields.
+    Extends NamedResource and UserOwnedResource (without SoftDeletableResource
+    since identity providers use hard delete).
     """
+
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
+        **NamedResource.FIELD_SCHEMA_EXTRAS,
+        **UserOwnedResource.FIELD_SCHEMA_EXTRAS,
+    }
 
     name: str = Field(
         min_length=1,
@@ -47,14 +54,14 @@ class IdentityProvider(IdentityProviderBase, table=True):
     __tablename__ = "identity_providers"
 
     __filterable_fields__: ClassVar[list[str]] = [
-        *Resource.__filterable_fields__,
+        *NamedResource.__filterable_fields__,
         "enabled",
         "provider_type",
         "configuration.provider_type",
     ]
 
     __sortable_fields__: ClassVar[list[str]] = [
-        *Resource.__sortable_fields__,
+        *NamedResource.__sortable_fields__,
         "enabled",
     ]
 
@@ -71,12 +78,7 @@ class IdentityProvider(IdentityProviderBase, table=True):
     )
 
     __table_args__ = (
-        Index(
-            "ix_identity_providers_name_unique",
-            "name",
-            unique=True,
-            postgresql_where=text("deleted_at IS NULL"),
-        ),
+        UniqueConstraint("name", name="ix_identity_providers_name_unique"),
         Index("ix_identity_providers_created_at_id", "created_at", "id"),
     )
 

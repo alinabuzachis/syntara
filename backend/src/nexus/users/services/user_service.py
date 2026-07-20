@@ -80,7 +80,6 @@ class UsersService(BaseService):
                 .join(UserIdentity, col(UserIdentity.identity_provider_id) == IdentityProvider.id)
                 .where(
                     col(UserIdentity.user_id) == user.id,
-                    IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
                 )
             )
             result.auth_sources = sorted(identity_result.all())
@@ -270,7 +269,6 @@ class UsersService(BaseService):
             .join(IdentityProvider, col(IdentityProvider.id) == UserIdentity.identity_provider_id)
             .where(
                 col(IdentityProvider.name) == provider_name,
-                IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
             )
         )
         return list(result.all())
@@ -286,7 +284,6 @@ class UsersService(BaseService):
             .join(IdentityProvider, col(IdentityProvider.id) == UserIdentity.identity_provider_id)
             .where(
                 col(UserIdentity.user_id).in_(federated_ids),
-                IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
             )
         )
         provider_map: dict[UUID, list[str]] = {}

@@ -250,8 +250,7 @@ async def query_integration_health(session: AsyncSession) -> IntegrationHealth:
 
 
 async def query_identity_provider_health(session: AsyncSession) -> IdentityProviderHealth:
-    """Query health status of configured identity providers grouped by type and status (excludes soft-deleted)."""
-    not_deleted = IdentityProvider.deleted_at.is_(None)  # type: ignore[union-attr]
+    """Query health status of configured identity providers grouped by type and status."""
     provider_type_col = IdentityProvider.configuration["provider_type"].astext.label("provider_type")  # type: ignore[index]
 
     provider_result = await session.exec(
@@ -259,9 +258,7 @@ async def query_identity_provider_health(session: AsyncSession) -> IdentityProvi
             provider_type_col,
             IdentityProvider.enabled,
             func.count(IdentityProvider.id),  # type: ignore[arg-type]
-        )
-        .where(not_deleted)
-        .group_by(provider_type_col, IdentityProvider.enabled)
+        ).group_by(provider_type_col, IdentityProvider.enabled)
     )
 
     items: dict[str, IdentityProviderInfo] = {}

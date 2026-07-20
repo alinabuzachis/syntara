@@ -181,7 +181,6 @@ async def find_idp_by_name(db: AsyncSession, idp_name: str) -> IdentityProvider 
     result = await db.exec(
         select(IdentityProvider).filter(
             IdentityProvider.name == idp_name,  # type: ignore[arg-type]
-            IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
     return result.one_or_none()

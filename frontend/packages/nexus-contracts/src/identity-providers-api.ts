@@ -525,18 +525,19 @@ export interface components {
      * IdentityProviderResponse
      * @description Schema for IdentityProvider response with configuration details (excludes secrets).
      */
-    IdentityProviderResponse: components['schemas']['Resource'] & {
-      /** @description Human-readable provider name */
-      name?: unknown
-      /**
-       * Enabled
-       * @description Enable/disable the identity provider
-       * @default true
-       */
-      enabled?: boolean
-      /** @description Identity provider configuration */
-      configuration: components['schemas']['OIDCConfigurationResponse']
-    }
+    IdentityProviderResponse: components['schemas']['UserOwnedResource'] &
+      components['schemas']['NamedResource'] & {
+        /** @description Human-readable provider name */
+        name?: unknown
+        /**
+         * Enabled
+         * @description Enable/disable the identity provider
+         * @default true
+         */
+        enabled?: boolean
+        /** @description Identity provider configuration */
+        configuration: components['schemas']['OIDCConfigurationResponse']
+      }
     /**
      * IdentityProviderListResponse
      * @description Paginated list response for identity providers.
@@ -719,20 +720,6 @@ export interface components {
        */
       readonly updated_by?: string | null
     }
-    SoftDeletableResource: components['schemas']['BaseResource'] & {
-      /**
-       * Deleted At
-       * @description Timestamp when resource was soft deleted
-       * @example 2025-10-09T14:00:00Z
-       */
-      readonly deleted_at?: string | null
-      /**
-       * Deleted By
-       * @description User who performed the soft delete
-       * @example 660e8400-e29b-41d4-a716-446655440000
-       */
-      readonly deleted_by?: string | null
-    }
     NamedResource: components['schemas']['BaseResource'] & {
       /**
        * Name
@@ -747,13 +734,6 @@ export interface components {
        */
       description?: string | null
     }
-    /**
-     * Resource
-     * @description Composite resource combining named, soft-deletable, and user-owned capabilities
-     */
-    Resource: components['schemas']['UserOwnedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['NamedResource']
     /**
      * ErrorData
      * @description RFC 9457 Problem Details format for error event data.

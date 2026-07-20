@@ -749,7 +749,6 @@ async def _maybe_rp_logout(
     result = await db.exec(
         select(IdentityProvider).filter(
             IdentityProvider.id == UUID(session_info.idp_id),  # type: ignore[arg-type]
-            IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
     provider = result.one_or_none()
@@ -977,7 +976,6 @@ async def list_auth_providers(
     result = await db.exec(
         select(IdentityProvider).filter(
             col(IdentityProvider.enabled) == True,  # noqa: E712
-            IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
     providers = result.all()
@@ -1203,12 +1201,11 @@ async def _get_oidc_endpoints(
 
 
 async def _load_enabled_provider(db: AsyncSession, provider_id: str | UUID) -> IdentityProvider:
-    """Load an enabled, non-deleted identity provider or raise."""
+    """Load an enabled identity provider or raise."""
     result = await db.exec(
         select(IdentityProvider).filter(
             IdentityProvider.id == provider_id,  # type: ignore[arg-type]  # SQLModel UUID comparison
             col(IdentityProvider.enabled) == True,  # noqa: E712
-            IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]  # SQLModel optional column
         )
     )
     provider = result.one_or_none()

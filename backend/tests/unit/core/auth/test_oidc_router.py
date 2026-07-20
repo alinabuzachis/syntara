@@ -130,10 +130,9 @@ def _make_provider(
     provider_id: str | None = None,
     name: str = "Test Provider",
     enabled: bool = True,
-    deleted_at: datetime | None = None,
     config: OIDCConfiguration | None = None,
 ) -> IdentityProvider:
-    provider = IdentityProvider(
+    return IdentityProvider(
         id=UUID(provider_id) if provider_id else uuid4(),
         name=name,
         description="Test OIDC Provider",
@@ -142,8 +141,6 @@ def _make_provider(
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
-    provider.deleted_at = deleted_at
-    return provider
 
 
 def _make_discovery_response() -> dict[str, str]:
@@ -262,8 +259,8 @@ class TestListAuthProviders:
 
     @pytest.mark.asyncio
     async def test_filters_out_deleted_providers(self) -> None:
-        """Should not return providers that have been soft-deleted."""
-        provider1 = _make_provider(name="Active Provider", enabled=True, deleted_at=None)
+        """Should not return deleted providers (hard-deleted providers simply don't exist)."""
+        provider1 = _make_provider(name="Active Provider", enabled=True)
         # Deleted provider should not be in the query results at all due to WHERE clause
 
         db = AsyncMock()
@@ -933,8 +930,8 @@ class TestLoadEnabledProvider:
 
     @pytest.mark.asyncio
     async def test_returns_provider_when_enabled_and_not_deleted(self) -> None:
-        """Should return provider when it is enabled and not deleted."""
-        provider = _make_provider(enabled=True, deleted_at=None)
+        """Should return provider when it is enabled."""
+        provider = _make_provider(enabled=True)
         provider_id = provider.id
 
         db = AsyncMock()
@@ -946,7 +943,6 @@ class TestLoadEnabledProvider:
 
         assert result == provider
         assert result.enabled is True
-        assert result.deleted_at is None
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("scenario", ["not_found", "disabled", "deleted"])

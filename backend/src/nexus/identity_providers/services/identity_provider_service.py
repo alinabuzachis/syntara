@@ -115,7 +115,6 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         """Get an identity provider by ID."""
         query = select(IdentityProvider).filter(
             IdentityProvider.id == provider_id,  # type: ignore[arg-type]
-            IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
         )
 
         result = await self.session.exec(query)
@@ -300,7 +299,6 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         """Patch an identity provider."""
         query = select(IdentityProvider).filter(
             IdentityProvider.id == provider_id,  # type: ignore[arg-type]
-            IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
         )
 
         result = await self.session.exec(query)
@@ -358,10 +356,9 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         return await self._load_config(OIDCConfiguration, config_data, provider.secret_id)  # type: ignore[return-value]
 
     async def delete_provider(self, provider_id: UUID) -> None:
-        """Soft delete an identity provider and clean up linked identities and sessions."""
+        """Hard delete an identity provider and clean up linked identities and sessions."""
         query = select(IdentityProvider).filter(
             IdentityProvider.id == provider_id,  # type: ignore[arg-type]
-            IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
         )
 
         result = await self.session.exec(query)
@@ -429,20 +426,26 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         if revoked > 0:
             logger.info("Revoked sessions for deleted provider", provider=provider.name, count=revoked)
 
+        # Capture for audit event before delete invalidates the instance
+        provider_id = provider.id
+        provider_name = provider.name
+
         # Delete encrypted secrets — null FK first to avoid constraint violation
         secret_id = provider.secret_id
         provider.secret_id = None
+        self.session.add(provider)
+        await self.session.flush()
+
         if secret_id:
             await self._secret_service.delete_secret(secret_id)
 
-        provider.deleted_at = datetime.now(UTC)
-        provider.deleted_by = self.user.id
+        await self.session.delete(provider)
         await self.session.commit()
 
         AuditEventDispatcher.dispatch(
             IdentityProviderLifecycleEvent(
-                provider_id=provider.id,
-                provider_name=provider.name,
+                provider_id=provider_id,
+                provider_name=provider_name,
                 action="deleted",
             )
         )

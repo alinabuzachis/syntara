@@ -470,7 +470,6 @@ class GroupsService(BaseService):
                 )
                 .where(
                     col(UserIdentity.user_id).in_(federated_ids),
-                    IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
                 )
             )
             provider_map: dict[UUID, list[str]] = {}

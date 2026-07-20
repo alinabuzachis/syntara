@@ -843,7 +843,8 @@ components:
       description: Schema for IdentityProvider response with configuration details (excludes secrets).
       additionalProperties: false
       allOf:
-        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/Resource"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/NamedResource"
         - type: object
           title: IdentityProviderResponse
           required:

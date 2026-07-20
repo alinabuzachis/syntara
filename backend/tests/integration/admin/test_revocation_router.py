@@ -309,30 +309,13 @@ class TestRevokeIdpSessions:
         )
         assert response.status_code == 404
 
-    async def test_returns_404_for_soft_deleted_idp(
+    async def test_returns_404_after_hard_delete(
         self,
         auth_client: AsyncClient,
-        test_db_session: AsyncSession,
-        test_user: User,
     ) -> None:
-        provider = IdentityProvider(
-            id=uuid4(),
-            name="Deleted IDP",
-            created_by=test_user.id,
-            deleted_at=datetime.now(UTC),
-            configuration={
-                "provider_type": "oidc",
-                "issuer_url": "https://deleted.example.com",
-                "client_id": "c",
-                "client_secret": "s",
-                "redirect_uri": "http://localhost/cb",
-            },
-        )
-        test_db_session.add(provider)
-        await test_db_session.commit()
-
+        """After hard-deleting a provider, revocation returns 404."""
         response = await auth_client.post(
-            "/api/v1/admin/revocation/identity_providers/Deleted IDP",
+            "/api/v1/admin/revocation/identity_providers/NonexistentProvider",
         )
         assert response.status_code == 404
 

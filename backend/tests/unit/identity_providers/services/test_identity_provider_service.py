@@ -95,8 +95,6 @@ def _make_provider(**overrides: object) -> IdentityProvider:
         "updated_by": user_id,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
-        "deleted_at": None,
-        "deleted_by": None,
         "labels": {},
     }
     defaults.update(overrides)
@@ -339,7 +337,7 @@ async def test_patch_provider_configuration_preserves_jmespath() -> None:
 
 @pytest.mark.asyncio
 async def test_delete_provider_success() -> None:
-    """Delete soft-deletes the provider, cleans identities, revokes sessions, deletes secret."""
+    """Delete hard-deletes the provider, cleans identities, revokes sessions, deletes secret."""
     provider = _make_provider(name="ToDelete")
     mock_session = _make_mock_session()
     mock_secret = _make_mock_secret_service()
@@ -367,7 +365,14 @@ async def test_delete_provider_success() -> None:
 
         await service.delete_provider(provider.id)
 
-    assert provider.deleted_at is not None
+    # Verify operation ordering: add → flush → delete → commit
+    mock_session.add.assert_called_once_with(provider)
+    mock_session.flush.assert_called_once()
+    mock_session.delete.assert_called_once_with(provider)
+    mock_session.commit.assert_called_once()
+    calls = mock_session.method_calls
+    call_names = [c[0] for c in calls]
+    assert call_names.index("add") < call_names.index("flush") < call_names.index("delete") < call_names.index("commit")
     mock_secret.delete_secret.assert_called_once()
 
 
@@ -424,6 +429,40 @@ async def test_delete_provider_revokes_sessions_and_deletes_identities() -> None
     assert mock_session.exec.call_count == 4
     # Sessions should have been revoked
     mock_store.revoke_by_idp.assert_called_once_with(str(provider.id))
+
+
+@pytest.mark.asyncio
+async def test_delete_provider_without_secret_skips_secret_deletion() -> None:
+    """Delete works when provider has no secret (secret_id=None)."""
+    provider = _make_provider(name="NoSecret", secret_id=None)
+    mock_session = _make_mock_session()
+    mock_secret = _make_mock_secret_service()
+
+    mock_find_result = MagicMock()
+    mock_find_result.one_or_none.return_value = provider
+
+    mock_identity_delete = MagicMock()
+    mock_identity_delete.rowcount = 0
+    mock_memberships_delete = MagicMock()
+    mock_memberships_delete.rowcount = 0
+    mock_tracking_delete = MagicMock()
+    mock_tracking_delete.rowcount = 0
+
+    mock_session.exec = AsyncMock(
+        side_effect=[mock_find_result, mock_identity_delete, mock_memberships_delete, mock_tracking_delete]
+    )
+
+    service = _make_service(mock_session, secret_service=mock_secret)
+
+    with patch("nexus.identity_providers.services.identity_provider_service.create_session_store") as mock_store_cls:
+        mock_store = AsyncMock()
+        mock_store.revoke_by_idp = AsyncMock(return_value=0)
+        mock_store_cls.return_value = mock_store
+
+        await service.delete_provider(provider.id)
+
+    mock_secret.delete_secret.assert_not_called()
+    mock_session.delete.assert_called_once_with(provider)
 
 
 # ============================================================================

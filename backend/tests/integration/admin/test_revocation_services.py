@@ -293,32 +293,6 @@ class TestFindIdpByName:
         result = await find_idp_by_name(test_db_session, "No Such Provider")
         assert result is None
 
-    async def test_excludes_soft_deleted_providers(
-        self,
-        test_db_session: AsyncSession,
-        test_user: User,
-    ) -> None:
-        from nexus.identity_providers.models.identity_provider import IdentityProvider
-
-        provider = IdentityProvider(
-            id=uuid4(),
-            name="Deleted Provider",
-            created_by=test_user.id,
-            deleted_at=datetime.now(UTC),
-            configuration={
-                "provider_type": "oidc",
-                "issuer_url": "https://deleted.example.com",
-                "client_id": "c",
-                "client_secret": "s",
-                "redirect_uri": "http://localhost/cb",
-            },
-        )
-        test_db_session.add(provider)
-        await test_db_session.commit()
-
-        result = await find_idp_by_name(test_db_session, "Deleted Provider")
-        assert result is None
-
 
 class TestRevokeIdpSessions:
     """Tests for revoke_idp_sessions."""
