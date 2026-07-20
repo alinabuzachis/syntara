@@ -164,12 +164,14 @@ function ReadOnlyCredentialWarning({ show }: { show: boolean }) {
 function useReadOnlyCredential(value: string | undefined, usableCredentials: Credential[], isListPending: boolean) {
   const selectedCredential = useMemo(() => usableCredentials.find((c) => c.id === value), [usableCredentials, value])
 
-  const { data: readOnlyCredData, isPending: isSingleCredPending } = credentialsClient.useQuery(
+  const singleCredEnabled = !!value && !selectedCredential && !isListPending
+  const { data: readOnlyCredData, isFetching: isSingleCredFetching } = credentialsClient.useQuery(
     'get',
     '/credentials/{credential_id}',
     { params: { path: { credential_id: value ?? '' } } },
-    { enabled: !!value && !selectedCredential && !isListPending }
+    { enabled: singleCredEnabled }
   )
+  const isSingleCredPending = singleCredEnabled && isSingleCredFetching
 
   const isReadOnly = !!value && !selectedCredential && !isListPending && !!readOnlyCredData
   const readOnlyLabel = isReadOnly ? `${readOnlyCredData.name} (no permission to use)` : undefined
