@@ -1,4 +1,4 @@
-import { Button, Content, Switch, Truncate } from '@patternfly/react-core'
+import { Button, Content, Switch, Tooltip, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
@@ -6,6 +6,7 @@ import { useCallback, useMemo } from 'react'
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
+import { NxLabel } from '../../../components/labels/NxLabel'
 import type { KebabAction } from '../../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxLink } from '../../../components/NxLink'
@@ -104,7 +105,20 @@ function ServiceAccountTableBody({
             {sa.project_name && !sa.is_project_deleted ? (
               <NxLink to={getProjectDetailPath(sa.project_id)}>{sa.project_name}</NxLink>
             ) : (
-              (sa.project_name ?? sa.project_id)
+              <>
+                {sa.project_name ?? sa.project_id}
+                {sa.is_project_deleted && (
+                  <>
+                    {' '}
+                    <Tooltip content="The owning project for this service account has been deleted">
+                      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+                      <span tabIndex={0}>
+                        <NxLabel color="grey">Deleted</NxLabel>
+                      </span>
+                    </Tooltip>
+                  </>
+                )}
+              </>
             )}
           </Td>
           <Td dataLabel="Created">{formatDateTime(sa.created_at)}</Td>

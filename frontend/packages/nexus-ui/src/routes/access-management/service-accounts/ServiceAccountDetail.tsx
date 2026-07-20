@@ -1,4 +1,4 @@
-import { Button, DescriptionList, Switch, Tab, TabTitleText } from '@patternfly/react-core'
+import { Button, DescriptionList, Switch, Tab, TabTitleText, Tooltip } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useCallback } from 'react'
@@ -47,7 +47,20 @@ function DetailsTab({ serviceAccount }: Readonly<{ serviceAccount: ServiceAccoun
         {serviceAccount.project_name && !serviceAccount.is_project_deleted ? (
           <NxLink to={getProjectDetailPath(serviceAccount.project_id)}>{serviceAccount.project_name}</NxLink>
         ) : (
-          (serviceAccount.project_name ?? serviceAccount.project_id)
+          <>
+            {serviceAccount.project_name ?? serviceAccount.project_id}
+            {serviceAccount.is_project_deleted && (
+              <>
+                {' '}
+                <Tooltip content="The owning project for this service account has been deleted">
+                  {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+                  <span tabIndex={0}>
+                    <NxLabel color="grey">Deleted</NxLabel>
+                  </span>
+                </Tooltip>
+              </>
+            )}
+          </>
         )}
       </NxDetail>
       <NxDetail label="Description">{serviceAccount.description}</NxDetail>

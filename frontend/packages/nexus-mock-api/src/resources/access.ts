@@ -650,6 +650,21 @@ export const mockServiceAccounts: MockServiceAccount[] = [
     updated_at: mockDate.daysAgo1,
     labels: { team: 'platform' },
   },
+  {
+    id: 'sa-005',
+    name: 'legacy-sync',
+    description: 'Sync agent from a project that has been removed',
+    status: 'disabled',
+    project_id: 'p-deleted-001',
+    project_name: 'retired-infra',
+    is_project_deleted: true,
+    last_authenticated_at: mockDate.daysAgo5,
+    created_by: 'u-002',
+    updated_by: null,
+    created_at: '2024-01-10T08:00:00.000Z',
+    updated_at: '2024-01-10T08:00:00.000Z',
+    labels: {},
+  },
 ]
 
 // ── Service Account Credentials ─────────────────────────────────────────
