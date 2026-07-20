@@ -101,4 +101,28 @@ describe('NxKebabMenu', () => {
 
     expect(await axe(container)).toHaveNoViolations()
   })
+
+  it('closes the previously open menu when another kebab is opened', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        {/* stopPropagation mirrors Run History row wrappers that can block PF outside-click close */}
+        <div onClick={(e) => e.stopPropagation()} role="presentation">
+          <NxKebabMenu actions={buildActions()} aria-label="Actions for run A" />
+        </div>
+        <div onClick={(e) => e.stopPropagation()} role="presentation">
+          <NxKebabMenu actions={buildActions()} aria-label="Actions for run B" />
+        </div>
+      </>
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Actions for run A' }))
+    expect(screen.getByRole('button', { name: 'Actions for run A', expanded: true })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Actions for run B' }))
+
+    const expandedToggles = screen.getAllByRole('button', { expanded: true })
+    expect(expandedToggles).toHaveLength(1)
+    expect(expandedToggles[0]).toHaveAccessibleName('Actions for run B')
+  })
 })

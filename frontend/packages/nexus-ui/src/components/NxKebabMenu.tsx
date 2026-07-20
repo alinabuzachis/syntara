@@ -1,7 +1,7 @@
 import { Divider, Dropdown, DropdownItem, DropdownList, MenuToggle } from '@patternfly/react-core'
 import type { MenuToggleElement, TooltipProps } from '@patternfly/react-core'
 import { RhUiEllipsisVerticalFillIcon } from '@patternfly/react-icons'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 
 export type KebabAction = {
   /** Unique identifier for this action, used as the React `key`. */
@@ -28,6 +28,9 @@ type NxKebabMenuProps = Readonly<{
   'aria-label': string
 }>
 
+/** Ensures only one NxKebabMenu is open at a time across the app. */
+const openMenuClosers = new Map<string, () => void>()
+
 function KebabToggle({
   toggleRef,
   isExpanded,
@@ -47,7 +50,29 @@ function KebabToggle({
 }
 
 export function NxKebabMenu({ actions, 'aria-label': ariaLabel }: NxKebabMenuProps) {
+  const menuId = useId()
   const [isOpen, setIsOpen] = useState(false)
+
+  useEffect(() => {
+    openMenuClosers.set(menuId, () => setIsOpen(false))
+    return () => {
+      openMenuClosers.delete(menuId)
+    }
+  }, [menuId])
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        for (const [id, close] of openMenuClosers) {
+          if (id !== menuId) {
+            close()
+          }
+        }
+      }
+      setIsOpen(nextOpen)
+    },
+    [menuId]
+  )
 
   const renderToggle = useCallback(
     (toggleRef: React.Ref<MenuToggleElement>) => (
@@ -55,14 +80,14 @@ export function NxKebabMenu({ actions, 'aria-label': ariaLabel }: NxKebabMenuPro
         toggleRef={toggleRef}
         isExpanded={isOpen}
         ariaLabel={ariaLabel}
-        onToggle={() => setIsOpen((prev) => !prev)}
+        onToggle={() => handleOpenChange(!isOpen)}
       />
     ),
-    [isOpen, ariaLabel]
+    [isOpen, ariaLabel, handleOpenChange]
   )
 
   return (
-    <Dropdown isOpen={isOpen} onOpenChange={setIsOpen} popperProps={{ position: 'end' }} toggle={renderToggle}>
+    <Dropdown isOpen={isOpen} onOpenChange={handleOpenChange} popperProps={{ position: 'end' }} toggle={renderToggle}>
       <DropdownList>
         {actions.map((action) => {
           if (action.isSeparator) {
@@ -78,7 +103,7 @@ export function NxKebabMenu({ actions, 'aria-label': ariaLabel }: NxKebabMenuPro
               onClick={() => {
                 if (action.isAriaDisabled) return
                 action.onClick?.()
-                setIsOpen(false)
+                handleOpenChange(false)
               }}
             >
               {action.title}
