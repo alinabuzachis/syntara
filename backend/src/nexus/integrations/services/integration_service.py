@@ -13,8 +13,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.models.project import Project
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
+from nexus.core.queries.project_queries import assert_project_alive
 from nexus.core.services import BaseService
 from nexus.core.services.secret_service import SecretService
 from nexus.credentials.lib.injector_resolver import InjectorResolver
@@ -40,6 +42,7 @@ from nexus.integrations.exceptions import (
     IntegrationNameConflictError,
     IntegrationNotFoundError,
     IntegrationRefreshNotSupportedError,
+    IntegrationScopeError,
 )
 from nexus.integrations.lib.credential_resolver import fetch_credential_with_type, resolve_mcp_bearer_token
 from nexus.integrations.models.integration import (
@@ -48,6 +51,8 @@ from nexus.integrations.models.integration import (
     IntegrationListResponse,
     IntegrationPatch,
     IntegrationProjectAssignment,
+    IntegrationProjectAssignmentListResponse,
+    IntegrationProjectAssignmentRead,
     IntegrationRead,
     IntegrationRefreshStatus,
     IntegrationScope,
@@ -201,7 +206,11 @@ class IntegrationService(BaseService):
 
         return integration
 
-    async def _to_read_with_counts(self, integration: Integration) -> IntegrationRead:
+    async def _to_read_with_counts(
+        self,
+        integration: Integration,
+        allowed_projects: AllowedProjectsResult | None = None,
+    ) -> IntegrationRead:
         """Convert an Integration ORM model to IntegrationRead with tool and model counts."""
         result = IntegrationRead.model_validate(integration)
         tool_counts = await self._get_tool_counts([integration.id])
@@ -212,8 +221,17 @@ class IntegrationService(BaseService):
         m_total, m_enabled = model_counts.get(integration.id, (0, 0))
         result.total_model_count = m_total
         result.enabled_model_count = m_enabled
+        project_ids_map = await self._get_assigned_project_ids([integration.id])
+        result.project_ids = self._filter_project_ids(project_ids_map.get(integration.id, []), allowed_projects)
         await self._resolve_user_fields([result])
         return result
+
+    @staticmethod
+    def _filter_project_ids(project_ids: list[UUID], allowed_projects: AllowedProjectsResult | None) -> list[UUID]:
+        if allowed_projects is None or allowed_projects.all_projects:
+            return project_ids
+        allowed_set = set(allowed_projects.project_ids)
+        return [pid for pid in project_ids if pid in allowed_set]
 
     async def _get_tool_counts(self, integration_ids: list[UUID]) -> dict[UUID, tuple[int, int]]:
         """Fetch (total, enabled) tool counts per integration in a single query."""
@@ -249,6 +267,122 @@ class IntegrationService(BaseService):
         )
         rows = await self.session.execute(query)
         return {row.integration_id: (int(row.total), int(row.enabled or 0)) for row in rows.all()}
+
+    async def _get_assigned_project_ids(self, integration_ids: list[UUID]) -> dict[UUID, list[UUID]]:
+        """Batch-fetch assigned project IDs per integration."""
+        if not integration_ids:
+            return {}
+        query = select(
+            IntegrationProjectAssignment.integration_id,
+            IntegrationProjectAssignment.project_id,
+        ).where(col(IntegrationProjectAssignment.integration_id).in_(integration_ids))
+        rows = await self.session.execute(query)
+        result: dict[UUID, list[UUID]] = {}
+        for row in rows.all():
+            result.setdefault(row.integration_id, []).append(row.project_id)
+        return result
+
+    async def assign_project(self, integration_id: UUID, project_id: UUID) -> IntegrationProjectAssignmentRead:
+        """Assign a project to a project-scoped integration."""
+        integration = await self._get_or_raise(integration_id)
+        if integration.scope != IntegrationScope.PROJECT:
+            raise IntegrationScopeError(
+                integration_id,
+                f"Cannot assign projects to a {integration.scope.value}-scoped integration",
+            )
+        await assert_project_alive(self.session, project_id)
+        project = await self.session.get(Project, project_id)
+
+        existing = (
+            await self.session.exec(
+                select(IntegrationProjectAssignment).where(
+                    IntegrationProjectAssignment.integration_id == integration_id,
+                    IntegrationProjectAssignment.project_id == project_id,
+                )
+            )
+        ).one_or_none()
+
+        if existing is None:
+            existing = IntegrationProjectAssignment(
+                integration_id=integration_id,
+                project_id=project_id,
+            )
+            self.session.add(existing)
+            await self.session.flush()
+
+        await self.session.commit()
+        return IntegrationProjectAssignmentRead(
+            project_id=project_id,
+            project_name=project.name if project else str(project_id),
+            created_at=existing.created_at,
+        )
+
+    async def unassign_project(self, integration_id: UUID, project_id: UUID) -> None:
+        """Remove a project assignment from an integration."""
+        integration = await self._get_or_raise(integration_id)
+        if integration.scope != IntegrationScope.PROJECT:
+            raise IntegrationScopeError(
+                integration_id,
+                f"Cannot unassign projects from a {integration.scope.value}-scoped integration",
+            )
+        stmt = delete(IntegrationProjectAssignment).where(
+            IntegrationProjectAssignment.integration_id == integration_id,  # type: ignore[arg-type]
+            IntegrationProjectAssignment.project_id == project_id,  # type: ignore[arg-type]
+        )
+        await self.session.exec(stmt)
+        await self.session.commit()
+
+    async def list_assigned_projects(
+        self,
+        integration_id: UUID,
+        limit: int = 20,
+        cursor: str | None = None,
+        sort: str | None = None,
+        *,
+        include_total: bool = False,
+        allowed_projects: AllowedProjectsResult | None = None,
+    ) -> IntegrationProjectAssignmentListResponse:
+        """List project assignments for an integration with pagination."""
+        await self._get_or_raise(integration_id)
+
+        id_restriction: list[UUID] | None = None
+        if allowed_projects is not None and not allowed_projects.all_projects:
+            rows = await self.session.execute(
+                select(IntegrationProjectAssignment.id).where(
+                    IntegrationProjectAssignment.integration_id == integration_id,
+                    col(IntegrationProjectAssignment.project_id).in_(allowed_projects.project_ids),
+                )
+            )
+            id_restriction = [row[0] for row in rows.all()]
+
+        project_names: dict[UUID, str] = {}
+
+        async def _fetch_project_names(assignments: list[IntegrationProjectAssignment]) -> None:
+            if not assignments:
+                return
+            pids = [a.project_id for a in assignments]
+            rows = await self.session.execute(select(Project.id, Project.name).where(col(Project.id).in_(pids)))
+            project_names.update(dict(rows.all()))  # type: ignore[arg-type]
+
+        def _to_read(assignment: IntegrationProjectAssignment) -> IntegrationProjectAssignmentRead:
+            return IntegrationProjectAssignmentRead(
+                project_id=assignment.project_id,
+                project_name=project_names.get(assignment.project_id, str(assignment.project_id)),
+                created_at=assignment.created_at,
+            )
+
+        return await self.list_resources(
+            model=IntegrationProjectAssignment,  # type: ignore[type-var]
+            response_type=IntegrationProjectAssignmentListResponse,
+            response_type_converter=_to_read,
+            post_query_callback=_fetch_project_names,
+            limit=limit,
+            cursor=cursor,
+            sort=sort,
+            query_params_items=[("integration_id", str(integration_id))],
+            id_restriction=id_restriction,
+            include_total=include_total,
+        )
 
     async def create_integration(self, data: IntegrationCreate) -> IntegrationRead:
         """Create a new integration.
@@ -321,7 +455,7 @@ class IntegrationService(BaseService):
         integration = await self._get_or_raise(integration_id)
         if allowed_projects is not None:
             await self._enforce_visibility(integration, allowed_projects)
-        return await self._to_read_with_counts(integration)
+        return await self._to_read_with_counts(integration, allowed_projects=allowed_projects)
 
     async def _enforce_visibility(self, integration: Integration, allowed_projects: AllowedProjectsResult) -> None:
         """Raise IntegrationNotFoundError if the integration is not visible to the caller."""
@@ -367,6 +501,7 @@ class IntegrationService(BaseService):
         integration_ids = [r.id for r in response.resources if r.id]
         tool_counts = await self._get_tool_counts(integration_ids)
         model_counts = await self._get_model_counts(integration_ids)
+        project_ids_map = await self._get_assigned_project_ids(integration_ids)
         for resource in response.resources:
             t_total, t_enabled = tool_counts.get(resource.id, (0, 0))
             resource.total_tool_count = t_total
@@ -374,6 +509,7 @@ class IntegrationService(BaseService):
             m_total, m_enabled = model_counts.get(resource.id, (0, 0))
             resource.total_model_count = m_total
             resource.enabled_model_count = m_enabled
+            resource.project_ids = self._filter_project_ids(project_ids_map.get(resource.id, []), allowed_projects)
 
         await self._resolve_user_fields(response.resources)
 
@@ -429,6 +565,12 @@ class IntegrationService(BaseService):
 
         if data.name is not None and data.name != integration.name:
             await self._raise_if_name_exists(data.name)
+
+        if data.scope == IntegrationScope.GLOBAL and integration.scope == IntegrationScope.PROJECT:
+            stmt = delete(IntegrationProjectAssignment).where(
+                IntegrationProjectAssignment.integration_id == integration_id,  # type: ignore[arg-type]
+            )
+            await self.session.exec(stmt)
 
         integration_name = data.name if data.name is not None else integration.name
         updated_fields = list(data.model_fields_set)

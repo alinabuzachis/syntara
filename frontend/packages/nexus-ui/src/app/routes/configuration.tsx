@@ -26,7 +26,7 @@ export const configurationRoutes = [
     getParentRoute: () => rootRoute,
     path: '/configuration/integrations',
     validateSearch: integrationsSearch,
-    component: makeRouteComponent(<Integrations />),
+    component: makeRouteComponent(<Integrations />, { action: 'read', resourceType: 'integration' }),
   }),
   createRoute({
     getParentRoute: () => rootRoute,
@@ -41,12 +41,12 @@ export const configurationRoutes = [
   createRoute({
     getParentRoute: () => rootRoute,
     path: '/configuration/integrations/$integrationId',
-    component: makeRouteComponent(<IntegrationDetail />),
+    component: makeRouteComponent(<IntegrationDetail />, { action: 'read', resourceType: 'integration' }),
   }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: '/configuration/integrations/$integrationId/$tab',
-    component: makeRouteComponent(<IntegrationDetail />),
+    component: makeRouteComponent(<IntegrationDetail />, { action: 'read', resourceType: 'integration' }),
   }),
   createRoute({
     getParentRoute: () => rootRoute,

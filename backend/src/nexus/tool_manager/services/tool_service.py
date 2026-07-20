@@ -12,7 +12,7 @@ from uuid import UUID
 import structlog
 from sqlalchemy import Select
 from sqlalchemy.orm import selectinload
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
@@ -81,6 +81,7 @@ class ToolService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
+        visible_integration_ids: list[UUID] | None = None,
     ) -> ToolListResponse:
         """List tools with filtering, sorting, and pagination.
 
@@ -90,12 +91,19 @@ class ToolService(BaseService):
             sort: Sort parameter (e.g., "name", "-created_at")
             query_params_items: Raw query parameter items from request (for filtering)
             include_total: Whether to include total count in response
+            visible_integration_ids: Restrict to tools from these integrations (None = no restriction)
 
         Returns:
             ToolListResponse with tools, pagination metadata, and optional total
 
         """
-        # Use unified list_resources method with _extend_query for parameter loading
+        id_restriction: list[UUID] | None = None
+        if visible_integration_ids is not None:
+            result = await self.session.exec(
+                select(Tool.id).where(col(Tool.integration_id).in_(visible_integration_ids))
+            )
+            id_restriction = list(result.all())
+
         return await self.list_resources(
             model=Tool,
             response_type=ToolListResponse,
@@ -104,6 +112,7 @@ class ToolService(BaseService):
             sort=sort,
             query_params_items=query_params_items,
             include_total=include_total,
+            id_restriction=id_restriction,
         )
 
     async def get_tool_detail(self, tool_id: UUID) -> ToolWithParameters:

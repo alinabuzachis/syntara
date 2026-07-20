@@ -102,6 +102,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("llm_model", "update", roles=("admin",)),
     # integrations
     PolicyInfo("integration", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("integration", "read-all", roles=("admin", "auditor")),
     PolicyInfo("integration", "create", roles=("admin",)),
     PolicyInfo("integration", "update", roles=("admin",)),
     PolicyInfo("integration", "delete", roles=("admin",)),
@@ -184,6 +185,8 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("execution", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("execution", "run", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("integration", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    PolicyInfo("tool", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    PolicyInfo("llm_model", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("credential", "create", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("credential", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("credential", "update", scope="project", roles=("project-admin", "project-user")),

@@ -16,6 +16,7 @@ from sqlmodel import DateTime, Field, SQLModel
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import Resource
+from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import DiscriminatedJSONB, postgres_enum_column
 from nexus.integrations.models.integration_configuration import (
@@ -205,6 +206,31 @@ class IntegrationProjectAssignment(SQLModel, table=True):
 
     __table_args__ = (UniqueConstraint("integration_id", "project_id", name="uq_integration_project"),)
 
+    __filterable_fields__: ClassVar[list[str]] = ["id", "integration_id", "project_id", "created_at"]
+    __sortable_fields__: ClassVar[list[str]] = ["created_at"]
+
+
+class IntegrationProjectAssignmentRead(SQLModel):
+    """Read schema for a single project assignment."""
+
+    project_id: UUID
+    project_name: str
+    created_at: datetime
+
+
+class IntegrationProjectAssignmentListParams(BaseListParams):
+    """Query parameters for listing integration project assignments."""
+
+    sort: str | None = Field(
+        default=None,
+        description="Sort parameter (e.g., 'created_at', '-created_at')",
+        schema_extra={"pattern": r"^-?[a-z][a-z0-9_]*$"},
+    )
+
+
+class IntegrationProjectAssignmentListResponse(ResourcesResponse[IntegrationProjectAssignmentRead]):
+    """Paginated response for listing project assignments."""
+
 
 # ============================================================================
 # API Request/Response Schemas
@@ -364,6 +390,10 @@ class IntegrationRead(Resource):
     refresh_status: IntegrationRefreshStatus | None = None
     last_refreshed_at: datetime | None = None
     refresh_error: str | None = None
+    project_ids: list[UUID] = Field(
+        default_factory=list,
+        description="IDs of projects this integration is assigned to (empty for global scope)",
+    )
     total_tool_count: int = Field(default=0, description="Total number of tools linked to this integration")
     enabled_tool_count: int = Field(default=0, description="Number of enabled tools linked to this integration")
     total_model_count: int = Field(default=0, description="Total number of models linked to this integration")

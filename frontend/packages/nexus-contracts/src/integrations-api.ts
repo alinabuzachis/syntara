@@ -149,6 +149,50 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/integrations/{integration_id}/projects': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Integration Projects
+     * @description List project assignments for an integration.
+     */
+    get: operations['list_integration_projects']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integration_id}/projects/{project_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Assign Integration Project
+     * @description Assign a project to a project-scoped integration.
+     */
+    post: operations['assign_integration_project']
+    /**
+     * Unassign Integration Project
+     * @description Remove a project assignment from an integration.
+     */
+    delete: operations['unassign_integration_project']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/integrations/{integration_id}/models': {
     parameters: {
       query?: never
@@ -235,6 +279,28 @@ export interface components {
      * @enum {string}
      */
     IntegrationScope: 'global' | 'project'
+    /**
+     * IntegrationProjectAssignmentRead
+     * @description Read schema for a single project assignment.
+     */
+    IntegrationProjectAssignmentRead: {
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
+      /** Project Name */
+      project_name: string
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+    }
+    IntegrationProjectAssignmentListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /** Resources */
+      resources: components['schemas']['IntegrationProjectAssignmentRead'][]
+    }
     /**
      * IntegrationListResponse
      * @description Paginated list response for integrations.
@@ -498,6 +564,11 @@ export interface components {
       last_refreshed_at?: string | null
       /** Refresh Error */
       refresh_error?: string | null
+      /**
+       * Project Ids
+       * @description IDs of projects this integration is assigned to (empty for global scope)
+       */
+      project_ids?: string[]
       /**
        * Total Tool Count
        * @description Total number of tools linked to this integration
@@ -1453,6 +1524,105 @@ export interface operations {
         content: {
           'application/json': components['schemas']['RefreshResult']
         }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_integration_projects: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+      }
+      header?: never
+      path: {
+        integration_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['IntegrationProjectAssignmentListResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  assign_integration_project: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integration_id: string
+        project_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['IntegrationProjectAssignmentRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  unassign_integration_project: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integration_id: string
+        project_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
       }
       400: components['responses']['BadRequestError']
       401: components['responses']['UnauthorizedError']

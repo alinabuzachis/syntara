@@ -15,23 +15,8 @@ export interface paths {
      * Get Tools
      * @description List tools with filtering, sorting, and pagination.
      *
-     *     Supports filtering using query parameters with standard operators:
-     *     - name: Filter by tool name (name=tool_name, name[contains]=text)
-     *     - enabled: Filter by enabled status (enabled=true|false)
-     *     - status: Filter by tool status (status=available|missing|error)
-     *     - integration_id: Filter by integration ID (integration_id=uuid)
-     *     - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
-     *     - labels: Filter by labels using bracket notation (labels[environment]=production)
-     *
-     *     Uses cursor-based pagination for scalability and consistency.
-     *
-     *     Args:
-     *         request: FastAPI request object containing query parameters
-     *         service: Tool service
-     *         params: Query parameters for pagination and filtering
-     *
-     *     Returns:
-     *         ToolListResponse with tools, pagination metadata, and optional total
+     *     Tools are filtered by the caller's integration visibility — only tools
+     *     belonging to visible integrations are returned.
      */
     get: operations['get_tools']
     put?: never

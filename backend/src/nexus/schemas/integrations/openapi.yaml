@@ -491,6 +491,150 @@ paths:
       security:
         - bearerAuth: []
 
+  /integrations/{integration_id}/projects:
+    get:
+      summary: List Integration Projects
+      description: List project assignments for an integration.
+      operationId: list_integration_projects
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: read
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationProjectAssignmentListResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
+  /integrations/{integration_id}/projects/{project_id}:
+    post:
+      summary: Assign Integration Project
+      description: Assign a project to a project-scoped integration.
+      operationId: assign_integration_project
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: update
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+      responses:
+        "201":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationProjectAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+    delete:
+      summary: Unassign Integration Project
+      description: Remove a project assignment from an integration.
+      operationId: unassign_integration_project
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: update
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+      responses:
+        "204":
+          description: Successful Response
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
   /integrations/{integration_id}/models:
     get:
       summary: List Integration Models
@@ -733,6 +877,42 @@ components:
         - project
       title: IntegrationScope
       description: Visibility scope of an integration.
+
+    IntegrationProjectAssignmentRead:
+      type: object
+      title: IntegrationProjectAssignmentRead
+      description: Read schema for a single project assignment.
+      required:
+        - project_id
+        - project_name
+        - created_at
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        project_name:
+          type: string
+          title: Project Name
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+
+    IntegrationProjectAssignmentListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          title: IntegrationProjectAssignmentListResponse
+          description: Paginated response for listing project assignments.
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: "#/components/schemas/IntegrationProjectAssignmentRead"
+              title: Resources
 
     IntegrationListResponse:
       allOf:
@@ -1111,6 +1291,13 @@ components:
                 - type: string
                 - type: "null"
               title: Refresh Error
+            project_ids:
+              type: array
+              items:
+                type: string
+                format: uuid
+              title: Project Ids
+              description: IDs of projects this integration is assigned to (empty for global scope)
             total_tool_count:
               type: integer
               default: 0

@@ -505,6 +505,46 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  http.get('/api/v1/integrations/:integration_id/projects', ({ params }) => {
+    const integration = integrations.find((i) => i.id === params.integration_id)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json({ resources: [], next: null, prev: null, total: null })
+  }),
+
+  http.post('/api/v1/integrations/:integration_id/projects/:project_id', ({ params }) => {
+    const integration = integrations.find((i) => i.id === params.integration_id)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(
+      {
+        project_id: params.project_id as string,
+        project_name: 'Mock Project',
+        created_at: mockDate.now,
+      },
+      { status: 201 }
+    )
+  }),
+
+  http.delete('/api/v1/integrations/:integration_id/projects/:project_id', ({ params }) => {
+    const integration = integrations.find((i) => i.id === params.integration_id)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.post('/api/v1/integrations/discover', async (req) => {
     const body = (await req.request.json()) as { integration_type?: string }
     if (body.integration_type === IntegrationTypeEnum.LLM_PROVIDER) {

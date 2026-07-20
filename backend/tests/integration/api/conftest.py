@@ -232,3 +232,16 @@ def _mock_evaluator(monkeypatch: pytest.MonkeyPatch) -> None:
     # Also override via FastAPI dependency_overrides so Depends(...) resolves correctly.
     app.dependency_overrides[get_authz_evaluator] = lambda: mock_evaluator
     app.dependency_overrides[get_authz_evaluator] = lambda: mock_evaluator
+
+
+def mcp_payload(name: str | None = None, scope: str = "global") -> dict[str, object]:
+    """Build an MCP integration creation payload for tests."""
+    return {
+        "name": name or f"test-intg-{uuid4().hex[:8]}",
+        "integration_type": "mcp_server",
+        "scope": scope,
+        "configuration": {
+            "integration_type": "mcp_server",
+            "base_url": "https://mcp.example.com",
+        },
+    }

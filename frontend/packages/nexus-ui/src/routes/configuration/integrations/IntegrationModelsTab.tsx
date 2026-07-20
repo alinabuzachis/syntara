@@ -272,6 +272,7 @@ export function IntegrationModelsTab({
                   onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
                   isSelected: allSelected,
                   isHeaderSelectDisabled: !canUpdate || filteredModels.length === 0,
+                  isDisabled: !canUpdate || filteredModels.length === 0,
                 }}
                 screenReaderText="Select all models"
               />

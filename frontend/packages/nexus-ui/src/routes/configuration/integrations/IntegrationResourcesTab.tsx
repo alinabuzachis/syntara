@@ -168,6 +168,7 @@ export function IntegrationResourcesTab({
                 onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
                 isSelected: allSelected,
                 isHeaderSelectDisabled: !canUpdate || filteredTools.length === 0,
+                isDisabled: !canUpdate || filteredTools.length === 0,
               }}
               screenReaderText="Select all tools"
             />

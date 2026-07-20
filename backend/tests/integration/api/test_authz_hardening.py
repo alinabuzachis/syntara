@@ -257,9 +257,10 @@ class TestRoleBoundaries:
         assert len(auditor_actions) > 0, "Auditor should have at least one permission"
 
         # All auditor-specific actions should be read-only
+        read_only_verbs = {"read", "read-all"}
         for action_str in auditor_actions:
             action_verb = action_str.rsplit(":", 1)[-1]
-            assert action_verb == "read", f"Auditor has non-read action: {action_str}"
+            assert action_verb in read_only_verbs, f"Auditor has non-read action: {action_str}"
 
 
 # ============================================================================

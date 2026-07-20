@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Query, Request, status
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 import nexus.integrations.adapters.aap  # register AAP adapter
@@ -13,9 +14,12 @@ from nexus.audit.decorators import audit
 from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
-from nexus.authz.engine import VisibilityResult
+from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.exceptions import AuthorizationDeniedError
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.core.database.session import get_db
 from nexus.core.models import User
+from nexus.core.models.group import user_groups
 from nexus.core.nexus_router import NexusRouter
 from nexus.core.services.secret_service import create_secret_service
 from nexus.integrations.adapters.protocol import DiscoverResult, ValidateResult
@@ -25,10 +29,20 @@ from nexus.integrations.models import (
     IntegrationListParams,
     IntegrationListResponse,
     IntegrationPatch,
+    IntegrationProjectAssignmentListParams,
+    IntegrationProjectAssignmentListResponse,
+    IntegrationProjectAssignmentRead,
     IntegrationRead,
     IntegrationStatusPatch,
 )
-from nexus.integrations.models.integration import Integration, IntegrationTestConnection, IntegrationType, RefreshResult
+from nexus.integrations.models.integration import (
+    Integration,
+    IntegrationProjectAssignment,
+    IntegrationScope,
+    IntegrationTestConnection,
+    IntegrationType,
+    RefreshResult,
+)
 from nexus.integrations.models.llm_model import (
     LLMModelBulkUpdate,
     LLMModelBulkUpdateResponse,
@@ -53,7 +67,7 @@ _perm_delete = PermissionChecker("integration", "delete")
 _perm_discover = PermissionChecker("integration", "discover")
 _perm_validate = PermissionChecker("integration", "validate")
 _perm_refresh = PermissionChecker("integration", "refresh")
-_perm_model_read = PermissionChecker("llm_model", "read")
+_model_read_gate = VisibilityFilter("llm_model", "read")
 _perm_model_update = PermissionChecker("llm_model", "update")
 
 
@@ -69,6 +83,58 @@ def get_integration_service(
     """Dependency provider for IntegrationService."""
     secret_service = create_secret_service(db)
     return IntegrationService(db, current_user, secret_service)
+
+
+_read_gate = VisibilityFilter("integration", "read")
+_read_all_scope = VisibilityFilter("integration", "read-all")
+
+
+async def _resolve_user_project_ids(db: AsyncSession, user_id: UUID) -> list[UUID]:
+    """Return project IDs from the user's project-scoped role assignments (direct + group)."""
+    direct_query = select(RoleAssignment.project_id).where(
+        RoleAssignment.principal_id == user_id,
+        col(RoleAssignment.project_id).is_not(None),
+    )
+
+    group_query = (
+        select(RoleAssignment.project_id)
+        .join(user_groups, user_groups.c.group_id == RoleAssignment.group_id)
+        .where(
+            user_groups.c.user_id == user_id,
+            col(RoleAssignment.project_id).is_not(None),
+        )
+    )
+
+    result = await db.execute(direct_query.union(group_query))
+    return list(result.scalars().all())
+
+
+async def integration_read_visibility(
+    request: Request,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> AllowedProjectsResult:
+    """Gate + scope for integration read endpoints.
+
+    Uses integration:read to verify the user has any read access (403 if not).
+    Uses integration:read-all to determine scope: if the user has read-all,
+    they get unrestricted access. Otherwise, results are scoped to the
+    projects from their integration:read policy.
+    """
+    gate_result = await _read_gate(request, current_user, db)
+    if not gate_result.unrestricted and not gate_result.allowed_project_ids:
+        msg = "Not authorized to perform read on integration"
+        raise AuthorizationDeniedError(msg)
+
+    scope_result = await _read_all_scope(request, current_user, db)
+    if scope_result.unrestricted:
+        return AllowedProjectsResult(all_projects=True, project_ids=[])
+
+    project_ids = gate_result.allowed_project_ids
+    if gate_result.unrestricted and not project_ids:
+        project_ids = await _resolve_user_project_ids(db, current_user.id)
+
+    return AllowedProjectsResult(all_projects=False, project_ids=project_ids)
 
 
 # ============================================================================
@@ -91,12 +157,16 @@ async def create_integration(
     return await service.create_integration(data)
 
 
-@router.get("/integrations", operation_id="list_integrations")
+@router.get(
+    "/integrations",
+    dependencies=[Depends(_read_gate), Depends(_read_all_scope)],
+    operation_id="list_integrations",
+)
 async def list_integrations(
     request: Request,
     service: Annotated[IntegrationService, Depends(get_integration_service)],
     params: Annotated[IntegrationListParams, Query()],
-    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("integration", "read"))],
+    allowed_projects: Annotated[AllowedProjectsResult, Depends(integration_read_visibility)],
 ) -> IntegrationListResponse:
     """List integrations with filtering and pagination."""
     return await service.list_integrations(
@@ -105,21 +175,22 @@ async def list_integrations(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
-        allowed_projects=visibility.to_allowed_projects(),
+        allowed_projects=allowed_projects,
     )
 
 
 @router.get(
     "/integrations/{integration_id}",
+    dependencies=[Depends(_read_gate), Depends(_read_all_scope)],
     operation_id="get_integration",
 )
 async def get_integration(
     integration_id: UUID,
     service: Annotated[IntegrationService, Depends(get_integration_service)],
-    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("integration", "read"))],
+    allowed_projects: Annotated[AllowedProjectsResult, Depends(integration_read_visibility)],
 ) -> IntegrationRead:
     """Get an integration by ID."""
-    return await service.get_integration(integration_id, allowed_projects=visibility.to_allowed_projects())
+    return await service.get_integration(integration_id, allowed_projects=allowed_projects)
 
 
 # No VisibilityFilter on update/delete: these are admin-only permissions,
@@ -227,6 +298,74 @@ async def refresh_resources(
 
 
 # ============================================================================
+# Integration Project Assignment Endpoints
+# ============================================================================
+
+
+@router.post(
+    "/integrations/{integration_id}/projects/{project_id}",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_perm_update)],
+    operation_id="assign_integration_project",
+)
+@audit(
+    EventCategory.USER_ACTION,
+    event_action="integration_project_assign",
+    capture_args={"integration_id", "project_id"},
+)
+async def assign_integration_project(
+    integration_id: UUID,
+    project_id: UUID,
+    service: Annotated[IntegrationService, Depends(get_integration_service)],
+) -> IntegrationProjectAssignmentRead:
+    """Assign a project to a project-scoped integration."""
+    return await service.assign_project(integration_id, project_id)
+
+
+@router.delete(
+    "/integrations/{integration_id}/projects/{project_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(_perm_update)],
+    operation_id="unassign_integration_project",
+)
+@audit(
+    EventCategory.USER_ACTION,
+    event_action="integration_project_unassign",
+    capture_args={"integration_id", "project_id"},
+)
+async def unassign_integration_project(
+    integration_id: UUID,
+    project_id: UUID,
+    service: Annotated[IntegrationService, Depends(get_integration_service)],
+) -> None:
+    """Remove a project assignment from an integration."""
+    await service.unassign_project(integration_id, project_id)
+
+
+@router.get(
+    "/integrations/{integration_id}/projects",
+    dependencies=[Depends(_read_gate), Depends(_read_all_scope)],
+    operation_id="list_integration_projects",
+)
+async def list_integration_projects(
+    integration_id: UUID,
+    service: Annotated[IntegrationService, Depends(get_integration_service)],
+    allowed_projects: Annotated[AllowedProjectsResult, Depends(integration_read_visibility)],
+    params: Annotated[IntegrationProjectAssignmentListParams, Query()],
+) -> IntegrationProjectAssignmentListResponse:
+    """List project assignments for an integration."""
+    await service.get_integration(integration_id, allowed_projects=allowed_projects)
+    return await service.list_assigned_projects(
+        integration_id,
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        include_total=params.include_total,
+        allowed_projects=allowed_projects,
+    )
+
+
+# ============================================================================
 # Integration Model Endpoints
 # ============================================================================
 
@@ -239,11 +378,41 @@ def get_llm_model_service(
     return LLMModelService(db, current_user)
 
 
+async def _resolve_visible_integration_ids(db: AsyncSession, allowed: AllowedProjectsResult) -> list[UUID] | None:
+    """Return visible integration IDs, or None for unrestricted access."""
+    if allowed.all_projects:
+        return None
+
+    global_query = select(Integration.id).where(
+        Integration.scope == IntegrationScope.GLOBAL,
+        Integration.deleted_at.is_(None),  # type: ignore[union-attr]
+    )
+
+    if not allowed.project_ids:
+        result = await db.exec(global_query)
+        return list(result.all())
+
+    assignment_query = select(IntegrationProjectAssignment.integration_id).where(
+        col(IntegrationProjectAssignment.project_id).in_(allowed.project_ids),
+    )
+    union_result = await db.execute(global_query.union(assignment_query))
+    return list(union_result.scalars().all())
+
+
+async def _check_integration_visibility(
+    db: AsyncSession, integration: Integration, allowed: AllowedProjectsResult
+) -> None:
+    """Raise IntegrationNotFoundError if the integration is not visible to the caller."""
+    visible_ids = await _resolve_visible_integration_ids(db, allowed)
+    if visible_ids is not None and integration.id not in set(visible_ids):
+        raise IntegrationNotFoundError(integration.id)
+
+
 async def _require_llm_provider(
     integration_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    """Verify the integration exists and is an LLM provider."""
+    """Verify the integration exists and is an LLM provider (no visibility check)."""
     integration = await db.get(Integration, integration_id)
     if not integration or integration.deleted_at is not None:
         raise IntegrationNotFoundError(integration_id)
@@ -255,9 +424,34 @@ async def _require_llm_provider(
         )
 
 
+async def _require_visible_llm_provider(
+    integration_id: UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    """Verify the integration exists, is an LLM provider, user has llm_model:read, and integration is visible."""
+    model_gate = await _model_read_gate(request, current_user, db)
+    if not model_gate.unrestricted and not model_gate.allowed_project_ids:
+        msg = "Not authorized to perform read on llm_model"
+        raise AuthorizationDeniedError(msg)
+
+    allowed_projects = await integration_read_visibility(request, current_user, db)
+    integration = await db.get(Integration, integration_id)
+    if not integration or integration.deleted_at is not None:
+        raise IntegrationNotFoundError(integration_id)
+    if integration.integration_type != IntegrationType.LLM_PROVIDER:
+        raise IntegrationTypeMismatchError(
+            integration_id,
+            expected_type=IntegrationType.LLM_PROVIDER.value,
+            actual_type=integration.integration_type.value,
+        )
+    await _check_integration_visibility(db, integration, allowed_projects)
+
+
 @router.get(
     "/integrations/{integration_id}/models",
-    dependencies=[Depends(_perm_model_read), Depends(_require_llm_provider)],
+    dependencies=[Depends(_model_read_gate), Depends(_require_visible_llm_provider)],
     operation_id="list_integration_models",
 )
 async def list_integration_models(
@@ -294,7 +488,7 @@ async def bulk_update_integration_models(
 
 @router.get(
     "/integrations/{integration_id}/models/{model_id}",
-    dependencies=[Depends(_perm_model_read), Depends(_require_llm_provider)],
+    dependencies=[Depends(_model_read_gate), Depends(_require_visible_llm_provider)],
     operation_id="get_integration_model",
 )
 async def get_integration_model(

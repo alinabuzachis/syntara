@@ -101,6 +101,16 @@ class IntegrationTypeMismatchError(IntegrationError):
         super().__init__(f"Integration {integration_id} is type {actual_type} — this endpoint requires {expected_type}")
 
 
+@fastapi_exception(handler="nexus.integrations.error_handlers.integration_scope_error_handler")
+class IntegrationScopeError(IntegrationError):
+    """Exception raised when an operation violates integration scope rules."""
+
+    def __init__(self, integration_id: UUID, message: str) -> None:
+        """Initialize exception with integration ID and message."""
+        self.integration_id = integration_id
+        super().__init__(message)
+
+
 @fastapi_exception(handler="nexus.integrations.error_handlers.integration_refresh_not_supported_handler")
 class IntegrationRefreshNotSupportedError(IntegrationError):
     """Raised when refresh is not supported for this integration type."""

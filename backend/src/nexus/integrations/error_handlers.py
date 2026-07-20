@@ -17,6 +17,7 @@ if TYPE_CHECKING:
         IntegrationNameConflictError,
         IntegrationNotFoundError,
         IntegrationRefreshNotSupportedError,
+        IntegrationScopeError,
         IntegrationTypeMismatchError,
         LLMModelNotFoundError,
     )
@@ -138,6 +139,23 @@ def integration_type_mismatch_handler(
         title="Integration Type Mismatch",
         detail=exc.message,
         code="INTEGRATION_TYPE_MISMATCH",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def integration_scope_error_handler(
+    request: Request,
+    exc: "IntegrationScopeError",
+) -> JSONResponse:
+    """Handle IntegrationScopeError with RFC 9457 format."""
+    logger.warning("Integration scope error", integration_id=str(exc.integration_id), detail=exc.message)
+    return create_problem_details_response(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Integration Scope Error",
+        detail=exc.message,
+        code="INTEGRATION_SCOPE_ERROR",
         retryable=False,
         instance=str(request.url),
     )
