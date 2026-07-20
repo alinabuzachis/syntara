@@ -325,6 +325,9 @@ class ExpressionResolver:
         Returns:
             Resolved value
 
+        Raises:
+            KeyError: If the expression references an unknown scope or activity
+
         """
         parts = expr.split(".")
 
@@ -348,7 +351,8 @@ class ExpressionResolver:
         if parts[0] in workflow_state.get("activity_outputs", {}):
             return self._resolve_activity_output(parts, workflow_state)
 
-        return None
+        msg = f"Expression '${{{expr}}}' references unknown activity or scope '{parts[0]}'"
+        raise KeyError(msg)
 
     def _navigate_nested_path(self, value: object, parts: list[str]) -> object:
         """Navigate through nested dict/list structure.

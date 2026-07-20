@@ -338,14 +338,23 @@ class TestTemplateResolutionEdgeCases:
     """Tests for edge cases and error handling."""
 
     def test_resolve_value_with_undefined_input(self) -> None:
-        """Test resolving template with undefined input reference."""
+        """Test resolving template with undefined input field returns None."""
         resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {}}
 
-        # ExpressionResolver returns None for undefined input references
+        # Known scope ('input') but missing field returns None via _navigate_nested_path
         value = "${input.undefined_field}"
         result = resolve_value(value, resolver, workflow_state)
         assert result is None
+
+    def test_resolve_value_with_unknown_scope_raises(self) -> None:
+        """Test resolving template with unknown scope raises KeyError."""
+        resolver = ExpressionResolver()
+        workflow_state: dict[str, Any] = {"inputs": {}}
+
+        value = "${does_not_exist.output.data}"
+        with pytest.raises(KeyError, match="does_not_exist"):
+            resolve_value(value, resolver, workflow_state)
 
     def test_resolve_config_with_empty_workflow_state(self) -> None:
         """Test resolving config with empty workflow state."""
@@ -406,3 +415,67 @@ class TestTemplateResolutionEdgeCases:
             "code": "echo test",
             "environment": {"KEY": "secret"},
         }
+
+    def test_resolve_config_nonexistent_activity_raises(self) -> None:
+        """Test that referencing a non-existent activity in config raises KeyError."""
+        workflow_state: dict[str, Any] = {"inputs": {}, "activity_outputs": {}}
+
+        config = {"environment": {"VALUE": "${does_not_exist.output.data}"}}
+
+        with pytest.raises(KeyError, match="does_not_exist"):
+            resolve_parameter_templates(config, workflow_state)
+
+
+class TestUnresolvableExpressionRegression:
+    """Regression tests: unresolvable expressions must raise, not return None."""
+
+    def test_nonexistent_node_reference_raises(self) -> None:
+        """Referencing a non-existent node should raise KeyError."""
+        resolver = ExpressionResolver()
+        workflow_state: dict[str, Any] = {
+            "inputs": {},
+            "activity_outputs": {"real_node": {"output": {"data": "ok"}}},
+        }
+
+        with pytest.raises(KeyError, match="ghost_node"):
+            resolver.resolve_expression("${ghost_node.output.data}", workflow_state)
+
+    def test_existing_node_reference_succeeds(self) -> None:
+        """Referencing an existing node should resolve correctly."""
+        resolver = ExpressionResolver()
+        workflow_state: dict[str, Any] = {
+            "inputs": {},
+            "activity_outputs": {"real_node": {"output": {"data": "ok"}}},
+        }
+
+        result = resolver.resolve_expression("${real_node.output.data}", workflow_state)
+        assert result == "ok"
+
+    def test_multiple_expressions_with_one_invalid_raises(self) -> None:
+        """A string with multiple expressions should raise if any reference is invalid."""
+        resolver = ExpressionResolver()
+        workflow_state: dict[str, Any] = {
+            "inputs": {"name": "Alice"},
+            "activity_outputs": {},
+        }
+
+        with pytest.raises(KeyError, match="missing_node"):
+            resolver.resolve_expression("Hello ${input.name}, result: ${missing_node.output}", workflow_state)
+
+    def test_nested_dict_with_invalid_reference_raises(self) -> None:
+        """Nested dicts containing invalid references should raise on resolution."""
+        resolver = ExpressionResolver()
+        workflow_state: dict[str, Any] = {"inputs": {}, "activity_outputs": {}}
+
+        value = {"level1": {"level2": "${phantom.value}"}}
+        with pytest.raises(KeyError, match="phantom"):
+            resolve_value(value, resolver, workflow_state)
+
+    def test_list_with_invalid_reference_raises(self) -> None:
+        """Lists containing invalid references should raise on resolution."""
+        resolver = ExpressionResolver()
+        workflow_state: dict[str, Any] = {"inputs": {}, "activity_outputs": {}}
+
+        value = ["${ghost.x}", "static"]
+        with pytest.raises(KeyError, match="ghost"):
+            resolve_value(value, resolver, workflow_state)
