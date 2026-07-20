@@ -1366,10 +1366,10 @@ class ActivitySyncService:
                     execution.error_details = error_details
                 execution.updated_at = datetime.now(UTC)
 
-                # If workflow was cancelled, mark unfinished activities as cancelled
-                cancelled_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
+                # If workflow was cancelled, mark running activities as cancelled and pending as skipped
+                updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
                 if status == ExecutionStatus.CANCELLED:
-                    cancelled_activities = self._update_pending_activities_to_cancelled(execution, completed_at)
+                    updated_activities = self._update_non_terminal_activities_on_cancel(execution, completed_at)
 
                 # Safety net: mid-workflow sync (via _sync_skipped_nodes on converge/condition
                 # completion) handles the fast path. This catches anything still non-terminal
@@ -1385,8 +1385,8 @@ class ActivitySyncService:
                     completed_at=completed_at.isoformat(),
                 )
 
-                if cancelled_activities:
-                    await self._publish_activity_patches(metadata, cancelled_activities)
+                if updated_activities:
+                    await self._publish_activity_patches(metadata, updated_activities)
 
                 await self._publish_snapshot(execution, "final_snapshot")
 
@@ -1439,12 +1439,16 @@ class ActivitySyncService:
                 )
                 # Don't raise - monitoring should continue
 
-    def _update_pending_activities_to_cancelled(
+    def _update_non_terminal_activities_on_cancel(
         self,
         execution: Execution,
         cancelled_at: datetime,
     ) -> list[tuple[ActivityExecution, dict[str, Any]]]:
-        """Mark unfinished activities as cancelled when workflow is cancelled.
+        """Mark unfinished activities when workflow is cancelled.
+
+        In-flight activities (RUNNING, RETRYING, WAITING) are marked
+        CANCELLED; PENDING activities are marked SKIPPED since they
+        never started executing.
 
         Modifies activity objects already loaded in execution.activities.
         Returns list of (activity, old_values) tuples for JSON patch generation.
@@ -1456,6 +1460,8 @@ class ActivitySyncService:
             ActivityStatus.WAITING,
         }
         updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
+        cancelled_count = 0
+        skipped_count = 0
 
         for activity in execution.activities:
             if activity.status in non_terminal_statuses:
@@ -1466,16 +1472,22 @@ class ActivitySyncService:
                     "error_details": activity.error_details,
                     "retry_count": activity.retry_count,
                 }
-                activity.status = ActivityStatus.CANCELLED
+                if activity.status == ActivityStatus.PENDING:
+                    activity.status = ActivityStatus.SKIPPED
+                    skipped_count += 1
+                else:
+                    activity.status = ActivityStatus.CANCELLED
+                    activity.error_details = "Workflow was cancelled"
+                    cancelled_count += 1
                 activity.completed_at = cancelled_at
-                activity.error_details = "Workflow was cancelled"
                 activity.updated_at = datetime.now(UTC)
                 updated_activities.append((activity, old_values))
 
         if updated_activities:
             logger.info(
-                "Updated activities to CANCELLED due to workflow cancellation",
-                cancelled_count=len(updated_activities),
+                "Updated activities due to workflow cancellation",
+                cancelled_count=cancelled_count,
+                skipped_count=skipped_count,
                 execution_id=execution.id,
             )
 

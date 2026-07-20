@@ -552,8 +552,9 @@ class TestWorkflowExecution:
         activity_statuses = {a.activity_id: str(a.status) for a in cancelled_execution.activities}
 
         if "post_approval_script" in activity_statuses:
-            assert activity_statuses["post_approval_script"] != "completed", (
-                "post_approval_script should NOT have completed after cancellation"
+            assert activity_statuses["post_approval_script"] == "skipped", (
+                f"post_approval_script should be skipped after cancellation, "
+                f"got {activity_statuses['post_approval_script']}"
             )
 
         assert cancelled_execution.completed_at is not None, "Cancelled execution should have completed_at timestamp"

@@ -2851,11 +2851,11 @@ class TestPendingSyncEventIds:
         assert metadata.pending_activity_updates[5]["status"] == ActivityStatus.RUNNING
 
 
-class TestUpdatePendingActivitiesToCancelled:
-    """Test _update_pending_activities_to_cancelled method."""
+class TestUpdateNonTerminalActivitiesOnCancel:
+    """Test _update_non_terminal_activities_on_cancel method."""
 
-    def test_updates_pending_activities_to_cancelled(self) -> None:
-        """Test that unfinished activities are updated to CANCELLED."""
+    def ***REMOVED***(self) -> None:
+        """In-flight activities (RUNNING, WAITING) are CANCELLED; PENDING is SKIPPED."""
         mock_client = Mock()
         mock_session_factory = Mock()
         service = ActivitySyncService(mock_client, mock_session_factory)
@@ -2894,6 +2894,16 @@ class TestUpdatePendingActivitiesToCancelled:
             started_at=datetime.now(UTC),
         )
 
+        waiting_activity = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="waiting_activity",
+            node_type="approval",
+            temporal_activity_id="temporal-waiting",
+            status=ActivityStatus.WAITING,
+            started_at=datetime.now(UTC),
+        )
+
         completed_activity = ActivityExecution(
             id=uuid4(),
             execution_id=execution_id,
@@ -2905,20 +2915,162 @@ class TestUpdatePendingActivitiesToCancelled:
             completed_at=datetime.now(UTC),
         )
 
-        execution.activities = [pending_activity, running_activity, completed_activity]
+        execution.activities = [pending_activity, running_activity, waiting_activity, completed_activity]
 
-        updated_activities = service._update_pending_activities_to_cancelled(execution, cancelled_at)
+        updated_activities = service._update_non_terminal_activities_on_cancel(execution, cancelled_at)
 
-        assert len(updated_activities) == 2
-        assert pending_activity.status == ActivityStatus.CANCELLED
-        assert pending_activity.completed_at == cancelled_at
-        assert pending_activity.error_details == "Workflow was cancelled"
+        assert len(updated_activities) == 3
 
         assert running_activity.status == ActivityStatus.CANCELLED
         assert running_activity.completed_at == cancelled_at
+        assert running_activity.error_details == "Workflow was cancelled"
 
-        # Completed activity should not be touched
+        assert pending_activity.status == ActivityStatus.SKIPPED
+        assert pending_activity.completed_at == cancelled_at
+        assert pending_activity.error_details is None
+
+        assert waiting_activity.status == ActivityStatus.CANCELLED
+        assert waiting_activity.completed_at == cancelled_at
+        assert waiting_activity.error_details == "Workflow was cancelled"
+
         assert completed_activity.status == ActivityStatus.COMPLETED
+
+    def test_retrying_activity_is_cancelled(self) -> None:
+        """A retrying activity is actively in-flight — it should be CANCELLED."""
+        mock_client = Mock()
+        mock_session_factory = Mock()
+        service = ActivitySyncService(mock_client, mock_session_factory)
+
+        execution_id = uuid4()
+        cancelled_at = datetime.now(UTC)
+
+        execution = Execution(
+            id=execution_id,
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            temporal_workflow_id=f"workflow-{execution_id}",
+            status=ExecutionStatus.CANCELLED,
+            created_by=uuid4(),
+            input_data={},
+            labels={},
+            project_id=uuid4(),
+        )
+
+        retrying_activity = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="retrying_activity",
+            node_type="script",
+            temporal_activity_id="temporal-retrying",
+            status=ActivityStatus.RETRYING,
+            started_at=datetime.now(UTC),
+        )
+
+        execution.activities = [retrying_activity]
+
+        updated = service._update_non_terminal_activities_on_cancel(execution, cancelled_at)
+
+        assert len(updated) == 1
+        assert retrying_activity.status == ActivityStatus.CANCELLED
+        assert retrying_activity.completed_at == cancelled_at
+        assert retrying_activity.error_details == "Workflow was cancelled"
+
+    def test_noop_when_all_terminal(self) -> None:
+        """Activities already in terminal states are not modified."""
+        mock_client = Mock()
+        mock_session_factory = Mock()
+        service = ActivitySyncService(mock_client, mock_session_factory)
+
+        execution_id = uuid4()
+        cancelled_at = datetime.now(UTC)
+
+        execution = Execution(
+            id=execution_id,
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            temporal_workflow_id=f"workflow-{execution_id}",
+            status=ExecutionStatus.CANCELLED,
+            created_by=uuid4(),
+            input_data={},
+            labels={},
+            project_id=uuid4(),
+        )
+
+        completed_activity = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="completed_activity",
+            node_type="script",
+            temporal_activity_id="temporal-completed",
+            status=ActivityStatus.COMPLETED,
+            started_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+        )
+
+        failed_activity = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="failed_activity",
+            node_type="script",
+            temporal_activity_id="temporal-failed",
+            status=ActivityStatus.FAILED,
+            started_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+        )
+
+        execution.activities = [completed_activity, failed_activity]
+
+        updated = service._update_non_terminal_activities_on_cancel(execution, cancelled_at)
+
+        assert len(updated) == 0
+        assert completed_activity.status == ActivityStatus.COMPLETED
+        assert failed_activity.status == ActivityStatus.FAILED
+
+    def ***REMOVED***(self) -> None:
+        """When all non-terminal activities are PENDING, all are SKIPPED."""
+        mock_client = Mock()
+        mock_session_factory = Mock()
+        service = ActivitySyncService(mock_client, mock_session_factory)
+
+        execution_id = uuid4()
+        cancelled_at = datetime.now(UTC)
+
+        execution = Execution(
+            id=execution_id,
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            temporal_workflow_id=f"workflow-{execution_id}",
+            status=ExecutionStatus.CANCELLED,
+            created_by=uuid4(),
+            input_data={},
+            labels={},
+            project_id=uuid4(),
+        )
+
+        pending_1 = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="pending_1",
+            node_type="script",
+            temporal_activity_id="temporal-pending-1",
+            status=ActivityStatus.PENDING,
+        )
+
+        pending_2 = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="pending_2",
+            node_type="script",
+            temporal_activity_id="temporal-pending-2",
+            status=ActivityStatus.PENDING,
+        )
+
+        execution.activities = [pending_1, pending_2]
+
+        updated = service._update_non_terminal_activities_on_cancel(execution, cancelled_at)
+
+        assert len(updated) == 2
+        assert all(a.status == ActivityStatus.SKIPPED for a, _ in updated)
 
 
 class TestFinalizeNonTerminalActivities:
