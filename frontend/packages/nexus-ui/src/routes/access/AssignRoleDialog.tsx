@@ -191,27 +191,33 @@ function AssignRoleFormBody({
                 setValue('userId', '')
                 setValue('groupId', '')
                 setValue('serviceAccountId', '')
+                if (value === RolePrincipalType.SERVICE_ACCOUNT) {
+                  setValue('scope', 'project')
+                  setValue('roleName', '')
+                }
               }}
             />
           )}
         />
       </FormGroup>
 
-      <FormGroup label="Scope" isRequired fieldId="scope">
-        <Controller
-          name="scope"
-          control={control}
-          render={({ field }) => (
-            <ScopeSelect
-              value={field.value}
-              onChange={(value) => {
-                field.onChange(value)
-                setValue('roleName', '')
-              }}
-            />
-          )}
-        />
-      </FormGroup>
+      {principalType !== RolePrincipalType.SERVICE_ACCOUNT && (
+        <FormGroup label="Scope" isRequired fieldId="scope">
+          <Controller
+            name="scope"
+            control={control}
+            render={({ field }) => (
+              <ScopeSelect
+                value={field.value}
+                onChange={(value) => {
+                  field.onChange(value)
+                  setValue('roleName', '')
+                }}
+              />
+            )}
+          />
+        </FormGroup>
+      )}
 
       {isProjectScoped && (
         <FormGroup label="Project" isRequired fieldId="project-id">

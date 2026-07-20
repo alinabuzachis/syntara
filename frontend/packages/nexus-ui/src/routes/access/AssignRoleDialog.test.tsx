@@ -677,6 +677,19 @@ describe('AssignRoleDialog', () => {
       expect(screen.queryByPlaceholderText('Select a group...')).not.toBeInTheDocument()
     })
 
+    it('hides Scope field but shows Project field when Service Account is selected', async () => {
+      const user = userEvent.setup()
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
+
+      // Switch principal type to service_account
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Service Account' }))
+
+      expect(screen.queryByLabelText('Scope')).not.toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Select a project...')).toBeInTheDocument()
+    })
+
     it('calls project role mutation with service_account principal type', async () => {
       const mockMutate = vi.fn()
       vi.mocked(accessClient.useMutation).mockReturnValue({
@@ -704,7 +717,7 @@ describe('AssignRoleDialog', () => {
       const saOption = await screen.findByRole('option', { name: 'my-service-account' })
       await user.click(saOption)
 
-      // Select a role
+      // Select a role (project roles since scope is forced to project)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
       const roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
