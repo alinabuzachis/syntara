@@ -1,56 +1,106 @@
-import type { ThProps } from '@patternfly/react-table'
-import { SortByDirection } from '@patternfly/react-table'
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
+
+import type { SortConfig } from '../types/sorting'
+import { buildSortParam, parseSortParam, toggleSortDirection } from '../utils/sortUtils'
 
 import { useSearchParams } from './routing/useSearchParams'
 
+const SORT_PARAM = 'sort'
+
+/**
+ * Result from useSortState hook
+ */
 export type UseSortStateResult = {
-  activeSortIndex: number | undefined
-  sortDirection: 'asc' | 'desc'
-  sortParam: string | undefined
-  getSortParams: (columnIndex: number) => ThProps['sort']
+  /** Current sort parsed from the URL, or `defaultSort` when the URL has no valid sort */
+  sort: SortConfig | null
+  /** Set sort and sync it to the `sort` URL query parameter */
+  setSort: (sort: SortConfig) => void
+  /** Remove the `sort` query parameter from the URL */
+  clearSort: () => void
+  /**
+   * Toggle sort for a field.
+   * Same field flips direction; a new field resets to ascending.
+   */
+  toggleSort: (field: string) => void
 }
 
-export function useSortState(sortFieldByColumn: Record<number, string>, onSortChange?: () => void): UseSortStateResult {
+/**
+ * Manages sort state in the URL `sort` query parameter.
+ *
+ * Enables bookmarkable/shareable sorted views by syncing `SortConfig` with the
+ * Nexus API sort format (`field` ascending, `-field` descending). Browser
+ * back/forward updates the hook via `useSearchParams`.
+ *
+ * @param defaultSort - Optional default sort when the URL has no valid `sort` param
+ * @returns Sort state and management functions
+ *
+ * @example
+ * ```typescript
+ * function WorkflowsPage() {
+ *   const { sort, setSort, clearSort, toggleSort } = useSortState({
+ *     field: 'name',
+ *     direction: 'asc',
+ *   })
+ *
+ *   // Apply an explicit sort
+ *   setSort({ field: 'created_at', direction: 'desc' })
+ *
+ *   // Toggle a column header
+ *   toggleSort('name')
+ *
+ *   // Clear sort from the URL
+ *   clearSort()
+ * }
+ * ```
+ */
+export function useSortState(defaultSort?: SortConfig): UseSortStateResult {
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const { activeSortIndex, sortDirection } = useMemo(() => {
-    const raw = searchParams.get('sort')
-    if (!raw) return { activeSortIndex: undefined, sortDirection: 'asc' as const }
+  const sort = useMemo(() => {
+    const urlSort = parseSortParam(searchParams.get(SORT_PARAM))
+    if (urlSort !== null) {
+      return urlSort
+    }
+    if (defaultSort !== undefined) {
+      return defaultSort
+    }
+    return null
+  }, [searchParams, defaultSort])
 
-    const desc = raw.startsWith('-')
-    const field = desc ? raw.slice(1) : raw
-    const index = Object.entries(sortFieldByColumn).find(([, f]) => f === field)?.[0]
+  const writeSortParam = (nextSort: SortConfig | null) => {
+    const newSearchParams = new URLSearchParams(searchParams)
+    const param = buildSortParam(nextSort)
 
-    if (index === undefined) return { activeSortIndex: undefined, sortDirection: 'asc' as const }
-    return { activeSortIndex: Number(index), sortDirection: desc ? ('desc' as const) : ('asc' as const) }
-  }, [searchParams, sortFieldByColumn])
+    if (param === null) {
+      newSearchParams.delete(SORT_PARAM)
+    } else {
+      newSearchParams.set(SORT_PARAM, param)
+    }
 
-  const sortField = activeSortIndex === undefined ? undefined : sortFieldByColumn[activeSortIndex]
-  const prefix = sortDirection === 'desc' ? '-' : ''
-  const sortParam = sortField ? `${prefix}${sortField}` : undefined
+    setSearchParams(newSearchParams)
+  }
 
-  const getSortParams = useCallback(
-    (columnIndex: number): ThProps['sort'] => ({
-      sortBy: {
-        index: activeSortIndex,
-        direction: sortDirection,
-        defaultDirection: 'asc',
-      },
-      onSort: (_event, index, direction) => {
-        const field = sortFieldByColumn[index]
-        if (!field) return
+  const setSort = (newSort: SortConfig) => {
+    writeSortParam(newSort)
+  }
 
-        const prefix = direction === SortByDirection.desc ? '-' : ''
-        const liveParams = new URLSearchParams(window.location.search)
-        liveParams.set('sort', `${prefix}${field}`)
-        setSearchParams(liveParams)
-        onSortChange?.()
-      },
-      columnIndex,
-    }),
-    [activeSortIndex, sortDirection, sortFieldByColumn, setSearchParams, onSortChange]
-  )
+  const clearSort = () => {
+    writeSortParam(null)
+  }
 
-  return { activeSortIndex, sortDirection, sortParam, getSortParams }
+  const toggleSort = (field: string) => {
+    if (sort !== null && sort.field === field) {
+      writeSortParam({ field, direction: toggleSortDirection(sort.direction) })
+      return
+    }
+
+    writeSortParam({ field, direction: 'asc' })
+  }
+
+  return {
+    sort,
+    setSort,
+    clearSort,
+    toggleSort,
+  }
 }

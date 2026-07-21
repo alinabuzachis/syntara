@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 
+import { useColumnSortState } from '../../hooks/useColumnSortState'
 import { useFilterState } from '../../hooks/useFilterState'
-import { useSortState } from '../../hooks/useSortState'
 import { useAlerts } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -96,7 +96,7 @@ function sortRows(
 
 export function useAssignmentsData() {
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
-  const { activeSortIndex, sortDirection, getSortParams } = useSortState(assignmentsSortFieldByColumn)
+  const { activeSortIndex, sortDirection, getSortParams } = useColumnSortState(assignmentsSortFieldByColumn)
   const { showSuccess, showError } = useAlerts()
 
   const handleFilterChange = (newFilters: typeof filters) => {

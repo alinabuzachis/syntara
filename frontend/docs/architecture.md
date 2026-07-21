@@ -1236,9 +1236,17 @@ Related components live under `packages/nexus-ui/src/components/filters/`:
 | Hook                        | Role                                                                           |
 | --------------------------- | ------------------------------------------------------------------------------ |
 | `useFilterState`            | URL ↔ `FilterConfig[]` (`setFilter`, `setAllFilters`, `clearAllFilters`)       |
+| `useSortState`              | URL ↔ `SortConfig` via `sort` (`setSort`, `clearSort`, `toggleSort`)           |
+| `useColumnSortState`        | PatternFly table column sort ↔ URL `sort` (`getSortParams`, `sortParam`)       |
 | `createFilterChangeHandler` | Reset cursor + write filters (optional `transformFilters`)                     |
 | `useCursorPagination`       | **Preferred for list pages** — filters + cursor + `queryParams` + footer props |
 | `useFilteredQuery`          | Lower-level: builds filter params and calls `client.useQuery` (see below)      |
+
+**Sorting utilities** — `packages/nexus-ui/src/utils/sortUtils.ts`:
+
+- `buildSortParam(sort)` → API/URL value (`field` / `-field`) or `null`
+- `parseSortParam(value)` → `SortConfig` or `null`
+- `toggleSortDirection(direction)` → opposite `'asc'` / `'desc'`
 
 ### List page pattern (preferred)
 

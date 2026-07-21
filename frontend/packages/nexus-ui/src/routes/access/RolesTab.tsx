@@ -9,10 +9,10 @@ import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { IconLabel } from '../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
+import { useColumnSortState } from '../../hooks/useColumnSortState'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
 import { useDialogState } from '../../hooks/useDialogState'
-import { useSortState } from '../../hooks/useSortState'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
@@ -213,7 +213,7 @@ export function RolesTab() {
     perPage,
   } = useCursorPagination()
 
-  const { sortParam, getSortParams } = useSortState(SORT_FIELDS, resetPagination)
+  const { sortParam, getSortParams } = useColumnSortState(SORT_FIELDS, resetPagination)
 
   const editDialog = useDialogState<RoleRead>()
   const deleteDialog = useDialogState<RoleRead>()

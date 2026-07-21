@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 
+import { useColumnSortState } from '../../hooks/useColumnSortState'
 import { useFilterState } from '../../hooks/useFilterState'
-import { useSortState } from '../../hooks/useSortState'
 import type { FilterConfig } from '../../types/filters'
 import { buildFilterParams } from '../../utils/filterUtils'
 
@@ -18,7 +18,7 @@ export function useBuiltinListState(sortFieldByColumn: Record<number, string>) {
     setPage(1)
   }, [])
 
-  const { sortParam, getSortParams } = useSortState(sortFieldByColumn, resetPagination)
+  const { sortParam, getSortParams } = useColumnSortState(sortFieldByColumn, resetPagination)
 
   const handleFilterChange = useCallback(
     (newFilters: FilterConfig[]) => {

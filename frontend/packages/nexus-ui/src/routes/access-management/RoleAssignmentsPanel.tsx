@@ -16,8 +16,8 @@ import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxLoadingState } from '../../components/states/NxLoadingState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
+import { useColumnSortState } from '../../hooks/useColumnSortState'
 import { useFilterState } from '../../hooks/useFilterState'
-import { useSortState } from '../../hooks/useSortState'
 import { useAlerts } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -252,7 +252,7 @@ export function RoleAssignmentsPanel({
   const openAssignIfAllowed = assignmentPermissions.canAssign ? () => setAssignModalOpen(true) : undefined
   const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
-  const { activeSortIndex, sortDirection, getSortParams } = useSortState(sortMaps.sortFieldByColumn)
+  const { activeSortIndex, sortDirection, getSortParams } = useColumnSortState(sortMaps.sortFieldByColumn)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(20)
   const { showAlert } = useAlerts()

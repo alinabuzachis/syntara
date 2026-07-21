@@ -1,180 +1,289 @@
-import { SortByDirection } from '@patternfly/react-table'
 import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+import type { SortConfig } from '../types/sorting'
+
 import { useSortState } from './useSortState'
 
+// Mock the app's useSearchParams bridge (TanStack Router). Story wording refers to
+// react-router-dom; this project routes search params through ./routing/useSearchParams.
 const mockSetSearchParams = vi.fn()
-let mockSearchStr = ''
+let mockSearchParams = new URLSearchParams()
 
 vi.mock('./routing/useSearchParams', () => ({
-  useSearchParams: () => [new URLSearchParams(mockSearchStr), mockSetSearchParams] as const,
+  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
-
-const sortFieldByColumn: Record<number, string> = {
-  0: 'name',
-  2: 'description',
-  3: 'is_builtin',
-}
 
 describe('useSortState', () => {
   beforeEach(() => {
-    mockSearchStr = ''
+    mockSearchParams = new URLSearchParams()
     mockSetSearchParams.mockClear()
-    Object.defineProperty(window, 'location', {
-      value: { ...window.location, search: '' },
-      writable: true,
+  })
+
+  describe('sort', () => {
+    it('should return null when no sort in URL and no default', () => {
+      const { result } = renderHook(() => useSortState())
+
+      expect(result.current.sort).toBeNull()
+    })
+
+    it('should deserialize ascending sort from URL on mount', () => {
+      mockSearchParams = new URLSearchParams('sort=name')
+
+      const { result } = renderHook(() => useSortState())
+
+      expect(result.current.sort).toEqual({ field: 'name', direction: 'asc' })
+    })
+
+    it('should deserialize descending sort from URL on mount', () => {
+      mockSearchParams = new URLSearchParams('sort=-created_at')
+
+      const { result } = renderHook(() => useSortState())
+
+      expect(result.current.sort).toEqual({ field: 'created_at', direction: 'desc' })
+    })
+
+    it('should use defaultSort when URL has no sort param', () => {
+      const defaultSort: SortConfig = { field: 'name', direction: 'asc' }
+
+      const { result } = renderHook(() => useSortState(defaultSort))
+
+      expect(result.current.sort).toEqual(defaultSort)
+    })
+
+    it('should prefer URL sort over defaultSort', () => {
+      mockSearchParams = new URLSearchParams('sort=-created_at')
+      const defaultSort: SortConfig = { field: 'name', direction: 'asc' }
+
+      const { result } = renderHook(() => useSortState(defaultSort))
+
+      expect(result.current.sort).toEqual({ field: 'created_at', direction: 'desc' })
+    })
+
+    it('should fall back to defaultSort when URL sort is invalid', () => {
+      mockSearchParams = new URLSearchParams('sort=-')
+      const defaultSort: SortConfig = { field: 'name', direction: 'asc' }
+
+      const { result } = renderHook(() => useSortState(defaultSort))
+
+      expect(result.current.sort).toEqual(defaultSort)
+    })
+
+    it('should return null when URL sort is empty and defaultSort is undefined', () => {
+      mockSearchParams = new URLSearchParams('sort=')
+
+      const { result } = renderHook(() => useSortState(undefined))
+
+      expect(result.current.sort).toBeNull()
     })
   })
 
-  describe('parsing', () => {
-    it('should return undefined activeSortIndex when no sort param in URL', () => {
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
+  describe('setSort', () => {
+    it('should update URL with ascending sort format', () => {
+      const { result } = renderHook(() => useSortState())
 
-      expect(result.current.activeSortIndex).toBeUndefined()
-      expect(result.current.sortDirection).toBe('asc')
-      expect(result.current.sortParam).toBeUndefined()
+      act(() => {
+        result.current.setSort({ field: 'name', direction: 'asc' })
+      })
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(URLSearchParams))
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('sort')).toBe('name')
     })
 
-    it('should parse ascending sort from URL', () => {
-      mockSearchStr = '?sort=name'
+    it('should update URL with descending sort format', () => {
+      const { result } = renderHook(() => useSortState())
 
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
+      act(() => {
+        result.current.setSort({ field: 'created_at', direction: 'desc' })
+      })
 
-      expect(result.current.activeSortIndex).toBe(0)
-      expect(result.current.sortDirection).toBe('asc')
-      expect(result.current.sortParam).toBe('name')
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('sort')).toBe('-created_at')
     })
 
-    it('should parse descending sort from URL', () => {
-      mockSearchStr = '?sort=-name'
+    it('should sync sort state to URL query parameter', () => {
+      const { result, rerender } = renderHook(() => useSortState())
 
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
+      act(() => {
+        result.current.setSort({ field: 'name', direction: 'desc' })
+      })
 
-      expect(result.current.activeSortIndex).toBe(0)
-      expect(result.current.sortDirection).toBe('desc')
-      expect(result.current.sortParam).toBe('-name')
+      mockSearchParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      rerender()
+
+      expect(result.current.sort).toEqual({ field: 'name', direction: 'desc' })
+      expect(mockSearchParams.get('sort')).toBe('-name')
     })
 
-    it('should parse non-zero column index', () => {
-      mockSearchStr = '?sort=is_builtin'
+    it('should preserve non-sort params when setting sort', () => {
+      mockSearchParams = new URLSearchParams('name[contains]=deploy&cursor=abc')
 
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
+      const { result } = renderHook(() => useSortState())
 
-      expect(result.current.activeSortIndex).toBe(3)
-      expect(result.current.sortDirection).toBe('asc')
+      act(() => {
+        result.current.setSort({ field: 'name', direction: 'asc' })
+      })
+
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('sort')).toBe('name')
+      expect(calledParams.get('name[contains]')).toBe('deploy')
+      expect(calledParams.get('cursor')).toBe('abc')
     })
 
-    it('should return undefined activeSortIndex for unknown sort field', () => {
-      mockSearchStr = '?sort=unknown_field'
+    it('should remove sort param when setSort receives an invalid field', () => {
+      mockSearchParams = new URLSearchParams('sort=name')
 
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
+      const { result } = renderHook(() => useSortState())
 
-      expect(result.current.activeSortIndex).toBeUndefined()
-      expect(result.current.sortParam).toBeUndefined()
+      act(() => {
+        result.current.setSort({ field: 'name desc', direction: 'asc' })
+      })
+
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.has('sort')).toBe(false)
     })
   })
 
-  describe('getSortParams', () => {
-    it('should return correct sort params for a column', () => {
-      mockSearchStr = '?sort=name'
+  describe('clearSort', () => {
+    it('should remove sort param from URL', () => {
+      mockSearchParams = new URLSearchParams('sort=-name')
 
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
-      const sortParams = result.current.getSortParams(0)
-
-      expect(sortParams).toEqual(
-        expect.objectContaining({
-          sortBy: {
-            index: 0,
-            direction: 'asc',
-            defaultDirection: 'asc',
-          },
-          columnIndex: 0,
-        })
-      )
-    })
-
-    it('should write ascending sort param to URL on sort', () => {
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
-      const sortParams = result.current.getSortParams(0)
+      const { result } = renderHook(() => useSortState())
 
       act(() => {
-        sortParams!.onSort!(new MouseEvent('click') as never, 0, SortByDirection.asc, {})
+        result.current.clearSort()
       })
 
-      expect(mockSetSearchParams).toHaveBeenCalledTimes(1)
-      const params = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
-      expect(params.get('sort')).toBe('name')
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.has('sort')).toBe(false)
     })
 
-    it('should write descending sort param to URL on sort', () => {
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
-      const sortParams = result.current.getSortParams(0)
+    it('should preserve non-sort params when clearing sort', () => {
+      mockSearchParams = new URLSearchParams('sort=name&name[contains]=deploy')
+
+      const { result } = renderHook(() => useSortState())
 
       act(() => {
-        sortParams!.onSort!(new MouseEvent('click') as never, 0, SortByDirection.desc, {})
+        result.current.clearSort()
       })
 
-      expect(mockSetSearchParams).toHaveBeenCalledTimes(1)
-      const params = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
-      expect(params.get('sort')).toBe('-name')
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.has('sort')).toBe(false)
+      expect(calledParams.get('name[contains]')).toBe('deploy')
     })
 
-    it('should ignore sort for unknown column index', () => {
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
-      const sortParams = result.current.getSortParams(99)
+    it('should restore defaultSort after clear when URL has no sort', () => {
+      mockSearchParams = new URLSearchParams('sort=-created_at')
+      const defaultSort: SortConfig = { field: 'name', direction: 'asc' }
+      const { result, rerender } = renderHook(() => useSortState(defaultSort))
 
       act(() => {
-        sortParams!.onSort!(new MouseEvent('click') as never, 99, SortByDirection.asc, {})
+        result.current.clearSort()
       })
 
-      expect(mockSetSearchParams).not.toHaveBeenCalled()
-    })
+      mockSearchParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      rerender()
 
-    it('should preserve other search params when sorting', () => {
-      mockSearchStr = '?name%5Bcontains%5D=deploy&sort=name'
-      Object.defineProperty(window, 'location', {
-        value: { ...window.location, search: '?name%5Bcontains%5D=deploy&sort=name' },
-        writable: true,
-      })
-
-      const { result } = renderHook(() => useSortState(sortFieldByColumn))
-      const sortParams = result.current.getSortParams(3)
-
-      act(() => {
-        sortParams!.onSort!(new MouseEvent('click') as never, 3, SortByDirection.desc, {})
-      })
-
-      expect(mockSetSearchParams).toHaveBeenCalledTimes(1)
-      const params = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
-      expect(params.get('sort')).toBe('-is_builtin')
-      expect(params.get('name[contains]')).toBe('deploy')
+      expect(result.current.sort).toEqual(defaultSort)
     })
   })
 
-  describe('onSortChange callback', () => {
-    it('should call onSortChange when sort changes', () => {
-      const onSortChange = vi.fn()
-      const { result } = renderHook(() => useSortState(sortFieldByColumn, onSortChange))
-      const sortParams = result.current.getSortParams(0)
+  describe('toggleSort', () => {
+    it('should set ascending sort when no sort is active', () => {
+      const { result } = renderHook(() => useSortState())
 
       act(() => {
-        sortParams!.onSort!(new MouseEvent('click') as never, 0, SortByDirection.asc, {})
+        result.current.toggleSort('name')
       })
 
-      expect(onSortChange).toHaveBeenCalledTimes(1)
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('sort')).toBe('name')
     })
 
-    it('should not call onSortChange for unknown column', () => {
-      const onSortChange = vi.fn()
-      const { result } = renderHook(() => useSortState(sortFieldByColumn, onSortChange))
-      const sortParams = result.current.getSortParams(99)
+    it('should switch direction on the same field', () => {
+      mockSearchParams = new URLSearchParams('sort=name')
+
+      const { result, rerender } = renderHook(() => useSortState())
 
       act(() => {
-        sortParams!.onSort!(new MouseEvent('click') as never, 99, SortByDirection.asc, {})
+        result.current.toggleSort('name')
       })
 
-      expect(onSortChange).not.toHaveBeenCalled()
+      let calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('sort')).toBe('-name')
+
+      mockSearchParams = calledParams
+      rerender()
+
+      act(() => {
+        result.current.toggleSort('name')
+      })
+
+      calledParams = mockSetSearchParams.mock.calls[1][0] as URLSearchParams
+      expect(calledParams.get('sort')).toBe('name')
+    })
+
+    it("should reset to 'asc' on a new field", () => {
+      mockSearchParams = new URLSearchParams('sort=-created_at')
+
+      const { result } = renderHook(() => useSortState())
+
+      act(() => {
+        result.current.toggleSort('name')
+      })
+
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('sort')).toBe('name')
+    })
+
+    it('should toggle from defaultSort when URL has no sort param', () => {
+      const defaultSort: SortConfig = { field: 'name', direction: 'asc' }
+      const { result } = renderHook(() => useSortState(defaultSort))
+
+      act(() => {
+        result.current.toggleSort('name')
+      })
+
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('sort')).toBe('-name')
+    })
+
+    it("should reset to 'asc' when toggling a different field from defaultSort", () => {
+      const defaultSort: SortConfig = { field: 'name', direction: 'desc' }
+      const { result } = renderHook(() => useSortState(defaultSort))
+
+      act(() => {
+        result.current.toggleSort('created_at')
+      })
+
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('sort')).toBe('created_at')
+    })
+  })
+
+  describe('browser navigation', () => {
+    it('should preserve sort state on browser back/forward navigation', () => {
+      mockSearchParams = new URLSearchParams('sort=name')
+      const { result, rerender } = renderHook(() => useSortState())
+
+      expect(result.current.sort).toEqual({ field: 'name', direction: 'asc' })
+
+      act(() => {
+        result.current.setSort({ field: 'created_at', direction: 'desc' })
+      })
+
+      // Simulate browser back — URL restores previous sort
+      mockSearchParams = new URLSearchParams('sort=name')
+      rerender()
+
+      expect(result.current.sort).toEqual({ field: 'name', direction: 'asc' })
+
+      // Simulate browser forward
+      mockSearchParams = new URLSearchParams('sort=-created_at')
+      rerender()
+
+      expect(result.current.sort).toEqual({ field: 'created_at', direction: 'desc' })
     })
   })
 })
