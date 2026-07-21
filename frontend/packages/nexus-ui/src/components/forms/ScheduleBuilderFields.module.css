@@ -2,17 +2,15 @@
   display: flex;
   gap: var(--pf-t--global--spacer--sm);
   align-items: flex-end;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .timeInput {
-  flex: 0 0 auto;
-  width: 7rem;
+  flex: 0 0 8rem;
 }
 
 .timezoneSelect {
-  flex: 1 1 auto;
-  min-width: 10rem;
+  flex: 1 1 10rem;
 }
 
 .intervalInput {
