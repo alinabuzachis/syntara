@@ -55,6 +55,7 @@ jobs:
   build:
     needs: prepare
     uses: ./.github/workflows/_build-backend-image.yml
+    secrets: inherit
     with:
       ref: ${{ needs.prepare.outputs.ref }}
       pr_number: ${{ needs.prepare.outputs.pr_number }}

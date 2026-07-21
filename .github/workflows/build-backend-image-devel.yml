@@ -14,3 +14,4 @@ on:
 jobs:
   build:
     uses: ./.github/workflows/_build-backend-image.yml
+    secrets: inherit
