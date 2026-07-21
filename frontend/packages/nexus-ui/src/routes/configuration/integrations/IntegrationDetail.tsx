@@ -6,6 +6,8 @@ import {
   Badge,
   Button,
   DescriptionList,
+  LabelGroup,
+  Skeleton,
   Stack,
   StackItem,
   Switch,
@@ -28,6 +30,7 @@ import { credentialsClient, integrationsClient, toolManagerClient } from '../../
 import { NxDetail } from '../../../components/details/NxDetail'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
+import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
@@ -65,6 +68,25 @@ import { useItemSelection } from './useItemSelection'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 
+function IntegrationProjectsList({ integrationId }: Readonly<{ integrationId: string }>) {
+  const { data, isPending } = integrationsClient.useQuery('get', '/integrations/{integration_id}/projects', {
+    params: { path: { integration_id: integrationId } },
+  })
+
+  if (isPending) return <Skeleton width="200px" />
+
+  const assignments = data?.resources ?? []
+  if (assignments.length === 0) return <>—</>
+
+  return (
+    <LabelGroup numLabels={5}>
+      {assignments.map((a) => (
+        <NxLabel key={a.project_id}>{a.project_name}</NxLabel>
+      ))}
+    </LabelGroup>
+  )
+}
+
 function IntegrationDetailsTab({
   integration,
   enabledResourceCount,
@@ -90,6 +112,11 @@ function IntegrationDetailsTab({
             <StatusLabel status={integration.validation_status ?? 'unknown'} />
           </NxDetail>
           <NxDetail label="Scope">{integration.scope === 'project' ? 'Project' : 'Global'}</NxDetail>
+          {integration.scope === 'project' && integration.id && (
+            <NxDetail label="Assigned projects">
+              <IntegrationProjectsList integrationId={integration.id} />
+            </NxDetail>
+          )}
           {isLLMProvider(integration) && (
             <NxDetail label="Provider type">
               {PROVIDER_HINT_LABELS[getProviderHint(integration)] ?? getProviderHint(integration)}

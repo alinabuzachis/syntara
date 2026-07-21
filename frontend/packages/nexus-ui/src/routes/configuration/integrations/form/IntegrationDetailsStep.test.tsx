@@ -9,6 +9,18 @@ import { axe } from 'vitest-axe'
 import { IntegrationDetailsStep } from './IntegrationDetailsStep'
 import type { IntegrationFormData } from './integrationFormSchema'
 
+vi.mock('../../../access/useAllProjects', () => ({
+  useAllProjects: () => ({
+    projects: [
+      { id: 'p-001', name: 'default' },
+      { id: 'p-002', name: 'alice-sandbox' },
+    ],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}))
+
 function TestWrapper({
   defaultType = IntegrationTypeEnum.MCP_SERVER,
   onTypeChange: onTypeChangeProp = vi.fn(),
@@ -28,6 +40,7 @@ function TestWrapper({
             insecure_skip_tls_verify: false,
           },
           scope: 'global',
+          project_ids: [],
         }
       : {
           name: '',
@@ -35,6 +48,7 @@ function TestWrapper({
           integration_type: IntegrationTypeEnum.MCP_SERVER,
           configuration: { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: '' },
           scope: 'global',
+          project_ids: [],
         }
 
   const { control, setValue } = useForm<IntegrationFormData>({ defaultValues })

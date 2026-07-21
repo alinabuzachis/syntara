@@ -513,7 +513,16 @@ export const handlers = [
         { status: 404 }
       )
     }
-    return HttpResponse.json({ resources: [], next: null, prev: null, total: null })
+    const projectIds = integration.project_ids ?? []
+    const resources = projectIds.map((pid) => {
+      const project = mockProjects.find((p) => p.id === pid)
+      return {
+        project_id: pid,
+        project_name: project?.name ?? 'Unknown Project',
+        created_at: mockDate.weekAgo,
+      }
+    })
+    return HttpResponse.json({ resources, next: null, prev: null, total: resources.length })
   }),
 
   http.post('/api/v1/integrations/:integration_id/projects/:project_id', ({ params }) => {
@@ -524,10 +533,16 @@ export const handlers = [
         { status: 404 }
       )
     }
+    const projectId = params.project_id as string
+    const project = mockProjects.find((p) => p.id === projectId)
+    if (!integration.project_ids) integration.project_ids = []
+    if (!integration.project_ids.includes(projectId)) {
+      integration.project_ids.push(projectId)
+    }
     return HttpResponse.json(
       {
-        project_id: params.project_id as string,
-        project_name: 'Mock Project',
+        project_id: projectId,
+        project_name: project?.name ?? 'Unknown Project',
         created_at: mockDate.now,
       },
       { status: 201 }
@@ -541,6 +556,10 @@ export const handlers = [
         { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
+    }
+    const projectId = params.project_id as string
+    if (integration.project_ids) {
+      integration.project_ids = integration.project_ids.filter((id) => id !== projectId)
     }
     return new HttpResponse(null, { status: 204 })
   }),

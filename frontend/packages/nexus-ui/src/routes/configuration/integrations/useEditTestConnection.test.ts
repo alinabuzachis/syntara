@@ -47,6 +47,7 @@ function makeFormValues(overrides?: Partial<EditIntegrationFormValues>): EditInt
     integration_type: 'mcp_server',
     base_url: 'https://example.com',
     scope: 'global',
+    project_ids: [],
     management_credential_id: 'cred-1',
     ...overrides,
   }

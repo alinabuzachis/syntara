@@ -173,8 +173,21 @@ describe('buildEditSchema', () => {
       expect(result.success).toBe(false)
     })
 
-    it('accepts project scope', () => {
-      const result = schema.safeParse({ ...validMcp, scope: 'project' })
+    it('accepts project scope with project_ids', () => {
+      const result = schema.safeParse({ ...validMcp, scope: 'project', project_ids: ['p-001'] })
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects project scope with empty project_ids', () => {
+      const result = schema.safeParse({ ...validMcp, scope: 'project', project_ids: [] })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.message === 'At least one project must be selected')).toBe(true)
+      }
+    })
+
+    it('does not require project_ids when scope is global', () => {
+      const result = schema.safeParse({ ...validMcp, scope: 'global' })
       expect(result.success).toBe(true)
     })
 
@@ -192,6 +205,7 @@ describe('buildConfiguration', () => {
     integration_type: 'mcp_server',
     base_url: 'https://example.com',
     scope: 'global' as const,
+    project_ids: [] as string[],
     management_credential_id: null,
   }
 

@@ -13,11 +13,33 @@ import { EditIntegrationForm } from './EditIntegrationForm'
 vi.mock('../../../client', () => ({
   integrationsClient: {
     useQuery: vi.fn(),
-    useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false, isError: false })),
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+      isError: false,
+    })),
   },
   credentialsClient: {
     useQuery: vi.fn(() => ({ data: undefined, isPending: false, isError: false, error: null })),
   },
+}))
+
+vi.mock('../../access/useAllProjects', () => ({
+  useAllProjects: () => ({
+    projects: [
+      { id: 'p-001', name: 'default' },
+      { id: 'p-002', name: 'alice-sandbox' },
+    ],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}))
+
+const mockSyncAssignments = vi.fn().mockResolvedValue({ added: [], removed: [], errors: [] })
+vi.mock('./useProjectAssignmentSync', () => ({
+  useProjectAssignmentSync: () => ({ syncAssignments: mockSyncAssignments }),
 }))
 
 const mockNavigate = vi.fn()
@@ -115,28 +137,44 @@ type MutationCallbacks = {
   onError?: (error: unknown) => void
 }
 
-function setupMocks(overrides?: { integration?: Record<string, unknown>; isPending?: boolean; isError?: boolean }) {
+function setupMocks(overrides?: {
+  integration?: Record<string, unknown>
+  isPending?: boolean
+  isError?: boolean
+  projectAssignments?: { resources: { project_id: string; project_name: string }[] }
+}) {
   const integration = overrides?.integration ? { ...mockIntegration, ...overrides.integration } : mockIntegration
 
-  vi.mocked(integrationsClient.useQuery).mockReturnValue({
-    data: overrides?.isError ? undefined : integration,
-    isPending: overrides?.isPending ?? false,
-    isError: overrides?.isError ?? false,
-    error: overrides?.isError ? new Error('Load failed') : null,
-    refetch: vi.fn(),
-  } as never)
+  vi.mocked(integrationsClient.useQuery).mockImplementation((_method: string, path: string) => {
+    if (path === '/integrations/{integration_id}/projects') {
+      return {
+        data: overrides?.projectAssignments ?? { resources: [] },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never
+    }
+    return {
+      data: overrides?.isError ? undefined : integration,
+      isPending: overrides?.isPending ?? false,
+      isError: overrides?.isError ?? false,
+      error: overrides?.isError ? new Error('Load failed') : null,
+      refetch: vi.fn(),
+    } as never
+  })
 }
 
-function setupMutationMocks(patchMutate?: ReturnType<typeof vi.fn>, discoverMutate?: ReturnType<typeof vi.fn>) {
-  const patch = patchMutate ?? vi.fn()
+function setupMutationMocks(patchMutateAsync?: ReturnType<typeof vi.fn>, discoverMutate?: ReturnType<typeof vi.fn>) {
+  const patchAsync = patchMutateAsync ?? vi.fn().mockResolvedValue({})
   const discover = discoverMutate ?? vi.fn()
   vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
     if (path === '/integrations/discover') {
-      return { mutate: discover, isPending: false, isError: false } as never
+      return { mutate: discover, mutateAsync: discover, isPending: false, isError: false } as never
     }
-    return { mutate: patch, isPending: false, isError: false } as never
+    return { mutate: vi.fn(), mutateAsync: patchAsync, isPending: false, isError: false } as never
   })
-  return { patchMutate: patch, discoverMutate: discover }
+  return { patchMutate: patchAsync, discoverMutate: discover }
 }
 
 describe('EditIntegrationForm', () => {
@@ -310,18 +348,13 @@ describe('EditIntegrationForm', () => {
               scope: 'global',
               configuration: { integration_type: 'mcp_server', base_url: 'https://mcp.example.com' },
             }) as Record<string, unknown>,
-          }),
-          expect.any(Object)
+          })
         )
       })
     })
 
     it('navigates to detail page on successful save', async () => {
-      const patchMutate = vi.fn()
-      patchMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
-        callbacks.onSuccess?.({})
-      })
-      setupMutationMocks(patchMutate)
+      setupMutationMocks()
 
       const user = userEvent.setup()
       render(<EditIntegrationForm />, { wrapper })
@@ -334,11 +367,7 @@ describe('EditIntegrationForm', () => {
     })
 
     it('shows success alert on successful save', async () => {
-      const patchMutate = vi.fn()
-      patchMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
-        callbacks.onSuccess?.({})
-      })
-      setupMutationMocks(patchMutate)
+      setupMutationMocks()
 
       const user = userEvent.setup()
       render(<EditIntegrationForm />, { wrapper })
@@ -364,8 +393,7 @@ describe('EditIntegrationForm', () => {
             body: expect.objectContaining({
               management_credential_id: 'cred-123',
             }) as Record<string, unknown>,
-          }),
-          expect.any(Object)
+          })
         )
       })
     })
@@ -387,8 +415,7 @@ describe('EditIntegrationForm', () => {
             body: expect.objectContaining({
               management_credential_id: null,
             }) as Record<string, unknown>,
-          }),
-          expect.any(Object)
+          })
         )
       })
     })
@@ -408,8 +435,7 @@ describe('EditIntegrationForm', () => {
             body: expect.objectContaining({
               management_credential_id: 'cred-123',
             }) as Record<string, unknown>,
-          }),
-          expect.any(Object)
+          })
         )
       })
     })
@@ -437,8 +463,7 @@ describe('EditIntegrationForm', () => {
             body: expect.objectContaining({
               management_credential_id: 'cred-existing',
             }) as Record<string, unknown>,
-          }),
-          expect.any(Object)
+          })
         )
       })
     })
@@ -666,8 +691,7 @@ describe('EditIntegrationForm', () => {
                 insecure_skip_tls_verify: false,
               },
             }) as Record<string, unknown>,
-          }),
-          expect.any(Object)
+          })
         )
       })
     })
@@ -863,8 +887,7 @@ describe('EditIntegrationForm', () => {
                 provider_hint: 'red_hat_ai',
               }) as Record<string, unknown>,
             }) as Record<string, unknown>,
-          }),
-          expect.any(Object)
+          })
         )
       })
     })
@@ -930,6 +953,79 @@ describe('EditIntegrationForm', () => {
       render(<EditIntegrationForm />, { wrapper })
 
       expect(screen.getByDisplayValue('https://mcp.example.com')).toBeInTheDocument()
+    })
+  })
+
+  describe('Project assignment sync on save', () => {
+    beforeEach(() => {
+      mockSyncAssignments.mockClear()
+    })
+
+    it('calls syncAssignments when saving a project-scoped integration', async () => {
+      setupMocks({
+        integration: { scope: 'project' },
+        projectAssignments: {
+          resources: [{ project_id: 'p-001', project_name: 'default' }],
+        },
+      })
+      const { patchMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
+
+      await waitFor(() => {
+        expect(patchMutate).toHaveBeenCalled()
+      })
+      await waitFor(() => {
+        expect(mockSyncAssignments).toHaveBeenCalledWith('int-1', ['p-001'], ['p-001'])
+      })
+    })
+
+    it('shows warning alert when project sync has errors', async () => {
+      mockSyncAssignments.mockResolvedValueOnce({ added: [], removed: [], errors: ['Failed'] })
+      setupMocks({
+        integration: { scope: 'project' },
+        projectAssignments: {
+          resources: [{ project_id: 'p-001', project_name: 'default' }],
+        },
+      })
+      setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Integration updated with warnings')).toBeInTheDocument()
+      })
+    })
+
+    it('does not call syncAssignments when scope is global', async () => {
+      setupMocks({ integration: { scope: 'global' } })
+      setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save integration' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Integration updated')).toBeInTheDocument()
+      })
+      expect(mockSyncAssignments).not.toHaveBeenCalled()
+    })
+
+    it('shows project selector when scope is toggled to project', async () => {
+      setupMocks({ integration: { scope: 'global' } })
+      setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('switch', { name: /integration scope/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Projects')).toBeInTheDocument()
+      })
     })
   })
 })

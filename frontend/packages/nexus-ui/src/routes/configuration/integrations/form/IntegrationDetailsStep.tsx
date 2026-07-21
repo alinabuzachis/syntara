@@ -24,6 +24,7 @@ import { Controller, useWatch, type Control, type UseFormSetValue } from 'react-
 import { PROVIDERS_HIDING_BASE_URL, PROVIDERS_REQUIRING_BASE_URL } from '../integrationFilters'
 
 import { INTEGRATION_TYPE_OPTIONS, PROVIDER_HINT_OPTIONS, type IntegrationFormData } from './integrationFormSchema'
+import { ScopeFields } from './ScopeFields'
 import styles from './WizardSteps.module.css'
 
 type ControlledTextFieldProps = Readonly<{
@@ -351,31 +352,16 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
           </>
         )}
 
-        <FormGroup label="Scope" fieldId="integration-scope">
-          <Controller
-            name="scope"
-            control={control}
-            render={({ field }) => (
-              <Switch
-                id="integration-scope"
-                label="Global"
-                aria-label="Integration scope"
-                hasCheckIcon
-                isChecked={field.value === 'global'}
-                onChange={(_event, checked) => field.onChange(checked ? 'global' : 'project')}
-              />
-            )}
-          />
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem>
-                {scope === 'global'
-                  ? 'Global integrations are available to all projects. Turn off to scope this integration to specific projects.'
-                  : 'This integration will only be available to selected projects.'}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        </FormGroup>
+        <ScopeFields
+          control={control}
+          scope={scope}
+          scopeName="scope"
+          projectIdsName="project_ids"
+          idPrefix="integration"
+          onScopeChange={(newScope) => {
+            if (newScope === 'global') setValue('project_ids', [])
+          }}
+        />
       </Form>
     </>
   )

@@ -1,4 +1,5 @@
 import { IntegrationTypeEnum, type IntegrationsAPI } from '@ansible/nexus-contracts'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
 import { AppRoute } from '../../../../app/AppRoute'
@@ -7,6 +8,7 @@ import { integrationsClient } from '../../../../client'
 import type { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 import { detachPromise } from '../../../../utils/detachPromise'
+import { useProjectAssignmentSync } from '../useProjectAssignmentSync'
 
 import type { IntegrationFormData } from './integrationFormSchema'
 
@@ -14,13 +16,6 @@ type UseCreateIntegrationOptions = {
   handleError: ReturnType<typeof useFormMutationErrorHandler>
 }
 
-/**
- * Encapsulates the create → navigate workflow for integration creation.
- *
- * Creates the integration via POST /integrations and navigates back to the
- * list. No post-save validation — the admin already tested the connection
- * in the wizard's step 2.
- */
 type InitialToolSelection = {
   name: string
   description?: string | null
@@ -31,7 +26,9 @@ type InitialToolSelection = {
 type InitialModelSelection = IntegrationsAPI.components['schemas']['InitialModelSelection']
 
 export function useCreateIntegration({ handleError }: UseCreateIntegrationOptions) {
-  const { mutate: createIntegration } = integrationsClient.useMutation('post', '/integrations')
+  const { mutateAsync: createIntegration } = integrationsClient.useMutation('post', '/integrations')
+  const { syncAssignments } = useProjectAssignmentSync()
+  const queryClient = useQueryClient()
   const { showAlert } = useAlerts()
 
   return useCallback(
@@ -45,22 +42,39 @@ export function useCreateIntegration({ handleError }: UseCreateIntegrationOption
         detachPromise(tanstackRouter.navigate({ to: AppRoute.Configuration.Integrations.Root }))
       }
 
-      createIntegration(
-        {
-          body: {
-            name: formData.name,
-            description: formData.description ?? undefined,
-            integration_type: formData.integration_type,
-            configuration: formData.configuration,
-            management_credential_id: formData.management_credential_id ?? undefined,
-            scope: formData.scope,
-            discovered_tools:
-              formData.integration_type === IntegrationTypeEnum.MCP_SERVER ? (discoveredTools ?? null) : null,
-            discovered_models: discoveredModels ?? null,
-          },
-        },
-        {
-          onSuccess: () => {
+      detachPromise(
+        (async () => {
+          try {
+            const created = await createIntegration({
+              body: {
+                name: formData.name,
+                description: formData.description ?? undefined,
+                integration_type: formData.integration_type,
+                configuration: formData.configuration,
+                management_credential_id: formData.management_credential_id ?? undefined,
+                scope: formData.scope,
+                discovered_tools:
+                  formData.integration_type === IntegrationTypeEnum.MCP_SERVER ? (discoveredTools ?? null) : null,
+                discovered_models: discoveredModels ?? null,
+              },
+            })
+
+            if (formData.scope === 'project' && formData.project_ids.length > 0 && created.id) {
+              const result = await syncAssignments(created.id, [], formData.project_ids)
+              await queryClient.invalidateQueries({ queryKey: ['get', '/integrations/{integration_id}'] })
+              await queryClient.invalidateQueries({ queryKey: ['get', '/integrations/{integration_id}/projects'] })
+              if (result.errors.length > 0) {
+                showAlert({
+                  title: 'Integration created with warnings',
+                  description: `"${formData.name}" was created but some project assignments failed.`,
+                  variant: 'warning',
+                  autoDismiss: true,
+                })
+                navigateToList()
+                return
+              }
+            }
+
             showAlert({
               title: 'Integration created',
               description: `"${formData.name}" has been saved.`,
@@ -68,11 +82,12 @@ export function useCreateIntegration({ handleError }: UseCreateIntegrationOption
               autoDismiss: true,
             })
             navigateToList()
-          },
-          onError: handleError({ title: 'Failed to add integration', context }),
-        }
+          } catch (error: unknown) {
+            handleError({ title: 'Failed to add integration', context })(error)
+          }
+        })()
       )
     },
-    [createIntegration, handleError, showAlert]
+    [createIntegration, syncAssignments, queryClient, handleError, showAlert]
   )
 }

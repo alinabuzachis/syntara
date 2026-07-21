@@ -12,9 +12,20 @@ import { AlertProvider } from '../../../../providers/alerts'
 
 import { IntegrationForm } from './IntegrationForm'
 
+vi.mock('../useProjectAssignmentSync', () => ({
+  useProjectAssignmentSync: () => ({
+    syncAssignments: vi.fn().mockResolvedValue({ added: [], removed: [], errors: [] }),
+  }),
+}))
+
 vi.mock('../../../../client', () => ({
   integrationsClient: {
-    useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false, isError: false })),
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'new-id' }),
+      isPending: false,
+      isError: false,
+    })),
   },
   credentialsClient: {
     useQuery: vi.fn(() => ({ data: { results: [] }, isLoading: false, error: null, refetch: vi.fn() })),
@@ -77,13 +88,14 @@ type MutationCallbacks = {
 function mockMutations(discoverMutate?: Mock, createMutate?: Mock) {
   const discoverFn = discoverMutate ?? vi.fn()
   const createFn = createMutate ?? vi.fn()
+  const createAsyncFn = vi.fn().mockResolvedValue({ id: 'new-id', name: 'Test' })
   vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
     if (path === '/integrations/discover') {
-      return { mutate: discoverFn, isPending: false, isError: false } as never
+      return { mutate: discoverFn, mutateAsync: discoverFn, isPending: false, isError: false } as never
     }
-    return { mutate: createFn, isPending: false, isError: false } as never
+    return { mutate: createFn, mutateAsync: createAsyncFn, isPending: false, isError: false } as never
   })
-  return { discoverMutate: discoverFn, createMutate: createFn }
+  return { discoverMutate: discoverFn, createMutate: createFn, createAsyncMutate: createAsyncFn }
 }
 
 describe('IntegrationForm', () => {
@@ -234,9 +246,10 @@ describe('IntegrationForm', () => {
   })
 
   it('calls createIntegration on Save with form data', async () => {
-    const mockMutate = vi.fn()
+    const mockMutateAsync = vi.fn().mockResolvedValue({ id: 'new-id', name: 'Test' })
     vi.mocked(integrationsClient.useMutation).mockReturnValue({
-      mutate: mockMutate,
+      mutate: vi.fn(),
+      mutateAsync: mockMutateAsync,
       isPending: false,
       isError: false,
     } as never)
@@ -252,7 +265,7 @@ describe('IntegrationForm', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => {
-      expect(mockMutate).toHaveBeenCalled()
+      expect(mockMutateAsync).toHaveBeenCalled()
     })
   })
 
@@ -361,8 +374,7 @@ describe('IntegrationForm', () => {
     })
 
     it('calls createIntegration with Ansible Automation Platform configuration on Save', async () => {
-      const createMutate = vi.fn()
-      mockMutations(undefined, createMutate)
+      const { createAsyncMutate } = mockMutations()
 
       const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
@@ -372,7 +384,7 @@ describe('IntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save' }))
 
       await waitFor(() => {
-        expect(createMutate).toHaveBeenCalledWith(
+        expect(createAsyncMutate).toHaveBeenCalledWith(
           expect.objectContaining({
             body: expect.objectContaining({
               integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
@@ -382,8 +394,7 @@ describe('IntegrationForm', () => {
               }) as Record<string, unknown>,
               discovered_tools: null,
             }) as Record<string, unknown>,
-          }),
-          expect.any(Object)
+          })
         )
       })
     })
@@ -687,7 +698,7 @@ describe('IntegrationForm', () => {
           ],
         })
       })
-      const { createMutate } = mockMutations(discoverMutate)
+      const { createAsyncMutate } = mockMutations(discoverMutate)
 
       const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
@@ -704,7 +715,7 @@ describe('IntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save' }))
 
       await waitFor(() => {
-        expect(createMutate).toHaveBeenCalledWith(
+        expect(createAsyncMutate).toHaveBeenCalledWith(
           expect.objectContaining({
             body: expect.objectContaining({
               integration_type: IntegrationTypeEnum.LLM_PROVIDER,
@@ -712,8 +723,7 @@ describe('IntegrationForm', () => {
                 expect.objectContaining({ model_id: 'm1', name: 'model-1', enabled: true }),
               ]) as unknown[],
             }) as Record<string, unknown>,
-          }),
-          expect.any(Object)
+          })
         )
       })
     })
@@ -790,9 +800,14 @@ describe('IntegrationForm', () => {
     it('disables test connection and step navigation when testing is in progress', async () => {
       vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
         if (path === '/integrations/discover') {
-          return { mutate: vi.fn(), isPending: true, isError: false } as never
+          return { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: true, isError: false } as never
         }
-        return { mutate: vi.fn(), isPending: false, isError: false } as never
+        return {
+          mutate: vi.fn(),
+          mutateAsync: vi.fn().mockResolvedValue({ id: 'new-id' }),
+          isPending: false,
+          isError: false,
+        } as never
       })
 
       const user = userEvent.setup()

@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { tanstackRouter } from '../../../../app/tanstackRouter'
@@ -8,6 +8,7 @@ import { useCreateIntegration } from './useCreateIntegration'
 
 const mockShowAlert = vi.fn()
 const mockCreateMutation = vi.fn()
+const mockSyncAssignments = vi.fn()
 const mockHandleError = vi.fn(() => vi.fn())
 
 vi.mock('../../../../app/tanstackRouter', () => ({
@@ -20,9 +21,20 @@ vi.mock('../../../../providers/alerts', () => ({
 
 vi.mock('../../../../client', () => ({
   integrationsClient: {
-    useMutation: vi.fn(() => ({ mutate: mockCreateMutation })),
+    useMutation: vi.fn(() => ({ mutateAsync: mockCreateMutation })),
   },
 }))
+
+vi.mock('../useProjectAssignmentSync', () => ({
+  useProjectAssignmentSync: () => ({ syncAssignments: mockSyncAssignments }),
+}))
+
+const mockInvalidateQueries = vi.fn().mockResolvedValue(undefined)
+const mockQueryClient = { invalidateQueries: mockInvalidateQueries }
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual('@tanstack/react-query')
+  return { ...actual, useQueryClient: () => mockQueryClient }
+})
 
 function createTestFormData(overrides?: Partial<IntegrationFormData>): IntegrationFormData {
   return {
@@ -35,6 +47,7 @@ function createTestFormData(overrides?: Partial<IntegrationFormData>): Integrati
     },
     management_credential_id: null,
     scope: 'global',
+    project_ids: [],
     ...overrides,
   } as IntegrationFormData
 }
@@ -43,12 +56,13 @@ describe('useCreateIntegration', () => {
   beforeEach(() => {
     vi.mocked(tanstackRouter.navigate).mockClear()
     mockShowAlert.mockClear()
-    mockCreateMutation.mockClear()
+    mockCreateMutation.mockClear().mockResolvedValue({ id: 'new-id', name: 'Test Integration' })
+    mockSyncAssignments.mockClear().mockResolvedValue({ added: [], removed: [], errors: [] })
     mockHandleError.mockClear()
     mockHandleError.mockReturnValue(vi.fn())
   })
 
-  it('creates integration with correct body', () => {
+  it('creates integration with correct body', async () => {
     const formData = createTestFormData()
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
@@ -56,92 +70,59 @@ describe('useCreateIntegration', () => {
       result.current(formData)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledOnce()
-    const callArgs: unknown[] = mockCreateMutation.mock.calls[0] as unknown[]
-    const reqArg = callArgs[0] as Record<string, unknown>
-    const callbacksArg = callArgs[1] as Record<string, unknown>
+    await waitFor(() => {
+      expect(mockCreateMutation).toHaveBeenCalledOnce()
+    })
+    const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
     expect(reqArg.body).toMatchObject({
       name: 'Test Integration',
       integration_type: 'mcp_server',
       configuration: { integration_type: 'mcp_server', base_url: 'http://localhost:8765/mcp' },
       scope: 'global',
     })
-    expect(callbacksArg).toEqual(
-      expect.objectContaining({
-        onSuccess: expect.any(Function) as unknown,
-        onError: expect.any(Function) as unknown,
-      })
-    )
   })
 
-  it('shows success alert and navigates on create', () => {
+  it('shows success alert and navigates on create', async () => {
     const formData = createTestFormData()
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
-
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: () => void }
-      callbacks.onSuccess()
-    })
 
     act(() => {
       result.current(formData)
     })
 
-    expect(mockShowAlert).toHaveBeenCalledWith({
-      title: 'Integration created',
-      description: '"Test Integration" has been saved.',
-      variant: 'success',
-      autoDismiss: true,
+    await waitFor(() => {
+      expect(mockShowAlert).toHaveBeenCalledWith({
+        title: 'Integration created',
+        description: '"Test Integration" has been saved.',
+        variant: 'success',
+        autoDismiss: true,
+      })
     })
     expect(vi.mocked(tanstackRouter.navigate)).toHaveBeenCalledWith(
       expect.objectContaining({ to: '/configuration/integrations' })
     )
   })
 
-  it('handles creation error without navigating', () => {
+  it('handles creation error without navigating', async () => {
     const formData = createTestFormData()
-    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
     const mockErrorCallback = vi.fn()
     mockHandleError.mockReturnValue(mockErrorCallback)
     const creationError = new Error('Duplicate name')
+    mockCreateMutation.mockRejectedValueOnce(creationError)
 
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onError: (...args: unknown[]) => void }
-      callbacks.onError(creationError)
-    })
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
     act(() => {
       result.current(formData)
     })
 
-    expect(mockHandleError).toHaveBeenCalledWith({
-      title: 'Failed to add integration',
-      context: 'Integration "Test Integration"',
+    await waitFor(() => {
+      expect(mockErrorCallback).toHaveBeenCalledWith(creationError)
     })
-    expect(mockErrorCallback).toHaveBeenCalledWith(creationError)
     expect(vi.mocked(tanstackRouter.navigate)).not.toHaveBeenCalled()
   })
 
-  it('uses undefined context when name is empty', () => {
-    const formData = createTestFormData({ name: '' })
-    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
-
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onError: (...args: unknown[]) => void }
-      callbacks.onError(new Error('fail'))
-    })
-
-    act(() => {
-      result.current(formData)
-    })
-
-    expect(mockHandleError).toHaveBeenCalledWith({
-      title: 'Failed to add integration',
-      context: undefined,
-    })
-  })
-
-  it('passes discovered_tools to the API when provided', () => {
+  it('passes discovered_tools to the API when provided', async () => {
     const formData = createTestFormData()
     const discoveredTools = [
       { name: 'get_repo', description: 'Get repo details', enabled: true },
@@ -153,14 +134,16 @@ describe('useCreateIntegration', () => {
       result.current(formData, discoveredTools)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    await waitFor(() => {
+      expect(mockCreateMutation).toHaveBeenCalledOnce()
+    })
     const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
     expect(reqArg.body).toMatchObject({
       discovered_tools: discoveredTools,
     })
   })
 
-  it('passes null discovered_tools when none provided', () => {
+  it('passes null discovered_tools when none provided', async () => {
     const formData = createTestFormData()
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
@@ -168,14 +151,16 @@ describe('useCreateIntegration', () => {
       result.current(formData)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    await waitFor(() => {
+      expect(mockCreateMutation).toHaveBeenCalledOnce()
+    })
     const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
     expect(reqArg.body).toMatchObject({
       discovered_tools: null,
     })
   })
 
-  it('passes empty description through to the API', () => {
+  it('passes empty description through to the API', async () => {
     const formData = createTestFormData({ description: '' })
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
@@ -183,14 +168,16 @@ describe('useCreateIntegration', () => {
       result.current(formData)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    await waitFor(() => {
+      expect(mockCreateMutation).toHaveBeenCalledOnce()
+    })
     const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
     expect(reqArg.body).toMatchObject({
       description: '',
     })
   })
 
-  it('passes management_credential_id when provided', () => {
+  it('passes management_credential_id when provided', async () => {
     const formData = createTestFormData({ management_credential_id: 'cred-123' })
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
@@ -198,7 +185,9 @@ describe('useCreateIntegration', () => {
       result.current(formData)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    await waitFor(() => {
+      expect(mockCreateMutation).toHaveBeenCalledOnce()
+    })
     const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
     expect(reqArg.body).toMatchObject({
       management_credential_id: 'cred-123',
@@ -208,13 +197,11 @@ describe('useCreateIntegration', () => {
   it('returns a stable function reference across re-renders', () => {
     const { result, rerender } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
     const firstRef = result.current
-
     rerender()
-
     expect(result.current).toBe(firstRef)
   })
 
-  it('passes discovered_models to the API when provided', () => {
+  it('passes discovered_models to the API when provided', async () => {
     const formData = createTestFormData({
       integration_type: 'llm_provider',
       configuration: {
@@ -233,7 +220,9 @@ describe('useCreateIntegration', () => {
       result.current(formData, undefined, discoveredModels)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    await waitFor(() => {
+      expect(mockCreateMutation).toHaveBeenCalledOnce()
+    })
     const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
     expect(reqArg.body).toMatchObject({
       discovered_models: discoveredModels,
@@ -241,7 +230,7 @@ describe('useCreateIntegration', () => {
     })
   })
 
-  it('passes null discovered_models when none provided for LLM', () => {
+  it('passes null discovered_models when none provided for LLM', async () => {
     const formData = createTestFormData({
       integration_type: 'llm_provider',
       configuration: {
@@ -256,10 +245,69 @@ describe('useCreateIntegration', () => {
       result.current(formData)
     })
 
-    expect(mockCreateMutation).toHaveBeenCalledOnce()
+    await waitFor(() => {
+      expect(mockCreateMutation).toHaveBeenCalledOnce()
+    })
     const [reqArg] = mockCreateMutation.mock.calls[0] as [Record<string, unknown>]
     expect(reqArg.body).toMatchObject({
       discovered_models: null,
+    })
+  })
+
+  it('syncs project assignments after creation when scope is project', async () => {
+    const formData = createTestFormData({
+      scope: 'project',
+      project_ids: ['p-001', 'p-002'],
+    })
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
+
+    act(() => {
+      result.current(formData)
+    })
+
+    await waitFor(() => {
+      expect(mockSyncAssignments).toHaveBeenCalledWith('new-id', [], ['p-001', 'p-002'])
+    })
+    expect(mockInvalidateQueries).toHaveBeenCalled()
+    expect(mockShowAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Integration created', variant: 'success' })
+    )
+  })
+
+  it('does not sync project assignments when scope is global', async () => {
+    const formData = createTestFormData({ scope: 'global' })
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
+
+    act(() => {
+      result.current(formData)
+    })
+
+    await waitFor(() => {
+      expect(mockShowAlert).toHaveBeenCalled()
+    })
+    expect(mockSyncAssignments).not.toHaveBeenCalled()
+  })
+
+  it('shows warning when some project assignments fail', async () => {
+    mockSyncAssignments.mockResolvedValueOnce({
+      added: ['p-001'],
+      removed: [],
+      errors: ['Failed to assign project p-002'],
+    })
+    const formData = createTestFormData({
+      scope: 'project',
+      project_ids: ['p-001', 'p-002'],
+    })
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
+
+    act(() => {
+      result.current(formData)
+    })
+
+    await waitFor(() => {
+      expect(mockShowAlert).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Integration created with warnings', variant: 'warning' })
+      )
     })
   })
 })

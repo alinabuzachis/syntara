@@ -30,9 +30,17 @@ export function buildEditSchema(requiresBaseUrl: boolean) {
       aap_url: z.string().optional(),
       insecure_skip_tls_verify: z.boolean().optional(),
       scope: z.enum(['global', 'project']),
+      project_ids: z.array(z.string()).default([]),
       management_credential_id: z.string().nullable(),
     })
     .superRefine((data, ctx) => {
+      if (data.scope === 'project' && data.project_ids.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'At least one project must be selected',
+          path: ['project_ids'],
+        })
+      }
       if (data.integration_type === IntegrationTypeEnum.MCP_SERVER) {
         const err = validateUrl(data.base_url, {
           required: true,

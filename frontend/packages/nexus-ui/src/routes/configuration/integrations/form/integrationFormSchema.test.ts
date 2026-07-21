@@ -93,15 +93,42 @@ describe('integrationFormSchema', () => {
       expect(result.success).toBe(true)
     })
 
-    it('accepts project scope', () => {
+    it('accepts project scope with project_ids', () => {
       const result = integrationFormSchema.safeParse({
         ...validMcpBase,
         name: 'Server',
         scope: 'project',
+        project_ids: ['p-001'],
       })
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data.scope).toBe('project')
+        expect(result.data.project_ids).toEqual(['p-001'])
+      }
+    })
+
+    it('rejects project scope with no project_ids', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validMcpBase,
+        name: 'Server',
+        scope: 'project',
+        project_ids: [],
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.message === 'At least one project must be selected')).toBe(true)
+      }
+    })
+
+    it('does not require project_ids when scope is global', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validMcpBase,
+        name: 'Server',
+        scope: 'global',
+      })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.project_ids).toEqual([])
       }
     })
 
@@ -333,6 +360,23 @@ describe('integrationFormSchema', () => {
     it('returns only name for unknown integration type', () => {
       const fields = getStep1Fields('unknown_type')
       expect(fields).toEqual(['name'])
+    })
+
+    it('includes project_ids when scope is project', () => {
+      const fields = getStep1Fields(IntegrationTypeEnum.MCP_SERVER, 'project')
+      expect(fields).toContain('project_ids')
+      expect(fields).toContain('name')
+      expect(fields).toContain('configuration.base_url')
+    })
+
+    it('does not include project_ids when scope is global', () => {
+      const fields = getStep1Fields(IntegrationTypeEnum.MCP_SERVER, 'global')
+      expect(fields).not.toContain('project_ids')
+    })
+
+    it('does not include project_ids when scope is undefined', () => {
+      const fields = getStep1Fields(IntegrationTypeEnum.MCP_SERVER)
+      expect(fields).not.toContain('project_ids')
     })
   })
 

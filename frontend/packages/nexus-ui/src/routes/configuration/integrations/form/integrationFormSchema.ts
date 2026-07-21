@@ -8,6 +8,7 @@ const sharedFields = {
   description: z.string().optional().nullable(),
   management_credential_id: z.string().optional().nullable(),
   scope: z.enum(['global', 'project']),
+  project_ids: z.array(z.string()).default([]),
 }
 
 const mcpServerSchema = z.object({
@@ -67,17 +68,24 @@ const llmProviderSchema = z.object({
  * Discriminated union on integration_type — each type has its own configuration shape.
  * Backend 422 errors are still applied via useFormMutationErrorHandler.
  */
-export const integrationFormSchema = z.discriminatedUnion('integration_type', [
-  mcpServerSchema,
-  aapSchema,
-  llmProviderSchema,
-])
+export const integrationFormSchema = z
+  .discriminatedUnion('integration_type', [mcpServerSchema, aapSchema, llmProviderSchema])
+  .superRefine((data, ctx) => {
+    if (data.scope === 'project' && data.project_ids.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'At least one project must be selected',
+        path: ['project_ids'],
+      })
+    }
+  })
 
 export type IntegrationFormData = z.infer<typeof integrationFormSchema>
 
 /** Fields validated on step 1 (Integration details) before advancing. Type-specific because each integration type has a different URL field. */
-export function getStep1Fields(integrationType: string): string[] {
+export function getStep1Fields(integrationType: string, scope?: string): string[] {
   const shared = ['name']
+  if (scope === 'project') shared.push('project_ids')
   switch (integrationType) {
     case IntegrationTypeEnum.MCP_SERVER:
       return [...shared, 'configuration.base_url']

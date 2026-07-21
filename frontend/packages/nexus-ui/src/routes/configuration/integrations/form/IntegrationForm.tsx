@@ -56,6 +56,7 @@ type WizardNavFooterProps = Readonly<{
   onSubmit: () => void
   credentialId: string | null | undefined
   integrationTypeValue: string
+  scopeValue: string
   isCredentialRequired: boolean
   onDetailsStepValidated: () => void
 }>
@@ -65,6 +66,7 @@ function WizardNavFooter({
   onSubmit,
   credentialId,
   integrationTypeValue,
+  scopeValue,
   isCredentialRequired,
   onDetailsStepValidated,
 }: WizardNavFooterProps) {
@@ -80,7 +82,7 @@ function WizardNavFooter({
 
   const handleNext = useCallback(async () => {
     if (isFirst) {
-      const fields = getStep1Fields(integrationTypeValue)
+      const fields = getStep1Fields(integrationTypeValue, scopeValue)
       const valid = await trigger(fields as (keyof IntegrationFormData)[])
       if (valid) {
         onDetailsStepValidated()
@@ -89,7 +91,7 @@ function WizardNavFooter({
       return
     }
     await goToNextStep()
-  }, [trigger, isFirst, goToNextStep, integrationTypeValue, onDetailsStepValidated])
+  }, [trigger, isFirst, goToNextStep, integrationTypeValue, scopeValue, onDetailsStepValidated])
 
   const isNextDisabled = isSecond && isCredentialRequired && !credentialId
   const isSaveDisabled = isSecond && isCredentialRequired && !credentialId
@@ -256,12 +258,14 @@ export function IntegrationForm() {
       configuration: { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: '' },
       management_credential_id: null,
       scope: 'global',
+      project_ids: [],
     },
   })
   const handleError = useFormMutationErrorHandler<IntegrationFormData>(setError)
   const createIntegration = useCreateIntegration({ handleError })
   const credentialId = useWatch({ control, name: 'management_credential_id' })
   const integrationTypeValue = useWatch({ control, name: 'integration_type' })
+  const scopeValue = useWatch({ control, name: 'scope' })
 
   const {
     testResult,
@@ -341,6 +345,7 @@ export function IntegrationForm() {
                 onSubmit={() => detachPromise(onSubmit())}
                 credentialId={credentialId}
                 integrationTypeValue={integrationTypeValue}
+                scopeValue={scopeValue}
                 isCredentialRequired={isCredentialRequired}
                 onDetailsStepValidated={() => setIsDetailsStepValid(true)}
               />
