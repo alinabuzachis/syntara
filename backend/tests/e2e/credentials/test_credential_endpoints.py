@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
+    from nexus_api_client.models.execution_read import ExecutionRead
     from nexus_test_sdk.factories.credentials import CredentialFactory
 
 
@@ -35,7 +36,12 @@ from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.credential_update import CredentialUpdate
 from nexus_api_client.models.credential_update_inputs_type_0 import CredentialUpdateInputsType0
-from nexus_test_sdk.factories import get_bearer_token_type_id
+from nexus_api_client.models.execution_create import ExecutionCreate
+from nexus_api_client.models.execution_status import ExecutionStatus
+from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from nexus_test_sdk.e2e.helpers import HTTPBIN_URL, create_and_run_workflow, poll_execution, requires_httpbin
+from nexus_test_sdk.factories import get_basic_auth_type_id, get_bearer_token_type_id
 from nexus_test_sdk.helpers import unique_name
 
 pytestmark = [pytest.mark.e2e]
@@ -106,20 +112,133 @@ class TestSecretFieldMasking:
 # ===================================================================
 
 
-@pytest.mark.skip(reason="TODO: requires workflow with credential-consuming node")
-class TestWorkflowWithValidCredential:
-    """Verify credential resolution succeeds at runtime."""
+def _http_request_workflow(name: str, url: str, credential_id: str, method: str = "GET") -> dict[str, Any]:
+    """Build a workflow definition with an http_request node and credential."""
+    return {
+        "schema_version": "2.0.0",
+        "name": name,
+        "description": f"E2E credential test: {name}",
+        "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+        "nodes": [
+            {
+                "id": "api_call",
+                "name": "API Call",
+                "type": "http_request",
+                "parameters": {
+                    "method": method,
+                    "url": url,
+                    "credential_id": credential_id,
+                },
+            },
+        ],
+        "edges": [{"from": "trigger", "to": "api_call"}],
+    }
 
-    def test_workflow_resolves_credential(self, nexus_api: NexusApiRegistry) -> None:
-        """Execute a workflow referencing a valid credential — expect success."""
-        # ANSTRAT-1901: implement when workflow+credential wiring is available
-        # 1. Create HTTP Bearer Token credential
-        # 2. Create workflow with HTTP Request node referencing the credential
-        # 3. Execute the workflow
-        # 4. Poll until terminal state
-        # 5. Assert status == COMPLETED
-        # 6. Assert no credential-resolution errors in activities
-        # 7. Cleanup credential + workflow
+
+def _get_activity_output(execution: ExecutionRead, activity_id: str) -> dict[str, Any]:
+    """Extract the output dict from an activity's output_data."""
+    activities = {a.activity_id: a for a in (execution.activities or [])}
+    activity = activities[activity_id]
+    output_data = activity.output_data
+    if output_data is None:
+        return {}
+    if isinstance(output_data, dict):
+        return output_data
+    result: dict[str, Any] = getattr(output_data, "additional_properties", {})
+    return result
+
+
+@requires_httpbin
+class TestWorkflowWithValidCredential:
+    """Verify credential resolution succeeds at runtime (ANSTRAT-1901)."""
+
+    def test_bearer_token_credential_resolves(
+        self,
+        nexus_api: NexusApiRegistry,
+        first_project_id: UUID,
+        create_credential: CredentialFactory,
+    ) -> None:
+        """HTTP request with Bearer Token credential hits httpbin /bearer — expect 200."""
+        cred_id, *_ = create_credential(
+            api=nexus_api,
+            project_id=first_project_id,
+            name=unique_name("e2e-cred-bearer"),
+        )
+
+        definition = _http_request_workflow(
+            name="e2e-cred-bearer-test",
+            url=f"{HTTPBIN_URL}/bearer",
+            credential_id=str(cred_id),
+        )
+        execution = create_and_run_workflow(
+            nexus_api, "e2e-cred-bearer-test", definition, timeout=30, project_id=first_project_id
+        )
+
+        assert execution.status == ExecutionStatus.COMPLETED, f"Unexpected status: {execution.status}"
+        output = _get_activity_output(execution, "api_call")
+        assert output.get("status_code") == 200
+        body = output.get("body", {})
+        assert body.get("authenticated") is True
+
+    def test_basic_auth_credential_resolves(
+        self,
+        nexus_api: NexusApiRegistry,
+        first_project_id: UUID,
+        create_credential: CredentialFactory,
+    ) -> None:
+        """HTTP request with Basic Auth credential hits httpbin /basic-auth — expect 200."""
+        cred_id, *_ = create_credential(
+            api=nexus_api,
+            project_id=first_project_id,
+            name=unique_name("e2e-cred-basic"),
+            type_id=get_basic_auth_type_id(nexus_api),
+            inputs={"username": "admin", "password": "secret123"},
+        )
+
+        definition = _http_request_workflow(
+            name="e2e-cred-basic-test",
+            url=f"{HTTPBIN_URL}/basic-auth/admin/secret123",
+            credential_id=str(cred_id),
+        )
+        execution = create_and_run_workflow(
+            nexus_api, "e2e-cred-basic-test", definition, timeout=30, project_id=first_project_id
+        )
+
+        assert execution.status == ExecutionStatus.COMPLETED, f"Unexpected status: {execution.status}"
+        output = _get_activity_output(execution, "api_call")
+        assert output.get("status_code") == 200
+        body = output.get("body", {})
+        assert body.get("authenticated") is True
+        assert body.get("user") == "admin"
+
+    def test_no_credential_returns_401(
+        self,
+        nexus_api: NexusApiRegistry,
+        first_project_id: UUID,
+    ) -> None:
+        """HTTP request to a protected endpoint without credential — expect workflow failure with 401."""
+        definition = {
+            "schema_version": "2.0.0",
+            "name": "e2e-cred-none-test",
+            "description": "E2E: no credential against protected endpoint",
+            "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "api_call",
+                    "name": "API Call",
+                    "type": "http_request",
+                    "parameters": {"method": "GET", "url": f"{HTTPBIN_URL}/bearer"},
+                },
+            ],
+            "edges": [{"from": "trigger", "to": "api_call"}],
+        }
+        execution = create_and_run_workflow(
+            nexus_api, "e2e-cred-none-test", definition, timeout=30, project_id=first_project_id
+        )
+
+        assert execution.status == ExecutionStatus.FAILED
+        output = _get_activity_output(execution, "api_call")
+        assert output.get("status_code") == 401
 
 
 # ===================================================================
@@ -127,21 +246,56 @@ class TestWorkflowWithValidCredential:
 # ===================================================================
 
 
-@pytest.mark.skip(reason="TODO: requires workflow with credential-consuming node")
+@requires_httpbin
 class TestWorkflowWithDisabledCredential:
-    """Verify disabled credentials fail with clear error."""
+    """Verify disabled credentials fail with clear error (ANSTRAT-1901)."""
 
-    def test_disabled_credential_fails_execution(self, nexus_api: NexusApiRegistry) -> None:
-        """Disable a credential, execute its workflow — expect non-retryable failure."""
-        # ANSTRAT-1901: implement when workflow+credential wiring is available
-        # 1. Create credential, link to workflow
-        # 2. Disable credential via PATCH (enabled=False)
-        # 3. Execute workflow
-        # 4. Poll until terminal state
-        # 5. Assert status == FAILED
-        # 6. Assert error message contains "disabled"
-        # 7. Re-enable, re-execute, assert COMPLETED
-        # 8. Cleanup
+    def test_disabled_credential_fails_then_recovers(
+        self,
+        nexus_api: NexusApiRegistry,
+        first_project_id: UUID,
+        create_credential: CredentialFactory,
+    ) -> None:
+        """Disable → fail, re-enable → succeed. Confirms no stale disabled state."""
+        cred_id, *_ = create_credential(
+            api=nexus_api,
+            project_id=first_project_id,
+            name=unique_name("e2e-cred-disabled"),
+        )
+
+        nexus_api.credentials.update(
+            credential_id=cred_id,
+            body=CredentialUpdate(enabled=False),
+        ).assert_and_get()
+
+        definition = _http_request_workflow(
+            name="e2e-cred-disabled-test",
+            url=f"{HTTPBIN_URL}/bearer",
+            credential_id=str(cred_id),
+        )
+        execution = create_and_run_workflow(
+            nexus_api, "e2e-cred-disabled-test", definition, timeout=30, project_id=first_project_id
+        )
+
+        assert execution.status == ExecutionStatus.FAILED
+        activities = {a.activity_id: a for a in (execution.activities or [])}
+        api_activity = activities["api_call"]
+        assert api_activity.status == "failed"
+        error_str = str(api_activity.to_dict()).lower()
+        assert "disabled" in error_str, f"Expected 'disabled' in error details, got: {error_str[:500]}"
+
+        nexus_api.credentials.update(
+            credential_id=cred_id,
+            body=CredentialUpdate(enabled=True),
+        ).assert_and_get()
+
+        execution = create_and_run_workflow(
+            nexus_api, "e2e-cred-disabled-test", definition, timeout=30, project_id=first_project_id
+        )
+
+        assert execution.status == ExecutionStatus.COMPLETED, f"Unexpected status after re-enable: {execution.status}"
+        output = _get_activity_output(execution, "api_call")
+        assert output.get("status_code") == 200
 
 
 # ===================================================================
@@ -149,20 +303,52 @@ class TestWorkflowWithDisabledCredential:
 # ===================================================================
 
 
-@pytest.mark.skip(reason="TODO: requires workflow with credential-consuming node")
+@requires_httpbin
 class TestWorkflowWithDeletedCredential:
-    """Verify deleted credentials fail with clear error."""
+    """Verify deleted credentials fail with clear error (ANSTRAT-1901)."""
 
-    def test_deleted_credential_fails_execution(self, nexus_api: NexusApiRegistry) -> None:
-        """Delete a credential, execute its workflow — expect non-retryable failure."""
-        # ANSTRAT-1901: implement when workflow+credential wiring is available
-        # 1. Create credential, link to workflow
-        # 2. Delete credential
-        # 3. Execute workflow
-        # 4. Poll until terminal state
-        # 5. Assert status == FAILED
-        # 6. Assert error message contains "not found" or "deleted"
-        # 7. Cleanup workflow
+    def test_deleted_credential_fails_execution(
+        self,
+        nexus_api: NexusApiRegistry,
+        first_project_id: UUID,
+        create_credential: CredentialFactory,
+        cleanup_workflows: list[UUID],
+    ) -> None:
+        """Delete a credential, execute its workflow — expect failure mentioning 'not found'."""
+        cred_id, *_ = create_credential(
+            api=nexus_api,
+            project_id=first_project_id,
+            name=unique_name("e2e-cred-deleted"),
+        )
+
+        definition = _http_request_workflow(
+            name="e2e-cred-deleted-test",
+            url=f"{HTTPBIN_URL}/bearer",
+            credential_id=str(cred_id),
+        )
+        workflow = nexus_api.workflows.create(
+            body=WorkflowCreate(
+                name=unique_name("e2e-cred-deleted-test"),
+                description="E2E: deleted credential test",
+                workflow_definition=WorkflowDefinition.from_dict(definition),
+                project_id=first_project_id,
+            )
+        ).assert_and_get()
+        cleanup_workflows.append(workflow.id)
+
+        nexus_api.credentials.delete(credential_id=cred_id)
+
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(workflow_id=workflow.id, trigger_node_id="trigger")
+        ).assert_and_get()
+        execution = poll_execution(nexus_api, str(execution.id), timeout=30)
+
+        assert execution.status == ExecutionStatus.FAILED
+        activities = {a.activity_id: a for a in (execution.activities or [])}
+        api_activity = activities["api_call"]
+        assert api_activity.status == "failed"
+        error_str = str(api_activity.to_dict()).lower()
+        assert "not found" in error_str, f"Expected 'not found' in error details, got: {error_str[:500]}"
 
 
 # ===================================================================

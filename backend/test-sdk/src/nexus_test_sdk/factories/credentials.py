@@ -17,15 +17,25 @@ if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
 
-def get_bearer_token_type_id(api: NexusApiRegistry) -> UUID:
-    """Retrieve bearer token credential type id."""
+def _get_credential_type_id(api: NexusApiRegistry, name: str) -> UUID:
+    """Retrieve credential type id by name."""
     resp = api.credentials.list_types()
     assert resp.is_success
     assert resp.parsed is not None
     for ct in resp.parsed.resources:
-        if ct.name == "HTTP Bearer Token":
+        if ct.name == name:
             return UUID(str(ct.id))
-    pytest.fail("Preseeded 'HTTP Bearer Token' credential type not found")
+    pytest.fail(f"Preseeded '{name}' credential type not found")
+
+
+def get_bearer_token_type_id(api: NexusApiRegistry) -> UUID:
+    """Retrieve bearer token credential type id."""
+    return _get_credential_type_id(api, "HTTP Bearer Token")
+
+
+def get_basic_auth_type_id(api: NexusApiRegistry) -> UUID:
+    """Retrieve basic auth credential type id."""
+    return _get_credential_type_id(api, "HTTP Basic Auth")
 
 
 class CredentialFactory(Protocol):
@@ -38,6 +48,7 @@ class CredentialFactory(Protocol):
         prefix: str | None = None,
         name: str | None = None,
         type_id: UUID | None = None,
+        inputs: dict[str, Any] | None = None,
     ) -> tuple[UUID, str, dict[str, Any], str]: ...
 
 
@@ -52,17 +63,19 @@ def create_credential() -> Generator[CredentialFactory, None, None]:
         prefix: str | None = None,
         name: str | None = None,
         type_id: UUID | None = None,
+        inputs: dict[str, Any] | None = None,
     ) -> tuple[UUID, str, dict[str, Any], str]:
         prefx = prefix or "test"
         credential_name = name or unique_name(f"e2e-rbac-cred-{prefx}")
         plaintext_secret = f"test-{credential_name}"
         cred_type_id = type_id or get_bearer_token_type_id(api)
+        cred_inputs = inputs or {"token": plaintext_secret}
         resp = api.credentials.create(
             body=CredentialCreate(
                 name=credential_name,
                 credential_type_id=cred_type_id,
                 project_id=project_id,
-                inputs=CredentialCreateInputs.from_dict({"token": plaintext_secret}),
+                inputs=CredentialCreateInputs.from_dict(cred_inputs),
             ),
         )
         cred = resp.assert_and_get()

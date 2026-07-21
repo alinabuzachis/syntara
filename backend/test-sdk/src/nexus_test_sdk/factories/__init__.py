@@ -1,6 +1,11 @@
 """Factory fixtures for Nexus E2E tests."""
 
-from nexus_test_sdk.factories.credentials import CredentialFactory, create_credential, get_bearer_token_type_id
+from nexus_test_sdk.factories.credentials import (
+    CredentialFactory,
+    create_credential,
+    get_basic_auth_type_id,
+    get_bearer_token_type_id,
+)
 from nexus_test_sdk.factories.groups import GroupFactory, add_to_group, create_group, remove_from_group
 from nexus_test_sdk.factories.identity_providers import IdentityProviderFactory, identity_provider_factory
 from nexus_test_sdk.factories.policies import PolicyFactory, create_policy
@@ -41,6 +46,7 @@ __all__ = [
     "create_role",
     "create_user",
     "create_workflow",
+    "get_basic_auth_type_id",
     "get_bearer_token_type_id",
     "identity_provider_factory",
     "remove_from_group",

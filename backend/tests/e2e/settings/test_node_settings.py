@@ -24,6 +24,8 @@ from nexus_api_client.models import (
 )
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from nexus_test_sdk.e2e.helpers import HTTPBIN_URL as _HTTPBIN_URL
+from nexus_test_sdk.e2e.helpers import requires_httpbin
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -39,27 +41,6 @@ _TERMINAL = {
     ExecutionStatus.CANCELLED,
     ExecutionStatus.COMPLETED_WITH_ERRORS,
 }
-
-_HTTPBIN_URL = os.environ.get("HTTPBIN_URL", "https://httpbin.org")
-
-
-def _httpbin_available() -> bool:
-    """Check if httpbin is reachable. Cache the result for the session."""
-    if not hasattr(_httpbin_available, "_cached"):
-        import urllib.request
-
-        try:
-            urllib.request.urlopen(f"{_HTTPBIN_URL}/status/200", timeout=5)  # noqa: S310
-            _httpbin_available._cached = True  # type: ignore[attr-defined]
-        except Exception:
-            _httpbin_available._cached = False  # type: ignore[attr-defined]
-    return bool(_httpbin_available._cached)  # type: ignore[attr-defined]
-
-
-requires_httpbin = pytest.mark.skipif(
-    not _httpbin_available(),
-    reason=f"httpbin not reachable at {_HTTPBIN_URL}. Set HTTPBIN_URL to override.",
-)
 
 
 def _poll(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> ExecutionRead:

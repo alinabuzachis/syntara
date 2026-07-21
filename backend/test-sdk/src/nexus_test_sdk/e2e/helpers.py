@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import copy
+import os
 import time
+import urllib.parse
+import urllib.request
 from typing import Any, cast
 from uuid import UUID
 
@@ -311,3 +314,37 @@ def poll_execution_until_complete(
         "Temporal may not be running. Start it with: make temporal-run"
     )
     raise AssertionError(msg)
+
+
+# ---------------------------------------------------------------------------
+# httpbin helpers — shared across E2E test files
+# ---------------------------------------------------------------------------
+
+_HTTPBIN_ALLOWED_HOSTS = {"httpbin.org", "httpbin"}
+
+HTTPBIN_URL: str = os.environ.get("HTTPBIN_URL", "https://httpbin.org")
+
+_parsed = urllib.parse.urlparse(HTTPBIN_URL)
+if _parsed.scheme not in ("http", "https") or not any(h in (_parsed.hostname or "") for h in _HTTPBIN_ALLOWED_HOSTS):
+    HTTPBIN_URL = "https://httpbin.org"
+
+
+_httpbin_cached: bool | None = None
+
+
+def httpbin_available() -> bool:
+    """Check if httpbin is reachable. Cache the result for the session."""
+    global _httpbin_cached  # noqa: PLW0603
+    if _httpbin_cached is None:
+        try:
+            urllib.request.urlopen(f"{HTTPBIN_URL}/status/200", timeout=5)  # noqa: S310
+            _httpbin_cached = True
+        except Exception:  # noqa: BLE001
+            _httpbin_cached = False
+    return _httpbin_cached
+
+
+requires_httpbin = pytest.mark.skipif(
+    not httpbin_available(),
+    reason=f"httpbin not reachable at {HTTPBIN_URL}. Set HTTPBIN_URL to override.",
+)
