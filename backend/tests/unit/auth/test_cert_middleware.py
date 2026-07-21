@@ -432,3 +432,32 @@ class TestUserFromCert:
         assert user.email == "backend.ao.svc@internal"
         assert user.first_name == "backend.ao.svc"
         assert user.is_enabled is True
+
+
+class TestAllowlistDriftWarning:
+    """Tests for startup warning when KNOWN_SERVICE_CNS ⊄ allowlist."""
+
+    def test_warns_when_known_cns_missing_from_allowlist(self) -> None:
+        with (
+            patch("nexus.auth.cert_middleware.get_settings") as mock,
+            patch("nexus.auth.cert_middleware.logger") as mock_logger,
+        ):
+            mock.return_value.s2s_tls_enabled = True
+            mock.return_value.s2s_tls_cn_allowlist = ["worker.ao.svc"]
+            mock.return_value.s2s_tls_crl_path = None
+            ClientCertAuthMiddleware(AsyncMock())
+        mock_logger.warning.assert_called_once()
+        assert "KNOWN_SERVICE_CNS entries missing" in mock_logger.warning.call_args[0][0]
+
+    def test_no_warning_when_all_known_cns_in_allowlist(self) -> None:
+        from nexus.core.models.principal import KNOWN_SERVICE_CNS
+
+        with (
+            patch("nexus.auth.cert_middleware.get_settings") as mock,
+            patch("nexus.auth.cert_middleware.logger") as mock_logger,
+        ):
+            mock.return_value.s2s_tls_enabled = True
+            mock.return_value.s2s_tls_cn_allowlist = list(KNOWN_SERVICE_CNS)
+            mock.return_value.s2s_tls_crl_path = None
+            ClientCertAuthMiddleware(AsyncMock())
+        mock_logger.warning.assert_not_called()

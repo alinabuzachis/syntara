@@ -36,6 +36,7 @@ _SERVICE_PRINCIPAL_NS = UUID("8001555d-5289-4875-8848-7756b26e6bc3")
 KNOWN_SERVICE_CNS: tuple[str, ...] = (
     "backend.ao.svc",
     "worker.ao.svc",
+    "background-worker.ao.svc",
     "temporal.ao.svc",
 )
 
@@ -69,7 +70,7 @@ class PrincipalType(StrEnum):
 
     Most types correspond 1:1 to a child table (USER → ``users``,
     SERVICE_ACCOUNT → ``service_accounts``).  SERVICE represents
-    internal mTLS-authenticated services (backend, worker, temporal)
+    internal mTLS-authenticated services (backend, worker, background-worker, temporal)
     that have Principal rows but no child-table rows.
 
     SYSTEM is retained for backward compatibility with existing DB rows

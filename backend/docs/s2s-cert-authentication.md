@@ -48,7 +48,7 @@ Each service has a distinct CN matching the production naming convention:
 |---------|----|----|
 | Backend | `backend.ao.svc` | Yes |
 | Worker | `worker.ao.svc` | Yes |
-| Background Worker | `worker.ao.svc` (shared) | Yes |
+| Background Worker | `background-worker.ao.svc` | Yes |
 | Temporal | `temporal.ao.svc` | Yes |
 | UI (nginx) | `ui.ao.svc` | **No** |
 
@@ -64,7 +64,7 @@ Each service needs a certificate signed by a shared CA with:
 - **Extended Key Usages**: both `serverAuth` and `clientAuth` — each service certificate is used for serving HTTPS and for client authentication when calling other services
 - **Subject Alternative Names**: include the DNS names the service is reachable at (e.g. compose service names, Kubernetes Service FQDNs, `localhost`)
 
-All services must trust the same CA. Set `APP_S2S_TLS_CA_CERT_PATH` to the CA certificate, and `APP_S2S_TLS_CERT_PATH` / `APP_S2S_TLS_KEY_PATH` to the service's own cert and key. Set `APP_S2S_TLS_CN_ALLOWLIST` to the JSON list of CNs that should receive service identity — typically the backend, worker, and temporal CNs (not the UI).
+All services must trust the same CA. Set `APP_S2S_TLS_CA_CERT_PATH` to the CA certificate, and `APP_S2S_TLS_CERT_PATH` / `APP_S2S_TLS_KEY_PATH` to the service's own cert and key. Set `APP_S2S_TLS_CN_ALLOWLIST` to the JSON list of CNs that should receive service identity — typically the backend, worker, background-worker, and temporal CNs (not the UI).
 
 When `APP_S2S_TLS_ENABLED=true`, `main.py` automatically configures uvicorn with HTTPS serving, the custom TLS protocol for cert extraction, and TLS 1.3 minimum. No additional uvicorn configuration is needed beyond the environment variables.
 
@@ -118,9 +118,12 @@ Production deployments can override this to `CERT_REQUIRED` (e.g. via `--ssl-cer
 ## Local Development
 
 The `make setup` target generates dev certificates via `tools/generate_certs.py`.
+Re-running `make certs-generate` (or any target that depends on `_ensure-certs`) backfills
+missing per-service files under the existing CA — use `make certs-generate-force` only when
+you need to rotate the whole set.
 
 Set `APP_S2S_TLS_CN_ALLOWLIST` in `podman-compose.yml` to test allowlist behavior locally:
 
 ```
-APP_S2S_TLS_CN_ALLOWLIST=["backend.ao.svc","worker.ao.svc","temporal.ao.svc"]
+APP_S2S_TLS_CN_ALLOWLIST=["backend.ao.svc","worker.ao.svc","background-worker.ao.svc","temporal.ao.svc"]
 ```

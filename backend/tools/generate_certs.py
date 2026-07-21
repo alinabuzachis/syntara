@@ -10,13 +10,14 @@ Certificates are stored in .secrets/certs/ and mounted into containers
 via podman-compose.yml volume definitions.
 
 Usage:
-    uv run python tools/generate_certs.py          # Generate if missing
+    uv run python tools/generate_certs.py          # Generate missing certs
     uv run python tools/generate_certs.py --force   # Regenerate all
 """
 
 from __future__ import annotations
 
 import argparse
+import shutil
 import stat
 import sys
 from datetime import UTC, datetime, timedelta
@@ -38,6 +39,7 @@ VALIDITY_DAYS = 365
 SERVICE_CERTS = [
     ("backend", "backend.ao.svc", ["nexus"]),
     ("worker", "worker.ao.svc", ["temporal-worker"]),
+    ("background-worker", "background-worker.ao.svc", ["temporal-background-worker"]),
     ("temporal", "temporal.ao.svc", ["temporal"]),
 ]
 
@@ -66,6 +68,18 @@ def _write_key(path: Path, key: rsa.RSAPrivateKey) -> None:
 def _write_cert(path: Path, cert: x509.Certificate) -> None:
     path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
     path.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)  # 644
+
+
+def _clear_path(path: Path) -> None:
+    """Remove a path so it can be replaced by a cert/key file.
+
+    Podman creates empty directories when bind-mounting a missing host path;
+    those stubs block later writes with IsADirectoryError.
+    """
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.is_dir():
+        shutil.rmtree(path)
 
 
 def generate_ca() -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
@@ -98,9 +112,24 @@ def generate_ca() -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
         )
         .sign(key, hashes.SHA256())
     )
+    _clear_path(CERTS_DIR / "ca.pem")
+    _clear_path(CERTS_DIR / "ca.key")
     _write_cert(CERTS_DIR / "ca.pem", cert)
     _write_key(CERTS_DIR / "ca.key", key)
     return key, cert
+
+
+def _load_existing_ca() -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
+    """Load the existing local-dev CA from disk."""
+    ca_cert = x509.load_pem_x509_certificate((CERTS_DIR / "ca.pem").read_bytes())
+    loaded = serialization.load_pem_private_key(
+        (CERTS_DIR / "ca.key").read_bytes(),
+        password=None,
+    )
+    if not isinstance(loaded, rsa.RSAPrivateKey):
+        msg = f"Expected RSA CA key at {CERTS_DIR / 'ca.key'}, got {type(loaded).__name__}"
+        raise TypeError(msg)
+    return loaded, ca_cert
 
 
 def generate_service_cert(
@@ -140,8 +169,31 @@ def generate_service_cert(
         )
         .sign(ca_key, hashes.SHA256())
     )
-    _write_cert(CERTS_DIR / f"{filename}.crt", cert)
-    _write_key(CERTS_DIR / f"{filename}.key", key)
+    cert_path = CERTS_DIR / f"{filename}.crt"
+    key_path = CERTS_DIR / f"{filename}.key"
+    _clear_path(cert_path)
+    _clear_path(key_path)
+    _write_cert(cert_path, cert)
+    _write_key(key_path, key)
+
+
+def _missing_service_certs() -> list[tuple[str, str, list[str]]]:
+    """Return SERVICE_CERTS entries whose cert or key file is missing or not a file."""
+    missing: list[tuple[str, str, list[str]]] = []
+    for filename, cn, sans in SERVICE_CERTS:
+        cert_path = CERTS_DIR / f"{filename}.crt"
+        key_path = CERTS_DIR / f"{filename}.key"
+        if not cert_path.is_file() or not key_path.is_file():
+            missing.append((filename, cn, sans))
+    return missing
+
+
+def _chmod_public_certs() -> None:
+    """Ensure cert files (not keys) are readable for container volume mounts."""
+    for path in CERTS_DIR.iterdir():
+        if path.is_file() and not path.name.endswith(".key"):
+            current = path.stat().st_mode
+            path.chmod(current | stat.S_IRGRP | stat.S_IROTH)
 
 
 def main() -> None:
@@ -150,31 +202,38 @@ def main() -> None:
     parser.add_argument("--force", "-f", action="store_true", help="Regenerate all certificates")
     args = parser.parse_args()
 
-    if not args.force and (CERTS_DIR / "ca.pem").exists():
-        print("[INFO] Certificates already exist, skipping (use --force to regenerate)")
-        return
-
     CERTS_DIR.mkdir(parents=True, exist_ok=True)
     CERTS_DIR.chmod(stat.S_IRWXU)  # 700
 
-    print("[INFO] Generating CA certificate...")
-    ca_key, ca_cert = generate_ca()
-    print(f"  CA cert: {CERTS_DIR / 'ca.pem'}")
+    ca_pem = CERTS_DIR / "ca.pem"
+    ca_key_path = CERTS_DIR / "ca.key"
 
-    for filename, cn, sans in SERVICE_CERTS:
-        print(f"[INFO] Generating {filename} certificate (CN={cn})...")
-        generate_service_cert(ca_key, ca_cert, filename, cn, sans)
-        print(f"  Cert: {CERTS_DIR / f'{filename}.crt'}")
+    if args.force or not ca_pem.is_file() or not ca_key_path.is_file():
+        print("[INFO] Generating CA certificate...")
+        ca_key, ca_cert = generate_ca()
+        print(f"  CA cert: {ca_pem}")
+        for filename, cn, sans in SERVICE_CERTS:
+            print(f"[INFO] Generating {filename} certificate (CN={cn})...")
+            generate_service_cert(ca_key, ca_cert, filename, cn, sans)
+            print(f"  Cert: {CERTS_DIR / f'{filename}.crt'}")
+    else:
+        missing = _missing_service_certs()
+        if not missing:
+            print("[INFO] Certificates already exist, skipping (use --force to regenerate)")
+            return
 
-    # Ensure cert files (not keys) are readable for container volume mounts
-    for path in CERTS_DIR.iterdir():
-        if path.is_file() and not path.name.endswith(".key"):
-            current = path.stat().st_mode
-            path.chmod(current | stat.S_IRGRP | stat.S_IROTH)
+        print(f"[INFO] Backfilling {len(missing)} missing service certificate(s) under existing CA...")
+        ca_key, ca_cert = _load_existing_ca()
+        for filename, cn, sans in missing:
+            print(f"[INFO] Generating {filename} certificate (CN={cn})...")
+            generate_service_cert(ca_key, ca_cert, filename, cn, sans)
+            print(f"  Cert: {CERTS_DIR / f'{filename}.crt'}")
+
+    _chmod_public_certs()
 
     print()
     print(f"[INFO] TLS certificates ready in {CERTS_DIR}")
-    print("[INFO] Services: backend (backend.ao.svc), worker (worker.ao.svc), temporal (temporal.ao.svc)")
+    print("[INFO] Services: backend, worker, background-worker, temporal")
 
 
 if __name__ == "__main__":

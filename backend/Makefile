@@ -41,7 +41,7 @@ COMPOSE_FINAL_CMD := $(COMPOSE_CMD) $(COMPOSE_ARGS)
 S2S_TLS_VARS = \
 	APP_S2S_TLS_ENABLED=true \
 	APP_S2S_TLS_CA_CERT_PATH=.secrets/certs/ca.pem \
-	APP_S2S_TLS_CN_ALLOWLIST='["backend.ao.svc","worker.ao.svc","temporal.ao.svc"]'
+	APP_S2S_TLS_CN_ALLOWLIST='["backend.ao.svc","worker.ao.svc","background-worker.ao.svc","temporal.ao.svc"]'
 WORKER_BASE_URL = https://localhost:8000/api/v1
 
 
@@ -413,7 +413,12 @@ certs-generate-force: ## Regenerate TLS certificates (overwrites existing)
 
 .PHONY: _ensure-certs
 _ensure-certs:
-	@if [ ! -f .secrets/certs/ca.pem ]; then \
+	@missing=0; \
+	for f in ca.pem ca.key backend.crt backend.key worker.crt worker.key \
+		background-worker.crt background-worker.key temporal.crt temporal.key; do \
+		if [ ! -f .secrets/certs/$$f ]; then missing=1; break; fi; \
+	done; \
+	if [ $$missing -eq 1 ]; then \
 		echo "🔐 Generating TLS certificates..."; \
 		$(MAKE) certs-generate; \
 	fi
