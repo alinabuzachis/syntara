@@ -19,7 +19,6 @@ class TestToolBulkUpdateHandler:
             "updated_count": 3,
             "skipped_count": 0,
             "duplicate_count": 0,
-            "deleted_count": 0,
             "not_found_count": 0,
         }
         defaults.update(overrides)
@@ -92,7 +91,6 @@ class TestToolBulkUpdateHandler:
             updated_count=3,
             skipped_count=1,
             duplicate_count=2,
-            deleted_count=1,
             not_found_count=0,
         )
 
@@ -105,7 +103,6 @@ class TestToolBulkUpdateHandler:
         assert data.updated_count == 3  # type: ignore[attr-defined]
         assert data.skipped_count == 1  # type: ignore[attr-defined]
         assert data.duplicate_count == 2  # type: ignore[attr-defined]
-        assert data.deleted_count == 1  # type: ignore[attr-defined]
         assert data.not_found_count == 0  # type: ignore[attr-defined]
         assert data.error_type is None
 
@@ -115,7 +112,6 @@ class TestToolBulkUpdateHandler:
         event = self._make_event(
             updated_count=0,
             skipped_count=3,
-            deleted_count=2,
             not_found_count=1,
         )
 

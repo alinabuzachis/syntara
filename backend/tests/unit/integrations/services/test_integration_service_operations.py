@@ -753,7 +753,7 @@ class TestRefreshIntegrationResources:
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
     ) -> None:
-        """A tool marked MISSING that reappears gets status=available but keeps enabled state."""
+        """A tool marked MISSING that reappears gets status=AVAILABLE but keeps enabled state."""
         created = await integration_service.create_integration(_mcp_create())
 
         mock_adapter = AsyncMock()
@@ -769,7 +769,7 @@ class TestRefreshIntegrationResources:
 
         await integration_service.refresh_resources(created.id)
 
-        # Tool disappears on next refresh
+        # Tool disappears on next refresh — disabled, marked MISSING
         mock_adapter.discover = AsyncMock(
             return_value=DiscoverResult(
                 success=True,
@@ -786,7 +786,7 @@ class TestRefreshIntegrationResources:
         assert tool_a.status == ToolStatus.MISSING
         assert tool_a.enabled is False
 
-        # Tool reappears on next refresh
+        # Tool reappears on next refresh — status restored, enabled stays False
         mock_adapter.discover = AsyncMock(
             return_value=DiscoverResult(
                 success=True,

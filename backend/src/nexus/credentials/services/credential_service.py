@@ -602,7 +602,6 @@ class CredentialService(BaseService):
                 )
                 .where(
                     Integration.management_credential_id.in_(credential_ids),  # type: ignore[union-attr]
-                    Integration.deleted_at.is_(None),  # type: ignore[union-attr]
                 )
                 .group_by(Integration.management_credential_id)  # type: ignore[arg-type]
             )

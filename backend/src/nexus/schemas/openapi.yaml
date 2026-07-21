@@ -31512,24 +31512,6 @@ components:
           title: Updated By
           description: Username or UUID of the last modifier
           example: 880e8400-e29b-41d4-a716-446655440000
-        deleted_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          readOnly: true
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-          example: '2025-10-09T14:00:00Z'
-        deleted_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          readOnly: true
-          title: Deleted By
-          description: User who performed the soft delete
-          example: 660e8400-e29b-41d4-a716-446655440000
         name:
           type: string
           minLength: 1
@@ -33740,8 +33722,6 @@ components:
             updated_at: Last update timestamp
             created_by: UUID of user who created the resource
             updated_by: Optional UUID of user who last updated the resource
-            deleted_at: Optional timestamp when resource was soft deleted
-            deleted_by: Optional UUID of user who performed the soft delete
             labels: Optional key-value metadata
       properties:
         id:
@@ -33793,8 +33773,10 @@ components:
           description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
         tool_id:
-          type: string
-          format: uuid
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
           title: Tool Id
           description: Foreign key to Tool
         integration_id:
@@ -33858,7 +33840,6 @@ components:
           description: Structured error code
       required:
         - created_by
-        - tool_id
         - user_id
         - execution_start
         - status
@@ -33970,24 +33951,6 @@ components:
           title: Updated By
           description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
-        deleted_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          readOnly: true
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-          example: '2025-10-09T14:00:00Z'
-        deleted_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          readOnly: true
-          title: Deleted By
-          description: User who performed the soft delete
-          example: 660e8400-e29b-41d4-a716-446655440000
         name:
           type: string
           minLength: 1

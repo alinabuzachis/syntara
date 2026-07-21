@@ -273,9 +273,7 @@ class TestIntegrationDiscoverContract:
             discovered_tools=[_fake_discovered_tool("tool_x")],
         )
 
-        integrations_before = (
-            await test_db_session.exec(select(Integration).where(Integration.deleted_at.is_(None)))  # type: ignore[union-attr]
-        ).all()
+        integrations_before = (await test_db_session.exec(select(Integration))).all()
 
         with patch(MCP_DISCOVER_PATCH, new=AsyncMock(return_value=discover_result)):
             response = await auth_client.post(
@@ -285,9 +283,7 @@ class TestIntegrationDiscoverContract:
 
         assert response.status_code == 200
 
-        integrations_after = (
-            await test_db_session.exec(select(Integration).where(Integration.deleted_at.is_(None)))  # type: ignore[union-attr]
-        ).all()
+        integrations_after = (await test_db_session.exec(select(Integration))).all()
         assert len(integrations_after) == len(integrations_before)
 
     async def test_mcp_discover_without_credential_succeeds(self, auth_client: AsyncClient) -> None:

@@ -15,8 +15,9 @@ from sqlalchemy import Index, Text, UniqueConstraint, text
 from sqlmodel import DateTime, Field, SQLModel
 
 from nexus.core.constants import FieldLimits
-from nexus.core.models.base import Resource
+from nexus.core.models.base.named import NamedResource
 from nexus.core.models.base.query_params import BaseListParams
+from nexus.core.models.base.user_owned import UserOwnedResource
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import DiscriminatedJSONB, postgres_enum_column
 from nexus.integrations.models.integration_configuration import (
@@ -61,13 +62,14 @@ class IntegrationRefreshStatus(StrEnum):
     ERROR = "error"
 
 
-class Integration(Resource, table=True):
+class Integration(NamedResource, UserOwnedResource, table=True):
     """Integration database model.
 
     Represents an external service connection that workflows can use.
-    Inherits from Resource which provides: id, name, description,
-    created_at, updated_at, labels, created_by, updated_by,
-    deleted_at, deleted_by.
+    Inherits from NamedResource (id, name, description, created_at,
+    updated_at, labels) and UserOwnedResource (created_by, updated_by).
+
+    Uses hard deletes per the "Hard Deletes Only" decision record.
     """
 
     __tablename__ = "integrations"
@@ -150,7 +152,8 @@ class Integration(Resource, table=True):
     )
 
     __filterable_fields__: ClassVar[list[str]] = [
-        *Resource.__filterable_fields__,
+        *NamedResource.__filterable_fields__,
+        *UserOwnedResource.__filterable_fields__,
         "integration_type",
         "validation_status",
         "enabled",
@@ -159,18 +162,14 @@ class Integration(Resource, table=True):
     ]
 
     __sortable_fields__: ClassVar[list[str]] = [
-        *Resource.__sortable_fields__,
+        *NamedResource.__sortable_fields__,
+        *UserOwnedResource.__sortable_fields__,
         "validation_status",
         "enabled",
     ]
 
     __table_args__ = (
-        Index(
-            "ix_integrations_name_unique",
-            "name",
-            unique=True,
-            postgresql_where=text("deleted_at IS NULL"),
-        ),
+        UniqueConstraint("name", name="uq_integrations_name"),
         Index("ix_integrations_created_at_id", "created_at", "id"),
         Index("ix_integrations_labels", "labels", postgresql_using="gin"),
     )
@@ -362,16 +361,17 @@ class IntegrationCreate(SQLModel):
         return self
 
 
-class IntegrationRead(Resource):
+class IntegrationRead(NamedResource, UserOwnedResource):
     """Schema for integration API responses."""
 
     created_by: str | UUID | None = Field(description="Username or UUID of the creator")  # type: ignore[assignment]
     updated_by: str | UUID | None = Field(default=None, description="Username or UUID of the last modifier")  # type: ignore[assignment]
 
     FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, Any]] = {
-        **Resource.FIELD_SCHEMA_EXTRAS,
+        **NamedResource.FIELD_SCHEMA_EXTRAS,
+        **UserOwnedResource.FIELD_SCHEMA_EXTRAS,
         "created_by": {
-            **Resource.FIELD_SCHEMA_EXTRAS["created_by"],
+            **UserOwnedResource.FIELD_SCHEMA_EXTRAS["created_by"],
             "type": "string",
             "format": "uuid",
         },

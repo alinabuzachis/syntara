@@ -73,7 +73,6 @@ class ToolMetricsService(BaseService):
         result = await self.session.exec(
             select(Tool).where(
                 Tool.namespaced_name == namespaced_name,
-                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
             )
         )
         tool = result.one_or_none()
@@ -238,7 +237,6 @@ class ToolMetricsService(BaseService):
             .outerjoin(last_exec_subq, Tool.id == last_exec_subq.c.tool_id)
             .where(
                 UsageCounter.counter_type == CounterType.TOOL,
-                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
             )
             .group_by(Tool.namespaced_name, last_exec_subq.c.last_execution_at)
         )
@@ -289,7 +287,6 @@ class ToolMetricsService(BaseService):
                 sa_func.max(ToolExecution.execution_start).label("last_execution_at"),
             )
             .join(Tool, ToolExecution.tool_id == Tool.id)
-            .where(Tool.deleted_at.is_(None))  # type: ignore[union-attr]
             .group_by(Tool.namespaced_name)
         )
 

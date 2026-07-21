@@ -1,6 +1,5 @@
 """DB-level model tests for Integration and related cascade behavior."""
 
-from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -45,7 +44,7 @@ class TestIntegrationToolsRelationship:
         result = await test_db_session.exec(
             select(Tool)
             .options(selectinload(Tool.parameters))  # type: ignore[arg-type]
-            .where(Tool.integration_id == integration.id, Tool.deleted_at.is_(None))  # type: ignore[union-attr]
+            .where(Tool.integration_id == integration.id)
         )
         tools = result.all()
         assert len(tools) == 2
@@ -98,12 +97,7 @@ class TestIntegrationToolsRelationship:
         integration = await integration_factory.create()
         await test_db_session.commit()
 
-        result = await test_db_session.exec(
-            select(Tool).where(
-                Tool.integration_id == integration.id,
-                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
-        )
+        result = await test_db_session.exec(select(Tool).where(Tool.integration_id == integration.id))
         assert result.all() == []
 
 
@@ -207,26 +201,23 @@ class TestIntegrationNameUniqueness:
             await test_db_session.commit()
         await test_db_session.rollback()
 
-    async def ***REMOVED***(
+    async def test_same_name_allowed_after_delete(
         self,
         test_db_session: AsyncSession,
         test_user: User,
         integration_factory: IntegrationFactory,
     ) -> None:
-        """A name can be reused after the original integration is soft-deleted."""
+        """A name can be reused after the original integration is deleted."""
         shared_name = f"reuse-{uuid4().hex[:8]}"
         int1 = await integration_factory.create(name=shared_name)
         await test_db_session.commit()
 
-        int1.deleted_at = datetime.now(UTC)
-        int1.deleted_by = test_user.id
-        test_db_session.add(int1)
-        await test_db_session.commit()
+        await test_db_session.delete(int1)
+        await test_db_session.flush()
 
         int2 = await integration_factory.create(name=shared_name)
         await test_db_session.commit()
 
-        assert int2.id != int1.id
         assert int2.name == shared_name
 
     async def test_unique_names_allowed(

@@ -35,8 +35,6 @@ def _create_mock_tool_response(
         "updated_at": "2024-01-01T00:00:00Z",
         "created_by": str(uuid4()),
         "updated_by": str(uuid4()),
-        "deleted_at": None,
-        "deleted_by": None,
         "labels": {},
         "parameters": [],
     }
@@ -69,8 +67,6 @@ def _create_mock_integration_response(
         "updated_at": "2024-01-01T00:00:00Z",
         "created_by": str(uuid4()),
         "updated_by": str(uuid4()),
-        "deleted_at": None,
-        "deleted_by": None,
         "labels": {},
     }
 

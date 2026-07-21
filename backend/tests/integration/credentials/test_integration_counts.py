@@ -89,7 +89,7 @@ class TestGetIntegrationCountsIntegration:
         assert result[cred1.id] == 2
         assert result[cred2.id] == 1
 
-    async def test_excludes_soft_deleted_integrations(
+    async def test_excludes_deleted_integrations(
         self,
         test_db_session: AsyncSession,
         test_user: User,

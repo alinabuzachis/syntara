@@ -8,7 +8,7 @@ from uuid import UUID
 import structlog
 from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import col, delete, select, update
+from sqlmodel import col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
@@ -104,7 +104,7 @@ class IntegrationService(BaseService):
         self._secret_service = secret_service
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
-        return "ix_integrations_name_unique" in str(e)
+        return "uq_integrations_name" in str(e)
 
     async def _handle_integrity_error(self, e: IntegrityError, integration_name: str) -> NoReturn:
         if self._is_duplicate_name_error(e):
@@ -113,9 +113,7 @@ class IntegrationService(BaseService):
 
     async def _raise_if_name_exists(self, name: str) -> None:
         """Raise IntegrationNameConflictError if an integration with this name already exists."""
-        result = await self.session.exec(
-            select(Integration).where(Integration.name == name, col(Integration.deleted_at).is_(None)).limit(1)
-        )
+        result = await self.session.exec(select(Integration).where(Integration.name == name).limit(1))
         if result.first() is not None:
             raise IntegrationNameConflictError(name)
 
@@ -194,7 +192,6 @@ class IntegrationService(BaseService):
     async def _get_or_raise(self, integration_id: UUID, *, for_update: bool = False) -> Integration:
         query = select(Integration).filter(
             Integration.id == integration_id,  # type: ignore[arg-type]
-            Integration.deleted_at.is_(None),  # type: ignore[union-attr]
         )
         if for_update:
             query = query.with_for_update()
@@ -243,10 +240,7 @@ class IntegrationService(BaseService):
                 func.count().label("total"),
                 func.sum(case((col(Tool.enabled).is_(True), 1), else_=0)).label("enabled"),
             )
-            .where(
-                col(Tool.integration_id).in_(integration_ids),
-                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
+            .where(col(Tool.integration_id).in_(integration_ids))
             .group_by(col(Tool.integration_id))
         )
         rows = await self.session.execute(query)
@@ -522,7 +516,6 @@ class IntegrationService(BaseService):
 
         global_query = select(Integration.id).where(
             Integration.scope == IntegrationScope.GLOBAL,
-            Integration.deleted_at.is_(None),  # type: ignore[union-attr]
         )
 
         if not allowed_projects.project_ids:
@@ -911,15 +904,13 @@ class IntegrationService(BaseService):
         according to the map (used during creation with user selections).
         Otherwise all new tools default to enabled=True.
 
+        Tools no longer present in the discovered list are disabled and
+        marked MISSING to preserve referential integrity with workflows.
+
         Returns a (synced_count, updated_count, disabled_count) tuple.
         The caller is responsible for committing the session.
         """
-        existing_query = await self.session.exec(
-            select(Tool).where(
-                Tool.integration_id == integration.id,
-                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
-        )
+        existing_query = await self.session.exec(select(Tool).where(Tool.integration_id == integration.id))
         existing_tools = {t.name: t for t in existing_query.all()}
         found_names: set[str] = set()
         synced_count = 0
@@ -1007,11 +998,7 @@ class IntegrationService(BaseService):
         return synced_count, updated_count, disabled_count
 
     async def delete_integration(self, integration_id: UUID) -> None:
-        """Soft-delete an integration and clean up linked resources.
-
-        Tools are soft-deleted for audit retention. LLMModels are hard-deleted
-        (tool soft-delete is planned for removal in a follow-up).
-        """
+        """Hard-delete an integration and all linked resources."""
         try:
             integration = await self._get_or_raise(integration_id)
         except IntegrationNotFoundError:
@@ -1027,19 +1014,17 @@ class IntegrationService(BaseService):
         integration_name = integration.name
         tools_count = await self._count_linked_tools(integration_id)
 
-        integration.soft_delete(self.user.id)
-
-        # Soft-delete all Tool records linked to this integration directly.
-        await self._soft_delete_linked_tools(integration_id)
-
-        # Hard-delete all LLMModel records linked to this integration.
+        await self._hard_delete_linked_tool_params(integration_id)
+        await self._hard_delete_linked_tools(integration_id)
         await self._hard_delete_linked_models(integration_id)
 
-        stmt = delete(IntegrationProjectAssignment).where(
-            IntegrationProjectAssignment.integration_id == integration_id,  # type: ignore[arg-type]
+        await self.session.exec(
+            delete(IntegrationProjectAssignment).where(
+                IntegrationProjectAssignment.integration_id == integration_id,  # type: ignore[arg-type]
+            )
         )
-        await self.session.exec(stmt)
 
+        await self.session.delete(integration)
         await self.session.flush()
         await self.session.commit()
 
@@ -1052,27 +1037,21 @@ class IntegrationService(BaseService):
         )
 
     async def _count_linked_tools(self, integration_id: UUID) -> int:
-        """Count non-deleted Tool records owned by this integration."""
+        """Count Tool records owned by this integration."""
         count = await self.session.scalar(
-            select(func.count())
-            .select_from(Tool)
-            .where(
-                Tool.integration_id == integration_id,
-                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
+            select(func.count()).select_from(Tool).where(Tool.integration_id == integration_id)
         )
         return count or 0
 
-    async def _soft_delete_linked_tools(self, integration_id: UUID) -> None:
-        """Soft-delete all non-deleted Tool records owned by this integration."""
-        now = datetime.now(UTC)
+    async def _hard_delete_linked_tool_params(self, integration_id: UUID) -> None:
+        """Hard-delete all ToolParameter records for tools owned by this integration."""
+        tool_ids_query = select(Tool.id).where(Tool.integration_id == integration_id)
+        await self.session.exec(delete(ToolParameter).where(col(ToolParameter.tool_id).in_(tool_ids_query)))
+
+    async def _hard_delete_linked_tools(self, integration_id: UUID) -> None:
+        """Hard-delete all Tool records owned by this integration."""
         await self.session.exec(
-            update(Tool)
-            .where(
-                Tool.integration_id == integration_id,  # type: ignore[arg-type]
-                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
-            .values(deleted_at=now, deleted_by=self.user.id)
+            delete(Tool).where(Tool.integration_id == integration_id)  # type: ignore[arg-type]
         )
 
     async def _hard_delete_linked_models(self, integration_id: UUID) -> None:
@@ -1091,9 +1070,7 @@ class IntegrationService(BaseService):
     ) -> tuple[int, int, int]:
         """Upsert LLMModel records from discovered models.
 
-        Uses hard-delete for models that disappear from the provider (unlike
-        tools which are soft-deleted — soft-delete removal is planned as a
-        follow-up).
+        Uses hard-delete for models that disappear from the provider.
 
         If ``enabled_map`` is provided, each model's enabled state is set
         according to the map (used during creation with user selections).

@@ -60,8 +60,6 @@ class TestToolsGetContract:
             "updated_at",
             "created_by",
             "updated_by",
-            "deleted_at",
-            "deleted_by",
             "parameters",
         ]
         for field in required_fields:
@@ -78,8 +76,6 @@ class TestToolsGetContract:
         assert data["last_executed_at"] is None or isinstance(data["last_executed_at"], str)
         assert data["last_refreshed_at"] is None or isinstance(data["last_refreshed_at"], str)
         assert data["refresh_error"] is None or isinstance(data["refresh_error"], str)
-        assert data["deleted_at"] is None or isinstance(data["deleted_at"], str)
-        assert data["deleted_by"] is None or isinstance(data["deleted_by"], str)
 
     @pytest.mark.asyncio
     async def test_get_tool_not_found_contract(self, jwt_client: AsyncClient) -> None:
@@ -131,7 +127,7 @@ class TestToolsGetContract:
 
         # Contract: Datetime fields must be ISO format strings when present
         data = response.json()
-        datetime_fields = ["created_at", "updated_at", "last_executed_at", "last_refreshed_at", "deleted_at"]
+        datetime_fields = ["created_at", "updated_at", "last_executed_at", "last_refreshed_at"]
 
         for field in datetime_fields:
             if data[field] is not None:
@@ -152,7 +148,7 @@ class TestToolsGetContract:
 
         # Contract: UUID fields must be valid UUID strings
         data = response.json()
-        uuid_fields = ["id", "integration_id", "created_by", "updated_by", "deleted_by"]
+        uuid_fields = ["id", "integration_id", "created_by", "updated_by"]
 
         for field in uuid_fields:
             if data[field] is not None:

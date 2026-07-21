@@ -64,7 +64,6 @@ class TestCreateIntegration:
         assert result.enabled is True
         assert result.management_credential_id is None
         assert result.created_by == test_user.username
-        assert result.deleted_at is None
 
     @pytest.mark.asyncio
     async def test_create_llm_provider(
@@ -166,7 +165,7 @@ class TestGetIntegration:
             await integration_service.get_integration(uuid4())
 
     @pytest.mark.asyncio
-    async def test_get_soft_deleted_raises(
+    async def test_get_deleted_raises(
         self, test_db_session: AsyncSession, integration_service: IntegrationService
     ) -> None:
         created = await integration_service.create_integration(_mcp_create())
@@ -239,7 +238,7 @@ class TestListIntegrations:
         assert len(result.resources) == 2
 
     @pytest.mark.asyncio
-    async def test_list_excludes_soft_deleted(
+    async def test_list_excludes_deleted(
         self, test_db_session: AsyncSession, integration_service: IntegrationService
     ) -> None:
         active = await integration_service.create_integration(_mcp_create(name="Active"))
@@ -488,7 +487,7 @@ class TestDeleteIntegration:
     """Tests for IntegrationService.delete_integration."""
 
     @pytest.mark.asyncio
-    async def test_delete_sets_soft_delete_fields(
+    async def test_delete_removes_integration_row(
         self, test_db_session: AsyncSession, test_user: User, integration_service: IntegrationService
     ) -> None:
         created = await integration_service.create_integration(_mcp_create())
@@ -496,10 +495,8 @@ class TestDeleteIntegration:
 
         query = select(Integration).filter(Integration.id == created.id)  # type: ignore[arg-type]
         result = await test_db_session.exec(query)
-        integration = result.one()
 
-        assert integration.deleted_at is not None
-        assert integration.deleted_by == test_user.id
+        assert result.one_or_none() is None
 
     @pytest.mark.asyncio
     async def test_delete_removes_project_assignments(

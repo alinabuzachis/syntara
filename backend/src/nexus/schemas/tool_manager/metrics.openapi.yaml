@@ -278,15 +278,16 @@ components:
         - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource'
         - type: object
           required:
-            - tool_id
             - user_id
             - execution_start
             - status
             - input_parameters
           properties:
             tool_id:
-              type: string
-              format: uuid
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: 'null'
               title: Tool Id
               description: Foreign key to Tool
             integration_id:
@@ -362,6 +363,4 @@ components:
             updated_at: Last update timestamp
             created_by: UUID of user who created the resource
             updated_by: Optional UUID of user who last updated the resource
-            deleted_at: Optional timestamp when resource was soft deleted
-            deleted_by: Optional UUID of user who performed the soft delete
             labels: Optional key-value metadata

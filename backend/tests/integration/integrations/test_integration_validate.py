@@ -192,14 +192,7 @@ class TestIntegrationValidateContract:
         assert response.status_code == 200
 
         # No Tool records should have been created
-        tools = (
-            await test_db_session.exec(
-                select(Tool).where(
-                    Tool.integration_id == integration_id,
-                    Tool.deleted_at.is_(None),  # type: ignore[union-attr]
-                )
-            )
-        ).all()
+        tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == integration_id))).all()
         assert len(tools) == 0
 
 

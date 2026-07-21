@@ -128,13 +128,13 @@ class TestIntegrationsList:
         second_ids = {r["id"] for r in second_data["resources"]}
         assert first_ids.isdisjoint(second_ids)
 
-    async def test_list_excludes_soft_deleted_integrations(
+    async def test_list_excludes_deleted_integrations(
         self,
         auth_client: AsyncClient,
         test_db_session: AsyncSession,
         integration_factory: IntegrationFactory,
     ) -> None:
-        """Soft-deleted integrations do not appear in list results."""
+        """Deleted integrations do not appear in list results."""
         name = f"gone-{uuid4().hex[:8]}"
         integration = await integration_factory.create(name=name)
         await test_db_session.commit()

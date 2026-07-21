@@ -9,11 +9,8 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.models import User
-from nexus.integrations.models.integration import Integration
-from nexus.tool_manager.models import Tool, ToolStatus
+from nexus.tool_manager.models import Tool
 
 if TYPE_CHECKING:
     from nexus_test_sdk.helpers.tool_manager import ToolFactory
@@ -323,58 +320,6 @@ class TestToolsBulkUpdateContract:
         assert data["skipped_count"] == 0  # Duplicates are removed, not skipped
 
     @pytest.mark.asyncio
-    async def test_bulk_update_soft_deleted_tool_contract(
-        self, jwt_client: AsyncClient, test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
-    ) -> None:
-        """Test bulk update with soft-deleted tool IDs."""
-        # Create a tool that will be soft-deleted
-        soft_deleted_tool = Tool(
-            integration_id=test_mcp_integration.id,
-            name="Soft Deleted Tool",
-            namespaced_name="test::soft_deleted",
-            enabled=True,
-            status=ToolStatus.AVAILABLE,
-            created_by=test_user.id,
-            updated_by=test_user.id,
-        )
-
-        test_db_session.add(soft_deleted_tool)
-        await test_db_session.commit()
-
-        # Soft delete the tool
-        soft_deleted_tool.soft_delete(test_user.id)
-        await test_db_session.commit()
-
-        # Create an active tool for comparison
-        active_tool = Tool(
-            integration_id=test_mcp_integration.id,
-            name="Active Tool",
-            namespaced_name="test::active",
-            enabled=True,
-            status=ToolStatus.AVAILABLE,
-            created_by=test_user.id,
-            updated_by=test_user.id,
-        )
-
-        test_db_session.add(active_tool)
-        await test_db_session.commit()
-
-        # Attempt to update both soft-deleted and active tool
-        tool_ids = [str(soft_deleted_tool.id), str(active_tool.id)]
-
-        response = await jwt_client.patch(
-            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
-        )
-
-        # Contract: Should succeed but skip soft-deleted tools
-        assert response.status_code == 200
-
-        # Contract: Should only update active tools and skip soft-deleted ones
-        data = response.json()
-        assert data["updated_count"] == 1  # Only the active tool
-        assert data["skipped_count"] == 1  # The soft-deleted tool
-
-    @pytest.mark.asyncio
     async def test_bulk_update_nonexistent_tool_contract(self, jwt_client: AsyncClient) -> None:
         """Test bulk update with completely non-existent tool IDs."""
         # Generate UUIDs that don't exist in the database
@@ -396,39 +341,16 @@ class TestToolsBulkUpdateContract:
     async def test_bulk_update_mixed_scenarios_contract(
         self,
         jwt_client: AsyncClient,
-        test_db_session: AsyncSession,
-        test_mcp_integration: Integration,
-        test_user: User,
         multiple_tools_for_bulk: list[Tool],
     ) -> None:
-        """Test bulk update with mix of active, soft-deleted, and non-existent tools."""
-        # Create a soft-deleted tool
-        soft_deleted_tool = Tool(
-            integration_id=test_mcp_integration.id,
-            name="Mixed Test Soft Deleted",
-            namespaced_name="test::mixed_soft_deleted",
-            enabled=True,
-            status=ToolStatus.AVAILABLE,
-            created_by=test_user.id,
-            updated_by=test_user.id,
-        )
-
-        test_db_session.add(soft_deleted_tool)
-        await test_db_session.commit()
-
-        # Soft delete it
-        soft_deleted_tool.soft_delete(test_user.id)
-        await test_db_session.commit()
-
+        """Test bulk update with mix of active, non-existent, and duplicate tools."""
         # Mix of different scenarios:
         # - Active tool (should be updated)
-        # - Soft-deleted tool (should be skipped)
         # - Non-existent tool (should be skipped)
         # - Duplicate active tool (should be deduplicated)
         active_tool_id = str(multiple_tools_for_bulk[0].id)
         tool_ids = [
             active_tool_id,  # Active tool
-            str(soft_deleted_tool.id),  # Soft-deleted tool
             str(uuid4()),  # Non-existent tool
             active_tool_id,  # Duplicate active tool
         ]
@@ -440,7 +362,7 @@ class TestToolsBulkUpdateContract:
         # Contract: Should handle all scenarios gracefully
         assert response.status_code == 200
 
-        # Contract: Should update 1 unique active tool and skip soft-deleted + non-existent tools
+        # Contract: Should update 1 unique active tool and skip non-existent tools
         data = response.json()
         assert data["updated_count"] == 1  # Only the unique active tool
-        assert data["skipped_count"] == 2  # Soft-deleted + non-existent (duplicates removed first)
+        assert data["skipped_count"] == 1  # Non-existent (duplicates removed first)

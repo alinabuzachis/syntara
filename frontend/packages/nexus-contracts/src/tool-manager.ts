@@ -106,49 +106,50 @@ export interface components {
      * @enum {string}
      */
     ToolParameterType: 'string' | 'number' | 'boolean' | 'object' | 'array'
-    ToolWithParameters: components['schemas']['Resource'] & {
-      /**
-       * Integration Id
-       * @description UUID of the owning Integration (mcp_server)
-       */
-      integration_id?: string | null
-      /**
-       * Namespaced Name
-       * @description Unique namespaced name for the tool
-       */
-      namespaced_name: string
-      /**
-       * Enabled
-       * @description Whether the tool is enabled
-       * @default true
-       */
-      enabled?: boolean
-      /**
-       * @description Current status of the tool
-       * @default available
-       */
-      status?: components['schemas']['ToolStatus']
-      /**
-       * Last Executed At
-       * @description Timestamp of last execution
-       */
-      last_executed_at?: string | null
-      /**
-       * Last Refreshed At
-       * @description Timestamp of last refresh from provider
-       */
-      last_refreshed_at?: string | null
-      /**
-       * Refresh Error
-       * @description Error message from last refresh attempt
-       */
-      refresh_error?: string | null
-      /**
-       * Parameters
-       * @description Tool parameters
-       */
-      parameters: components['schemas']['ToolParameter'][]
-    }
+    ToolWithParameters: components['schemas']['UserOwnedResource'] &
+      components['schemas']['NamedResource'] & {
+        /**
+         * Integration Id
+         * @description UUID of the owning Integration (mcp_server)
+         */
+        integration_id?: string | null
+        /**
+         * Namespaced Name
+         * @description Unique namespaced name for the tool
+         */
+        namespaced_name: string
+        /**
+         * Enabled
+         * @description Whether the tool is enabled
+         * @default true
+         */
+        enabled?: boolean
+        /**
+         * @description Current status of the tool
+         * @default available
+         */
+        status?: components['schemas']['ToolStatus']
+        /**
+         * Last Executed At
+         * @description Timestamp of last execution
+         */
+        last_executed_at?: string | null
+        /**
+         * Last Refreshed At
+         * @description Timestamp of last refresh from provider
+         */
+        last_refreshed_at?: string | null
+        /**
+         * Refresh Error
+         * @description Error message from last refresh attempt
+         */
+        refresh_error?: string | null
+        /**
+         * Parameters
+         * @description Tool parameters
+         */
+        parameters: components['schemas']['ToolParameter'][]
+      }
     ToolParameter: components['schemas']['BaseResource'] & {
       /**
        * Tool Id
@@ -314,20 +315,6 @@ export interface components {
        */
       readonly updated_by?: string | null
     }
-    SoftDeletableResource: components['schemas']['BaseResource'] & {
-      /**
-       * Deleted At
-       * @description Timestamp when resource was soft deleted
-       * @example 2025-10-09T14:00:00Z
-       */
-      readonly deleted_at?: string | null
-      /**
-       * Deleted By
-       * @description User who performed the soft delete
-       * @example 660e8400-e29b-41d4-a716-446655440000
-       */
-      readonly deleted_by?: string | null
-    }
     NamedResource: components['schemas']['BaseResource'] & {
       /**
        * Name
@@ -342,13 +329,6 @@ export interface components {
        */
       description?: string | null
     }
-    /**
-     * Resource
-     * @description Composite resource combining named, soft-deletable, and user-owned capabilities
-     */
-    Resource: components['schemas']['UserOwnedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['NamedResource']
     /**
      * ErrorData
      * @description RFC 9457 Problem Details format for error event data.

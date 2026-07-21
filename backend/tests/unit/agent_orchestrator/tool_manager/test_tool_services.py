@@ -48,8 +48,6 @@ def _make_integration(
         updated_at="2024-01-01T00:00:00Z",
         created_by=uuid4(),
         updated_by=None,
-        deleted_at=None,
-        deleted_by=None,
         labels={},
     )
 

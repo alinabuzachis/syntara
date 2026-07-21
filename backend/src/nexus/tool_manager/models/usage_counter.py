@@ -56,7 +56,16 @@ class UsageCounter(UserOwnedResource, table=True):
         description="Counter scope: provider, tool, user, provider_user, tool_user", index=True
     )
 
-    tool_id: UUID | None = Field(default=None, foreign_key="tools.id", description="Foreign key to Tool", index=True)
+    tool_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("tools.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        description="Foreign key to Tool",
+    )
 
     integration_id: UUID | None = Field(
         default=None,

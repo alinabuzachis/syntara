@@ -6,11 +6,9 @@ Tests cover:
 - Sorting and pagination
 - Error conditions and edge cases
 - Business logic validation
-- Soft delete behavior
 - Tool status management
 """
 
-from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -41,7 +39,6 @@ async def test_get_tool_detail_success(test_db_session: AsyncSession, test_tool:
     assert tool.name == test_tool.name
     assert tool.namespaced_name == test_tool.namespaced_name
     assert tool.status == test_tool.status
-    assert tool.deleted_at is None
 
 
 @pytest.mark.asyncio
@@ -52,20 +49,6 @@ async def test_get_tool_detail_not_found(test_db_session: AsyncSession, test_use
 
     with pytest.raises(ToolNotFoundError, match=f"Tool {non_existent_id} not found"):
         await service.get_tool_detail(non_existent_id)
-
-
-@pytest.mark.asyncio
-async def test_get_tool_detail_soft_deleted(test_db_session: AsyncSession, test_tool: Tool, test_user: User) -> None:
-    """Test tool retrieval fails for soft-deleted tool."""
-    service = ToolService(test_db_session, test_user)
-
-    # Soft delete the tool
-    test_tool.deleted_at = datetime.now(UTC)
-    test_tool.deleted_by = test_user.id
-    await test_db_session.commit()
-
-    with pytest.raises(ToolNotFoundError):
-        await service.get_tool_detail(test_tool.id)
 
 
 @pytest.mark.asyncio
@@ -492,43 +475,37 @@ async def test_list_tools_pagination(
 
 
 @pytest.mark.asyncio
-async def test_list_tools_excludes_soft_deleted(
+async def test_list_tools_returns_all(
     test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
-    """Test that soft-deleted tools are excluded from listing."""
+    """Test that list returns all tools."""
     service = ToolService(test_db_session, test_user)
 
-    # Create active tool
-    active_tool = Tool(
+    tool1 = Tool(
         id=uuid4(),
         integration_id=test_mcp_integration.id,
-        name="Active Tool",
-        namespaced_name="test::active",
+        name="Tool One",
+        namespaced_name="test::one",
+        created_by=test_user.id,
+        updated_by=test_user.id,
+    )
+    tool2 = Tool(
+        id=uuid4(),
+        integration_id=test_mcp_integration.id,
+        name="Tool Two",
+        namespaced_name="test::two",
         created_by=test_user.id,
         updated_by=test_user.id,
     )
 
-    # Create soft-deleted tool
-    deleted_tool = Tool(
-        id=uuid4(),
-        integration_id=test_mcp_integration.id,
-        name="Deleted Tool",
-        namespaced_name="test::deleted",
-        created_by=test_user.id,
-        updated_by=test_user.id,
-        deleted_at=datetime.now(UTC),
-        deleted_by=test_user.id,
-    )
-
-    test_db_session.add_all([active_tool, deleted_tool])
+    test_db_session.add_all([tool1, tool2])
     await test_db_session.commit()
 
     result = await service.list_tools()
 
-    # Should only return active tool
     tool_names = [t.name for t in result.resources]
-    assert "Active Tool" in tool_names
-    assert "Deleted Tool" not in tool_names
+    assert "Tool One" in tool_names
+    assert "Tool Two" in tool_names
 
 
 @pytest.mark.asyncio

@@ -10,14 +10,16 @@ from typing import Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict, field_validator
-from sqlalchemy import Column, ForeignKey, Index, String, Text, text
+from sqlalchemy import Column, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
 from nexus.core.constants import FieldLimits
 from nexus.core.exceptions import SafeValueError
-from nexus.core.models.base import BaseResource, Resource
+from nexus.core.models.base import BaseResource
+from nexus.core.models.base.named import NamedResource
+from nexus.core.models.base.user_owned import UserOwnedResource
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
@@ -95,11 +97,11 @@ class ToolParameter(BaseResource, table=True):
     )
 
 
-class ToolBase(Resource):
+class ToolBase(NamedResource, UserOwnedResource):
     """Tool base model.
 
     Represents a tool provided by an external MCP server integration.
-    Extends the Resource base class with tool-specific fields.
+    Extends NamedResource and UserOwnedResource with tool-specific fields.
 
     Attributes:
         integration_id: UUID of the owning Integration (nullable, SET NULL on delete)
@@ -110,7 +112,7 @@ class ToolBase(Resource):
         last_refreshed_at: Timestamp of last refresh from provider (nullable)
         refresh_error: Error message from last refresh attempt (nullable)
 
-    Inherits from Resource:
+    Inherits from NamedResource + UserOwnedResource:
         id: UUID primary key
         name: Human-readable name (1-255 chars)
         description: Optional detailed description (max 2000 chars)
@@ -118,8 +120,6 @@ class ToolBase(Resource):
         updated_at: Last update timestamp
         created_by: UUID of user who created the resource
         updated_by: Optional UUID of user who last updated the resource
-        deleted_at: Optional timestamp when resource was soft deleted
-        deleted_by: Optional UUID of user who performed the soft delete
         labels: Optional key-value metadata
 
     """
@@ -175,6 +175,11 @@ class ToolBase(Resource):
         description="Error message from last refresh attempt",
     )
 
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, Any]] = {
+        **NamedResource.FIELD_SCHEMA_EXTRAS,
+        **UserOwnedResource.FIELD_SCHEMA_EXTRAS,
+    }
+
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",  # Reject unknown fields
     )  # type: ignore[assignment]
@@ -185,33 +190,26 @@ class Tool(ToolBase, table=True):
 
     __tablename__ = "tools"
 
-    # Define filterable fields for API endpoints - extend base Resource fields
     __filterable_fields__: ClassVar[list[str]] = [
-        *Resource.__filterable_fields__,
+        *NamedResource.__filterable_fields__,
+        *UserOwnedResource.__filterable_fields__,
         "enabled",
         "status",
         "integration_id",
         "namespaced_name",
     ]
 
-    # Define sortable fields for API endpoints - extend base Resource fields
     __sortable_fields__: ClassVar[list[str]] = [
-        *Resource.__sortable_fields__,
+        *NamedResource.__sortable_fields__,
+        *UserOwnedResource.__sortable_fields__,
         "status",
     ]
 
     # Relationships
     parameters: list["ToolParameter"] = Relationship(back_populates="tool", cascade_delete=True)
 
-    # Table arguments for partial unique constraint and composite indexes
     __table_args__ = (
-        # Partial unique index for namespaced_name (only for non-deleted tools)
-        Index(
-            "ix_tools_namespaced_name_unique",
-            "namespaced_name",
-            unique=True,
-            postgresql_where=text("deleted_at IS NULL"),
-        ),
+        UniqueConstraint("namespaced_name", name="uq_tools_namespaced_name"),
         # Composite index for pagination queries
         Index("ix_tools_created_at_id", "created_at", "id"),
         # Composite index for integration queries with pagination

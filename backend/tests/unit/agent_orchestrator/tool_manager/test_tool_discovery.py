@@ -39,8 +39,6 @@ def _make_integration_response(
         "updated_at": "2024-01-01T00:00:00Z",
         "created_by": str(uuid4()),
         "updated_by": None,
-        "deleted_at": None,
-        "deleted_by": None,
         "labels": {},
     }
 

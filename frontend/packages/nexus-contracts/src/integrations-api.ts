@@ -524,76 +524,77 @@ export interface components {
       credential_id?: string | null
     }
     /** @description Schema for integration API responses. */
-    IntegrationRead: components['schemas']['Resource'] & {
-      /**
-       * Created By
-       * @description Username or UUID of the creator
-       */
-      created_by?: string | null
-      /**
-       * Updated By
-       * @description Username or UUID of the last modifier
-       */
-      updated_by?: string | null
-      integration_type: components['schemas']['IntegrationType']
-      /**
-       * Enabled
-       * @default true
-       */
-      enabled?: boolean
-      /** @default unknown */
-      validation_status?: components['schemas']['IntegrationStatus']
-      /** @default global */
-      scope?: components['schemas']['IntegrationScope']
-      /**
-       * Configuration
-       * @description Integration-specific configuration
-       */
-      configuration:
-        | components['schemas']['MCPServerConfigurationInput']
-        | components['schemas']['LLMProviderConfiguration']
-        | components['schemas']['AAPConfiguration']
-      /** Last Validated At */
-      last_validated_at?: string | null
-      /** Management Credential Id */
-      management_credential_id?: string | null
-      /** Validation Error */
-      validation_error?: string | null
-      refresh_status?: components['schemas']['IntegrationRefreshStatus'] | null
-      /** Last Refreshed At */
-      last_refreshed_at?: string | null
-      /** Refresh Error */
-      refresh_error?: string | null
-      /**
-       * Project Ids
-       * @description IDs of projects this integration is assigned to (empty for global scope)
-       */
-      project_ids?: string[]
-      /**
-       * Total Tool Count
-       * @description Total number of tools linked to this integration
-       * @default 0
-       */
-      total_tool_count?: number
-      /**
-       * Enabled Tool Count
-       * @description Number of enabled tools linked to this integration
-       * @default 0
-       */
-      enabled_tool_count?: number
-      /**
-       * Total Model Count
-       * @description Total number of models linked to this integration
-       * @default 0
-       */
-      total_model_count?: number
-      /**
-       * Enabled Model Count
-       * @description Number of enabled models linked to this integration
-       * @default 0
-       */
-      enabled_model_count?: number
-    }
+    IntegrationRead: components['schemas']['UserOwnedResource'] &
+      components['schemas']['NamedResource'] & {
+        /**
+         * Created By
+         * @description Username or UUID of the creator
+         */
+        created_by?: string | null
+        /**
+         * Updated By
+         * @description Username or UUID of the last modifier
+         */
+        updated_by?: string | null
+        integration_type: components['schemas']['IntegrationType']
+        /**
+         * Enabled
+         * @default true
+         */
+        enabled?: boolean
+        /** @default unknown */
+        validation_status?: components['schemas']['IntegrationStatus']
+        /** @default global */
+        scope?: components['schemas']['IntegrationScope']
+        /**
+         * Configuration
+         * @description Integration-specific configuration
+         */
+        configuration:
+          | components['schemas']['MCPServerConfigurationInput']
+          | components['schemas']['LLMProviderConfiguration']
+          | components['schemas']['AAPConfiguration']
+        /** Last Validated At */
+        last_validated_at?: string | null
+        /** Management Credential Id */
+        management_credential_id?: string | null
+        /** Validation Error */
+        validation_error?: string | null
+        refresh_status?: components['schemas']['IntegrationRefreshStatus'] | null
+        /** Last Refreshed At */
+        last_refreshed_at?: string | null
+        /** Refresh Error */
+        refresh_error?: string | null
+        /**
+         * Project Ids
+         * @description IDs of projects this integration is assigned to (empty for global scope)
+         */
+        project_ids?: string[]
+        /**
+         * Total Tool Count
+         * @description Total number of tools linked to this integration
+         * @default 0
+         */
+        total_tool_count?: number
+        /**
+         * Enabled Tool Count
+         * @description Number of enabled tools linked to this integration
+         * @default 0
+         */
+        enabled_tool_count?: number
+        /**
+         * Total Model Count
+         * @description Total number of models linked to this integration
+         * @default 0
+         */
+        total_model_count?: number
+        /**
+         * Enabled Model Count
+         * @description Number of enabled models linked to this integration
+         * @default 0
+         */
+        enabled_model_count?: number
+      }
     /**
      * MCPServerConfigurationInput
      * @description Admin-provided fields for MCP server integrations (used by create/patch).
@@ -972,20 +973,6 @@ export interface components {
        */
       readonly updated_by?: string | null
     }
-    SoftDeletableResource: components['schemas']['BaseResource'] & {
-      /**
-       * Deleted At
-       * @description Timestamp when resource was soft deleted
-       * @example 2025-10-09T14:00:00Z
-       */
-      readonly deleted_at?: string | null
-      /**
-       * Deleted By
-       * @description User who performed the soft delete
-       * @example 660e8400-e29b-41d4-a716-446655440000
-       */
-      readonly deleted_by?: string | null
-    }
     NamedResource: components['schemas']['BaseResource'] & {
       /**
        * Name
@@ -1000,13 +987,6 @@ export interface components {
        */
       description?: string | null
     }
-    /**
-     * Resource
-     * @description Composite resource combining named, soft-deletable, and user-owned capabilities
-     */
-    Resource: components['schemas']['UserOwnedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['NamedResource']
     /**
      * ErrorData
      * @description RFC 9457 Problem Details format for error event data.

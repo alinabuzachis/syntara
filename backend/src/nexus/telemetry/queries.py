@@ -220,16 +220,12 @@ def get_enabled_feature_flags() -> list[str]:
 
 async def query_integration_health(session: AsyncSession) -> IntegrationHealth:
     """Query health status of configured integrations grouped by type and status."""
-    not_deleted = Integration.deleted_at.is_(None)  # type: ignore[union-attr]
-
     integration_result = await session.exec(
         select(  # type: ignore[call-overload]
             Integration.integration_type,
             Integration.enabled,
             func.count(Integration.id),  # type: ignore[arg-type]
-        )
-        .where(not_deleted)
-        .group_by(Integration.integration_type, Integration.enabled)
+        ).group_by(Integration.integration_type, Integration.enabled)
     )
 
     items: dict[str, IntegrationInfo] = {}

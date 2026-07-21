@@ -129,7 +129,7 @@ class ToolService(BaseService):
 
         """
         query = (
-            select(Tool).options(selectinload(Tool.parameters)).filter(Tool.id == tool_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
+            select(Tool).options(selectinload(Tool.parameters)).filter(Tool.id == tool_id)  # type: ignore[arg-type]
         )
 
         result = await self.session.exec(query)
@@ -161,7 +161,7 @@ class ToolService(BaseService):
 
         """
         query = (
-            select(Tool).options(selectinload(Tool.parameters)).filter(Tool.id == tool_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
+            select(Tool).options(selectinload(Tool.parameters)).filter(Tool.id == tool_id)  # type: ignore[arg-type]
         )
 
         result = await self.session.exec(query)
@@ -262,33 +262,13 @@ class ToolService(BaseService):
                 unique_count=len(unique_tool_ids),
             )
 
-        # Query active/enabled tools
-        active_query = select(Tool).filter(Tool.id.in_(unique_tool_ids), Tool.deleted_at.is_(None))  # type: ignore[union-attr,attr-defined]
-        active_result = await self.session.exec(active_query)
-        active_tools = active_result.all()
-        active_tool_ids = {tool.id for tool in active_tools}
+        query = select(Tool).filter(Tool.id.in_(unique_tool_ids))  # type: ignore[attr-defined]
+        result = await self.session.exec(query)
+        found_tools = result.all()
+        found_tool_ids = {tool.id for tool in found_tools}
 
-        # Query soft-deleted tools
-        deleted_query = select(Tool).filter(Tool.id.in_(unique_tool_ids), Tool.deleted_at.is_not(None))  # type: ignore[union-attr,attr-defined]
-        deleted_result = await self.session.exec(deleted_query)
-        deleted_tools = deleted_result.all()
-        deleted_tool_ids = {tool.id for tool in deleted_tools}
-
-        # Identify tool_ids that don't exist at all
-        found_tool_ids = active_tool_ids | deleted_tool_ids
         not_found_tool_ids = set(unique_tool_ids) - found_tool_ids
 
-        # Log soft-deleted tools
-        if deleted_tool_ids:
-            logger.warning(
-                "Bulk update request included soft-deleted tool_ids that will be skipped",
-                deleted_count=len(deleted_tool_ids),
-                user_id=self.user.id,
-                deleted_tool_ids=[str(tool_id) for tool_id in deleted_tool_ids],
-                enabled=enabled,
-            )
-
-        # Log tools that don't exist
         if not_found_tool_ids:
             logger.warning(
                 "Bulk update request included tool_ids that do not exist in database",
@@ -301,8 +281,7 @@ class ToolService(BaseService):
         updated_count = 0
         current_time = datetime.now(UTC)
 
-        # Update each active tool
-        for tool in active_tools:
+        for tool in found_tools:
             tool.enabled = enabled
             tool.updated_by = self.user.id
             tool.updated_at = current_time
@@ -320,7 +299,6 @@ class ToolService(BaseService):
                 updated_count=updated_count,
                 skipped_count=skipped_count,
                 duplicate_count=duplicate_count,
-                deleted_count=len(deleted_tool_ids),
                 not_found_count=len(not_found_tool_ids),
             )
         )
@@ -334,7 +312,6 @@ class ToolService(BaseService):
             total_requested=len(tool_ids),
             unique_requested=len(unique_tool_ids),
             duplicates=duplicate_count,
-            soft_deleted=len(deleted_tool_ids),
             not_found=len(not_found_tool_ids),
         )
 

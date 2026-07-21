@@ -242,7 +242,8 @@ components:
 
     ToolWithParameters:
       allOf:
-        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/Resource'
+        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource'
+        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/NamedResource'
         - type: object
           title: ToolWithParameters
           additionalProperties: false

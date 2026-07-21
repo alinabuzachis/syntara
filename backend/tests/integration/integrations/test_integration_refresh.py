@@ -122,14 +122,7 @@ class TestIntegrationRefreshContract:
 
         assert response.status_code == 200
 
-        tools = (
-            await test_db_session.exec(
-                select(Tool).where(
-                    Tool.integration_id == integration_id,
-                    Tool.deleted_at.is_(None),  # type: ignore[union-attr]
-                )
-            )
-        ).all()
+        tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == integration_id))).all()
         assert len(tools) == 2
         assert {t.name for t in tools} == {"alpha", "beta"}
 

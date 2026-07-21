@@ -20,7 +20,7 @@ from nexus.integrations.audit.constants import OPERATIONAL_LOGS_HINT
 
 @dataclass
 class IntegrationDeleteEvent:
-    """Domain event representing integration deletion (soft delete).
+    """Domain event representing integration deletion.
 
     The error_type field can be:
     - None: Success (no error)

@@ -36,8 +36,6 @@ class ToolExecution(UserOwnedResource, table=True):
         updated_at: Last update timestamp
         created_by: UUID of user who created the resource
         updated_by: Optional UUID of user who last updated the resource
-        deleted_at: Optional timestamp when resource was soft deleted
-        deleted_by: Optional UUID of user who performed the soft delete
         labels: Optional key-value metadata
     """
 
@@ -57,7 +55,16 @@ class ToolExecution(UserOwnedResource, table=True):
         "duration_ms",
     ]
 
-    tool_id: UUID = Field(foreign_key="tools.id", description="Foreign key to Tool", index=True)
+    tool_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("tools.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        description="Foreign key to Tool",
+    )
 
     integration_id: UUID | None = Field(
         default=None,

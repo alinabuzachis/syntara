@@ -146,17 +146,14 @@ export interface components {
      *         updated_at: Last update timestamp
      *         created_by: UUID of user who created the resource
      *         updated_by: Optional UUID of user who last updated the resource
-     *         deleted_at: Optional timestamp when resource was soft deleted
-     *         deleted_by: Optional UUID of user who performed the soft delete
      *         labels: Optional key-value metadata
      */
     ToolExecution: components['schemas']['UserOwnedResource'] & {
       /**
        * Tool Id
-       * Format: uuid
        * @description Foreign key to Tool
        */
-      tool_id: string
+      tool_id?: string | null
       /**
        * Integration Id
        * @description Foreign key to Integration (denormalized from tool)

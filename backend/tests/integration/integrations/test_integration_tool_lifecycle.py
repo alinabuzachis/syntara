@@ -2,7 +2,7 @@
 
 Covers:
 - create_integration(mcp_server) does NOT create ToolProvider (tools created on refresh)
-- delete_integration() soft-deletes linked Tools directly by integration_id
+- delete_integration() hard-deletes linked Tools directly by integration_id
 - refresh_resources() resolves credential and syncs Tool records
 - validate_integration() only pings — does NOT sync tools
 - _sync_mcp_tools creates correctly namespaced Tool records
@@ -59,9 +59,7 @@ class TestCreateIntegration:
         await test_db_session.flush()
 
         # No tools created yet (they are created on first refresh)
-        tools = (
-            await test_db_session.exec(select(Tool).where(Tool.integration_id == result.id, Tool.deleted_at.is_(None)))  # type: ignore[union-attr]
-        ).all()
+        tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == result.id))).all()
 
         assert len(tools) == 0
         assert result.id is not None
@@ -91,7 +89,7 @@ class TestCreateIntegration:
 
 
 class TestDeleteIntegrationCascadesToTools:
-    """delete_integration() must soft-delete the linked Tools directly."""
+    """delete_integration() must hard-delete the linked Tools."""
 
     @pytest.mark.asyncio
     async def test_deletes_linked_tools(
@@ -104,7 +102,6 @@ class TestDeleteIntegrationCascadesToTools:
         await test_db_session.flush()
         integration_id = created.id
 
-        # Manually create some tools linked to this integration
         tool1 = Tool(
             name="tool_one",
             namespaced_name="To Delete::tool_one",
@@ -125,18 +122,8 @@ class TestDeleteIntegrationCascadesToTools:
         await integration_service.delete_integration(integration_id)
         await test_db_session.flush()
 
-        # Both tools should be soft-deleted
-        active_tools = (
-            await test_db_session.exec(
-                select(Tool).where(Tool.integration_id == integration_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr]
-            )
-        ).all()
-
-        assert len(active_tools) == 0
-
-        # Tools still exist in DB (soft delete)
         all_tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == integration_id))).all()
-        assert len(all_tools) == 2
+        assert len(all_tools) == 0
 
     @pytest.mark.asyncio
     async def test_delete_without_tools_is_safe(
@@ -200,11 +187,7 @@ class TestValidateIntegration:
         assert not hasattr(result, "discovered_tools")
 
         # No Tool records created
-        tools = (
-            await test_db_session.exec(
-                select(Tool).where(Tool.integration_id == integration_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr]
-            )
-        ).all()
+        tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == integration_id))).all()
         assert len(tools) == 0
 
     @pytest.mark.asyncio
@@ -242,11 +225,7 @@ class TestValidateIntegration:
 
         assert result.success is False
 
-        tools = (
-            await test_db_session.exec(
-                select(Tool).where(Tool.integration_id == integration_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr]
-            )
-        ).all()
+        tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == integration_id))).all()
         assert len(tools) == 0
 
 
@@ -291,11 +270,7 @@ class TestRefreshIntegrationResources:
         assert result.tools_updated_count == 0
         assert result.tools_disabled_count == 0
 
-        tools = (
-            await test_db_session.exec(
-                select(Tool).where(Tool.integration_id == integration_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr]
-            )
-        ).all()
+        tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == integration_id))).all()
         assert len(tools) == 2
         assert {t.name for t in tools} == {"tool_a", "tool_b"}
 
@@ -373,11 +348,7 @@ class TestRefreshIntegrationResources:
 
             await service.refresh_resources(integration_id)
 
-        tools = (
-            await test_db_session.exec(
-                select(Tool).where(Tool.integration_id == integration_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr]
-            )
-        ).all()
+        tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == integration_id))).all()
         assert len(tools) == 1
         assert tools[0].namespaced_name == "My Integration::my_tool"
 

@@ -148,7 +148,6 @@ class TestToolServiceAuditEvents:
         assert event.structured_data.updated_count == 1  # type: ignore[attr-defined]
         assert event.structured_data.skipped_count == 0  # type: ignore[attr-defined]
         assert event.structured_data.duplicate_count == 0  # type: ignore[attr-defined]
-        assert event.structured_data.deleted_count == 0  # type: ignore[attr-defined]
         assert event.structured_data.not_found_count == 0  # type: ignore[attr-defined]
         assert event.resource_urn is None  # Bulk operation has no single resource
 

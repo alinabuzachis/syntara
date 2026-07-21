@@ -385,7 +385,6 @@ async def _resolve_visible_integration_ids(db: AsyncSession, allowed: AllowedPro
 
     global_query = select(Integration.id).where(
         Integration.scope == IntegrationScope.GLOBAL,
-        Integration.deleted_at.is_(None),  # type: ignore[union-attr]
     )
 
     if not allowed.project_ids:
@@ -414,7 +413,7 @@ async def _require_llm_provider(
 ) -> None:
     """Verify the integration exists and is an LLM provider (no visibility check)."""
     integration = await db.get(Integration, integration_id)
-    if not integration or integration.deleted_at is not None:
+    if not integration:
         raise IntegrationNotFoundError(integration_id)
     if integration.integration_type != IntegrationType.LLM_PROVIDER:
         raise IntegrationTypeMismatchError(
@@ -438,7 +437,7 @@ async def _require_visible_llm_provider(
 
     allowed_projects = await integration_read_visibility(request, current_user, db)
     integration = await db.get(Integration, integration_id)
-    if not integration or integration.deleted_at is not None:
+    if not integration:
         raise IntegrationNotFoundError(integration_id)
     if integration.integration_type != IntegrationType.LLM_PROVIDER:
         raise IntegrationTypeMismatchError(

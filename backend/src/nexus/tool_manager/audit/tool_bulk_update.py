@@ -31,7 +31,6 @@ class ToolBulkUpdateEvent:
     updated_count: int = field(default=0)
     skipped_count: int = field(default=0)
     duplicate_count: int = field(default=0)
-    deleted_count: int = field(default=0)
     not_found_count: int = field(default=0)
     error_type: str | None = field(default=None)
 
@@ -74,7 +73,6 @@ class ToolBulkUpdateHandler(AuditEventHandler[ToolBulkUpdateEvent]):
             updated_count=event.updated_count,
             skipped_count=event.skipped_count,
             duplicate_count=event.duplicate_count,
-            deleted_count=event.deleted_count,
             not_found_count=event.not_found_count,
         )
 
