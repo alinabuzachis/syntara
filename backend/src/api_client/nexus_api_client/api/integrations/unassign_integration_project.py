@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import httpx
@@ -7,29 +7,25 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.sa_credential_read import SACredentialRead
 from ...types import Response
 
 
 def _get_kwargs(
-    service_account_id: UUID,
-    credential_id: UUID,
+    integration_id: UUID,
+    project_id: UUID,
 ) -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": f"/service_accounts/{service_account_id}/credentials/{credential_id}",
+        "method": "delete",
+        "url": f"/integrations/{integration_id}/projects/{project_id}",
     }
 
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | SACredentialRead | None:
-    if response.status_code == 200:
-        response_200 = SACredentialRead.from_dict(response.json())
-
-        return response_200
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | ErrorData | None:
+    if response.status_code == 204:
+        response_204 = cast(Any, None)
+        return response_204
 
     if response.status_code == 400:
         response_400 = ErrorData.from_dict(response.json())
@@ -77,9 +73,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | SACredentialRead]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | ErrorData]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -91,30 +85,30 @@ def _build_response(
 
 
 def sync_detailed(
-    service_account_id: UUID,
-    credential_id: UUID,
+    integration_id: UUID,
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorData | SACredentialRead]:
-    """Get Credential
+) -> Response[Any | ErrorData]:
+    """Unassign Integration Project
 
-     Get a credential by ID (secret is never included).
+     Remove a project assignment from an integration.
 
     Args:
-        service_account_id (UUID):
-        credential_id (UUID):
+        integration_id (UUID):
+        project_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | SACredentialRead]
+        Response[Any | ErrorData]
     """
 
     kwargs = _get_kwargs(
-        service_account_id=service_account_id,
-        credential_id=credential_id,
+        integration_id=integration_id,
+        project_id=project_id,
     )
 
     response = client.get_httpx_client().request(
@@ -125,59 +119,59 @@ def sync_detailed(
 
 
 def sync(
-    service_account_id: UUID,
-    credential_id: UUID,
+    integration_id: UUID,
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> ErrorData | SACredentialRead | None:
-    """Get Credential
+) -> Any | ErrorData | None:
+    """Unassign Integration Project
 
-     Get a credential by ID (secret is never included).
+     Remove a project assignment from an integration.
 
     Args:
-        service_account_id (UUID):
-        credential_id (UUID):
+        integration_id (UUID):
+        project_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | SACredentialRead
+        Any | ErrorData
     """
 
     return sync_detailed(
-        service_account_id=service_account_id,
-        credential_id=credential_id,
+        integration_id=integration_id,
+        project_id=project_id,
         client=client,
     ).parsed
 
 
 async def asyncio_detailed(
-    service_account_id: UUID,
-    credential_id: UUID,
+    integration_id: UUID,
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorData | SACredentialRead]:
-    """Get Credential
+) -> Response[Any | ErrorData]:
+    """Unassign Integration Project
 
-     Get a credential by ID (secret is never included).
+     Remove a project assignment from an integration.
 
     Args:
-        service_account_id (UUID):
-        credential_id (UUID):
+        integration_id (UUID):
+        project_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | SACredentialRead]
+        Response[Any | ErrorData]
     """
 
     kwargs = _get_kwargs(
-        service_account_id=service_account_id,
-        credential_id=credential_id,
+        integration_id=integration_id,
+        project_id=project_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -186,31 +180,31 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    service_account_id: UUID,
-    credential_id: UUID,
+    integration_id: UUID,
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> ErrorData | SACredentialRead | None:
-    """Get Credential
+) -> Any | ErrorData | None:
+    """Unassign Integration Project
 
-     Get a credential by ID (secret is never included).
+     Remove a project assignment from an integration.
 
     Args:
-        service_account_id (UUID):
-        credential_id (UUID):
+        integration_id (UUID):
+        project_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | SACredentialRead
+        Any | ErrorData
     """
 
     return (
         await asyncio_detailed(
-            service_account_id=service_account_id,
-            credential_id=credential_id,
+            integration_id=integration_id,
+            project_id=project_id,
             client=client,
         )
     ).parsed

@@ -10,6 +10,7 @@ type UseBuilderValidationParams = {
   dispatch: Dispatch<BuilderAction>
   hasValidationIssues: boolean | undefined
   isNew: boolean
+  isDirty: boolean
   currentWorkflow: WorkflowDefinition | null
 }
 
@@ -17,13 +18,14 @@ export function useBuilderValidation({
   dispatch,
   hasValidationIssues,
   isNew,
+  isDirty,
   currentWorkflow,
 }: UseBuilderValidationParams) {
   const { handleVerifySilent } = useWorkflowVerification({ dispatch })
 
   useEffect(() => {
-    if (hasValidationIssues && !isNew && currentWorkflow) handleVerifySilent()
-  }, [hasValidationIssues, isNew, currentWorkflow, handleVerifySilent])
+    if (hasValidationIssues && !isNew && !isDirty && currentWorkflow) handleVerifySilent()
+  }, [hasValidationIssues, isNew, isDirty, currentWorkflow, handleVerifySilent])
 
   const handleForceSaveSuccess = useCallback(
     (originalError: unknown) => {

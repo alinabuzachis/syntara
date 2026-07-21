@@ -94,54 +94,6 @@ class TestValidationResult:
         assert result.warning_count == 1
 
 
-class TestToLegacy:
-    """ValidationResult.to_legacy() conversion."""
-
-    def test_splits_errors_and_warnings(self) -> None:
-        findings = [
-            ValidationFinding(
-                severity=ValidationSeverity.error,
-                category=ValidationCategory.schema_violation,
-                message="error msg",
-                node_id="n1",
-            ),
-            ValidationFinding(
-                severity=ValidationSeverity.warning,
-                category=ValidationCategory.orphaned_node,
-                message="warning msg",
-                node_id="n2",
-            ),
-        ]
-        result = ValidationResult.from_findings(findings)
-        legacy = result.to_legacy()
-        assert legacy.valid is False
-        assert len(legacy.errors) == 1
-        assert len(legacy.warnings) == 1
-        assert legacy.errors[0].message == "error msg"
-        assert legacy.errors[0].node_id == "n1"
-        assert legacy.warnings[0].message == "warning msg"
-        assert legacy.warnings[0].node_id == "n2"
-
-    def test_empty_findings_to_legacy(self) -> None:
-        result = ValidationResult.from_findings([])
-        legacy = result.to_legacy()
-        assert legacy.valid is True
-        assert legacy.errors == []
-        assert legacy.warnings == []
-
-    def test_valid_preserved(self) -> None:
-        findings = [
-            ValidationFinding(
-                severity=ValidationSeverity.warning,
-                category=ValidationCategory.orphaned_node,
-                message="orphan",
-            ),
-        ]
-        result = ValidationResult.from_findings(findings)
-        legacy = result.to_legacy()
-        assert legacy.valid is True
-
-
 class TestJsonSerialization:
     """End-to-end JSON serialization matches expected API shape."""
 

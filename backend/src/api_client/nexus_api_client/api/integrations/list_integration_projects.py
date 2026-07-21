@@ -1,26 +1,23 @@
 from http import HTTPStatus
-from typing import Any, Literal
+from typing import Any
 from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.credential_list_response import CredentialListResponse
 from ...models.error_data import ErrorData
+from ...models.integration_project_assignment_list_response import IntegrationProjectAssignmentListResponse
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    project_id: UUID,
+    integration_id: UUID,
     *,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    credential_type_id: None | Unset | UUID = UNSET,
-    enabled: bool | None | Unset = UNSET,
-    for_action: Literal["use"] | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -45,34 +42,11 @@ def _get_kwargs(
 
     params["include_total"] = include_total
 
-    json_credential_type_id: None | str | Unset
-    if isinstance(credential_type_id, Unset):
-        json_credential_type_id = UNSET
-    elif isinstance(credential_type_id, UUID):
-        json_credential_type_id = str(credential_type_id)
-    else:
-        json_credential_type_id = credential_type_id
-    params["credential_type_id"] = json_credential_type_id
-
-    json_enabled: bool | None | Unset
-    if isinstance(enabled, Unset):
-        json_enabled = UNSET
-    else:
-        json_enabled = enabled
-    params["enabled"] = json_enabled
-
-    json_for_action: Literal["use"] | None | Unset
-    if isinstance(for_action, Unset):
-        json_for_action = UNSET
-    else:
-        json_for_action = for_action
-    params["for_action"] = json_for_action
-
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": f"/projects/{project_id}/credentials",
+        "url": f"/integrations/{integration_id}/projects",
         "params": params,
     }
 
@@ -81,9 +55,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> CredentialListResponse | ErrorData | None:
+) -> ErrorData | IntegrationProjectAssignmentListResponse | None:
     if response.status_code == 200:
-        response_200 = CredentialListResponse.from_dict(response.json())
+        response_200 = IntegrationProjectAssignmentListResponse.from_dict(response.json())
 
         return response_200
 
@@ -135,7 +109,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[CredentialListResponse | ErrorData]:
+) -> Response[ErrorData | IntegrationProjectAssignmentListResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -147,54 +121,40 @@ def _build_response(
 
 
 def sync_detailed(
-    project_id: UUID,
+    integration_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    credential_type_id: None | Unset | UUID = UNSET,
-    enabled: bool | None | Unset = UNSET,
-    for_action: Literal["use"] | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
-) -> Response[CredentialListResponse | ErrorData]:
-    """List Project Credentials
+) -> Response[ErrorData | IntegrationProjectAssignmentListResponse]:
+    """List Integration Projects
 
-     List credentials belonging to this project. Requires: credential:read permission.
-
-    The ``for_action`` parameter is accepted for API consistency but not enforced
-    here.
-
-    Use ``GET /credentials?for_action=use`` for use-permission-filtered listing.
+     List project assignments for an integration.
 
     Args:
-        project_id (UUID):
+        integration_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        credential_type_id (None | Unset | UUID):
-        enabled (bool | None | Unset):
-        for_action (Literal['use'] | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[CredentialListResponse | ErrorData]
+        Response[ErrorData | IntegrationProjectAssignmentListResponse]
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
+        integration_id=integration_id,
         limit=limit,
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        credential_type_id=credential_type_id,
-        enabled=enabled,
-        for_action=for_action,
         additional_params=additional_params,
     )
 
@@ -206,105 +166,77 @@ def sync_detailed(
 
 
 def sync(
-    project_id: UUID,
+    integration_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    credential_type_id: None | Unset | UUID = UNSET,
-    enabled: bool | None | Unset = UNSET,
-    for_action: Literal["use"] | None | Unset = UNSET,
-) -> CredentialListResponse | ErrorData | None:
-    """List Project Credentials
+) -> ErrorData | IntegrationProjectAssignmentListResponse | None:
+    """List Integration Projects
 
-     List credentials belonging to this project. Requires: credential:read permission.
-
-    The ``for_action`` parameter is accepted for API consistency but not enforced
-    here.
-
-    Use ``GET /credentials?for_action=use`` for use-permission-filtered listing.
+     List project assignments for an integration.
 
     Args:
-        project_id (UUID):
+        integration_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        credential_type_id (None | Unset | UUID):
-        enabled (bool | None | Unset):
-        for_action (Literal['use'] | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        CredentialListResponse | ErrorData
+        ErrorData | IntegrationProjectAssignmentListResponse
     """
 
     return sync_detailed(
-        project_id=project_id,
+        integration_id=integration_id,
         client=client,
         limit=limit,
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        credential_type_id=credential_type_id,
-        enabled=enabled,
-        for_action=for_action,
     ).parsed
 
 
 async def asyncio_detailed(
-    project_id: UUID,
+    integration_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    credential_type_id: None | Unset | UUID = UNSET,
-    enabled: bool | None | Unset = UNSET,
-    for_action: Literal["use"] | None | Unset = UNSET,
-) -> Response[CredentialListResponse | ErrorData]:
-    """List Project Credentials
+) -> Response[ErrorData | IntegrationProjectAssignmentListResponse]:
+    """List Integration Projects
 
-     List credentials belonging to this project. Requires: credential:read permission.
-
-    The ``for_action`` parameter is accepted for API consistency but not enforced
-    here.
-
-    Use ``GET /credentials?for_action=use`` for use-permission-filtered listing.
+     List project assignments for an integration.
 
     Args:
-        project_id (UUID):
+        integration_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        credential_type_id (None | Unset | UUID):
-        enabled (bool | None | Unset):
-        for_action (Literal['use'] | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[CredentialListResponse | ErrorData]
+        Response[ErrorData | IntegrationProjectAssignmentListResponse]
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
+        integration_id=integration_id,
         limit=limit,
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        credential_type_id=credential_type_id,
-        enabled=enabled,
-        for_action=for_action,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -313,54 +245,40 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    project_id: UUID,
+    integration_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    credential_type_id: None | Unset | UUID = UNSET,
-    enabled: bool | None | Unset = UNSET,
-    for_action: Literal["use"] | None | Unset = UNSET,
-) -> CredentialListResponse | ErrorData | None:
-    """List Project Credentials
+) -> ErrorData | IntegrationProjectAssignmentListResponse | None:
+    """List Integration Projects
 
-     List credentials belonging to this project. Requires: credential:read permission.
-
-    The ``for_action`` parameter is accepted for API consistency but not enforced
-    here.
-
-    Use ``GET /credentials?for_action=use`` for use-permission-filtered listing.
+     List project assignments for an integration.
 
     Args:
-        project_id (UUID):
+        integration_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        credential_type_id (None | Unset | UUID):
-        enabled (bool | None | Unset):
-        for_action (Literal['use'] | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        CredentialListResponse | ErrorData
+        ErrorData | IntegrationProjectAssignmentListResponse
     """
 
     return (
         await asyncio_detailed(
-            project_id=project_id,
+            integration_id=integration_id,
             client=client,
             limit=limit,
             cursor=cursor,
             sort=sort,
             include_total=include_total,
-            credential_type_id=credential_type_id,
-            enabled=enabled,
-            for_action=for_action,
         )
     ).parsed

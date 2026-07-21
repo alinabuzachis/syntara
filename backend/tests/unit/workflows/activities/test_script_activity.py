@@ -1006,6 +1006,30 @@ class TestCommunicateLimited:
         assert se is False
 
     @pytest.mark.asyncio
+    async def test_stderr_truncated(self) -> None:
+        process = AsyncMock()
+        process.stdout = _make_stream_reader(b"out")
+        process.stderr = _make_stream_reader(b"y" * 200)
+        process.wait = AsyncMock()
+        stdout, stderr, st, se = await _communicate_limited(process, 50)
+        assert stdout == b"out"
+        assert st is False
+        assert len(stderr) == 50
+        assert se is True
+
+    @pytest.mark.asyncio
+    async def test_both_truncated(self) -> None:
+        process = AsyncMock()
+        process.stdout = _make_stream_reader(b"x" * 200)
+        process.stderr = _make_stream_reader(b"y" * 200)
+        process.wait = AsyncMock()
+        stdout, stderr, st, se = await _communicate_limited(process, 50)
+        assert len(stdout) == 50
+        assert st is True
+        assert len(stderr) == 50
+        assert se is True
+
+    @pytest.mark.asyncio
     async def test_raises_when_stdout_is_none(self) -> None:
         """RuntimeError raised when process.stdout is None."""
         process = AsyncMock()

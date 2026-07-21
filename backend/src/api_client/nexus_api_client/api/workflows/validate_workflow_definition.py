@@ -5,10 +5,10 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.detailed_validation_problem_detail import DetailedValidationProblemDetail
 from ...models.error_data import ErrorData
+from ...models.validation_result import ValidationResult
 from ...models.workflow_validate_request import WorkflowValidateRequest
-from ...models.workflow_validation_problem_detail import WorkflowValidationProblemDetail
-from ...models.workflow_validation_result import WorkflowValidationResult
 from ...types import Response
 
 
@@ -33,9 +33,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult | None:
+) -> DetailedValidationProblemDetail | ErrorData | ValidationResult | None:
     if response.status_code == 200:
-        response_200 = WorkflowValidationResult.from_dict(response.json())
+        response_200 = ValidationResult.from_dict(response.json())
 
         return response_200
 
@@ -65,7 +65,7 @@ def _parse_response(
         return response_409
 
     if response.status_code == 422:
-        response_422 = WorkflowValidationProblemDetail.from_dict(response.json())
+        response_422 = DetailedValidationProblemDetail.from_dict(response.json())
 
         return response_422
 
@@ -87,7 +87,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult]:
+) -> Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -102,7 +102,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: WorkflowValidateRequest,
-) -> Response[ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult]:
+) -> Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]:
     """Validate Workflow Definition
 
      Validate a workflow definition without saving it.
@@ -119,7 +119,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult]
+        Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]
     """
 
     kwargs = _get_kwargs(
@@ -137,7 +137,7 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: WorkflowValidateRequest,
-) -> ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult | None:
+) -> DetailedValidationProblemDetail | ErrorData | ValidationResult | None:
     """Validate Workflow Definition
 
      Validate a workflow definition without saving it.
@@ -154,7 +154,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult
+        DetailedValidationProblemDetail | ErrorData | ValidationResult
     """
 
     return sync_detailed(
@@ -167,7 +167,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: WorkflowValidateRequest,
-) -> Response[ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult]:
+) -> Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]:
     """Validate Workflow Definition
 
      Validate a workflow definition without saving it.
@@ -184,7 +184,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult]
+        Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]
     """
 
     kwargs = _get_kwargs(
@@ -200,7 +200,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: WorkflowValidateRequest,
-) -> ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult | None:
+) -> DetailedValidationProblemDetail | ErrorData | ValidationResult | None:
     """Validate Workflow Definition
 
      Validate a workflow definition without saving it.
@@ -217,7 +217,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | WorkflowValidationProblemDetail | WorkflowValidationResult
+        DetailedValidationProblemDetail | ErrorData | ValidationResult
     """
 
     return (

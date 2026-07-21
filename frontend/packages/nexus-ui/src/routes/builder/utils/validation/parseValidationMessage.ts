@@ -1,6 +1,4 @@
 const KEY_PREFIX_PATTERN = /^(\w+(?:\.\w+)*): /
-const ERRORS_ARRAY_PATTERN = /}\s*,\s*errors:\[(.+)\]$/
-const NODE_NAME_IN_MESSAGE = /'name'\s*:\s*'([^']+)'/
 
 export type ParsedValidationMessage = {
   key: string
@@ -16,21 +14,12 @@ export function parseValidationMessage(raw: string): ParsedValidationMessage {
 
   const key = keyMatch[1]
   const rest = raw.substring(keyMatch[0].length)
-
-  const nameMatch = NODE_NAME_IN_MESSAGE.exec(rest)
-  const displayKey = nameMatch?.[1] ?? key
-
-  const errorsMatch = ERRORS_ARRAY_PATTERN.exec(rest)
-  if (errorsMatch) {
-    const items = errorsMatch[1].split(/,\s*(?='|[A-Z])/).map((s) => s.trim())
-    return { key, displayKey, messages: items }
-  }
-
-  return { key, displayKey, messages: [rest] }
+  return { key, displayKey: key, messages: [rest] }
 }
 
 const ID_PATTERN = /^'([^']+)' does not match '\^/
 const REQUIRED_PROPERTY_PATTERN = /^'([^']+)' is a required property$/
+const NON_EMPTY_PATTERN = /^'' should be non-empty$/
 const HUMANIZED_MISSING_FIELD = /^Missing required field "([^"]+)"$/
 
 export function humanizeValidationMessage(raw: string): string {
@@ -42,6 +31,10 @@ export function humanizeValidationMessage(raw: string): string {
   const requiredMatch = REQUIRED_PROPERTY_PATTERN.exec(raw)
   if (requiredMatch) {
     return `Missing required field "${requiredMatch[1]}"`
+  }
+
+  if (NON_EMPTY_PATTERN.test(raw)) {
+    return 'This field must not be empty'
   }
 
   return raw

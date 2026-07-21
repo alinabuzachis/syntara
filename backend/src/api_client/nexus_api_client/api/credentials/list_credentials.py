@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 import httpx
@@ -19,6 +19,7 @@ def _get_kwargs(
     include_total: bool | Unset = False,
     credential_type_id: None | Unset | UUID = UNSET,
     enabled: bool | None | Unset = UNSET,
+    for_action: Literal["use"] | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -58,6 +59,13 @@ def _get_kwargs(
     else:
         json_enabled = enabled
     params["enabled"] = json_enabled
+
+    json_for_action: Literal["use"] | None | Unset
+    if isinstance(for_action, Unset):
+        json_for_action = UNSET
+    else:
+        json_for_action = for_action
+    params["for_action"] = json_for_action
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -146,11 +154,15 @@ def sync_detailed(
     include_total: bool | Unset = False,
     credential_type_id: None | Unset | UUID = UNSET,
     enabled: bool | None | Unset = UNSET,
+    for_action: Literal["use"] | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[CredentialListResponse | ErrorData]:
     """List Credentials
 
      List Credentials with filtering and pagination. Metadata only, no secrets.
+
+    When for_action=use, returns only credentials the user has credential:use
+    permission on (for workflow builder credential selection).
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -159,6 +171,7 @@ def sync_detailed(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         credential_type_id (None | Unset | UUID): Filter by credential type ID
         enabled (bool | None | Unset): Filter by enabled status
+        for_action (Literal['use'] | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -175,6 +188,7 @@ def sync_detailed(
         include_total=include_total,
         credential_type_id=credential_type_id,
         enabled=enabled,
+        for_action=for_action,
         additional_params=additional_params,
     )
 
@@ -194,10 +208,14 @@ def sync(
     include_total: bool | Unset = False,
     credential_type_id: None | Unset | UUID = UNSET,
     enabled: bool | None | Unset = UNSET,
+    for_action: Literal["use"] | None | Unset = UNSET,
 ) -> CredentialListResponse | ErrorData | None:
     """List Credentials
 
      List Credentials with filtering and pagination. Metadata only, no secrets.
+
+    When for_action=use, returns only credentials the user has credential:use
+    permission on (for workflow builder credential selection).
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -206,6 +224,7 @@ def sync(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         credential_type_id (None | Unset | UUID): Filter by credential type ID
         enabled (bool | None | Unset): Filter by enabled status
+        for_action (Literal['use'] | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -223,6 +242,7 @@ def sync(
         include_total=include_total,
         credential_type_id=credential_type_id,
         enabled=enabled,
+        for_action=for_action,
     ).parsed
 
 
@@ -235,10 +255,14 @@ async def asyncio_detailed(
     include_total: bool | Unset = False,
     credential_type_id: None | Unset | UUID = UNSET,
     enabled: bool | None | Unset = UNSET,
+    for_action: Literal["use"] | None | Unset = UNSET,
 ) -> Response[CredentialListResponse | ErrorData]:
     """List Credentials
 
      List Credentials with filtering and pagination. Metadata only, no secrets.
+
+    When for_action=use, returns only credentials the user has credential:use
+    permission on (for workflow builder credential selection).
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -247,6 +271,7 @@ async def asyncio_detailed(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         credential_type_id (None | Unset | UUID): Filter by credential type ID
         enabled (bool | None | Unset): Filter by enabled status
+        for_action (Literal['use'] | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -263,6 +288,7 @@ async def asyncio_detailed(
         include_total=include_total,
         credential_type_id=credential_type_id,
         enabled=enabled,
+        for_action=for_action,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -279,10 +305,14 @@ async def asyncio(
     include_total: bool | Unset = False,
     credential_type_id: None | Unset | UUID = UNSET,
     enabled: bool | None | Unset = UNSET,
+    for_action: Literal["use"] | None | Unset = UNSET,
 ) -> CredentialListResponse | ErrorData | None:
     """List Credentials
 
      List Credentials with filtering and pagination. Metadata only, no secrets.
+
+    When for_action=use, returns only credentials the user has credential:use
+    permission on (for workflow builder credential selection).
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -291,6 +321,7 @@ async def asyncio(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         credential_type_id (None | Unset | UUID): Filter by credential type ID
         enabled (bool | None | Unset): Filter by enabled status
+        for_action (Literal['use'] | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -309,5 +340,6 @@ async def asyncio(
             include_total=include_total,
             credential_type_id=credential_type_id,
             enabled=enabled,
+            for_action=for_action,
         )
     ).parsed

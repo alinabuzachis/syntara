@@ -26,16 +26,15 @@ describe('parseValidationMessage', () => {
     expect(result.messages).toEqual(["'123_bad_id' does not match '^[a-zA-Z_][a-zA-Z0-9_]*$'"])
   })
 
-  it('uses dotted path as key and node name as displayKey from "key: ..., errors:[...]" format', () => {
+  it('returns dotted path as both key and displayKey with remaining text as single message', () => {
     const result = parseValidationMessage(
       "nodes.0: {'id': '123_bad_id', 'type': 'script', 'name': 'Bad ID', 'parameters': {}}, errors:['123_bad_id' does not match '^[a-zA-Z_][a-zA-Z0-9_]*$', 'approval' was expected]"
     )
 
     expect(result.key).toBe('nodes.0')
-    expect(result.displayKey).toBe('Bad ID')
+    expect(result.displayKey).toBe('nodes.0')
     expect(result.messages).toEqual([
-      "'123_bad_id' does not match '^[a-zA-Z_][a-zA-Z0-9_]*$'",
-      "'approval' was expected",
+      "{'id': '123_bad_id', 'type': 'script', 'name': 'Bad ID', 'parameters': {}}, errors:['123_bad_id' does not match '^[a-zA-Z_][a-zA-Z0-9_]*$', 'approval' was expected]",
     ])
   })
 
@@ -44,7 +43,7 @@ describe('parseValidationMessage', () => {
 
     expect(result.key).toBe('nodes.0')
     expect(result.displayKey).toBe('nodes.0')
-    expect(result.messages).toEqual(["'some error'"])
+    expect(result.messages).toEqual(["{'id': 'abc'}, errors:['some error']"])
   })
 
   it('falls back to "Workflow" for both key and displayKey for plain messages', () => {
@@ -55,14 +54,14 @@ describe('parseValidationMessage', () => {
     expect(result.messages).toEqual(['Workflow must have at least one trigger'])
   })
 
-  it('splits errors that do not start with a single quote', () => {
+  it('returns full remaining text as single message without splitting', () => {
     const result = parseValidationMessage(
       "nodes.0: {'id': 'abc', 'name': 'My Node'}, errors:['bad id', Missing required field]"
     )
 
     expect(result.key).toBe('nodes.0')
-    expect(result.displayKey).toBe('My Node')
-    expect(result.messages).toEqual(["'bad id'", 'Missing required field'])
+    expect(result.displayKey).toBe('nodes.0')
+    expect(result.messages).toEqual(["{'id': 'abc', 'name': 'My Node'}, errors:['bad id', Missing required field]"])
   })
 })
 
@@ -79,6 +78,12 @@ describe('humanizeValidationMessage', () => {
     const result = humanizeValidationMessage("'language' is a required property")
 
     expect(result).toBe('Missing required field "language"')
+  })
+
+  it('translates non-empty errors into plain language', () => {
+    const result = humanizeValidationMessage("'' should be non-empty")
+
+    expect(result).toBe('This field must not be empty')
   })
 
   it('passes through unrecognized messages unchanged', () => {
@@ -231,8 +236,12 @@ describe('ValidationBanner', () => {
     const onNavigateToNode = vi.fn()
     const errors: ValidationError[] = [
       {
-        message:
-          "nodes.2: {'id': 'activity_abc', 'type': 'script', 'name': 'Script5'}, errors:['language' is a required property, 'code' is a required property]",
+        message: "'language' is a required property",
+        nodeId: 'node-2',
+        nodeName: 'Script5',
+      },
+      {
+        message: "'code' is a required property",
         nodeId: 'node-2',
         nodeName: 'Script5',
       },
@@ -266,8 +275,12 @@ describe('ValidationBanner', () => {
     const onNavigateToNode = vi.fn()
     const errors: ValidationError[] = [
       {
-        message:
-          "nodes.0: {'id': 'abc', 'type': 'script', 'name': 'Bad ID'}, errors:['123_bad_id' does not match '^[a-zA-Z_][a-zA-Z0-9_]*$', 'approval' was expected]",
+        message: "'123_bad_id' does not match '^[a-zA-Z_][a-zA-Z0-9_]*$'",
+        nodeId: 'node-0',
+        nodeName: 'Bad ID',
+      },
+      {
+        message: "'approval' was expected",
         nodeId: 'node-0',
         nodeName: 'Bad ID',
       },

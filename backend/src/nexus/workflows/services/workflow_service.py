@@ -96,7 +96,7 @@ def _gate_on_validation(result: ValidationResult, *, force_save: bool) -> bool:
     has_issues = result.error_count > 0 or result.warning_count > 0
     if not force_save:
         if result.error_count > 0:
-            raise WorkflowDefinitionInvalidError(result.to_legacy(), validation_result=result)
+            raise WorkflowDefinitionInvalidError(result)
         if result.warning_count > 0:
             raise WorkflowDefinitionWarningsError(result)
     return has_issues

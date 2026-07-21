@@ -1,43 +1,35 @@
 from http import HTTPStatus
 from typing import Any
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.detailed_validation_problem_detail import DetailedValidationProblemDetail
 from ...models.error_data import ErrorData
-from ...models.validation_result import ValidationResult
-from ...models.workflow_validate_request import WorkflowValidateRequest
+from ...models.integration_project_assignment_read import IntegrationProjectAssignmentRead
 from ...types import Response
 
 
 def _get_kwargs(
-    *,
-    body: WorkflowValidateRequest,
+    integration_id: UUID,
+    project_id: UUID,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/workflows/validate/detailed",
+        "url": f"/integrations/{integration_id}/projects/{project_id}",
     }
 
-    _kwargs["json"] = body.to_dict()
-
-    headers["Content-Type"] = "application/json"
-
-    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> DetailedValidationProblemDetail | ErrorData | ValidationResult | None:
-    if response.status_code == 200:
-        response_200 = ValidationResult.from_dict(response.json())
+) -> ErrorData | IntegrationProjectAssignmentRead | None:
+    if response.status_code == 201:
+        response_201 = IntegrationProjectAssignmentRead.from_dict(response.json())
 
-        return response_200
+        return response_201
 
     if response.status_code == 400:
         response_400 = ErrorData.from_dict(response.json())
@@ -65,7 +57,7 @@ def _parse_response(
         return response_409
 
     if response.status_code == 422:
-        response_422 = DetailedValidationProblemDetail.from_dict(response.json())
+        response_422 = ErrorData.from_dict(response.json())
 
         return response_422
 
@@ -87,7 +79,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]:
+) -> Response[ErrorData | IntegrationProjectAssignmentRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -99,31 +91,30 @@ def _build_response(
 
 
 def sync_detailed(
+    integration_id: UUID,
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: WorkflowValidateRequest,
-) -> Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]:
-    """Validate Workflow Definition Detailed
+) -> Response[ErrorData | IntegrationProjectAssignmentRead]:
+    """Assign Integration Project
 
-     Validate a workflow definition and return detailed per-finding results.
+     Assign a project to a project-scoped integration.
 
     Args:
-        body (WorkflowValidateRequest): Request body for the workflow validation endpoint.
-
-            The definition is accepted as a raw dict so that structurally invalid
-            definitions reach the application-level validator for richer error
-            reporting with node-level attribution.
+        integration_id (UUID):
+        project_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]
+        Response[ErrorData | IntegrationProjectAssignmentRead]
     """
 
     kwargs = _get_kwargs(
-        body=body,
+        integration_id=integration_id,
+        project_id=project_id,
     )
 
     response = client.get_httpx_client().request(
@@ -134,61 +125,59 @@ def sync_detailed(
 
 
 def sync(
+    integration_id: UUID,
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: WorkflowValidateRequest,
-) -> DetailedValidationProblemDetail | ErrorData | ValidationResult | None:
-    """Validate Workflow Definition Detailed
+) -> ErrorData | IntegrationProjectAssignmentRead | None:
+    """Assign Integration Project
 
-     Validate a workflow definition and return detailed per-finding results.
+     Assign a project to a project-scoped integration.
 
     Args:
-        body (WorkflowValidateRequest): Request body for the workflow validation endpoint.
-
-            The definition is accepted as a raw dict so that structurally invalid
-            definitions reach the application-level validator for richer error
-            reporting with node-level attribution.
+        integration_id (UUID):
+        project_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        DetailedValidationProblemDetail | ErrorData | ValidationResult
+        ErrorData | IntegrationProjectAssignmentRead
     """
 
     return sync_detailed(
+        integration_id=integration_id,
+        project_id=project_id,
         client=client,
-        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
+    integration_id: UUID,
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: WorkflowValidateRequest,
-) -> Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]:
-    """Validate Workflow Definition Detailed
+) -> Response[ErrorData | IntegrationProjectAssignmentRead]:
+    """Assign Integration Project
 
-     Validate a workflow definition and return detailed per-finding results.
+     Assign a project to a project-scoped integration.
 
     Args:
-        body (WorkflowValidateRequest): Request body for the workflow validation endpoint.
-
-            The definition is accepted as a raw dict so that structurally invalid
-            definitions reach the application-level validator for richer error
-            reporting with node-level attribution.
+        integration_id (UUID):
+        project_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]
+        Response[ErrorData | IntegrationProjectAssignmentRead]
     """
 
     kwargs = _get_kwargs(
-        body=body,
+        integration_id=integration_id,
+        project_id=project_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -197,32 +186,31 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    integration_id: UUID,
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: WorkflowValidateRequest,
-) -> DetailedValidationProblemDetail | ErrorData | ValidationResult | None:
-    """Validate Workflow Definition Detailed
+) -> ErrorData | IntegrationProjectAssignmentRead | None:
+    """Assign Integration Project
 
-     Validate a workflow definition and return detailed per-finding results.
+     Assign a project to a project-scoped integration.
 
     Args:
-        body (WorkflowValidateRequest): Request body for the workflow validation endpoint.
-
-            The definition is accepted as a raw dict so that structurally invalid
-            definitions reach the application-level validator for richer error
-            reporting with node-level attribution.
+        integration_id (UUID):
+        project_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        DetailedValidationProblemDetail | ErrorData | ValidationResult
+        ErrorData | IntegrationProjectAssignmentRead
     """
 
     return (
         await asyncio_detailed(
+            integration_id=integration_id,
+            project_id=project_id,
             client=client,
-            body=body,
         )
     ).parsed

@@ -37,6 +37,8 @@ class WorkflowVersionRead:
             updated_at (datetime.datetime):
             change_description (None | str | Unset):
             status (WorkflowVersionReadStatus | Unset):  Default: WorkflowVersionReadStatus.DRAFT.
+            last_published_at (datetime.datetime | None | Unset):
+            last_unpublished_at (datetime.datetime | None | Unset):
             name (None | str | Unset):
             created_by_username (None | str | Unset):
             deleted_at (datetime.datetime | None | Unset):
@@ -53,6 +55,8 @@ class WorkflowVersionRead:
     updated_at: datetime.datetime
     change_description: None | str | Unset = UNSET
     status: WorkflowVersionReadStatus | Unset = WorkflowVersionReadStatus.DRAFT
+    last_published_at: datetime.datetime | None | Unset = UNSET
+    last_unpublished_at: datetime.datetime | None | Unset = UNSET
     name: None | str | Unset = UNSET
     created_by_username: None | str | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
@@ -85,6 +89,22 @@ class WorkflowVersionRead:
         status: str | Unset = UNSET
         if not isinstance(self.status, Unset):
             status = self.status.value
+
+        last_published_at: None | str | Unset
+        if isinstance(self.last_published_at, Unset):
+            last_published_at = UNSET
+        elif isinstance(self.last_published_at, datetime.datetime):
+            last_published_at = self.last_published_at.isoformat()
+        else:
+            last_published_at = self.last_published_at
+
+        last_unpublished_at: None | str | Unset
+        if isinstance(self.last_unpublished_at, Unset):
+            last_unpublished_at = UNSET
+        elif isinstance(self.last_unpublished_at, datetime.datetime):
+            last_unpublished_at = self.last_unpublished_at.isoformat()
+        else:
+            last_unpublished_at = self.last_unpublished_at
 
         name: None | str | Unset
         if isinstance(self.name, Unset):
@@ -132,6 +152,10 @@ class WorkflowVersionRead:
             field_dict["change_description"] = change_description
         if status is not UNSET:
             field_dict["status"] = status
+        if last_published_at is not UNSET:
+            field_dict["last_published_at"] = last_published_at
+        if last_unpublished_at is not UNSET:
+            field_dict["last_unpublished_at"] = last_unpublished_at
         if name is not UNSET:
             field_dict["name"] = name
         if created_by_username is not UNSET:
@@ -179,6 +203,40 @@ class WorkflowVersionRead:
             status = UNSET
         else:
             status = WorkflowVersionReadStatus(_status)
+
+        def _parse_last_published_at(data: object) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                last_published_at_type_0 = isoparse(data)
+
+                return last_published_at_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        last_published_at = _parse_last_published_at(d.pop("last_published_at", UNSET))
+
+        def _parse_last_unpublished_at(data: object) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                last_unpublished_at_type_0 = isoparse(data)
+
+                return last_unpublished_at_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        last_unpublished_at = _parse_last_unpublished_at(d.pop("last_unpublished_at", UNSET))
 
         def _parse_name(data: object) -> None | str | Unset:
             if data is None:
@@ -243,6 +301,8 @@ class WorkflowVersionRead:
             updated_at=updated_at,
             change_description=change_description,
             status=status,
+            last_published_at=last_published_at,
+            last_unpublished_at=last_unpublished_at,
             name=name,
             created_by_username=created_by_username,
             deleted_at=deleted_at,

@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 import structlog
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
-from sqlmodel import SQLModel
 from temporalio.service import RPCError
 
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
@@ -38,13 +37,14 @@ if TYPE_CHECKING:
         WorkflowVersionConflictError,
         WorkflowVersionNotFoundError,
     )
+    from nexus.workflows.models.validation_finding import ValidationResult
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
 def build_validation_problem_response(
     request: Request,
-    result: SQLModel,
+    result: "ValidationResult",
 ) -> JSONResponse:
     """Build an RFC 9457 problem details response for workflow validation failures."""
     content = {
@@ -103,8 +103,7 @@ def publish_validation_handler(request: Request, exc: "WorkflowPublishValidation
 
 def definition_invalid_handler(request: Request, exc: "WorkflowDefinitionInvalidError") -> JSONResponse:
     """Return RFC 9457 problem details with validation_result extension."""
-    result = exc.validation_result if exc.validation_result is not None else exc.result
-    return build_validation_problem_response(request, result)
+    return build_validation_problem_response(request, exc.validation_result)
 
 
 def validation_error_handler(request: Request, exc: "WorkflowValidationError") -> JSONResponse:

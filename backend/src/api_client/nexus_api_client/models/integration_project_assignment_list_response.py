@@ -9,32 +9,27 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.sa_credential_read import SACredentialRead
+    from ..models.integration_project_assignment_read import IntegrationProjectAssignmentRead
 
 
-T = TypeVar("T", bound="SACredentialListResponse")
+T = TypeVar("T", bound="IntegrationProjectAssignmentListResponse")
 
 
 @_attrs_define
-class SACredentialListResponse:
-    """Paginated list response for service account credentials.
+class IntegrationProjectAssignmentListResponse:
+    """Paginated response for listing project assignments.
 
     Attributes:
-        resources (list[SACredentialRead]): Array of resources in current page
+        resources (list[IntegrationProjectAssignmentRead]): Array of resources in current page
         next_ (None | str | Unset): Cursor for next page of results
         prev (None | str | Unset): Cursor for previous page of results
         total (int | None | Unset): Total count of resources (only when include_total=true)
-        max_credentials (int | Unset): Maximum number of credentials allowed per service account Default: 10.
-        total_credentials (int | Unset): Total number of credentials for this service account (ignoring filters)
-            Default: 0.
     """
 
-    resources: list[SACredentialRead]
+    resources: list[IntegrationProjectAssignmentRead]
     next_: None | str | Unset = UNSET
     prev: None | str | Unset = UNSET
     total: int | None | Unset = UNSET
-    max_credentials: int | Unset = 10
-    total_credentials: int | Unset = 0
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -61,10 +56,6 @@ class SACredentialListResponse:
         else:
             total = self.total
 
-        max_credentials = self.max_credentials
-
-        total_credentials = self.total_credentials
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -78,22 +69,18 @@ class SACredentialListResponse:
             field_dict["prev"] = prev
         if total is not UNSET:
             field_dict["total"] = total
-        if max_credentials is not UNSET:
-            field_dict["max_credentials"] = max_credentials
-        if total_credentials is not UNSET:
-            field_dict["total_credentials"] = total_credentials
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.sa_credential_read import SACredentialRead
+        from ..models.integration_project_assignment_read import IntegrationProjectAssignmentRead
 
         d = dict(src_dict)
         resources = []
         _resources = d.pop("resources")
         for resources_item_data in _resources:
-            resources_item = SACredentialRead.from_dict(resources_item_data)
+            resources_item = IntegrationProjectAssignmentRead.from_dict(resources_item_data)
 
             resources.append(resources_item)
 
@@ -124,21 +111,15 @@ class SACredentialListResponse:
 
         total = _parse_total(d.pop("total", UNSET))
 
-        max_credentials = d.pop("max_credentials", UNSET)
-
-        total_credentials = d.pop("total_credentials", UNSET)
-
-        sa_credential_list_response = cls(
+        integration_project_assignment_list_response = cls(
             resources=resources,
             next_=next_,
             prev=prev,
             total=total,
-            max_credentials=max_credentials,
-            total_credentials=total_credentials,
         )
 
-        sa_credential_list_response.additional_properties = d
-        return sa_credential_list_response
+        integration_project_assignment_list_response.additional_properties = d
+        return integration_project_assignment_list_response
 
     @property
     def additional_keys(self) -> list[str]:

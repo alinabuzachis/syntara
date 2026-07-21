@@ -30,9 +30,6 @@ exclusions:
 
   # Workflow validation endpoints (return validation results, not paginated lists)
   - operation_id: validate_workflow_definition
-    reason: "Validation result not a paginated list (WorkflowValidationResult), returns valid/errors/warnings"
-
-  - operation_id: validate_workflow_definition_detailed
     reason: "Validation result not a paginated list (ValidationResult), returns findings/is_valid/error_count/warning_count"
 
   # ===========================================================================

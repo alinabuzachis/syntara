@@ -26,21 +26,25 @@ class ExecutionCreate:
             workflow_id (UUID): Workflow ID to execute
             trigger_node_id (str): Trigger node ID to start from
             input_data (ExecutionCreateInputData | Unset): Input data for workflow execution
+            use_published (bool | Unset): If true, run the published version instead of the current version Default: False.
     """
 
     workflow_id: UUID
     trigger_node_id: str
     input_data: ExecutionCreateInputData | Unset = UNSET
+    use_published: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         workflow_id = str(self.workflow_id)
 
+        trigger_node_id = self.trigger_node_id
+
         input_data: dict[str, Any] | Unset = UNSET
         if not isinstance(self.input_data, Unset):
             input_data = self.input_data.to_dict()
 
-        trigger_node_id = self.trigger_node_id
+        use_published = self.use_published
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -52,6 +56,8 @@ class ExecutionCreate:
         )
         if input_data is not UNSET:
             field_dict["input_data"] = input_data
+        if use_published is not UNSET:
+            field_dict["use_published"] = use_published
 
         return field_dict
 
@@ -62,6 +68,8 @@ class ExecutionCreate:
         d = dict(src_dict)
         workflow_id = UUID(d.pop("workflow_id"))
 
+        trigger_node_id = d.pop("trigger_node_id")
+
         _input_data = d.pop("input_data", UNSET)
         input_data: ExecutionCreateInputData | Unset
         if isinstance(_input_data, Unset):
@@ -69,12 +77,13 @@ class ExecutionCreate:
         else:
             input_data = ExecutionCreateInputData.from_dict(_input_data)
 
-        trigger_node_id = d.pop("trigger_node_id")
+        use_published = d.pop("use_published", UNSET)
 
         execution_create = cls(
             workflow_id=workflow_id,
-            input_data=input_data,
             trigger_node_id=trigger_node_id,
+            input_data=input_data,
+            use_published=use_published,
         )
 
         execution_create.additional_properties = d

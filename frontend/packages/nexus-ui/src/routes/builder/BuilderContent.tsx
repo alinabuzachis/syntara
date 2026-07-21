@@ -187,6 +187,7 @@ export function BuilderContent(props: BuilderContentProps) {
     dispatch,
     hasValidationIssues: workflow?.has_validation_issues,
     isNew,
+    isDirty,
     currentWorkflow,
   })
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')

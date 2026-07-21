@@ -66,10 +66,7 @@ from .workflow import (
 from .workflow_definition import WorkflowDefinition
 from .workflow_publish_event import PublishAction, WorkflowPublishEvent
 from .workflow_validation_result import (
-    ValidationIssue,
     WorkflowValidateRequest,
-    WorkflowValidationProblemDetail,
-    WorkflowValidationResult,
 )
 from .workflow_version import (
     PublishVersionRequest,
@@ -104,7 +101,6 @@ __all__ = [
     "SignalResponse",
     "ValidationCategory",
     "ValidationFinding",
-    "ValidationIssue",
     "ValidationResult",
     "ValidationSeverity",
     "WebhookTrigger",
@@ -119,8 +115,6 @@ __all__ = [
     "WorkflowReadWithVersion",
     "WorkflowUpdate",
     "WorkflowValidateRequest",
-    "WorkflowValidationProblemDetail",
-    "WorkflowValidationResult",
     "WorkflowVersion",
     "WorkflowVersionListParams",
     "WorkflowVersionListResponse",

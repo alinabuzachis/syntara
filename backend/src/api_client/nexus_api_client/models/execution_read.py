@@ -30,7 +30,7 @@ class ExecutionRead:
     """Schema for execution response (GET /executions/{id}).
 
     Includes database table fields plus computed fields (workflow_version,
-    workflow_version_publish_name, workflow_version_created_at) populated
+    workflow_version_name, workflow_version_created_at) populated
     by ExecutionsConvertResourceMixin from the related WorkflowVersion.
 
         Attributes:
@@ -48,13 +48,15 @@ class ExecutionRead:
             input_data (ExecutionReadInputData):
             error_details (None | str):
             workflow_version (int | None | Unset): Version number of the workflow version that was executed
-            workflow_version_publish_name (None | str | Unset): Publish name of the executed version, if it was published
-                with a name
+            workflow_version_name (None | str | Unset): Name of the executed version, if one was set
             workflow_version_created_at (datetime.datetime | None | Unset): Timestamp when the executed version was created
             trigger_node_id (None | str | Unset):
             mode (ExecutionMode | Unset): Execution mode for workflow runs.
             execution_metadata (ExecutionReadExecutionMetadataType0 | None | Unset):
             retried_from_execution_id (None | Unset | UUID):
+            trigger_type (None | str | Unset): Trigger node type (manual_trigger, scheduled_trigger, webhook_trigger,
+                eda_trigger)
+            interface (None | str | Unset): Originating interface (ui or api)
             labels (ExecutionReadLabels | Unset):
             approval_pending (bool | Unset):  Default: False.
             current_activities (list[CurrentActivity] | Unset): Currently executing activities
@@ -80,12 +82,14 @@ class ExecutionRead:
     input_data: ExecutionReadInputData
     error_details: None | str
     workflow_version: int | None | Unset = UNSET
-    workflow_version_publish_name: None | str | Unset = UNSET
+    workflow_version_name: None | str | Unset = UNSET
     workflow_version_created_at: datetime.datetime | None | Unset = UNSET
     trigger_node_id: None | str | Unset = UNSET
     mode: ExecutionMode | Unset = UNSET
     execution_metadata: ExecutionReadExecutionMetadataType0 | None | Unset = UNSET
     retried_from_execution_id: None | Unset | UUID = UNSET
+    trigger_type: None | str | Unset = UNSET
+    interface: None | str | Unset = UNSET
     labels: ExecutionReadLabels | Unset = UNSET
     approval_pending: bool | Unset = False
     current_activities: list[CurrentActivity] | Unset = UNSET
@@ -140,11 +144,11 @@ class ExecutionRead:
         else:
             workflow_version = self.workflow_version
 
-        workflow_version_publish_name: None | str | Unset
-        if isinstance(self.workflow_version_publish_name, Unset):
-            workflow_version_publish_name = UNSET
+        workflow_version_name: None | str | Unset
+        if isinstance(self.workflow_version_name, Unset):
+            workflow_version_name = UNSET
         else:
-            workflow_version_publish_name = self.workflow_version_publish_name
+            workflow_version_name = self.workflow_version_name
 
         workflow_version_created_at: None | str | Unset
         if isinstance(self.workflow_version_created_at, Unset):
@@ -179,6 +183,18 @@ class ExecutionRead:
             retried_from_execution_id = str(self.retried_from_execution_id)
         else:
             retried_from_execution_id = self.retried_from_execution_id
+
+        trigger_type: None | str | Unset
+        if isinstance(self.trigger_type, Unset):
+            trigger_type = UNSET
+        else:
+            trigger_type = self.trigger_type
+
+        interface: None | str | Unset
+        if isinstance(self.interface, Unset):
+            interface = UNSET
+        else:
+            interface = self.interface
 
         labels: dict[str, Any] | Unset = UNSET
         if not isinstance(self.labels, Unset):
@@ -250,8 +266,8 @@ class ExecutionRead:
         )
         if workflow_version is not UNSET:
             field_dict["workflow_version"] = workflow_version
-        if workflow_version_publish_name is not UNSET:
-            field_dict["workflow_version_publish_name"] = workflow_version_publish_name
+        if workflow_version_name is not UNSET:
+            field_dict["workflow_version_name"] = workflow_version_name
         if workflow_version_created_at is not UNSET:
             field_dict["workflow_version_created_at"] = workflow_version_created_at
         if trigger_node_id is not UNSET:
@@ -262,6 +278,10 @@ class ExecutionRead:
             field_dict["execution_metadata"] = execution_metadata
         if retried_from_execution_id is not UNSET:
             field_dict["retried_from_execution_id"] = retried_from_execution_id
+        if trigger_type is not UNSET:
+            field_dict["trigger_type"] = trigger_type
+        if interface is not UNSET:
+            field_dict["interface"] = interface
         if labels is not UNSET:
             field_dict["labels"] = labels
         if approval_pending is not UNSET:
@@ -355,16 +375,14 @@ class ExecutionRead:
 
         workflow_version = _parse_workflow_version(d.pop("workflow_version", UNSET))
 
-        def _parse_workflow_version_publish_name(data: object) -> None | str | Unset:
+        def _parse_workflow_version_name(data: object) -> None | str | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             return cast(None | str | Unset, data)
 
-        workflow_version_publish_name = _parse_workflow_version_publish_name(
-            d.pop("workflow_version_publish_name", UNSET)
-        )
+        workflow_version_name = _parse_workflow_version_name(d.pop("workflow_version_name", UNSET))
 
         def _parse_workflow_version_created_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -432,6 +450,24 @@ class ExecutionRead:
             return cast(None | Unset | UUID, data)
 
         retried_from_execution_id = _parse_retried_from_execution_id(d.pop("retried_from_execution_id", UNSET))
+
+        def _parse_trigger_type(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        trigger_type = _parse_trigger_type(d.pop("trigger_type", UNSET))
+
+        def _parse_interface(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        interface = _parse_interface(d.pop("interface", UNSET))
 
         _labels = d.pop("labels", UNSET)
         labels: ExecutionReadLabels | Unset
@@ -539,12 +575,14 @@ class ExecutionRead:
             input_data=input_data,
             error_details=error_details,
             workflow_version=workflow_version,
-            workflow_version_publish_name=workflow_version_publish_name,
+            workflow_version_name=workflow_version_name,
             workflow_version_created_at=workflow_version_created_at,
             trigger_node_id=trigger_node_id,
             mode=mode,
             execution_metadata=execution_metadata,
             retried_from_execution_id=retried_from_execution_id,
+            trigger_type=trigger_type,
+            interface=interface,
             labels=labels,
             approval_pending=approval_pending,
             current_activities=current_activities,

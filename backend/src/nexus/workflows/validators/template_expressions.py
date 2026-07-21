@@ -9,7 +9,7 @@ import re
 from collections import deque
 from typing import Any
 
-from nexus.workflows.models.workflow_validation_result import ValidationIssue
+from nexus.workflows.models.validation_finding import ValidationCategory, ValidationFinding, ValidationSeverity
 
 TEMPLATE_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
@@ -111,15 +111,15 @@ def _extract_element_expressions(
 def check_template_expressions(
     workflow_definition: dict[str, Any],
     node_ids: set[str],
-) -> list[ValidationIssue]:
+) -> list[ValidationFinding]:
     """Validate template expressions in all nodes and triggers.
 
     Returns:
-        List of validation errors for invalid expressions.
+        List of validation findings for invalid expressions.
 
     """
     loop_body_map = _identify_loop_body_nodes(workflow_definition)
-    errors: list[ValidationIssue] = []
+    findings: list[ValidationFinding] = []
 
     all_elements = [
         *workflow_definition.get("triggers", []),
@@ -142,19 +142,23 @@ def check_template_expressions(
             if scope == "loop":
                 if in_loop_body:
                     continue
-                errors.append(
-                    ValidationIssue(
+                findings.append(
+                    ValidationFinding(
+                        severity=ValidationSeverity.error,
+                        category=ValidationCategory.invalid_reference,
                         message=(f"Expression '${{{expr_body}}}' uses loop scope outside of a loop body"),
                         node_id=element_id,
                     )
                 )
                 continue
 
-            errors.append(
-                ValidationIssue(
+            findings.append(
+                ValidationFinding(
+                    severity=ValidationSeverity.error,
+                    category=ValidationCategory.invalid_reference,
                     message=(f"Expression '${{{expr_body}}}' references unknown activity or scope '{scope}'"),
                     node_id=element_id,
                 )
             )
 
-    return errors
+    return findings

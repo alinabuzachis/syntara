@@ -23,7 +23,6 @@ from nexus.workflows.models.validation_finding import (
     ValidationResult,
     ValidationSeverity,
 )
-from nexus.workflows.models.workflow_validation_result import ValidationIssue, WorkflowValidationResult
 from nexus.workflows.validators.template_expressions import check_template_expressions
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
 
@@ -104,13 +103,6 @@ def _check_edge_references_findings(workflow_definition: dict[str, Any], node_id
     return findings
 
 
-def _check_edge_references(workflow_definition: dict[str, Any], node_ids: set[str]) -> list[ValidationIssue]:
-    return [
-        ValidationIssue(message=f.message, node_id=f.node_id)
-        for f in _check_edge_references_findings(workflow_definition, node_ids)
-    ]
-
-
 def _check_cycles_findings(workflow_definition: dict[str, Any], node_ids: set[str]) -> list[ValidationFinding]:
     backend = InMemoryGraphBackend()
     for nid in node_ids:
@@ -129,13 +121,6 @@ def _check_cycles_findings(workflow_definition: dict[str, Any], node_ids: set[st
             )
         ]
     return []
-
-
-def _check_cycles(workflow_definition: dict[str, Any], node_ids: set[str]) -> list[ValidationIssue]:
-    return [
-        ValidationIssue(message=f.message, node_id=f.node_id)
-        for f in _check_cycles_findings(workflow_definition, node_ids)
-    ]
 
 
 def _check_orphaned_nodes_findings(workflow_definition: dict[str, Any], node_ids: set[str]) -> list[ValidationFinding]:
@@ -358,34 +343,6 @@ def _extract_node_id_and_field(
     return None, None
 
 
-_NODE_SUMMARY_KEYS = ("id", "type", "name")
-
-
-def _build_node_id_index(workflow_definition: dict[str, Any]) -> dict[str, str]:
-    """Map each node/trigger ``id`` to its element key (e.g. ``nodes.0``)."""
-    index: dict[str, str] = {}
-    for collection in ("nodes", "triggers"):
-        for i, item in enumerate(workflow_definition.get(collection, [])):
-            nid = item.get("id")
-            if nid is not None:
-                index[nid] = f"{collection}.{i}"
-    return index
-
-
-def _element_summary(element_key: str, workflow_definition: dict[str, Any]) -> str:
-    """Return a concise ``{id, type, name}`` summary for a node/trigger element."""
-    parts = element_key.split(".")
-    _expected_parts = 2
-    if len(parts) == _expected_parts:
-        try:
-            element = workflow_definition[parts[0]][int(parts[1])]
-            summary = {k: element[k] for k in _NODE_SUMMARY_KEYS if k in element}
-            return str(summary)
-        except (KeyError, IndexError, ValueError):
-            pass
-    return element_key
-
-
 class WorkflowValidator:
     """Validator for V2 workflows and metadata.
 
@@ -516,31 +473,14 @@ class WorkflowValidator:
             return findings
 
         findings.extend(self._collect_schema_findings(workflow_definition))
-        if any(f.severity == ValidationSeverity.error for f in findings):
-            return findings
 
         node_ids = _extract_node_ids(workflow_definition)
-        findings.extend(_check_edge_references_findings(workflow_definition, node_ids))
-        if any(f.category == ValidationCategory.invalid_reference for f in findings):
-            return findings
-
-        findings.extend(_check_cycles_findings(workflow_definition, node_ids))
-        findings.extend(_check_orphaned_nodes_findings(workflow_definition, node_ids))
-        findings.extend(_check_converge_node_findings(workflow_definition))
-
-        # Check template expressions (${...}) for invalid variable references
-        template_issues = check_template_expressions(workflow_definition, node_ids)
-        findings.extend(
-            [
-                ValidationFinding(
-                    severity=ValidationSeverity.error,
-                    category=ValidationCategory.invalid_reference,
-                    message=issue.message,
-                    node_id=issue.node_id,
-                )
-                for issue in template_issues
-            ]
-        )
+        if node_ids:
+            findings.extend(_check_edge_references_findings(workflow_definition, node_ids))
+            findings.extend(_check_cycles_findings(workflow_definition, node_ids))
+            findings.extend(_check_orphaned_nodes_findings(workflow_definition, node_ids))
+            findings.extend(_check_converge_node_findings(workflow_definition))
+            findings.extend(check_template_expressions(workflow_definition, node_ids))
 
         return findings
 
@@ -589,69 +529,20 @@ class WorkflowValidator:
         """
         return ValidationResult.from_findings(self._collect_findings(workflow_definition))
 
-    def collect_validation_issues(self, workflow_definition: dict[str, Any]) -> WorkflowValidationResult:
-        """Run all validation checks and collect issues instead of raising.
-
-        Unlike validate_workflow_definition(), this method does not raise on the
-        first error. It runs every applicable validator and returns a structured
-        result with errors and warnings separated.
-
-        JSON Schema errors for the same element (e.g. ``nodes.0``) are grouped
-        into a single ``ValidationIssue`` with all sub-errors listed.
-
-        Args:
-            workflow_definition: Workflow definition dictionary to validate
-
-        Returns:
-            WorkflowValidationResult with errors, warnings, and validity flag
-
-        """
-        findings = self._collect_findings(workflow_definition)
-        id_index = _build_node_id_index(workflow_definition)
-        errors: list[ValidationIssue] = []
-        warnings: list[ValidationIssue] = []
-
-        schema_groups: dict[str, list[str]] = defaultdict(list)
-
-        for f in findings:
-            if f.category == ValidationCategory.schema_violation:
-                element_key = id_index.get(f.node_id) if f.node_id else None
-                if element_key:
-                    schema_groups[element_key].append(f.message)
-                else:
-                    path = f.field_path or ""
-                    msg = f"{path}: {f.message}" if path else f.message
-                    errors.append(ValidationIssue(message=msg))
-            elif f.severity == ValidationSeverity.error:
-                errors.append(ValidationIssue(message=f.message, node_id=f.node_id))
-            else:
-                warnings.append(ValidationIssue(message=f.message, node_id=f.node_id))
-
-        for element_key, messages in schema_groups.items():
-            summary = _element_summary(element_key, workflow_definition)
-            error_list = ", ".join(messages)
-            msg = f"{element_key}: {summary}, errors:[{error_list}]"
-            errors.append(ValidationIssue(message=msg))
-
-        node_ids = _extract_node_ids(workflow_definition)
-        errors.extend(check_template_expressions(workflow_definition, node_ids))
-
-        return WorkflowValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
-
     def _validate_graph_structure(self, workflow_definition: dict[str, Any], node_ids: set[str]) -> None:
-        edge_issues = _check_edge_references(workflow_definition, node_ids)
-        if edge_issues:
-            raise SafeValueError(edge_issues[0].message)
+        edge_findings = _check_edge_references_findings(workflow_definition, node_ids)
+        if edge_findings:
+            raise SafeValueError(edge_findings[0].message)
 
-        cycle_issues = _check_cycles(workflow_definition, node_ids)
-        if cycle_issues:
-            raise SafeValueError(cycle_issues[0].message)
+        cycle_findings = _check_cycles_findings(workflow_definition, node_ids)
+        if cycle_findings:
+            raise SafeValueError(cycle_findings[0].message)
 
         orphan_findings = _check_orphaned_nodes_findings(workflow_definition, node_ids)
         if orphan_findings:
             raise SafeValueError(orphan_findings[0].message)
 
     def _validate_template_expressions(self, workflow_definition: dict[str, Any], node_ids: set[str]) -> None:
-        errors = check_template_expressions(workflow_definition, node_ids)
-        if errors:
-            raise SafeValueError(errors[0].message)
+        findings = check_template_expressions(workflow_definition, node_ids)
+        if findings:
+            raise SafeValueError(findings[0].message)

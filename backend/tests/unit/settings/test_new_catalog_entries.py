@@ -12,6 +12,8 @@ _NEW_KEYS = [
     "workflow_engine.script_timeout_seconds",
     "workflow_engine.agentic_timeout_seconds",
     "workflow_engine.max_prompt_length",
+    "agentic.max_completion_tokens",
+    "workflow_engine.script_max_output_mb",
 ]
 
 _catalog_by_key = {d.key: d for d in SETTINGS_CATALOG}
@@ -46,12 +48,26 @@ class TestNewCatalogEntries:
             d = _catalog_by_key[key]
             assert d.requires_restart is False, f"{key} should not require restart"
 
+    def test_agentic_max_completion_tokens(self) -> None:
+        d = _catalog_by_key["agentic.max_completion_tokens"]
+        assert d.category == SettingCategory.AI_LLM
+        assert d.value_type == SettingValueType.INTEGER
+        assert d.default_value == 0
+
+    def test_script_max_output_mb(self) -> None:
+        d = _catalog_by_key["workflow_engine.script_max_output_mb"]
+        assert d.category == SettingCategory.WORKFLOW_EXECUTION
+        assert d.value_type == SettingValueType.INTEGER
+        assert d.default_value == 10
+        assert d.validation_schema == {"min": 1}
+
     def test_workflow_settings_have_min_constraint(self) -> None:
         keys = [
             "workflow_engine.max_loop_iterations",
             "workflow_engine.script_timeout_seconds",
             "workflow_engine.agentic_timeout_seconds",
             "workflow_engine.max_prompt_length",
+            "workflow_engine.script_max_output_mb",
         ]
         for key in keys:
             d = _catalog_by_key[key]

@@ -48,14 +48,6 @@ class WorkflowsApi:
         endpoint_module = self._load_endpoint_module("validate_workflow_definition")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def validate_definition_detailed(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("validate_workflow_definition_detailed")
-        return endpoint_module.sync_detailed(client=self._client, **kwargs)
-
-    async def async_validate_definition_detailed(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("validate_workflow_definition_detailed")
-        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
-
     def get(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("get_workflow")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)

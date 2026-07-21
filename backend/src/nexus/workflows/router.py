@@ -30,7 +30,6 @@ from nexus.workflows.models import (
     PublishWorkflowVersionResponse,
     ValidationCategory,
     ValidationFinding,
-    ValidationIssue,
     ValidationResult,
     ValidationSeverity,
     Workflow,
@@ -41,8 +40,6 @@ from nexus.workflows.models import (
     WorkflowReadWithVersion,
     WorkflowUpdate,
     WorkflowValidateRequest,
-    WorkflowValidationProblemDetail,
-    WorkflowValidationResult,
     WorkflowVersion,
     WorkflowVersionListParams,
     WorkflowVersionListResponse,
@@ -62,7 +59,6 @@ class _ValidationRoute(APIRoute):
 
     def get_route_handler(self) -> Callable[..., Coroutine[Any, Any, Response]]:
         original = super().get_route_handler()
-        uses_detailed = "/detailed" in self.path
 
         async def handler(request: Request) -> Response:
             try:
@@ -75,22 +71,15 @@ class _ValidationRoute(APIRoute):
                         path_parts = path_parts[1:]
                     issues.append(f"{' -> '.join(path_parts)}: {e['msg']}")
 
-                result: ValidationResult | WorkflowValidationResult
-                if uses_detailed:
-                    findings = [
-                        ValidationFinding(
-                            severity=ValidationSeverity.error,
-                            category=ValidationCategory.schema_violation,
-                            message=msg,
-                        )
-                        for msg in issues
-                    ]
-                    result = ValidationResult.from_findings(findings)
-                else:
-                    result = WorkflowValidationResult(
-                        valid=False,
-                        errors=[ValidationIssue(message=msg) for msg in issues],
+                findings = [
+                    ValidationFinding(
+                        severity=ValidationSeverity.error,
+                        category=ValidationCategory.schema_violation,
+                        message=msg,
                     )
+                    for msg in issues
+                ]
+                result = ValidationResult.from_findings(findings)
                 return build_validation_problem_response(request, result)
 
         return handler
@@ -231,37 +220,19 @@ _validate_router = NexusRouter(route_class=_ValidationRoute)
 
 @_validate_router.post(
     "/validate",
-    response_model=WorkflowValidationResult,
+    response_model=ValidationResult,
     dependencies=[Depends(_wf_perm_create)],
     operation_id="validate_workflow_definition",
     response_description="Validation result",
-    responses={422: {"model": WorkflowValidationProblemDetail, "description": "Unprocessable Content"}},
+    responses={422: {"model": DetailedValidationProblemDetail, "description": "Unprocessable Content"}},
 )
 async def validate_workflow_definition(
     request: WorkflowValidateRequest,
-) -> WorkflowValidationResult:
+) -> ValidationResult:
     """Validate a workflow definition without saving it."""
     result = workflow_validator.collect_findings(request.workflow_definition)
     if not result.is_valid:
-        raise WorkflowDefinitionInvalidError(result.to_legacy(), validation_result=result)
-    return result.to_legacy()
-
-
-@_validate_router.post(
-    "/validate/detailed",
-    response_model=ValidationResult,
-    dependencies=[Depends(_wf_perm_create)],
-    operation_id="validate_workflow_definition_detailed",
-    response_description="Detailed validation result",
-    responses={422: {"model": DetailedValidationProblemDetail, "description": "Unprocessable Content"}},
-)
-async def validate_workflow_definition_detailed(
-    request: WorkflowValidateRequest,
-) -> ValidationResult:
-    """Validate a workflow definition and return detailed per-finding results."""
-    result = workflow_validator.collect_findings(request.workflow_definition)
-    if not result.is_valid:
-        raise WorkflowDefinitionInvalidError(result.to_legacy(), validation_result=result)
+        raise WorkflowDefinitionInvalidError(result)
     return result
 
 

@@ -55,26 +55,6 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/workflows/validate/detailed': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Validate Workflow Definition Detailed
-     * @description Validate a workflow definition and return detailed per-finding results.
-     */
-    post: operations['validate_workflow_definition_detailed']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
   '/workflows/{workflow_id}': {
     parameters: {
       query?: never
@@ -2108,20 +2088,6 @@ export interface components {
       message: string
     }
     /**
-     * ValidationIssue
-     * @description A single validation issue found in a workflow definition.
-     *
-     *     Attributes:
-     *         message: Human-readable description of the issue
-     *         node_id: ID of the node/trigger related to this issue, if applicable
-     */
-    ValidationIssue: {
-      /** Message */
-      message: string
-      /** Node Id */
-      node_id?: string | null
-    }
-    /**
      * WorkflowValidateRequest
      * @description Request body for the workflow validation endpoint.
      *
@@ -2137,23 +2103,6 @@ export interface components {
       workflow_definition: {
         [key: string]: unknown
       }
-    }
-    /**
-     * WorkflowValidationResult
-     * @description Result of validating a workflow definition.
-     *
-     *     Attributes:
-     *         valid: True when no errors were found (warnings don't block)
-     *         errors: Issues that prevent the workflow from being enabled
-     *         warnings: Informational issues that don't block enabling
-     */
-    WorkflowValidationResult: {
-      /** Valid */
-      valid: boolean
-      /** Errors */
-      errors?: components['schemas']['ValidationIssue'][]
-      /** Warnings */
-      warnings?: components['schemas']['ValidationIssue'][]
     }
     /**
      * ValidationSeverity
@@ -2242,34 +2191,6 @@ export interface components {
       /** Instance */
       instance?: string | null
       validation_result: components['schemas']['ValidationResult']
-    }
-    /**
-     * WorkflowValidationProblemDetail
-     * @description RFC 9457 Problem Details with a validation_result extension.
-     *
-     *     Attributes:
-     *         type: URI reference identifying the problem type
-     *         title: Short, human-readable summary of the problem
-     *         detail: Human-readable explanation specific to this occurrence
-     *         code: Machine-readable error code
-     *         retryable: Whether this error can be retried
-     *         instance: Optional URI reference identifying the specific occurrence
-     *         validation_result: Structured validation errors and warnings
-     */
-    WorkflowValidationProblemDetail: {
-      /** Type */
-      type: string
-      /** Title */
-      title: string
-      /** Detail */
-      detail: string
-      /** Code */
-      code: string
-      /** Retryable */
-      retryable: boolean
-      /** Instance */
-      instance?: string | null
-      validation_result: components['schemas']['WorkflowValidationResult']
     }
     /**
      * ErrorData
@@ -2635,46 +2556,6 @@ export interface operations {
     }
     responses: {
       /** @description Validation result */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['WorkflowValidationResult']
-        }
-      }
-      400: components['responses']['BadRequestError']
-      401: components['responses']['UnauthorizedError']
-      403: components['responses']['ForbiddenError']
-      404: components['responses']['NotFoundError']
-      409: components['responses']['ConflictError']
-      /** @description Unprocessable Content */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['WorkflowValidationProblemDetail']
-        }
-      }
-      429: components['responses']['RateLimitError']
-      500: components['responses']['InternalServerError']
-    }
-  }
-  validate_workflow_definition_detailed: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['WorkflowValidateRequest']
-      }
-    }
-    responses: {
-      /** @description Detailed validation result */
       200: {
         headers: {
           [name: string]: unknown

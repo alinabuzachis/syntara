@@ -1,41 +1,46 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Mapping
 from typing import Any, TypeVar
 from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from dateutil.parser import isoparse
 
-T = TypeVar("T", bound="UserReference")
+T = TypeVar("T", bound="IntegrationProjectAssignmentRead")
 
 
 @_attrs_define
-class UserReference:
-    """Minimal user identification for embedding in other resources.
-    This model captures user identity at the time of an action, providing
-    a snapshot that doesn't change even if the user's details are updated later.
+class IntegrationProjectAssignmentRead:
+    """Read schema for a single project assignment.
 
-        Attributes:
-            id (UUID): User's unique identifier
-            name (str): User's display name at time of action
+    Attributes:
+        project_id (UUID):
+        project_name (str):
+        created_at (datetime.datetime):
     """
 
-    id: UUID
-    name: str
+    project_id: UUID
+    project_name: str
+    created_at: datetime.datetime
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        id = str(self.id)
+        project_id = str(self.project_id)
 
-        name = self.name
+        project_name = self.project_name
+
+        created_at = self.created_at.isoformat()
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "id": id,
-                "name": name,
+                "project_id": project_id,
+                "project_name": project_name,
+                "created_at": created_at,
             }
         )
 
@@ -44,17 +49,20 @@ class UserReference:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        id = UUID(d.pop("id"))
+        project_id = UUID(d.pop("project_id"))
 
-        name = d.pop("name")
+        project_name = d.pop("project_name")
 
-        user_reference = cls(
-            id=id,
-            name=name,
+        created_at = isoparse(d.pop("created_at"))
+
+        integration_project_assignment_read = cls(
+            project_id=project_id,
+            project_name=project_name,
+            created_at=created_at,
         )
 
-        user_reference.additional_properties = d
-        return user_reference
+        integration_project_assignment_read.additional_properties = d
+        return integration_project_assignment_read
 
     @property
     def additional_keys(self) -> list[str]:

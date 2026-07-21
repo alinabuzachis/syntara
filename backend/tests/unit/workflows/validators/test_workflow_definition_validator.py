@@ -340,130 +340,10 @@ class TestSchemaVersionVariants:
             validator.validate_workflow_definition(definition)
 
 
-class TestCollectValidationIssues:
-    """collect_validation_issues() returns all issues instead of raising on the first."""
-
-    def test_valid_definition_returns_empty(self, validator: WorkflowValidator) -> None:
-        result = validator.collect_validation_issues(_valid_definition())
-        assert result.valid is True
-        assert result.errors == []
-        assert result.warnings == []
-
-    def test_invalid_schema_version_returns_error(self, validator: WorkflowValidator) -> None:
-        definition: dict[str, Any] = {"schema_version": "1.0.0", "triggers": [], "nodes": [], "edges": []}
-        result = validator.collect_validation_issues(definition)
-        assert result.valid is False
-        assert len(result.errors) == 1
-        assert "schema_version" in result.errors[0].message.lower()
-
-    def test_missing_multiple_fields_collects_all(self, validator: WorkflowValidator) -> None:
-        definition: dict[str, Any] = {"schema_version": "2.0.0"}
-        result = validator.collect_validation_issues(definition)
-        assert result.valid is False
-        messages = [i.message for i in result.errors]
-        assert any("triggers" in m for m in messages)
-        assert any("nodes" in m for m in messages)
-        assert any("edges" in m for m in messages)
-
-    def test_edge_reference_errors_include_node_id(self, validator: WorkflowValidator) -> None:
-        definition: dict[str, Any] = {
-            "schema_version": "2.0.0",
-            "name": "test",
-            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
-            "nodes": [{"id": "n1", "type": "script", "parameters": {"language": "python", "code": "1"}}],
-            "edges": [{"from": "t1", "to": "ghost"}],
-        }
-        result = validator.collect_validation_issues(definition)
-        assert result.valid is False
-        edge_errors = [i for i in result.errors if i.node_id == "ghost"]
-        assert len(edge_errors) == 1
-
-    def test_cycle_detected_as_error(self, validator: WorkflowValidator) -> None:
-        definition: dict[str, Any] = {
-            "schema_version": "2.0.0",
-            "name": "cycle",
-            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
-            "nodes": [
-                {"id": "a", "type": "script", "parameters": {"language": "python", "code": "1"}},
-                {"id": "b", "type": "script", "parameters": {"language": "python", "code": "2"}},
-            ],
-            "edges": [
-                {"from": "t1", "to": "a"},
-                {"from": "a", "to": "b"},
-                {"from": "b", "to": "a"},
-            ],
-        }
-        result = validator.collect_validation_issues(definition)
-        assert result.valid is False
-        cycle_errors = [i for i in result.errors if "cycle" in i.message.lower()]
-        assert len(cycle_errors) == 1
-
-    def test_orphaned_node_reported_as_error(self, validator: WorkflowValidator) -> None:
-        definition: dict[str, Any] = {
-            "schema_version": "2.0.0",
-            "name": "orphan",
-            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
-            "nodes": [
-                {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "1"}},
-                {"id": "orphan", "type": "script", "parameters": {"language": "python", "code": "2"}},
-            ],
-            "edges": [{"from": "t1", "to": "n1"}],
-        }
-        result = validator.collect_validation_issues(definition)
-        assert result.valid is False
-        assert len(result.errors) == 1
-        assert result.errors[0].node_id == "orphan"
-
-    def test_schema_validation_errors_collected(self, validator: WorkflowValidator) -> None:
-        definition: dict[str, Any] = {
-            "schema_version": "2.0.0",
-            "name": "test",
-            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
-            "nodes": [{"id": "n1", "type": "totally_fake_type", "parameters": {}}],
-            "edges": [{"from": "t1", "to": "n1"}],
-        }
-        result = validator.collect_validation_issues(definition)
-        assert result.valid is False
-        assert len(result.errors) == 1
-
-    def test_schema_errors_grouped_by_node(self, validator: WorkflowValidator) -> None:
-        """Multiple JSON Schema errors on the same node are grouped into one ValidationIssue."""
-        definition: dict[str, Any] = {
-            "schema_version": "2.0.0",
-            "name": "test",
-            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
-            "nodes": [{"id": "123_bad_id", "type": "script", "name": "Bad ID", "config": {}}],
-            "edges": [{"from": "t1", "to": "123_bad_id"}],
-        }
-        result = validator.collect_validation_issues(definition)
-        assert result.valid is False
-        node_errors = [e for e in result.errors if "nodes.0:" in e.message]
-        assert len(node_errors) == 1
-        msg = node_errors[0].message
-        assert "errors:[" in msg
-        assert "Unevaluated properties are not allowed" in msg
-        assert "'parameters' is a required property" in msg
-        assert "does not match" in msg
-
-    def test_edge_errors_not_grouped_with_node(self, validator: WorkflowValidator) -> None:
-        """Edge-level errors remain separate from node-level grouped errors."""
-        definition: dict[str, Any] = {
-            "schema_version": "2.0.0",
-            "name": "test",
-            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
-            "nodes": [{"id": "123_bad_id", "type": "script", "name": "Bad ID", "config": {}}],
-            "edges": [{"from": "t1", "to": "123_bad_id"}],
-        }
-        result = validator.collect_validation_issues(definition)
-        edge_errors = [e for e in result.errors if "edges." in e.message]
-        assert len(edge_errors) == 1
-        assert "does not match" in edge_errors[0].message
-
-
 class TestTemplateExpressionValidation:
     """Template expression validation is wired into both validator paths."""
 
-    def test_collect_issues_includes_unresolved_reference_error(self, validator: WorkflowValidator) -> None:
+    def test_collect_findings_includes_unresolved_reference_error(self, validator: WorkflowValidator) -> None:
         definition: dict[str, Any] = {
             "schema_version": "2.0.0",
             "name": "test",
@@ -481,11 +361,11 @@ class TestTemplateExpressionValidation:
             ],
             "edges": [{"from": "t1", "to": "n1"}],
         }
-        result = validator.collect_validation_issues(definition)
-        assert result.valid is False
-        assert any("ghost" in e.message for e in result.errors)
-        ghost_errors = [e for e in result.errors if "ghost" in e.message]
-        assert ghost_errors[0].node_id == "n1"
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        assert any("ghost" in f.message for f in result.findings)
+        ghost_findings = [f for f in result.findings if "ghost" in f.message]
+        assert ghost_findings[0].node_id == "n1"
 
     def test_validate_raises_on_loop_variable_outside_loop(self, validator: WorkflowValidator) -> None:
         definition: dict[str, Any] = {
@@ -508,7 +388,7 @@ class TestTemplateExpressionValidation:
         with pytest.raises(SafeValueError, match="loop"):
             validator.validate_workflow_definition(definition)
 
-    def test_collect_issues_includes_loop_scope_error(self, validator: WorkflowValidator) -> None:
+    def test_collect_findings_includes_loop_scope_error(self, validator: WorkflowValidator) -> None:
         definition: dict[str, Any] = {
             "schema_version": "2.0.0",
             "name": "test",
@@ -526,9 +406,9 @@ class TestTemplateExpressionValidation:
             ],
             "edges": [{"from": "t1", "to": "n1"}],
         }
-        result = validator.collect_validation_issues(definition)
-        assert result.valid is False
-        assert any("loop" in e.message for e in result.errors)
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        assert any("loop" in f.message for f in result.findings)
 
 
 class TestCollectFindings:
@@ -637,6 +517,30 @@ class TestCollectFindings:
         assert result.is_valid is False
         cycle_findings = [f for f in result.findings if f.category == ValidationCategory.cycle_detected]
         assert len(cycle_findings) == 1
+
+    def test_schema_errors_do_not_hide_structural_issues(self, validator: WorkflowValidator) -> None:
+        """Schema errors and structural issues (orphan, cycle) accumulate in one pass."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "mixed-errors",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "1"}},
+                {"id": "n2", "type": "script", "config": {}},
+                {"id": "orphan", "type": "script", "parameters": {"language": "python", "code": "3"}},
+            ],
+            "edges": [
+                {"from": "t1", "to": "n1"},
+                {"from": "n1", "to": "n2"},
+                {"from": "n2", "to": "n1"},
+            ],
+        }
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        categories = {f.category for f in result.findings}
+        assert ValidationCategory.schema_violation in categories
+        assert ValidationCategory.orphaned_node in categories
+        assert ValidationCategory.cycle_detected in categories
 
     def test_empty_nodes_allowed_for_save(self, validator: WorkflowValidator) -> None:
         """Empty nodes are allowed by the validator (canvas-first save). Publish blocks separately."""

@@ -1,6 +1,7 @@
 """Unit tests for workflow-related error handlers."""
 
 import json
+from datetime import UTC, datetime
 from unittest.mock import Mock
 from uuid import uuid4
 
@@ -9,21 +10,26 @@ from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.workflows.error_handlers import (
+    build_validation_problem_response,
     definition_invalid_handler,
+    definition_warnings_handler,
     execution_not_found_handler,
     publish_validation_handler,
     workflow_name_conflict_handler,
     workflow_not_found_handler,
     workflow_not_published_handler,
+    workflow_version_conflict_handler,
     workflow_version_not_found_handler,
 )
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     WorkflowDefinitionInvalidError,
+    WorkflowDefinitionWarningsError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
     WorkflowPublishValidationError,
+    WorkflowVersionConflictError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models.validation_finding import (
@@ -31,10 +37,6 @@ from nexus.workflows.models.validation_finding import (
     ValidationFinding,
     ValidationResult,
     ValidationSeverity,
-)
-from nexus.workflows.models.workflow_validation_result import (
-    ValidationIssue,
-    WorkflowValidationResult,
 )
 
 
@@ -234,36 +236,12 @@ class TestWorkflowNotPublishedHandler:
 
 
 class TestDefinitionInvalidHandler:
-    """Test suite for definition_invalid_handler branching."""
+    """Test suite for definition_invalid_handler."""
 
-    def test_legacy_response_when_no_validation_result(self) -> None:
+    def test_returns_422_with_validation_result(self) -> None:
         request = Mock(spec=Request)
         request.url = "https://api.example.com/workflows/validate"
 
-        legacy_result = WorkflowValidationResult(
-            valid=False,
-            errors=[ValidationIssue(message="bad node")],
-        )
-        exc = WorkflowDefinitionInvalidError(legacy_result)
-        response = definition_invalid_handler(request, exc)
-
-        assert isinstance(response, JSONResponse)
-        assert response.status_code == 422
-
-        data = json.loads(bytes(response.body).decode())
-        vr = data["validation_result"]
-        assert vr["valid"] is False
-        assert len(vr["errors"]) == 1
-        assert "findings" not in vr
-
-    def test_detailed_response_when_validation_result_present(self) -> None:
-        request = Mock(spec=Request)
-        request.url = "https://api.example.com/workflows/validate/detailed"
-
-        legacy_result = WorkflowValidationResult(
-            valid=False,
-            errors=[ValidationIssue(message="bad node")],
-        )
         findings = [
             ValidationFinding(
                 severity=ValidationSeverity.error,
@@ -272,12 +250,13 @@ class TestDefinitionInvalidHandler:
                 node_id="n1",
             ),
         ]
-        detailed_result = ValidationResult.from_findings(findings)
-        exc = WorkflowDefinitionInvalidError(legacy_result, validation_result=detailed_result)
+        result = ValidationResult.from_findings(findings)
+        exc = WorkflowDefinitionInvalidError(result)
         response = definition_invalid_handler(request, exc)
 
         assert isinstance(response, JSONResponse)
         assert response.status_code == 422
+        assert response.media_type == "application/problem+json"
 
         data = json.loads(bytes(response.body).decode())
         vr = data["validation_result"]
@@ -340,3 +319,120 @@ class TestPublishValidationHandler:
 
         data = json.loads(bytes(response.body).decode())
         assert data["retryable"] is False
+
+
+class TestBuildValidationProblemResponse:
+    """Test suite for build_validation_problem_response."""
+
+    def test_returns_422_with_validation_result_payload(self) -> None:
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/workflows/validate"
+
+        result = ValidationResult.from_findings(
+            [
+                ValidationFinding(
+                    severity=ValidationSeverity.error,
+                    category=ValidationCategory.invalid_reference,
+                    message="Edge references unknown node 'ghost'",
+                    node_id="n1",
+                ),
+            ]
+        )
+        response = build_validation_problem_response(request, result)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 422
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["title"] == "Workflow Definition Invalid"
+        assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
+        assert data["retryable"] is False
+        assert data["validation_result"]["is_valid"] is False
+        assert data["validation_result"]["error_count"] == 1
+        assert data["validation_result"]["findings"][0]["category"] == "invalid_reference"
+
+
+class TestWorkflowDefinitionInvalidErrorConstructor:
+    """Test the simplified single-arg constructor for WorkflowDefinitionInvalidError."""
+
+    def test_stores_validation_result(self) -> None:
+        result = ValidationResult.from_findings(
+            [
+                ValidationFinding(
+                    severity=ValidationSeverity.error,
+                    category=ValidationCategory.schema_violation,
+                    message="missing field",
+                ),
+            ]
+        )
+        exc = WorkflowDefinitionInvalidError(result)
+
+        assert exc.validation_result is result
+        assert str(exc) == "Workflow definition validation failed"
+
+
+class TestDefinitionWarningsHandler:
+    """Test suite for definition_warnings_handler."""
+
+    def test_returns_409_with_validation_result(self) -> None:
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/workflows"
+
+        findings = [
+            ValidationFinding(
+                severity=ValidationSeverity.warning,
+                category=ValidationCategory.schema_violation,
+                message="Missing recommended field",
+                node_id="n1",
+            ),
+        ]
+        result = ValidationResult.from_findings(findings)
+        exc = WorkflowDefinitionWarningsError(result)
+        response = definition_warnings_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 409
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["definition_warnings"]
+        assert data["title"] == "Workflow Definition Has Warnings"
+        assert data["code"] == "WORKFLOW_DEFINITION_WARNINGS"
+        assert data["retryable"] is True
+        assert "validation_result" in data
+        assert data["validation_result"]["warning_count"] == 1
+
+
+class TestWorkflowVersionConflictHandler:
+    """Test suite for workflow_version_conflict_handler."""
+
+    def test_returns_409_with_conflict_metadata(self) -> None:
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/workflows/123"
+
+        created_at = datetime(2026, 7, 20, 12, 0, 0, tzinfo=UTC)
+        exc = WorkflowVersionConflictError(
+            workflow_id=uuid4(),
+            current_version=3,
+            expected_version=2,
+            created_by_username="other_user",
+            created_at=created_at,
+            current_version_name="v3-draft",
+        )
+        response = workflow_version_conflict_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 409
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["resource_conflict"]
+        assert data["title"] == "Version Conflict"
+        assert data["code"] == "WORKFLOW_VERSION_CONFLICT"
+        assert data["retryable"] is False
+        assert data["current_version"] == 3
+        assert data["expected_version"] == 2
+        assert data["created_by_username"] == "other_user"
+        assert data["current_version_name"] == "v3-draft"
+        assert data["created_at"] == created_at.isoformat()

@@ -1,4 +1,4 @@
-import type { Activity, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useCallback, useState } from 'react'
 
 import { workflowFetchClient } from '../../client'
@@ -11,44 +11,7 @@ import { validateWorkflow } from './utils/validation'
 import { validateMinimumWorkflow } from './utils/validation/rules/validateMinimumWorkflow'
 import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 
-type ValidationResultError = { message: string; node_id?: string | null }
-
-// Backend error messages may embed Python-dict-like metadata: {'id': 'node-1', 'name': 'MyNode'} The actual error.
-// These regexes extract structured data from that format. They become dead code once the backend always sends
-// node_id and clean messages in WorkflowValidationError.
-const NODE_ID_IN_MESSAGE = /'id':\s*'([a-zA-Z0-9_.-]+)'/
-const NODE_NAME_IN_MESSAGE = /'name':\s*'([^']+)'/
-const ERROR_SUFFIX_PATTERN = /}\s+(\S.*)$/
-const ARROW_PATH_PATTERN = /^(?:workflow_definition -> )?(?:nodes|triggers) -> (\d+) -> (.+)/
-
-export function resolveNodeId(error: ValidationResultError): string | null {
-  if (error.node_id) return error.node_id
-  const match = NODE_ID_IN_MESSAGE.exec(error.message)
-  return match?.[1] ?? null
-}
-
-export function parseValidationMessage(raw: string): { message: string; nodeName?: string } {
-  const nameMatch = NODE_NAME_IN_MESSAGE.exec(raw)
-  const suffixMatch = ERROR_SUFFIX_PATTERN.exec(raw)
-  if (nameMatch && suffixMatch) {
-    return { message: `${nameMatch[1]}: ${suffixMatch[1]}`, nodeName: nameMatch[1] }
-  }
-  return { message: raw }
-}
-
-function resolveArrowPathError(error: ValidationResultError, activities: Activity[]): ValidationError | null {
-  const match = ARROW_PATH_PATTERN.exec(error.message)
-  if (!match) return null
-  const index = Number.parseInt(match[1], 10)
-  const rest = match[2]
-  const activity = activities[index]
-  if (!activity) return null
-  return {
-    message: rest,
-    nodeId: activity.id,
-    nodeName: activity.name ?? activity.id,
-  }
-}
+type ValidationFinding = { message: string; node_id?: string | null; severity?: string }
 
 function lookupNodeName(nodeId: string | null): string | undefined {
   if (!nodeId) return undefined
@@ -58,56 +21,45 @@ function lookupNodeName(nodeId: string | null): string | undefined {
   return match?.name ?? undefined
 }
 
-function mapValidationIssues(
-  issues: ValidationResultError[] | undefined,
-  severity: ValidationSeverity
-): ValidationError[] {
-  if (!issues?.length) return []
-  return issues.map((e) => {
-    const parsed = parseValidationMessage(e.message)
-    const nodeId = resolveNodeId(e)
-    return { ...parsed, nodeId, nodeName: parsed.nodeName ?? lookupNodeName(nodeId), severity }
+function mapFindings(findings: ValidationFinding[] | undefined): ValidationError[] {
+  if (!findings?.length) return []
+  return findings.map((f) => {
+    const severity: ValidationSeverity = f.severity === 'warning' ? 'warning' : 'error'
+    const nodeId = f.node_id ?? null
+    return { message: f.message, nodeId, nodeName: lookupNodeName(nodeId), severity }
   })
 }
 
-export function extractValidationErrors(
-  err: Record<string, unknown> | undefined,
-  activities?: Activity[]
-): ValidationError[] | null {
+function applyValidationState(dispatch: (action: BuilderAction) => void, errors: ValidationError[]): void {
+  if (errors.length > 0) {
+    dispatch({ type: 'SET_VALIDATION_ERRORS', payload: errors })
+    useWorkflowStore.getState().setValidationErrorCount(errors.length)
+  } else {
+    dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
+    useWorkflowStore.getState().setValidationErrorCount(0)
+  }
+}
+
+export function extractValidationErrors(err: Record<string, unknown> | undefined): ValidationError[] | null {
   if (!err) return null
 
   const validationResult = err.validation_result as
     | {
-        errors?: ValidationResultError[]
-        warnings?: ValidationResultError[]
-        findings?: Array<ValidationResultError & { severity?: string }>
+        findings?: ValidationFinding[]
       }
     | undefined
 
   if (!validationResult) return null
 
   if (validationResult.findings && Array.isArray(validationResult.findings)) {
-    return validationResult.findings.map((f) => {
-      if (activities) {
-        const arrowResult = resolveArrowPathError(f, activities)
-        if (arrowResult)
-          return { ...arrowResult, severity: (f.severity === 'warning' ? 'warning' : 'error') as ValidationSeverity }
-      }
-      const parsed = parseValidationMessage(f.message)
-      const severity: ValidationSeverity = f.severity === 'warning' ? 'warning' : 'error'
-      const nodeId = resolveNodeId(f)
-      return { ...parsed, nodeId, nodeName: parsed.nodeName ?? lookupNodeName(nodeId), severity }
-    })
+    return mapFindings(validationResult.findings)
   }
 
-  const errors = mapValidationIssues(validationResult.errors, 'error')
-  const warnings = mapValidationIssues(validationResult.warnings, 'warning')
-  const combined = errors.concat(warnings)
-  return combined.length > 0 ? combined : null
+  return null
 }
 
 type ValidateResponse = {
-  data?: { valid?: boolean; errors?: ValidationResultError[]; warnings?: ValidationResultError[] }
+  data?: { is_valid?: boolean; findings?: ValidationFinding[] }
   error?: unknown
   response: { ok: boolean }
 }
@@ -116,40 +68,42 @@ function processValidateResponse(
   { data, error, response }: ValidateResponse,
   dispatch: (action: BuilderAction) => void,
   callbacks: {
+    frontendErrors: ValidationError[]
     onValid?: () => void
     silent: boolean
     showSuccess: (opts: { title: string }) => void
     showError: (opts: { title: string; description: string }) => void
   }
 ): void {
+  let backendErrors: ValidationError[] = []
+
   if (response.ok && data) {
-    const issues = mapValidationIssues(data.errors, 'error').concat(mapValidationIssues(data.warnings, 'warning'))
-    if (issues.length > 0) {
-      dispatch({ type: 'SET_VALIDATION_ERRORS', payload: issues })
-      useWorkflowStore.getState().setValidationErrorCount(issues.length)
+    backendErrors = mapFindings(data.findings)
+  } else {
+    const err = error as Record<string, unknown> | undefined
+    const extracted = extractValidationErrors(err)
+    if (extracted) {
+      backendErrors = extracted
+    } else {
+      applyValidationState(dispatch, callbacks.frontendErrors)
+      if (!callbacks.silent) {
+        callbacks.showError({ title: 'Verification failed', description: getErrorMessage(err) })
+      }
       return
     }
-    dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
-    useWorkflowStore.getState().setValidationErrorCount(0)
-    if (callbacks.onValid) {
-      callbacks.onValid()
-    } else if (!callbacks.silent) {
-      callbacks.showSuccess({ title: 'Workflow definition is valid' })
-    }
+  }
+
+  const allIssues = [...callbacks.frontendErrors, ...backendErrors]
+  applyValidationState(dispatch, allIssues)
+
+  if (allIssues.length > 0) {
     return
   }
 
-  const err = error as Record<string, unknown> | undefined
-  const extracted = extractValidationErrors(err)
-  if (extracted) {
-    dispatch({ type: 'SET_VALIDATION_ERRORS', payload: extracted })
-    useWorkflowStore.getState().setValidationErrorCount(extracted.length)
-  } else {
-    dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
-    useWorkflowStore.getState().setValidationErrorCount(0)
-    if (!callbacks.silent) {
-      callbacks.showError({ title: 'Verification failed', description: getErrorMessage(err) })
-    }
+  if (callbacks.onValid) {
+    callbacks.onValid()
+  } else if (!callbacks.silent) {
+    callbacks.showSuccess({ title: 'Workflow definition is valid' })
   }
 }
 
@@ -197,20 +151,13 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
 
       const frontendResult = validateWorkflow(activities, edges, { triggers })
       const minimumErrors = validateMinimumWorkflow(activities, edges, triggers)
-      const allErrors = [...frontendResult.errors, ...minimumErrors]
-      if (allErrors.length > 0) {
-        const nameMap = new Map(activities.map((a) => [a.id, a.name ?? a.id]))
-        dispatch({
-          type: 'SET_VALIDATION_ERRORS',
-          payload: allErrors.map((e) => ({
-            message: e.message,
-            nodeId: e.nodeId ?? null,
-            nodeName: e.nodeId ? nameMap.get(e.nodeId) : undefined,
-          })),
-        })
-        useWorkflowStore.getState().setValidationErrorCount(allErrors.length)
-        return
-      }
+      const nameMap = new Map(activities.map((a) => [a.id, a.name ?? a.id]))
+      const allFrontendErrors: ValidationError[] = [...frontendResult.errors, ...minimumErrors].map((e) => ({
+        message: e.message,
+        nodeId: e.nodeId ?? null,
+        nodeName: e.nodeId ? nameMap.get(e.nodeId) : undefined,
+        severity: (e.severity ?? 'error') as ValidationSeverity,
+      }))
 
       setIsVerifying(true)
       workflowFetchClient
@@ -221,6 +168,7 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
         })
         .then((resp) => {
           processValidateResponse(resp as ValidateResponse, dispatch, {
+            frontendErrors: allFrontendErrors,
             onValid,
             silent,
             showSuccess,
@@ -228,8 +176,7 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
           })
         })
         .catch((err: unknown) => {
-          dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
-          useWorkflowStore.getState().setValidationErrorCount(0)
+          applyValidationState(dispatch, allFrontendErrors)
           if (!silent) {
             showError({ title: 'Verification failed', description: getErrorMessage(err) })
           }

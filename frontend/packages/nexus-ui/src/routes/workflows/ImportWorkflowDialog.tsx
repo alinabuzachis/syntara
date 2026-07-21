@@ -166,8 +166,8 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
         if (isRetryableValidationError(error)) {
           showAlert({
             variant: 'warning',
-            title: 'Workflow has validation warnings',
-            description: getErrorMessage(error),
+            title: 'Workflow imported with warnings',
+            description: `"${data.name}" has been saved with validation warnings.`,
             actionLinks: (
               <AlertActionLink
                 onClick={() => detachPromise(handleForceSave(data.name, fullDefinition, selectedProjectId))}

@@ -310,7 +310,7 @@ describe('ImportWorkflowDialog', () => {
         expect(mockShowAlert).toHaveBeenCalledWith(
           expect.objectContaining({
             variant: 'warning',
-            title: 'Workflow has validation warnings',
+            title: 'Workflow imported with warnings',
           })
         )
       })

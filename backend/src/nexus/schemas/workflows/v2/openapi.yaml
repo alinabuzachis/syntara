@@ -169,52 +169,6 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkflowValidationResult'
-        '400':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
-        '401':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
-        '404':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
-        '409':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
-        '422':
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/WorkflowValidationProblemDetail'
-        "429":
-          $ref: "../../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
-        '500':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
-
-  /workflows/validate/detailed:
-    post:
-      summary: Validate Workflow Definition Detailed
-      description: Validate a workflow definition and return detailed per-finding results.
-      operationId: validate_workflow_definition_detailed
-      tags:
-        - workflows
-      security:
-        - bearerAuth: []
-      x-app-permission:
-        resource: workflow
-        action: create
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WorkflowValidateRequest'
-      responses:
-        '200':
-          description: Detailed validation result
-          content:
-            application/json:
-              schema:
                 $ref: '#/components/schemas/ValidationResult'
         '400':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
@@ -1282,28 +1236,6 @@ components:
           title: Message
           description: Human-readable status message
 
-    ValidationIssue:
-      type: object
-      title: ValidationIssue
-      description: |-
-        A single validation issue found in a workflow definition.
-
-        Attributes:
-            message: Human-readable description of the issue
-            node_id: ID of the node/trigger related to this issue, if applicable
-      required:
-        - message
-      additionalProperties: false
-      properties:
-        message:
-          type: string
-          title: Message
-        node_id:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Node Id
-
     WorkflowValidateRequest:
       type: object
       title: WorkflowValidateRequest
@@ -1322,34 +1254,6 @@ components:
           type: object
           title: Workflow Definition
           description: Workflow definition to validate
-
-    WorkflowValidationResult:
-      type: object
-      title: WorkflowValidationResult
-      description: |-
-        Result of validating a workflow definition.
-
-        Attributes:
-            valid: True when no errors were found (warnings don't block)
-            errors: Issues that prevent the workflow from being enabled
-            warnings: Informational issues that don't block enabling
-      required:
-        - valid
-      additionalProperties: false
-      properties:
-        valid:
-          type: boolean
-          title: Valid
-        errors:
-          type: array
-          items:
-            $ref: '#/components/schemas/ValidationIssue'
-          title: Errors
-        warnings:
-          type: array
-          items:
-            $ref: '#/components/schemas/ValidationIssue'
-          title: Warnings
 
     ValidationSeverity:
       type: string
@@ -1485,52 +1389,6 @@ components:
           title: Instance
         validation_result:
           $ref: '#/components/schemas/ValidationResult'
-
-    WorkflowValidationProblemDetail:
-      type: object
-      title: WorkflowValidationProblemDetail
-      description: |-
-        RFC 9457 Problem Details with a validation_result extension.
-
-        Attributes:
-            type: URI reference identifying the problem type
-            title: Short, human-readable summary of the problem
-            detail: Human-readable explanation specific to this occurrence
-            code: Machine-readable error code
-            retryable: Whether this error can be retried
-            instance: Optional URI reference identifying the specific occurrence
-            validation_result: Structured validation errors and warnings
-      required:
-        - type
-        - title
-        - detail
-        - code
-        - retryable
-        - validation_result
-      additionalProperties: false
-      properties:
-        type:
-          type: string
-          title: Type
-        title:
-          type: string
-          title: Title
-        detail:
-          type: string
-          title: Detail
-        code:
-          type: string
-          title: Code
-        retryable:
-          type: boolean
-          title: Retryable
-        instance:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Instance
-        validation_result:
-          $ref: '#/components/schemas/WorkflowValidationResult'
 
   securitySchemes:
     bearerAuth:

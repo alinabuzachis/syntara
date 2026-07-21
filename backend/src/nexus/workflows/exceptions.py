@@ -10,7 +10,6 @@ from uuid import UUID
 from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
 from nexus.workflows.models.validation_finding import ValidationResult
-from nexus.workflows.models.workflow_validation_result import WorkflowValidationResult
 
 
 class WorkflowError(NexusError):
@@ -26,13 +25,8 @@ class WorkflowValidationError(WorkflowError):
 class WorkflowDefinitionInvalidError(WorkflowError):
     """Raised when a workflow definition fails validation via the validate endpoint."""
 
-    def __init__(
-        self,
-        result: WorkflowValidationResult,
-        validation_result: ValidationResult | None = None,
-    ) -> None:
+    def __init__(self, validation_result: ValidationResult) -> None:
         """Initialize with the validation result."""
-        self.result = result
         self.validation_result = validation_result
         super().__init__("Workflow definition validation failed")
 

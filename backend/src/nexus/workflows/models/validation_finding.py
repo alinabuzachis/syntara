@@ -1,9 +1,7 @@
 """Structured validation finding models for workflow definitions.
 
 Provides richer per-finding metadata (severity, category, field_path) and a
-flat findings list with computed counts.  Both the legacy
-``WorkflowValidationResult`` and this ``ValidationResult`` are derived from the
-same validation run via conversion helpers.
+flat findings list with computed counts.
 """
 
 from enum import StrEnum
@@ -11,11 +9,6 @@ from typing import ClassVar
 
 from pydantic import ConfigDict, Field
 from sqlmodel import SQLModel
-
-from nexus.workflows.models.workflow_validation_result import (
-    ValidationIssue,
-    WorkflowValidationResult,
-)
 
 
 class ValidationSeverity(StrEnum):
@@ -88,18 +81,6 @@ class ValidationResult(SQLModel):
             warning_count=len(warnings),
             findings=sorted_findings,
         )
-
-    def to_legacy(self) -> WorkflowValidationResult:
-        """Convert to the legacy ``WorkflowValidationResult`` format."""
-        errors: list[ValidationIssue] = []
-        warnings: list[ValidationIssue] = []
-        for f in self.findings:
-            issue = ValidationIssue(message=f.message, node_id=f.node_id)
-            if f.severity == ValidationSeverity.error:
-                errors.append(issue)
-            else:
-                warnings.append(issue)
-        return WorkflowValidationResult(valid=self.is_valid, errors=errors, warnings=warnings)
 
 
 class DetailedValidationProblemDetail(SQLModel):

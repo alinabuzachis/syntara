@@ -31,3 +31,14 @@ class TestValidationErrorHandler:
         assert data["detail"] == "Core validation error"
         assert data["code"] == "VALIDATION_ERROR"
         assert data["retryable"] is False
+
+    def test_empty_message_uses_default_detail(self) -> None:
+        """Test that an empty message falls back to the default detail string."""
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/validate"
+
+        exc = WorkflowValidationError("")
+        response = validation_error_handler(request, exc)
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["detail"] == "The provided data failed validation requirements"

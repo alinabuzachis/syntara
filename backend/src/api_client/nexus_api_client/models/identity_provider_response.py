@@ -33,10 +33,6 @@ class IdentityProviderResponse:
             {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
         updated_by (None | Unset | UUID): User (or automation) that last updated the resource Example:
             880e8400-e29b-41d4-a716-446655440000.
-        deleted_at (datetime.datetime | None | Unset): Timestamp when resource was soft deleted Example:
-            2025-10-09T14:00:00Z.
-        deleted_by (None | Unset | UUID): User who performed the soft delete Example:
-            660e8400-e29b-41d4-a716-446655440000.
         description (None | str | Unset): Detailed description of the resource Example: Handles user authentication and
             authorization workflows.
         enabled (bool | Unset): Enable/disable the identity provider Default: True.
@@ -50,8 +46,6 @@ class IdentityProviderResponse:
     updated_at: datetime.datetime | Unset = UNSET
     labels: IdentityProviderResponseLabels | Unset = UNSET
     updated_by: None | Unset | UUID = UNSET
-    deleted_at: datetime.datetime | None | Unset = UNSET
-    deleted_by: None | Unset | UUID = UNSET
     description: None | str | Unset = UNSET
     enabled: bool | Unset = True
 
@@ -86,22 +80,6 @@ class IdentityProviderResponse:
         else:
             updated_by = self.updated_by
 
-        deleted_at: None | str | Unset
-        if isinstance(self.deleted_at, Unset):
-            deleted_at = UNSET
-        elif isinstance(self.deleted_at, datetime.datetime):
-            deleted_at = self.deleted_at.isoformat()
-        else:
-            deleted_at = self.deleted_at
-
-        deleted_by: None | str | Unset
-        if isinstance(self.deleted_by, Unset):
-            deleted_by = UNSET
-        elif isinstance(self.deleted_by, UUID):
-            deleted_by = str(self.deleted_by)
-        else:
-            deleted_by = self.deleted_by
-
         description: None | str | Unset
         if isinstance(self.description, Unset):
             description = UNSET
@@ -129,10 +107,6 @@ class IdentityProviderResponse:
             field_dict["labels"] = labels
         if updated_by is not UNSET:
             field_dict["updated_by"] = updated_by
-        if deleted_at is not UNSET:
-            field_dict["deleted_at"] = deleted_at
-        if deleted_by is not UNSET:
-            field_dict["deleted_by"] = deleted_by
         if description is not UNSET:
             field_dict["description"] = description
         if enabled is not UNSET:
@@ -197,40 +171,6 @@ class IdentityProviderResponse:
 
         updated_by = _parse_updated_by(d.pop("updated_by", UNSET))
 
-        def _parse_deleted_at(data: object) -> datetime.datetime | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                deleted_at_type_0 = isoparse(data)
-
-                return deleted_at_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(datetime.datetime | None | Unset, data)
-
-        deleted_at = _parse_deleted_at(d.pop("deleted_at", UNSET))
-
-        def _parse_deleted_by(data: object) -> None | Unset | UUID:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                deleted_by_type_0 = UUID(data)
-
-                return deleted_by_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(None | Unset | UUID, data)
-
-        deleted_by = _parse_deleted_by(d.pop("deleted_by", UNSET))
-
         def _parse_description(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -251,8 +191,6 @@ class IdentityProviderResponse:
             updated_at=updated_at,
             labels=labels,
             updated_by=updated_by,
-            deleted_at=deleted_at,
-            deleted_by=deleted_by,
             description=description,
             enabled=enabled,
         )

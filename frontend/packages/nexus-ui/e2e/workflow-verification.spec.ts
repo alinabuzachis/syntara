@@ -42,6 +42,8 @@ async function clickVerifyWorkflow(app: Page): Promise<void> {
   await app.getByRole('menuitem', { name: /verify workflow/i }).click()
 }
 
+type MockFinding = { message: string; node_id?: string | null; severity?: string; category?: string }
+
 type MockValidateOptions = {
   valid?: boolean
   errors?: Array<{ message: string; node_id?: string | null }>
@@ -50,6 +52,11 @@ type MockValidateOptions = {
 
 async function mockValidateEndpoint(app: Page, options: MockValidateOptions = {}): Promise<void> {
   const { valid = true, errors = [], warnings = [] } = options
+  const findings: MockFinding[] = [
+    ...errors.map((e) => ({ ...e, severity: 'error', category: 'schema_violation' })),
+    ...warnings.map((w) => ({ ...w, severity: 'warning', category: 'schema_violation' })),
+  ]
+  const is_valid = valid && errors.length === 0
   // Wait for any in-flight requests to settle before setting up the route mock.
   // Without this, a pending validation request from save/load can race with the
   // mock, causing the real response to overwrite the mocked error state.
@@ -58,7 +65,12 @@ async function mockValidateEndpoint(app: Page, options: MockValidateOptions = {}
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ valid, errors, warnings }),
+      body: JSON.stringify({
+        is_valid,
+        error_count: errors.length,
+        warning_count: warnings.length,
+        findings,
+      }),
     })
   )
 }

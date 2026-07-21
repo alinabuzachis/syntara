@@ -46,9 +46,7 @@ def test_converge_with_single_branch_rejected(nexus_api: NexusApiRegistry) -> No
         }
     )
 
-    response = nexus_api.workflows.validate_definition_detailed(
-        body=WorkflowValidateRequest(workflow_definition=definition)
-    )
+    response = nexus_api.workflows.validate_definition(body=WorkflowValidateRequest(workflow_definition=definition))
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, (
         f"Expected 422 for converge with single branch, got {response.status_code}"

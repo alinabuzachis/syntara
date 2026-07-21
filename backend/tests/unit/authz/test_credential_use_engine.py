@@ -154,3 +154,27 @@ class TestResolveCredentialUseVisibilityFastPath:  # noqa: D101
 
         mock_rego.assert_called_once()
         assert result.unrestricted is True
+
+    @pytest.mark.asyncio
+    async def test_project_scoped_grant_resolves_project_ids(self) -> None:
+        """Project-scoped credential:use grant resolves project names to IDs."""
+        db = _mock_db(["auditor"])
+        evaluator = MagicMock()
+        project_id = uuid4()
+
+        project_policy = {
+            "effect": "allow",
+            "actions": ["credential:use"],
+            "scope": "project",
+            "project": "proj-a",
+        }
+
+        with (
+            patch("nexus.authz.engine.resolve_effective_policies", return_value=[project_policy]),
+            patch("nexus.authz.engine._resolve_project_ids", return_value=[project_id]) as mock_resolve,
+        ):
+            result = await resolve_credential_use_visibility(db, evaluator, uuid4())
+
+        mock_resolve.assert_called_once_with(db, ["proj-a"])
+        assert result.unrestricted is False
+        assert result.allowed_project_ids == [project_id]

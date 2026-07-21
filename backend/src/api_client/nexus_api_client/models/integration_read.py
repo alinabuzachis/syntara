@@ -56,6 +56,7 @@ class IntegrationRead:
         refresh_status (IntegrationRefreshStatus | None | Unset):
         last_refreshed_at (datetime.datetime | None | Unset):
         refresh_error (None | str | Unset):
+        project_ids (list[UUID] | Unset): IDs of projects this integration is assigned to (empty for global scope)
         total_tool_count (int | Unset): Total number of tools linked to this integration Default: 0.
         enabled_tool_count (int | Unset): Number of enabled tools linked to this integration Default: 0.
         total_model_count (int | Unset): Total number of models linked to this integration Default: 0.
@@ -83,6 +84,7 @@ class IntegrationRead:
     refresh_status: IntegrationRefreshStatus | None | Unset = UNSET
     last_refreshed_at: datetime.datetime | None | Unset = UNSET
     refresh_error: None | str | Unset = UNSET
+    project_ids: list[UUID] | Unset = UNSET
     total_tool_count: int | Unset = 0
     enabled_tool_count: int | Unset = 0
     total_model_count: int | Unset = 0
@@ -210,6 +212,13 @@ class IntegrationRead:
         else:
             refresh_error = self.refresh_error
 
+        project_ids: list[str] | Unset = UNSET
+        if not isinstance(self.project_ids, Unset):
+            project_ids = []
+            for project_ids_item_data in self.project_ids:
+                project_ids_item = str(project_ids_item_data)
+                project_ids.append(project_ids_item)
+
         total_tool_count = self.total_tool_count
 
         enabled_tool_count = self.enabled_tool_count
@@ -262,6 +271,8 @@ class IntegrationRead:
             field_dict["last_refreshed_at"] = last_refreshed_at
         if refresh_error is not UNSET:
             field_dict["refresh_error"] = refresh_error
+        if project_ids is not UNSET:
+            field_dict["project_ids"] = project_ids
         if total_tool_count is not UNSET:
             field_dict["total_tool_count"] = total_tool_count
         if enabled_tool_count is not UNSET:
@@ -518,6 +529,15 @@ class IntegrationRead:
 
         refresh_error = _parse_refresh_error(d.pop("refresh_error", UNSET))
 
+        _project_ids = d.pop("project_ids", UNSET)
+        project_ids: list[UUID] | Unset = UNSET
+        if _project_ids is not UNSET:
+            project_ids = []
+            for project_ids_item_data in _project_ids:
+                project_ids_item = UUID(project_ids_item_data)
+
+                project_ids.append(project_ids_item)
+
         total_tool_count = d.pop("total_tool_count", UNSET)
 
         enabled_tool_count = d.pop("enabled_tool_count", UNSET)
@@ -548,6 +568,7 @@ class IntegrationRead:
             refresh_status=refresh_status,
             last_refreshed_at=last_refreshed_at,
             refresh_error=refresh_error,
+            project_ids=project_ids,
             total_tool_count=total_tool_count,
             enabled_tool_count=enabled_tool_count,
             total_model_count=total_model_count,

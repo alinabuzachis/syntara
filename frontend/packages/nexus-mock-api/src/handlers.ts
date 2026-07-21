@@ -910,14 +910,22 @@ export const handlers = [
     }
 
     if (errors.length > 0) {
+      const findings = errors.map((e) => ({
+        severity: 'error' as const,
+        category: 'schema_violation' as const,
+        message: e.message,
+        node_id: e.node_id,
+        field_path: null,
+      }))
       return HttpResponse.json({
-        valid: false,
-        errors,
-        warnings: [],
+        is_valid: false,
+        error_count: findings.length,
+        warning_count: 0,
+        findings,
       })
     }
 
-    return HttpResponse.json({ valid: true, errors: [], warnings: [] })
+    return HttpResponse.json({ is_valid: true, error_count: 0, warning_count: 0, findings: [] })
   }),
 
   http.get('/api/v1/workflows/:workflowId', (request) => {
@@ -1064,20 +1072,49 @@ export const handlers = [
     const body = await request.request.json()
     const nodes: unknown[] = body?.workflow_definition?.nodes ?? []
     if (nodes.length === 0) {
+      const findings = [
+        {
+          severity: 'error',
+          category: 'missing_field',
+          message: 'Workflow must have at least one trigger step',
+          node_id: null,
+          field_path: null,
+        },
+        {
+          severity: 'error',
+          category: 'missing_field',
+          message: 'No steps have been added to the workflow',
+          node_id: null,
+          field_path: null,
+        },
+        {
+          severity: 'error',
+          category: 'missing_field',
+          message: 'Workflow cannot be saved without any steps',
+          node_id: null,
+          field_path: null,
+        },
+      ]
       return HttpResponse.json({
-        valid: false,
-        errors: [
-          { message: 'Workflow must have at least one trigger step', node_id: null },
-          { message: 'No steps have been added to the workflow', node_id: null },
-          { message: 'Workflow cannot be saved without any steps', node_id: null },
-        ],
-        warnings: [],
+        is_valid: false,
+        error_count: findings.length,
+        warning_count: 0,
+        findings,
       })
     }
     return HttpResponse.json({
-      valid: false,
-      errors: [{ message: 'Step is missing required configuration', node_id: 'check_temperature' }],
-      warnings: [],
+      is_valid: false,
+      error_count: 1,
+      warning_count: 0,
+      findings: [
+        {
+          severity: 'error',
+          category: 'schema_violation',
+          message: 'Step is missing required configuration',
+          node_id: 'check_temperature',
+          field_path: null,
+        },
+      ],
     })
   }),
 

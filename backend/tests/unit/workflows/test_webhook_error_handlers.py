@@ -8,11 +8,13 @@ from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.workflows.error_handlers import (
+    payload_too_large_handler,
     trigger_validation_handler,
     webhook_trigger_not_found_handler,
     webhook_trigger_path_conflict_handler,
 )
 from nexus.workflows.exceptions import (
+    PayloadTooLargeError,
     TriggerValidationError,
     WebhookTriggerNotFoundError,
     WebhookTriggerPathConflictError,
@@ -152,4 +154,26 @@ class TestTriggerValidationHandler:
         response = trigger_validation_handler(request, exc)
 
         data = json.loads(bytes(response.body).decode())
+        assert data["retryable"] is False
+
+
+class TestPayloadTooLargeHandler:
+    """Test suite for payload_too_large_handler."""
+
+    def test_returns_413_with_problem_details(self) -> None:
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/webhooks/test"
+
+        exc = PayloadTooLargeError("Payload exceeds 1MB limit")
+        response = payload_too_large_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 413
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["payload_too_large"]
+        assert data["title"] == "Payload Too Large"
+        assert data["code"] == "PAYLOAD_TOO_LARGE"
+        assert data["detail"] == "Payload exceeds 1MB limit"
         assert data["retryable"] is False

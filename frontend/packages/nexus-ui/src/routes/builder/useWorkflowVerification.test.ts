@@ -1,12 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import {
-  useWorkflowVerification,
-  resolveNodeId,
-  parseValidationMessage,
-  extractValidationErrors,
-} from './useWorkflowVerification'
+import { useWorkflowVerification, extractValidationErrors } from './useWorkflowVerification'
 
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
@@ -36,6 +31,17 @@ vi.mock('../../utils/apiErrors', () => ({
   getErrorMessage: (err: unknown) => (err instanceof Error ? err.message : 'Unknown error'),
 }))
 
+const mockValidateWorkflow = vi.fn<() => { errors: Array<{ message: string; nodeId?: string; severity?: string }> }>()
+const mockValidateMinimum = vi.fn<() => Array<{ message: string; nodeId?: string; severity?: string }>>()
+
+vi.mock('./utils/validation', () => ({
+  validateWorkflow: () => mockValidateWorkflow(),
+}))
+
+vi.mock('./utils/validation/rules/validateMinimumWorkflow', () => ({
+  validateMinimumWorkflow: () => mockValidateMinimum(),
+}))
+
 vi.mock('./utils/workflowDefinitionBuilder', () => ({
   buildWorkflowDefinition: (...args: unknown[]) => mockBuildDefinition(...args),
 }))
@@ -46,6 +52,8 @@ beforeEach(() => {
     currentWorkflow: null,
     edges: [],
   })
+  mockValidateWorkflow.mockReturnValue({ errors: [] })
+  mockValidateMinimum.mockReturnValue([])
 })
 
 describe('useWorkflowVerification', () => {
@@ -82,7 +90,7 @@ describe('useWorkflowVerification', () => {
     mockGetState.mockReturnValue(workflowState)
     mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
     mockPost.mockResolvedValue({
-      data: { valid: true, errors: [], warnings: [] },
+      data: { is_valid: true, findings: [] },
       error: undefined,
       response: { ok: true },
     })
@@ -105,7 +113,7 @@ describe('useWorkflowVerification', () => {
     mockGetState.mockReturnValue(workflowState)
     mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
     mockPost.mockResolvedValue({
-      data: { valid: true, errors: [], warnings: [] },
+      data: { is_valid: true, findings: [] },
       error: undefined,
       response: { ok: true },
     })
@@ -125,12 +133,11 @@ describe('useWorkflowVerification', () => {
     mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
     mockPost.mockResolvedValue({
       data: {
-        valid: false,
-        errors: [
+        is_valid: false,
+        findings: [
           { message: 'Node A is disconnected', node_id: 'node-1' },
           { message: 'Missing condition branch', node_id: null },
         ],
-        warnings: [],
       },
       error: undefined,
       response: { ok: true },
@@ -164,12 +171,10 @@ describe('useWorkflowVerification', () => {
         code: 'WORKFLOW_DEFINITION_INVALID',
         retryable: false,
         validation_result: {
-          valid: false,
-          errors: [
+          findings: [
             { message: 'Workflow must have at least one trigger', node_id: null },
             { message: 'Node config invalid', node_id: 'node-2' },
           ],
-          warnings: [],
         },
       },
       response: { ok: false },
@@ -259,7 +264,7 @@ describe('useWorkflowVerification', () => {
     })
     mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
     mockPost.mockResolvedValue({
-      data: { valid: true, errors: [], warnings: [] },
+      data: { is_valid: true, findings: [] },
       error: undefined,
       response: { ok: true },
     })
@@ -285,7 +290,7 @@ describe('useWorkflowVerification', () => {
     })
     mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
     mockPost.mockResolvedValue({
-      data: { valid: true, errors: [], warnings: [] },
+      data: { is_valid: true, findings: [] },
       error: undefined,
       response: { ok: true },
     })
@@ -308,17 +313,16 @@ describe('useWorkflowVerification', () => {
     })
   })
 
-  it('includes nodeName in dispatched errors when 200 response has structured messages', async () => {
+  it('includes nodeName in dispatched errors when activity matches store', async () => {
     mockGetState.mockReturnValue(workflowState)
     mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
     mockPost.mockResolvedValue({
       data: {
-        valid: false,
-        errors: [
-          { message: "{'name': 'Run Job'} Node is disconnected", node_id: 'node-1' },
+        is_valid: false,
+        findings: [
+          { message: 'Node is disconnected', node_id: 'n1' },
           { message: 'Missing trigger', node_id: null },
         ],
-        warnings: [],
       },
       error: undefined,
       response: { ok: true },
@@ -332,7 +336,7 @@ describe('useWorkflowVerification', () => {
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_VALIDATION_ERRORS',
         payload: [
-          { message: 'Run Job: Node is disconnected', nodeId: 'node-1', nodeName: 'Run Job', severity: 'error' },
+          { message: 'Node is disconnected', nodeId: 'n1', nodeName: 'Step 1', severity: 'error' },
           { message: 'Missing trigger', nodeId: null, severity: 'error' },
         ],
       })
@@ -344,7 +348,7 @@ describe('useWorkflowVerification', () => {
       mockGetState.mockReturnValue(workflowState)
       mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
       mockPost.mockResolvedValue({
-        data: { valid: true, errors: [], warnings: [] },
+        data: { is_valid: true, findings: [] },
         error: undefined,
         response: { ok: true },
       })
@@ -364,7 +368,7 @@ describe('useWorkflowVerification', () => {
       mockGetState.mockReturnValue(workflowState)
       mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
       mockPost.mockResolvedValue({
-        data: { valid: true, errors: [], warnings: [] },
+        data: { is_valid: true, findings: [] },
         error: undefined,
         response: { ok: true },
       })
@@ -383,9 +387,8 @@ describe('useWorkflowVerification', () => {
       mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
       mockPost.mockResolvedValue({
         data: {
-          valid: false,
-          errors: [{ message: 'Error', node_id: null }],
-          warnings: [],
+          is_valid: false,
+          findings: [{ message: 'Error', node_id: null }],
         },
         error: undefined,
         response: { ok: true },
@@ -407,7 +410,7 @@ describe('useWorkflowVerification', () => {
       mockGetState.mockReturnValue(workflowState)
       mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
       mockPost.mockResolvedValue({
-        data: { valid: true, errors: [], warnings: [] },
+        data: { is_valid: true, findings: [] },
         error: undefined,
         response: { ok: true },
       })
@@ -426,9 +429,8 @@ describe('useWorkflowVerification', () => {
       mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
       mockPost.mockResolvedValue({
         data: {
-          valid: false,
-          errors: [{ message: 'Error', node_id: null }],
-          warnings: [],
+          is_valid: false,
+          findings: [{ message: 'Error', node_id: null }],
         },
         error: undefined,
         response: { ok: true },
@@ -450,7 +452,7 @@ describe('useWorkflowVerification', () => {
         data: undefined,
         error: {
           validation_result: {
-            errors: [{ message: 'Error', node_id: null }],
+            findings: [{ message: 'Error', node_id: null }],
           },
         },
         response: { ok: false },
@@ -465,7 +467,7 @@ describe('useWorkflowVerification', () => {
       })
     })
 
-    it('resets validationErrorCount on error without validation_result', async () => {
+    it('shows error and returns early on error without validation_result', async () => {
       mockGetState.mockReturnValue(workflowState)
       mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
       mockPost.mockResolvedValue({
@@ -482,12 +484,30 @@ describe('useWorkflowVerification', () => {
       act(() => result.current.handleVerify())
 
       await waitFor(() => {
-        expect(mockSetValidationErrorCount).toHaveBeenCalledWith(0)
-        expect(mockDispatch).toHaveBeenCalledWith({ type: 'CLEAR_VALIDATION_ERRORS' })
         expect(mockShowError).toHaveBeenCalledWith({
           title: 'Verification failed',
           description: 'Unknown error',
         })
+      })
+      expect(mockShowSuccess).not.toHaveBeenCalled()
+    })
+
+    it('zeros validationErrorCount on backend error without validation_result and no frontend errors', async () => {
+      mockGetState.mockReturnValue(workflowState)
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+      mockPost.mockResolvedValue({
+        data: undefined,
+        error: { title: 'Server Error', detail: 'Internal server error' },
+        response: { ok: false },
+      })
+
+      const { result } = renderVerificationHook()
+
+      act(() => result.current.handleVerify())
+
+      await waitFor(() => {
+        expect(mockSetValidationErrorCount).toHaveBeenCalledWith(0)
+        expect(mockDispatch).toHaveBeenCalledWith({ type: 'CLEAR_VALIDATION_ERRORS' })
       })
     })
 
@@ -499,53 +519,185 @@ describe('useWorkflowVerification', () => {
   })
 })
 
-describe('resolveNodeId', () => {
-  it('returns node_id when present', () => {
-    expect(resolveNodeId({ message: 'error', node_id: 'node-1' })).toBe('node-1')
+describe('silent mode', () => {
+  function renderVerificationHook() {
+    return renderHook(() => useWorkflowVerification({ dispatch: mockDispatch }))
+  }
+
+  const workflowState = {
+    currentWorkflow: {
+      name: 'Test',
+      description: 'desc',
+      workflow: { activities: [] },
+      triggers: [{ type: 'manual_trigger', id: 't1' }],
+    },
+    edges: [],
+    nodePositions: {},
+    _positionsUserModified: false,
+  }
+
+  it('does not show error toast in silent mode when backend returns error without validation_result', async () => {
+    mockGetState.mockReturnValue(workflowState)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockPost.mockResolvedValue({
+      data: undefined,
+      error: { title: 'Server Error', detail: 'Internal server error' },
+      response: { ok: false },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerifySilent())
+
+    await waitFor(() => {
+      expect(mockShowError).not.toHaveBeenCalled()
+      expect(mockShowSuccess).not.toHaveBeenCalled()
+    })
   })
 
-  it('extracts node ID from message when node_id is null', () => {
-    expect(resolveNodeId({ message: "{'id': 'node-42'} is broken", node_id: null })).toBe('node-42')
+  it('does not show success toast in silent mode when workflow is valid', async () => {
+    mockGetState.mockReturnValue(workflowState)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockPost.mockResolvedValue({
+      data: { is_valid: true, findings: [] },
+      error: undefined,
+      response: { ok: true },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerifySilent())
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: 'CLEAR_VALIDATION_ERRORS' })
+      expect(mockShowSuccess).not.toHaveBeenCalled()
+    })
   })
 
-  it('returns null when neither source has an ID', () => {
-    expect(resolveNodeId({ message: 'global error', node_id: null })).toBeNull()
+  it('does not show error toast in silent mode when fetch rejects', async () => {
+    mockGetState.mockReturnValue(workflowState)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockPost.mockRejectedValue(new Error('Network error'))
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerifySilent())
+
+    await waitFor(() => {
+      expect(mockShowError).not.toHaveBeenCalled()
+    })
   })
 })
 
-describe('parseValidationMessage', () => {
-  it('extracts message and nodeName from structured message', () => {
-    expect(parseValidationMessage("{'name': 'MyNode'} Node is disconnected")).toEqual({
-      message: 'MyNode: Node is disconnected',
-      nodeName: 'MyNode',
+describe('frontend and backend error merging', () => {
+  function renderVerificationHook() {
+    return renderHook(() => useWorkflowVerification({ dispatch: mockDispatch }))
+  }
+
+  const workflowState = {
+    currentWorkflow: {
+      name: 'Test',
+      description: 'desc',
+      workflow: {
+        activities: [{ type: 'script', id: 'n1', name: 'Step 1', parameters: {} }],
+      },
+      triggers: [{ type: 'manual_trigger', id: 't1' }],
+    },
+    edges: [{ id: 'e1', source: 't1', target: 'n1' }],
+    nodePositions: {},
+    _positionsUserModified: false,
+  }
+
+  it('merges frontend errors with backend errors', async () => {
+    mockGetState.mockReturnValue(workflowState)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockValidateWorkflow.mockReturnValue({
+      errors: [{ message: 'Dangling node', nodeId: 'n1', severity: 'error' }],
+    })
+    mockPost.mockResolvedValue({
+      data: {
+        is_valid: false,
+        findings: [{ message: 'Graph cycle detected', node_id: null }],
+      },
+      error: undefined,
+      response: { ok: true },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerify())
+
+    await waitFor(() => {
+      const setCall = mockDispatch.mock.calls.find(
+        (call) => (call[0] as { type: string }).type === 'SET_VALIDATION_ERRORS'
+      )
+      expect(setCall).toBeDefined()
+      const payload = (setCall![0] as { payload: Array<{ message: string }> }).payload
+      expect(payload).toHaveLength(2)
+      expect(payload[0].message).toBe('Dangling node')
+      expect(payload[1].message).toBe('Graph cycle detected')
     })
   })
 
-  it('returns raw message without nodeName when format does not match', () => {
-    expect(parseValidationMessage('Node A is disconnected')).toEqual({
-      message: 'Node A is disconnected',
+  it('dispatches frontend errors when backend returns error without validation_result', async () => {
+    mockGetState.mockReturnValue(workflowState)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockValidateWorkflow.mockReturnValue({
+      errors: [{ message: 'Dangling node', nodeId: 'n1', severity: 'error' }],
+    })
+    mockPost.mockResolvedValue({
+      data: undefined,
+      error: { title: 'Server Error', detail: 'Internal server error' },
+      response: { ok: false },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerify())
+
+    await waitFor(() => {
+      const setCall = mockDispatch.mock.calls.find(
+        (call) => (call[0] as { type: string }).type === 'SET_VALIDATION_ERRORS'
+      )
+      expect(setCall).toBeDefined()
+      const payload = (setCall![0] as { payload: Array<{ message: string }> }).payload
+      expect(payload).toHaveLength(1)
+      expect(payload[0].message).toBe('Dangling node')
+      expect(mockSetValidationErrorCount).toHaveBeenCalledWith(1)
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Verification failed',
+        description: 'Unknown error',
+      })
     })
   })
 
-  it('returns raw message when name matches but suffix does not', () => {
-    expect(parseValidationMessage("{'name': 'MyNode'}")).toEqual({
-      message: "{'name': 'MyNode'}",
+  it('dispatches frontend errors when fetch rejects', async () => {
+    mockGetState.mockReturnValue(workflowState)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockValidateWorkflow.mockReturnValue({
+      errors: [{ message: 'Dangling node', nodeId: 'n1', severity: 'error' }],
     })
-  })
+    mockPost.mockRejectedValue(new Error('Network error'))
 
-  it('extracts name with spaces and special characters', () => {
-    expect(parseValidationMessage("{'name': 'My Node - v2'} has invalid config")).toEqual({
-      message: 'My Node - v2: has invalid config',
-      nodeName: 'My Node - v2',
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerify())
+
+    await waitFor(() => {
+      const setCall = mockDispatch.mock.calls.find(
+        (call) => (call[0] as { type: string }).type === 'SET_VALIDATION_ERRORS'
+      )
+      expect(setCall).toBeDefined()
+      expect(mockSetValidationErrorCount).toHaveBeenCalledWith(1)
     })
   })
 })
 
 describe('extractValidationErrors', () => {
-  it('extracts errors from validation_result', () => {
+  it('extracts errors from validation_result findings', () => {
     const err = {
       validation_result: {
-        errors: [
+        findings: [
           { message: 'Error 1', node_id: 'node-1' },
           { message: 'Error 2', node_id: null },
         ],
@@ -566,23 +718,27 @@ describe('extractValidationErrors', () => {
     expect(extractValidationErrors(undefined)).toBeNull()
   })
 
-  it('returns null when validation_result has empty errors array', () => {
-    expect(extractValidationErrors({ validation_result: { errors: [] } })).toBeNull()
+  it('returns empty array when validation_result has empty findings', () => {
+    expect(extractValidationErrors({ validation_result: { findings: [] } })).toEqual([])
   })
 
-  it('returns null when validation_result has no errors field', () => {
-    expect(extractValidationErrors({ validation_result: { valid: false } })).toBeNull()
+  it('returns null when validation_result has no findings field', () => {
+    expect(extractValidationErrors({ validation_result: { is_valid: false } })).toBeNull()
   })
 
-  it('extracts nodeName from structured Python-dict messages', () => {
+  it('maps severity from findings', () => {
     const err = {
       validation_result: {
-        errors: [{ message: "{'name': 'Run Job'} Node is disconnected", node_id: 'node-5' }],
+        findings: [
+          { message: 'Some warning', node_id: 'node-5', severity: 'warning' },
+          { message: 'Some error', node_id: null },
+        ],
       },
     }
     const result = extractValidationErrors(err)
     expect(result).toEqual([
-      { message: 'Run Job: Node is disconnected', nodeId: 'node-5', nodeName: 'Run Job', severity: 'error' },
+      { message: 'Some warning', nodeId: 'node-5', severity: 'warning' },
+      { message: 'Some error', nodeId: null, severity: 'error' },
     ])
   })
 })
@@ -617,12 +773,11 @@ describe('verification of incomplete nodes', () => {
     mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
     mockPost.mockResolvedValue({
       data: {
-        valid: false,
-        errors: [
+        is_valid: false,
+        findings: [
           { message: 'Node configuration is incomplete', node_id: 'script-1' },
           { message: 'Node configuration is incomplete', node_id: 'script-2' },
         ],
-        warnings: [],
       },
       error: undefined,
       response: { ok: true },
@@ -659,9 +814,11 @@ describe('verification of incomplete nodes', () => {
     mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
     mockPost.mockResolvedValue({
       data: {
-        valid: false,
-        errors: [{ message: 'Missing required field: code', node_id: 'script-1' }],
-        warnings: [{ message: 'Script has no error handling', node_id: 'script-2' }],
+        is_valid: false,
+        findings: [
+          { message: 'Missing required field: code', node_id: 'script-1', severity: 'error' },
+          { message: 'Script has no error handling', node_id: 'script-2', severity: 'warning' },
+        ],
       },
       error: undefined,
       response: { ok: true },
@@ -693,13 +850,12 @@ describe('verification of incomplete nodes', () => {
     mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
     mockPost.mockResolvedValue({
       data: {
-        valid: false,
-        errors: [
+        is_valid: false,
+        findings: [
           { message: 'Error 1', node_id: 'script-1' },
           { message: 'Error 2', node_id: 'script-2' },
           { message: 'Global error', node_id: null },
         ],
-        warnings: [],
       },
       error: undefined,
       response: { ok: true },

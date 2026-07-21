@@ -27,9 +27,10 @@ async def test_validate_valid_definition(jwt_client: AsyncClient) -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert data["valid"] is True
-    assert data["errors"] == []
-    assert data["warnings"] == []
+    assert data["is_valid"] is True
+    assert data["findings"] == []
+    assert data["error_count"] == 0
+    assert data["warning_count"] == 0
 
 
 @pytest.mark.asyncio
@@ -189,12 +190,14 @@ async def test_validate_response_schema(jwt_client: AsyncClient) -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert "valid" in data
-    assert "errors" in data
-    assert "warnings" in data
-    assert isinstance(data["valid"], bool)
-    assert isinstance(data["errors"], list)
-    assert isinstance(data["warnings"], list)
+    assert "is_valid" in data
+    assert "error_count" in data
+    assert "warning_count" in data
+    assert "findings" in data
+    assert isinstance(data["is_valid"], bool)
+    assert isinstance(data["findings"], list)
+    assert isinstance(data["error_count"], int)
+    assert isinstance(data["warning_count"], int)
 
 
 @pytest.mark.asyncio
@@ -396,5 +399,5 @@ async def test_validate_converge_valid(jwt_client: AsyncClient) -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert data["valid"] is True
-    assert data["errors"] == []
+    assert data["is_valid"] is True
+    assert data["findings"] == []

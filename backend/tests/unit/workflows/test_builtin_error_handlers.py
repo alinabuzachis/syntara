@@ -10,10 +10,12 @@ from fastapi.responses import JSONResponse
 from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.workflows.error_handlers import (
     builtin_workflow_delete_handler,
+    builtin_workflow_missing_handler,
     builtin_workflow_modify_handler,
 )
 from nexus.workflows.exceptions import (
     BuiltinWorkflowDeleteError,
+    BuiltinWorkflowMissingError,
     BuiltinWorkflowModifyError,
 )
 
@@ -67,3 +69,22 @@ class TestBuiltinHandlers:
         data = json.loads(bytes(response.body).decode())
         assert "Document Conversion" in data["detail"]
         assert detail_verb in data["detail"]
+
+
+class TestBuiltinWorkflowMissingHandler:
+    """Test suite for builtin_workflow_missing_handler."""
+
+    def test_returns_500_with_problem_details(self) -> None:
+        exc = BuiltinWorkflowMissingError("Document Conversion")
+        response = builtin_workflow_missing_handler(_make_request(), exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 500
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["internal_error"]
+        assert data["title"] == "System Misconfigured"
+        assert data["code"] == "BUILTIN_WORKFLOW_MISSING"
+        assert data["retryable"] is True
+        assert data["instance"] == _URL

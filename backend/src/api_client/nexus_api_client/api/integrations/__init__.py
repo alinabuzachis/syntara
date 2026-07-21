@@ -96,6 +96,30 @@ class IntegrationsApi:
         endpoint_module = self._load_endpoint_module("refresh_resources")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
+    def list_projects(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_integration_projects")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_list_projects(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_integration_projects")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def assign_project(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("assign_integration_project")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_assign_project(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("assign_integration_project")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def unassign_project(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("unassign_integration_project")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_unassign_project(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("unassign_integration_project")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
     def list_models(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_integration_models")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
