@@ -54,6 +54,8 @@ type BuilderToolbarContentProps = Readonly<{
   isBuiltin: boolean
   isAddNodePanelOpen: boolean
   hasNoWorkflowNodes: boolean
+  workflowName: string
+  workflowDescription: string
   builderPermissions: BuilderPermissions
   isViewingVersion?: boolean
   versionHistoryOpen?: boolean
@@ -98,6 +100,8 @@ function BuilderToolbarContent({
   triggers,
   isAddNodePanelOpen,
   hasNoWorkflowNodes,
+  workflowName,
+  workflowDescription,
   builderPermissions,
   isViewingVersion,
   versionHistoryOpen,
@@ -177,6 +181,8 @@ function BuilderToolbarContent({
       isKebabOpen={isKebabOpen}
       publishedVersionId={publishedVersionId}
       currentVersionId={currentVersionId}
+      workflowName={workflowName}
+      workflowDescription={workflowDescription}
       dispatch={dispatch}
       markDirty={markDirty}
       handleToggleHistory={handleToggleHistory}
@@ -397,6 +403,8 @@ export function BuilderWorkflowPageHeader({
             triggers={triggers}
             isAddNodePanelOpen={isAddNodePanelOpen}
             hasNoWorkflowNodes={hasNoWorkflowNodes}
+            workflowName={workflowName}
+            workflowDescription={workflowDescription}
             builderPermissions={builderPermissions}
             isViewingVersion={isViewingVersion}
             versionHistoryOpen={versionHistoryOpen}

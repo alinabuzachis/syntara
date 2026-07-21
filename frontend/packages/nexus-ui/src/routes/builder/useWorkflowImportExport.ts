@@ -24,6 +24,8 @@ type UseWorkflowImportExportOptions = Readonly<{
   dispatch: (action: BuilderAction) => void
   markDirty: () => void
   isNew: boolean
+  workflowName: string
+  workflowDescription: string
   onPendingImport: (data: PendingImportData) => void
 }>
 
@@ -57,6 +59,8 @@ export function useWorkflowImportExport({
   dispatch,
   markDirty,
   isNew,
+  workflowName,
+  workflowDescription,
   onPendingImport,
 }: UseWorkflowImportExportOptions) {
   const importFileRef = useRef<HTMLInputElement>(null)
@@ -108,8 +112,8 @@ export function useWorkflowImportExport({
     try {
       const { activities } = currentWorkflow.workflow
       const triggers = currentWorkflow.triggers ?? []
-      const name = currentWorkflow.name ?? 'workflow'
-      const description = currentWorkflow.description ?? ''
+      const name = workflowName || 'workflow'
+      const description = workflowDescription
       const definition = buildWorkflowDefinition(name, description, activities, triggers, {
         edges,
         nodePositions,
@@ -119,7 +123,7 @@ export function useWorkflowImportExport({
       showError({ title: 'Export failed', description: getErrorMessage(err) })
     }
     dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
-  }, [dispatch, showError])
+  }, [dispatch, showError, workflowName, workflowDescription])
 
   return { importFileRef, handleImportFile, handleExport, ...verification }
 }

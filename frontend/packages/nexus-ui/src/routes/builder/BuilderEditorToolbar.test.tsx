@@ -46,6 +46,8 @@ describe('BuilderEditorToolbar', () => {
     currentVersion: 1 as number | undefined,
     isAddNodePanelOpen: false,
     hasNoWorkflowNodes: false,
+    workflowName: 'Test Workflow',
+    workflowDescription: 'A test workflow',
     dispatch: vi.fn(),
     markDirty: vi.fn(),
     handleToggleHistory: vi.fn(),

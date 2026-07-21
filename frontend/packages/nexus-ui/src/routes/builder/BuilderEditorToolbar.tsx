@@ -336,6 +336,8 @@ type BuilderEditorToolbarProps = Readonly<{
   currentVersionId?: string | null
   isAddNodePanelOpen: boolean
   hasNoWorkflowNodes: boolean
+  workflowName: string
+  workflowDescription: string
   dispatch: Dispatch<BuilderAction>
   markDirty: () => void
   handleToggleHistory: () => void
@@ -361,6 +363,8 @@ export function BuilderEditorToolbar({
   currentVersionId,
   isAddNodePanelOpen,
   hasNoWorkflowNodes,
+  workflowName,
+  workflowDescription,
   dispatch,
   markDirty,
   handleToggleHistory,
@@ -378,6 +382,8 @@ export function BuilderEditorToolbar({
       dispatch,
       markDirty,
       isNew,
+      workflowName,
+      workflowDescription,
       onPendingImport,
     })
 

@@ -60,12 +60,14 @@ beforeEach(() => {
 })
 
 describe('useWorkflowImportExport', () => {
-  function renderImportExportHook(isNew = true) {
+  function renderImportExportHook(isNew = true, workflowName = 'Test', workflowDescription = 'desc') {
     return renderHook(() =>
       useWorkflowImportExport({
         dispatch: mockDispatch,
         markDirty: mockMarkDirty,
         isNew,
+        workflowName,
+        workflowDescription,
         onPendingImport: mockOnPendingImport,
       })
     )
@@ -100,6 +102,57 @@ describe('useWorkflowImportExport', () => {
       expect(mockBuildDefinition).toHaveBeenCalled()
       expect(mockDownload).toHaveBeenCalled()
       expect(mockDispatch).toHaveBeenCalledWith({ type: 'SET_KEBAB_OPEN', payload: false })
+    })
+
+    it('uses workflowName from hook options instead of stale store name', () => {
+      mockGetState.mockReturnValue({
+        currentWorkflow: {
+          name: 'Old Stale Name',
+          description: 'old description',
+          workflow: { activities: [] },
+          triggers: [],
+        },
+        edges: [],
+      })
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+
+      const { result } = renderImportExportHook(false, 'Renamed Workflow', 'new description')
+
+      act(() => result.current.handleExport())
+
+      expect(mockBuildDefinition).toHaveBeenCalledWith(
+        'Renamed Workflow',
+        'new description',
+        expect.anything(),
+        expect.anything(),
+        expect.anything()
+      )
+      expect(mockDownload).toHaveBeenCalledWith(expect.anything(), 'Renamed Workflow')
+    })
+
+    it('falls back to "workflow" when workflowName is empty', () => {
+      mockGetState.mockReturnValue({
+        currentWorkflow: {
+          name: 'Store Name',
+          workflow: { activities: [] },
+          triggers: [],
+        },
+        edges: [],
+      })
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+
+      const { result } = renderImportExportHook(false, '', '')
+
+      act(() => result.current.handleExport())
+
+      expect(mockBuildDefinition).toHaveBeenCalledWith(
+        'workflow',
+        '',
+        expect.anything(),
+        expect.anything(),
+        expect.anything()
+      )
+      expect(mockDownload).toHaveBeenCalledWith(expect.anything(), 'workflow')
     })
 
     it('shows error toast and closes kebab on failure', () => {
