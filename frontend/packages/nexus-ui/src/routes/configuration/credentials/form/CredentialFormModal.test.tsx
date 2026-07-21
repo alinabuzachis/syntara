@@ -65,10 +65,18 @@ const mockTypes = [
     inputs: {
       fields: [
         { id: 'host', label: 'Host', type: 'string', secret: false },
+        { id: 'username', label: 'Username', type: 'string', secret: false },
+        { id: 'password', label: 'Password', type: 'string', secret: true },
         { id: 'oauth_token', label: 'OAuth Token', type: 'string', secret: true },
         { id: 'verify_ssl', label: 'Verify SSL', type: 'boolean', secret: false, default: true },
       ],
       required: ['host'],
+      mutually_exclusive: [['oauth_token'], ['username', 'password']],
+      mutually_exclusive_labels: ['OAuth2 Token', 'Basic Auth'],
+      mutually_exclusive_help:
+        'Basic Auth authenticates with username and password. OAuth2 Token uses a personal access token.',
+      required_one_of: [['oauth_token'], ['username', 'password']],
+      required_together: [['username', 'password']],
     },
     injectors: {},
     managed: true,
@@ -487,5 +495,125 @@ describe('CredentialFormModal', () => {
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith('new-cred-123'))
     expect(onClose).toHaveBeenCalled()
+  })
+
+  describe('mutually exclusive field groups', () => {
+    async function selectAAPType(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByLabelText('Credential type'))
+      await user.click(screen.getByRole('option', { name: 'Ansible Automation Platform' }))
+    }
+
+    async function selectAuthMethod(user: ReturnType<typeof userEvent.setup>, optionName: string) {
+      await user.click(screen.getByLabelText('Auth method'))
+      await user.click(screen.getByRole('option', { name: optionName }))
+    }
+
+    it('shows auth method dropdown for AAP credential type', async () => {
+      const user = userEvent.setup()
+      render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+      await selectAAPType(user)
+
+      const authToggle = screen.getByLabelText('Auth method')
+      expect(authToggle).toBeInTheDocument()
+      expect(authToggle).toHaveTextContent('OAuth2 Token')
+      await user.click(authToggle)
+      expect(screen.getByRole('option', { name: 'OAuth2 Token' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Basic Auth' })).toBeInTheDocument()
+    })
+
+    it('does not show auth method dropdown for types without mutually_exclusive', () => {
+      render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+      expect(screen.queryByLabelText('Auth method')).not.toBeInTheDocument()
+    })
+
+    it('shows only OAuth Token fields by default (first group selected)', async () => {
+      const user = userEvent.setup()
+      render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+      await selectAAPType(user)
+
+      expect(screen.getByLabelText('OAuth Token', { selector: 'input' })).toBeInTheDocument()
+      expect(screen.queryByLabelText('Username', { selector: 'input' })).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Password', { selector: 'input' })).not.toBeInTheDocument()
+      // Common fields remain
+      expect(screen.getByLabelText('Host', { selector: 'input' })).toBeInTheDocument()
+      expect(screen.getByRole('switch')).toBeInTheDocument()
+    })
+
+    it('shows Username + Password fields when Basic Auth selected', async () => {
+      const user = userEvent.setup()
+      render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+      await selectAAPType(user)
+      await selectAuthMethod(user, 'Basic Auth')
+
+      expect(screen.getByLabelText('Username', { selector: 'input' })).toBeInTheDocument()
+      expect(screen.getByLabelText('Password', { selector: 'input' })).toBeInTheDocument()
+      expect(screen.queryByLabelText('OAuth Token', { selector: 'input' })).not.toBeInTheDocument()
+    })
+
+    it('clears hidden group values when switching groups', async () => {
+      const user = userEvent.setup()
+      render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+      await selectAAPType(user)
+      // Fill OAuth Token
+      await user.type(screen.getByLabelText('OAuth Token', { selector: 'input' }), 'my-token')
+      // Switch to Basic Auth
+      await selectAuthMethod(user, 'Basic Auth')
+      // Switch back to OAuth2 Token
+      await selectAuthMethod(user, 'OAuth2 Token')
+
+      // Value should be cleared
+      expect(screen.getByLabelText('OAuth Token', { selector: 'input' })).toHaveValue('')
+    })
+
+    it('pre-selects correct auth method in edit mode based on existing values', () => {
+      const aapCredential = {
+        id: 'cred-aap',
+        name: 'My AAP',
+        description: '',
+        credential_type_id: 'type-aap',
+        inputs: { host: 'https://aap.example.com', username: 'admin', password: '$encrypted$' },
+        enabled: true,
+        labels: {},
+        created_by: { id: '550e8400-e29b-41d4-a716-446655440001', name: 'user-1' },
+        project_id: 'proj-1',
+        created_at: '2026-03-01T00:00:00Z',
+        updated_at: '2026-03-01T00:00:00Z',
+      } as const
+
+      render(<CredentialFormModal isOpen onClose={vi.fn()} credentialToEdit={aapCredential} />, { wrapper })
+
+      // Basic Auth should be selected — the toggle displays the active group label
+      expect(screen.getByLabelText('Auth method')).toHaveTextContent('Basic Auth')
+      expect(screen.getByLabelText('Username', { selector: 'input' })).toBeInTheDocument()
+      expect(screen.queryByLabelText('OAuth Token', { selector: 'input' })).not.toBeInTheDocument()
+    })
+
+    it('validates required_together — shows error when username is filled but password is not', async () => {
+      const user = userEvent.setup()
+      render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
+
+      await selectAAPType(user)
+      await selectAuthMethod(user, 'Basic Auth')
+      await user.type(screen.getByLabelText('Credential name'), 'Test AAP')
+      await user.type(screen.getByLabelText('Host', { selector: 'input' }), 'https://aap.example.com')
+      await user.type(screen.getByLabelText('Username', { selector: 'input' }), 'admin')
+      await user.click(screen.getByRole('button', { name: 'Create credential' }))
+
+      expect(screen.getByText('Password is required')).toBeInTheDocument()
+    })
+
+    it('has no accessibility violations with auth method dropdown', async () => {
+      const user = userEvent.setup()
+      const { container } = render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+      await selectAAPType(user)
+
+      expect(await axe(container)).toHaveNoViolations()
+    })
   })
 })

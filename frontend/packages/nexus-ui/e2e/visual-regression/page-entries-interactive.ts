@@ -888,6 +888,25 @@ export const credentialEditPages: PageEntry[] = [
       await expect(dialog.getByRole('button', { name: /Save/i })).toBeVisible()
     },
   },
+  {
+    section: 'configuration/credentials',
+    name: 'credentials-create-modal-auth-method',
+    path: AppRoute.Configuration.Credentials.Root,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
+      await expect(page.getByRole('table')).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('textbox', { name: 'Project' }).click()
+      await page.getByRole('option', { name: 'default' }).click()
+      await page.getByRole('button', { name: /create credential/i }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await dialog.getByRole('button', { name: 'Credential type', exact: true }).click()
+      await page.getByRole('option', { name: 'Ansible Automation Platform' }).click()
+      await expect(dialog.getByText('Auth method')).toBeVisible()
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------

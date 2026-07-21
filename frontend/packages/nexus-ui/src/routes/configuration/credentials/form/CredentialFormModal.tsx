@@ -1,8 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
-  Content,
-  ContentVariants,
   Form,
   FormGroup,
   FormHelperText,
@@ -15,7 +13,7 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditIcon, RhUiErrorIcon } from '@patternfly/react-icons'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
 import { credentialsClient } from '../../../../client'
@@ -24,16 +22,23 @@ import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationEr
 import { useAlerts } from '../../../../providers/alerts'
 import { useAllProjects } from '../../../access/useAllProjects'
 import type { Credential } from '../credentialConstants'
-import { ENCRYPTED_SENTINEL } from '../credentialConstants'
 
+import { AuthMethodSelector } from './AuthMethodSelector'
 import { credentialFormSchema, type CredentialFormData } from './credentialFormSchema'
 import { CredentialTypeSelect, ProjectSelect } from './CredentialFormSelects'
 import {
+  buildEditInputs,
+  buildExclusiveGroups,
+  computeInitialGroupIndex,
+  getAllExclusiveFieldIds,
+  getAuthMethodInsertIndex,
   getDefaultInputs,
   getTypeInputs,
-  validateCreateModeRequiredDynamicField,
-  validateEditModeRequiredDynamicField,
+  getVisibleFields,
+  stripHiddenGroupFields,
+  validateAllDynamicFields,
 } from './credentialFormUtils'
+import { CREDENTIAL_TYPE_HELP } from './CredentialTypeHelp'
 import { DynamicFieldRenderer } from './DynamicFieldRenderer'
 
 type CredentialFormModalProps = {
@@ -101,6 +106,18 @@ export function CredentialFormModal({
   const selectedType = useMemo(() => types.find((t) => t.id === selectedTypeId), [types, selectedTypeId])
   const typeInputs = useMemo(() => (selectedType ? getTypeInputs(selectedType) : null), [selectedType])
 
+  // Mutually exclusive field groups
+  const exclusiveGroups = useMemo(() => (typeInputs ? buildExclusiveGroups(typeInputs) : []), [typeInputs])
+  const [activeGroupIndex, setActiveGroupIndex] = useState(0)
+
+  // Render-time reset for activeGroupIndex when the modal opens/closes (§23D)
+  const resetKey = isOpen ? (credentialToEdit?.id ?? preSelectedTypeId ?? 'create') : 'closed'
+  const [prevResetKey, setPrevResetKey] = useState<string | null>(null)
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey)
+    setActiveGroupIndex(isOpen ? computeInitialGroupIndex(credentialToEdit, types) : 0)
+  }
+
   // Mutations
   const { mutate: createCredential, isPending: isCreating } = credentialsClient.useMutation('post', '/credentials')
   const { mutate: patchCredential, isPending: isPatching } = credentialsClient.useMutation(
@@ -109,8 +126,39 @@ export function CredentialFormModal({
   )
   const isSubmitting = isCreating || isPatching
 
+  // Visible fields (filtered by active exclusive group)
+  const visibleFields = useMemo(
+    () => (typeInputs ? getVisibleFields(typeInputs, activeGroupIndex) : []),
+    [typeInputs, activeGroupIndex]
+  )
+
+  // Insert index for auth method selector within the visible fields list
+  const authMethodInsertIndex = useMemo(
+    () => (typeInputs ? getAuthMethodInsertIndex(visibleFields, typeInputs) : -1),
+    [visibleFields, typeInputs]
+  )
+
+  // Set of all exclusive field IDs for determining required status
+  const allExclusiveFieldIds = useMemo(
+    () => (typeInputs ? getAllExclusiveFieldIds(typeInputs) : new Set<string>()),
+    [typeInputs]
+  )
+
+  const handleGroupChange = useCallback(
+    (index: number) => {
+      if (!typeInputs || index === activeGroupIndex) return
+      const previousGroup = typeInputs.mutually_exclusive[activeGroupIndex]
+      if (previousGroup) {
+        for (const fieldId of previousGroup) {
+          setValue(`inputs.${fieldId}`, '')
+        }
+      }
+      setActiveGroupIndex(index)
+    },
+    [typeInputs, activeGroupIndex, setValue]
+  )
+
   // Reset form when modal opens/closes or credential changes
-  const resetKey = isOpen ? (credentialToEdit?.id ?? preSelectedTypeId ?? 'create') : 'closed'
   useEffect(() => {
     if (!isOpen) return
 
@@ -154,10 +202,13 @@ export function CredentialFormModal({
       if (!isEditMode) {
         const newType = types.find((t) => t.id === id)
         setValue('inputs', newType ? getDefaultInputs(newType) : {})
+        setActiveGroupIndex(0)
       }
     },
     [isEditMode, types, setValue]
   )
+
+  const isTypeSelectDisabled = isEditMode || !!preSelectedTypeId || typesQuery.isLoading
 
   const handleInputChange = useCallback(
     (fieldId: string, value: unknown) => {
@@ -176,44 +227,10 @@ export function CredentialFormModal({
     [handleInputChange]
   )
 
-  // Validate dynamic required fields (Zod handles static fields)
-  function validateDynamicFields(): boolean {
-    if (!typeInputs) return true
-    let valid = true
-
-    for (const requiredId of typeInputs.required) {
-      const val: unknown = inputs[requiredId]
-      const field = typeInputs.fields.find((f) => f.id === requiredId)
-
-      if (isEditMode) {
-        if (!validateEditModeRequiredDynamicField(requiredId, val, field, touchedSecrets, setError)) {
-          valid = false
-        }
-      } else if (!validateCreateModeRequiredDynamicField(requiredId, val, field, setError)) {
-        valid = false
-      }
-    }
-
-    return valid
-  }
-
-  function buildEditInputs(currentInputs: Record<string, unknown>): Record<string, unknown> {
-    if (!typeInputs) return currentInputs
-    const result = { ...currentInputs }
-    for (const field of typeInputs.fields) {
-      if (field.secret) {
-        const val = result[field.id]
-        // Only preserve existing encrypted value if the user didn't touch this field
-        if (!touchedSecrets.has(field.id) || val === '' || val == null || val === ENCRYPTED_SENTINEL) {
-          result[field.id] = ENCRYPTED_SENTINEL
-        }
-      }
-    }
-    return result
-  }
-
   function onSubmit(formData: CredentialFormData) {
-    if (!validateDynamicFields()) return
+    if (!validateAllDynamicFields({ typeInputs, inputs, visibleFields, isEditMode, touchedSecrets }, setError)) return
+
+    const cleanedInputs = stripHiddenGroupFields(formData.inputs, typeInputs, visibleFields)
 
     if (isEditMode && credentialToEdit) {
       patchCredential(
@@ -222,7 +239,7 @@ export function CredentialFormModal({
           body: {
             name: formData.name,
             description: formData.description || null,
-            inputs: buildEditInputs(formData.inputs),
+            inputs: buildEditInputs(cleanedInputs, typeInputs, touchedSecrets),
           },
         },
         {
@@ -241,7 +258,7 @@ export function CredentialFormModal({
             name: formData.name,
             description: formData.description || null,
             credential_type_id: formData.credential_type_id,
-            inputs: formData.inputs,
+            inputs: cleanedInputs,
             project_id: formData.project_id,
           },
         },
@@ -377,35 +394,7 @@ export function CredentialFormModal({
 
           {/* Credential Type */}
           <FormGroup
-            label={
-              <FormLabelWithHelp
-                label="Credential type"
-                helpText={
-                  <Content>
-                    <Content component={ContentVariants.p} style={{ margin: 0 }}>
-                      Select the type of credential based on the authentication method required:
-                    </Content>
-                    <Content component="ul">
-                      <Content component="li">
-                        <strong>HTTP Bearer Token</strong> &ndash; For APIs using bearer token authentication
-                      </Content>
-                      <Content component="li">
-                        <strong>HTTP Basic Auth</strong> &ndash; For APIs using username/password authentication
-                      </Content>
-                      <Content component="li">
-                        <strong>SSH Key</strong> &ndash; For SSH connections to remote servers
-                      </Content>
-                      <Content component="li">
-                        <strong>LLM Provider</strong> &ndash; For AI/LLM service API keys
-                      </Content>
-                      <Content component="li">
-                        <strong>Ansible Automation Platform</strong> &ndash; For AAP API access
-                      </Content>
-                    </Content>
-                  </Content>
-                }
-              />
-            }
+            label={<FormLabelWithHelp label="Credential type" helpText={CREDENTIAL_TYPE_HELP} />}
             fieldId="credential-type"
             isRequired
           >
@@ -413,7 +402,7 @@ export function CredentialFormModal({
               types={types}
               selectedTypeId={selectedTypeId}
               onSelect={handleTypeSelect}
-              isDisabled={isEditMode || !!preSelectedTypeId || typesQuery.isLoading}
+              isDisabled={isTypeSelectDisabled}
               isLoading={typesQuery.isLoading}
               hasError={!!errors.credential_type_id}
               popperProps={INLINE_POPPER_PROPS}
@@ -445,19 +434,30 @@ export function CredentialFormModal({
             )}
           </FormGroup>
 
-          {/* Dynamic Fields */}
-          {typeInputs?.fields.map((field) => {
+          {/* Dynamic Fields with inline auth method selector */}
+          {visibleFields.map((field, index) => {
             const isSecret = field.secret === true
+            const isGroupField = allExclusiveFieldIds.has(field.id)
+            const isRequired = isGroupField || (typeInputs?.required.includes(field.id) ?? false)
             return (
-              <DynamicFieldRenderer
-                key={field.id}
-                field={field}
-                value={(inputs[field.id] as string | boolean | undefined) ?? ''}
-                onChange={isSecret ? handleSecretInputChange : handleInputChange}
-                isRequired={typeInputs.required.includes(field.id)}
-                isEditMode={isEditMode}
-                error={(errors.inputs as Record<string, { message?: string }> | undefined)?.[field.id]?.message}
-              />
+              <Fragment key={field.id}>
+                {exclusiveGroups.length > 0 && index === authMethodInsertIndex && (
+                  <AuthMethodSelector
+                    groups={exclusiveGroups}
+                    activeIndex={activeGroupIndex}
+                    onChange={handleGroupChange}
+                    helpText={typeInputs?.mutually_exclusive_help}
+                  />
+                )}
+                <DynamicFieldRenderer
+                  field={field}
+                  value={(inputs[field.id] as string | boolean | undefined) ?? ''}
+                  onChange={isSecret ? handleSecretInputChange : handleInputChange}
+                  isRequired={isRequired}
+                  isEditMode={isEditMode}
+                  error={(errors.inputs as Record<string, { message?: string }> | undefined)?.[field.id]?.message}
+                />
+              </Fragment>
             )
           })}
         </Form>

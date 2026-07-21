@@ -16,8 +16,16 @@ type FieldDef = {
   multiline?: boolean
 }
 
-function typeInputs(fields: FieldDef[], required: string[] = []) {
-  return { fields, required } as CredentialTypeRead['inputs']
+type FieldConstraints = {
+  mutually_exclusive?: string[][]
+  mutually_exclusive_labels?: string[]
+  mutually_exclusive_help?: string
+  required_one_of?: string[][]
+  required_together?: string[][]
+}
+
+function typeInputs(fields: FieldDef[], required: string[] = [], constraints?: FieldConstraints) {
+  return { fields, required, ...constraints } as CredentialTypeRead['inputs']
 }
 
 function typeInjectors(extra_vars: Record<string, string>) {
@@ -95,7 +103,15 @@ export const credentialTypes: CredentialTypeRead[] = [
           help_text: 'Verify SSL certificates',
         },
       ],
-      ['host']
+      ['host'],
+      {
+        mutually_exclusive: [['oauth_token'], ['username', 'password']],
+        mutually_exclusive_labels: ['OAuth2 Token', 'Basic Auth'],
+        mutually_exclusive_help:
+          'Basic Auth authenticates with an Ansible Automation Platform username and password. OAuth2 Token authenticates with a personal access token, which can be scoped and revoked independently of a user account.',
+        required_one_of: [['oauth_token'], ['username', 'password']],
+        required_together: [['username', 'password']],
+      }
     ),
     injectors: typeInjectors({
       auth_type: 'aap',

@@ -174,19 +174,30 @@ test.describe('Dynamic Credential Form Rendering', () => {
     await expect(modal.getByText('API Key is required')).toBeVisible()
   })
 
-  // --- Ansible Automation Platform (5 fields: host, username, password, oauth_token, verify_ssl boolean) ---
+  // --- Ansible Automation Platform (mutually exclusive: OAuth2 Token vs Username+Password, plus host + verify_ssl) ---
 
   test('Ansible Automation Platform: form renders correct fields', async ({ app }) => {
     const modal = await openCreateModal(app)
     await selectCredentialType(modal, 'Ansible Automation Platform')
 
-    // Scope to the form to avoid matching the dialog's own aria-label
     const form = modal.locator('form')
+
+    // Common fields are always visible
     await expect(form.getByRole('textbox', { name: 'AAP Host' })).toBeVisible()
+    await expect(modal.getByText('Verify SSL', { exact: true })).toBeVisible()
+
+    // Auth method selector is visible with OAuth2 Token selected by default
+    await expect(form.getByLabel('Auth method', { exact: true })).toBeVisible()
+    await expect(form.getByRole('textbox', { name: 'OAuth Token' })).toBeVisible()
+    await expect(form.getByRole('textbox', { name: 'Username' })).not.toBeVisible()
+    await expect(form.getByRole('textbox', { name: 'Password' })).not.toBeVisible()
+
+    // Switch to Basic Auth — Username + Password appear, OAuth Token hides
+    await form.getByLabel('Auth method', { exact: true }).click()
+    await modal.getByRole('option', { name: 'Basic Auth' }).click()
     await expect(form.getByRole('textbox', { name: 'Username' })).toBeVisible()
     await expect(form.getByRole('textbox', { name: 'Password' })).toBeVisible()
-    await expect(form.getByRole('textbox', { name: 'OAuth Token' })).toBeVisible()
-    await expect(modal.getByText('Verify SSL', { exact: true })).toBeVisible()
+    await expect(form.getByRole('textbox', { name: 'OAuth Token' })).not.toBeVisible()
   })
 
   test('Ansible Automation Platform: create credential succeeds', async ({ app }) => {

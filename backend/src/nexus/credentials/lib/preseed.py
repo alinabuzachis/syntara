@@ -139,6 +139,13 @@ GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
                 ["oauth_token"],
                 ["username", "password"],
             ],
+            "mutually_exclusive_labels": ["OAuth2 Token", "Basic Auth"],
+            "mutually_exclusive_help": (
+                "Basic Auth authenticates with an Ansible Automation Platform"
+                " username and password. OAuth2 Token authenticates with a"
+                " personal access token, which can be scoped and revoked"
+                " independently of a user account."
+            ),
             "required_one_of": [
                 ["oauth_token"],
                 ["username", "password"],
