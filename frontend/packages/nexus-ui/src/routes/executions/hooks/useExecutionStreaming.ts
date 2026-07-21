@@ -10,9 +10,12 @@ type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
 
+type WorkflowNodeLike = { id: string }
+
 type WorkflowDefinitionLike = {
-  nodes?: Array<{ id: string; name?: string }>
-  workflow?: { activities?: Array<{ id: string; name?: string }> }
+  triggers?: WorkflowNodeLike[]
+  nodes?: WorkflowNodeLike[]
+  workflow?: { activities?: WorkflowNodeLike[] }
 }
 
 export function useExecutionStreaming(executionId: string | undefined, execution: Execution | undefined) {
@@ -40,21 +43,30 @@ export function useSyncActivityStore(
   execution: Execution | undefined,
   activities: (ActivityData | ActivityExecution)[]
 ) {
-  const { setActivityExecutions } = useExecutionStore.getState()
+  const { setActivityExecutions, injectPendingStates } = useExecutionStore.getState()
   useEffect(() => {
     if (activities.length > 0) {
       setActivityExecutions(activities)
     } else if (execution?.status === 'pending' || execution?.status === 'running' || execution?.status === 'paused') {
-      const { activityStates, injectPendingStates } = useExecutionStore.getState()
+      const { activityStates } = useExecutionStore.getState()
       if (activityStates.size === 0) {
         const wfDef = execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined
-        const workflowActivities = wfDef?.nodes ?? wfDef?.workflow?.activities
-        if (workflowActivities) {
-          injectPendingStates(workflowActivities.map((activity) => activity.id))
+        const triggers = wfDef?.triggers ?? []
+        const nodes = wfDef?.nodes ?? wfDef?.workflow?.activities ?? []
+        const nodeIds = [...triggers, ...nodes].map((n) => n.id)
+        if (nodeIds.length > 0) {
+          injectPendingStates(nodeIds)
         }
       }
     } else {
       setActivityExecutions([])
     }
-  }, [activities, execution?.id, execution?.status, execution?.workflow_definition, setActivityExecutions])
+  }, [
+    activities,
+    execution?.id,
+    execution?.status,
+    execution?.workflow_definition,
+    setActivityExecutions,
+    injectPendingStates,
+  ])
 }

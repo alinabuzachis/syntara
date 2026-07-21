@@ -11,6 +11,7 @@ import type { Execution } from '../execution/types'
 
 import {
   useExecutionStore,
+  createPendingActivityState,
   selectExecutionId,
   selectVisualization,
   selectActivityStatus,
@@ -275,6 +276,17 @@ describe('useExecutionStore', () => {
 
       const state = useExecutionStore.getState()
       expect(state.activityErrors.get('failed_task')).toBe('Connection timeout')
+    })
+
+    it('clears all activity states when called with empty array', () => {
+      useExecutionStore.getState().injectPendingStates(['task1', 'task2'])
+      expect(useExecutionStore.getState().activityStates.size).toBe(2)
+
+      useExecutionStore.getState().setActivityExecutions([])
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.size).toBe(0)
+      expect(state.activityErrors.size).toBe(0)
     })
 
     it('handles ActivityData from Execution.activities (activity_id shape)', () => {
@@ -732,101 +744,6 @@ describe('useExecutionStore', () => {
     })
   })
 
-  describe('injectPendingStates', () => {
-    it('injects PENDING states for node IDs', () => {
-      useExecutionStore.getState().injectPendingStates(['node1', 'node2'])
-
-      const state = useExecutionStore.getState()
-      expect(state.activityStates.size).toBe(2)
-      expect(state.activityStates.get('node1')?.status).toBe('pending')
-      expect(state.activityStates.get('node2')?.status).toBe('pending')
-    })
-
-    it('does not overwrite existing activity states', () => {
-      const execution = createMockExecution({
-        status: 'running',
-        activities: [
-          {
-            activity_id: 'task1',
-            status: 'completed',
-            error_details: null,
-            started_at: '2025-12-10T15:00:05Z',
-            completed_at: '2025-12-10T15:00:10Z',
-          },
-        ],
-      })
-      useExecutionStore.getState().setExecution(execution)
-
-      useExecutionStore.getState().injectPendingStates(['task1', 'task2'])
-
-      const state = useExecutionStore.getState()
-      expect(state.activityStates.get('task1')?.status).toBe('completed')
-      expect(state.activityStates.get('task2')?.status).toBe('pending')
-    })
-
-    it('no-ops when empty array is provided', () => {
-      const execution = createMockExecution({
-        status: 'running',
-        activities: [
-          {
-            activity_id: 'task1',
-            status: 'completed',
-            error_details: null,
-            started_at: '2025-12-10T15:00:05Z',
-            completed_at: '2025-12-10T15:00:10Z',
-          },
-        ],
-      })
-      useExecutionStore.getState().setExecution(execution)
-
-      useExecutionStore.getState().injectPendingStates([])
-
-      const state = useExecutionStore.getState()
-      expect(state.activityStates.size).toBe(1)
-    })
-
-    it('sets all PENDING state fields correctly', () => {
-      useExecutionStore.getState().injectPendingStates(['node1'])
-
-      const node1State = useExecutionStore.getState().activityStates.get('node1')
-      expect(node1State).toEqual({
-        activityId: 'node1',
-        status: 'pending',
-        startedAt: null,
-        completedAt: null,
-        errorDetails: null,
-      })
-    })
-
-    it('pending states are replaced when real activity data arrives via setActivityExecutions', () => {
-      useExecutionStore.getState().injectPendingStates(['task1', 'task2'])
-      expect(useExecutionStore.getState().activityStates.size).toBe(2)
-      expect(useExecutionStore.getState().activityStates.get('task1')?.status).toBe('pending')
-
-      useExecutionStore.getState().setActivityExecutions([
-        {
-          activity_id: 'task1',
-          status: 'completed',
-          error_details: null,
-          started_at: '2025-12-10T15:00:05Z',
-          completed_at: '2025-12-10T15:00:10Z',
-        },
-        {
-          activity_id: 'task2',
-          status: 'running',
-          error_details: null,
-          started_at: '2025-12-10T15:00:11Z',
-          completed_at: null,
-        },
-      ])
-
-      const state = useExecutionStore.getState()
-      expect(state.activityStates.size).toBe(2)
-      expect(state.activityStates.get('task1')?.status).toBe('completed')
-      expect(state.activityStates.get('task2')?.status).toBe('running')
-    })
-  })
-
   describe('injectPreResolvedStates', () => {
     it('injects SKIPPED states for missing node IDs', () => {
       useExecutionStore.getState().injectPreResolvedStates(['node1', 'node2'])
@@ -891,6 +808,93 @@ describe('useExecutionStore', () => {
         completedAt: null,
         errorDetails: null,
       })
+    })
+  })
+
+  describe('createPendingActivityState', () => {
+    it('creates a pending ActivityState with the given node ID', () => {
+      const state = createPendingActivityState('node-1')
+      expect(state).toEqual({
+        activityId: 'node-1',
+        status: 'pending',
+        startedAt: null,
+        completedAt: null,
+        errorDetails: null,
+      })
+    })
+  })
+
+  describe('injectPendingStates', () => {
+    it('injects pending states for node IDs', () => {
+      useExecutionStore.getState().injectPendingStates(['node-1', 'node-2'])
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.size).toBe(2)
+      expect(state.activityStates.get('node-1')?.status).toBe('pending')
+      expect(state.activityStates.get('node-2')?.status).toBe('pending')
+    })
+
+    it('does not overwrite existing activity states with higher rank', () => {
+      const execution = createMockExecution({
+        activities: [
+          {
+            activity_id: 'task1',
+            status: 'completed',
+            error_details: null,
+            started_at: '2025-12-10T15:00:05Z',
+            completed_at: '2025-12-10T15:00:10Z',
+          },
+        ],
+      })
+      useExecutionStore.getState().setExecution(execution)
+
+      useExecutionStore.getState().injectPendingStates(['task1', 'task2'])
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.get('task1')?.status).toBe('completed')
+      expect(state.activityStates.get('task2')?.status).toBe('pending')
+    })
+
+    it('no-ops when empty array is provided', () => {
+      useExecutionStore.getState().injectPendingStates([])
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.size).toBe(0)
+    })
+
+    it('preserves definition order of injected node IDs', () => {
+      useExecutionStore.getState().injectPendingStates(['trigger-1', 'step-2', 'step-1'])
+
+      const keys = Array.from(useExecutionStore.getState().activityStates.keys())
+      expect(keys).toEqual(['trigger-1', 'step-2', 'step-1'])
+    })
+
+    it('pending states are replaced when real activity data arrives via setActivityExecutions', () => {
+      useExecutionStore.getState().injectPendingStates(['task1', 'task2'])
+      expect(useExecutionStore.getState().activityStates.get('task1')?.status).toBe('pending')
+      expect(useExecutionStore.getState().activityStates.get('task2')?.status).toBe('pending')
+
+      useExecutionStore.getState().setActivityExecutions([
+        {
+          activity_id: 'task1',
+          status: 'completed',
+          error_details: null,
+          started_at: '2025-12-10T15:00:05Z',
+          completed_at: '2025-12-10T15:00:10Z',
+        },
+        {
+          activity_id: 'task2',
+          status: 'running',
+          error_details: null,
+          started_at: '2025-12-10T15:00:11Z',
+          completed_at: null,
+        },
+      ])
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.size).toBe(2)
+      expect(state.activityStates.get('task1')?.status).toBe('completed')
+      expect(state.activityStates.get('task2')?.status).toBe('running')
     })
   })
 
@@ -1092,6 +1096,44 @@ describe('useExecutionStore', () => {
         status: 'waiting',
         startedAt: '2025-12-10T15:00:05Z',
       })
+    })
+
+    it('preserves existing key iteration order when merging same keys in different order', () => {
+      useExecutionStore.getState().setActivityExecutions([
+        { activity_id: 'task-a', status: 'pending', error_details: null, started_at: null, completed_at: null },
+        { activity_id: 'task-b', status: 'pending', error_details: null, started_at: null, completed_at: null },
+        { activity_id: 'task-c', status: 'pending', error_details: null, started_at: null, completed_at: null },
+      ])
+
+      expect(Array.from(useExecutionStore.getState().activityStates.keys())).toEqual(['task-a', 'task-b', 'task-c'])
+
+      // Merge with same keys in reversed order and upgraded statuses
+      useExecutionStore.getState().setActivityExecutions([
+        {
+          activity_id: 'task-c',
+          status: 'running',
+          error_details: null,
+          started_at: '2025-12-10T15:00:05Z',
+          completed_at: null,
+        },
+        {
+          activity_id: 'task-a',
+          status: 'running',
+          error_details: null,
+          started_at: '2025-12-10T15:00:06Z',
+          completed_at: null,
+        },
+        {
+          activity_id: 'task-b',
+          status: 'completed',
+          error_details: null,
+          started_at: '2025-12-10T15:00:07Z',
+          completed_at: '2025-12-10T15:00:10Z',
+        },
+      ])
+
+      // Key iteration order must be preserved from original insertion
+      expect(Array.from(useExecutionStore.getState().activityStates.keys())).toEqual(['task-a', 'task-b', 'task-c'])
     })
   })
 })

@@ -322,7 +322,9 @@ export function ExecutionDetailsPanel({
   const { injectPreResolvedStates, setExecutionMetadata } = useExecutionStore.getState()
 
   useEffect(() => {
-    setActivityExecutions(activities ?? [])
+    if (activities) {
+      setActivityExecutions(activities)
+    }
 
     // Pre-resolved nodes may not have ActivityExecution records yet (backend race).
     // Inject SKIPPED states for any that are missing from the activity list.

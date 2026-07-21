@@ -180,9 +180,8 @@ type ExecutionStoreActions = {
   setActivityExecutions: (activities: ActivityInput[]) => void
 
   /**
-   * Inject PENDING states for workflow nodes before backend activity records arrive.
-   * Used as a placeholder so the UI shows all nodes immediately while the execution starts.
-   * Keys are node IDs from the workflow definition, matching the backend's activity_id format.
+   * Inject pending activity states from workflow definition node IDs.
+   * Used by useSyncActivityStore to seed the store before real activity data arrives.
    */
   injectPendingStates: (nodeIds: string[]) => void
 
@@ -288,6 +287,21 @@ function buildActivityMapsFromInput(activities: ActivityInput[]): [Map<string, A
   })
 
   return [activityStates, activityErrors]
+}
+
+/**
+ * Create a pending ActivityState for a node that has no backend activity record yet.
+ * Used by useSyncActivityStore to seed the store from the workflow definition
+ * before real activity data arrives from the backend or WebSocket.
+ */
+export function createPendingActivityState(nodeId: string): ActivityState {
+  return {
+    activityId: nodeId,
+    status: 'pending',
+    startedAt: null,
+    completedAt: null,
+    errorDetails: null,
+  }
 }
 
 // ============================================================================
@@ -464,6 +478,11 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   // === ExecutionDetail Page Actions ===
 
   setActivityExecutions: (activities: ActivityInput[]) => {
+    if (activities.length === 0) {
+      set({ activityStates: new Map(), activityErrors: new Map() })
+      return
+    }
+
     // Convert ActivityData[] or ActivityExecution[] to activity state maps
     const [incoming] = buildActivityMapsFromInput(activities)
 
@@ -478,19 +497,12 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
   injectPendingStates: (nodeIds: string[]) => {
     if (nodeIds.length === 0) return
-    const updated = new Map(get().activityStates)
+    const incoming = new Map<string, ActivityState>()
     for (const id of nodeIds) {
-      if (!updated.has(id)) {
-        updated.set(id, {
-          activityId: id,
-          status: 'pending' as const,
-          startedAt: null,
-          completedAt: null,
-          errorDetails: null,
-        })
-      }
+      incoming.set(id, createPendingActivityState(id))
     }
-    set({ activityStates: updated })
+    const activityStates = mergeActivityStates(get().activityStates, incoming)
+    set({ activityStates })
   },
 
   injectPreResolvedStates: (missingNodeIds: string[]) => {

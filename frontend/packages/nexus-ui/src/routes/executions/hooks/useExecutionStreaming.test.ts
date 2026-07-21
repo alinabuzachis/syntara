@@ -29,17 +29,21 @@ vi.mock('../../workflows/stores/useExecutionStore', () => {
         activityStates: mockActivityStates,
       }),
       __mockSet: mockSetActivityExecutions,
-      __mockInjectPending: mockInjectPendingStates,
+      __mockInject: mockInjectPendingStates,
       __mockActivityStates: mockActivityStates,
     }),
   }
 })
 
 const mockSetActivityExecutions = (useExecutionStore as unknown as { __mockSet: ReturnType<typeof vi.fn> }).__mockSet
-const mockInjectPendingStates = (useExecutionStore as unknown as { __mockInjectPending: ReturnType<typeof vi.fn> })
-  .__mockInjectPending
+const mockInjectPendingStates = (useExecutionStore as unknown as { __mockInject: ReturnType<typeof vi.fn> })
+  .__mockInject
 const mockActivityStates = (useExecutionStore as unknown as { __mockActivityStates: Map<string, unknown> })
   .__mockActivityStates
+
+function getInjectedNodeIds(): string[] {
+  return mockInjectPendingStates.mock.calls[0][0] as string[]
+}
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -148,7 +152,7 @@ describe('useSyncActivityStore', () => {
     expect(mockSetActivityExecutions).toHaveBeenCalledWith([])
   })
 
-  it('injects pending states by node ID when running with no activities', () => {
+  it('creates pending activities from workflow definition when running with no activities', () => {
     const execution = {
       ...baseExecution,
       status: 'running' as const,
@@ -166,11 +170,11 @@ describe('useSyncActivityStore', () => {
 
     renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
-    expect(mockInjectPendingStates).toHaveBeenCalledWith(['node-1', 'node-2'])
-    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
+    const nodeIds = getInjectedNodeIds()
+    expect(nodeIds).toEqual(['node-1', 'node-2'])
   })
 
-  it('injects pending states for nodes without display names', () => {
+  it('uses node id when name is missing', () => {
     const execution = {
       ...baseExecution,
       status: 'pending' as const,
@@ -185,11 +189,11 @@ describe('useSyncActivityStore', () => {
 
     renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
-    expect(mockInjectPendingStates).toHaveBeenCalledWith(['node-no-name'])
-    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
+    const nodeIds = getInjectedNodeIds()
+    expect(nodeIds).toEqual(['node-no-name'])
   })
 
-  it('injects pending states by node ID when paused with no activities', () => {
+  it('creates pending activities from workflow definition when paused with no activities', () => {
     const execution = {
       ...baseExecution,
       status: 'paused' as const,
@@ -207,8 +211,8 @@ describe('useSyncActivityStore', () => {
 
     renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
-    expect(mockInjectPendingStates).toHaveBeenCalledWith(['node-1', 'node-2'])
-    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
+    const nodeIds = getInjectedNodeIds()
+    expect(nodeIds).toEqual(['node-1', 'node-2'])
   })
 
   it('does not overwrite store when activityStates already populated (paused)', () => {
@@ -228,7 +232,7 @@ describe('useSyncActivityStore', () => {
 
     renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
-    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
+    expect(mockInjectPendingStates).not.toHaveBeenCalled()
   })
 
   it('does not overwrite store when activityStates already populated (running)', () => {
@@ -248,12 +252,79 @@ describe('useSyncActivityStore', () => {
 
     renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
-    expect(mockSetActivityExecutions).not.toHaveBeenCalled()
+    expect(mockInjectPendingStates).not.toHaveBeenCalled()
   })
 
   it('clears activities when execution is undefined', () => {
     renderHook(() => useSyncActivityStore(undefined, []))
 
     expect(mockSetActivityExecutions).toHaveBeenCalledWith([])
+  })
+
+  it('uses node ID, not display name', () => {
+    const execution = {
+      ...baseExecution,
+      status: 'running' as const,
+      workflow_definition: {
+        schema_version: '2.0.0' as const,
+        name: 'test',
+        triggers: [],
+        edges: [],
+        nodes: [
+          { id: 'send_email', name: 'Send Email Notification' },
+          { id: 'validate', name: 'Validate Data' },
+        ],
+      },
+    }
+
+    renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
+
+    const nodeIds = getInjectedNodeIds()
+    expect(nodeIds).toEqual(['send_email', 'validate'])
+  })
+
+  it('includes triggers before nodes in definition order', () => {
+    const execution = {
+      ...baseExecution,
+      status: 'running' as const,
+      workflow_definition: {
+        schema_version: '2.0.0' as const,
+        name: 'test',
+        triggers: [{ id: 'manual-trigger' }],
+        edges: [],
+        nodes: [
+          { id: 'step-2', name: 'Second Step' },
+          { id: 'step-1', name: 'First Step' },
+        ],
+      },
+    }
+
+    renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
+
+    const nodeIds = getInjectedNodeIds()
+    expect(nodeIds).toEqual(['manual-trigger', 'step-2', 'step-1'])
+  })
+
+  it('produces no duplicate node IDs when nodes have display names', () => {
+    const execution = {
+      ...baseExecution,
+      status: 'running' as const,
+      workflow_definition: {
+        schema_version: '2.0.0' as const,
+        name: 'test',
+        triggers: [],
+        edges: [],
+        nodes: [
+          { id: 'node-1', name: 'Fetch Data' },
+          { id: 'node-2', name: 'Process' },
+        ],
+      },
+    }
+
+    renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
+
+    const nodeIds = getInjectedNodeIds()
+    expect(nodeIds).toEqual(['node-1', 'node-2'])
+    expect(new Set(nodeIds).size).toBe(nodeIds.length)
   })
 })
