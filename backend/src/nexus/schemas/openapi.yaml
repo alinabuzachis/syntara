@@ -31844,6 +31844,11 @@ components:
               format: date-time
             - type: 'null'
           title: Last Refreshed At
+        profile:
+          anyOf:
+            - $ref: '#/components/schemas/ModelCapabilityProfile'
+            - type: 'null'
+          description: Model capability profile
         created_at:
           anyOf:
             - type: string
@@ -31856,6 +31861,141 @@ components:
               format: date-time
             - type: 'null'
           title: Updated At
+    ModelCapabilityProfile:
+      type: object
+      title: ModelCapabilityProfile
+      description: Typed view of an LLM model's capability profile.
+      properties:
+        name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Name
+        status:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Status
+        release_date:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Release Date
+        last_updated:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Last Updated
+        open_weights:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Open Weights
+        max_input_tokens:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Max Input Tokens
+        text_inputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Text Inputs
+        image_inputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Image Inputs
+        image_url_inputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Image Url Inputs
+        pdf_inputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Pdf Inputs
+        audio_inputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Audio Inputs
+        video_inputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Video Inputs
+        image_tool_message:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Image Tool Message
+        pdf_tool_message:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Pdf Tool Message
+        max_output_tokens:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Max Output Tokens
+        reasoning_output:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Reasoning Output
+        text_outputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Text Outputs
+        image_outputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Image Outputs
+        audio_outputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Audio Outputs
+        video_outputs:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Video Outputs
+        tool_calling:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Tool Calling
+        tool_choice:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Tool Choice
+        tool_call_streaming:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Tool Call Streaming
+        structured_output:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Structured Output
+        attachment:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Attachment
+        temperature:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Temperature
     LLMModelUpdate:
       type: object
       title: LLMModelUpdate

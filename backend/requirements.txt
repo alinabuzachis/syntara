@@ -14,10 +14,16 @@ annotated-types==0.7.0 \
     --hash=sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53 \
     --hash=sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89
     # via pydantic
+anthropic==0.117.0 \
+    --hash=sha256:451a0a6905f11dff7663d13e4ee5dbf909eb8942b1d049803c7b937a13ac47ec \
+    --hash=sha256:98107f2b76439641e0ae2a1754087534b8f178dbab99d6eb1bc4b7bc8c744496
+    # via langchain-anthropic
 anyio==4.12.1 \
     --hash=sha256:41cfcc3a4c85d3f05c932da7c26d0201ac36f72abd4435ba90d0464a3ffed703 \
     --hash=sha256:d405828884fc140aa80a3c667b8beed277f1dfedec42ba031bd6ac3db606ab6c
     # via
+    #   anthropic
+    #   google-genai
     #   httpx
     #   langsmith
     #   mcp
@@ -136,6 +142,7 @@ confection==0.1.5 \
 cryptography==49.0.0 \
     --hash=sha256:f89660a348f4f78a92366240a61404e337586ef7f5909a2fef59ca88ef505493
     # via
+    #   google-auth
     #   nexus
     #   pyjwt
 cymem==2.0.13 \
@@ -156,12 +163,18 @@ distro==1.9.0 \
     --hash=sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed \
     --hash=sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2
     # via
+    #   anthropic
+    #   google-genai
     #   langsmith
     #   openai
 dnspython==2.8.0 \
     --hash=sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af \
     --hash=sha256:181d3c6996452cb1189c4046c61599b84a5a86e099562ffde77d26984ff26d0f
     # via email-validator
+docstring-parser==0.17.0 \
+    --hash=sha256:583de4a309722b3315439bb31d64ba3eebada841f2e2cee23b99df001434c912 \
+    --hash=sha256:cf2569abd23dce8099b300f9b4fa8191e9582dda731fd533daf54c4551658708
+    # via anthropic
 email-validator==2.3.0 \
     --hash=sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4 \
     --hash=sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426
@@ -174,6 +187,18 @@ filelock==3.25.0 \
     --hash=sha256:5ccf8069f7948f494968fc0713c10e5c182a9c9d9eef3a636307a20c2490f047 \
     --hash=sha256:8f00faf3abf9dc730a1ffe9c354ae5c04e079ab7d3a683b7c32da5dd05f26af3
     # via nexus
+filetype==1.2.0 \
+    --hash=sha256:66b56cd6474bf41d8c54660347d37afcc3f7d1970648de365c102ef77548aadb \
+    --hash=sha256:7ce71b6880181241cf7ac8697a2f1eb6a8bd9b429f7ad6d27b8db9ba5f1c2d25
+    # via langchain-google-genai
+google-auth==2.55.2 \
+    --hash=sha256:97ae7790ff740f2bc9db60eb864a7804f4ac19f5f02c38b3d942f2fea6e9b9ae \
+    --hash=sha256:d715f265f2cafc6a5f1bf0dc19870d20e3119f6f6682785a250bce3d03d38a3b
+    # via google-genai
+google-genai==2.12.1 \
+    --hash=sha256:686d5ec39bda345151d3ed1bac3915f01f49138b1ea519af2eb98f11cc55ebc4 \
+    --hash=sha256:78c25217885d63dc430ca7c4526853512b164a25a93a8a0d0af5b85971aa1db0
+    # via langchain-google-genai
 googleapis-common-protos==1.75.0 \
     --hash=sha256:53a062ff3c32552fbd62c11fe23768b78e4ddf0494d5e5fd97d3f4689c75fbbd \
     --hash=sha256:961ed60399c457ceb0ee8f285a84c870aabc9c6a832b9d37bb281b5bebde43ed
@@ -214,6 +239,8 @@ httpx==0.28.1 \
     --hash=sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc \
     --hash=sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad
     # via
+    #   anthropic
+    #   google-genai
     #   langgraph-sdk
     #   langsmith
     #   mcp
@@ -252,7 +279,9 @@ jiter==0.15.0 \
     --hash=sha256:d1aa62e277fc1cbd80e6deacae6f4d983b41b3d7728e0645c5d741a6149bba45 \
     --hash=sha256:f0b271b462769543716f92d3a4f90527df6ef5ed05ee95ec4137f513e21e1b77 \
     --hash=sha256:fa248c9eb220197d363f688818dac2fd4b2f0cd7d843ca7105d652034823427d
-    # via openai
+    # via
+    #   anthropic
+    #   openai
 jmespath==1.1.0 \
     --hash=sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d \
     --hash=sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64
@@ -286,11 +315,17 @@ langchain==1.3.11 \
     --hash=sha256:7ae011f95a09b22feea1e8ae4e43f0b6164aebf4c61b8ad845b45f72ff3a90a2 \
     --hash=sha256:f3cf9cd4d2329b1a03eb8fd92b9d73e4e58a4d52570d67725fc77fbe0f104b32
     # via nexus
-langchain-core==1.4.8 \
-    --hash=sha256:5bf1f8411077c904182ad8f975943d36adcbf579c4e017b3a118b719229ebf9a \
-    --hash=sha256:d84c28b05e3ba8d4271d0827aad5b592ccdaaf986e76768c23503f0a2045e8aa
+langchain-anthropic==1.4.8 \
+    --hash=sha256:778e9301b6fd517824f76ec1776975ce8add97a1f6a36c50ae3c2f4b03a66f7f \
+    --hash=sha256:c76891b2044d56105ff13c106ed12650637b53bd598a4bdf15b4796eefa2a4ec
+    # via nexus
+langchain-core==1.4.9 \
+    --hash=sha256:28e3909e2a10cc81504952d795ac0a9e014c0018121ef89d48dd396fa09ec624 \
+    --hash=sha256:f8078901145bed0466755277500a5a22822a7b628808c4c0a28d4fc88895fcf2
     # via
     #   langchain
+    #   langchain-anthropic
+    #   langchain-google-genai
     #   langchain-mcp-adapters
     #   langchain-openai
     #   langgraph
@@ -298,13 +333,17 @@ langchain-core==1.4.8 \
     #   langgraph-prebuilt
     #   langgraph-sdk
     #   nexus
+langchain-google-genai==4.2.7 \
+    --hash=sha256:03b1463ffe4d42435f43c7870467f2215f684bb46400d2543435d10157c80ac7 \
+    --hash=sha256:0d9c388d0e6c629718fca6abb19c6fdca728a9a7873d0324c1ec821288b5b571
+    # via nexus
 langchain-mcp-adapters==0.1.14 \
     --hash=sha256:36f8131d0b3b5ca28df03440be4dc2a3636e2f73e3e4a0a266d606ffaa12adda \
     --hash=sha256:b900d37d1a82261e408e663b7176a1a74cf0072e17ae9e4241c068093912394a
     # via nexus
-langchain-openai==1.2.1 \
-    --hash=sha256:a80732185030d4f453dda6c25feef46f645f665423fdffe38ae3edf1ac3c6c4d \
-    --hash=sha256:ee4480b787706361b7125fad46930589a624df87aa158c6986ef1fad10d10675
+langchain-openai==1.3.5 \
+    --hash=sha256:c1db2256a42ac46e8e7b0564c5ccb478b9f58dc047a58935da33c82e6e1f9a07 \
+    --hash=sha256:f586263b884bceb3d426ec84d3bfbd27051c3c92ae668da6175629e3f44dcec5
     # via nexus
 langchain-protocol==0.0.18 \
     --hash=sha256:70b53a86fbf9cedc863555effe44da192ab02d556ddbf2cf95b8873adcf41b5a \
@@ -401,9 +440,9 @@ numpy==2.4.2 \
     #   scipy
     #   spacy
     #   thinc
-openai==2.33.0 \
-    --hash=sha256:03ac37d70e8c9e3a8124214e3afa785e2cbc12e627fbd98177a086ef2fd87ad5 \
-    --hash=sha256:f850c435e2a4685bba3295bd54912dd26315d9c1b7733068186134d6e0599f9a
+openai==2.46.0 \
+    --hash=sha256:0421e0735ac41451cad894af4cddf0435bfbf8cbc538ac0e15b3c062f2ddc06a \
+    --hash=sha256:672381db55efb3a1e2610f29304c130cccdd0b319bace4d492b2443cb64c1e7c
     # via langchain-openai
 opentelemetry-api==1.39.1 \
     --hash=sha256:2edd8463432a7f8443edce90972169b195e7d6a05500cd29e6d13898187c9950 \
@@ -494,6 +533,14 @@ protobuf==6.33.5 \
     #   googleapis-common-protos
     #   opentelemetry-proto
     #   temporalio
+pyasn1==0.6.4 \
+    --hash=sha256:9c447d8431c947fe4c8febc4ed9e760bc29011a5b01e5c74b67025bd9fb8ce81 \
+    --hash=sha256:deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b
+    # via pyasn1-modules
+pyasn1-modules==0.4.2 \
+    --hash=sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a \
+    --hash=sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6
+    # via google-auth
 pycparser==3.0 ; implementation_name != 'PyPy' \
     --hash=sha256:600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29 \
     --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992
@@ -502,10 +549,14 @@ pydantic==2.12.5 \
     --hash=sha256:4d351024c75c0f085a9febbb665ce8c0c6ec5d30e903bdb6394b7ede26aebb49 \
     --hash=sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d
     # via
+    #   anthropic
     #   confection
     #   fastapi
+    #   google-genai
     #   langchain
+    #   langchain-anthropic
     #   langchain-core
+    #   langchain-google-genai
     #   langgraph
     #   langsmith
     #   mcp
@@ -635,6 +686,8 @@ requests==2.33.1 \
     --hash=sha256:18817f8c57c6263968bc123d237e3b8b08ac046f5456bd1e307ee8f4250d3517 \
     --hash=sha256:4e6d1ef462f3626a1f0a0a9c42dd93c63bad33f9f1c1937509b8c5c8718ab56a
     # via
+    #   google-auth
+    #   google-genai
     #   langsmith
     #   opentelemetry-exporter-otlp-proto-http
     #   requests-toolbelt
@@ -711,6 +764,8 @@ sniffio==1.3.1 \
     --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
     --hash=sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc
     # via
+    #   anthropic
+    #   google-genai
     #   langsmith
     #   openai
 spacy==3.8.11 \
@@ -787,7 +842,9 @@ temporalio==1.23.0 \
 tenacity==9.1.4 \
     --hash=sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55 \
     --hash=sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a
-    # via langchain-core
+    # via
+    #   google-genai
+    #   langchain-core
 thinc==8.3.10 \
     --hash=sha256:42318746a67403d04be57d862fe0c0015b58b6fb9bbbf7b6db01f3f103b73a99 \
     --hash=sha256:5003f4db2db22cc8d686db8db83509acc3c50f4c55ebdcb2bbfcc1095096f7d2 \
@@ -843,8 +900,10 @@ typing-extensions==4.15.0 \
     --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548
     # via
     #   alembic
+    #   anthropic
     #   anyio
     #   fastapi
+    #   google-genai
     #   langchain-core
     #   langchain-mcp-adapters
     #   langchain-protocol
@@ -934,6 +993,7 @@ websockets==15.0.1 \
     --hash=sha256:e8b56bdcdb4505c8078cb6c7157d9811a85790f2f2b3632c7d1462ab5783d215 \
     --hash=sha256:f7a866fbc1e97b5c617ee4116daaa09b722101d4a3c170c787450ba409f9736f \
     # via
+    #   google-genai
     #   langgraph-sdk
     #   langsmith
     #   uvicorn

@@ -32,7 +32,7 @@ from nexus.integrations.models.integration import (
     IntegrationRefreshStatus,
     IntegrationType,
 )
-from nexus.integrations.models.llm_model import LLMModel
+from nexus.integrations.models.llm_model import LLMModel, ModelCapabilityProfile
 from nexus.integrations.services.integration_service import IntegrationService
 from tests.integration.integrations.conftest import make_llm_create
 
@@ -618,6 +618,212 @@ class TestRefreshLLMModels:
         assert len(models) == 1
         assert models[0].model_id == "model-a"
         assert models[0].is_default is False  # no default remains
+
+    @pytest.mark.asyncio
+    async def test_refresh_populates_profile_for_openai_models(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
+    ) -> None:
+        """refresh_resources populates profile from langchain registry for known OpenAI models."""
+        integration_id = llm_integration["integration_id"]
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
+
+        discover_result = DiscoverResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_models=[
+                _make_discovered_model("gpt-4o", "GPT-4o"),
+                _make_discovered_model("unknown-custom-model", "Custom Model"),
+            ],
+        )
+
+        with (
+            patch("nexus.integrations.services.integration_service.create_health_check_adapter") as mock_factory,
+            patch("nexus.integrations.services.integration_service.get_runtime_settings") as mock_settings,
+        ):
+            mock_settings.return_value.get = AsyncMock(return_value=10)
+            mock_adapter = AsyncMock()
+            mock_adapter.discover = AsyncMock(return_value=discover_result)
+            mock_factory.return_value = mock_adapter
+            await service.refresh_resources(integration_id)
+
+        models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == integration_id))).all()
+        by_id = {m.model_id: m for m in models}
+
+        assert by_id["gpt-4o"].profile is not None
+        assert by_id["gpt-4o"].profile["max_input_tokens"] == 128000
+        assert "tool_calling" in by_id["gpt-4o"].profile
+
+        assert by_id["unknown-custom-model"].profile is None
+
+    @pytest.mark.asyncio
+    async def test_capability_profile_accessor_after_db_round_trip(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
+    ) -> None:
+        """capability_profile property returns typed data after a DB round-trip."""
+        integration_id = llm_integration["integration_id"]
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
+
+        discover_result = DiscoverResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_models=[_make_discovered_model("gpt-4o", "GPT-4o")],
+        )
+
+        with (
+            patch("nexus.integrations.services.integration_service.create_health_check_adapter") as mock_factory,
+            patch("nexus.integrations.services.integration_service.get_runtime_settings") as mock_settings,
+        ):
+            mock_settings.return_value.get = AsyncMock(return_value=10)
+            mock_adapter = AsyncMock()
+            mock_adapter.discover = AsyncMock(return_value=discover_result)
+            mock_factory.return_value = mock_adapter
+            await service.refresh_resources(integration_id)
+
+        models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == integration_id))).all()
+        assert len(models) == 1
+
+        cap = models[0].capability_profile
+        assert isinstance(cap, ModelCapabilityProfile)
+        assert cap.max_input_tokens == 128000
+        assert cap.max_output_tokens == 16384
+        assert cap.tool_calling is True
+
+    @pytest.mark.asyncio
+    async def test_capability_profile_none_for_unknown_model(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
+    ) -> None:
+        """capability_profile returns None for models without a profile."""
+        integration_id = llm_integration["integration_id"]
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
+
+        discover_result = DiscoverResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_models=[_make_discovered_model("unknown-custom-model", "Custom")],
+        )
+
+        with (
+            patch("nexus.integrations.services.integration_service.create_health_check_adapter") as mock_factory,
+            patch("nexus.integrations.services.integration_service.get_runtime_settings") as mock_settings,
+        ):
+            mock_settings.return_value.get = AsyncMock(return_value=10)
+            mock_adapter = AsyncMock()
+            mock_adapter.discover = AsyncMock(return_value=discover_result)
+            mock_factory.return_value = mock_adapter
+            await service.refresh_resources(integration_id)
+
+        models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == integration_id))).all()
+        assert len(models) == 1
+        assert models[0].capability_profile is None
+
+    @pytest.mark.asyncio
+    async def test_refresh_populates_profile_for_anthropic_provider(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        mock_secret_service: AsyncMock,
+        llm_credential_id: UUID,
+    ) -> None:
+        """Profile is populated for Anthropic models via the langchain-anthropic registry."""
+        anthropic_create = make_llm_create(
+            name="Anthropic Provider",
+            management_credential_id=llm_credential_id,
+            configuration={
+                "integration_type": "llm_provider",
+                "base_url": "https://api.anthropic.com",
+                "provider_hint": "anthropic",
+            },
+        )
+        result = await IntegrationService(
+            test_db_session, test_user, secret_service=mock_secret_service
+        ).create_integration(anthropic_create)
+        await test_db_session.flush()
+
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
+        discover_result = DiscoverResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_models=[
+                _make_discovered_model("claude-sonnet-4-20250514", "Claude Sonnet 4"),
+                _make_discovered_model("unknown-custom-llm", "Custom LLM"),
+            ],
+        )
+
+        with (
+            patch("nexus.integrations.services.integration_service.create_health_check_adapter") as mock_factory,
+            patch("nexus.integrations.services.integration_service.get_runtime_settings") as mock_settings,
+        ):
+            mock_settings.return_value.get = AsyncMock(return_value=10)
+            mock_adapter = AsyncMock()
+            mock_adapter.discover = AsyncMock(return_value=discover_result)
+            mock_factory.return_value = mock_adapter
+            await service.refresh_resources(result.id)
+
+        models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == result.id))).all()
+        by_id = {m.model_id: m for m in models}
+        assert len(models) == 2
+
+        assert by_id["claude-sonnet-4-20250514"].profile is not None
+        assert by_id["claude-sonnet-4-20250514"].profile["max_input_tokens"] == 200000
+        assert by_id["unknown-custom-llm"].profile is None
+
+    @pytest.mark.asyncio
+    async def test_refresh_updates_profile_on_existing_models(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
+    ) -> None:
+        """Profile is updated on refresh even for existing models."""
+        integration_id = llm_integration["integration_id"]
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
+
+        discover_result = DiscoverResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_models=[_make_discovered_model("gpt-4o", "GPT-4o")],
+        )
+
+        with (
+            patch("nexus.integrations.services.integration_service.create_health_check_adapter") as mock_factory,
+            patch("nexus.integrations.services.integration_service.get_runtime_settings") as mock_settings,
+        ):
+            mock_settings.return_value.get = AsyncMock(return_value=10)
+            mock_adapter = AsyncMock()
+            mock_adapter.discover = AsyncMock(return_value=discover_result)
+            mock_factory.return_value = mock_adapter
+            await service.refresh_resources(integration_id)
+
+        models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == integration_id))).all()
+        assert models[0].profile is not None
+        assert models[0].profile["max_input_tokens"] == 128000
+
+        # Second refresh should also populate profile
+        with (
+            patch("nexus.integrations.services.integration_service.create_health_check_adapter") as mock_factory,
+            patch("nexus.integrations.services.integration_service.get_runtime_settings") as mock_settings,
+        ):
+            mock_settings.return_value.get = AsyncMock(return_value=10)
+            mock_adapter = AsyncMock()
+            mock_adapter.discover = AsyncMock(return_value=discover_result)
+            mock_factory.return_value = mock_adapter
+            await service.refresh_resources(integration_id)
+
+        models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == integration_id))).all()
+        assert models[0].profile is not None
 
     @pytest.mark.asyncio
     async def test_refresh_sets_status_available(

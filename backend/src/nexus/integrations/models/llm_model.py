@@ -6,16 +6,59 @@ that disappear from a provider are hard-deleted during refresh.
 """
 
 from datetime import datetime
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict, model_validator
 from sqlalchemy import Index, UniqueConstraint
-from sqlmodel import DateTime, Field, SQLModel
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Column, DateTime, Field, SQLModel
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseListParams, BaseResource
 from nexus.core.models.pagination import ResourcesResponse
+
+
+class ModelCapabilityProfile(SQLModel):
+    """Typed view of an LLM model's capability profile."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")  # type: ignore[assignment]
+
+    # Metadata
+    name: str | None = None
+    status: str | None = None
+    release_date: str | None = None
+    last_updated: str | None = None
+    open_weights: bool | None = None
+
+    # Input constraints
+    max_input_tokens: int | None = None
+    text_inputs: bool | None = None
+    image_inputs: bool | None = None
+    image_url_inputs: bool | None = None
+    pdf_inputs: bool | None = None
+    audio_inputs: bool | None = None
+    video_inputs: bool | None = None
+    image_tool_message: bool | None = None
+    pdf_tool_message: bool | None = None
+
+    # Output constraints
+    max_output_tokens: int | None = None
+    reasoning_output: bool | None = None
+    text_outputs: bool | None = None
+    image_outputs: bool | None = None
+    audio_outputs: bool | None = None
+    video_outputs: bool | None = None
+
+    # Tool calling
+    tool_calling: bool | None = None
+    tool_choice: bool | None = None
+    tool_call_streaming: bool | None = None
+
+    # Other
+    structured_output: bool | None = None
+    attachment: bool | None = None
+    temperature: bool | None = None
 
 
 class LLMModel(BaseResource, table=True):
@@ -71,12 +114,25 @@ class LLMModel(BaseResource, table=True):
         description="Last time this model was synced from the provider",
     )
 
+    profile: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+        description="Model capability profile",
+    )
+
     __table_args__ = (
         UniqueConstraint("integration_id", "model_id", name="uq_llm_models_integration_model"),
         Index("ix_llm_models_integration_id_created_at_id", "integration_id", "created_at", "id"),
     )
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    @property
+    def capability_profile(self) -> ModelCapabilityProfile | None:
+        """Parse the raw profile JSONB into a typed ``ModelCapabilityProfile``."""
+        if self.profile is None or len(self.profile) == 0:
+            return None
+        return ModelCapabilityProfile.model_validate(self.profile)
 
 
 # ============================================================================
@@ -95,6 +151,10 @@ class LLMModelRead(SQLModel):
     enabled: bool = True
     is_default: bool = False
     last_refreshed_at: datetime | None = None
+    profile: ModelCapabilityProfile | None = Field(
+        default=None,
+        description="Model capability profile",
+    )
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

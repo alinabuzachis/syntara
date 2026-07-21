@@ -49,7 +49,7 @@ fi
 if [[ -f requirements-build-extras.in ]]; then
 	echo "Merging build extras from requirements-build-extras.in..." >&2
 	extras_tmp="$(mktemp)"
-	uv pip compile --generate-hashes --python-version 3.12 \
+	uv pip compile --generate-hashes --python-version 3.12 --python-platform linux \
 		--output-file="${extras_tmp}" requirements-build-extras.in
 	grep -Ev '^(#|$)' "${extras_tmp}" >> requirements-build.txt
 	rm -f "${extras_tmp}"

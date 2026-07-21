@@ -64,6 +64,7 @@ from nexus.integrations.models.integration import (
     RefreshResult,
 )
 from nexus.integrations.models.llm_model import LLMModel
+from nexus.integrations.services.model_profile_lookup import lookup_model_profile
 from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.tool_manager.models.tool import Tool, ToolParameter, ToolParameterType, ToolStatus
 
@@ -1099,12 +1100,15 @@ class IntegrationService(BaseService):
                 is_existing=model_meta.id in existing_models,
             )
 
+            profile = lookup_model_profile(model_meta.id)
+
             if model_meta.id in existing_models:
                 existing = existing_models[model_meta.id]
                 existing.name = model_meta.name
                 existing.description = model_meta.description
                 existing.last_refreshed_at = now
                 existing.updated_at = now
+                existing.profile = profile
                 if default_model_id is not None:
                     existing.is_default = model_meta.id == default_model_id
                 updated_count += 1
@@ -1118,6 +1122,7 @@ class IntegrationService(BaseService):
                     enabled=model_enabled,
                     is_default=model_meta.id == default_model_id if default_model_id else False,
                     last_refreshed_at=now,
+                    profile=profile,
                 )
                 self.session.add(new_model)
                 synced_count += 1

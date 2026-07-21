@@ -12,3 +12,7 @@
 # pybuild-deps misses it because pymupdf is a runtime dep, not a build dep.
 libclang>=16.0
 patchelf>=0.11.0
+# secretstorage is a Linux-only transitive dep of keyring (via twine, a build
+# dep of google-genai). pybuild-deps misses it when run on macOS because
+# keyring only requires secretstorage on sys_platform == "linux".
+secretstorage>=3.2

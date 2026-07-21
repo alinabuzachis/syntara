@@ -837,10 +837,70 @@ export interface components {
       is_default?: boolean
       /** Last Refreshed At */
       last_refreshed_at?: string | null
+      /** @description Model capability profile */
+      profile?: components['schemas']['ModelCapabilityProfile'] | null
       /** Created At */
       created_at?: string | null
       /** Updated At */
       updated_at?: string | null
+    }
+    /**
+     * ModelCapabilityProfile
+     * @description Typed view of an LLM model's capability profile.
+     */
+    ModelCapabilityProfile: {
+      /** Name */
+      name?: string | null
+      /** Status */
+      status?: string | null
+      /** Release Date */
+      release_date?: string | null
+      /** Last Updated */
+      last_updated?: string | null
+      /** Open Weights */
+      open_weights?: boolean | null
+      /** Max Input Tokens */
+      max_input_tokens?: number | null
+      /** Text Inputs */
+      text_inputs?: boolean | null
+      /** Image Inputs */
+      image_inputs?: boolean | null
+      /** Image Url Inputs */
+      image_url_inputs?: boolean | null
+      /** Pdf Inputs */
+      pdf_inputs?: boolean | null
+      /** Audio Inputs */
+      audio_inputs?: boolean | null
+      /** Video Inputs */
+      video_inputs?: boolean | null
+      /** Image Tool Message */
+      image_tool_message?: boolean | null
+      /** Pdf Tool Message */
+      pdf_tool_message?: boolean | null
+      /** Max Output Tokens */
+      max_output_tokens?: number | null
+      /** Reasoning Output */
+      reasoning_output?: boolean | null
+      /** Text Outputs */
+      text_outputs?: boolean | null
+      /** Image Outputs */
+      image_outputs?: boolean | null
+      /** Audio Outputs */
+      audio_outputs?: boolean | null
+      /** Video Outputs */
+      video_outputs?: boolean | null
+      /** Tool Calling */
+      tool_calling?: boolean | null
+      /** Tool Choice */
+      tool_choice?: boolean | null
+      /** Tool Call Streaming */
+      tool_call_streaming?: boolean | null
+      /** Structured Output */
+      structured_output?: boolean | null
+      /** Attachment */
+      attachment?: boolean | null
+      /** Temperature */
+      temperature?: boolean | null
     }
     /**
      * LLMModelUpdate
