@@ -4600,7 +4600,7 @@ export const handlers = [
     const limit = Math.min(Number(url.searchParams.get('limit') ?? '20'), 50)
     const cursor = url.searchParams.get('cursor') ?? undefined
     const sort = url.searchParams.get('sort') ?? 'name'
-    const nameFilter = url.searchParams.get('name__contains')?.toLowerCase()
+    const nameFilter = url.searchParams.get('name[contains]')?.toLowerCase()
     const statusFilter = url.searchParams.get('status')?.toLowerCase()
     const includeTotal = url.searchParams.get('include_total') === 'true'
 
