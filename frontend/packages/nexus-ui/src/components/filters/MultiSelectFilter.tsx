@@ -1,7 +1,18 @@
-import { Badge, MenuToggle, Select, SelectList, SelectOption, type MenuToggleElement } from '@patternfly/react-core'
+import {
+  Badge,
+  Divider,
+  MenuToggle,
+  Select,
+  SelectList,
+  SelectOption,
+  type MenuToggleElement,
+} from '@patternfly/react-core'
 import React, { useCallback, useMemo, useState } from 'react'
 
 import { FilterOperatorEnum, type FilterConfig, type FilterOperator } from '../../types/filters'
+
+const SELECT_ALL_VALUE = '__select_all__'
+const CLEAR_ALL_VALUE = '__clear_all__'
 
 type MultiSelectFilterMenuToggleProps = {
   toggleRef: React.Ref<MenuToggleElement>
@@ -74,9 +85,10 @@ export type MultiSelectFilterProps = {
 /**
  * Multi-select filter component using PatternFly Select with checkboxes.
  *
- * Renders a dropdown with checkbox options. Emits a single FilterConfig
- * with operator 'in' and value as string[] of selected option values.
- * When all values are deselected, emits null to clear the filter.
+ * Renders a dropdown with checkbox options plus Select All / Clear All actions.
+ * Emits a single FilterConfig with operator 'in' and value as string[] of selected
+ * option values. When all values are deselected, emits null to clear the filter.
+ * The toggle badge shows how many values are active.
  *
  * @example
  * ```tsx
@@ -103,26 +115,45 @@ export function MultiSelectFilter({
 }: MultiSelectFilterProps) {
   const [isOpen, setIsOpen] = useState(false)
 
+  const allOptionValues = useMemo(() => options.map((option) => option.value), [options])
+
   const toggleOpen = useCallback(() => {
     setIsOpen((prev) => !prev)
   }, [])
+
+  const emitValues = useCallback(
+    (values: string[]) => {
+      if (values.length === 0) {
+        onChange(null, fieldKey)
+      } else {
+        onChange({ key: fieldKey, operator, value: values })
+      }
+    },
+    [fieldKey, onChange, operator]
+  )
 
   const handleSelect = useCallback(
     (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
       if (value === undefined || value === null) return
       const stringValue = String(value)
 
+      if (stringValue === SELECT_ALL_VALUE) {
+        emitValues(allOptionValues)
+        return
+      }
+
+      if (stringValue === CLEAR_ALL_VALUE) {
+        emitValues([])
+        return
+      }
+
       const newValues = selectedValues.includes(stringValue)
         ? selectedValues.filter((v) => v !== stringValue)
         : [...selectedValues, stringValue]
 
-      if (newValues.length === 0) {
-        onChange(null, fieldKey)
-      } else {
-        onChange({ key: fieldKey, operator, value: newValues })
-      }
+      emitValues(newValues)
     },
-    [fieldKey, selectedValues, onChange, operator]
+    [allOptionValues, emitValues, selectedValues]
   )
 
   const toggleLabel = placeholder ?? `Filter by ${label.toLowerCase()}`
@@ -152,6 +183,13 @@ export function MultiSelectFilter({
       toggle={renderToggle}
     >
       <SelectList aria-label={`Filter by ${label}`}>
+        <SelectOption value={SELECT_ALL_VALUE} isDisabled={options.length === 0}>
+          Select All
+        </SelectOption>
+        <SelectOption value={CLEAR_ALL_VALUE} isDisabled={selectedValues.length === 0}>
+          Clear All
+        </SelectOption>
+        <Divider component="li" />
         {options.map((option) => (
           <SelectOption
             key={option.value}

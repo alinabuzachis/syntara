@@ -14,7 +14,6 @@ import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagina
 import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
-import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
@@ -30,20 +29,11 @@ import { useWorkflowPermissions } from './useWorkflowPermissions'
 import { useWorkflowsPageToolbar } from './useWorkflowsPageToolbar'
 import { useWorkflowsQuery } from './useWorkflowsQuery'
 import { WorkflowDialogs } from './WorkflowDialogs'
-import { workflowFilterDefinitions } from './workflowFilterDefinitions'
+import { transformIsEnabledFilter, workflowFilterDefinitions } from './workflowFilterDefinitions'
 import { buildWorkflowRowActions } from './workflowRowActions'
 import { WorkflowsListView } from './WorkflowsListView'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
-
-// Transform is_enabled string values to boolean for the API
-const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
-  filters.map((filter) => {
-    if (filter.key === 'is_enabled' && typeof filter.value === 'string') {
-      return { ...filter, value: filter.value === 'true' }
-    }
-    return filter
-  })
 
 type WorkflowsPageToolbarProps = {
   headerProjectActions: ReturnType<typeof buildProjectRowActions>

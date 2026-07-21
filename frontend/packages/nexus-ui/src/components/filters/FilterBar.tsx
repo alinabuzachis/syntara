@@ -86,7 +86,7 @@ export function FilterBar({
   toolbarEnd,
   className,
 }: FilterBarProps) {
-  // Separate field definitions for TextFilter (TEXT/SELECT/DATERANGE/MULTISELECT) vs other filter types
+  // Attribute search: TEXT/SELECT/DATERANGE. Standalone: BOOLEAN/MULTISELECT/LABELS (via FilterTypeRenderer).
   const attributeSearchFields = fieldDefinitions.filter(isAttributeSearchField)
   const otherFilterFields = fieldDefinitions.filter((f) => !isAttributeSearchField(f))
   const hasActiveFilters = filters.length > 0

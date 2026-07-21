@@ -579,26 +579,17 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      // Click the field selector dropdown to switch from "Name" to "Status"
-      const fieldSelectorButton = screen.getByRole('button', { name: 'Name' })
-      await user.click(fieldSelectorButton)
-
-      // Select "Status" field from dropdown
-      const statusOption = await screen.findByRole('option', { name: 'Status' })
-      await user.click(statusOption)
-
-      // Now the filter field should show the status selector
-      // Open the status value dropdown
+      // Status is a standalone MULTISELECT control (not attribute search)
       const statusValueButton = await screen.findByRole('button', { name: /filter by status/i }, { timeout: 10000 })
       await user.click(statusValueButton)
 
-      // Select "Pending" option
-      const pendingOption = await screen.findByRole('option', { name: 'Pending' })
-      await user.click(pendingOption)
+      // Select "Pending" inside the open menu (avoid matching table status badges)
+      const statusMenu = await screen.findByRole('menu', { name: /filter by status/i })
+      await user.click(within(statusMenu).getByText('Pending'))
 
-      // Verify URL params were updated with status filter
+      // Verify URL params were updated with combined IN status filter
       await waitFor(() => {
-        assertUrlParam(mockSetSearchParams, 'status', 'pending')
+        assertUrlParam(mockSetSearchParams, 'status[in]', 'pending')
       })
       expect(mockSetSearchParams).toHaveBeenCalled()
     }, 10000)

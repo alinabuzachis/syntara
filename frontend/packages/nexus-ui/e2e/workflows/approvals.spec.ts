@@ -83,18 +83,18 @@ test('user filters approvals by name and status', async ({ app }) => {
   await expect(nameChipGroup.getByText('Policy')).toBeVisible()
   await expect(app).toHaveURL(/name%5Bcontains%5D=Policy/)
 
-  // Step 2: Add status filter
-  const fieldSelector = app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Name', exact: true })
-  await fieldSelector.click()
-  await app.getByRole('option', { name: 'Status' }).click()
+  // Step 2: Add status filter (standalone MULTISELECT)
   await app.getByRole('button', { name: 'Filter by status' }).click()
-  await app.getByRole('option', { name: 'Approved' }).click()
+  await app
+    .getByRole('menu', { name: /filter by status/i })
+    .getByText('Approved')
+    .click()
 
   const statusChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Status' })
   await expect(nameChipGroup.getByText('Policy')).toBeVisible()
   await expect(statusChipGroup.getByText('Approved')).toBeVisible()
   await expect(app).toHaveURL(/name%5Bcontains%5D=Policy/)
-  await expect(app).toHaveURL(/status=approved/)
+  await expect(app).toHaveURL(/status%5Bin%5D=approved|status\[in\]=approved/)
 
   // Step 3: Remove name chip individually
   await nameChipGroup.getByRole('button', { name: /close/i }).click()
@@ -102,21 +102,16 @@ test('user filters approvals by name and status', async ({ app }) => {
   await expect(nameChipGroup).not.toBeVisible()
   await expect(statusChipGroup.getByText('Approved')).toBeVisible()
   await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
-  await expect(app).toHaveURL(/status=approved/)
+  await expect(app).toHaveURL(/status%5Bin%5D=approved|status\[in\]=approved/)
 
   // Step 4: Clear all filters
   await app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Clear all filters' }).click()
 
   await expect(app.getByRole('search', { name: 'Filters' }).getByRole('list')).toHaveCount(0)
   await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
-  await expect(app).not.toHaveURL(/status=/)
+  await expect(app).not.toHaveURL(/status/)
 
   // Step 5: Empty state when filters match nothing
-  // Switch back to Name field (selector may still show Status after clearing)
-  const nameFieldSelector = app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: /Name|Status/ })
-  await nameFieldSelector.click()
-  await app.getByRole('option', { name: 'Name' }).click()
-
   const impossibleName = buildUniqueName('zzz-nonexistent')
   await app.getByPlaceholder('Filter by name').fill(impossibleName)
   await app.getByRole('button', { name: 'Apply filter' }).click()

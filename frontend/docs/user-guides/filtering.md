@@ -68,14 +68,14 @@ There is no separate always-on search box outside the filter toolbar. Keyword/Na
 
 ## Available filter types
 
-| Type             | What you see                           | Typical use                                  |
-| ---------------- | -------------------------------------- | -------------------------------------------- |
-| **Text**         | Text field in attribute search         | Name / keyword substring match               |
-| **Select**       | Dropdown of fixed or typeahead options | Status, enabled/disabled, workflow picker    |
-| **Multi-select** | Standalone multi-value control         | Multiple statuses when the API supports `in` |
-| **Date range**   | Start and end date controls            | Created/updated windows (`gte` / `lte`)      |
-| **Boolean**      | Standalone toggle                      | True/false flags                             |
-| **Labels**       | Key/value pairs                        | Resources tagged with labels                 |
+| Type             | What you see                                                      | Typical use                                                                 |
+| ---------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Text**         | Text field in attribute search                                    | Name / keyword substring match                                              |
+| **Select**       | Dropdown of fixed or typeahead options                            | Status, enabled/disabled, workflow picker                                   |
+| **Multi-select** | Standalone checkbox control (Select All / Clear All, count badge) | Multiple statuses/states when the API supports `in` (e.g. Approvals status) |
+| **Date range**   | Start and end date controls                                       | Created/updated windows (`gte` / `lte`)                                     |
+| **Boolean**      | Standalone toggle                                                 | True/false flags                                                            |
+| **Labels**       | Key/value pairs                                                   | Resources tagged with labels                                                |
 
 Not every list exposes every type. Fields are limited to what that API supports.
 

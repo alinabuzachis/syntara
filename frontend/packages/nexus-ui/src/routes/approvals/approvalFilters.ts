@@ -14,12 +14,15 @@ export const getApprovalNameFilterDefinition = (): FilterFieldDefinition => ({
 })
 
 /**
- * Shared filter field definition for approval status filtering
+ * Shared filter field definition for approval status filtering.
+ * Uses MULTISELECT + IN so users can combine statuses (`status[in]=pending,approved`).
  */
 export const getApprovalStatusFilterDefinition = (): FilterFieldDefinition => ({
   key: 'status',
   label: 'Status',
-  type: FilterTypeEnum.SELECT,
+  type: FilterTypeEnum.MULTISELECT,
+  operators: [FilterOperatorEnum.IN],
+  defaultOperator: FilterOperatorEnum.IN,
   options: [
     { value: 'pending', label: 'Pending' },
     { value: 'approved', label: 'Approved' },

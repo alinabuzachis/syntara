@@ -38,7 +38,7 @@ describe('approvalFilters', () => {
 
       expect(definition.key).toBe('status')
       expect(definition.label).toBe('Status')
-      expect(definition.type).toBe(FilterTypeEnum.SELECT)
+      expect(definition.type).toBe(FilterTypeEnum.MULTISELECT)
       expect(definition.placeholder).toBe('Filter by status')
     })
 
@@ -61,14 +61,16 @@ describe('approvalFilters', () => {
       expect(statusLabels).toEqual(['Pending', 'Approved', 'Rejected', 'Expired', 'Cancelled'])
     })
 
-    it('uses exact match query parameter without operator', () => {
+    it('uses IN operator for combined status filtering', () => {
       const definition = getApprovalStatusFilterDefinition()
 
-      // Status filter uses exact match (no operator)
-      expect(definition.operators).toBeUndefined()
-      expect(definition.defaultOperator).toBeUndefined()
+      expect(definition.operators).toEqual([FilterOperatorEnum.IN])
+      expect(definition.defaultOperator).toBe(FilterOperatorEnum.IN)
 
-      // This produces 'status=value' not 'status[eq]=value' for backend API
+      // Produces status[in]=pending,approved for the backend API
+      const operator = definition.defaultOperator ?? 'eq'
+      const expectedParamKey = operator === 'eq' ? definition.key : `${definition.key}[${operator}]`
+      expect(expectedParamKey).toBe('status[in]')
     })
   })
 })

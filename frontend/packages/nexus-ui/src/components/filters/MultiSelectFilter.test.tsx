@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import type { FilterConfig } from '../../types/filters'
 
@@ -62,6 +63,17 @@ describe('MultiSelectFilter', () => {
     expect(menu).toHaveAccessibleName('Filter by Status')
     const checkboxes = screen.getAllByRole('checkbox')
     expect(checkboxes).toHaveLength(statusOptions.length)
+    expect(screen.getByText('Select All')).toBeInTheDocument()
+    expect(screen.getByText('Clear All')).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations when open', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<MultiSelectFilter {...defaultProps} selectedValues={['running']} />)
+
+    await user.click(screen.getByRole('button'))
+
+    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('reflects selected state on checkboxes', async () => {
@@ -145,6 +157,40 @@ describe('MultiSelectFilter', () => {
       await user.click(screen.getByText('Running'))
 
       expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ operator: 'eq' }))
+    })
+
+    it('selects all options via Select All', async () => {
+      const user = userEvent.setup()
+      render(<MultiSelectFilter {...defaultProps} selectedValues={['running']} />)
+
+      await user.click(screen.getByRole('button'))
+      await user.click(screen.getByText('Select All'))
+
+      expect(onChange).toHaveBeenCalledWith<[FilterConfig]>({
+        key: 'status',
+        operator: 'in',
+        value: ['running', 'completed', 'failed', 'pending'],
+      })
+    })
+
+    it('clears all options via Clear All', async () => {
+      const user = userEvent.setup()
+      render(<MultiSelectFilter {...defaultProps} selectedValues={['running', 'failed']} />)
+
+      await user.click(screen.getByRole('button'))
+      await user.click(screen.getByText('Clear All'))
+
+      expect(onChange).toHaveBeenCalledWith(null, 'status')
+    })
+
+    it('does not emit when Clear All is clicked with no selection', async () => {
+      const user = userEvent.setup()
+      render(<MultiSelectFilter {...defaultProps} />)
+
+      await user.click(screen.getByRole('button'))
+      await user.click(screen.getByText('Clear All'))
+
+      expect(onChange).not.toHaveBeenCalled()
     })
   })
 })
