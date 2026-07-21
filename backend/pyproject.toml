@@ -104,7 +104,7 @@ dev = [
     "nexus-api-client",  # local API client for E2E tests
     "azure-identity>=1.19.0",  # ClientSecretCredential for Azure AD fixture
     "msgraph-sdk>=1.0.0",  # GraphServiceClient and graph models for Azure AD fixture
-    "aap-orchestrator-cli",  # local CLI for the AAP Orchestrator API
+    "orchestrator-cli",  # local CLI for the Orchestrator API
     "beautifulsoup4>=4.12.0",  # for parsing HTML in external auth client fixture
     # Static analysis tools
     "vulture>=2.16",  # dead code detection
@@ -122,10 +122,10 @@ constraint-dependencies = [
 
 [tool.uv.sources]
 nexus-api-client = { path = "src/api_client", editable = true }
-aap-orchestrator-cli = { path = "src/cli", editable = true }
+orchestrator-cli = { path = "src/cli", editable = true }
 
 [project.scripts]
-ao-admin = "nexus.ao_admin:app"
+orchestrator-admin = "nexus.orchestrator_admin:app"
 
 [project.urls]
 Homepage = "https://github.com/syntara-orchestration/syntara"

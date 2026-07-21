@@ -255,7 +255,7 @@ def _create_client(base_url: str, token: str | None, *, needs_auth: bool) -> obj
         api_url = f"{base_url}/api/v1"
         if needs_auth:
             if not token:
-                typer.echo("Error: --token or AO_TOKEN required", err=True)
+                typer.echo("Error: --token or APP_CLI_TOKEN required", err=True)
                 raise typer.Exit(1)
             return client_mod.AuthenticatedClient(base_url=api_url, token=token, verify_ssl=False)
         return client_mod.Client(base_url=api_url, verify_ssl=False)

@@ -313,9 +313,9 @@ All revocation operations (CLI and API) emit audit events. The `actor_source` fi
 | Revoke user sessions | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`user`), `target_identifier`, `sessions_revoked` |
 | Revoke IdP sessions | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`idp`), `target_identifier`, `sessions_revoked` |
 
-### Account Management (`ao-admin`)
+### Account Management (`orchestrator-admin`)
 
-The `ao-admin` CLI provides production account management operations, designed to be run inside the application pod. It is a separate CLI from the developer `python -m nexus.admin` utility.
+The `orchestrator-admin` CLI provides production account management operations, designed to be run inside the application pod. It is a separate CLI from the developer `python -m nexus.admin` utility.
 
 #### Account Re-enablement
 
@@ -323,13 +323,13 @@ Re-enables a disabled user account. Works for both local and identity provider u
 
 ```bash
 # Interactive — prompts for confirmation (defaults to admin user)
-ao-admin enable-user
+orchestrator-admin enable-user
 
 # Specify a different user
-ao-admin enable-user --username alice
+orchestrator-admin enable-user --username alice
 
 # Non-interactive (CI/scripts)
-ao-admin enable-user --username alice --yes
+orchestrator-admin enable-user --username alice --yes
 ```
 
 | Flag | Default | Description |
@@ -344,7 +344,7 @@ ao-admin enable-user --username alice --yes
 3. The user's `is_enabled` flag is set to `true`.
 4. All existing sessions are revoked and the token version is incremented (forces fresh login).
 5. An audit event (`account_enable`) is emitted.
-6. For local users, the output suggests running `ao-admin reset-password` if a password reset is also needed.
+6. For local users, the output suggests running `orchestrator-admin reset-password` if a password reset is also needed.
 
 #### Password Reset
 
@@ -352,16 +352,16 @@ Resets the password for a local user account. Identity provider users are reject
 
 ```bash
 # Interactive — prompts for confirmation, then prompts for new password (no echo)
-ao-admin reset-password --username alice
+orchestrator-admin reset-password --username alice
 
 # Non-interactive confirmation (still prompts for password securely)
-ao-admin reset-password --username alice --yes
+orchestrator-admin reset-password --username alice --yes
 
 # Non-interactive — read password from stdin (recommended for scripts)
-cat /run/secrets/admin-password | ao-admin reset-password --username alice --password-stdin
+cat /run/secrets/admin-password | orchestrator-admin reset-password --username alice --password-stdin
 
 # Non-interactive — provide password as flag (⚠️ visible in process list and shell history)
-ao-admin reset-password --username alice --password 'MySecureP@ss1'
+orchestrator-admin reset-password --username alice --password 'MySecureP@ss1'
 ```
 
 | Flag | Default | Description |
@@ -374,7 +374,7 @@ ao-admin reset-password --username alice --password 'MySecureP@ss1'
 > **Security note:** `--password` exposes the password in the process list and shell history. For automation, prefer `--password-stdin` which reads from a pipe or file and leaves no trace in process arguments:
 >
 > ```bash
-> cat /run/secrets/admin-password | ao-admin reset-password --username alice --password-stdin
+> cat /run/secrets/admin-password | orchestrator-admin reset-password --username alice --password-stdin
 > ```
 
 When the password is supplied via `--password` or `--password-stdin`, the confirmation prompt is automatically skipped. The two flags are mutually exclusive. If stdin is not a terminal and neither `--password` nor `--password-stdin` is given, the command exits with an error instead of silently consuming input.
@@ -394,8 +394,8 @@ When the password is supplied via `--password` or `--password-stdin`, the confir
 
 | Command | Event | Severity | Fields |
 |---------|-------|----------|--------|
-| `ao-admin enable-user` | `account_enable` | WARNING | `actor_username`, `actor_source`, `target_username`, `sessions_revoked` |
-| `ao-admin reset-password` | `password_reset` | CRITICAL | `actor_username`, `actor_source`, `target_username`, `sessions_revoked` |
+| `orchestrator-admin enable-user` | `account_enable` | WARNING | `actor_username`, `actor_source`, `target_username`, `sessions_revoked` |
+| `orchestrator-admin reset-password` | `password_reset` | CRITICAL | `actor_username`, `actor_source`, `target_username`, `sessions_revoked` |
 
 ### Storage Dependencies
 

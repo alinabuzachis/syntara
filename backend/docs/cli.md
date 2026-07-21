@@ -1,17 +1,17 @@
-# AAP Orchestrator CLI
+# Orchestrator CLI
 
-The `ao` command-line client provides access to the AAP Orchestrator API from the terminal. It dynamically builds commands at runtime from the OpenAPI spec and ships as a standalone `aap-orchestrator-cli` Python package (separate from the auto-generated `nexus-api-client`).
+The `orchestrator` command-line client provides access to the Orchestrator API from the terminal. It dynamically builds commands at runtime from the OpenAPI spec and ships as a standalone `orchestrator-cli` Python package (separate from the auto-generated `nexus-api-client`).
 
 ## Installation
 
 ```bash
-pip install aap-orchestrator-cli
+pip install orchestrator-cli
 ```
 
-This installs the `ao` command. You can also run it as a Python module:
+This installs the `orchestrator` command. You can also run it as a Python module:
 
 ```bash
-python -m aap_orchestrator_cli
+python -m orchestrator_cli
 ```
 
 ## Authentication
@@ -19,24 +19,24 @@ python -m aap_orchestrator_cli
 ### Login (recommended)
 
 ```bash
-ao authentication login --username admin --password <password>
+orchestrator authentication login --username admin --password <password>
 ```
 
-On success, the token is **automatically saved** to `~/.aap/orchestrator/` and used for all subsequent commands — no need to pass `--token` or set environment variables.
+On success, the token is **automatically saved** to `~/.orchestrator/` and used for all subsequent commands — no need to pass `--token` or set environment variables.
 
 Tokens are stored per-instance, so you can work with multiple servers without conflicts. Expired tokens are automatically purged.
 
 ### Environment variables
 
 ```bash
-export AO_URL=http://localhost:8000
-export AO_TOKEN=<your-jwt-token>
+export APP_CLI_URL=http://localhost:8000
+export APP_CLI_TOKEN=<your-jwt-token>
 ```
 
 ### CLI flags
 
 ```bash
-ao --base-url http://localhost:8000 --token <token> users list
+orchestrator --base-url http://localhost:8000 --token <token> users list
 ```
 
 ### Resolution order
@@ -44,8 +44,8 @@ ao --base-url http://localhost:8000 --token <token> users list
 The CLI resolves the token in this order (first match wins):
 
 1. `--token` flag
-2. `AO_TOKEN` environment variable
-3. Cached token from `~/.aap/orchestrator/` (saved by `login`)
+2. `APP_CLI_TOKEN` environment variable
+3. Cached token from `~/.orchestrator/` (saved by `login`)
 
 If neither is set, `--base-url` defaults to `http://localhost:8000`.
 
@@ -54,7 +54,7 @@ If neither is set, `--base-url` defaults to `http://localhost:8000`.
 If you need the raw token for scripting:
 
 ```bash
-export AO_TOKEN=$(ao authentication login \
+export APP_CLI_TOKEN=$(orchestrator authentication login \
   --username admin --password secret | jq -r .access_token)
 ```
 
@@ -63,7 +63,7 @@ export AO_TOKEN=$(ao authentication login \
 Commands follow a `<resource> <action>` pattern:
 
 ```
-ao <resource-group> <command> [ARGUMENTS] [OPTIONS]
+orchestrator <resource-group> <command> [ARGUMENTS] [OPTIONS]
 ```
 
 - **Resource groups** map to API tags: `users`, `groups`, `projects`, `workflows`, `roles`, `policies`, `role_assignments`, `credentials`, etc.
@@ -75,49 +75,49 @@ ao <resource-group> <command> [ARGUMENTS] [OPTIONS]
 
 ```bash
 # Login (token is saved automatically)
-ao authentication login --username admin --password secret
+orchestrator authentication login --username admin --password secret
 
 # User management
-ao users list
-ao users create --username alice --email alice@example.com \
+orchestrator users list
+orchestrator users create --username alice --email alice@example.com \
   --full-name "Alice" --password secret
-ao users get <user-id>
-ao users update <user-id> --full-name "Alice Smith"
-ao users delete <user-id>
+orchestrator users get <user-id>
+orchestrator users update <user-id> --full-name "Alice Smith"
+orchestrator users delete <user-id>
 
 # Groups
-ao groups create --name backend-eng --description "Backend team"
-ao groups list
-ao groups add_member <group-id> --user-id <user-id>
-ao groups list_members <group-id>
+orchestrator groups create --name backend-eng --description "Backend team"
+orchestrator groups list
+orchestrator groups add_member <group-id> --user-id <user-id>
+orchestrator groups list_members <group-id>
 
 # Projects
-ao projects create --name staging --description "Staging environment"
-ao projects list
+orchestrator projects create --name staging --description "Staging environment"
+orchestrator projects list
 
 # Role assignments
-ao role_assignments create --principal-type user \
+orchestrator role_assignments create --principal-type user \
   --principal-id <user-id> --role-name admin
-ao users create-role_assignment <user-id> --role-name viewer
-ao users create-role_assignment <user-id> --role-name project-admin \
+orchestrator users create-role_assignment <user-id> --role-name viewer
+orchestrator users create-role_assignment <user-id> --role-name project-admin \
   --project-id <project-id>
 
 # Workflows
-ao workflows create --name my-workflow \
+orchestrator workflows create --name my-workflow \
   --workflow-definition @workflow.json --project-id <project-id>
-ao workflows list
-ao workflows get <workflow-id>
+orchestrator workflows list
+orchestrator workflows get <workflow-id>
 
 # Authorization checks
-ao authorization can-i --action read --resource-type workflow
-ao authorization what-can-i
+orchestrator authorization can-i --action read --resource-type workflow
+orchestrator authorization what-can-i
 
 # Credentials
-ao credentials create --name "my-aap" --credential-type-id <type-id> \
+orchestrator credentials create --name "my-aap" --credential-type-id <type-id> \
   --project-id <project-id> --inputs '{"host": "https://aap.example.com", "token": "..."}'
 
 # Audit
-ao audit-events list --limit 50 --event-category authorization
+orchestrator audit-events list --limit 50 --event-category authorization
 ```
 
 ## Output format
@@ -156,13 +156,13 @@ The JSON output is designed for piping with `jq`:
 
 ```bash
 # Get all usernames
-ao users list | jq -r '.resources[].username'
+orchestrator users list | jq -r '.resources[].username'
 
 # Get a project ID by name
-PROJECT_ID=$(ao projects list | jq -r '.resources[] | select(.name=="staging") | .id')
+PROJECT_ID=$(orchestrator projects list | jq -r '.resources[] | select(.name=="staging") | .id')
 
 # Create a user and capture the ID
-USER_ID=$(ao users create --username bob --email bob@example.com \
+USER_ID=$(orchestrator users create --username bob --email bob@example.com \
   --full-name "Bob" --password secret | jq -r .id)
 ```
 
@@ -180,20 +180,20 @@ The `@` prefix reads the file contents and parses it as JSON.
 Every command supports `--help`:
 
 ```bash
-ao --help                    # list all resource groups
-ao users --help              # list all user commands
-ao users create --help       # show all options for user creation
+orchestrator --help                    # list all resource groups
+orchestrator users --help              # list all user commands
+orchestrator users create --help       # show all options for user creation
 ```
 
 Help text includes parameter descriptions, default values, and enum choices where applicable.
 
 ## How the CLI works
 
-The CLI is built dynamically at runtime from the OpenAPI specification — there are no generated CLI source files to maintain. When you run any `ao` command:
+The CLI is built dynamically at runtime from the OpenAPI specification — there are no generated CLI source files to maintain. When you run any `orchestrator` command:
 
 1. The CLI locates the schema sources under `src/nexus/schemas/`
-2. It hashes all source files and compares against a saved manifest in `~/.aap/orchestrator/spec-hashes.json`
-3. If anything changed (or no cache exists), the spec is re-bundled and cached to `~/.aap/orchestrator/openapi.json`
+2. It hashes all source files and compares against a saved manifest in `~/.orchestrator/spec-hashes.json`
+3. If anything changed (or no cache exists), the spec is re-bundled and cached to `~/.orchestrator/openapi.json`
 4. Commands, arguments, and options are constructed from the cached spec at runtime
 
 When the API spec changes, the CLI automatically picks up the changes on the next invocation — no code generation step required.
@@ -204,10 +204,10 @@ When the API spec changes, the CLI automatically picks up the changes on the nex
 src/
 ├── cli/                         # hand-written CLI package (never auto-generated)
 │   ├── pyproject.toml           # CLI package metadata, deps, and entrypoint
-│   └── aap_orchestrator_cli/
+│   └── orchestrator_cli/
 │       ├── __init__.py          # app entrypoint, global options (--base-url, --token)
 │       ├── __main__.py          # python -m support
-│       ├── auth.py              # token persistence (~/.aap/orchestrator/)
+│       ├── auth.py              # token persistence (~/.orchestrator/)
 │       ├── commands.py          # dynamic command builder (spec → Typer commands)
 │       └── spec.py              # spec caching and auto-bundling
 ├── api_client/                  # auto-generated API client (regenerated by make)
@@ -219,7 +219,7 @@ src/
 │       └── ...
 ```
 
-### Local data (`~/.aap/orchestrator/`)
+### Local data (`~/.orchestrator/`)
 
 | File | Purpose |
 |------|---------|
@@ -229,10 +229,10 @@ src/
 
 ### Benchmarking CLI overhead
 
-Set `AO_BENCHMARK=1` to print a timing breakdown to `stderr` for one CLI invocation:
+Set `APP_CLI_BENCHMARK=1` to print a timing breakdown to `stderr` for one CLI invocation:
 
 ```bash
-AO_BENCHMARK=1 ao --base-url http://localhost:8000 groups list --limit 1
+APP_CLI_BENCHMARK=1 orchestrator --base-url http://localhost:8000 groups list --limit 1
 ```
 
 The summary includes startup phases such as spec loading and dynamic command construction, plus request phases such as client creation, model import, endpoint import, API call, and response formatting.

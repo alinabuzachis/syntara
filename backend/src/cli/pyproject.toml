@@ -1,7 +1,7 @@
 [project]
-name = "aap-orchestrator-cli"
+name = "orchestrator-cli"
 version = "0.1.0"
-description = "Command-line client for the AAP Orchestrator API"
+description = "Command-line client for the Orchestrator API"
 authors = []
 requires-python = ">=3.10"
 dependencies = [
@@ -14,7 +14,7 @@ dependencies = [
 nexus-api-client = { path = "../api_client", editable = true }
 
 [tool.uv.build-backend]
-module-name = "aap_orchestrator_cli"
+module-name = "orchestrator_cli"
 module-root = ""
 
 [build-system]
@@ -22,4 +22,4 @@ requires = ["uv_build>=0.10.0,<0.11.0"]
 build-backend = "uv_build"
 
 [project.scripts]
-ao = "aap_orchestrator_cli:app"
+orchestrator = "orchestrator_cli:app"

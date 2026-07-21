@@ -7,7 +7,7 @@ import importlib.util
 import sys
 from typing import TYPE_CHECKING, Any, cast
 
-from aap_orchestrator_cli import commands as commands_module
+from orchestrator_cli import commands as commands_module
 
 if TYPE_CHECKING:
     from pathlib import Path

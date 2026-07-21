@@ -276,7 +276,8 @@ def _read_admin_password_hash() -> str | None:
         validate_password_complexity(password)
     except ValueError:
         logger.warning(
-            "Admin password does not meet complexity requirements — consider updating it via 'ao-admin reset-password'",
+            "Admin password does not meet complexity requirements"
+            " — consider updating it via 'orchestrator-admin reset-password'",
             path=password_path,
         )
 

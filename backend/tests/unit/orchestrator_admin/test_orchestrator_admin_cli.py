@@ -1,4 +1,4 @@
-"""Unit tests for the ao-admin CLI enable-user and reset-password commands."""
+"""Unit tests for the orchestrator-admin CLI enable-user and reset-password commands."""
 
 import re
 from io import StringIO
@@ -8,14 +8,14 @@ from uuid import uuid4
 import pytest
 import typer
 
-from nexus.ao_admin.__main__ import (
+from nexus.core.models.user import AuthType
+from nexus.orchestrator_admin.__main__ import (
     _enable_user_async,
     _get_actor,
     _reset_password_async,
     _resolve_password,
     _validate_password,
 )
-from nexus.core.models.user import AuthType
 
 
 def _make_mock_user(
@@ -131,12 +131,12 @@ class TestGetActor:
     """Tests for _get_actor helper."""
 
     def test_returns_os_login(self) -> None:
-        with patch("nexus.ao_admin.__main__.os.getlogin", return_value="jdoe"):
+        with patch("nexus.orchestrator_admin.__main__.os.getlogin", return_value="jdoe"):
             assert _get_actor() == "jdoe"
 
     def test_falls_back_on_os_error(self) -> None:
-        with patch("nexus.ao_admin.__main__.os.getlogin", side_effect=OSError("no tty")):
-            assert _get_actor() == "ao-admin"
+        with patch("nexus.orchestrator_admin.__main__.os.getlogin", side_effect=OSError("no tty")):
+            assert _get_actor() == "orchestrator-admin"
 
 
 # ---------------------------------------------------------------------------
@@ -158,8 +158,8 @@ class TestEnableUser:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__.start_audit_subsystems"),
-            patch("nexus.ao_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
+            patch("nexus.orchestrator_admin.__main__.start_audit_subsystems"),
+            patch("nexus.orchestrator_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -167,7 +167,7 @@ class TestEnableUser:
             patch("nexus.auth.session.create_session_store", return_value=mock_store),
             patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
         ):
-            await _enable_user_async(username="alice", actor="ao-admin")
+            await _enable_user_async(username="alice", actor="orchestrator-admin")
 
         assert mock_user.is_enabled is True
         mock_store.revoke_all_for_user.assert_called_once_with(mock_user.id)
@@ -176,7 +176,7 @@ class TestEnableUser:
 
         event = mock_dispatcher.dispatch.call_args[0][0]
         assert event.target_username == mock_user.username
-        assert event.actor_username == "ao-admin"
+        assert event.actor_username == "orchestrator-admin"
         assert event.sessions_revoked == 2
 
     @pytest.mark.asyncio
@@ -190,8 +190,8 @@ class TestEnableUser:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__.start_audit_subsystems"),
-            patch("nexus.ao_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
+            patch("nexus.orchestrator_admin.__main__.start_audit_subsystems"),
+            patch("nexus.orchestrator_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -199,7 +199,7 @@ class TestEnableUser:
             patch("nexus.auth.session.create_session_store", return_value=mock_store),
             patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
         ):
-            await _enable_user_async(username="alice", actor="ao-admin")
+            await _enable_user_async(username="alice", actor="orchestrator-admin")
 
         assert mock_user.is_enabled is True
         mock_dispatcher.dispatch.assert_called_once()
@@ -210,14 +210,14 @@ class TestEnableUser:
         mock_session = _mock_session_returning(None)
 
         with (
-            patch("nexus.ao_admin.__main__.start_audit_subsystems"),
+            patch("nexus.orchestrator_admin.__main__.start_audit_subsystems"),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
             ),
             pytest.raises(typer.Exit) as exc_info,
         ):
-            await _enable_user_async(username="nonexistent", actor="ao-admin")
+            await _enable_user_async(username="nonexistent", actor="orchestrator-admin")
 
         assert exc_info.value.exit_code == 1
 
@@ -228,14 +228,14 @@ class TestEnableUser:
         mock_session = _mock_session_returning(mock_user)
 
         with (
-            patch("nexus.ao_admin.__main__.start_audit_subsystems"),
+            patch("nexus.orchestrator_admin.__main__.start_audit_subsystems"),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
             ),
             pytest.raises(typer.Exit) as exc_info,
         ):
-            await _enable_user_async(username="alice", actor="ao-admin")
+            await _enable_user_async(username="alice", actor="orchestrator-admin")
 
         assert exc_info.value.exit_code == 0
 
@@ -250,8 +250,8 @@ class TestEnableUser:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__.start_audit_subsystems"),
-            patch("nexus.ao_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
+            patch("nexus.orchestrator_admin.__main__.start_audit_subsystems"),
+            patch("nexus.orchestrator_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -284,8 +284,8 @@ class TestResetPassword:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__.start_audit_subsystems"),
-            patch("nexus.ao_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
+            patch("nexus.orchestrator_admin.__main__.start_audit_subsystems"),
+            patch("nexus.orchestrator_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -294,7 +294,7 @@ class TestResetPassword:
             patch("nexus.auth.passwords.hash_password", return_value="$argon2id$hashed") as mock_hash,
             patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
         ):
-            await _reset_password_async(username="alice", new_password="newpassword123", actor="ao-admin")  # noqa: S106
+            await _reset_password_async(username="alice", new_password="newpassword123", actor="orchestrator-admin")  # noqa: S106
 
         mock_hash.assert_called_once_with("newpassword123")
         assert mock_user.password_hash == "$argon2id$hashed"  # noqa: S105
@@ -304,7 +304,7 @@ class TestResetPassword:
 
         event = mock_dispatcher.dispatch.call_args[0][0]
         assert event.target_username == mock_user.username
-        assert event.actor_username == "ao-admin"
+        assert event.actor_username == "orchestrator-admin"
         assert event.sessions_revoked == 3
 
     @pytest.mark.asyncio
@@ -313,14 +313,18 @@ class TestResetPassword:
         mock_session = _mock_session_returning(None)
 
         with (
-            patch("nexus.ao_admin.__main__.start_audit_subsystems"),
+            patch("nexus.orchestrator_admin.__main__.start_audit_subsystems"),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
             ),
             pytest.raises(typer.Exit) as exc_info,
         ):
-            await _reset_password_async(username="nonexistent", new_password="newpassword123", actor="ao-admin")  # noqa: S106
+            await _reset_password_async(
+                username="nonexistent",
+                new_password="newpassword123",  # noqa: S106
+                actor="orchestrator-admin",
+            )
 
         assert exc_info.value.exit_code == 1
 
@@ -331,14 +335,14 @@ class TestResetPassword:
         mock_session = _mock_session_returning(mock_user)
 
         with (
-            patch("nexus.ao_admin.__main__.start_audit_subsystems"),
+            patch("nexus.orchestrator_admin.__main__.start_audit_subsystems"),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
             ),
             pytest.raises(typer.Exit) as exc_info,
         ):
-            await _reset_password_async(username="alice", new_password="newpassword123", actor="ao-admin")  # noqa: S106
+            await _reset_password_async(username="alice", new_password="newpassword123", actor="orchestrator-admin")  # noqa: S106
 
         assert exc_info.value.exit_code == 1
 
@@ -353,8 +357,8 @@ class TestResetPassword:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__.start_audit_subsystems"),
-            patch("nexus.ao_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
+            patch("nexus.orchestrator_admin.__main__.start_audit_subsystems"),
+            patch("nexus.orchestrator_admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -398,7 +402,7 @@ class TestResolvePassword:
     def test_reads_password_from_stdin_when_flag_set(self) -> None:
         """--password-stdin should read one line from stdin."""
         fake_stdin = StringIO("PipedPassword123!\n")
-        with patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin):
+        with patch("nexus.orchestrator_admin.__main__.sys.stdin", fake_stdin):
             password, non_interactive = _resolve_password(None, password_stdin=True)
         assert password == "PipedPassword123!"  # noqa: S105
         assert non_interactive is True
@@ -406,7 +410,7 @@ class TestResolvePassword:
     def test_strips_only_trailing_newline_from_stdin(self) -> None:
         """Should strip trailing newline but preserve spaces in the password."""
         fake_stdin = StringIO("My Password 123!\n")
-        with patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin):
+        with patch("nexus.orchestrator_admin.__main__.sys.stdin", fake_stdin):
             password, _ = _resolve_password(None, password_stdin=True)
         assert password == "My Password 123!"  # noqa: S105
 
@@ -414,7 +418,7 @@ class TestResolvePassword:
         """Should exit with code 1 when --password-stdin gets empty input."""
         fake_stdin = StringIO("")
         with (
-            patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin),
+            patch("nexus.orchestrator_admin.__main__.sys.stdin", fake_stdin),
             pytest.raises(typer.Exit) as exc_info,
         ):
             _resolve_password(None, password_stdin=True)
@@ -424,7 +428,7 @@ class TestResolvePassword:
         """Should exit with code 1 when --password-stdin gets only a newline."""
         fake_stdin = StringIO("\n")
         with (
-            patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin),
+            patch("nexus.orchestrator_admin.__main__.sys.stdin", fake_stdin),
             pytest.raises(typer.Exit) as exc_info,
         ):
             _resolve_password(None, password_stdin=True)
@@ -434,7 +438,7 @@ class TestResolvePassword:
         """Should exit with code 1 when stdin is not a TTY and neither flag is given."""
         fake_stdin = StringIO("some piped data\n")
         with (
-            patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin),
+            patch("nexus.orchestrator_admin.__main__.sys.stdin", fake_stdin),
             pytest.raises(typer.Exit) as exc_info,
         ):
             _resolve_password(None, password_stdin=False)
@@ -443,8 +447,10 @@ class TestResolvePassword:
     def test_interactive_prompt_when_tty(self) -> None:
         """Should use getpass when stdin is a TTY and no flag is provided."""
         with (
-            patch("nexus.ao_admin.__main__.sys.stdin") as mock_stdin,
-            patch("nexus.ao_admin.__main__.getpass.getpass", side_effect=["MyPassword123!", "MyPassword123!"]),
+            patch("nexus.orchestrator_admin.__main__.sys.stdin") as mock_stdin,
+            patch(
+                "nexus.orchestrator_admin.__main__.getpass.getpass", side_effect=["MyPassword123!", "MyPassword123!"]
+            ),
         ):
             mock_stdin.isatty.return_value = True
             password, non_interactive = _resolve_password(None, password_stdin=False)
@@ -454,8 +460,8 @@ class TestResolvePassword:
     def test_interactive_prompt_exits_on_mismatch(self) -> None:
         """Should exit with code 1 when interactive passwords don't match."""
         with (
-            patch("nexus.ao_admin.__main__.sys.stdin") as mock_stdin,
-            patch("nexus.ao_admin.__main__.getpass.getpass", side_effect=["password1", "password2"]),
+            patch("nexus.orchestrator_admin.__main__.sys.stdin") as mock_stdin,
+            patch("nexus.orchestrator_admin.__main__.getpass.getpass", side_effect=["password1", "password2"]),
             pytest.raises(typer.Exit) as exc_info,
         ):
             mock_stdin.isatty.return_value = True
@@ -475,12 +481,12 @@ class TestResetPasswordNonInteractive:
         """--password flag should bypass both confirmation and getpass prompts."""
         from typer.testing import CliRunner
 
-        from nexus.ao_admin.__main__ import app
+        from nexus.orchestrator_admin.__main__ import app
 
         runner = CliRunner()
         with (
-            patch("nexus.ao_admin.__main__._validate_password", return_value=(True, None)),
-            patch("nexus.ao_admin.__main__.asyncio.run") as mock_run,
+            patch("nexus.orchestrator_admin.__main__._validate_password", return_value=(True, None)),
+            patch("nexus.orchestrator_admin.__main__.asyncio.run") as mock_run,
         ):
             result = runner.invoke(app, ["reset-password", "--username", "alice", "--password", "ValidPassword123!"])
 
@@ -491,10 +497,10 @@ class TestResetPasswordNonInteractive:
         """--password flag should still enforce password validation."""
         from typer.testing import CliRunner
 
-        from nexus.ao_admin.__main__ import app
+        from nexus.orchestrator_admin.__main__ import app
 
         runner = CliRunner()
-        with patch("nexus.ao_admin.__main__._resolve_password", return_value=("short", True)):
+        with patch("nexus.orchestrator_admin.__main__._resolve_password", return_value=("short", True)):
             result = runner.invoke(app, ["reset-password", "--username", "alice", "--password", "short"])
 
         assert result.exit_code == 1
@@ -503,12 +509,12 @@ class TestResetPasswordNonInteractive:
         """--password-stdin should flow through CliRunner without mocking _resolve_password."""
         from typer.testing import CliRunner
 
-        from nexus.ao_admin.__main__ import app
+        from nexus.orchestrator_admin.__main__ import app
 
         runner = CliRunner()
         with (
-            patch("nexus.ao_admin.__main__._validate_password", return_value=(True, None)),
-            patch("nexus.ao_admin.__main__.asyncio.run") as mock_run,
+            patch("nexus.orchestrator_admin.__main__._validate_password", return_value=(True, None)),
+            patch("nexus.orchestrator_admin.__main__.asyncio.run") as mock_run,
         ):
             result = runner.invoke(
                 app,
@@ -523,7 +529,7 @@ class TestResetPasswordNonInteractive:
         """Empty stdin with --password-stdin should fail through CliRunner."""
         from typer.testing import CliRunner
 
-        from nexus.ao_admin.__main__ import app
+        from nexus.orchestrator_admin.__main__ import app
 
         runner = CliRunner()
         result = runner.invoke(
@@ -539,7 +545,7 @@ class TestResetPasswordNonInteractive:
         """Invalid password via --password-stdin should fail validation through CliRunner."""
         from typer.testing import CliRunner
 
-        from nexus.ao_admin.__main__ import app
+        from nexus.orchestrator_admin.__main__ import app
 
         runner = CliRunner()
         result = runner.invoke(
@@ -555,7 +561,7 @@ class TestResetPasswordNonInteractive:
         """Piped stdin without --password-stdin should fail through CliRunner."""
         from typer.testing import CliRunner
 
-        from nexus.ao_admin.__main__ import app
+        from nexus.orchestrator_admin.__main__ import app
 
         runner = CliRunner()
         result = runner.invoke(
@@ -571,7 +577,7 @@ class TestResetPasswordNonInteractive:
         """--password and --password-stdin together should fail."""
         from typer.testing import CliRunner
 
-        from nexus.ao_admin.__main__ import app
+        from nexus.orchestrator_admin.__main__ import app
 
         runner = CliRunner()
         result = runner.invoke(
@@ -587,7 +593,7 @@ class TestResetPasswordNonInteractive:
         """--password and --password-stdin should appear in the help output."""
         from typer.testing import CliRunner
 
-        from nexus.ao_admin.__main__ import app
+        from nexus.orchestrator_admin.__main__ import app
 
         runner = CliRunner()
         result = runner.invoke(app, ["reset-password", "--help"])
@@ -608,7 +614,7 @@ class TestTyperCommands:
     def test_help_lists_commands(self) -> None:
         from typer.testing import CliRunner
 
-        from nexus.ao_admin.__main__ import app
+        from nexus.orchestrator_admin.__main__ import app
 
         runner = CliRunner()
         result = runner.invoke(app, ["--help"])

@@ -1,4 +1,4 @@
-"""Dynamic CLI for the AAP Orchestrator API — built at runtime from the OpenAPI spec."""
+"""Dynamic CLI for the Orchestrator API — built at runtime from the OpenAPI spec."""
 
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ with phase("startup.load_spec"):
 
 with phase("startup.create_app"):
     app = typer.Typer(
-        name="ao",
+        name="orchestrator",
         help=(
-            "AAP Orchestrator API command-line client.\n\n"
-            "Set AO_BENCHMARK=1 to print per-phase execution timings to stderr "
+            "Orchestrator API command-line client.\n\n"
+            "Set APP_CLI_BENCHMARK=1 to print per-phase execution timings to stderr "
             "for a single invocation."
         ),
         no_args_is_help=True,
@@ -40,17 +40,17 @@ def main(
     base_url: str = typer.Option(
         None,
         "--base-url",
-        envvar="AO_URL",
-        help="AAP Orchestrator base URL (e.g. http://localhost:8000).",
+        envvar="APP_CLI_URL",
+        help="Orchestrator base URL (e.g. http://localhost:8000).",
     ),
     token: str | None = typer.Option(
         None,
         "--token",
-        envvar="AO_TOKEN",
+        envvar="APP_CLI_TOKEN",
         help="API bearer token.",
     ),
 ) -> None:
-    """AAP Orchestrator API command-line client."""
+    """Orchestrator API command-line client."""
     with phase("startup.main_callback"):
         ctx.ensure_object(dict)
         resolved_url = (base_url or "http://localhost:8000").rstrip("/")

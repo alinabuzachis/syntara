@@ -9,7 +9,7 @@ All tests reside under `tests/` and are organized by test type:
 ```
 tests/
 ├── __init__.py
-├── cli/                 # CLI tests (aap-orchestrator-cli package)
+├── cli/                 # CLI tests (orchestrator-cli package)
 │   ├── test_spec.py
 │   └── test_generated_client_lazy_imports.py
 ├── e2e/                 # End-to-end tests (full stack required)
@@ -70,7 +70,7 @@ tests/
     ├── aap/                 # Includes models/, services/
     ├── admin/
     ├── agent_orchestrator/  # Includes agents/, audit/, clients/, context_manager/, executor/, models/, services/, token_manager/, tool_manager/, utils/, ws/
-    ├── ao_admin/
+    ├── orchestrator_admin/
     ├── api/                 # Includes v1/
     ├── approvals/           # Includes clients/, models/
     ├── audit/               # Includes events/, export/, models/, outbox/, retention/, services/

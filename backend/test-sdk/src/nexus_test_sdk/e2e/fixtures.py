@@ -649,9 +649,9 @@ def integration_factory(
 
 
 @pytest.fixture
-def ao_authenticated_cli(nexus_base_url: str) -> Callable[[list[str]], Result]:
-    """Invokable aap automation cli with base url and a fresh admin token."""
-    from aap_orchestrator_cli import app  # lazy import — optional dependency
+def orchestrator_authenticated_cli(nexus_base_url: str) -> Callable[[list[str]], Result]:
+    """Invokable orchestrator cli with base url and a fresh admin token."""
+    from orchestrator_cli import app  # lazy import — optional dependency
 
     runner = CliRunner()
     token = _generate_e2e_token(nexus_base_url)

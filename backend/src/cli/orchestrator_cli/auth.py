@@ -1,6 +1,6 @@
-"""Persistent token storage for the AAP Orchestrator CLI.
+"""Persistent token storage for the Orchestrator CLI.
 
-Tokens are stored per-instance under ``~/.aap/orchestrator/``.  Each instance
+Tokens are stored per-instance under ``~/.orchestrator/``.  Each instance
 (base URL) gets its own JSON file, keyed by a URL-safe slug derived from the
 URL so that ``http://localhost:8000`` and ``https://prod.example.com``
 never collide.
@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 
 from .benchmark import note, phase
 
-_CONFIG_DIR = Path.home() / ".aap" / "orchestrator"
+_CONFIG_DIR = Path.home() / ".orchestrator"
 
 
 def _instance_slug(base_url: str) -> str:

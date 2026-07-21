@@ -1,4 +1,4 @@
-"""OpenAPI spec management — auto-bundle and cache in ``~/.aap/orchestrator/``.
+"""OpenAPI spec management — auto-bundle and cache in ``~/.orchestrator/``.
 
 On CLI startup, this module locates the project's schema sources,
 hashes them, and re-bundles the OpenAPI spec only when sources have
@@ -24,7 +24,7 @@ from .benchmark import note, phase
 
 _log = logging.getLogger(__name__)
 
-_CONFIG_DIR = Path.home() / ".aap" / "orchestrator"
+_CONFIG_DIR = Path.home() / ".orchestrator"
 _CACHED_SPEC_JSON = _CONFIG_DIR / "openapi.json"
 _LEGACY_CACHED_SPEC_YAML = _CONFIG_DIR / "openapi.yaml"
 _HASH_MANIFEST = _CONFIG_DIR / "spec-hashes.json"

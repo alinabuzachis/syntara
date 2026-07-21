@@ -1,5 +1,5 @@
-"""Production admin CLI for Nexus (ao-admin)."""
+"""Backward-compat shim — real implementation lives in nexus.orchestrator_admin."""
 
-from nexus.ao_admin.__main__ import app
+from nexus.orchestrator_admin import app
 
 __all__ = ["app"]

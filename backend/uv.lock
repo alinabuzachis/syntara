@@ -10,23 +10,6 @@ constraints = [
 ]
 
 [[package]]
-name = "aap-orchestrator-cli"
-version = "0.1.0"
-source = { editable = "src/cli" }
-dependencies = [
-    { name = "nexus-api-client" },
-    { name = "pyyaml" },
-    { name = "typer" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "nexus-api-client", editable = "src/api_client" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "typer", specifier = ">=0.9.0" },
-]
-
-[[package]]
 name = "aiofile"
 version = "3.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2083,7 +2066,6 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "aap-orchestrator-cli" },
     { name = "authlib" },
     { name = "azure-identity" },
     { name = "beautifulsoup4" },
@@ -2097,6 +2079,7 @@ dev = [
     { name = "mypy" },
     { name = "nexus-api-client" },
     { name = "openapi-python-client" },
+    { name = "orchestrator-cli" },
     { name = "podman-compose" },
     { name = "pre-commit" },
     { name = "psutil" },
@@ -2128,7 +2111,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aap-orchestrator-cli", marker = "extra == 'dev'", editable = "src/cli" },
     { name = "alembic", specifier = ">=1.12.0" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "asyncpg", specifier = ">=0.30.0" },
@@ -2166,6 +2148,7 @@ requires-dist = [
     { name = "opentelemetry-api", specifier = ">=1.39.1" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.39.1" },
     { name = "opentelemetry-sdk", specifier = ">=1.39.1" },
+    { name = "orchestrator-cli", marker = "extra == 'dev'", editable = "src/cli" },
     { name = "podman-compose", marker = "extra == 'dev'", specifier = ">=1.5.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.5.0" },
     { name = "prometheus-client", specifier = ">=0.19.0" },
@@ -2431,6 +2414,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/91/df/553f93ed38bf22f4b999d9be9c185adb558982214f33eae539d3b5cd0858/opentelemetry_semantic_conventions-0.60b1.tar.gz", hash = "sha256:87c228b5a0669b748c76d76df6c364c369c28f1c465e50f661e39737e84bc953", size = 137935, upload-time = "2025-12-11T13:32:50.487Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7a/5e/5958555e09635d09b75de3c4f8b9cae7335ca545d77392ffe7331534c402/opentelemetry_semantic_conventions-0.60b1-py3-none-any.whl", hash = "sha256:9fa8c8b0c110da289809292b0591220d3a7b53c1526a23021e977d68597893fb", size = 219982, upload-time = "2025-12-11T13:32:36.955Z" },
+]
+
+[[package]]
+name = "orchestrator-cli"
+version = "0.1.0"
+source = { editable = "src/cli" }
+dependencies = [
+    { name = "nexus-api-client" },
+    { name = "pyyaml" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "nexus-api-client", editable = "src/api_client" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "typer", specifier = ">=0.9.0" },
 ]
 
 [[package]]

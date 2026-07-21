@@ -1,4 +1,4 @@
-"""Lightweight CLI benchmarking helpers enabled by ``AO_BENCHMARK=1``."""
+"""Lightweight CLI benchmarking helpers enabled by ``APP_CLI_BENCHMARK=1``."""
 
 from __future__ import annotations
 
@@ -79,14 +79,14 @@ class BenchmarkSession:
 
         total_s = (time.perf_counter() if now_s is None else now_s) - self.start_s
         metadata_str = " ".join(f"{key}={json.dumps(value)}" for key, value in self.metadata.items())
-        header = f"[ao benchmark] total_s={total_s:.6f}"
+        header = f"[orchestrator benchmark] total_s={total_s:.6f}"
         if metadata_str:
             header = f"{header} {metadata_str}"
 
         lines = [header]
         for name, stats in self.phases.items():
             lines.append(
-                "[ao benchmark] "
+                "[orchestrator benchmark] "
                 f"phase={name} total_s={stats.total_s:.6f} count={stats.count} "
                 f"avg_s={stats.avg_s:.6f} min_s={stats.min_s:.6f} max_s={stats.max_s:.6f}"
             )
@@ -102,7 +102,7 @@ class BenchmarkSession:
             sys.stderr.write(f"{line}\n")
 
 
-_SESSION = BenchmarkSession(enabled=os.environ.get("AO_BENCHMARK") == "1")
+_SESSION = BenchmarkSession(enabled=os.environ.get("APP_CLI_BENCHMARK") == "1")
 
 
 def enabled() -> bool:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from aap_orchestrator_cli import spec as spec_module
+from orchestrator_cli import spec as spec_module
 
 if TYPE_CHECKING:
     from pathlib import Path
