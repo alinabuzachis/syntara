@@ -37,7 +37,7 @@ export async function ensureLlmCredential(page: Page): Promise<{ name: string; i
   const llmType = types.resources?.find((t) => t.name === 'LLM Provider')
   if (!llmType) throw new Error('LLM Provider credential type not found')
 
-  // Create the credential
+  // Create the credential — retry on conflict (parallel workers race)
   const createResp = await apiRequest(page, 'post', '/credentials', {
     data: {
       name: credName,
@@ -46,9 +46,19 @@ export async function ensureLlmCredential(page: Page): Promise<{ name: string; i
       inputs: { api_key: 'sk-ant-e2e-test-key' },
     },
   })
-  if (!createResp.ok()) throw new Error('Could not create LLM credential')
-  const cred = (await createResp.json()) as { id: string }
-  return { name: credName, id: cred.id }
+  if (createResp.ok()) {
+    const cred = (await createResp.json()) as { id: string }
+    return { name: credName, id: cred.id }
+  }
+  // Another worker created it first — re-fetch
+  if (createResp.status() === 409) {
+    const retryResp = await apiRequest(page, 'get', `/credentials?name=${encodeURIComponent(credName)}`)
+    if (retryResp.ok()) {
+      const body = (await retryResp.json()) as { resources?: Array<{ id: string; name: string }> }
+      if (body.resources?.length) return { name: credName, id: body.resources[0].id }
+    }
+  }
+  throw new Error(`Could not create LLM credential: ${createResp.status()}`)
 }
 
 export type SeededLlmIntegration = { id: string; name: string }
