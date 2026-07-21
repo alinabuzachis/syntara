@@ -4,6 +4,10 @@ import { axe } from 'vitest-axe'
 
 import { AppShell } from './AppShell'
 
+vi.mock('../hooks/useRouteChangeFocus', () => ({
+  useRouteChangeFocus: vi.fn(),
+}))
+
 vi.mock('../providers/unsaved-changes/UnsavedChangesProvider', () => ({
   UnsavedChangesProvider: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="unsaved-changes-provider">{children}</div>
@@ -49,8 +53,17 @@ vi.mock('@patternfly/react-core', async () => {
         {main}
       </div>
     ),
-    CompassContent: ({ children, role }: { children: React.ReactNode; role?: string }) => (
-      <div data-testid="compass-content" role={role}>
+    CompassContent: ({
+      children,
+      role,
+      ...props
+    }: {
+      children: React.ReactNode
+      role?: string
+      tabIndex?: number
+      className?: string
+    }) => (
+      <div data-testid="compass-content" role={role} tabIndex={props.tabIndex} className={props.className}>
         {children}
       </div>
     ),

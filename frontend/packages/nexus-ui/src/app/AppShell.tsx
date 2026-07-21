@@ -1,11 +1,14 @@
 import { Compass, CompassContent } from '@patternfly/react-core'
+import { useRef } from 'react'
 
 import { SessionTimeoutWarning } from '../components/session/SessionTimeoutWarning'
+import { useRouteChangeFocus } from '../hooks/useRouteChangeFocus'
 import { UnsavedChangesProvider } from '../providers/unsaved-changes/UnsavedChangesProvider'
 
 import { AppDockedNav } from './AppDockedNav'
 import { AppLogin } from './AppLogin'
 import { AppMobileMasthead } from './AppMobileMasthead'
+import styles from './AppShell.module.css'
 import { DockStateContext, useDockStateProvider } from './useDockState'
 
 /**
@@ -16,6 +19,8 @@ import { DockStateContext, useDockStateProvider } from './useDockState'
  */
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const dockState = useDockStateProvider()
+  const mainRef = useRef<HTMLDivElement>(null)
+  useRouteChangeFocus(mainRef)
 
   /* v8 ignore start -- phantom branches from compiled JSX props */
   return (
@@ -29,7 +34,11 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             isDockTextExpanded={dockState.isDockTextExpanded}
             masthead={<AppMobileMasthead />}
             dock={<AppDockedNav />}
-            main={<CompassContent role="main">{children}</CompassContent>}
+            main={
+              <CompassContent ref={mainRef} role="main" tabIndex={-1} className={styles.mainContent}>
+                {children}
+              </CompassContent>
+            }
           />
         </DockStateContext.Provider>
       </AppLogin>
