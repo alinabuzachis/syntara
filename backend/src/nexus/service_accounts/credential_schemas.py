@@ -99,3 +99,7 @@ class SACredentialListResponse(ResourcesResponse[SACredentialRead]):
         default=0,
         description="Total number of credentials for this service account (ignoring filters)",
     )
+    max_lifetime_days: int = Field(
+        default=180,
+        description="Maximum credential lifetime in days (-1 for unlimited)",
+    )

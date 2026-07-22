@@ -10,8 +10,11 @@ import {
   ModalHeader,
   Stack,
   StackItem,
+  TextInput,
 } from '@patternfly/react-core'
 import { useState } from 'react'
+
+import { formatExpirationDate } from '../../../utils/dateUtils'
 
 import { formatGracePeriodDuration } from './rotateDialogUtils'
 
@@ -21,6 +24,7 @@ type SecretRevealModalProps = {
   title: string
   identifier?: string
   clientSecret: string
+  expiresAt?: string | null
   gracePeriodSeconds?: number
 }
 
@@ -30,6 +34,7 @@ export function SecretRevealModal({
   title,
   identifier,
   clientSecret,
+  expiresAt,
   gracePeriodSeconds,
 }: Readonly<SecretRevealModalProps>) {
   const [savedAck, setSavedAck] = useState(false)
@@ -67,6 +72,14 @@ export function SecretRevealModal({
               </ClipboardCopy>
             </FormGroup>
           </StackItem>
+
+          {expiresAt && (
+            <StackItem>
+              <FormGroup label="Expires" fieldId="secret-reveal-expires">
+                <TextInput id="secret-reveal-expires" value={formatExpirationDate(expiresAt)} readOnlyVariant="plain" />
+              </FormGroup>
+            </StackItem>
+          )}
 
           {gracePeriodSeconds != null && (
             <StackItem>

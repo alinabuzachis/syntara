@@ -263,6 +263,12 @@ export interface components {
        * @description Array of resources in current page
        */
       resources: components['schemas']['ServiceAccountRead'][]
+      /**
+       * Max Lifetime Days
+       * @description Maximum credential lifetime in days (-1 for unlimited)
+       * @default 180
+       */
+      max_lifetime_days?: number
     }
     /**
      * ServiceAccountRead
@@ -574,6 +580,12 @@ export interface components {
        * @default 0
        */
       total_credentials?: number
+      /**
+       * Max Lifetime Days
+       * @description Maximum credential lifetime in days (-1 for unlimited)
+       * @default 180
+       */
+      max_lifetime_days?: number
     }
     /**
      * ErrorData

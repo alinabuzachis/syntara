@@ -148,6 +148,33 @@ describe('SecretRevealModal', () => {
     })
   })
 
+  describe('Expiration date', () => {
+    it('shows expiration date when expiresAt is provided', () => {
+      render(<SecretRevealModal {...defaultProps} expiresAt="2025-12-31T23:59:59Z" />)
+
+      expect(screen.getByText('Expires')).toBeInTheDocument()
+    })
+
+    it('does not show expiration date when expiresAt is not provided', () => {
+      render(<SecretRevealModal {...defaultProps} />)
+
+      expect(screen.queryByText('Expires')).not.toBeInTheDocument()
+    })
+
+    it('does not show expiration date when expiresAt is null', () => {
+      render(<SecretRevealModal {...defaultProps} expiresAt={null} />)
+
+      expect(screen.queryByText('Expires')).not.toBeInTheDocument()
+    })
+
+    it('has no accessibility violations with expiration date', async () => {
+      const { container } = render(<SecretRevealModal {...defaultProps} expiresAt="2025-12-31T23:59:59Z" />)
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+  })
+
   describe('Grace period info', () => {
     it('shows grace period alert when gracePeriodSeconds is provided', () => {
       render(<SecretRevealModal {...defaultProps} gracePeriodSeconds={3600} />)

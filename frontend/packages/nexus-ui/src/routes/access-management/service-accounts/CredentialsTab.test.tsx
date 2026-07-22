@@ -130,7 +130,15 @@ describe('CredentialsTab', () => {
 
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
 
-    vi.mocked(accessClient.useQuery).mockReturnValue(buildQueryResult({ resources: mockCredentials }) as never)
+    for (const action of ['create', 'update', 'delete', 'rotate_secret']) {
+      queryClient.setQueryData(['authz', 'can_i', { action, resource_type: 'service_account' }], {
+        data: { allowed: true },
+      })
+    }
+
+    vi.mocked(accessClient.useQuery).mockReturnValue(
+      buildQueryResult({ resources: mockCredentials, max_lifetime_days: 180 }) as never
+    )
 
     mockMutations = setupMutationMocks()
   })
@@ -416,9 +424,25 @@ describe('CredentialsTab', () => {
   })
 
   describe('Create credential flow', () => {
-    it('calls create mutation and shows secret when successful', async () => {
+    it('opens create credential modal when button is clicked', async () => {
+      const user = userEvent.setup()
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Create credential' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Create credential' })).toBeInTheDocument()
+      })
+      expect(screen.getByText('Expiration date')).toBeInTheDocument()
+    })
+
+    it('calls create mutation with expires_at and shows secret when successful', async () => {
       mockMutations.create.mockImplementation((_params: unknown, opts: { onSuccess?: (r: unknown) => void }) => {
-        opts.onSuccess?.({ identifier: 'new-client-id', client_secret: 'super-secret' })
+        opts.onSuccess?.({
+          identifier: 'new-client-id',
+          client_secret: 'super-secret',
+          expires_at: '2025-12-31T00:00:00Z',
+        })
       })
 
       const user = userEvent.setup()
@@ -427,6 +451,13 @@ describe('CredentialsTab', () => {
       })
 
       await user.click(screen.getByRole('button', { name: 'Create credential' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Create credential' })).toBeInTheDocument()
+      })
+
+      const createButton = screen.getByRole('button', { name: 'Create' })
+      await user.click(createButton)
 
       expect(mockMutations.create).toHaveBeenCalled()
 

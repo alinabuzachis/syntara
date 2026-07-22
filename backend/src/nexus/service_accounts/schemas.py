@@ -79,3 +79,8 @@ class ServiceAccountListParams(BaseListParams):
 
 class ServiceAccountListResponse(ResourcesResponse[ServiceAccountRead]):
     """Paginated list response for service accounts."""
+
+    max_lifetime_days: int = Field(
+        default=180,
+        description="Maximum credential lifetime in days (-1 for unlimited)",
+    )

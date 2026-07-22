@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { addDays, format } from 'date-fns'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -10,6 +11,8 @@ import { accessClient } from '../../access/accessClient'
 import { useAllProjects } from '../../access/useAllProjects'
 
 import { CreateServiceAccountModal } from './CreateServiceAccountModal'
+
+const FUTURE_DATE = format(addDays(new Date(), 30), 'yyyy-MM-dd')
 
 vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
@@ -124,9 +127,26 @@ describe('CreateServiceAccountModal', () => {
       })
     })
 
+    it('renders credential expiration date field', () => {
+      render(<CreateServiceAccountModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      expect(screen.getByLabelText('Credential expiration date')).toBeInTheDocument()
+    })
+
+    it('pre-populates expiration date with default value', () => {
+      render(<CreateServiceAccountModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      const dateInput: HTMLInputElement = screen.getByLabelText('Credential expiration date')
+      expect(dateInput.value).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    })
+
     it('shows validation error when required fields are empty', async () => {
       const user = userEvent.setup()
       render(<CreateServiceAccountModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      const dateInput = screen.getByLabelText('Credential expiration date')
+      await user.clear(dateInput)
+      await user.type(dateInput, FUTURE_DATE)
 
       await user.click(screen.getByRole('button', { name: 'Create service account' }))
 
@@ -145,6 +165,10 @@ describe('CreateServiceAccountModal', () => {
 
       await user.type(screen.getByRole('textbox', { name: 'Name' }), 'my-new-sa')
       await user.type(screen.getByRole('textbox', { name: 'Description' }), 'Test account')
+
+      const dateInput = screen.getByLabelText('Credential expiration date')
+      await user.clear(dateInput)
+      await user.type(dateInput, FUTURE_DATE)
 
       await user.click(screen.getByRole('button', { name: 'Create service account' }))
 
@@ -186,6 +210,11 @@ describe('CreateServiceAccountModal', () => {
       await user.click(await screen.findByRole('option', { name: 'Project Alpha' }))
 
       await user.type(screen.getByRole('textbox', { name: 'Name' }), 'my-new-sa')
+
+      const dateInput = screen.getByLabelText('Credential expiration date')
+      await user.clear(dateInput)
+      await user.type(dateInput, FUTURE_DATE)
+
       await user.click(screen.getByRole('button', { name: 'Create service account' }))
 
       await waitFor(() => {
@@ -209,6 +238,45 @@ describe('CreateServiceAccountModal', () => {
       expect(screen.getByRole('heading', { name: 'Service account created' })).toBeInTheDocument()
       expect(screen.getByText('Save these credentials now')).toBeInTheDocument()
       expect(mockOnSuccess).toHaveBeenCalled()
+    })
+  })
+
+  describe('Credential error fallback', () => {
+    it('shows warning and navigates to credentials tab when credential creation fails', async () => {
+      const user = userEvent.setup()
+      render(<CreateServiceAccountModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Select a project' }))
+      await user.click(await screen.findByRole('option', { name: 'Project Alpha' }))
+
+      await user.type(screen.getByRole('textbox', { name: 'Name' }), 'my-new-sa')
+
+      const dateInput = screen.getByLabelText('Credential expiration date')
+      await user.clear(dateInput)
+      await user.type(dateInput, FUTURE_DATE)
+
+      await user.click(screen.getByRole('button', { name: 'Create service account' }))
+
+      await waitFor(() => {
+        expect(mockCreateSAMutate).toHaveBeenCalled()
+      })
+
+      act(() => {
+        const saCallbacks = mockCreateSAMutate.mock.calls[0][1] as { onSuccess: (data: unknown) => void }
+        saCallbacks.onSuccess({ id: 'sa-new', name: 'my-new-sa', status: 'active' })
+      })
+
+      await waitFor(() => {
+        expect(mockCreateCredMutate).toHaveBeenCalled()
+      })
+
+      act(() => {
+        const credCallbacks = mockCreateCredMutate.mock.calls[0][1] as { onError: () => void }
+        credCallbacks.onError()
+      })
+
+      expect(mockOnSuccess).toHaveBeenCalled()
+      expect(mockOnClose).toHaveBeenCalled()
     })
   })
 

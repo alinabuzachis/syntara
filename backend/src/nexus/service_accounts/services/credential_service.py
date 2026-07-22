@@ -277,6 +277,8 @@ class ServiceAccountCredentialService(BaseService):
             ServiceAccountCredential,
             service_account_id=service_account_id,
         )
+        settings = get_settings()
+        response.max_lifetime_days = settings.sa_credential_max_lifetime_days
         return response
 
     def to_read(self, credential: ServiceAccountCredential) -> SACredentialRead:

@@ -27,17 +27,21 @@ import { Controller, useForm } from 'react-hook-form'
 import { tanstackRouter } from '../../../app/tanstackRouter'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
+import { formatExpirationDate } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { useAllProjects } from '../../access/useAllProjects'
 import { getServiceAccountDetailPath } from '../accessManagementPaths'
 
+import { CredentialExpirationField } from './CredentialExpirationField'
 import { createServiceAccountSchema, type CreateServiceAccountFormData } from './serviceAccountFormSchema'
+import { useCredentialExpirationDate } from './useCredentialExpirationDate'
 
 type CreateServiceAccountModalProps = {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  maxLifetimeDays?: number
 }
 
 type CredentialsResult = {
@@ -45,6 +49,19 @@ type CredentialsResult = {
   name: string
   identifier: string
   client_secret: string
+  expiresAt?: string | null
+}
+
+function FieldError({ message }: Readonly<{ message: string }>) {
+  return (
+    <FormHelperText>
+      <HelperText>
+        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+          {message}
+        </HelperTextItem>
+      </HelperText>
+    </FormHelperText>
+  )
 }
 
 function ProjectSelectToggle({
@@ -118,11 +135,12 @@ function ProjectSelect({
 function CredentialsRevealPhase({
   credentials,
   onClose,
-}: Readonly<{
-  credentials: CredentialsResult
-  onClose: () => void
-}>) {
+}: Readonly<{ credentials: CredentialsResult; onClose: () => void }>) {
   const [savedAck, setSavedAck] = useState(false)
+  const handleProceed = useCallback(() => {
+    onClose()
+    detachPromise(tanstackRouter.navigate({ to: getServiceAccountDetailPath(credentials.id) + '/assignments' }))
+  }, [onClose, credentials.id])
 
   return (
     <>
@@ -132,19 +150,25 @@ function CredentialsRevealPhase({
             The client secret will not be shown again. Copy and store it securely before closing this dialog. This
             service account has no permissions yet — assign roles on the Assignments tab to grant access.
           </Alert>
-
           <FormGroup label="Client ID" fieldId="sa-cred-identifier">
             <ClipboardCopy isReadOnly hoverTip="Copy" clickTip="Copied">
               {credentials.identifier}
             </ClipboardCopy>
           </FormGroup>
-
           <FormGroup label="Client secret" fieldId="sa-cred-client-secret">
             <ClipboardCopy isReadOnly hoverTip="Copy" clickTip="Copied">
               {credentials.client_secret}
             </ClipboardCopy>
           </FormGroup>
-
+          {credentials.expiresAt && (
+            <FormGroup label="Expires" fieldId="sa-cred-expires-at">
+              <TextInput
+                id="sa-cred-expires-at"
+                value={formatExpirationDate(credentials.expiresAt)}
+                readOnlyVariant="plain"
+              />
+            </FormGroup>
+          )}
           <Checkbox
             id="sa-saved-ack"
             label="I have saved the credentials"
@@ -154,14 +178,7 @@ function CredentialsRevealPhase({
         </Form>
       </ModalBody>
       <ModalFooter>
-        <Button
-          variant="primary"
-          isDisabled={!savedAck}
-          onClick={() => {
-            onClose()
-            detachPromise(tanstackRouter.navigate({ to: getServiceAccountDetailPath(credentials.id) + '/assignments' }))
-          }}
-        >
+        <Button variant="primary" isDisabled={!savedAck} onClick={handleProceed}>
           Proceed to assignments
         </Button>
         <Button variant="link" isDisabled={!savedAck} onClick={onClose}>
@@ -172,37 +189,18 @@ function CredentialsRevealPhase({
   )
 }
 
-function CreateServiceAccountFormPhase({
+function useCreateServiceAccountSubmit({
+  expiresAt,
   onCreated,
   onCancel,
   onListRefresh,
-}: Readonly<{
+}: {
+  expiresAt: string
   onCreated: (credentials: CredentialsResult) => void
   onCancel: () => void
   onListRefresh: () => void
-}>) {
+}) {
   const { showWarning, showSuccess } = useAlerts()
-  const { projects } = useAllProjects()
-
-  const projectOptions = useMemo(
-    () =>
-      projects
-        .filter((p): p is typeof p & { id: string } => typeof p.id === 'string')
-        .map((p) => ({ id: p.id, name: p.name })),
-    [projects]
-  )
-
-  const { control, handleSubmit, setError } = useForm<CreateServiceAccountFormData>({
-    resolver: zodResolver(createServiceAccountSchema, undefined, { mode: 'sync' }),
-    defaultValues: {
-      name: '',
-      description: '',
-      project_id: '',
-    },
-  })
-
-  const handleError = useFormMutationErrorHandler<CreateServiceAccountFormData>(setError)
-
   const { mutate: createServiceAccount, isPending: isCreatingSA } = accessClient.useMutation(
     'post',
     '/service_accounts'
@@ -212,10 +210,8 @@ function CreateServiceAccountFormPhase({
     '/service_accounts/{service_account_id}/credentials'
   )
 
-  const isPending = isCreatingSA || isCreatingCred
-
-  const onSubmit = useCallback(
-    (formData: CreateServiceAccountFormData) => {
+  const submit = useCallback(
+    (formData: CreateServiceAccountFormData, handleError: ReturnType<typeof useFormMutationErrorHandler>) => {
       createServiceAccount(
         {
           body: {
@@ -229,7 +225,10 @@ function CreateServiceAccountFormPhase({
             createCredential(
               {
                 params: { path: { service_account_id: saResponse.id } },
-                body: { credential_type: 'client_credentials' },
+                body: {
+                  credential_type: 'client_credentials',
+                  ...(expiresAt ? { expires_at: `${expiresAt}T00:00:00Z` } : {}),
+                },
               },
               {
                 onSuccess: (credResponse) => {
@@ -238,6 +237,7 @@ function CreateServiceAccountFormPhase({
                     name: saResponse.name,
                     identifier: credResponse.identifier,
                     client_secret: credResponse.client_secret ?? '',
+                    expiresAt: credResponse.expires_at,
                   })
                   showSuccess({
                     title: 'Service account created',
@@ -262,7 +262,50 @@ function CreateServiceAccountFormPhase({
         }
       )
     },
-    [createServiceAccount, createCredential, handleError, showWarning, showSuccess, onCreated, onCancel, onListRefresh]
+    [createServiceAccount, createCredential, showWarning, showSuccess, onCreated, onCancel, onListRefresh, expiresAt]
+  )
+
+  return { submit, isPending: isCreatingSA || isCreatingCred }
+}
+
+function CreateServiceAccountFormPhase({
+  onCreated,
+  onCancel,
+  onListRefresh,
+  maxLifetimeDays,
+}: Readonly<{
+  onCreated: (credentials: CredentialsResult) => void
+  onCancel: () => void
+  onListRefresh: () => void
+  maxLifetimeDays?: number
+}>) {
+  const { projects } = useAllProjects()
+  const {
+    value: expiresAt,
+    error: dateError,
+    handleChange: handleDateChange,
+    validator,
+    helperText,
+  } = useCredentialExpirationDate(maxLifetimeDays)
+  const { submit, isPending } = useCreateServiceAccountSubmit({ expiresAt, onCreated, onCancel, onListRefresh })
+
+  const projectOptions = useMemo(
+    () =>
+      projects
+        .filter((p): p is typeof p & { id: string } => typeof p.id === 'string')
+        .map((p) => ({ id: p.id, name: p.name })),
+    [projects]
+  )
+
+  const { control, handleSubmit, setError } = useForm<CreateServiceAccountFormData>({
+    resolver: zodResolver(createServiceAccountSchema, undefined, { mode: 'sync' }),
+    defaultValues: { name: '', description: '', project_id: '' },
+  })
+
+  const handleError = useFormMutationErrorHandler<CreateServiceAccountFormData>(setError)
+  const onSubmit = useCallback(
+    (formData: CreateServiceAccountFormData) => submit(formData, handleError),
+    [submit, handleError]
   )
 
   return (
@@ -280,15 +323,7 @@ function CreateServiceAccountFormPhase({
                   onBlur={field.onBlur}
                   projects={projectOptions}
                 />
-                {fieldState.error && (
-                  <FormHelperText>
-                    <HelperText>
-                      <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                        {fieldState.error.message}
-                      </HelperTextItem>
-                    </HelperText>
-                  </FormHelperText>
-                )}
+                {fieldState.error?.message && <FieldError message={fieldState.error.message} />}
               </FormGroup>
             )}
           />
@@ -337,17 +372,18 @@ function CreateServiceAccountFormPhase({
                   name={field.name}
                   rows={3}
                 />
-                {fieldState.error && (
-                  <FormHelperText>
-                    <HelperText>
-                      <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                        {fieldState.error.message}
-                      </HelperTextItem>
-                    </HelperText>
-                  </FormHelperText>
-                )}
+                {fieldState.error?.message && <FieldError message={fieldState.error.message} />}
               </FormGroup>
             )}
+          />
+          <CredentialExpirationField
+            selectedDate={expiresAt}
+            onDateChange={handleDateChange}
+            dateError={dateError}
+            validator={validator}
+            helperText={helperText}
+            label="Credential expiration date"
+            fieldId="sa-credential-expires-at"
           />
         </Form>
       </ModalBody>
@@ -356,7 +392,7 @@ function CreateServiceAccountFormPhase({
           variant="primary"
           type="submit"
           form="create-service-account-form"
-          isDisabled={isPending}
+          isDisabled={isPending || !!dateError || !expiresAt}
           isLoading={isPending}
           icon={<RhUiAddIcon />}
         >
@@ -370,7 +406,12 @@ function CreateServiceAccountFormPhase({
   )
 }
 
-export function CreateServiceAccountModal({ isOpen, onClose, onSuccess }: Readonly<CreateServiceAccountModalProps>) {
+export function CreateServiceAccountModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  maxLifetimeDays,
+}: Readonly<CreateServiceAccountModalProps>) {
   const [credentials, setCredentials] = useState<CredentialsResult | null>(null)
 
   const handleClose = useCallback(() => {
@@ -389,14 +430,19 @@ export function CreateServiceAccountModal({ isOpen, onClose, onSuccess }: Readon
   const title = credentials ? 'Service account created' : 'Create service account'
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} variant="medium">
+    <Modal isOpen={isOpen} onClose={credentials ? undefined : handleClose} variant="medium">
       <ModalHeader title={title} />
 
       {credentials ? (
         <CredentialsRevealPhase credentials={credentials} onClose={handleClose} />
       ) : (
         isOpen && (
-          <CreateServiceAccountFormPhase onCreated={handleCreated} onCancel={handleClose} onListRefresh={onSuccess} />
+          <CreateServiceAccountFormPhase
+            onCreated={handleCreated}
+            onCancel={handleClose}
+            onListRefresh={onSuccess}
+            maxLifetimeDays={maxLifetimeDays}
+          />
         )
       )}
     </Modal>

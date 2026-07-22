@@ -17,10 +17,11 @@ import { useTableSort } from '../../../hooks/useTableSort'
 import { useAlerts } from '../../../providers/alerts'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
-import { formatDateTime } from '../../../utils/dateUtils'
+import { formatDateTime, formatExpirationDate } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 
+import { CreateCredentialModal } from './CreateCredentialModal'
 import { RotateDialogBody } from './RotateDialogBody'
 import { DEFAULT_GRACE_PERIOD, GRACE_PERIOD_OPTIONS } from './rotateDialogUtils'
 import { RotationGraceIndicator } from './RotationGraceIndicator'
@@ -32,6 +33,7 @@ type SecretRevealState = {
   identifier: string
   clientSecret: string
   title: string
+  expiresAt?: string | null
   gracePeriodSeconds?: number
 }
 
@@ -51,10 +53,15 @@ const credentialFilterDefs: FilterFieldDefinition[] = [
   },
 ]
 
-function useCredentialActions(serviceAccountId: string, refetch: () => Promise<unknown>) {
+function useCredentialActions(
+  serviceAccountId: string,
+  refetch: () => Promise<unknown>,
+  onDisableRequest: (cred: SACredentialRead) => void
+) {
   const { showSuccess } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
   const [secretReveal, setSecretReveal] = useState<SecretRevealState | null>(null)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
 
   const { mutate: createCredential, isPending: isCreating } = accessClient.useMutation(
     'post',
@@ -77,22 +84,33 @@ function useCredentialActions(serviceAccountId: string, refetch: () => Promise<u
     '/service_accounts/{service_account_id}/credentials/{credential_id}'
   )
 
-  const handleCreate = useCallback(() => {
-    createCredential(
-      { params: { path: { service_account_id: serviceAccountId } }, body: { credential_type: 'client_credentials' } },
-      {
-        onSuccess: (response) => {
-          setSecretReveal({
-            identifier: response.identifier,
-            clientSecret: response.client_secret ?? '',
-            title: 'New credential created',
-          })
-          detachPromise(refetch())
+  const openCreateModal = useCallback(() => setCreateModalOpen(true), [])
+  const closeCreateModal = useCallback(() => setCreateModalOpen(false), [])
+
+  const handleCreate = useCallback(
+    (expiresAt: string) => {
+      setCreateModalOpen(false)
+      createCredential(
+        {
+          params: { path: { service_account_id: serviceAccountId } },
+          body: { credential_type: 'client_credentials', expires_at: expiresAt },
         },
-        onError: handleMutationError({ title: 'Failed to create credential' }),
-      }
-    )
-  }, [createCredential, serviceAccountId, refetch, handleMutationError])
+        {
+          onSuccess: (response) => {
+            setSecretReveal({
+              identifier: response.identifier,
+              clientSecret: response.client_secret ?? '',
+              title: 'New credential created',
+              expiresAt: response.expires_at,
+            })
+            detachPromise(refetch())
+          },
+          onError: handleMutationError({ title: 'Failed to create credential' }),
+        }
+      )
+    },
+    [createCredential, serviceAccountId, refetch, handleMutationError]
+  )
 
   const handleEnable = useCallback(
     (cred: SACredentialRead) => {
@@ -108,6 +126,17 @@ function useCredentialActions(serviceAccountId: string, refetch: () => Promise<u
       )
     },
     [enableCredential, serviceAccountId, refetch, showSuccess, handleMutationError]
+  )
+
+  const handleToggleStatus = useCallback(
+    (cred: SACredentialRead) => {
+      if (cred.status === 'active') {
+        onDisableRequest(cred)
+        return
+      }
+      handleEnable(cred)
+    },
+    [handleEnable, onDisableRequest]
   )
 
   const handleDisableConfirm = useCallback(
@@ -176,7 +205,10 @@ function useCredentialActions(serviceAccountId: string, refetch: () => Promise<u
 
   return {
     handleCreate,
-    handleEnable,
+    openCreateModal,
+    closeCreateModal,
+    createModalOpen,
+    handleToggleStatus,
     handleDisableConfirm,
     handleRotateConfirm,
     handleDeleteConfirm,
@@ -250,7 +282,7 @@ function CredentialsTable({
             </Td>
             <Td dataLabel="Created">{formatDateTime(cred.created_at)}</Td>
             <Td dataLabel="Last used">{cred.last_used_at ? formatDateTime(cred.last_used_at) : '-'}</Td>
-            <Td dataLabel="Expires">{cred.expires_at ? formatDateTime(cred.expires_at) : 'Never'}</Td>
+            <Td dataLabel="Expires">{cred.expires_at ? formatExpirationDate(cred.expires_at) : 'Never'}</Td>
             <Td dataLabel="State">
               <Switch
                 id={`cred-state-${cred.id}`}
@@ -330,18 +362,7 @@ export function CredentialsTab({
 
   useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
-  const actions = useCredentialActions(serviceAccountId, query.refetch)
-
-  const handleToggleStatus = useCallback(
-    (cred: SACredentialRead) => {
-      if (cred.status === 'active') {
-        disableDialog.open(cred)
-        return
-      }
-      actions.handleEnable(cred)
-    },
-    [actions, disableDialog]
-  )
+  const actions = useCredentialActions(serviceAccountId, query.refetch, disableDialog.open)
 
   return (
     <>
@@ -360,7 +381,7 @@ export function CredentialsTab({
             title="No credentials yet"
             description="Create a credential to enable API access for this service account."
             buttonText={permissions.canUpdate ? 'Create credential' : undefined}
-            addData={permissions.canUpdate ? actions.handleCreate : undefined}
+            addData={permissions.canUpdate ? actions.openCreateModal : undefined}
           />
         }
         toolbar={
@@ -376,9 +397,7 @@ export function CredentialsTab({
                     variant="primary"
                     icon={<RhUiAddIcon />}
                     isAriaDisabled={!permissions.canUpdate || atLimit}
-                    isLoading={actions.isCreating}
-                    isDisabled={actions.isCreating}
-                    onClick={permissions.canUpdate && !atLimit ? actions.handleCreate : undefined}
+                    onClick={permissions.canUpdate && !atLimit ? actions.openCreateModal : undefined}
                   >
                     Create credential
                   </Button>
@@ -394,7 +413,7 @@ export function CredentialsTab({
               getSortParams={getSortParams}
               permissions={permissions}
               onRotate={(cred) => rotateDialog.open(cred)}
-              onToggleStatus={handleToggleStatus}
+              onToggleStatus={actions.handleToggleStatus}
               onDelete={(cred) => deleteDialog.open(cred)}
             />
           </NxListPanelTable>
@@ -452,6 +471,14 @@ export function CredentialsTab({
         />
       </NxConfirmationDialog>
 
+      <CreateCredentialModal
+        isOpen={actions.createModalOpen}
+        onClose={actions.closeCreateModal}
+        onSubmit={actions.handleCreate}
+        isPending={actions.isCreating}
+        maxLifetimeDays={query.data?.max_lifetime_days}
+      />
+
       {actions.secretReveal && (
         <SecretRevealModal
           isOpen={!!actions.secretReveal}
@@ -459,6 +486,7 @@ export function CredentialsTab({
           title={actions.secretReveal.title}
           identifier={actions.secretReveal.identifier}
           clientSecret={actions.secretReveal.clientSecret}
+          expiresAt={actions.secretReveal.expiresAt}
           gracePeriodSeconds={actions.secretReveal.gracePeriodSeconds}
         />
       )}

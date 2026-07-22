@@ -6,6 +6,22 @@
 import { format, intervalToDuration, parseISO } from 'date-fns'
 
 /**
+ * Format a Date as YYYY-MM-DD for PatternFly DatePicker display.
+ */
+export function formatDateYMD(date: Date): string {
+  return format(date, 'yyyy-MM-dd')
+}
+
+/**
+ * Parse a YYYY-MM-DD string into a Date (local timezone).
+ * Returns current date for unparseable input.
+ */
+export function parseDateYMD(val: string): Date {
+  const d = new Date(`${val}T00:00:00`)
+  return Number.isNaN(d.getTime()) ? new Date() : d
+}
+
+/**
  * Format an ISO date string for display (e.g. "Jan 15, 2024").
  * Returns empty string for invalid or empty input.
  */
@@ -145,6 +161,20 @@ export function formatTimeRange(startedAt?: string | null, completedAt?: string 
  */
 export function formatDateForApi(date: Date): string {
   return date.toISOString()
+}
+
+/**
+ * Format a UTC ISO expiration timestamp as a locale date string (e.g. "Jul 22, 2026").
+ * Extracts year/month/day directly from the ISO string to avoid local-timezone shifts
+ * (a midnight-UTC timestamp would display as the previous day in western timezones).
+ */
+export function formatExpirationDate(isoString?: string | null): string {
+  if (!isoString) return '-'
+  const datePart = isoString.split('T')[0]
+  if (!datePart) return '-'
+  const [y, m, d] = datePart.split('-').map(Number)
+  if (!y || !m || !d) return '-'
+  return format(new Date(y, m - 1, d), 'MMM d, yyyy')
 }
 
 /**

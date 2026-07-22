@@ -21,6 +21,7 @@ import {
 import { RhUiCloseIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import { type Dispatch, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
+import { formatDateYMD, parseDateYMD } from '../../utils/dateUtils'
 import {
   durationToFrequencyAndInterval,
   frequencyAndIntervalToDuration,
@@ -77,15 +78,6 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
     default:
       return state
   }
-}
-
-function formatDateYMD(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
-function parseDateYMD(val: string): Date {
-  const d = new Date(`${val}T00:00:00`)
-  return Number.isNaN(d.getTime()) ? new Date() : d
 }
 
 function toDateOnly(isoString: string): string {

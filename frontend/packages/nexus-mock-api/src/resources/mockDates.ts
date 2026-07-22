@@ -140,4 +140,7 @@ export const mockDate = {
   hoursFromNow48: iso(48 * HOUR),
   hoursFromNow72: iso(72 * HOUR),
   hoursFromNow96: iso(96 * HOUR),
+
+  // -- days from now (future) --
+  daysFromNow180: iso(180 * DAY),
 } as const

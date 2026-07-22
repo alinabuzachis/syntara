@@ -32913,6 +32913,11 @@ components:
           maxItems: 100
           title: Resources
           description: Array of resources in current page
+        max_lifetime_days:
+          type: integer
+          title: Max Lifetime Days
+          default: 180
+          description: Maximum credential lifetime in days (-1 for unlimited)
       type: object
       required:
         - resources
@@ -33333,6 +33338,11 @@ components:
           title: Total Credentials
           default: 0
           description: Total number of credentials for this service account (ignoring filters)
+        max_lifetime_days:
+          type: integer
+          title: Max Lifetime Days
+          default: 180
+          description: Maximum credential lifetime in days (-1 for unlimited)
       type: object
       required:
         - resources

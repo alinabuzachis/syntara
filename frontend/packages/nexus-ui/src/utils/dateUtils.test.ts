@@ -3,14 +3,83 @@ import { describe, expect, it } from 'vitest'
 import {
   formatDate,
   formatDateChipValue,
+  formatDateYMD,
   formatDateTime,
   formatElapsedTime,
   formatExecutionDateTime,
   formatExecutionTime,
+  formatExpirationDate,
   formatTime,
   formatTimeRange,
   isSameDay,
+  parseDateYMD,
 } from './dateUtils'
+
+describe('formatDateYMD', () => {
+  it('formats a Date as YYYY-MM-DD', () => {
+    expect(formatDateYMD(new Date(2026, 0, 15))).toBe('2026-01-15')
+  })
+
+  it('zero-pads single-digit month and day', () => {
+    expect(formatDateYMD(new Date(2026, 2, 5))).toBe('2026-03-05')
+  })
+
+  it('handles end of year', () => {
+    expect(formatDateYMD(new Date(2026, 11, 31))).toBe('2026-12-31')
+  })
+})
+
+describe('parseDateYMD', () => {
+  it('parses a valid YYYY-MM-DD string into a Date', () => {
+    const d = parseDateYMD('2026-07-15')
+    expect(d.getFullYear()).toBe(2026)
+    expect(d.getMonth()).toBe(6)
+    expect(d.getDate()).toBe(15)
+  })
+
+  it('returns current date for empty string', () => {
+    const d = parseDateYMD('')
+    const now = new Date()
+    expect(d.getFullYear()).toBe(now.getFullYear())
+    expect(d.getMonth()).toBe(now.getMonth())
+    expect(d.getDate()).toBe(now.getDate())
+  })
+
+  it('returns current date for malformed input', () => {
+    const d = parseDateYMD('not-a-date')
+    expect(Number.isNaN(d.getTime())).toBe(false)
+  })
+})
+
+describe('formatExpirationDate', () => {
+  it('formats an ISO expiration timestamp as "MMM d, yyyy"', () => {
+    expect(formatExpirationDate('2026-07-22T00:00:00Z')).toBe('Jul 22, 2026')
+  })
+
+  it('extracts date from ISO string to avoid timezone shift', () => {
+    expect(formatExpirationDate('2026-01-01T00:00:00Z')).toBe('Jan 1, 2026')
+  })
+
+  it('returns "-" for null', () => {
+    expect(formatExpirationDate(null)).toBe('-')
+  })
+
+  it('returns "-" for undefined', () => {
+    expect(formatExpirationDate(undefined)).toBe('-')
+  })
+
+  it('returns "-" for empty string', () => {
+    expect(formatExpirationDate('')).toBe('-')
+  })
+
+  it('returns "-" for malformed ISO string', () => {
+    expect(formatExpirationDate('not-a-date')).toBe('-')
+  })
+
+  it('returns "-" for string missing date part', () => {
+    expect(formatExpirationDate('T00:00:00Z')).toBe('-')
+  })
+})
 
 describe('formatDate', () => {
   it('formats ISO date string as MMM d, yyyy', () => {

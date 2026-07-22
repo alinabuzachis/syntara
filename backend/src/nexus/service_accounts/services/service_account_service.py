@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.authz.models.project import Project
+from nexus.core.config.base import get_settings
 from nexus.core.exceptions import assert_project_id_unchanged
 from nexus.core.models import User
 from nexus.core.services import BaseService
@@ -166,6 +167,8 @@ class ServiceAccountService(BaseService):
             if info:
                 resource.project_name = info[0]
                 resource.is_project_deleted = info[1]
+        settings = get_settings()
+        response.max_lifetime_days = settings.sa_credential_max_lifetime_days
         return response
 
     async def update_service_account(

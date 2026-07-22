@@ -4649,6 +4649,7 @@ export const handlers = [
     return HttpResponse.json({
       resources: page,
       next_cursor: nextCursor,
+      max_lifetime_days: 180,
       ...(includeTotal ? { total: results.length } : {}),
     })
   }),
@@ -4745,10 +4746,11 @@ export const handlers = [
       prev: null,
       max_credentials: MAX_CREDENTIALS_PER_SA,
       total_credentials: allForSa.length,
+      max_lifetime_days: 180,
     })
   }),
 
-  http.post('/api/v1/service_accounts/:service_account_id/credentials', ({ params }) => {
+  http.post('/api/v1/service_accounts/:service_account_id/credentials', async ({ params, request }) => {
     const sa = mockServiceAccounts.find((s) => s.id === params.service_account_id)
     if (!sa) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
     const existing = mockServiceAccountCredentials.filter((c) => c.service_account_id === sa.id)
@@ -4761,9 +4763,11 @@ export const handlers = [
         { status: 409 }
       )
     }
+    const body = (await request.json()) as { expires_at?: string | null } | null
     const credIndex = mockServiceAccountCredentials.length + 1
     const identifier = `nx_sa_${sa.name.replace(/-/g, '_')}_new${String(credIndex).padStart(3, '0')}`
     const clientSecret = `nxs_mock_secret_${sa.name}_${credIndex}`
+    const defaultExpiry = mockDate.daysFromNow180
     const newCred = {
       id: `cred-new-${credIndex}`,
       service_account_id: sa.id,
@@ -4771,7 +4775,7 @@ export const handlers = [
       identifier,
       status: 'active' as const,
       grace_period_seconds: 3600,
-      expires_at: null,
+      expires_at: body?.expires_at ?? defaultExpiry,
       last_used_at: null,
       created_by: 'u-001',
       updated_by: null,

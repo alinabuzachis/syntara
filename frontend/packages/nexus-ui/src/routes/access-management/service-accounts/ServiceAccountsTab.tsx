@@ -320,7 +320,12 @@ export function ServiceAccountsTab() {
         }
       />
 
-      <CreateServiceAccountModal isOpen={createDialog.isOpen} onClose={createDialog.close} onSuccess={refetch} />
+      <CreateServiceAccountModal
+        isOpen={createDialog.isOpen}
+        onClose={createDialog.close}
+        onSuccess={refetch}
+        maxLifetimeDays={query.data?.max_lifetime_days}
+      />
 
       {editDialog.item && (
         <EditServiceAccountModal
