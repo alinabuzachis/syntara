@@ -22,8 +22,8 @@ APP_AAP_BASE_URL=https://your-aap.example.com
 APP_AAP_TOKEN=your_api_token_here
 
 # Option B: Username/password authentication
-# APP_AAP_USERNAME=workflow_user
-# APP_AAP_PASSWORD=secret_password
+# APP_AAP_USERNAME=your_username_here
+# APP_AAP_PASSWORD=your_password_here
 
 # Optional: Customize timeouts and polling
 APP_AAP_TIMEOUT_SECONDS=3600

@@ -92,7 +92,7 @@ This project uses `uv` for dependency management and provides a comprehensive Ma
 This project uses `uv` for dependency management with two key files:
 
 - **`uv.lock`** - The source of truth for exact dependency versions (managed by uv)
-- **`requirements.txt`** - Production dependencies exported from `uv.lock` (for Konflux hermetic builds)
+- **`requirements.txt`** - Production dependencies exported from `uv.lock` (for hermetic container builds)
 
 **Keeping files in sync:**
 
@@ -574,7 +574,7 @@ Reusable pytest fixtures for integration and E2E tests live in `test-sdk/`. The 
 | `create_workflow` | Minimal workflow → `(workflow_id, name)` |
 | `identity_provider_factory` | OIDC identity provider → provider object |
 
-**Installing in a downstream repo** (e.g. `automation-orchestrator-test-suite`):
+**Installing in another repository**:
 
 Both `nexus-api-client` (the generated API client) and `nexus-test-sdk` live in this repo and can be installed directly from git using pip's subdirectory syntax:
 
@@ -665,7 +665,7 @@ For more information, run `make help` to see all available commands.
 
 ## Telemetry
 
-Telemetry is always enabled and collects workflow execution metrics transmitted to Red Hat via Segment.com for product improvement. No PII or credentials are collected.
+Telemetry is always enabled and collects workflow execution metrics for product improvement. No PII or credentials are collected.
 
 ### Collected Data
 

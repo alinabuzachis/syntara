@@ -1,5 +1,5 @@
 ---
-description: PatternFly UX Design System — Opinionated implementation rules for building frontend UI that adheres to PatternFly standards and the Automation Orchestrator UX team's component usage guidelines.
+description: PatternFly UX Design System — Opinionated implementation rules for building frontend UI that adheres to PatternFly standards and this project's UX team's component usage guidelines.
 globs: ['packages/nexus-ui/src/**/*.tsx', 'packages/nexus-ui/src/**/*.ts']
 alwaysApply: false
 ---
@@ -23,18 +23,18 @@ Our UX is designed around the **supervisor** mental model — an operator who mu
 - **Data-driven adjustments** — Use side-out panels instead of modals for step configuration to preserve workflow canvas context.
 - **No custom one-offs** — When PatternFly does not meet a requirement, collaborate via the PatternFly liaison path. Never build a custom component.
 
-## AO Design System
+## Design System
 
-How the AO UI is anchored:
+How the UI is anchored:
 
 - **Foundation** — Built on top of [PatternFly](https://www.patternfly.org/) for components, patterns, and accessibility baselines
 - **Layout** — Page and shell structure follow PatternFly's **Compass** layout architecture
 - **Theming** — Visual treatment uses PatternFly's **Unified Theme**
-- **Icons** — Based on the [Red Hat design system](https://ux.redhat.com/) [icon set](https://ux.redhat.com/foundations/iconography/#ui-icons), NOT standard PatternFly defaults
+- **Icons** — Use icons with the `RhUi` prefix (e.g., `RhUiAddIcon`, `RhUiEditIcon`), NOT standard PatternFly defaults
 - **Automation builder** — Based on [React Flow](https://reactflow.dev/) with PatternFly as visual wrapper
 - **Accessibility** — Must achieve [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance
-- **PatternFly gaps** — Check PF docs first → Raise with UX (@ansible-ux) → Engage PatternFly → Document with `patternfly-override` Jira label → Resolve upstream
-- **`Nx` prefix convention** — AO opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) in `src/components/` organized by: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. Use the `Nx*` wrapper, not the raw PF component.
+- **PatternFly gaps** — Check PF docs first → Raise with UX team → Engage PatternFly → Document with `patternfly-override` label → Resolve upstream
+- **`Nx` prefix convention** — opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) in `src/components/` organized by: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. Use the `Nx*` wrapper, not the raw PF component.
 
 ## Page Layout (MANDATORY)
 
@@ -177,7 +177,7 @@ Icons per scenario: No data → `PlusCircleIcon` (gray, `lg`), No results → `S
 
 ## CRUD Patterns
 
-Action verb pairings: "Create" ↔ "Delete", "Add" ↔ "Remove" (AO-internal resources), "Add" ↔ "Disconnect" (external resources), "Assign" ↔ "Unassign", "Transfer" for moving ownership between entities (e.g., "Transfer identity"), "Configure" for integrations (not "Add integration" — integrations are external connections being configured)
+Action verb pairings: "Create" ↔ "Delete", "Add" ↔ "Remove" (internal resources), "Add" ↔ "Disconnect" (external resources), "Assign" ↔ "Unassign", "Transfer" for moving ownership between entities (e.g., "Transfer identity"), "Configure" for integrations (not "Add integration" — integrations are external connections being configured)
 
 ### Create
 
@@ -310,7 +310,7 @@ Button alignment differs by context (follows PatternFly convention):
 
 ## Icons
 
-All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g., `RhUiAddIcon`, `RhUiEditIcon`, `RhUiTrashIcon`). Do NOT use legacy PF icon names (`PlusCircleIcon`, `PencilAltIcon`, etc.) — enforced via ESLint `no-restricted-imports`. Exception: PF empty state icons (`PlusCircleIcon`, `SearchIcon`, etc.) are still used in `EmptyState` components.
+All icons MUST use the **`RhUi` prefix** (e.g., `RhUiAddIcon`, `RhUiEditIcon`, `RhUiTrashIcon`). Do NOT use legacy PF icon names (`PlusCircleIcon`, `PencilAltIcon`, etc.) — enforced via ESLint `no-restricted-imports`. Exception: PF empty state icons (`PlusCircleIcon`, `SearchIcon`, etc.) are still used in `EmptyState` components.
 
 ## Expand/Collapse Chevrons
 
@@ -356,7 +356,7 @@ All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g.
 - **Wait node countdown:** Live `HH:MM:SS` countdown on canvas during execution via `useWaitCountdown` (1s interval). Clears on terminal status.
 - **Import confirmation:** Modal with radio choices ("Import as new" vs "Import into current") for existing saved workflows. Direct import for new/empty. Warns about unsaved changes when `isDirty`.
 
-## Permission Gating (AAP-74439)
+## Permission Gating
 
 Every domain uses a `use{Domain}Permissions()` hook returning `{ can*, isLoading, tooltips }`. Default to **deny** while loading (safe-false). Always use `isAriaDisabled` (not `isDisabled`) — keeps elements focusable for tooltips/screen readers. Set `onClick={undefined}` when denied (defense in depth).
 
@@ -473,7 +473,7 @@ p {
 
 ### Exceptions
 
-If a global style seems necessary, follow the PatternFly gaps process: check PF docs/tokens → raise with UX → engage PatternFly upstream. Approved exceptions must be documented with a `patternfly-override` Jira label.
+If a global style seems necessary, follow the PatternFly gaps process: check PF docs/tokens → raise with UX → engage PatternFly upstream. Approved exceptions must be documented with a `patternfly-override` issue label.
 
 ## Storybook
 

@@ -20,7 +20,7 @@ Use cases include CI/CD pipelines triggering workflows, ITSM platforms initiatin
 | CSRF protection | Required (cookie-based auth) | N/A (bearer token only) |
 | Identity providers | OIDC federation, claim mapping | N/A |
 | Secret storage | Argon2id password hash on `users` | Argon2id secret hash on `service_account_credentials` |
-| Rate limiting | Per-user global (AAP-77407, in progress) | Per-`client_id` sliding window |
+| Rate limiting | Per-user global (in progress) | Per-`client_id` sliding window |
 
 ### Shared infrastructure
 
@@ -183,7 +183,7 @@ The default grace period is 3600 seconds (1 hour), configurable per credential v
 
 ## Client Credentials Grant
 
-> **Status:** Not yet implemented (AAP-78741)
+> **Status:** Not yet implemented
 
 ### Token endpoint
 
@@ -246,7 +246,7 @@ All rejection responses use the same generic error to avoid leaking whether a `c
 
 ## Auth Middleware Integration
 
-> **Status:** Not yet implemented (AAP-78741)
+> **Status:** Not yet implemented
 
 When the auth middleware encounters a JWT with `token_type: "service_account"`, it builds a **virtual principal** for the Rego policy evaluator rather than loading a user from the database.
 
@@ -338,19 +338,17 @@ Auth events include `client_id` and IP address. Secret rotation events do not in
 
 ## Implementation Status
 
-Tracked under epic [AAP-78469](AAP-78469).
-
-| Component | Jira | Status |
-|-----------|------|--------|
-| ServiceAccount model + migration | [AAP-78737](AAP-78737) | Done |
-| CRUD API + credential sub-resource | [AAP-78738](AAP-78738) | Done |
-| Client credentials grant + token endpoint | [AAP-78741](AAP-78741) | Not started |
-| PrincipalType extension + RBAC | — | Not started |
-| Auth middleware integration | — | Not started |
-| Secret rotation endpoint | — | Not started |
-| Audit events | — | Not started |
-| Rate limiting | — | Not started |
-| Frontend UI | — | Not started |
+| Component | Status |
+|-----------|--------|
+| ServiceAccount model + migration | Done |
+| CRUD API + credential sub-resource | Done |
+| Client credentials grant + token endpoint | Not started |
+| PrincipalType extension + RBAC | Not started |
+| Auth middleware integration | Not started |
+| Secret rotation endpoint | Not started |
+| Audit events | Not started |
+| Rate limiting | Not started |
+| Frontend UI | Not started |
 
 ## Key Files
 

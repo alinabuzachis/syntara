@@ -15,7 +15,7 @@ This project ships with AI agent skills (in `.claude/skills/`) that handle the r
 - How to use the **Frontend Specialist** agent to implement a feature using PatternFly, typed API clients, and Zod + react-hook-form
 - How to use the **PR Review** skill to check your code against the quality checklist before opening a PR
 - How to use the **Playwright E2E** skill to write end-to-end tests that work in both mock-API and real-backend mode
-- How to apply the **UX Design System** skill to match the Automation Orchestrator design language
+- How to apply the **UX Design System** skill to match the project design language
 - How to review your implementation locally (dev server, browser states, keyboard/accessibility)
 - How to fix common guideline violations flagged during review
 - How to use the `/build-ui-feature` command to walk through the full workflow step by step

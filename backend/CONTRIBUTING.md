@@ -2,11 +2,11 @@
 
 Thank you for your interest in contributing to the Nexus project!
 
-This document outlines the guidelines and best practices for contributing to this automation nexus system.
+This document outlines the guidelines and best practices for contributing to this system.
 
 ## Ways to Contribute
 
-There are many ways you can help make Nexus better:
+There are many ways you can help make the project better:
 
 - **Report bugs** - Help us identify and fix issues
 - **Submit feature requests** - Suggest new functionality
@@ -14,7 +14,7 @@ There are many ways you can help make Nexus better:
 - **Improve documentation** - Help make our docs clearer and more comprehensive
 - **Review pull requests** - Help maintain code quality
 
-Visit our [JIRA board]() and use the "nexus" component for tracking issues and contributions.
+Visit our issue tracker for tracking issues and contributions.
 
 ## Getting Started
 
@@ -173,7 +173,7 @@ This updates `frontend/packages/nexus-contracts/src/` with types matching your s
 
 CI posts an informational warning if the spec changed but contracts were not regenerated. For spec-only changes with no type impact (descriptions, examples, metadata), add to the PR description: `no-contract-regen: <justification>`.
 
-#### 2. Breaking Changes Check (AAP-77358)
+#### 2. Breaking Changes Check
 
 The pre-commit hook (enforced in CI) compares your spec against `devel` to detect breaking changes (removed fields, type changes, deleted endpoints).
 

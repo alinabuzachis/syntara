@@ -343,7 +343,7 @@ Update `schemas/integrations/openapi.yaml` to add the new enum value to `LLMProv
 
 ### Current Limitations
 
-- **Tool `namespaced_name` goes stale on rename.** Tool records store `namespaced_name` as `"{integration_name}::{tool_short_name}"`. If the integration is renamed, existing tool records retain the old prefix. The `ToolSynchronizer` matches by `namespaced_name`, so renamed integrations cause all tools to appear MISSING and get disabled until records are corrected. Tracked in AAP-79781. Mitigation: match on `(integration_id, short_name)` instead of the full namespaced string, or update `namespaced_name` on rename/refresh.
+- **Tool `namespaced_name` goes stale on rename.** Tool records store `namespaced_name` as `"{integration_name}::{tool_short_name}"`. If the integration is renamed, existing tool records retain the old prefix. The `ToolSynchronizer` matches by `namespaced_name`, so renamed integrations cause all tools to appear MISSING and get disabled until records are corrected. Mitigation: match on `(integration_id, short_name)` instead of the full namespaced string, or update `namespaced_name` on rename/refresh.
 - **Tool records linked to integrations at execution time only.** `integration_id` is stored on each Tool record and used at execution time for credential routing, but this linkage is not yet surfaced as a first-class relationship in the API or UI.
 - **No diff detection on descriptions.** The sync overwrites tool descriptions on every successful refresh; it does not detect whether the description actually changed before writing.
 

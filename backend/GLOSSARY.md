@@ -72,7 +72,7 @@
 
 ## L
 
-**Large Language Models (LLMs)** - Customer-provided language models software system that use provided guidance and context to create automation plans.
+**Large Language Models (LLMs)** - User-provided language models that use provided guidance and context to create automation plans.
 
 **LLM Configuration** - Settings for language model providers including credentials, selection criteria, limits, and fallback options.
 

@@ -46,7 +46,7 @@ For engagement questions, reach out to the UX team in the project's contributor 
 
 ---
 
-## AO Design System
+## Design System
 
 How the Nexus UI is anchored, and how it relates to other design tooling:
 
@@ -62,12 +62,12 @@ How the Nexus UI is anchored, and how it relates to other design tooling:
   3. **Engage PatternFly.** If UX confirms the gap, UX coordinates with PatternFly on resolution — new component, variant, token, or an accepted override — often via a PatternFly GitHub issue or direct conversation.
   4. **Document and track.** If a temporary override is approved, create an issue with the label `patternfly-override` to track technical debt. Link the PatternFly issue if one exists.
   5. **Resolve upstream.** The aim is to remove the override by contributing back to PatternFly or the Ansible UI Framework. Overrides without a resolution path should be periodically reviewed.
-- **`Nx` prefix convention** — AO opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) and live in `frontend/packages/nexus-ui/src/components/` organized by subdirectory: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. These wrap raw PatternFly primitives with AO-specific defaults and behavior — use the `Nx*` wrapper, not the raw PF component, for these patterns.
+- **`Nx` prefix convention** — opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) and live in `frontend/packages/nexus-ui/src/components/` organized by subdirectory: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. These wrap raw PatternFly primitives with project-specific defaults and behavior — use the `Nx*` wrapper, not the raw PF component, for these patterns.
 - **What this is not** — The experience is **not** built on custom libraries. Nexus deliberately uses a PatternFly-first stack.
 
 ---
 
-## AO Research Process
+## Research Process
 
 The Nexus project is committed to evidence-based development, utilizing user research to steer both product capabilities and the overall user experience.
 
@@ -114,7 +114,7 @@ While PatternFly provides flexible building blocks, this project follows an **op
 | Source                                       | Description                                                                           |
 | -------------------------------------------- | ------------------------------------------------------------------------------------- |
 | **Compass Layout**                           | Layout architecture providing systematic page structure and spacing                   |
-| **AO UI Repository**                         | The opinionated PatternFly implementation — the reference for tables, filters, modals |
+| **UI Repository**                         | The opinionated PatternFly implementation — the reference for tables, filters, modals |
 | **PatternFly (https://www.patternfly.org/)** | The upstream design system; always check here first for component docs                |
 
 ### Key Experience Principles
@@ -127,7 +127,7 @@ When an automation platform spans inventories, credentials, templates, schedules
 
 ### Addressing Gaps
 
-Opinionated does not mean custom. When PatternFly does not meet a specific design requirement, follow the 5-step PatternFly gaps liaison process defined in the AO Design System section above (Check first → Raise with UX → Engage PatternFly → Document and track → Resolve upstream). Never create custom, one-off components.
+Opinionated does not mean custom. When PatternFly does not meet a specific design requirement, follow the 5-step PatternFly gaps liaison process defined in the Design System section above (Check first → Raise with UX → Engage PatternFly → Document and track → Resolve upstream). Never create custom, one-off components.
 
 ---
 
@@ -1800,7 +1800,7 @@ Follow this hierarchy when applying styles — always start from the top:
 
 ### When a Global Style Seems Necessary
 
-If you believe a global style is the only option, follow the PatternFly gaps process (see "AO Design System" → "PatternFly gaps" above): check PatternFly docs and tokens first, raise with UX, then engage PatternFly upstream. Approved temporary exceptions must be documented with a `patternfly-override` label.
+If you believe a global style is the only option, follow the PatternFly gaps process (see "Design System" → "PatternFly gaps" above): check PatternFly docs and tokens first, raise with UX, then engage PatternFly upstream. Approved temporary exceptions must be documented with a `patternfly-override` label.
 
 ---
 
@@ -1865,7 +1865,7 @@ The project ships with Storybook for documenting and reviewing `Nx*` components.
 
 ## 22. Getting Started for Developers
 
-- Point to the AO UI repository for implementation references
+- Point to the UI repository for implementation references
 - Utilize the UI/UX skills defined in this document and the Cursor rules
 - Follow the accessibility guidelines in section 18
 - Follow the styling rules in section 19

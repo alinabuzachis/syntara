@@ -78,7 +78,7 @@ If a wait node's configured duration exceeds this limit, the activity fails with
 ## Limitations
 
 - **Interval-only** — Only duration-based waiting is supported. Waiting until a specific date/time (`specified_time`) is deferred to a future release due to timezone and `workflow.now()` edge cases.
-- **Skip mechanism** — The ability to skip a waiting node early is not yet implemented. It depends on activity signaling infrastructure that is being redesigned (see PR #960).
+- **Skip mechanism** — The ability to skip a waiting node early is not yet implemented. It depends on activity signaling infrastructure that is being redesigned.
 
 ## Related Files
 

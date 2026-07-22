@@ -30,9 +30,9 @@ Use AI agents (Claude Code, Cursor, or any tool that reads `.claude/skills/`) to
 
 ```mermaid
 flowchart TD
-    A[Jira issue + UX mockup] --> B["build-ui-feature command"]
+    A[Issue ID + UX mockup] --> B["build-ui-feature command"]
     B --> C{Ask questions}
-    C --> C1[What is the Jira issue?]
+    C --> C1[What is the issue ID?]
     C --> C2[Do you have a screenshot?]
     C --> C3[What is the API endpoint?]
     C --> C4[What should it do?]
@@ -451,7 +451,7 @@ Instead of copying prompts and chaining skills manually, type `/build-ui-feature
 
 The command asks you 5 questions, then handles the rest:
 
-1. What is the Jira issue?
+1. What is the issue ID?
 2. Do you have a screenshot or mockup?
 3. What is the API endpoint and response shape?
 4. What should this page or component do?
@@ -468,9 +468,9 @@ Commands are triggered by you (type `/build-ui-feature`). Skills are reference m
 ```text
 You: /build-ui-feature
 
-Claude: What is the Jira issue or feature description?
+Claude: What is the issue ID or feature description?
 
-You: AAP-72897 - Update destructive modals to match UX spec
+You: Update destructive modals to match UX spec
 
 Claude: Do you have a screenshot or mockup?
 

@@ -348,12 +348,12 @@ The Global Settings Framework (GSF) provides **database-backed runtime settings*
 | `get_settings()` (this document) | Infrastructure config: database URLs, ports, API keys, pool sizes | Environment variables / `.env` | Application restart |
 | Runtime Settings (GSF) | Application behavior: LLM parameters, feature toggles, thresholds | REST API / UI | Immediately |
 
-**Key components** (merged in [PR #571](https://github.com/syntara-orchestration/syntara/pull/571)):
+**Key components:**
 
 - `RuntimeSetting` model in `src/nexus/settings/models/` — DB-backed with JSONB value storage
 - Settings catalog in `src/nexus/settings/catalog.py` — declarative registry of settings with defaults and validators
 - Settings store in `src/nexus/settings/store.py` — data access layer
-- REST API at `/api/v1/settings` — list, get, update, bulk update ([PR #638](https://github.com/syntara-orchestration/syntara/pull/638), in progress)
+- REST API at `/api/v1/settings` — list, get, update, bulk update (in progress)
 
 **Access pattern:** Runtime settings are read from the database via the settings store, not through `get_settings()`. The two systems are independent — `get_settings()` remains the correct access path for all environment-based configuration documented in this file.
 

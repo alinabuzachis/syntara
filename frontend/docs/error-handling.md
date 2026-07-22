@@ -27,7 +27,7 @@ The UI provides consistent error handling across all API interactions:
 ### Backend Error Formats Supported
 
 ```typescript
-// Structured API error (e.g., 503 from backend PR #197)
+// Structured API error (e.g., 503)
 { error: "service_unavailable", message: "OPENROUTER_API_KEY is required..." }
 
 // FastAPI standard error
@@ -307,7 +307,7 @@ import { NxEmptyStateServiceUnavailable } from './components/states/NxEmptyState
 />
 ```
 
-### Backend Integration (PR #197)
+### Backend Integration
 
 The backend returns HTTP 503 when the OpenRouter API key is not configured:
 
@@ -407,6 +407,5 @@ The following enhancements are planned for future iterations:
 
 ## Related Links
 
-- Backend PR: [syntara-orchestration/syntara#197](https://github.com/syntara-orchestration/syntara/pull/197)
 - OpenAPI Schema: `schemas/base/shared-resources.openapi.yaml` (Error schema)
 - Agent Orchestrator API: `schemas/agent_orchestrator/agent-orchestrator-api.yaml` (503 response definition)
