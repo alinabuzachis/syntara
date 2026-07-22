@@ -19,6 +19,7 @@ from nexus.agent_orchestrator.context_manager.assembler_service import (
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import (
     RelevantDocument,
 )
+from nexus.agent_orchestrator.token_manager.exceptions import UserTokenConfigNotFoundError
 from nexus.files.models import FileMetadata
 
 # ==================== Phase 3.2: Unit Tests - Core Logic ====================
@@ -536,3 +537,56 @@ class TestAssemblerServiceInvocationIdWiring:
         assert call_args.kwargs["user_id"] == user_id
         assert call_args.kwargs["request_text"] == "test document content"
         assert call_args.kwargs["invocation_id"] == invocation_id
+
+
+class TestAssemblerUserTokenConfigNotFound:
+    """Tests for AAP-83799: assembler gracefully handles missing UserTokenConfig."""
+
+    @pytest.fixture
+    def assembler_service(self) -> AssemblerService:
+        """Create AssemblerService with mock token_service that raises UserTokenConfigNotFoundError."""
+        token_service = AsyncMock()
+        token_service.validate_and_record = AsyncMock(side_effect=UserTokenConfigNotFoundError(uuid4()))
+        token_service.calculator = Mock()
+        token_service.calculator.count_tokens = Mock(return_value=50)
+        compressor_service = AsyncMock()
+        return AssemblerService(token_service, compressor_service)
+
+    @pytest.mark.asyncio
+    async def test_assemble_skips_validation_when_no_token_config(self, assembler_service: AssemblerService) -> None:
+        """AAP-83799: Assembler should not crash when no UserTokenConfig exists for the user."""
+        docs = [
+            RelevantDocument(
+                content="document with content",
+                relevancy_score=0.8,
+                file_metadata=FileMetadata(
+                    id=uuid4(),
+                    filename="test.txt",
+                    size_bytes=100,
+                    mime_type="text/plain",
+                    file_path="/path/to/test.txt",
+                ),
+                source_type="uploaded_file",
+            ),
+        ]
+        user_id = uuid4()
+        invocation_id = uuid4()
+        mock_session = AsyncMock()
+
+        async def mock_session_factory() -> AsyncGenerator[AsyncMock, None]:
+            yield mock_session
+
+        result = await assembler_service.assemble(
+            documents=docs,
+            max_tokens=10000,
+            compression_loop=0,
+            invocation_id=invocation_id,
+            user_id=user_id,
+            session_factory=mock_session_factory,
+        )
+
+        assert result is not None
+        assert result.payload["documents"][0]["content"] == "document with content"
+        assert result.grounding_score == pytest.approx(0.8)
+        assert len(result.citations) == 1
+        assert result.package_metadata["compression_applied"] is False

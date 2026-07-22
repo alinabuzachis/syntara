@@ -16,7 +16,10 @@ from nexus.agent_orchestrator.context_manager.compressor import CompressorServic
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.agent_orchestrator.context_manager.retriever_service.models import RelevantDocument
 from nexus.agent_orchestrator.exceptions import AgentOrchestratorError
-from nexus.agent_orchestrator.token_manager.exceptions import TokenLimitExceededError
+from nexus.agent_orchestrator.token_manager.exceptions import (
+    TokenLimitExceededError,
+    UserTokenConfigNotFoundError,
+)
 from nexus.agent_orchestrator.token_manager.services import TokenValidationService
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -174,6 +177,12 @@ class AssemblerService:
                     "Documents within token budget, no compression needed",
                     token_count=original_token_count,
                     max_tokens=max_tokens,
+                )
+
+            except UserTokenConfigNotFoundError:
+                logger.warning(
+                    "No token configuration found for user, skipping token validation",
+                    user_id=str(user_id),
                 )
 
             except TokenLimitExceededError as e:
