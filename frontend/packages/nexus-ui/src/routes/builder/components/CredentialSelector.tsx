@@ -148,6 +148,18 @@ function CredentialMenuToggle({
   )
 }
 
+function NoCredentialOption({ isRequired, value }: { isRequired: boolean; value?: string }) {
+  if (isRequired) return null
+  return (
+    <>
+      <SelectOption value={NO_CREDENTIAL_VALUE} isSelected={!value}>
+        No credential
+      </SelectOption>
+      <Divider />
+    </>
+  )
+}
+
 function ReadOnlyCredentialWarning({ show }: { show: boolean }) {
   if (!show) return null
   return (
@@ -318,6 +330,7 @@ export function CredentialSelector({
         toggle={renderToggle}
       >
         <SelectList aria-label={`${label} options`}>
+          <NoCredentialOption isRequired={isRequired} value={value} />
           {allowCreate && (
             <>
               <SelectOption value={CREATE_NEW_VALUE} icon={<PlusIcon />}>

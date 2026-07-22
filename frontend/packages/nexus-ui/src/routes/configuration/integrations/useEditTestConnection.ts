@@ -7,6 +7,7 @@ import { getErrorMessage } from '../../../utils/apiErrors'
 
 import type { DiscoverResult, EditIntegrationFormValues, IntegrationRead } from './editIntegrationFormSchema'
 import { buildConfiguration } from './editIntegrationFormSchema'
+import { CREDENTIAL_REQUIRED_TYPES } from './integrationFilters'
 import { isLLMProvider, getProviderHint } from './integrationUtils'
 
 export function useEditTestConnection(
@@ -22,7 +23,7 @@ export function useEditTestConnection(
   const handleTestConnection = useCallback(() => {
     const values = getValues()
     const credId = values.management_credential_id
-    if (!credId || !integration) return
+    if (!integration || (!credId && CREDENTIAL_REQUIRED_TYPES.has(integration.integration_type))) return
 
     const integrationType = integration.integration_type ?? IntegrationTypeEnum.MCP_SERVER
     const isLLMType = integrationType === IntegrationTypeEnum.LLM_PROVIDER
@@ -36,7 +37,7 @@ export function useEditTestConnection(
             values,
             isLLMProvider(integration) ? getProviderHint(integration) : undefined
           ),
-          credential_id: credId,
+          credential_id: credId ?? undefined,
         },
       },
       {

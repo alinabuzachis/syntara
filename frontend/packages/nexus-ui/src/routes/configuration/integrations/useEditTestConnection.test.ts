@@ -59,9 +59,27 @@ describe('useEditTestConnection', () => {
     mockMutate.mockClear()
   })
 
-  it('does not call mutate when credentialId is null', () => {
+  it('calls mutate for MCP server without credential (credential not required)', () => {
     const getValues = vi.fn(() => makeFormValues({ management_credential_id: null }))
     const { result } = renderHook(() => useEditTestConnection(BASE_INTEGRATION, getValues))
+
+    act(() => {
+      result.current.handleTestConnection()
+    })
+
+    expect(mockMutate).toHaveBeenCalledOnce()
+    const [request] = mockMutate.mock.calls[0] as [{ body: Record<string, unknown> }]
+    expect(request.body.credential_id).toBeUndefined()
+  })
+
+  it('does not call mutate for LLM provider without credential (credential required)', () => {
+    const llmIntegration: IntegrationRead = {
+      ...BASE_INTEGRATION,
+      integration_type: 'llm_provider',
+      configuration: { integration_type: 'llm_provider', provider_hint: 'openai' },
+    }
+    const getValues = vi.fn(() => makeFormValues({ integration_type: 'llm_provider', management_credential_id: null }))
+    const { result } = renderHook(() => useEditTestConnection(llmIntegration, getValues))
 
     act(() => {
       result.current.handleTestConnection()

@@ -578,6 +578,51 @@ describe('CredentialSelector', () => {
     })
   })
 
+  describe('no credential option', () => {
+    it('shows "No credential" option in the dropdown when isRequired is false', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector()
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      expect(screen.getByRole('option', { name: /No credential/ })).toBeInTheDocument()
+    })
+
+    it('calls onChange with undefined when "No credential" is selected', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      mockUseQueryLegacy()
+      renderSelector({ value: 'cred-1', onChange })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+      await user.click(screen.getByRole('option', { name: /No credential/ }))
+
+      expect(onChange).toHaveBeenCalledWith(undefined)
+    })
+
+    it('does not show "No credential" option when isRequired is true', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector({ isRequired: true })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      expect(screen.queryByRole('option', { name: /No credential/ })).not.toBeInTheDocument()
+    })
+
+    it('has no accessibility violations with "No credential" option visible', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      const { container } = renderSelector()
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+  })
+
   describe('read-only credential (credential:use denied)', () => {
     const readOnlyCred = {
       id: 'cred-readonly',
