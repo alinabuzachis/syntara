@@ -717,13 +717,12 @@ class TestUnresolvableExpressionError:
         is not in the workflow graph, the resolver raises KeyError at runtime with a
         message naming the missing namespace. The execution must reach FAILED status.
 
-        This test uses force_save=True to bypass creation-time expression validation,
-        which would otherwise reject the workflow. The force_save flag is intentional
-        here — it is the mechanism for testing runtime error handling when validation
-        is not the gatekeeper.
+        Validation issues are now recorded but do not block save, so the workflow
+        is saved successfully despite referencing a nonexistent node. This lets us
+        test runtime error handling when validation is not the gatekeeper.
 
         Test Procedure:
-        1. Create a workflow with force_save=True:
+        1. Create a workflow (save succeeds despite validation issues):
            - node_a: runs successfully.
            - node_b: references ${ghost_node.output} where ghost_node is absent from
              the workflow's node list entirely.
@@ -771,7 +770,6 @@ class TestUnresolvableExpressionError:
             project_id=first_project_id,
             name=workflow_name,
             definition=workflow_def,
-            force_save=True,
         )
 
         execution = nexus_api.executions.create(

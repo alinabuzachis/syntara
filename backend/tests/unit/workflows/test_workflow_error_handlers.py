@@ -12,7 +12,6 @@ from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.workflows.error_handlers import (
     build_validation_problem_response,
     definition_invalid_handler,
-    definition_warnings_handler,
     execution_not_found_handler,
     publish_validation_handler,
     workflow_name_conflict_handler,
@@ -24,7 +23,6 @@ from nexus.workflows.error_handlers import (
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     WorkflowDefinitionInvalidError,
-    WorkflowDefinitionWarningsError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
@@ -370,38 +368,6 @@ class TestWorkflowDefinitionInvalidErrorConstructor:
 
         assert exc.validation_result is result
         assert str(exc) == "Workflow definition validation failed"
-
-
-class TestDefinitionWarningsHandler:
-    """Test suite for definition_warnings_handler."""
-
-    def test_returns_409_with_validation_result(self) -> None:
-        request = Mock(spec=Request)
-        request.url = "https://api.example.com/workflows"
-
-        findings = [
-            ValidationFinding(
-                severity=ValidationSeverity.warning,
-                category=ValidationCategory.schema_violation,
-                message="Missing recommended field",
-                node_id="n1",
-            ),
-        ]
-        result = ValidationResult.from_findings(findings)
-        exc = WorkflowDefinitionWarningsError(result)
-        response = definition_warnings_handler(request, exc)
-
-        assert isinstance(response, JSONResponse)
-        assert response.status_code == 409
-        assert response.media_type == "application/problem+json"
-
-        data = json.loads(bytes(response.body).decode())
-        assert data["type"] == PROBLEM_TYPES["definition_warnings"]
-        assert data["title"] == "Workflow Definition Has Warnings"
-        assert data["code"] == "WORKFLOW_DEFINITION_WARNINGS"
-        assert data["retryable"] is True
-        assert "validation_result" in data
-        assert data["validation_result"]["warning_count"] == 1
 
 
 class TestWorkflowVersionConflictHandler:

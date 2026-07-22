@@ -465,7 +465,6 @@ async def test_publish_blocked_for_definition_with_errors(jwt_client: AsyncClien
     """
     create_resp = await jwt_client.post(
         "/api/v1/workflows",
-        params={"force_save": "true"},
         json={
             "name": "publish-blocked-errors",
             "project_id": test_project_id,
@@ -547,7 +546,6 @@ async def test_publish_blocked_preserves_existing_published_version(
 
     update_resp = await jwt_client.patch(
         f"/api/v1/workflows/{workflow_id}",
-        params={"force_save": "true"},
         json={"workflow_definition": _create_invalid_workflow_definition()},
     )
     assert update_resp.status_code == 200

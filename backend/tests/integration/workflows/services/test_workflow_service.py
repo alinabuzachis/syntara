@@ -13,7 +13,6 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.exceptions import BuiltinProtectionError
@@ -25,8 +24,6 @@ from nexus.credentials.models.credential_type import CredentialType
 from nexus.workflows.exceptions import (
     BuiltinWorkflowDeleteError,
     BuiltinWorkflowModifyError,
-    WorkflowDefinitionInvalidError,
-    WorkflowDefinitionWarningsError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
@@ -306,7 +303,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
                 project_id=test_project_id,
             )
 
-            workflow, version = result
+            workflow, version, _val_result = result
             assert workflow.name == "test-workflow"
             assert workflow.description == "Test description"
             assert workflow.labels == {"env": "test"}
@@ -327,10 +324,10 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
             assert db_workflow.name == "test-workflow"
 
     @pytest.mark.asyncio
-    async def test_create_workflow_validation_error(
+    async def test_create_workflow_validation_error_saves_with_issues(
         self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
     ) -> None:
-        """Test workflow creation with invalid definition."""
+        """Test workflow creation with invalid definition still saves and reports issues."""
         service = WorkflowService(test_db_session, test_user)
 
         workflow_definition = self._create_workflow_definition()
@@ -339,18 +336,16 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
         mock_val.collect_findings.return_value = _invalid_result("Invalid definition")
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", mock_val):
-            with pytest.raises(WorkflowDefinitionInvalidError):
-                await service.create_workflow(
-                    name="invalid-workflow",
-                    description=None,
-                    labels={},
-                    workflow_definition=workflow_definition,
-                    project_id=test_project_id,
-                )
+            workflow, _version, val_result = await service.create_workflow(
+                name="invalid-workflow",
+                description=None,
+                labels={},
+                workflow_definition=workflow_definition,
+                project_id=test_project_id,
+            )
 
-            # Verify no workflow was created in database
-            workflows = await test_db_session.exec(select(Workflow))
-            assert len(workflows.all()) == 0
+            assert workflow.has_validation_issues is True
+            assert val_result.error_count > 0
 
     @pytest.mark.asyncio
     async def test_create_workflow_duplicate_name(
@@ -399,7 +394,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
         await test_db_session.refresh(other_project)
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            wf_a, _ = await service.create_workflow(
+            wf_a, _, _ = await service.create_workflow(
                 name="cross-project-wf",
                 description=None,
                 labels={},
@@ -408,7 +403,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
             )
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            wf_b, _ = await service.create_workflow(
+            wf_b, _, _ = await service.create_workflow(
                 name="cross-project-wf",
                 description=None,
                 labels={},
@@ -449,34 +444,10 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
             )
 
     @pytest.mark.asyncio
-    async def test_create_workflow_warnings_without_force_save(
+    async def test_create_workflow_with_warnings_succeeds(
         self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
     ) -> None:
-        """Test workflow creation with warnings raises error when force_save is not set."""
-        service = WorkflowService(test_db_session, test_user)
-
-        workflow_definition = self._create_workflow_definition()
-
-        mock_val = MagicMock()
-        mock_val.collect_findings.return_value = _warnings_result()
-
-        with (
-            patch("nexus.workflows.services.workflow_service.workflow_validator", mock_val),
-            pytest.raises(WorkflowDefinitionWarningsError),
-        ):
-            await service.create_workflow(
-                name="warnings-workflow",
-                description=None,
-                labels={},
-                workflow_definition=workflow_definition,
-                project_id=test_project_id,
-            )
-
-    @pytest.mark.asyncio
-    async def test_create_workflow_warnings_with_force_save(
-        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
-    ) -> None:
-        """Test workflow creation with warnings succeeds when force_save is True."""
+        """Test workflow creation with warnings succeeds and reports validation issues."""
         service = WorkflowService(test_db_session, test_user)
 
         workflow_definition = self._create_workflow_definition()
@@ -485,22 +456,22 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
         mock_val.collect_findings.return_value = _warnings_result()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", mock_val):
-            workflow, _version = await service.create_workflow(
-                name="warnings-force-save-workflow",
+            workflow, _version, val_result = await service.create_workflow(
+                name="warnings-workflow",
                 description=None,
                 labels={},
                 workflow_definition=workflow_definition,
                 project_id=test_project_id,
-                force_save=True,
             )
 
             assert workflow.has_validation_issues is True
+            assert val_result.warning_count > 0
 
     @pytest.mark.asyncio
-    async def test_create_workflow_errors_with_force_save(
+    async def ***REMOVED***(
         self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
     ) -> None:
-        """Test workflow creation with errors succeeds when force_save is True."""
+        """Test workflow creation with errors saves successfully and reports issues."""
         service = WorkflowService(test_db_session, test_user)
 
         workflow_definition = self._create_workflow_definition()
@@ -509,16 +480,16 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
         mock_val.collect_findings.return_value = _invalid_result()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", mock_val):
-            workflow, _version = await service.create_workflow(
-                name="errors-force-save-workflow",
+            workflow, _version, val_result = await service.create_workflow(
+                name="errors-save-workflow",
                 description=None,
                 labels={},
                 workflow_definition=workflow_definition,
                 project_id=test_project_id,
-                force_save=True,
             )
 
             assert workflow.has_validation_issues is True
+            assert val_result.error_count > 0
 
     @pytest.mark.asyncio
     async def test_create_workflow_valid_has_no_validation_issues(
@@ -530,7 +501,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
         workflow_definition = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _version = await service.create_workflow(
+            workflow, _version, _val_result = await service.create_workflow(
                 name="valid-workflow",
                 description=None,
                 labels={},
@@ -691,7 +662,7 @@ class TestWorkflowServiceCreateVersion(TestWorkflowServiceBase):
         new_definition = self._create_workflow_definition(description="Updated workflow")  # type: ignore[arg-type]
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            result = await service.create_workflow_version(
+            result, _val_result = await service.create_workflow_version(
                 workflow,
                 new_definition,
                 "Updated description",
@@ -729,7 +700,7 @@ class TestWorkflowServiceCreateVersion(TestWorkflowServiceBase):
         await test_db_session.commit()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            result = await service.create_workflow_version(
+            result, _val_result = await service.create_workflow_version(
                 workflow,
                 same_definition,
                 "No actual changes",
@@ -739,29 +710,35 @@ class TestWorkflowServiceCreateVersion(TestWorkflowServiceBase):
             assert workflow.current_version == 1  # Version unchanged
 
     @pytest.mark.asyncio
-    async def test_create_workflow_version_validation_error(
+    async def test_create_workflow_version_validation_error_saves_with_issues(
         self, test_db_session: AsyncSession, test_user: User
     ) -> None:
-        """Test version creation with invalid definition."""
+        """Test version creation with invalid definition still saves and reports issues."""
         service = WorkflowService(test_db_session, test_user)
 
-        workflow = self._create_test_workflow(created_by=test_user.id)
-        invalid_definition = self._create_workflow_definition()
+        workflow = self._create_test_workflow(name="invalid-ver-test", current_version=1, created_by=test_user.id)
+        test_db_session.add(workflow)
+        current_version = self._create_test_workflow_version(
+            workflow_id=workflow.id, version=1, workflow_definition={"original": "def"}, created_by=test_user.id
+        )
+        test_db_session.add(current_version)
+        await test_db_session.commit()
+
+        invalid_definition = self._create_workflow_definition(description="invalid update")  # type: ignore[arg-type]
 
         mock_val = MagicMock()
         mock_val.collect_findings.return_value = _invalid_result("Invalid definition")
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", mock_val):
-            with pytest.raises(WorkflowDefinitionInvalidError):
-                await service.create_workflow_version(
-                    workflow,
-                    invalid_definition,
-                    "Invalid update",
-                )
+            version, val_result = await service.create_workflow_version(
+                workflow,
+                invalid_definition,
+                "Invalid update",
+            )
 
-            # Verify no new version was created
-            versions = await test_db_session.exec(select(WorkflowVersion))
-            assert len(versions.all()) == 0
+            assert version is not None
+            assert workflow.has_validation_issues is True
+            assert val_result.error_count > 0
 
 
 class TestWorkflowServiceUpdateWorkflow(TestWorkflowServiceBase):
@@ -787,7 +764,7 @@ class TestWorkflowServiceUpdateWorkflow(TestWorkflowServiceBase):
             labels={"env": "prod"},
         )
 
-        result_workflow, result_version = result
+        result_workflow, result_version, _val_result = result
         assert result_workflow.id == workflow.id
         assert result_workflow.name == "updated-name"
         assert result_workflow.description == "Updated description"
@@ -817,7 +794,7 @@ class TestWorkflowServiceUpdateWorkflow(TestWorkflowServiceBase):
                 change_description="Added new features",
             )
 
-            result_workflow, result_version = result
+            result_workflow, result_version, _val_result = result
             assert result_workflow.id == workflow.id
             assert result_workflow.name == "updated-name"
             assert result_workflow.current_version == 2  # Version should be incremented
@@ -1423,7 +1400,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="publish-test",
                 description=None,
                 labels={},
@@ -1462,7 +1439,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _v1 = await service.create_workflow(
+            workflow, _v1, _ = await service.create_workflow(
                 name="demote-test",
                 description=None,
                 labels={},
@@ -1481,7 +1458,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         v2_def = self._create_workflow_definition()
         v2_def["description"] = "v2"
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            v2 = await service.create_workflow_version(workflow, v2_def, "v2 changes")
+            v2, _ = await service.create_workflow_version(workflow, v2_def, "v2 changes")
 
         assert v2 is not None
 
@@ -1506,7 +1483,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="idempotent-test",
                 description=None,
                 labels={},
@@ -1533,7 +1510,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="nonexistent-version-test",
                 description=None,
                 labels={},
@@ -1562,7 +1539,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="publish-trigger-sync-test",
                 description=None,
                 labels={},
@@ -1593,13 +1570,12 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="publish-errors-test",
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
                 project_id=test_project_id,
-                force_save=True,
             )
 
         mock_val = MagicMock()
@@ -1620,13 +1596,12 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="publish-warnings-test",
                 description=None,
                 labels={},
                 workflow_definition=workflow_def,
                 project_id=test_project_id,
-                force_save=True,
             )
 
         mock_val = MagicMock()
@@ -1647,7 +1622,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="publish-preserves-test",
                 description=None,
                 labels={},
@@ -1665,7 +1640,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         v3_def = self._create_workflow_definition()
         v3_def["description"] = "updated definition"
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            v3 = await service.create_workflow_version(workflow, v3_def, "update with issues")
+            v3, _ = await service.create_workflow_version(workflow, v3_def, "update with issues")
         assert v3 is not None
 
         mock_val = MagicMock()
@@ -1699,7 +1674,7 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _v1 = await service.create_workflow(
+            workflow, _v1, _ = await service.create_workflow(
                 name="unpublish-test",
                 description=None,
                 labels={},
@@ -1725,7 +1700,7 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="unpublish-error-test",
                 description=None,
                 labels={},
@@ -1754,7 +1729,7 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
         workflow_def = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="unpublish-trigger-sync-test",
                 description=None,
                 labels={},
@@ -1796,7 +1771,7 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
         defn_v1 = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="restore-unit-test",
                 description=None,
                 labels={},
@@ -1838,7 +1813,7 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
         defn = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="restore-noop-unit",
                 description=None,
                 labels={},
@@ -1862,7 +1837,7 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
         defn = self._create_workflow_definition()
 
         with patch("nexus.workflows.services.workflow_service.workflow_validator", _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name="restore-404-unit",
                 description=None,
                 labels={},
@@ -2017,7 +1992,7 @@ class TestCredentialProjectScopeValidation(TestWorkflowServiceBase):
             patch(_PATCH_PROJECT_ALIVE, new_callable=AsyncMock),
             patch("nexus.workflows.services.workflow_service.WebhookTriggerService", _mock_webhook_service()),
         ):
-            workflow, version = await service.create_workflow(
+            workflow, version, _ = await service.create_workflow(
                 name=f"same-project-{uuid4().hex[:6]}",
                 description=None,
                 labels={},
@@ -2067,7 +2042,7 @@ class TestCredentialProjectScopeValidation(TestWorkflowServiceBase):
             patch(_PATCH_PROJECT_ALIVE, new_callable=AsyncMock),
             patch("nexus.workflows.services.workflow_service.WebhookTriggerService", _mock_webhook_service()),
         ):
-            workflow, _version = await service.create_workflow(
+            workflow, _version, _ = await service.create_workflow(
                 name=f"no-cred-{uuid4().hex[:6]}",
                 description=None,
                 labels={},
@@ -2186,7 +2161,7 @@ class TestCredentialProjectScopeValidation(TestWorkflowServiceBase):
         wf_def_v2 = _workflow_definition_with_credential(credential_id=cred_id)
 
         with patch(_PATCH_VALIDATOR, _mock_validator_valid()):
-            new_version = await service.create_workflow_version(workflow, wf_def_v2, "no change to credential")
+            new_version, _ = await service.create_workflow_version(workflow, wf_def_v2, "no change to credential")
 
         assert new_version is None or new_version is not None  # either skipped (no diff) or created
         # The credential:use authorize call should NOT have been made (same cred, diff is empty)
@@ -2386,7 +2361,7 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
         await test_db_session.flush()
 
         service = WorkflowService(test_db_session, test_user)
-        updated, _ = await service.update_workflow(workflow.id, description="updated desc")
+        updated, _, _ = await service.update_workflow(workflow.id, description="updated desc")
         assert updated.description == "updated desc"
 
     @pytest.mark.asyncio
@@ -2456,7 +2431,7 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
         await test_db_session.flush()
 
         service = WorkflowService(test_db_session, test_user)
-        workflow, _version = await service.create_workflow(
+        workflow, _version, _ = await service.create_workflow(
             name=f"user-workflow-{uuid4().hex[:6]}",
             description="should succeed",
             labels={},
@@ -2577,7 +2552,7 @@ class TestWorkflowVersionConflictDetection(TestWorkflowServiceBase):
         test_db_session.add(version)
         await test_db_session.commit()
 
-        result_workflow, _ = await service.update_workflow(
+        result_workflow, _, _ = await service.update_workflow(
             workflow.id,
             name="should-succeed",
             expected_version=1,
@@ -2600,7 +2575,7 @@ class TestWorkflowVersionConflictDetection(TestWorkflowServiceBase):
         test_db_session.add(version)
         await test_db_session.commit()
 
-        result_workflow, _ = await service.update_workflow(
+        result_workflow, _, _ = await service.update_workflow(
             workflow.id,
             name="should-succeed-no-check",
         )

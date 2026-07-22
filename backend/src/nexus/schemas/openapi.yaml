@@ -25507,15 +25507,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: create
-      parameters:
-        - name: force_save
-          in: query
-          required: false
-          schema:
-            default: false
-            title: Force Save
-            type: boolean
-          description: Bypass validation errors and warnings to save the workflow definition as-is
       requestBody:
         required: true
         content:
@@ -25893,14 +25884,6 @@ paths:
             type: string
             format: uuid
             title: Workflow Id
-        - name: force_save
-          in: query
-          required: false
-          schema:
-            default: false
-            title: Force Save
-            type: boolean
-          description: Bypass validation errors and warnings to save the workflow definition as-is
       requestBody:
         required: true
         content:
@@ -35622,7 +35605,6 @@ components:
         Schema for workflow response (GET /workflows/{id}).
 
         Includes all fields from the database table model.
-
         Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
       required:
         - name
@@ -35709,6 +35691,11 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
+        validation_result:
+          anyOf:
+            - $ref: '#/components/schemas/ValidationResult'
+            - type: 'null'
+          description: Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator.
     WorkflowReadWithVersion:
       type: object
       title: WorkflowReadWithVersion
@@ -35802,6 +35789,11 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
+        validation_result:
+          anyOf:
+            - $ref: '#/components/schemas/ValidationResult'
+            - type: 'null'
+          description: Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator.
         version:
           $ref: '#/components/schemas/WorkflowVersionRead'
           description: Current active version details
@@ -35895,6 +35887,11 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
+        validation_result:
+          anyOf:
+            - $ref: '#/components/schemas/ValidationResult'
+            - type: 'null'
+          description: Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator.
         version:
           $ref: '#/components/schemas/WorkflowVersionRead'
           description: Current active version details
@@ -36096,8 +36093,7 @@ components:
 
         Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
         Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-        on failure, the raw dict falls through to the service-level validator
-        where force_save can bypass all validation.
+        on failure, the raw dict falls through to the service-level validator.
       required:
         - name
         - workflow_definition
@@ -36142,8 +36138,7 @@ components:
         All fields are optional for partial updates.
         Supports metadata updates and workflow definition updates (creates new version).
         Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-        on failure, the raw dict falls through to the service-level validator
-        where force_save can bypass all validation.
+        on failure, the raw dict falls through to the service-level validator.
       properties:
         name:
           anyOf:
@@ -37798,7 +37793,6 @@ components:
             title: Short, human-readable summary
             detail: Human-readable explanation specific to this occurrence
             code: Machine-readable error code
-            retryable: Whether this error can be retried
             instance: Optional URI reference identifying the specific occurrence
             validation_result: Structured validation findings
       required:
@@ -37806,7 +37800,6 @@ components:
         - title
         - detail
         - code
-        - retryable
         - validation_result
       additionalProperties: false
       properties:
@@ -37822,9 +37815,6 @@ components:
         code:
           type: string
           title: Code
-        retryable:
-          type: boolean
-          title: Retryable
         instance:
           anyOf:
             - type: string

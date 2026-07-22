@@ -71,31 +71,4 @@ describe('useBuilderValidation', () => {
       expect(mockHandleVerifySilent).not.toHaveBeenCalled()
     })
   })
-
-  describe('handleForceSaveSuccess', () => {
-    it('dispatches validation errors from the original save error', () => {
-      const { result } = renderHook(() => useBuilderValidation(baseParams))
-
-      result.current.handleForceSaveSuccess({
-        validation_result: {
-          findings: [{ message: 'Warning msg', node_id: 'n1' }],
-        },
-      })
-
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'SET_VALIDATION_ERRORS',
-        payload: [{ message: 'Warning msg', nodeId: 'n1', severity: 'error' }],
-      })
-      expect(mockSetValidationErrorCount).toHaveBeenCalledWith(1)
-    })
-
-    it('falls back to silent verification when no findings in error', () => {
-      const { result } = renderHook(() => useBuilderValidation(baseParams))
-
-      result.current.handleForceSaveSuccess({ title: 'No validation_result here' })
-
-      expect(mockDispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_VALIDATION_ERRORS' }))
-      expect(mockHandleVerifySilent).toHaveBeenCalled()
-    })
-  })
 })

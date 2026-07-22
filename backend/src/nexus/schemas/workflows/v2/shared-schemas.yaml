@@ -12,7 +12,6 @@ components:
         Schema for workflow response (GET /workflows/{id}).
 
         Includes all fields from the database table model.
-
         Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
       required:
         - name
@@ -99,6 +98,11 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
+        validation_result:
+          anyOf:
+            - $ref: './openapi.yaml#/components/schemas/ValidationResult'
+            - type: 'null'
+          description: Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator.
 
     WorkflowReadWithVersion:
       type: object
@@ -193,6 +197,11 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
+        validation_result:
+          anyOf:
+            - $ref: './openapi.yaml#/components/schemas/ValidationResult'
+            - type: 'null'
+          description: Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator.
         version:
           $ref: './openapi.yaml#/components/schemas/WorkflowVersionRead'
           description: Current active version details
@@ -287,6 +296,11 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
+        validation_result:
+          anyOf:
+            - $ref: './openapi.yaml#/components/schemas/ValidationResult'
+            - type: 'null'
+          description: Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator.
         version:
           $ref: './openapi.yaml#/components/schemas/WorkflowVersionRead'
           description: Current active version details
@@ -742,7 +756,7 @@ components:
     WorkflowCreate:
       type: object
       title: WorkflowCreate
-      description: "Schema for creating a new workflow (POST /workflows).\n\nExcludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).\nPydantic tries to parse workflow_definition as WorkflowDefinition first;\non failure, the raw dict falls through to the service-level validator\nwhere force_save can bypass all validation."
+      description: "Schema for creating a new workflow (POST /workflows).\n\nExcludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).\nPydantic tries to parse workflow_definition as WorkflowDefinition first;\non failure, the raw dict falls through to the service-level validator."
       required:
         - name
         - workflow_definition
@@ -782,7 +796,7 @@ components:
     WorkflowUpdate:
       type: object
       title: WorkflowUpdate
-      description: "Schema for updating workflow (PATCH /workflows/{id}).\n\nAll fields are optional for partial updates.\nSupports metadata updates and workflow definition updates (creates new version).\nPydantic tries to parse workflow_definition as WorkflowDefinition first;\non failure, the raw dict falls through to the service-level validator\nwhere force_save can bypass all validation."
+      description: "Schema for updating workflow (PATCH /workflows/{id}).\n\nAll fields are optional for partial updates.\nSupports metadata updates and workflow definition updates (creates new version).\nPydantic tries to parse workflow_definition as WorkflowDefinition first;\non failure, the raw dict falls through to the service-level validator."
       properties:
         name:
           anyOf:

@@ -914,8 +914,8 @@ def test_switch_in_operator(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry, first_project_id: UUID):
-    """Switch with empty cases array is rejected at schema validation."""
+def test_switch_empty_cases_saves_with_validation_issues(nexus_api: NexusApiRegistry, first_project_id: UUID):
+    """Switch with empty cases array saves with validation issues."""
     wf_def = WorkflowDefinition.from_dict(
         {
             "name": "test",
@@ -951,8 +951,9 @@ def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry, first_project_id:
             project_id=first_project_id,
         )
     )
-    assert not response.is_success, "Empty cases should be rejected by schema validation"
-    assert response.status_code == 422
+    assert response.is_success, f"Save should succeed: {response.status_code}"
+    assert response.parsed is not None
+    assert response.parsed.has_validation_issues is True
 
 
 @pytest.mark.e2e

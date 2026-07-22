@@ -39,8 +39,6 @@ from nexus.workflows.exceptions import (
     BuiltinWorkflowDeleteError,
     BuiltinWorkflowModifyError,
     ScheduledTriggerSyncError,
-    WorkflowDefinitionInvalidError,
-    WorkflowDefinitionWarningsError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
@@ -81,25 +79,9 @@ def reset_workflow_creation_counters() -> None:
         _workflow_creation_counts[:] = [0, 0]
 
 
-def _gate_on_validation(result: ValidationResult, *, force_save: bool) -> bool:
-    """Raise on validation failures unless *force_save* is set.
-
-    Returns:
-        ``True`` when the saved definition carries unresolved issues
-        (the caller must persist this on the workflow).
-
-    Raises:
-        WorkflowDefinitionInvalidError: errors present and *force_save* is False
-        WorkflowDefinitionWarningsError: only warnings and *force_save* is False
-
-    """
-    has_issues = result.error_count > 0 or result.warning_count > 0
-    if not force_save:
-        if result.error_count > 0:
-            raise WorkflowDefinitionInvalidError(result)
-        if result.warning_count > 0:
-            raise WorkflowDefinitionWarningsError(result)
-    return has_issues
+def _has_validation_issues(result: ValidationResult) -> bool:
+    """Return True when the validation result has errors or warnings."""
+    return result.error_count > 0 or result.warning_count > 0
 
 
 class WorkflowConvertResourceMixin(ConvertResourceMixin):
@@ -401,9 +383,7 @@ class WorkflowService(BaseService):
         labels: dict[str, Any],
         workflow_definition: dict[str, Any],
         project_id: UUID,
-        *,
-        force_save: bool = False,
-    ) -> tuple[Workflow, WorkflowVersion]:
+    ) -> tuple[Workflow, WorkflowVersion, ValidationResult]:
         """Create a new V2 workflow with initial version.
 
         Args:
@@ -412,14 +392,11 @@ class WorkflowService(BaseService):
             labels: Optional key-value labels
             workflow_definition: V2 workflow definition as dict (triggers + nodes + edges)
             project_id: Project to assign workflow to
-            force_save: When True, bypass validation errors and warnings
 
         Returns:
-            Tuple of (created workflow, initial version)
+            Tuple of (created workflow, initial version, validation result)
 
         Raises:
-            WorkflowDefinitionInvalidError: If definition has errors and force_save is False
-            WorkflowDefinitionWarningsError: If definition has only warnings and force_save is False
             WorkflowNameConflictError: If workflow name already exists
 
         """
@@ -432,10 +409,10 @@ class WorkflowService(BaseService):
         ):
             result = workflow_validator.collect_findings(workflow_definition)
 
-        has_validation_issues = _gate_on_validation(result, force_save=force_save)
+        has_validation_issues = _has_validation_issues(result)
         if has_validation_issues:
             logger.warning(
-                "Workflow created with validation bypass",
+                "Workflow created with validation issues",
                 user_id=str(self.user.id),
                 error_count=result.error_count,
                 warning_count=result.warning_count,
@@ -542,7 +519,7 @@ class WorkflowService(BaseService):
             new_version_created=True,
         )
 
-        return workflow, version
+        return workflow, version, result
 
     async def list_workflows_cursor(
         self,
@@ -937,9 +914,7 @@ class WorkflowService(BaseService):
         workflow: Workflow,
         workflow_definition: dict[str, Any],
         change_description: str | None,
-        *,
-        force_save: bool = False,
-    ) -> WorkflowVersion | None:
+    ) -> tuple[WorkflowVersion | None, ValidationResult]:
         """Create new V2 workflow version from workflow_definition.
 
         Validates the definition before creating the version. For restoring
@@ -949,14 +924,9 @@ class WorkflowService(BaseService):
             workflow: Workflow to create version for
             workflow_definition: New V2 workflow definition as dict
             change_description: Description of changes
-            force_save: When True, bypass validation errors and warnings
 
         Returns:
-            New WorkflowVersion if definition changed, None if unchanged
-
-        Raises:
-            WorkflowDefinitionInvalidError: If definition has errors and force_save is False
-            WorkflowDefinitionWarningsError: If definition has only warnings and force_save is False
+            Tuple of (new WorkflowVersion if definition changed or None if unchanged, validation result)
 
         Note:
             This method compares the new definition with the current version.
@@ -971,10 +941,10 @@ class WorkflowService(BaseService):
         ):
             result = workflow_validator.collect_findings(workflow_definition)
 
-        workflow.has_validation_issues = _gate_on_validation(result, force_save=force_save)
+        workflow.has_validation_issues = _has_validation_issues(result)
         if workflow.has_validation_issues:
             logger.warning(
-                "Workflow version saved with validation bypass",
+                "Workflow version saved with validation issues",
                 workflow_id=str(workflow.id),
                 user_id=str(self.user.id),
                 error_count=result.error_count,
@@ -990,7 +960,8 @@ class WorkflowService(BaseService):
                     previous_cred_ids = self._extract_credential_ids(prev_version.workflow_definition)
             await self._validate_credential_project_scope(workflow_definition, workflow.project_id, previous_cred_ids)
 
-        return await self._create_version_record(workflow, workflow_definition, change_description)
+        version = await self._create_version_record(workflow, workflow_definition, change_description)
+        return version, result
 
     async def update_workflow(
         self,
@@ -1002,9 +973,8 @@ class WorkflowService(BaseService):
         project_id: UUID | None = None,
         workflow_definition: dict[str, Any] | None = None,
         change_description: str | None = None,
-        force_save: bool = False,
         expected_version: int | None = None,
-    ) -> tuple[Workflow, WorkflowVersion]:
+    ) -> tuple[Workflow, WorkflowVersion, ValidationResult | None]:
         """Update workflow metadata and/or create new version.
 
         Args:
@@ -1015,16 +985,13 @@ class WorkflowService(BaseService):
             project_id: Rejected if different from stored value (immutable after creation)
             workflow_definition: New V2 workflow definition as dict (optional, creates version)
             change_description: Description of changes (for version history)
-            force_save: When True, bypass validation errors and warnings
             expected_version: Version the client was editing (optimistic concurrency)
 
         Returns:
-            Tuple of (updated workflow, current version)
+            Tuple of (updated workflow, current version, validation result or None)
 
         Raises:
             WorkflowNotFoundError: If workflow not found
-            WorkflowDefinitionInvalidError: If definition has errors and force_save is False
-            WorkflowDefinitionWarningsError: If definition has only warnings and force_save is False
             WorkflowNameConflictError: If new name conflicts
             WorkflowVersionConflictError: If expected_version is stale
             ValueError: If name is empty
@@ -1057,12 +1024,12 @@ class WorkflowService(BaseService):
 
         # Handle workflow_definition - creates new version
         new_version: WorkflowVersion | None = None
+        validation_result: ValidationResult | None = None
         if workflow_definition is not None:
-            new_version = await self.create_workflow_version(
+            new_version, validation_result = await self.create_workflow_version(
                 workflow,
                 workflow_definition=workflow_definition,
                 change_description=change_description,
-                force_save=force_save,
             )
 
         # Flush with name uniqueness check (stays within the same transaction)
@@ -1113,7 +1080,7 @@ class WorkflowService(BaseService):
             change_summary=change_summary,
         )
 
-        return workflow, current_version
+        return workflow, current_version, validation_result
 
     async def publish_workflow_version(  # noqa: C901
         self,

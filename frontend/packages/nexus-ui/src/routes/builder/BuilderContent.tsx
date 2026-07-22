@@ -183,7 +183,7 @@ export function BuilderContent(props: BuilderContentProps) {
       })
     }
   }, [initialViewVersion, dispatch, clearExecutionFilters])
-  const { handleForceSaveSuccess } = useBuilderValidation({
+  const { handleVerifySilent } = useBuilderValidation({
     dispatch,
     hasValidationIssues: workflow?.has_validation_issues,
     isNew,
@@ -228,11 +228,11 @@ export function BuilderContent(props: BuilderContentProps) {
     showSuccess,
     showError,
     onMissingProjectForCreate: () => setSaveAttemptedWithoutProject(true),
-    onForceSaveSuccess: handleForceSaveSuccess,
     markClean,
     expectedVersion: loadedVersion,
     onConflict: handleConflict('save'),
     onVersionUpdated,
+    onSaveWithValidationIssues: handleVerifySilent,
     createWorkflow: createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow'],
     updateWorkflow,
   })

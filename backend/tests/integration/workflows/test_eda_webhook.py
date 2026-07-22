@@ -87,7 +87,7 @@ async def eda_workflow(test_db_session: AsyncSession, test_user: User, test_proj
     }
 
     service = WorkflowService(test_db_session, test_user)
-    workflow, _version = await service.create_workflow(
+    workflow, _version, _ = await service.create_workflow(
         name="Test EDA Workflow",
         description="Test workflow for EDA triggers",
         labels={},
@@ -134,7 +134,7 @@ async def eda_workflow_with_schema(test_db_session: AsyncSession, test_user: Use
     }
 
     service = WorkflowService(test_db_session, test_user)
-    workflow, _version = await service.create_workflow(
+    workflow, _version, _ = await service.create_workflow(
         name="Test EDA Workflow With Schema",
         description="EDA workflow with input_schema for validation tests",
         labels={},
@@ -413,7 +413,7 @@ class TestCrossTypePathIsolation:
         service = WorkflowService(test_db_session, test_user)
 
         # -- Generic webhook workflow (A) --
-        wf_a, _v_a = await service.create_workflow(
+        wf_a, _v_a, _ = await service.create_workflow(
             name="Generic Webhook Workflow",
             description=None,
             labels={},
@@ -433,7 +433,7 @@ class TestCrossTypePathIsolation:
         wf_a, _v_a, _warning = await service.publish_workflow_version(wf_a.id, version=1)
 
         # -- EDA webhook workflow (B) --
-        wf_b, _v_b = await service.create_workflow(
+        wf_b, _v_b, _ = await service.create_workflow(
             name="EDA Webhook Workflow",
             description=None,
             labels={},
@@ -518,7 +518,7 @@ class TestCrossTypePathIsolation:
         service = WorkflowService(test_db_session, test_user)
 
         # Create generic webhook workflow with path "eda"
-        wf_generic, _ = await service.create_workflow(
+        wf_generic, _, _ = await service.create_workflow(
             name="Generic at eda path",
             description=None,
             labels={},
@@ -538,7 +538,7 @@ class TestCrossTypePathIsolation:
         wf_generic, _, _warning = await service.publish_workflow_version(wf_generic.id, version=1)
 
         # Create EDA webhook workflow with path "my-trigger"
-        wf_eda, _ = await service.create_workflow(
+        wf_eda, _, _ = await service.create_workflow(
             name="EDA trigger workflow",
             description=None,
             labels={},

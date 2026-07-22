@@ -5,13 +5,7 @@ import { useCallback } from 'react'
 import type { AlertMessage } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
-import {
-  extractVersionConflictInfo,
-  getErrorMessage,
-  isRetryableValidationError,
-  isWorkflowVersionConflictError,
-} from '../../../utils/apiErrors'
-import { forceCreateWorkflow, forceUpdateWorkflow } from '../../../utils/workflowForceSave'
+import { extractVersionConflictInfo, getErrorMessage, isWorkflowVersionConflictError } from '../../../utils/apiErrors'
 import { buildWorkflowDefinition } from '../utils/workflowDefinitionBuilder'
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from '../utils/workflowNaming'
 import type { ConflictInfo } from '../VersionConflictDialog'
@@ -38,6 +32,10 @@ function buildSavePayloads(opts: {
   }
   return { createPayload, patchPayload }
 }
+
+type WorkflowCreateResponse = WorkflowAPI.components['schemas']['WorkflowRead']
+type WorkflowUpdateResponse = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
+type SaveResponseData = WorkflowCreateResponse | WorkflowUpdateResponse
 
 type CreateWorkflowBody = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
 /**
@@ -71,16 +69,16 @@ export type UseBuilderSaveWorkflowParams = {
   showError: (options: AlertMessage) => void
   /** Called when saving on create path without a project (UI can highlight the project selector). */
   onMissingProjectForCreate?: () => void
-  /** Called after a successful force_save. Receives the original validation error so the caller can extract and display node-level findings. */
-  onForceSaveSuccess?: (originalError: unknown) => void
   markClean: () => void
   expectedVersion: number | null
   onConflict?: (info: ConflictInfo) => void
   onVersionUpdated?: (newVersion: number) => void
+  /** Called after a successful save when the response indicates validation issues. */
+  onSaveWithValidationIssues?: () => void
   createWorkflow: (
     args: { body: CreateWorkflowBodyExtended },
     opts?: {
-      onSuccess?: (data: { id?: string }) => void | Promise<void>
+      onSuccess?: (data: WorkflowCreateResponse) => void | Promise<void>
       onError?: (error: unknown) => void
     }
   ) => void
@@ -90,7 +88,7 @@ export type UseBuilderSaveWorkflowParams = {
       body: PatchWorkflowBody
     },
     opts?: {
-      onSuccess?: (data: unknown) => void | Promise<void>
+      onSuccess?: (data: WorkflowUpdateResponse) => void | Promise<void>
       onError?: (error: unknown) => void
     }
   ) => void
@@ -99,7 +97,7 @@ export type UseBuilderSaveWorkflowParams = {
 function promisifyCreate(
   createWorkflow: UseBuilderSaveWorkflowParams['createWorkflow'],
   payload: CreateWorkflowBodyExtended
-): Promise<{ data?: { id?: string }; error?: unknown }> {
+): Promise<{ data?: WorkflowCreateResponse; error?: unknown }> {
   return new Promise((resolve) => {
     createWorkflow(
       { body: payload },
@@ -115,36 +113,16 @@ function promisifyUpdate(
   updateWorkflow: UseBuilderSaveWorkflowParams['updateWorkflow'],
   workflowId: string,
   payload: PatchWorkflowBody
-): Promise<{ data?: { id?: string }; error?: unknown }> {
+): Promise<{ data?: WorkflowUpdateResponse; error?: unknown }> {
   return new Promise((resolve) => {
     updateWorkflow(
       { params: { path: { workflow_id: workflowId } }, body: payload },
       {
-        onSuccess: (data) => resolve({ data: data as { id?: string } }),
+        onSuccess: (data) => resolve({ data }),
         onError: (error) => resolve({ error }),
       }
     )
   })
-}
-
-async function handleForceSaveRetry(options: {
-  willPatchExisting: boolean
-  workflowId: string | null
-  patchPayload: PatchWorkflowBody
-  createPayload: CreateWorkflowBodyExtended
-}): Promise<{ success: boolean; createdId?: string; retryError?: unknown }> {
-  try {
-    if (options.willPatchExisting && options.workflowId) {
-      const { error } = await forceUpdateWorkflow(options.workflowId, options.patchPayload)
-      if (error) return { success: false, retryError: error }
-      return { success: true }
-    }
-    const { data, error } = await forceCreateWorkflow(options.createPayload)
-    if (error) return { success: false, retryError: error }
-    return { success: true, createdId: data?.id }
-  } catch (err: unknown) {
-    return { success: false, retryError: err }
-  }
 }
 
 async function completeSave(
@@ -161,43 +139,20 @@ async function completeSave(
 }
 
 async function processSaveResult(
-  saveResult: { data?: { id?: string }; error?: unknown },
+  saveResult: { data?: SaveResponseData; error?: unknown },
   ctx: {
     willPatchExisting: boolean
-    workflowId: string | null
     isNew: boolean
     nameToSave: string
-    createPayload: CreateWorkflowBodyExtended
-    patchPayload: PatchWorkflowBody
     showError: (options: AlertMessage) => void
     showSuccess: (options: AlertMessage) => void
     markClean: () => void
     queryClient: QueryClient
     setLocation: (to: string) => void
-    onForceSaveSuccess?: (originalError: unknown) => void
     onVersionUpdated?: (newVersion: number) => void
+    onSaveWithValidationIssues?: () => void
   }
 ): Promise<boolean> {
-  if (saveResult.error && isRetryableValidationError(saveResult.error)) {
-    const retry = await handleForceSaveRetry({
-      willPatchExisting: ctx.willPatchExisting,
-      workflowId: ctx.workflowId,
-      patchPayload: ctx.patchPayload,
-      createPayload: ctx.createPayload,
-    })
-    if (!retry.success) {
-      ctx.showError({ title: 'Save failed', description: getErrorMessage(retry.retryError) })
-      return false
-    }
-    await completeSave(ctx.queryClient, ctx.markClean, ctx.isNew ? retry.createdId : undefined, ctx.setLocation)
-    ctx.showSuccess({
-      title: ctx.isNew ? 'Workflow created with warnings' : 'Workflow saved with warnings',
-      description: `${ctx.nameToSave} has been saved (has validation warnings).`,
-    })
-    ctx.onForceSaveSuccess?.(saveResult.error)
-    return true
-  }
-
   if (saveResult.error) {
     const action = ctx.willPatchExisting ? 'update' : 'create'
     ctx.showError({
@@ -207,12 +162,15 @@ async function processSaveResult(
     return false
   }
 
-  if (ctx.isNew) {
-    ctx.showSuccess({ title: 'Workflow created', description: `${ctx.nameToSave} has been saved.` })
-  }
+  const hasIssues = saveResult.data?.has_validation_issues === true
+  const verb = ctx.isNew ? 'created' : 'saved'
+  const title = hasIssues ? `Workflow ${verb} with warnings` : `Workflow ${verb}`
+  ctx.showSuccess({ title, description: `${ctx.nameToSave} has been saved.` })
+
   await completeSave(ctx.queryClient, ctx.markClean, ctx.isNew ? saveResult.data?.id : undefined, ctx.setLocation)
-  const newVersion = (saveResult as { data?: { current_version?: number } }).data?.current_version
+  const newVersion = saveResult.data?.current_version
   if (ctx.willPatchExisting && newVersion != null) ctx.onVersionUpdated?.(newVersion)
+  if (hasIssues) ctx.onSaveWithValidationIssues?.()
   return true
 }
 
@@ -232,11 +190,11 @@ export function useBuilderSaveWorkflow(
     showSuccess,
     showError,
     onMissingProjectForCreate,
-    onForceSaveSuccess,
     markClean,
     expectedVersion,
     onConflict,
     onVersionUpdated,
+    onSaveWithValidationIssues,
     createWorkflow,
     updateWorkflow,
   } = params
@@ -285,7 +243,7 @@ export function useBuilderSaveWorkflow(
         ? await promisifyUpdate(updateWorkflow, workflowId!, patchPayload)
         : await promisifyCreate(createWorkflow, createPayload)
 
-      // Check for version conflict before attempting force-save retry
+      // Check for version conflict
       if (saveResult.error && isWorkflowVersionConflictError(saveResult.error) && onConflict) {
         onConflict(extractVersionConflictInfo(saveResult.error))
         return false
@@ -293,18 +251,15 @@ export function useBuilderSaveWorkflow(
 
       return processSaveResult(saveResult, {
         willPatchExisting,
-        workflowId,
         isNew,
         nameToSave,
-        createPayload,
-        patchPayload,
         showError,
         showSuccess,
         markClean,
         queryClient,
         setLocation,
-        onForceSaveSuccess,
         onVersionUpdated,
+        onSaveWithValidationIssues,
       })
     },
     [
@@ -321,10 +276,10 @@ export function useBuilderSaveWorkflow(
       showSuccess,
       showError,
       onMissingProjectForCreate,
-      onForceSaveSuccess,
       expectedVersion,
       onConflict,
       onVersionUpdated,
+      onSaveWithValidationIssues,
       setLocation,
       queryClient,
       markClean,

@@ -93,7 +93,7 @@ class _PublishEventsTestBase:
         workflow_def = self._create_workflow_definition()
 
         with patch(_PATCH_VALIDATOR, _mock_validator_valid()):
-            workflow, _ = await service.create_workflow(
+            workflow, _, _ = await service.create_workflow(
                 name=name,
                 description=None,
                 labels={},
@@ -153,7 +153,7 @@ class TestPublishEventsCreation(_PublishEventsTestBase):
         # Create a second version with a different definition
         v2_def = self._create_workflow_definition(description="v2 definition")  # type: ignore[arg-type]
         with patch(_PATCH_VALIDATOR, _mock_validator_valid()):
-            v2 = await service.create_workflow_version(workflow, v2_def, "v2 changes")
+            v2, _ = await service.create_workflow_version(workflow, v2_def, "v2 changes")
         assert v2 is not None
 
         # Publish v2
@@ -275,7 +275,7 @@ class TestPublishEventsQuery(_PublishEventsTestBase):
         # Create and publish v2
         v2_def = self._create_workflow_definition(description="v2 update")  # type: ignore[arg-type]
         with patch(_PATCH_VALIDATOR, _mock_validator_valid()):
-            v2 = await service.create_workflow_version(workflow, v2_def, "v2 changes")
+            v2, _ = await service.create_workflow_version(workflow, v2_def, "v2 changes")
         assert v2 is not None
 
         with patch(_PATCH_WEBHOOK_SVC, _mock_webhook_service()):
@@ -308,7 +308,7 @@ class TestPublishEventsQuery(_PublishEventsTestBase):
         # Create a v2 for workflow_b and publish it
         v2_def = self._create_workflow_definition(description="b-v2")  # type: ignore[arg-type]
         with patch(_PATCH_VALIDATOR, _mock_validator_valid()):
-            v2 = await service.create_workflow_version(workflow_b, v2_def, "v2")
+            v2, _ = await service.create_workflow_version(workflow_b, v2_def, "v2")
         assert v2 is not None
 
         with patch(_PATCH_WEBHOOK_SVC, _mock_webhook_service()):

@@ -281,7 +281,6 @@ export interface components {
      * @description Schema for workflow response (GET /workflows/{id}).
      *
      *     Includes all fields from the database table model.
-     *
      *     Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
      */
     WorkflowRead: {
@@ -349,6 +348,8 @@ export interface components {
       deleted_at?: string | null
       /** Deleted By */
       deleted_by?: string | null
+      /** @description Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator. */
+      validation_result?: components['schemas']['ValidationResult'] | null
     }
     /**
      * WorkflowReadWithVersion
@@ -421,6 +422,8 @@ export interface components {
       deleted_at?: string | null
       /** Deleted By */
       deleted_by?: string | null
+      /** @description Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator. */
+      validation_result?: components['schemas']['ValidationResult'] | null
       /** @description Current active version details */
       version: components['schemas']['WorkflowVersionRead']
     }
@@ -493,6 +496,8 @@ export interface components {
       deleted_at?: string | null
       /** Deleted By */
       deleted_by?: string | null
+      /** @description Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator. */
+      validation_result?: components['schemas']['ValidationResult'] | null
       /** @description Current active version details */
       version: components['schemas']['WorkflowVersionRead']
       /**
@@ -685,8 +690,7 @@ export interface components {
      *
      *     Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
      *     Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-     *     on failure, the raw dict falls through to the service-level validator
-     *     where force_save can bypass all validation.
+     *     on failure, the raw dict falls through to the service-level validator.
      */
     WorkflowCreate: {
       /**
@@ -729,8 +733,7 @@ export interface components {
      *     All fields are optional for partial updates.
      *     Supports metadata updates and workflow definition updates (creates new version).
      *     Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-     *     on failure, the raw dict falls through to the service-level validator
-     *     where force_save can bypass all validation.
+     *     on failure, the raw dict falls through to the service-level validator.
      */
     WorkflowUpdate: {
       /**
@@ -2173,7 +2176,6 @@ export interface components {
      *         title: Short, human-readable summary
      *         detail: Human-readable explanation specific to this occurrence
      *         code: Machine-readable error code
-     *         retryable: Whether this error can be retried
      *         instance: Optional URI reference identifying the specific occurrence
      *         validation_result: Structured validation findings
      */
@@ -2186,8 +2188,6 @@ export interface components {
       detail: string
       /** Code */
       code: string
-      /** Retryable */
-      retryable: boolean
       /** Instance */
       instance?: string | null
       validation_result: components['schemas']['ValidationResult']
@@ -2509,10 +2509,7 @@ export interface operations {
   }
   create_workflow: {
     parameters: {
-      query?: {
-        /** @description Bypass validation errors and warnings to save the workflow definition as-is */
-        force_save?: boolean
-      }
+      query?: never
       header?: never
       path?: never
       cookie?: never
@@ -2642,10 +2639,7 @@ export interface operations {
   }
   update_workflow: {
     parameters: {
-      query?: {
-        /** @description Bypass validation errors and warnings to save the workflow definition as-is */
-        force_save?: boolean
-      }
+      query?: never
       header?: never
       path: {
         workflow_id: string

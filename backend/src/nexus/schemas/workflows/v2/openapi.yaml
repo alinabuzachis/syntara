@@ -106,15 +106,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: create
-      parameters:
-        - name: force_save
-          in: query
-          required: false
-          schema:
-            default: false
-            title: Force Save
-            type: boolean
-          description: Bypass validation errors and warnings to save the workflow definition as-is
       requestBody:
         required: true
         content:
@@ -253,14 +244,6 @@ paths:
             type: string
             format: uuid
             title: Workflow Id
-        - name: force_save
-          in: query
-          required: false
-          schema:
-            default: false
-            title: Force Save
-            type: boolean
-          description: Bypass validation errors and warnings to save the workflow definition as-is
       requestBody:
         required: true
         content:
@@ -1355,7 +1338,6 @@ components:
             title: Short, human-readable summary
             detail: Human-readable explanation specific to this occurrence
             code: Machine-readable error code
-            retryable: Whether this error can be retried
             instance: Optional URI reference identifying the specific occurrence
             validation_result: Structured validation findings
       required:
@@ -1363,7 +1345,6 @@ components:
         - title
         - detail
         - code
-        - retryable
         - validation_result
       additionalProperties: false
       properties:
@@ -1379,9 +1360,6 @@ components:
         code:
           type: string
           title: Code
-        retryable:
-          type: boolean
-          title: Retryable
         instance:
           anyOf:
             - type: string

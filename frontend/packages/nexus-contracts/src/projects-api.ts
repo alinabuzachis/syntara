@@ -1058,11 +1058,70 @@ export interface components {
       instance?: string | null
     }
     /**
+     * ValidationSeverity
+     * @description Severity level for a validation finding.
+     * @enum {string}
+     */
+    ValidationSeverity: 'error' | 'warning'
+    /**
+     * ValidationCategory
+     * @description Machine-readable classification for a validation finding.
+     * @enum {string}
+     */
+    ValidationCategory:
+      | 'schema_version'
+      | 'missing_field'
+      | 'schema_violation'
+      | 'invalid_reference'
+      | 'cycle_detected'
+      | 'orphaned_node'
+      | 'converge_configuration'
+    /**
+     * ValidationFinding
+     * @description A single structured validation finding.
+     *
+     *     Attributes:
+     *         severity: error or warning
+     *         category: Machine-readable classification
+     *         message: Human-readable description
+     *         node_id: Related node ID, null for workflow-level issues
+     *         field_path: Path within node config (e.g., ``config.url``)
+     */
+    ValidationFinding: {
+      severity: components['schemas']['ValidationSeverity']
+      category: components['schemas']['ValidationCategory']
+      /** Message */
+      message: string
+      /** Node Id */
+      node_id?: string | null
+      /** Field Path */
+      field_path?: string | null
+    }
+    /**
+     * ValidationResult
+     * @description Structured validation result with flat findings list and computed counts.
+     *
+     *     Attributes:
+     *         is_valid: True when error_count == 0
+     *         error_count: Count of error-severity findings
+     *         warning_count: Count of warning-severity findings
+     *         findings: All findings, errors first
+     */
+    ValidationResult: {
+      /** Is Valid */
+      is_valid: boolean
+      /** Error Count */
+      error_count: number
+      /** Warning Count */
+      warning_count: number
+      /** Findings */
+      findings?: components['schemas']['ValidationFinding'][]
+    }
+    /**
      * WorkflowRead
      * @description Schema for workflow response (GET /workflows/{id}).
      *
      *     Includes all fields from the database table model.
-     *
      *     Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
      */
     WorkflowRead: {
@@ -1130,6 +1189,8 @@ export interface components {
       deleted_at?: string | null
       /** Deleted By */
       deleted_by?: string | null
+      /** @description Validation findings from the last save operation. Only included in create/update responses; use has_validation_issues for the durable indicator. */
+      validation_result?: components['schemas']['ValidationResult'] | null
     }
     /**
      * ActivitySummary

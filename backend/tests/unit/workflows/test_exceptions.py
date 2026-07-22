@@ -27,7 +27,6 @@ from nexus.workflows.exceptions import (
     WebhookTriggerNotFoundError,
     WebhookTriggerPathConflictError,
     WorkflowDefinitionInvalidError,
-    WorkflowDefinitionWarningsError,
     WorkflowError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
@@ -77,7 +76,6 @@ class TestWorkflowErrorHierarchy:
         [
             WorkflowValidationError,
             WorkflowDefinitionInvalidError,
-            WorkflowDefinitionWarningsError,
             WorkflowPublishValidationError,
             WorkflowNotFoundError,
             WorkflowNameConflictError,
@@ -122,16 +120,6 @@ class TestWorkflowDefinitionInvalidError:
         exc = WorkflowDefinitionInvalidError(result)
         assert exc.validation_result is result
         assert str(exc) == "Workflow definition validation failed"
-
-
-class TestWorkflowDefinitionWarningsError:
-    """Test WorkflowDefinitionWarningsError stores validation_result."""
-
-    def test_stores_validation_result(self) -> None:
-        result = _sample_validation_result()
-        exc = WorkflowDefinitionWarningsError(result)
-        assert exc.validation_result is result
-        assert str(exc) == "Workflow definition has validation warnings"
 
 
 class TestWorkflowPublishValidationError:

@@ -54,6 +54,11 @@ from nexus.workflows.validators import workflow_validator
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 
+def _has_validation_issues(result: ValidationResult) -> bool:
+    """Return True when the validation result has errors or warnings."""
+    return result.error_count > 0 or result.warning_count > 0
+
+
 class _ValidationRoute(APIRoute):
     """Converts RequestValidationError into RFC 9457 problem details on 422."""
 
@@ -143,6 +148,16 @@ async def _build_workflow_with_version_response(
     version: WorkflowVersion,
     service: WorkflowService,
     *,
+    validation_result: "ValidationResult | None",
+) -> WorkflowReadWithVersion: ...
+
+
+@overload
+async def _build_workflow_with_version_response(
+    workflow: Workflow,
+    version: WorkflowVersion,
+    service: WorkflowService,
+    *,
     warning: str,
 ) -> PublishWorkflowVersionResponse: ...
 
@@ -153,12 +168,15 @@ async def _build_workflow_with_version_response(
     service: WorkflowService,
     *,
     warning: str | None = None,
+    validation_result: "ValidationResult | None" = None,
 ) -> WorkflowReadWithVersion | PublishWorkflowVersionResponse:
     workflow_read = WorkflowRead.model_validate(workflow, from_attributes=True)
     await _populate_published_version_number(workflow_read, workflow, version, service.session)
     ever_published, pub_ts = await service.get_publish_context([version.id])
     base = workflow_read.model_dump()
     base["version"] = deserialize_workflow_version(version, workflow.published_version_id, ever_published, pub_ts)
+    if validation_result is not None and _has_validation_issues(validation_result):
+        base["validation_result"] = validation_result.model_dump(mode="json")
     if warning is not None:
         base["warning"] = warning
         return PublishWorkflowVersionResponse.model_validate(base)
@@ -250,20 +268,19 @@ router.include_router(_validate_router)
 async def create_workflow(
     request: WorkflowCreate,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
-    force_save: Annotated[  # noqa: FBT002
-        bool, Query(description="Bypass validation errors and warnings to save the workflow definition as-is")
-    ] = False,
-) -> Workflow:
+) -> WorkflowRead:
     """Create a new workflow with initial version."""
-    workflow, _ = await service.create_workflow(
+    workflow, _, result = await service.create_workflow(
         name=request.name,
         description=request.description,
         labels=request.labels,
         workflow_definition=_definition_to_dict(request.workflow_definition),
         project_id=request.project_id,
-        force_save=force_save,
     )
-    return workflow
+    read = WorkflowRead.model_validate(workflow, from_attributes=True)
+    if _has_validation_issues(result):
+        read.validation_result = result
+    return read
 
 
 @router.get("", operation_id="list_workflows", response_description="List of workflows")
@@ -319,9 +336,6 @@ async def update_workflow(
     workflow_id: UUID,
     request: WorkflowUpdate,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
-    force_save: Annotated[  # noqa: FBT002
-        bool, Query(description="Bypass validation errors and warnings to save the workflow definition as-is")
-    ] = False,
 ) -> WorkflowReadWithVersion:
     """Update workflow.
 
@@ -330,7 +344,7 @@ async def update_workflow(
     - With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion
       only if definition differs (change detection optimization)
     """
-    workflow, current_version = await service.update_workflow(
+    workflow, current_version, validation_result = await service.update_workflow(
         workflow_id=workflow_id,
         name=request.name,
         description=request.description,
@@ -340,10 +354,11 @@ async def update_workflow(
         if request.workflow_definition is not None
         else None,
         change_description=request.change_description,
-        force_save=force_save,
         expected_version=request.expected_version,
     )
-    return await _build_workflow_with_version_response(workflow, current_version, service)
+    return await _build_workflow_with_version_response(
+        workflow, current_version, service, validation_result=validation_result
+    )
 
 
 @router.delete(

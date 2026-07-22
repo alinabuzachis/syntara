@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vitest'
 
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
@@ -7,18 +7,43 @@ import { detachPromise } from '../../../utils/detachPromise'
 import type { UseBuilderSaveWorkflowParams } from './useBuilderSaveWorkflow'
 import { useBuilderSaveWorkflow } from './useBuilderSaveWorkflow'
 
-const mockPatch = vi.fn<(...args: unknown[]) => Promise<{ data?: unknown; error?: unknown }>>()
-const mockPost = vi.fn<(...args: unknown[]) => Promise<{ data?: unknown; error?: unknown }>>()
-
-vi.mock('../../../client', () => ({
-  workflowFetchClient: {
-    PATCH: (...args: unknown[]) => mockPatch(...args),
-    POST: (...args: unknown[]) => mockPost(...args),
-  },
-}))
-
 type CreateWorkflow = UseBuilderSaveWorkflowParams['createWorkflow']
 type UpdateWorkflow = UseBuilderSaveWorkflowParams['updateWorkflow']
+type CreateResponse = Parameters<NonNullable<NonNullable<Parameters<CreateWorkflow>[1]>['onSuccess']>>[0]
+type UpdateResponse = Parameters<NonNullable<NonNullable<Parameters<UpdateWorkflow>[1]>['onSuccess']>>[0]
+
+const baseCreateResponse: CreateResponse = {
+  id: 'test-id',
+  name: 'test-wf',
+  current_version: 1,
+  is_enabled: true,
+  created_by: 'user-1',
+  project_id: 'proj-1',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+}
+
+const baseUpdateResponse: UpdateResponse = {
+  ...baseCreateResponse,
+  version: {
+    id: 'ver-1',
+    workflow_id: 'test-id',
+    version: 1,
+    schema_version: '2.0.0',
+    created_by: 'user-1',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    workflow_definition: { schema_version: '2.0.0', name: 'test-wf', triggers: [], nodes: [], edges: [] },
+  },
+}
+
+function createResponse(overrides: Partial<CreateResponse> = {}): CreateResponse {
+  return { ...baseCreateResponse, ...overrides }
+}
+
+function updateResponse(overrides: Partial<UpdateResponse> = {}): UpdateResponse {
+  return { ...baseUpdateResponse, ...overrides }
+}
 
 function minimalWorkflow(overrides: Partial<WorkflowDefinition> = {}): WorkflowDefinition {
   return {
@@ -95,7 +120,7 @@ describe('useBuilderSaveWorkflow', () => {
 
   it('updates existing workflow with patch payload', async () => {
     const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.({}))
+      detachPromise(args[1]?.onSuccess?.(updateResponse()))
     }) as MockedFunction<UpdateWorkflow>
     const markClean = vi.fn()
     const showSuccess = vi.fn()
@@ -124,14 +149,14 @@ describe('useBuilderSaveWorkflow', () => {
     })
     expect(vars.body).not.toHaveProperty('labels')
     expect(markClean).toHaveBeenCalled()
-    expect(showSuccess).not.toHaveBeenCalled()
+    expect(showSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow saved' }))
     expect(invalidateQueries).toHaveBeenCalled()
   })
 
   it('creates workflow in one call without labels', async () => {
     const showSuccess = vi.fn()
     const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.({ id: 'new-wf-id' }))
+      detachPromise(args[1]?.onSuccess?.(createResponse({ id: 'new-wf-id' })))
     }) as MockedFunction<CreateWorkflow>
     const setLocation = vi.fn()
     const { result } = renderHook(() =>
@@ -149,7 +174,7 @@ describe('useBuilderSaveWorkflow', () => {
 
   it('includes project_id on create when isNew and selectedProject are set', async () => {
     const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.({ id: 'id-3' }))
+      detachPromise(args[1]?.onSuccess?.(createResponse({ id: 'id-3' })))
     }) as MockedFunction<CreateWorkflow>
     const { result } = renderHook(() =>
       useBuilderSaveWorkflow(
@@ -183,7 +208,7 @@ describe('useBuilderSaveWorkflow', () => {
   it('does not call create when update path is used', async () => {
     const createWorkflow = vi.fn() as MockedFunction<CreateWorkflow>
     const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.({}))
+      detachPromise(args[1]?.onSuccess?.(updateResponse()))
     }) as MockedFunction<UpdateWorkflow>
     const { result } = renderHook(() =>
       useBuilderSaveWorkflow(
@@ -202,7 +227,7 @@ describe('useBuilderSaveWorkflow', () => {
 
   it('applies default name when new workflow still uses default name', async () => {
     const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.({ id: 'n1' }))
+      detachPromise(args[1]?.onSuccess?.(createResponse({ id: 'n1' })))
     }) as MockedFunction<CreateWorkflow>
     const { result } = renderHook(() =>
       useBuilderSaveWorkflow(
@@ -221,147 +246,88 @@ describe('useBuilderSaveWorkflow', () => {
     expect(body.name).toBe('new-workflow-1')
   })
 
-  describe('force_save retry on validation errors', () => {
-    const retryableError = { code: 'WORKFLOW_DEFINITION_WARNINGS', detail: 'has warnings' }
+  it('shows error and resolves false when create returns a validation warning', async () => {
+    const validationError = { code: 'WORKFLOW_DEFINITION_WARNINGS', detail: 'has warnings' }
+    const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
+      detachPromise(args[1]?.onError?.(validationError))
+    }) as MockedFunction<CreateWorkflow>
+    const showError = vi.fn()
 
-    it('retries create with force_save on validation warning and succeeds', async () => {
-      const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
-        detachPromise(args[1]?.onError?.(retryableError))
-      }) as MockedFunction<CreateWorkflow>
-      mockPost.mockResolvedValue({ data: { id: 'forced-id' } })
-      const showSuccess = vi.fn()
-      const markClean = vi.fn()
-      const setLocation = vi.fn()
-      const invalidateQueries = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ createWorkflow, showError })))
 
-      const { result } = renderHook(() =>
-        useBuilderSaveWorkflow(
-          buildParams({
-            createWorkflow,
-            showSuccess,
-            markClean,
-            setLocation,
-            queryClient: { invalidateQueries } as unknown as UseBuilderSaveWorkflowParams['queryClient'],
-          })
-        )
+    await expect(result.current()).resolves.toBe(false)
+    expect(showError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Create failed',
+        description: expect.stringContaining('has warnings') as unknown as string,
+      })
+    )
+  })
+
+  it('shows error and resolves false when update returns a validation warning', async () => {
+    const validationError = { code: 'WORKFLOW_DEFINITION_WARNINGS', detail: 'has warnings' }
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(args[1]?.onError?.(validationError))
+    }) as MockedFunction<UpdateWorkflow>
+    const showError = vi.fn()
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(buildParams({ workflowId: 'w1', isNew: false, updateWorkflow, showError }))
+    )
+
+    await expect(result.current()).resolves.toBe(false)
+    expect(showError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Update failed',
+        description: expect.stringContaining('has warnings') as unknown as string,
+      })
+    )
+  })
+
+  it('shows "saved with warnings" and fires onSaveWithValidationIssues when has_validation_issues is true', async () => {
+    const showSuccess = vi.fn()
+    const onSaveWithValidationIssues = vi.fn()
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(args[1]?.onSuccess?.(updateResponse({ has_validation_issues: true })))
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(
+        buildParams({
+          workflowId: 'w1',
+          isNew: false,
+          updateWorkflow,
+          showSuccess,
+          onSaveWithValidationIssues,
+        })
       )
+    )
 
-      const savePromise = result.current()
+    await expect(result.current()).resolves.toBe(true)
+    expect(showSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow saved with warnings' }))
+    expect(onSaveWithValidationIssues).toHaveBeenCalledOnce()
+  })
 
-      await waitFor(() => {
-        expect(mockPost).toHaveBeenCalled()
-      })
-      await expect(savePromise).resolves.toBe(true)
-      expect(markClean).toHaveBeenCalled()
-      expect(showSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow created with warnings' }))
-      expect(setLocation).toHaveBeenCalledWith('/workflow-builder/forced-id')
-    })
+  it('shows "created with warnings" when new workflow has validation issues', async () => {
+    const showSuccess = vi.fn()
+    const onSaveWithValidationIssues = vi.fn()
+    const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
+      detachPromise(args[1]?.onSuccess?.(createResponse({ id: 'new-id', has_validation_issues: true })))
+    }) as MockedFunction<CreateWorkflow>
 
-    it('shows error when create force_save retry fails', async () => {
-      const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
-        detachPromise(args[1]?.onError?.(retryableError))
-      }) as MockedFunction<CreateWorkflow>
-      mockPost.mockResolvedValue({ error: { detail: 'still broken' } })
-      const showError = vi.fn()
-
-      const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ createWorkflow, showError })))
-
-      const savePromise = result.current()
-
-      await waitFor(() => {
-        expect(mockPost).toHaveBeenCalled()
-      })
-      await expect(savePromise).resolves.toBe(false)
-      expect(showError).toHaveBeenCalledWith(expect.objectContaining({ title: 'Save failed' }))
-    })
-
-    it('retries update with force_save on validation warning and succeeds', async () => {
-      const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-        detachPromise(args[1]?.onError?.(retryableError))
-      }) as MockedFunction<UpdateWorkflow>
-      mockPatch.mockResolvedValue({})
-      const showSuccess = vi.fn()
-      const markClean = vi.fn()
-      const invalidateQueries = vi.fn().mockResolvedValue(undefined)
-
-      const { result } = renderHook(() =>
-        useBuilderSaveWorkflow(
-          buildParams({
-            workflowId: 'existing-id',
-            isNew: false,
-            updateWorkflow,
-            showSuccess,
-            markClean,
-            queryClient: { invalidateQueries } as unknown as UseBuilderSaveWorkflowParams['queryClient'],
-          })
-        )
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(
+        buildParams({
+          createWorkflow,
+          showSuccess,
+          onSaveWithValidationIssues,
+        })
       )
+    )
 
-      const savePromise = result.current()
-
-      await waitFor(() => {
-        expect(mockPatch).toHaveBeenCalled()
-      })
-      await expect(savePromise).resolves.toBe(true)
-      expect(markClean).toHaveBeenCalled()
-      expect(showSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow saved with warnings' }))
-    })
-
-    it('shows error when update force_save retry fails', async () => {
-      const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-        detachPromise(args[1]?.onError?.(retryableError))
-      }) as MockedFunction<UpdateWorkflow>
-      mockPatch.mockResolvedValue({ error: { detail: 'patch failed' } })
-      const showError = vi.fn()
-
-      const { result } = renderHook(() =>
-        useBuilderSaveWorkflow(buildParams({ workflowId: 'w1', isNew: false, updateWorkflow, showError }))
-      )
-
-      const savePromise = result.current()
-
-      await waitFor(() => {
-        expect(mockPatch).toHaveBeenCalled()
-      })
-      await expect(savePromise).resolves.toBe(false)
-      expect(showError).toHaveBeenCalledWith(expect.objectContaining({ title: 'Save failed' }))
-    })
-
-    it('handles exception during force_save retry', async () => {
-      const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
-        detachPromise(args[1]?.onError?.(retryableError))
-      }) as MockedFunction<CreateWorkflow>
-      mockPost.mockRejectedValue(new Error('network crash'))
-      const showError = vi.fn()
-
-      const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ createWorkflow, showError })))
-
-      const savePromise = result.current()
-
-      await waitFor(() => {
-        expect(mockPost).toHaveBeenCalled()
-      })
-      await expect(savePromise).resolves.toBe(false)
-      expect(showError).toHaveBeenCalledWith(expect.objectContaining({ title: 'Save failed' }))
-    })
-
-    it('calls onForceSaveSuccess with original error on successful retry', async () => {
-      const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
-        detachPromise(args[1]?.onError?.(retryableError))
-      }) as MockedFunction<CreateWorkflow>
-      mockPost.mockResolvedValue({ data: { id: 'id-x' } })
-      const onForceSaveSuccess = vi.fn()
-
-      const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ createWorkflow, onForceSaveSuccess })))
-
-      const savePromise = result.current()
-
-      await waitFor(() => {
-        expect(mockPost).toHaveBeenCalled()
-      })
-      await expect(savePromise).resolves.toBe(true)
-      expect(onForceSaveSuccess).toHaveBeenCalledWith(retryableError)
-    })
+    await expect(result.current()).resolves.toBe(true)
+    expect(showSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow created with warnings' }))
+    expect(onSaveWithValidationIssues).toHaveBeenCalledOnce()
   })
 })
 
@@ -393,7 +359,7 @@ describe('version conflict detection', () => {
 
   it('sends expected_version in patch body when provided', async () => {
     const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.({}))
+      detachPromise(args[1]?.onSuccess?.(updateResponse()))
     }) as MockedFunction<UpdateWorkflow>
 
     const { result } = renderHook(() =>
@@ -407,7 +373,7 @@ describe('version conflict detection', () => {
 
   it('uses expectedVersionOverride instead of loadedVersion when provided', async () => {
     const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.({}))
+      detachPromise(args[1]?.onSuccess?.(updateResponse()))
     }) as MockedFunction<UpdateWorkflow>
 
     const { result } = renderHook(() =>
@@ -422,7 +388,7 @@ describe('version conflict detection', () => {
   it('calls onVersionUpdated with new version after successful save', async () => {
     const onVersionUpdated = vi.fn()
     const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.({ current_version: 8 }))
+      detachPromise(args[1]?.onSuccess?.(updateResponse({ current_version: 8 })))
     }) as MockedFunction<UpdateWorkflow>
 
     const { result } = renderHook(() =>

@@ -14,6 +14,7 @@ from sqlmodel import CheckConstraint, Field, Index, Relationship, SQLModel, text
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import Resource
 from nexus.core.models.pagination import ResourcesResponse
+from nexus.workflows.models.validation_finding import ValidationResult
 from nexus.workflows.models.workflow_definition import WorkflowDefinition
 
 if TYPE_CHECKING:
@@ -93,7 +94,7 @@ class Workflow(Resource, table=True):
 
     has_validation_issues: bool = Field(
         default=False,
-        description="True when the current draft was saved with validation warnings via force_save",
+        description="True when the current draft has validation errors or warnings",
         sa_column_kwargs={"server_default": text("false")},
     )
 
@@ -183,8 +184,7 @@ class WorkflowCreate(WorkflowBase):
 
     Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
     Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-    on failure, the raw dict falls through to the service-level validator
-    where force_save can bypass all validation.
+    on failure, the raw dict falls through to the service-level validator.
     """
 
     workflow_definition: WorkflowDefinition | dict[str, Any] = Field(..., description="Workflow definition object")
@@ -197,8 +197,7 @@ class WorkflowUpdate(SQLModel):
     All fields are optional for partial updates.
     Supports metadata updates and workflow definition updates (creates new version).
     Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-    on failure, the raw dict falls through to the service-level validator
-    where force_save can bypass all validation.
+    on failure, the raw dict falls through to the service-level validator.
     """
 
     project_id: UUID | None = Field(
@@ -233,6 +232,13 @@ class WorkflowRead(WorkflowBase):
     is_builtin: bool = False
     is_enabled: bool
     has_validation_issues: bool = False
+    validation_result: ValidationResult | None = Field(
+        default=None,
+        description=(
+            "Validation findings from the last save operation. "
+            "Only included in create/update responses; use has_validation_issues for the durable indicator."
+        ),
+    )
     published_version_id: UUID | None = None
     published_version_number: int | None = None
     created_by: UUID

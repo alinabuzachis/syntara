@@ -46,9 +46,9 @@ async def test_post_workflow_valid_definition(jwt_client: AsyncClient, test_proj
 
 @pytest.mark.asyncio
 async def test_post_workflow_invalid_definition(jwt_client: AsyncClient, test_project_id: str) -> None:
-    """Test creating a workflow with invalid definition structure.
+    """Test creating a workflow with invalid definition saves with validation issues.
 
-    Expected: 422 Unprocessable Entity (validator rejects missing V2 fields)
+    Expected: 201 Created with has_validation_issues=True (save always succeeds)
     """
     invalid_workflow = {
         "name": "invalid-workflow",
@@ -61,7 +61,9 @@ async def test_post_workflow_invalid_definition(jwt_client: AsyncClient, test_pr
 
     response = await jwt_client.post("/api/v1/workflows", json=invalid_workflow)
 
-    assert response.status_code == 422
+    assert response.status_code == 201
+    data = response.json()
+    assert data["has_validation_issues"] is True
 
 
 @pytest.mark.asyncio
@@ -148,9 +150,9 @@ async def test_post_workflow_duplicate_name(jwt_client: AsyncClient, test_projec
 
 @pytest.mark.asyncio
 async def test_post_workflow_missing_required_fields(jwt_client: AsyncClient, test_project_id: str) -> None:
-    """Test creating a workflow with definition missing required V2 fields.
+    """Test creating a workflow with definition missing required V2 fields saves with issues.
 
-    Expected: 422 Unprocessable Entity (validator rejects missing triggers/nodes/edges)
+    Expected: 201 Created with has_validation_issues=True (save always succeeds)
     """
     workflow_missing_fields = {
         "name": "incomplete-workflow",
@@ -163,7 +165,9 @@ async def test_post_workflow_missing_required_fields(jwt_client: AsyncClient, te
 
     response = await jwt_client.post("/api/v1/workflows", json=workflow_missing_fields)
 
-    assert response.status_code == 422
+    assert response.status_code == 201
+    data = response.json()
+    assert data["has_validation_issues"] is True
 
 
 @pytest.mark.asyncio

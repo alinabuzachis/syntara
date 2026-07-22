@@ -91,7 +91,6 @@ class DetailedValidationProblemDetail(SQLModel):
         title: Short, human-readable summary
         detail: Human-readable explanation specific to this occurrence
         code: Machine-readable error code
-        retryable: Whether this error can be retried
         instance: Optional URI reference identifying the specific occurrence
         validation_result: Structured validation findings
 
@@ -101,7 +100,6 @@ class DetailedValidationProblemDetail(SQLModel):
     title: str
     detail: str
     code: str
-    retryable: bool
     instance: str | None = None
     validation_result: ValidationResult
 

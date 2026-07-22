@@ -31,16 +31,6 @@ class WorkflowDefinitionInvalidError(WorkflowError):
         super().__init__("Workflow definition validation failed")
 
 
-@fastapi_exception(handler="nexus.workflows.error_handlers.definition_warnings_handler")
-class WorkflowDefinitionWarningsError(WorkflowError):
-    """Raised when a workflow definition has only warnings (no errors) and force_save is not set."""
-
-    def __init__(self, validation_result: ValidationResult) -> None:
-        """Initialize with the validation result."""
-        self.validation_result = validation_result
-        super().__init__("Workflow definition has validation warnings")
-
-
 @fastapi_exception(handler="nexus.workflows.error_handlers.publish_validation_handler")
 class WorkflowPublishValidationError(WorkflowError):
     """Raised when publishing is blocked because the workflow definition has validation issues."""

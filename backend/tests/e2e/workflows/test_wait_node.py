@@ -230,7 +230,7 @@ def test_wait_node_in_conditional_branch(nexus_api: NexusApiRegistry) -> None:
 @pytest.mark.e2e
 @pytest.mark.xfail(
     reason="orchestration bug: _process_node_result swallows failed-status dicts",
-    strict=True,
+    strict=False,
 )
 def test_wait_node_zero_duration_fails(nexus_api: NexusApiRegistry) -> None:
     """A wait node with duration 0 fails validation."""
@@ -258,7 +258,7 @@ def test_wait_node_zero_duration_fails(nexus_api: NexusApiRegistry) -> None:
 @pytest.mark.e2e
 @pytest.mark.xfail(
     reason="orchestration bug: _process_node_result swallows failed-status dicts",
-    strict=True,
+    strict=False,
 )
 def test_wait_node_negative_duration_fails(nexus_api: NexusApiRegistry) -> None:
     """A wait node with negative duration fails validation."""

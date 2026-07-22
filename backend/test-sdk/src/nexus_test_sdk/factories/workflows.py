@@ -27,8 +27,6 @@ class WorkflowFactory(Protocol):
         prefix: str | None = None,
         name: str | None = None,
         definition: dict[str, Any] | WorkflowDefinition | None = None,
-        *,
-        force_save: bool = False,
     ) -> tuple[UUID, str]: ...
 
 
@@ -43,8 +41,6 @@ def create_workflow() -> Generator[WorkflowFactory, None, None]:
         prefix: str | None = None,
         name: str | None = None,
         definition: dict[str, Any] | WorkflowDefinition | None = None,
-        *,
-        force_save: bool = False,
     ) -> tuple[UUID, str]:
         prefx = prefix or "test"
         workflow_name = name or unique_name(f"e2e-rbac-wf-{prefx}")
@@ -57,7 +53,6 @@ def create_workflow() -> Generator[WorkflowFactory, None, None]:
                 workflow_definition=workflow_def,
                 project_id=project_id,
             ),
-            force_save=force_save,
         )
         wf = resp.assert_and_get()
         wf_id = UUID(str(wf.id))

@@ -39,7 +39,6 @@ PROBLEM_TYPES = {
     "provider_error": "https://api.nexus.com/errors/provider-error",
     "integration_error": "https://api.nexus.com/errors/integration-error",
     "internal_error": "https://api.nexus.com/errors/internal-error",
-    "definition_warnings": "https://api.nexus.com/errors/definition-warnings",
     "publish_validation": "https://api.nexus.com/errors/publish-validation",
     "rate_limited": "https://api.nexus.com/errors/rate-limited",
 }

@@ -44,7 +44,7 @@ async def workflows_dataset(test_db_session: AsyncSession, test_user: User, test
     base_time = datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)
 
     for i in range(DATASET_SIZE):
-        workflow, _ = await service.create_workflow(
+        workflow, _, _ = await service.create_workflow(
             name=f"Test Workflow {i:02d}",
             description=f"Workflow for pagination testing - number {i}",
             labels={"test": "pagination", "index": str(i)},
