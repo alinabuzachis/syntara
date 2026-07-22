@@ -233,6 +233,10 @@ export function BuilderContent(props: BuilderContentProps) {
     onConflict: handleConflict('save'),
     onVersionUpdated,
     onSaveWithValidationIssues: handleVerifySilent,
+    onValidationFindings: (errors) => {
+      dispatch({ type: 'SET_VALIDATION_ERRORS', payload: errors })
+      useWorkflowStore.getState().setValidationErrorCount(errors.length)
+    },
     createWorkflow: createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow'],
     updateWorkflow,
   })

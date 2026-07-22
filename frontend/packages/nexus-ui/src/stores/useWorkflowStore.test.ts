@@ -754,7 +754,7 @@ describe('useWorkflowStore', () => {
       expect(edges.map((e) => e.id)).toEqual(['e-in'])
     })
 
-    it('preserves all edges when replacing a node with the same type', () => {
+    it('preserves compatible edges when replacing a node with the same type', () => {
       const act1 = createScriptActivity({ id: 'act-1', name: 'Script', language: 'python', code: 'print(1)' })
       useWorkflowStore.getState().addActivity(act1)
       useWorkflowStore.setState({
@@ -769,6 +769,80 @@ describe('useWorkflowStore', () => {
 
       const edges = useWorkflowStore.getState().edges
       expect(edges.map((e) => e.id)).toEqual(['e-out', 'e-in'])
+    })
+
+    it('bumps workflowVersion and preserves undo history on replace', () => {
+      const act1 = createScriptActivity({ id: 'act-1', name: 'Script', language: 'python', code: 'print(1)' })
+      useWorkflowStore.getState().addActivity(act1)
+      const versionBefore = useWorkflowStore.getState().workflowVersion
+
+      const replacement = createScriptActivity({ id: 'tmp', name: 'REST API', language: 'python', code: 'print(2)' })
+      useWorkflowStore.getState().replaceActivity('act-1', { ...replacement, id: 'act-1' })
+
+      const state = useWorkflowStore.getState()
+      expect(state.workflowVersion).toBe(versionBefore + 1)
+      expect(state._preserveHistoryOnLayout).toBe(true)
+    })
+
+    it('prunes stale switch case edges when replacing switch with switch', () => {
+      const switchActivity: Activity = {
+        type: 'switch',
+        id: 'sw-1',
+        name: 'Switch',
+        parameters: {
+          cases: [
+            { port: 'case_0', label: 'Path 1', condition: '${a}' },
+            { port: 'case_1', label: 'Path 2', condition: '${b}' },
+            { port: 'case_2', label: 'Path 3', condition: '${c}' },
+          ],
+          default_port: 'default',
+        },
+      }
+      useWorkflowStore.getState().addActivity(switchActivity)
+      useWorkflowStore.setState({
+        edges: [
+          {
+            id: 'e-case0',
+            source: 'sw-1',
+            target: 'node-a',
+            sourceHandle: 'case_0',
+            targetHandle: 'target',
+          },
+          {
+            id: 'e-case1',
+            source: 'sw-1',
+            target: 'node-b',
+            sourceHandle: 'case_1',
+            targetHandle: 'target',
+          },
+          {
+            id: 'e-default',
+            source: 'sw-1',
+            target: 'node-c',
+            sourceHandle: 'default',
+            targetHandle: 'target',
+          },
+          {
+            id: 'e-in',
+            source: 'prev-node',
+            target: 'sw-1',
+            sourceHandle: 'source',
+            targetHandle: 'target',
+          },
+        ] as EdgeConnection[],
+      })
+
+      // getValidSourceHandles(SWITCH) only allows DEFAULT — case_N edges are pruned
+      const replacement: Activity = {
+        type: 'switch',
+        id: 'tmp',
+        name: 'Switch',
+        parameters: { cases: [{ port: 'case_0', label: 'Path 1', condition: '${a}' }], default_port: 'default' },
+      }
+      useWorkflowStore.getState().replaceActivity('sw-1', { ...replacement, id: 'sw-1' })
+
+      const edges = useWorkflowStore.getState().edges
+      expect(edges.map((e) => e.id).sort()).toEqual(['e-default', 'e-in'])
     })
   })
 

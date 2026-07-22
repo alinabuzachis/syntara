@@ -440,6 +440,50 @@ class TestCollectFindings:
         assert finding.category == ValidationCategory.orphaned_node
         assert finding.node_id == "orphan"
 
+    def test_replace_switch_with_condition_orphan_is_soft_finding(self, validator: WorkflowValidator) -> None:
+        """After Switch→Condition prune, an unreconnected script is unreachable.
+
+        collect_findings reports orphaned_node errors but does not raise — create/update
+        save paths use this result for has_validation_issues (save-with-warnings), not
+        a hard 422 WORKFLOW_DEFINITION_INVALID response.
+        """
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "after-replace",
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "cond1",
+                    "type": "condition",
+                    "name": "Condition",
+                    "parameters": {"condition": "true"},
+                },
+                {
+                    "id": "script1",
+                    "type": "script",
+                    "name": "Script1",
+                    "parameters": {"language": "python", "code": "print(1)"},
+                },
+                {
+                    "id": "script3",
+                    "type": "script",
+                    "name": "Script3",
+                    "parameters": {"language": "python", "code": "print(3)"},
+                },
+            ],
+            "edges": [
+                {"from": "trigger_manual", "to": "cond1"},
+                {"from": "cond1", "to": "script1", "from_port": "true"},
+                # script3 left disconnected after prune (no edge)
+            ],
+        }
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        assert result.error_count >= 1
+        orphan = next(f for f in result.findings if f.node_id == "script3")
+        assert orphan.category == ValidationCategory.orphaned_node
+        assert "unreachable" in orphan.message
+
     def test_multiple_schema_findings_per_node(self, validator: WorkflowValidator) -> None:
         definition: dict[str, Any] = {
             "schema_version": "2.0.0",

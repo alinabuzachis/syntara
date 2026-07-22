@@ -317,17 +317,15 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
         set((state) => {
           if (!state.currentWorkflow) return state
 
-          const oldActivity = findActivityById(state.currentWorkflow.workflow.activities, activityId)
-
-          // When the node type changes, remove outgoing edges that use handles incompatible
-          // with the new type (e.g. condition's true/false edges when replacing with a task).
-          let edges = state.edges
-          if (oldActivity && oldActivity.type !== newActivity.type) {
-            const validHandles = getValidSourceHandles(newActivity.type)
-            edges = state.edges.filter(
-              (edge) => edge.source !== activityId || edge.sourceHandle == null || validHandles.has(edge.sourceHandle)
-            )
-          }
+          // Remove outgoing edges whose handles are incompatible with the new
+          // node type (e.g. condition true/false when replacing with switch, or
+          // stale case_N ports when replacing one switch with another).
+          // Bump workflowVersion so React Flow re-inits from this pruned store
+          // state — otherwise useEdgeSynchronization can write stale RF edges back.
+          const validHandles = getValidSourceHandles(newActivity.type)
+          const edges = state.edges.filter(
+            (edge) => edge.source !== activityId || edge.sourceHandle == null || validHandles.has(edge.sourceHandle)
+          )
 
           return {
             edges,
@@ -338,6 +336,8 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
                 activities: replaceActivityInList(state.currentWorkflow.workflow.activities, activityId, newActivity),
               },
             },
+            workflowVersion: state.workflowVersion + 1,
+            _preserveHistoryOnLayout: true,
             isDirty: true,
           }
         })

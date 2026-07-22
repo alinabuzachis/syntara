@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vitest'
 
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { detachPromise } from '../../../utils/detachPromise'
 
@@ -82,6 +83,13 @@ function buildParams(overrides: Partial<UseBuilderSaveWorkflowParams> = {}): Use
 describe('useBuilderSaveWorkflow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useWorkflowStore.setState({
+      currentWorkflow: minimalWorkflow({
+        workflow: {
+          activities: [{ type: 'script', id: 'script3', name: 'Orphan Script', parameters: {} }],
+        },
+      }),
+    })
   })
 
   it('returns false and shows error when there is no current workflow', async () => {
@@ -284,11 +292,12 @@ describe('useBuilderSaveWorkflow', () => {
     )
   })
 
-  it('shows "saved with warnings" and fires onSaveWithValidationIssues when has_validation_issues is true', async () => {
+  it('shows "saved with warnings", syncs version, and fires onSaveWithValidationIssues when has_validation_issues is true', async () => {
     const showSuccess = vi.fn()
     const onSaveWithValidationIssues = vi.fn()
+    const onVersionUpdated = vi.fn()
     const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
-      detachPromise(args[1]?.onSuccess?.(updateResponse({ has_validation_issues: true })))
+      detachPromise(args[1]?.onSuccess?.(updateResponse({ has_validation_issues: true, current_version: 4 })))
     }) as MockedFunction<UpdateWorkflow>
 
     const { result } = renderHook(() =>
@@ -299,6 +308,7 @@ describe('useBuilderSaveWorkflow', () => {
           updateWorkflow,
           showSuccess,
           onSaveWithValidationIssues,
+          onVersionUpdated,
         })
       )
     )
@@ -306,6 +316,148 @@ describe('useBuilderSaveWorkflow', () => {
     await expect(result.current()).resolves.toBe(true)
     expect(showSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow saved with warnings' }))
     expect(onSaveWithValidationIssues).toHaveBeenCalledOnce()
+    // Prevents false "Run conflict / saved by another user" after our own warnings save
+    expect(onVersionUpdated).toHaveBeenCalledWith(4)
+  })
+
+  it('applies inline validation_result findings on save-with-warnings instead of re-validating', async () => {
+    const onSaveWithValidationIssues = vi.fn()
+    const onValidationFindings = vi.fn()
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(
+        args[1]?.onSuccess?.(
+          updateResponse({
+            has_validation_issues: true,
+            current_version: 3,
+            validation_result: {
+              is_valid: false,
+              error_count: 1,
+              warning_count: 0,
+              findings: [
+                {
+                  severity: 'error',
+                  category: 'orphaned_node',
+                  message: "Node 'script3' is unreachable from any trigger",
+                  node_id: 'script3',
+                },
+              ],
+            },
+          })
+        )
+      )
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(
+        buildParams({
+          workflowId: 'w1',
+          isNew: false,
+          updateWorkflow,
+          onSaveWithValidationIssues,
+          onValidationFindings,
+        })
+      )
+    )
+
+    await expect(result.current()).resolves.toBe(true)
+    expect(onValidationFindings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        message: 'Step "Orphan Script" is unreachable from any trigger',
+        nodeId: 'script3',
+        nodeName: 'Orphan Script',
+        severity: 'error',
+      }),
+    ])
+    expect(onSaveWithValidationIssues).not.toHaveBeenCalled()
+  })
+
+  it('surfaces validation_result findings in the update-failed toast and callback', async () => {
+    const showError = vi.fn()
+    const onValidationFindings = vi.fn()
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(
+        args[1]?.onError?.({
+          code: 'WORKFLOW_DEFINITION_INVALID',
+          detail: 'The workflow definition failed validation',
+          validation_result: {
+            findings: [
+              {
+                message: "Node 'script3' is unreachable from any trigger",
+                node_id: 'script3',
+                severity: 'error',
+              },
+            ],
+          },
+        })
+      )
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(
+        buildParams({
+          workflowId: 'w1',
+          isNew: false,
+          updateWorkflow,
+          showError,
+          onValidationFindings,
+        })
+      )
+    )
+
+    await expect(result.current()).resolves.toBe(false)
+    expect(showError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Update failed',
+        description: expect.stringContaining(
+          'Step "Orphan Script" is unreachable from any trigger'
+        ) as unknown as string,
+      })
+    )
+    expect(onValidationFindings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        message: 'Step "Orphan Script" is unreachable from any trigger',
+        nodeId: 'script3',
+        nodeName: 'Orphan Script',
+      }),
+    ])
+  })
+
+  it('unwraps openapi-fetch cause wrappers when extracting validation findings on save error', async () => {
+    const showError = vi.fn()
+    const onValidationFindings = vi.fn()
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(
+        args[1]?.onError?.({
+          cause: {
+            code: 'WORKFLOW_DEFINITION_INVALID',
+            detail: 'The workflow definition failed validation',
+            validation_result: {
+              findings: [{ message: 'Step is not connected', node_id: 'script3', severity: 'error' }],
+            },
+          },
+        })
+      )
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(
+        buildParams({
+          workflowId: 'w1',
+          isNew: false,
+          updateWorkflow,
+          showError,
+          onValidationFindings,
+        })
+      )
+    )
+
+    await expect(result.current()).resolves.toBe(false)
+    expect(showError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringContaining('Step is not connected') as unknown as string,
+      })
+    )
+    expect(onValidationFindings).toHaveBeenCalledOnce()
   })
 
   it('shows "created with warnings" when new workflow has validation issues', async () => {

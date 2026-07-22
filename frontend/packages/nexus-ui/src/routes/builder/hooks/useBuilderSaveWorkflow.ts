@@ -6,9 +6,36 @@ import type { AlertMessage } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { extractVersionConflictInfo, getErrorMessage, isWorkflowVersionConflictError } from '../../../utils/apiErrors'
+import type { ValidationError } from '../builderReducer'
+import { extractValidationErrors, extractValidationErrorsFromUnknown } from '../useWorkflowVerification'
 import { buildWorkflowDefinition } from '../utils/workflowDefinitionBuilder'
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from '../utils/workflowNaming'
 import type { ConflictInfo } from '../VersionConflictDialog'
+
+function formatSaveFailureDescription(error: unknown, action: string): string {
+  const findings = extractValidationErrorsFromUnknown(error)
+  if (findings && findings.length > 0) {
+    const findingText = findings.map((f) => f.message).join('\n• ')
+    return `Failed to ${action} workflow:\n• ${findingText}`
+  }
+  return `Failed to ${action} workflow: ${getErrorMessage(error)}`
+}
+
+function reportSaveError(
+  error: unknown,
+  action: 'update' | 'create',
+  showError: (options: AlertMessage) => void,
+  onValidationFindings?: (errors: ValidationError[]) => void
+): void {
+  const findings = extractValidationErrorsFromUnknown(error)
+  showError({
+    title: `${action.charAt(0).toUpperCase()}${action.slice(1)} failed`,
+    description: formatSaveFailureDescription(error, action),
+  })
+  if (findings && findings.length > 0) {
+    onValidationFindings?.(findings)
+  }
+}
 
 function buildSavePayloads(opts: {
   nameToSave: string
@@ -36,6 +63,21 @@ function buildSavePayloads(opts: {
 type WorkflowCreateResponse = WorkflowAPI.components['schemas']['WorkflowRead']
 type WorkflowUpdateResponse = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 type SaveResponseData = WorkflowCreateResponse | WorkflowUpdateResponse
+
+function reportSaveValidationIssues(
+  data: SaveResponseData | undefined,
+  onValidationFindings?: (errors: ValidationError[]) => void,
+  onSaveWithValidationIssues?: () => void
+): void {
+  const inlineFindings = extractValidationErrors({
+    validation_result: data?.validation_result as Record<string, unknown> | undefined,
+  })
+  if (inlineFindings && inlineFindings.length > 0) {
+    onValidationFindings?.(inlineFindings)
+    return
+  }
+  onSaveWithValidationIssues?.()
+}
 
 type CreateWorkflowBody = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
 /**
@@ -75,6 +117,12 @@ export type UseBuilderSaveWorkflowParams = {
   onVersionUpdated?: (newVersion: number) => void
   /** Called after a successful save when the response indicates validation issues. */
   onSaveWithValidationIssues?: () => void
+  /**
+   * Called when the API returns structured validation findings — either inline on a
+   * successful save (`validation_result`) or on a validation problem error body.
+   * Used to populate the validation banner with node-level messages.
+   */
+  onValidationFindings?: (errors: ValidationError[]) => void
   createWorkflow: (
     args: { body: CreateWorkflowBodyExtended },
     opts?: {
@@ -151,14 +199,16 @@ async function processSaveResult(
     setLocation: (to: string) => void
     onVersionUpdated?: (newVersion: number) => void
     onSaveWithValidationIssues?: () => void
+    onValidationFindings?: (errors: ValidationError[]) => void
   }
 ): Promise<boolean> {
   if (saveResult.error) {
-    const action = ctx.willPatchExisting ? 'update' : 'create'
-    ctx.showError({
-      title: `${action.charAt(0).toUpperCase()}${action.slice(1)} failed`,
-      description: `Failed to ${action} workflow: ${getErrorMessage(saveResult.error)}`,
-    })
+    reportSaveError(
+      saveResult.error,
+      ctx.willPatchExisting ? 'update' : 'create',
+      ctx.showError,
+      ctx.onValidationFindings
+    )
     return false
   }
 
@@ -170,7 +220,9 @@ async function processSaveResult(
   await completeSave(ctx.queryClient, ctx.markClean, ctx.isNew ? saveResult.data?.id : undefined, ctx.setLocation)
   const newVersion = saveResult.data?.current_version
   if (ctx.willPatchExisting && newVersion != null) ctx.onVersionUpdated?.(newVersion)
-  if (hasIssues) ctx.onSaveWithValidationIssues?.()
+  if (hasIssues) {
+    reportSaveValidationIssues(saveResult.data, ctx.onValidationFindings, ctx.onSaveWithValidationIssues)
+  }
   return true
 }
 
@@ -195,6 +247,7 @@ export function useBuilderSaveWorkflow(
     onConflict,
     onVersionUpdated,
     onSaveWithValidationIssues,
+    onValidationFindings,
     createWorkflow,
     updateWorkflow,
   } = params
@@ -260,6 +313,7 @@ export function useBuilderSaveWorkflow(
         setLocation,
         onVersionUpdated,
         onSaveWithValidationIssues,
+        onValidationFindings,
       })
     },
     [
@@ -280,6 +334,7 @@ export function useBuilderSaveWorkflow(
       onConflict,
       onVersionUpdated,
       onSaveWithValidationIssues,
+      onValidationFindings,
       setLocation,
       queryClient,
       markClean,

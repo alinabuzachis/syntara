@@ -8,6 +8,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 
 import type { BuilderAction, ValidationError, ValidationSeverity } from './builderReducer'
 import { validateWorkflow } from './utils/validation'
+import { formatValidationFindingMessage } from './utils/validation/formatValidationFindingMessage'
 import { validateMinimumWorkflow } from './utils/validation/rules/validateMinimumWorkflow'
 import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 
@@ -26,7 +27,13 @@ function mapFindings(findings: ValidationFinding[] | undefined): ValidationError
   return findings.map((f) => {
     const severity: ValidationSeverity = f.severity === 'warning' ? 'warning' : 'error'
     const nodeId = f.node_id ?? null
-    return { message: f.message, nodeId, nodeName: lookupNodeName(nodeId), severity }
+    const nodeName = lookupNodeName(nodeId)
+    return {
+      message: formatValidationFindingMessage(f.message, nodeId, nodeName),
+      nodeId,
+      nodeName,
+      severity,
+    }
   })
 }
 
@@ -53,6 +60,29 @@ export function extractValidationErrors(err: Record<string, unknown> | undefined
 
   if (validationResult.findings && Array.isArray(validationResult.findings)) {
     return mapFindings(validationResult.findings)
+  }
+
+  return null
+}
+
+/**
+ * Like extractValidationErrors, but also unwraps openapi-fetch / TanStack mutation
+ * wrappers that nest the RFC 9457 body under `cause` or `data`.
+ */
+export function extractValidationErrorsFromUnknown(error: unknown): ValidationError[] | null {
+  if (!error || typeof error !== 'object') return null
+
+  const err = error as Record<string, unknown>
+  const direct = extractValidationErrors(err)
+  if (direct) return direct
+
+  if (err.cause && typeof err.cause === 'object') {
+    const fromCause = extractValidationErrors(err.cause as Record<string, unknown>)
+    if (fromCause) return fromCause
+  }
+
+  if (err.data && typeof err.data === 'object') {
+    return extractValidationErrors(err.data as Record<string, unknown>)
   }
 
   return null

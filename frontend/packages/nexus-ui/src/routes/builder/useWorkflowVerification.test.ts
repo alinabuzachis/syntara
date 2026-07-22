@@ -1,7 +1,11 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { useWorkflowVerification, extractValidationErrors } from './useWorkflowVerification'
+import {
+  useWorkflowVerification,
+  extractValidationErrors,
+  extractValidationErrorsFromUnknown,
+} from './useWorkflowVerification'
 
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
@@ -740,6 +744,64 @@ describe('extractValidationErrors', () => {
       { message: 'Some warning', nodeId: 'node-5', severity: 'warning' },
       { message: 'Some error', nodeId: null, severity: 'error' },
     ])
+  })
+})
+
+describe('extractValidationErrorsFromUnknown', () => {
+  it('reads validation_result from the top-level error body', () => {
+    mockGetState.mockReturnValue({
+      currentWorkflow: {
+        workflow: {
+          activities: [{ id: 'script3', name: 'Orphan Script', type: 'script' }],
+        },
+      },
+    })
+    const result = extractValidationErrorsFromUnknown({
+      detail: 'The workflow definition failed validation',
+      validation_result: {
+        findings: [{ message: "Node 'script3' is unreachable from any trigger", node_id: 'script3' }],
+      },
+    })
+    expect(result).toEqual([
+      expect.objectContaining({
+        message: 'Step "Orphan Script" is unreachable from any trigger',
+        nodeId: 'script3',
+        nodeName: 'Orphan Script',
+      }),
+    ])
+  })
+
+  it('keeps raw node ids in findings when the activity name is unknown', () => {
+    mockGetState.mockReturnValue({ currentWorkflow: { workflow: { activities: [] } } })
+    const result = extractValidationErrorsFromUnknown({
+      detail: 'The workflow definition failed validation',
+      validation_result: {
+        findings: [{ message: "Node 'script3' is unreachable from any trigger", node_id: 'script3' }],
+      },
+    })
+    expect(result).toEqual([
+      expect.objectContaining({
+        message: "Node 'script3' is unreachable from any trigger",
+        nodeId: 'script3',
+      }),
+    ])
+  })
+
+  it('unwraps openapi-fetch cause wrappers', () => {
+    const result = extractValidationErrorsFromUnknown({
+      cause: {
+        detail: 'The workflow definition failed validation',
+        validation_result: {
+          findings: [{ message: 'Step is not connected', node_id: 'n1' }],
+        },
+      },
+    })
+    expect(result?.[0]?.message).toBe('Step is not connected')
+  })
+
+  it('returns null when no nested validation_result is present', () => {
+    expect(extractValidationErrorsFromUnknown({ detail: 'boom' })).toBeNull()
+    expect(extractValidationErrorsFromUnknown(undefined)).toBeNull()
   })
 })
 
