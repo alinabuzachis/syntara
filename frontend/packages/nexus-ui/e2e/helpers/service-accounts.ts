@@ -1,22 +1,38 @@
 import { type Page } from '@playwright/test'
 
 import { expect, toAppUrl } from '../fixtures'
-import { createServiceAccountViaApi, apiRequest } from '../utils/api'
+import { apiRequest, createServiceAccountViaApi, deleteServiceAccountViaApi } from '../utils/api'
 
 import { buildUniqueName } from './workflows'
 
 const SERVICE_ACCOUNTS_URL = '/system-administration/access-management/service-accounts'
 
+export { createServiceAccountViaApi, deleteServiceAccountViaApi }
+
 /** Navigate to the service accounts list page and wait for it to load. */
 export async function goToServiceAccountsList(app: Page) {
   await app.goto(toAppUrl(SERVICE_ACCOUNTS_URL))
-  await expect(app.getByRole('tab', { name: 'Service Accounts' })).toBeVisible({ timeout: 20_000 })
+  await expect(app.getByRole('tab', { name: 'Service Accounts', exact: true })).toBeVisible({
+    timeout: 20_000,
+  })
 }
 
 /** Filter the service accounts list by name. */
 export async function filterServiceAccountByName(app: Page, name: string) {
   await app.getByPlaceholder('Filter by name').fill(name)
+  const responsePromise = app.waitForResponse(
+    (resp) => resp.url().includes('/service_accounts') && resp.status() === 200
+  )
   await app.getByRole('button', { name: 'Apply filter' }).click()
+  await responsePromise
+}
+
+export async function goToServiceAccountDetail(app: Page, sa: { id: string; name: string }) {
+  const url = `/system-administration/access-management/service-accounts/${sa.id}`
+  await app.goto(toAppUrl(url))
+  await expect(app.getByRole('heading', { level: 1, name: sa.name })).toBeVisible({
+    timeout: 15_000,
+  })
 }
 
 /**
@@ -84,9 +100,6 @@ export async function createTestServiceAccount(
 
   return sa
 }
-
-/** Delete a service account by ID (best-effort cleanup). Re-exports for convenience. */
-export { deleteServiceAccountViaApi } from '../utils/api'
 
 /** Delete a service account via the UI kebab menu (best-effort). */
 export async function deleteServiceAccountByName(app: Page, name: string) {

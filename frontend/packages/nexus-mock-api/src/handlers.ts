@@ -4658,7 +4658,7 @@ export const handlers = [
     if (!body?.name || !body?.project_id) {
       return HttpResponse.json({ detail: 'name and project_id are required' }, { status: 422 })
     }
-    const id = `sa-new-${mockServiceAccounts.length + 1}`
+    const id = `sa-new-${uuidv4().slice(0, 8)}`
     const project = mockProjects.find((p) => p.id === body.project_id)
     const project_name = project?.name ?? null
 
