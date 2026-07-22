@@ -58,7 +58,7 @@ describe('useRolePermissions', () => {
     expect(result.current.canDelete).toBe(true)
   })
 
-  it('calls can_i with correct action and resource_type', async () => {
+  it('uses system-scoped can_i when no resourceProject is provided', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
 
     renderHook(() => useRolePermissions(), { wrapper: createWrapper() })
@@ -69,11 +69,23 @@ describe('useRolePermissions', () => {
     expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
       body: { action: 'create', resource_type: 'role' },
     })
-    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'update', resource_type: 'role' },
-    })
-    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'delete', resource_type: 'role' },
+    const anyProjectCalls = (
+      vi.mocked(accessFetchClient.POST).mock.calls as unknown as Array<
+        [string, { body?: { check_any_project?: boolean } }]
+      >
+    ).filter(([, options]) => options.body?.check_any_project === true)
+    expect(anyProjectCalls).toHaveLength(0)
+  })
+
+  it('scopes can_i to resourceProject when provided', async () => {
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+
+    renderHook(() => useRolePermissions({ resourceProject: 'proj-1' }), { wrapper: createWrapper() })
+
+    await waitFor(() => {
+      expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+        body: { action: 'create', resource_type: 'role', resource_project: 'proj-1' },
+      })
     })
   })
 

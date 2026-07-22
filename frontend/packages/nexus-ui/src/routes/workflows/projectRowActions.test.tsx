@@ -58,7 +58,7 @@ describe('buildProjectRowActions', () => {
     expect(actions[2].tooltipProps).toBeUndefined()
   })
 
-  it('disables edit action when canUpdate is false', () => {
+  it('disables edit action when canUpdate is false but delete remains', () => {
     const limitedPermissions = { ...mockPermissions, canUpdate: false }
     const actions = buildProjectRowActions(mockProject, limitedPermissions, mockCallbacks)
 
@@ -67,13 +67,19 @@ describe('buildProjectRowActions', () => {
     expect(editAction?.tooltipProps).toEqual({ content: mockPermissions.tooltips.update })
   })
 
-  it('disables delete action when canDelete is false', () => {
+  it('disables delete action when canDelete is false but edit remains', () => {
     const limitedPermissions = { ...mockPermissions, canDelete: false }
     const actions = buildProjectRowActions(mockProject, limitedPermissions, mockCallbacks)
 
     const deleteAction = actions.find((a) => a.key === 'delete-project')
     expect(deleteAction?.isAriaDisabled).toBe(true)
     expect(deleteAction?.tooltipProps).toEqual({ content: mockPermissions.tooltips.delete })
+  })
+
+  it('returns empty array when user cannot update or delete', () => {
+    const limitedPermissions = { ...mockPermissions, canUpdate: false, canDelete: false }
+    const actions = buildProjectRowActions(mockProject, limitedPermissions, mockCallbacks)
+    expect(actions).toEqual([])
   })
 
   it('calls onEdit callback when edit action is clicked', () => {

@@ -10,6 +10,7 @@ import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
+import { invalidateAuthzCaches } from '../../../hooks/invalidateAuthzCaches'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
 import { useTableSort } from '../../../hooks/useTableSort'
 import { useAlerts } from '../../../providers/alerts'
@@ -18,11 +19,11 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
-import { AddRoleDialog } from '../../access/AddRoleDialog'
 import type { RoleAssignmentRead } from '../../access/types'
 import { useAssignmentPermissions } from '../../access/useAssignmentPermissions'
 import { useRolePermissions } from '../../access/useRolePermissions'
 
+import { AddProjectRoleDialog } from './AddProjectRoleDialog'
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
 
 const SORT_FIELDS = ['principal_name', 'role_name'] as const
@@ -122,8 +123,8 @@ function RoleAssignmentsTable({
 
 export function ProjectRoleAssignmentsTab({ projectId }: Readonly<{ projectId: string }>) {
   const queryClient = useQueryClient()
-  const assignmentPermissions = useAssignmentPermissions()
-  const rolePermissions = useRolePermissions()
+  const assignmentPermissions = useAssignmentPermissions({ resourceProject: projectId })
+  const rolePermissions = useRolePermissions({ resourceProject: projectId })
   const { showAlert } = useAlerts()
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [createRoleOpen, setCreateRoleOpen] = useState(false)
@@ -164,6 +165,10 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<{ projectId: s
   useCursorReset(assignments.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
   const refetch = useCallback(() => detachPromise(query.refetch()), [query])
+  const refetchAndInvalidateAuthz = useCallback(() => {
+    invalidateAuthzCaches(queryClient)
+    refetch()
+  }, [queryClient, refetch])
 
   const assignedRolesByPrincipal = useMemo(() => {
     const map = new Map<string, Set<string>>()
@@ -182,6 +187,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<{ projectId: s
 
   const handleRoleCreated = useCallback(() => {
     detachPromise(queryClient.invalidateQueries({ queryKey: ['all-project-roles', projectId] }))
+    invalidateAuthzCaches(queryClient)
     refetch()
   }, [queryClient, projectId, refetch])
 
@@ -202,7 +208,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<{ projectId: s
             variant: 'success',
             autoDismiss: true,
           })
-          refetch()
+          refetchAndInvalidateAuthz()
         },
         onError: (err: unknown) => {
           showAlert({
@@ -304,7 +310,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<{ projectId: s
         isOpen={assignModalOpen}
         assignedRolesByPrincipal={assignedRolesByPrincipal}
         onClose={() => setAssignModalOpen(false)}
-        onSuccess={refetch}
+        onSuccess={refetchAndInvalidateAuthz}
       />
 
       <NxConfirmationDialog
@@ -321,11 +327,10 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<{ projectId: s
       </NxConfirmationDialog>
 
       {createRoleOpen && (
-        <AddRoleDialog
+        <AddProjectRoleDialog
+          projectId={projectId}
           onClose={() => setCreateRoleOpen(false)}
           onSuccess={handleRoleCreated}
-          defaultScope="project"
-          defaultProjectId={projectId}
         />
       )}
     </>

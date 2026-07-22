@@ -42,32 +42,40 @@ describe('useAssignmentPermissions', () => {
     expect(result.current.isLoading).toBe(true)
   })
 
-  it('returns all true when API grants all permissions', async () => {
-    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
-
-    const { result } = renderHook(() => useAssignmentPermissions(), { wrapper: createWrapper() })
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-    expect(result.current.canAssign).toBe(true)
-    expect(result.current.canRevoke).toBe(true)
-  })
-
-  it('calls can_i with correct action and resource_type', async () => {
+  it('uses check_any_project when no resourceProject is provided', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
 
     renderHook(() => useAssignmentPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalledTimes(2)
+      expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
+        body: { action: 'assign', resource_type: 'role-assignment', check_any_project: true },
+      })
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
-      body: { action: 'assign', resource_type: 'role-assignment' },
+      body: { action: 'revoke', resource_type: 'role-assignment', check_any_project: true },
+    })
+  })
+
+  it('scopes can_i to resourceProject when provided', async () => {
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+
+    const { result } = renderHook(() => useAssignmentPermissions({ resourceProject: 'proj-1' }), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(result.current.canAssign).toBe(true)
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
-      body: { action: 'revoke', resource_type: 'role-assignment' },
+      body: { action: 'assign', resource_type: 'role-assignment', resource_project: 'proj-1' },
     })
+    const anyProjectCalls = (
+      vi.mocked(accessFetchClient.POST).mock.calls as unknown as Array<
+        [string, { body?: { check_any_project?: boolean } }]
+      >
+    ).filter(([, options]) => options.body?.check_any_project === true)
+    expect(anyProjectCalls).toHaveLength(0)
   })
 
   it('provides standardized tooltip messages', () => {

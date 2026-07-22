@@ -31,10 +31,10 @@ describe('useProjectDetailPermissions', () => {
     vi.clearAllMocks()
   })
 
-  it('returns canReadAssignments true when granted', async () => {
+  it('returns canReadAssignments true when granted for the project', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } })
 
-    const { result } = renderHook(() => useProjectDetailPermissions(), {
+    const { result } = renderHook(() => useProjectDetailPermissions('proj-1'), {
       wrapper: createWrapper(),
     })
 
@@ -43,12 +43,15 @@ describe('useProjectDetailPermissions', () => {
     })
 
     expect(result.current.canReadAssignments).toBe(true)
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
+      body: { action: 'read', resource_type: 'role-assignment', resource_project: 'proj-1' },
+    })
   })
 
   it('returns canReadAssignments false when denied', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } })
 
-    const { result } = renderHook(() => useProjectDetailPermissions(), {
+    const { result } = renderHook(() => useProjectDetailPermissions('proj-1'), {
       wrapper: createWrapper(),
     })
 
@@ -62,7 +65,7 @@ describe('useProjectDetailPermissions', () => {
   it('defaults to safe false while loading', () => {
     vi.mocked(accessFetchClient.POST).mockReturnValue(new Promise(() => {}))
 
-    const { result } = renderHook(() => useProjectDetailPermissions(), {
+    const { result } = renderHook(() => useProjectDetailPermissions('proj-1'), {
       wrapper: createWrapper(),
     })
 

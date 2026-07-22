@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
 
 import type { PermissionRequirement } from '../hooks/permissionUtils'
-import { hasPermissionGrant, permissionKey } from '../hooks/permissionUtils'
+import { permissionKey } from '../hooks/permissionUtils'
 import { usePermissionChecks } from '../hooks/usePermissionChecks'
-import { useAllPermissions } from '../routes/access/useAllPermissions'
 
 import type { TNavigationItem } from './navigationItems'
 import { NAV_ITEMS } from './navigationItems'
@@ -64,33 +63,16 @@ function filterNavItems(items: readonly TNavigationItem[], permissions: Record<s
   return filtered
 }
 
-function deriveProjectScopedPermissions(
-  allPerms: { effect?: string; actions: string[]; scope?: string }[],
-  requirements: readonly PermissionRequirement[]
-): Record<string, boolean> {
-  const result: Record<string, boolean> = {}
-  for (const req of requirements) {
-    if (hasPermissionGrant(allPerms, `${req.resourceType}:${req.action}`)) {
-      result[permissionKey(req)] = true
-    }
-  }
-  return result
-}
-
 /**
  * Returns the nav tree with permission-gated items removed.
  *
- * Uses global can_i checks (which also pre-warm the cache for downstream
- * useCanI consumers) supplemented by what_can_i for project-scoped grants.
+ * Uses `can_i` with `check_any_project` so project-scoped grants (e.g.
+ * project-admin `role-assignment:read`) unlock the right nav items without a
+ * selected project. Pre-warms the same cache entries as `useCanI` /
+ * `usePermissionAnywhere` callers with matching parameters.
  */
 export function useFilteredNavigationItems(): TNavigationItem[] {
-  const { permissions: globalPermissions } = usePermissionChecks(ALL_NAV_PERMISSIONS)
-  const { permissions: allPerms } = useAllPermissions()
-
-  const permissions = useMemo(() => {
-    const projectScoped = deriveProjectScopedPermissions(allPerms, ALL_NAV_PERMISSIONS)
-    return { ...globalPermissions, ...projectScoped }
-  }, [globalPermissions, allPerms])
+  const { permissions } = usePermissionChecks(ALL_NAV_PERMISSIONS, { checkAnyProject: true })
 
   return useMemo(() => filterNavItems(NAV_ITEMS, permissions), [permissions])
 }

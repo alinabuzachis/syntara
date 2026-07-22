@@ -141,7 +141,6 @@ export function ServiceAccountDetail() {
   const [activeTab] = useUrlTab<ServiceAccountTab>(basePath)
   const docLink = useDocLink('serviceAccounts')
   const editDialog = useDialogState()
-  const permissions = useServiceAccountPermissions()
   const deleteDialog = useDialogState()
   const disableDialog = useDialogState()
 
@@ -153,6 +152,9 @@ export function ServiceAccountDetail() {
   )
 
   const serviceAccount = saQuery.data
+  const permissions = useServiceAccountPermissions({
+    resourceProject: serviceAccount?.project_id ?? serviceAccount?.project_name ?? undefined,
+  })
   const refetchSa = saQuery.refetch
 
   const navigateBack = useCallback(
@@ -285,7 +287,11 @@ export function ServiceAccountDetail() {
             />
           )}
           {activeTab === 'credentials' && (
-            <CredentialsTab serviceAccountId={serviceAccount.id} serviceAccountName={serviceAccount.name} />
+            <CredentialsTab
+              serviceAccountId={serviceAccount.id}
+              serviceAccountName={serviceAccount.name}
+              resourceProject={serviceAccount.project_id ?? serviceAccount.project_name ?? undefined}
+            />
           )}
           {activeTab === 'assignments' && (
             <RoleAssignmentsPanel

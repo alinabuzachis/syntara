@@ -2,7 +2,6 @@ import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { usePermissionChecks as UsePermissionChecksFn } from '../hooks/usePermissionChecks'
-import { useAllPermissions } from '../routes/access/useAllPermissions'
 
 import { useFilteredNavigationItems } from './useFilteredNavigationItems'
 
@@ -23,28 +22,6 @@ vi.mock('../routes/access/accessClient', () => ({
     use: vi.fn(),
   },
 }))
-
-vi.mock('../routes/access/useAllPermissions', () => ({
-  useAllPermissions: vi.fn(() => ({
-    permissions: [],
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
-  })),
-}))
-
-function mockProjectPermissions(
-  perms: { effect?: string; actions: string[]; scope?: string; project?: string; policy_name?: string }[]
-) {
-  vi.mocked(useAllPermissions).mockReturnValue({
-    permissions: perms.map((p) => ({ policy_name: 'test', ...p })) as ReturnType<
-      typeof useAllPermissions
-    >['permissions'],
-    isLoading: false,
-    error: null,
-    refetch: vi.fn() as ReturnType<typeof useAllPermissions>['refetch'],
-  })
-}
 
 /** Helper: find a nav item by label at any depth */
 function findItem(
@@ -72,6 +49,8 @@ function setPermissions(overrides: Record<string, boolean>) {
       'identity-provider:read': true,
       'project:read': true,
       'role-assignment:read': true,
+      'role-assignment:assign': true,
+      'service_account:read': true,
       'approval:read': true,
       ...overrides,
     },
@@ -83,6 +62,11 @@ describe('useFilteredNavigationItems', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setPermissions({})
+  })
+
+  it('requests nav permissions with checkAnyProject', () => {
+    renderHook(() => useFilteredNavigationItems())
+    expect(mockUsePermissionChecks).toHaveBeenCalledWith(expect.any(Array), { checkAnyProject: true })
   })
 
   it('includes all gated items when all permissions are allowed', () => {
@@ -113,6 +97,7 @@ describe('useFilteredNavigationItems', () => {
       'identity-provider:read': false,
       'project:read': false,
       'role-assignment:read': false,
+      'role-assignment:assign': false,
       'approval:read': true, // Approvals now requires approval:read permission
     })
     const { result } = renderHook(() => useFilteredNavigationItems())
@@ -149,16 +134,30 @@ describe('useFilteredNavigationItems', () => {
   })
 
   describe('Access Management section-level gating', () => {
-    it('shows Access Management when at least one AM permission is granted', () => {
+    it('shows Access Management when role-assignment:read is granted', () => {
+      setPermissions({
+        'user:read': false,
+        'group:read': false,
+        'project:read': false,
+        'role-assignment:read': true,
+        'role-assignment:assign': false,
+      })
+      const { result } = renderHook(() => useFilteredNavigationItems())
+
+      expect(findItem(result.current, 'Access Management')).toBeDefined()
+    })
+
+    it('does not show Access Management for project:read alone', () => {
       setPermissions({
         'user:read': false,
         'group:read': false,
         'project:read': true,
         'role-assignment:read': false,
+        'role-assignment:assign': false,
       })
       const { result } = renderHook(() => useFilteredNavigationItems())
 
-      expect(findItem(result.current, 'Access Management')).toBeDefined()
+      expect(findItem(result.current, 'Access Management')).toBeUndefined()
     })
 
     it('hides Access Management when all AM permissions are denied', () => {
@@ -167,6 +166,7 @@ describe('useFilteredNavigationItems', () => {
         'group:read': false,
         'project:read': false,
         'role-assignment:read': false,
+        'role-assignment:assign': false,
       })
       const { result } = renderHook(() => useFilteredNavigationItems())
 
@@ -209,6 +209,7 @@ describe('useFilteredNavigationItems', () => {
         'group:read': false,
         'project:read': false,
         'role-assignment:read': false,
+        'role-assignment:assign': false,
       })
       const { result } = renderHook(() => useFilteredNavigationItems())
 
@@ -223,6 +224,7 @@ describe('useFilteredNavigationItems', () => {
         'group:read': false,
         'project:read': false,
         'role-assignment:read': false,
+        'role-assignment:assign': false,
       })
       const { result } = renderHook(() => useFilteredNavigationItems())
 
@@ -238,6 +240,7 @@ describe('useFilteredNavigationItems', () => {
         'group:read': false,
         'project:read': false,
         'role-assignment:read': false,
+        'role-assignment:assign': false,
         'integration:read': false,
       })
       const { result } = renderHook(() => useFilteredNavigationItems())
@@ -248,20 +251,16 @@ describe('useFilteredNavigationItems', () => {
     })
   })
 
-  describe('project-scoped permissions via what_can_i', () => {
-    it('shows Approvals when user has project-scoped approval:read via what_can_i', () => {
-      setPermissions({ 'approval:read': false, 'approval:decide': false })
-      mockProjectPermissions([{ effect: 'allow', actions: ['approval:read'], scope: 'project', project: 'my-project' }])
+  describe('project-scoped permissions via check_any_project', () => {
+    it('shows Approvals when approval:read is granted anywhere', () => {
+      setPermissions({ 'approval:read': true, 'approval:decide': false })
       const { result } = renderHook(() => useFilteredNavigationItems())
 
       expect(findItem(result.current, 'Approvals')).toBeDefined()
     })
 
-    it('shows Approvals when user has project-scoped approval:decide via what_can_i', () => {
-      setPermissions({ 'approval:read': false, 'approval:decide': false })
-      mockProjectPermissions([
-        { effect: 'allow', actions: ['approval:decide'], scope: 'project', project: 'my-project' },
-      ])
+    it('shows Approvals when approval:decide is granted anywhere', () => {
+      setPermissions({ 'approval:read': false, 'approval:decide': true })
       const { result } = renderHook(() => useFilteredNavigationItems())
 
       expect(findItem(result.current, 'Approvals')).toBeDefined()
@@ -269,10 +268,34 @@ describe('useFilteredNavigationItems', () => {
 
     it('still hides Approvals when user has no approval permissions at any scope', () => {
       setPermissions({ 'approval:read': false, 'approval:decide': false })
-      mockProjectPermissions([{ effect: 'allow', actions: ['workflow:read'], scope: 'system' }])
       const { result } = renderHook(() => useFilteredNavigationItems())
 
       expect(findItem(result.current, 'Approvals')).toBeUndefined()
+    })
+
+    it('shows Access Management for project-admin via role-assignment:read anywhere', () => {
+      setPermissions({
+        'user:read': false,
+        'group:read': false,
+        'role-assignment:read': true,
+        'role-assignment:assign': false,
+      })
+      const { result } = renderHook(() => useFilteredNavigationItems())
+
+      expect(findItem(result.current, 'Access Management')).toBeDefined()
+    })
+
+    it('hides Access Management when only non-admin-worthy permissions are granted', () => {
+      setPermissions({
+        'user:read': false,
+        'group:read': false,
+        'role-assignment:read': false,
+        'role-assignment:assign': false,
+        'project:read': true,
+      })
+      const { result } = renderHook(() => useFilteredNavigationItems())
+
+      expect(findItem(result.current, 'Access Management')).toBeUndefined()
     })
   })
 })

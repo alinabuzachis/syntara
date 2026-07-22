@@ -79,7 +79,12 @@ describe('AccessManagement', () => {
       mutate: vi.fn(),
       isPending: false,
     } as never)
-    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+    vi.mocked(accessFetchClient.POST).mockImplementation((path: string) => {
+      if (path === '/authz/what_can_i') {
+        return Promise.resolve({ data: { resources: [], next: null } } as never)
+      }
+      return Promise.resolve({ data: { allowed: true } } as never)
+    })
     routerTestState.pathname = AppRoute.AccessManagement.Users
   })
 
@@ -111,7 +116,10 @@ describe('AccessManagement', () => {
   })
 
   it('hides Token Revocation tab when user lacks token-revocation:read permission', async () => {
-    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((path: string, options: never) => {
+      if (path === '/authz/what_can_i') {
+        return Promise.resolve({ data: { resources: [], next: null } } as never)
+      }
       const { body } = options as { body: { resource_type: string } }
       if (body.resource_type === 'admin:revocation') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
@@ -178,7 +186,10 @@ describe('AccessManagement', () => {
   })
 
   it('hides Users tab when user lacks user:read permission', async () => {
-    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((path: string, options: never) => {
+      if (path === '/authz/what_can_i') {
+        return Promise.resolve({ data: { resources: [], next: null } } as never)
+      }
       const { body } = options as { body: { resource_type: string } }
       if (body.resource_type === 'user') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
@@ -193,7 +204,10 @@ describe('AccessManagement', () => {
   })
 
   it('hides Groups tab when user lacks group:read permission', async () => {
-    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((path: string, options: never) => {
+      if (path === '/authz/what_can_i') {
+        return Promise.resolve({ data: { resources: [], next: null } } as never)
+      }
       const { body } = options as { body: { resource_type: string } }
       if (body.resource_type === 'group') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
@@ -207,7 +221,10 @@ describe('AccessManagement', () => {
   })
 
   it('hides Projects tab when user lacks project:read permission', async () => {
-    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((path: string, options: never) => {
+      if (path === '/authz/what_can_i') {
+        return Promise.resolve({ data: { resources: [], next: null } } as never)
+      }
       const { body } = options as { body: { resource_type: string } }
       if (body.resource_type === 'project') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
@@ -221,7 +238,10 @@ describe('AccessManagement', () => {
   })
 
   it('hides Assignments tab when user lacks role-assignment:read permission', async () => {
-    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((path: string, options: never) => {
+      if (path === '/authz/what_can_i') {
+        return Promise.resolve({ data: { resources: [], next: null } } as never)
+      }
       const { body } = options as { body: { resource_type: string } }
       if (body.resource_type === 'role-assignment') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
@@ -234,8 +254,11 @@ describe('AccessManagement', () => {
     expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument()
   })
 
-  it('always shows Roles, Policies, and Check access tabs even when most permissions are denied', async () => {
-    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+  it('shows Roles, Policies, and Check access when system grants remain', async () => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((path: string, options: never) => {
+      if (path === '/authz/what_can_i') {
+        return Promise.resolve({ data: { resources: [], next: null } } as never)
+      }
       const { body } = options as { body: { resource_type: string } }
       if (['user', 'group', 'project'].includes(body.resource_type)) {
         return Promise.resolve({ data: { allowed: false } } as never)
@@ -256,8 +279,37 @@ describe('AccessManagement', () => {
     expect(screen.queryByRole('tab', { name: 'Projects' })).not.toBeInTheDocument()
   })
 
-  it('redirects to first allowed tab when navigating to a restricted path', async () => {
+  it('hides Roles and Policies tabs without system role/policy read', async () => {
     vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+      const { body } = options as {
+        body: { action: string; resource_type: string; check_any_project?: boolean }
+      }
+      // Project-admin: any-project grants for assignments/projects only
+      if (
+        body.check_any_project === true &&
+        ((body.resource_type === 'role-assignment' && body.action === 'read') ||
+          (body.resource_type === 'project' && body.action === 'read'))
+      ) {
+        return Promise.resolve({ data: { allowed: true } } as never)
+      }
+      return Promise.resolve({ data: { allowed: false } } as never)
+    })
+    routerTestState.pathname = AppRoute.AccessManagement.Assignments
+    await renderAndSettle(<AccessManagement />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Assignments' })).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('tab', { name: 'Roles' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Policies' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Users' })).not.toBeInTheDocument()
+  })
+
+  it('redirects to first allowed tab when navigating to a restricted path', async () => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((path: string, options: never) => {
+      if (path === '/authz/what_can_i') {
+        return Promise.resolve({ data: { resources: [], next: null } } as never)
+      }
       const { body } = options as { body: { resource_type: string } }
       if (body.resource_type === 'user') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
@@ -274,7 +326,10 @@ describe('AccessManagement', () => {
   })
 
   it('redirects from hidden Projects tab to first allowed tab', async () => {
-    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((path: string, options: never) => {
+      if (path === '/authz/what_can_i') {
+        return Promise.resolve({ data: { resources: [], next: null } } as never)
+      }
       const { body } = options as { body: { resource_type: string } }
       if (body.resource_type === 'project') return Promise.resolve({ data: { allowed: false } } as never)
       return Promise.resolve({ data: { allowed: true } } as never)
@@ -305,8 +360,17 @@ describe('AccessManagement', () => {
   })
 
   describe('no access', () => {
+    function denyAllAccess() {
+      vi.mocked(accessFetchClient.POST).mockImplementation((path: string) => {
+        if (path === '/authz/what_can_i') {
+          return Promise.resolve({ data: { resources: [], next: null } } as never)
+        }
+        return Promise.resolve({ data: { allowed: false } } as never)
+      })
+    }
+
     it('shows access denied when user lacks all AM permissions', async () => {
-      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+      denyAllAccess()
 
       render(<AccessManagement />, { wrapper })
 
@@ -319,7 +383,7 @@ describe('AccessManagement', () => {
     })
 
     it('has no accessibility violations in access denied state', async () => {
-      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+      denyAllAccess()
 
       const { container } = render(<AccessManagement />, { wrapper })
 

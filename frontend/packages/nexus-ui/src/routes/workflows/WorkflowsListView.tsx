@@ -7,6 +7,7 @@ import type { TableFooterProps } from '../../components/table/NxScrollableTableC
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import type { ProjectRead } from '../access/types'
 
+import type { ProjectRowActionCallbacks } from './projectRowActions'
 import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody, type RowAction } from './WorkflowsTableBody'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
@@ -31,7 +32,7 @@ export type WorkflowsListViewProps = Readonly<{
   collapsedProjects: Set<string>
   onToggleProject: (projectId: string) => void
   getRowActions: (workflow: Workflow) => RowAction[]
-  getProjectActions?: (project: ProjectRead | null) => RowAction[]
+  projectActionCallbacks?: ProjectRowActionCallbacks
 }>
 
 export function WorkflowsListView({
@@ -52,7 +53,7 @@ export function WorkflowsListView({
   collapsedProjects,
   onToggleProject,
   getRowActions,
-  getProjectActions,
+  projectActionCallbacks,
 }: WorkflowsListViewProps) {
   const isEmpty = sortedWorkflows.length === 0
 
@@ -101,7 +102,7 @@ export function WorkflowsListView({
               collapsedProjects={collapsedProjects}
               onToggleProject={onToggleProject}
               getRowActions={getRowActions}
-              getProjectActions={getProjectActions}
+              projectActionCallbacks={projectActionCallbacks}
             />
           ) : (
             <FlatWorkflowsTableBody workflows={sortedWorkflows} getRowActions={getRowActions} />

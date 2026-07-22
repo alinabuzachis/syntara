@@ -18,9 +18,11 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
+import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { Controller, useForm, useWatch } from 'react-hook-form'
+import { Controller, useForm, useWatch, type Control, type FieldErrors, type UseFormRegister } from 'react-hook-form'
 
+import { invalidateAuthzCaches } from '../../hooks/invalidateAuthzCaches'
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
 
@@ -72,6 +74,136 @@ function RoleScopeSelect({
   )
 }
 
+type AddRoleFormFieldsProps = {
+  register: UseFormRegister<AddRoleFormData>
+  control: Control<AddRoleFormData>
+  errors: FieldErrors<AddRoleFormData>
+  scope: string
+  projectId: string
+  projectOptions: { value: string; label: string }[]
+  onScopeChange: (scope: string) => void
+  onProjectChange: (projectId: string) => void
+}
+
+function AddRoleFormFields({
+  register,
+  control,
+  errors,
+  scope,
+  projectId,
+  projectOptions,
+  onScopeChange,
+  onProjectChange,
+}: Readonly<AddRoleFormFieldsProps>) {
+  return (
+    <>
+      <FormGroup label="Name" isRequired fieldId="role-name">
+        <TextInput
+          id="role-name"
+          isRequired
+          aria-label="Role name"
+          validated={errors.name ? 'error' : 'default'}
+          {...register('name')}
+        />
+        {errors.name ? (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem variant="error">{errors.name.message}</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        ) : (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Lowercase alphanumeric with hyphens (e.g. my-custom-role)</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        )}
+      </FormGroup>
+
+      <FormGroup label="Description" fieldId="role-description">
+        <TextInput
+          id="role-description"
+          aria-label="Role description"
+          validated={errors.description ? 'error' : 'default'}
+          {...register('description')}
+        />
+        {errors.description && (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem variant="error">{errors.description.message}</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        )}
+      </FormGroup>
+
+      <FormGroup label="Scope" isRequired fieldId="role-scope">
+        <RoleScopeSelect value={scope} onChange={onScopeChange} hasError={!!errors.scope} />
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem>
+              {scope === 'system'
+                ? 'System-scoped roles apply across all projects'
+                : 'Project-scoped roles are limited to a specific project'}
+            </HelperTextItem>
+          </HelperText>
+        </FormHelperText>
+      </FormGroup>
+
+      {scope === 'project' && (
+        <FormGroup label="Project" isRequired fieldId="role-project">
+          <TypeaheadSelect
+            id="role-project"
+            ariaLabel="Project"
+            options={projectOptions}
+            selected={projectId}
+            onChange={onProjectChange}
+            placeholder="Select a project..."
+            hasError={!!errors.projectId}
+          />
+          {errors.projectId && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant="error">{errors.projectId.message}</HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      )}
+
+      <FormGroup label="Policies" isRequired fieldId="role-policies">
+        <Controller
+          name="policies"
+          control={control}
+          render={({ field }) => (
+            <PolicySelect
+              selected={field.value}
+              onChange={field.onChange}
+              hasError={!!errors.policies}
+              projectEligible={scope === 'project'}
+              isDisabled={scope === 'project' && !projectId}
+            />
+          )}
+        />
+        {scope === 'project' && !projectId ? (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Select a project first to see available policies</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        ) : (
+          errors.policies && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant="error">{errors.policies.message}</HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )
+        )}
+      </FormGroup>
+    </>
+  )
+}
+
 type AddRoleDialogProps = {
   onClose: () => void
   onSuccess: () => void
@@ -80,6 +212,7 @@ type AddRoleDialogProps = {
 }
 
 export function AddRoleDialog({ onClose, onSuccess, defaultScope, defaultProjectId }: Readonly<AddRoleDialogProps>) {
+  const queryClient = useQueryClient()
   const { showSuccess } = useAlerts()
 
   const {
@@ -124,35 +257,57 @@ export function AddRoleDialog({ onClose, onSuccess, defaultScope, defaultProject
   )
 
   const handleError = useFormMutationErrorHandler<AddRoleFormData>(setError)
-  const { mutate: createRole, isPending } = accessClient.useMutation('post', '/roles')
+  const { mutate: createSystemRole, isPending: isPendingSystem } = accessClient.useMutation('post', '/roles')
+  const { mutate: createProjectRole, isPending: isPendingProject } = accessClient.useMutation(
+    'post',
+    '/projects/{project_id}/roles'
+  )
+  const isPending = isPendingSystem || isPendingProject
 
   const onSubmit = (data: AddRoleFormData) => {
-    createRole(
+    const onMutationSuccess = () => {
+      showSuccess({
+        title: 'Role created',
+        description: (
+          <>
+            {'The role '}
+            {data.name}
+            {' has been created successfully.'}
+          </>
+        ),
+      })
+      invalidateAuthzCaches(queryClient)
+      onSuccess()
+      onClose()
+    }
+    const onMutationError = handleError({ title: 'Failed to create role' })
+
+    // Project-scoped creates must hit the project roles API so project-admins
+    // (role:create:project) succeed — global POST /roles requires system role:create.
+    if (data.scope === 'project' && data.projectId) {
+      createProjectRole(
+        {
+          params: { path: { project_id: data.projectId } },
+          body: {
+            name: data.name,
+            description: data.description || undefined,
+            policies: data.policies,
+          },
+        },
+        { onSuccess: onMutationSuccess, onError: onMutationError }
+      )
+      return
+    }
+
+    createSystemRole(
       {
         body: {
           name: data.name,
           description: data.description || undefined,
           policies: data.policies,
-          project_id: data.scope === 'project' ? data.projectId : undefined,
         },
       },
-      {
-        onSuccess: () => {
-          showSuccess({
-            title: 'Role created',
-            description: (
-              <>
-                {'The role '}
-                {data.name}
-                {' has been created successfully.'}
-              </>
-            ),
-          })
-          onSuccess()
-          onClose()
-        },
-        onError: handleError({ title: 'Failed to create role' }),
-      }
+      { onSuccess: onMutationSuccess, onError: onMutationError }
     )
   }
 
@@ -161,109 +316,16 @@ export function AddRoleDialog({ onClose, onSuccess, defaultScope, defaultProject
       <ModalHeader title="Create role" />
       <ModalBody>
         <Form id="add-role-form" onSubmit={handleSubmit(onSubmit)}>
-          <FormGroup label="Name" isRequired fieldId="role-name">
-            <TextInput
-              id="role-name"
-              isRequired
-              aria-label="Role name"
-              validated={errors.name ? 'error' : 'default'}
-              {...register('name')}
-            />
-            {errors.name ? (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem variant="error">{errors.name.message}</HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            ) : (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem>Lowercase alphanumeric with hyphens (e.g. my-custom-role)</HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            )}
-          </FormGroup>
-
-          <FormGroup label="Description" fieldId="role-description">
-            <TextInput
-              id="role-description"
-              aria-label="Role description"
-              validated={errors.description ? 'error' : 'default'}
-              {...register('description')}
-            />
-            {errors.description && (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem variant="error">{errors.description.message}</HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            )}
-          </FormGroup>
-
-          <FormGroup label="Scope" isRequired fieldId="role-scope">
-            <RoleScopeSelect value={scope} onChange={handleScopeChange} hasError={!!errors.scope} />
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem>
-                  {scope === 'system'
-                    ? 'System-scoped roles apply across all projects'
-                    : 'Project-scoped roles are limited to a specific project'}
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          </FormGroup>
-
-          {scope === 'project' && (
-            <FormGroup label="Project" isRequired fieldId="role-project">
-              <TypeaheadSelect
-                id="role-project"
-                ariaLabel="Project"
-                options={projectOptions}
-                selected={projectId ?? ''}
-                onChange={handleProjectChange}
-                placeholder="Select a project..."
-                hasError={!!errors.projectId}
-              />
-              {errors.projectId && (
-                <FormHelperText>
-                  <HelperText>
-                    <HelperTextItem variant="error">{errors.projectId.message}</HelperTextItem>
-                  </HelperText>
-                </FormHelperText>
-              )}
-            </FormGroup>
-          )}
-
-          <FormGroup label="Policies" isRequired fieldId="role-policies">
-            <Controller
-              name="policies"
-              control={control}
-              render={({ field }) => (
-                <PolicySelect
-                  selected={field.value}
-                  onChange={field.onChange}
-                  hasError={!!errors.policies}
-                  projectEligible={scope === 'project'}
-                  isDisabled={scope === 'project' && !projectId}
-                />
-              )}
-            />
-            {scope === 'project' && !projectId ? (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem>Select a project first to see available policies</HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            ) : (
-              errors.policies && (
-                <FormHelperText>
-                  <HelperText>
-                    <HelperTextItem variant="error">{errors.policies.message}</HelperTextItem>
-                  </HelperText>
-                </FormHelperText>
-              )
-            )}
-          </FormGroup>
+          <AddRoleFormFields
+            register={register}
+            control={control}
+            errors={errors}
+            scope={scope}
+            projectId={projectId ?? ''}
+            projectOptions={projectOptions}
+            onScopeChange={handleScopeChange}
+            onProjectChange={handleProjectChange}
+          />
         </Form>
       </ModalBody>
       <ModalFooter>

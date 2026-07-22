@@ -68,20 +68,58 @@ function getRowActions(
   ]
 }
 
+function ProjectRow({
+  project,
+  onEdit,
+  onDelete,
+}: Readonly<{
+  project: ProjectRead
+  onEdit: (p: ProjectRead) => void
+  onDelete: (p: ProjectRead) => void
+}>) {
+  const navigate = useNavigate()
+  const permissions = useProjectPermissions({
+    resourceProject: project.name || project.id || undefined,
+  })
+
+  return (
+    <Tr>
+      <Td dataLabel="Name">
+        <Button
+          variant="link"
+          isInline
+          onClick={() =>
+            detachPromise(
+              navigate({ to: AppRoute.AccessManagement.ProjectDetail.replace(':projectId', project.id ?? '') })
+            )
+          }
+        >
+          <Truncate content={project.name ?? ''} />
+        </Button>
+      </Td>
+      <Td dataLabel="Description">
+        <Truncate content={project.description ?? ''} />
+      </Td>
+      <Td dataLabel="Created">{formatDateTime(project.created_at)}</Td>
+      <Td dataLabel="Updated">{formatDateTime(project.updated_at)}</Td>
+      <Td isActionCell>
+        <ActionsColumn items={getRowActions(project, onEdit, onDelete, permissions)} />
+      </Td>
+    </Tr>
+  )
+}
+
 function ProjectsTable({
   projects,
   getSortParams,
   onEdit,
   onDelete,
-  permissions,
 }: Readonly<{
   projects: ProjectRead[]
   getSortParams: (columnIndex: number) => ThProps['sort']
   onEdit: (p: ProjectRead) => void
   onDelete: (p: ProjectRead) => void
-  permissions: ReturnType<typeof useProjectPermissions>
 }>) {
-  const navigate = useNavigate()
   return (
     <>
       <Thead>
@@ -95,29 +133,7 @@ function ProjectsTable({
       </Thead>
       <Tbody>
         {projects.map((project) => (
-          <Tr key={project.id}>
-            <Td dataLabel="Name">
-              <Button
-                variant="link"
-                isInline
-                onClick={() =>
-                  detachPromise(
-                    navigate({ to: AppRoute.AccessManagement.ProjectDetail.replace(':projectId', project.id ?? '') })
-                  )
-                }
-              >
-                <Truncate content={project.name ?? ''} />
-              </Button>
-            </Td>
-            <Td dataLabel="Description">
-              <Truncate content={project.description ?? ''} />
-            </Td>
-            <Td dataLabel="Created">{formatDateTime(project.created_at)}</Td>
-            <Td dataLabel="Updated">{formatDateTime(project.updated_at)}</Td>
-            <Td isActionCell>
-              <ActionsColumn items={getRowActions(project, onEdit, onDelete, permissions)} />
-            </Td>
-          </Tr>
+          <ProjectRow key={project.id} project={project} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </Tbody>
     </>
@@ -290,7 +306,6 @@ export function ProjectsTab() {
               <ProjectsTable
                 projects={projects}
                 getSortParams={getSortParams}
-                permissions={permissions}
                 onEdit={(p) => formDialog.open(p)}
                 onDelete={(p) => deleteDialog.open(p)}
               />

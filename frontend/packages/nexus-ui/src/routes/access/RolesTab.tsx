@@ -2,6 +2,7 @@ import { Button, Content, Label, LabelGroup } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
@@ -9,6 +10,7 @@ import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { IconLabel } from '../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
+import { invalidateAuthzCaches } from '../../hooks/invalidateAuthzCaches'
 import { useColumnSortState } from '../../hooks/useColumnSortState'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
@@ -200,6 +202,7 @@ function RolesTable({
 }
 
 export function RolesTab() {
+  const queryClient = useQueryClient()
   const permissions = useRolePermissions()
 
   const {
@@ -241,7 +244,12 @@ export function RolesTab() {
 
   const data = rolesQuery.data
   const roles = useMemo(() => data?.resources ?? [], [data?.resources])
+  // List refresh only — do not invalidate authz caches on every refetch/retry.
   const refetch = useCallback(() => detachPromise(rolesQuery.refetch()), [rolesQuery])
+  const onRoleDeleted = useCallback(() => {
+    invalidateAuthzCaches(queryClient)
+    refetch()
+  }, [queryClient, refetch])
 
   useCursorReset(roles.length, hasActiveFilters, cursor, rolesQuery.isFetching, resetPagination)
 
@@ -274,7 +282,7 @@ export function RolesTab() {
     buildParams: (role: RoleRead) => ({ params: { path: { role_id: role.id } } }),
     entityLabel: 'role',
     getItemName: (role: RoleRead) => role.name,
-    onSuccess: refetch,
+    onSuccess: onRoleDeleted,
     onSettled: deleteDialog.close,
   })
 

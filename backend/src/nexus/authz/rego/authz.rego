@@ -60,6 +60,13 @@ _scope_matches(policy) if {
     policy.scope == "project"
     policy.project == input.resource.project
 }
+# Explicit any-project check (can_i check_any_project=true). Does NOT treat
+# empty resource.project as a wildcard — that flag must be set.
+_scope_matches(policy) if {
+    policy.scope == "project"
+    input.resource.any_project == true
+    policy.project != ""
+}
 
 # Condition matching: no conditions key means unconditional match (backward compat)
 _conditions_match(policy) if {

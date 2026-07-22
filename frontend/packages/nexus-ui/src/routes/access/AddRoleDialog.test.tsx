@@ -44,6 +44,7 @@ describe('AddRoleDialog', () => {
   const mockOnClose = vi.fn()
   const mockOnSuccess = vi.fn()
   const mockMutate = vi.fn()
+  const mockProjectMutate = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -92,8 +93,7 @@ describe('AddRoleDialog', () => {
       } as never
     })
 
-    vi.mocked(accessClient.useMutation).mockReturnValue({
-      mutate: mockMutate,
+    const idleMutation = {
       isPending: false,
       isError: false,
       error: null,
@@ -107,13 +107,26 @@ describe('AddRoleDialog', () => {
       context: undefined,
       submittedAt: 0,
       variables: undefined,
-      status: 'idle',
+      status: 'idle' as const,
       isPaused: false,
-    } as never)
+    }
+
+    vi.mocked(accessClient.useMutation).mockImplementation((_method, path) => {
+      const isProjectPath = String(path).includes('/projects/')
+      return {
+        ...idleMutation,
+        mutate: isProjectPath ? mockProjectMutate : mockMutate,
+      } as never
+    })
   })
 
-  function renderDialog() {
-    return render(<AddRoleDialog onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+  function renderDialog(
+    props: Partial<{
+      defaultScope: 'system' | 'project'
+      defaultProjectId: string
+    }> = {}
+  ) {
+    return render(<AddRoleDialog onClose={mockOnClose} onSuccess={mockOnSuccess} {...props} />, { wrapper })
   }
 
   describe('Accessibility', () => {
@@ -225,7 +238,6 @@ describe('AddRoleDialog', () => {
           name: 'my-role',
           description: 'A test role',
           policies: ['workflow-admin'],
-          project_id: undefined,
         },
       })
     })
@@ -305,6 +317,38 @@ describe('AddRoleDialog', () => {
 
       const callArgs = mockMutate.mock.calls[0] as [{ body: { description?: string } }]
       expect(callArgs[0].body.description).toBeUndefined()
+    })
+
+    it('calls project-scoped createRole when defaultScope is project', async () => {
+      const user = userEvent.setup()
+      renderDialog({ defaultScope: 'project', defaultProjectId: 'proj-1' })
+
+      await user.type(screen.getByRole('textbox', { name: /role name/i }), 'proj-role')
+
+      const policyInput = screen.getByPlaceholderText('Select policies...')
+      await user.click(policyInput)
+      const menuitem = screen.getByRole('menuitem', { name: /workflow-admin/i })
+      await user.click(within(menuitem).getByText('workflow-admin'))
+
+      await user.click(screen.getByRole('button', { name: 'Create role' }))
+
+      await waitFor(() => {
+        expect(mockProjectMutate).toHaveBeenCalled()
+      })
+      expect(mockMutate).not.toHaveBeenCalled()
+
+      const callArgs = mockProjectMutate.mock.calls[0] as [
+        {
+          params: { path: { project_id: string } }
+          body: { name: string; policies: string[] }
+        },
+      ]
+      expect(callArgs[0].params.path.project_id).toBe('proj-1')
+      expect(callArgs[0].body).toEqual({
+        name: 'proj-role',
+        description: undefined,
+        policies: ['workflow-admin'],
+      })
     })
   })
 

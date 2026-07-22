@@ -64,6 +64,8 @@ export function AccessManagement() {
     canReadProjects,
     canReadAssignments,
     canReadServiceAccounts,
+    canReadRoles,
+    canReadPolicies,
     canQueryAuthz,
     canReadTokenRevocation,
     canAccessPage,
@@ -80,6 +82,8 @@ export function AccessManagement() {
     if (!canReadProjects) hiddenKeys.add('projects')
     if (!canReadServiceAccounts) hiddenKeys.add('service-accounts')
     if (!canReadAssignments) hiddenKeys.add('assignments')
+    if (!canReadPolicies) hiddenKeys.add('policies')
+    if (!canReadRoles) hiddenKeys.add('roles')
     if (!canQueryAuthz) hiddenKeys.add('check-access')
     if (!canReadTokenRevocation) hiddenKeys.add('token-revocation')
     if (hiddenKeys.size === 0) return allTabDefs
@@ -90,6 +94,8 @@ export function AccessManagement() {
     canReadProjects,
     canReadServiceAccounts,
     canReadAssignments,
+    canReadPolicies,
+    canReadRoles,
     canQueryAuthz,
     canReadTokenRevocation,
     isLoading,

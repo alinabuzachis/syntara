@@ -28,6 +28,21 @@ function createWrapper() {
   }
 }
 
+const CAN_I_COUNT = 11
+
+type CanIBody = {
+  action: string
+  resource_type: string
+  check_any_project?: boolean
+}
+
+function mockCanIByBody(allowedFor: (body: CanIBody) => boolean) {
+  vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+    const { body } = options as { body: CanIBody }
+    return Promise.resolve({ data: { allowed: allowedFor(body) } } as never)
+  })
+}
+
 describe('useAccessManagementPermissions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -39,6 +54,8 @@ describe('useAccessManagementPermissions', () => {
     canReadProjects: true,
     canReadAssignments: true,
     canReadServiceAccounts: true,
+    canReadRoles: true,
+    canReadPolicies: true,
     canQueryAuthz: true,
     canReadTokenRevocation: true,
     canAccessPage: true,
@@ -75,6 +92,8 @@ describe('useAccessManagementPermissions', () => {
         canReadProjects: false,
         canReadAssignments: false,
         canReadServiceAccounts: false,
+        canReadRoles: false,
+        canReadPolicies: false,
         canQueryAuthz: false,
         canReadTokenRevocation: false,
         canAccessPage: false,
@@ -83,15 +102,56 @@ describe('useAccessManagementPermissions', () => {
     })
   })
 
-  it('handles mixed permissions — canAccessPage true when at least one is granted', async () => {
-    vi.mocked(accessFetchClient.POST)
-      .mockResolvedValueOnce({ data: { allowed: false } } as never) // user
-      .mockResolvedValueOnce({ data: { allowed: false } } as never) // group
-      .mockResolvedValueOnce({ data: { allowed: true } } as never) // project
-      .mockResolvedValueOnce({ data: { allowed: false } } as never) // role-assignment
-      .mockResolvedValueOnce({ data: { allowed: false } } as never) // service_account
-      .mockResolvedValueOnce({ data: { allowed: false } } as never) // authz
-      .mockResolvedValueOnce({ data: { allowed: false } } as never) // token-revocation
+  it('grants canAccessPage for project-admin via check_any_project role-assignment:read', async () => {
+    mockCanIByBody(
+      (body) =>
+        body.check_any_project === true &&
+        ((body.resource_type === 'role-assignment' && body.action === 'read') ||
+          (body.resource_type === 'project' && body.action === 'read'))
+    )
+
+    const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.canReadAssignments).toBe(true)
+    expect(result.current.canReadProjects).toBe(true)
+    expect(result.current.canAccessPage).toBe(true)
+    expect(result.current.canReadRoles).toBe(false)
+    expect(result.current.canReadPolicies).toBe(false)
+  })
+
+  it('does not grant canAccessPage for project:read alone', async () => {
+    mockCanIByBody((body) => body.check_any_project === true && body.resource_type === 'project')
+
+    const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.canReadProjects).toBe(true)
+    expect(result.current.canAccessPage).toBe(false)
+  })
+
+  it('does not grant canAccessPage for project-scoped service_account:read alone', async () => {
+    mockCanIByBody(
+      (body) => body.check_any_project === true && body.resource_type === 'service_account' && body.action === 'read'
+    )
+
+    const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.canReadServiceAccounts).toBe(true)
+    expect(result.current.canAccessPage).toBe(false)
+  })
+
+  it('handles mixed permissions — canAccessPage true when role-assignment is granted', async () => {
+    mockCanIByBody(
+      (body) => body.resource_type === 'role-assignment' && body.action === 'read' && body.check_any_project === true
+    )
 
     const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
 
@@ -99,9 +159,11 @@ describe('useAccessManagementPermissions', () => {
       expect(result.current).toEqual({
         canReadUsers: false,
         canReadGroups: false,
-        canReadProjects: true,
-        canReadAssignments: false,
+        canReadProjects: false,
+        canReadAssignments: true,
         canReadServiceAccounts: false,
+        canReadRoles: false,
+        canReadPolicies: false,
         canQueryAuthz: false,
         canReadTokenRevocation: false,
         canAccessPage: true,
@@ -110,34 +172,34 @@ describe('useAccessManagementPermissions', () => {
     })
   })
 
-  it('calls can_i with correct resource types', async () => {
+  it('calls can_i with check_any_project for project-aware resources', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
 
     renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalledTimes(7)
+      expect(accessFetchClient.POST).toHaveBeenCalledTimes(CAN_I_COUNT)
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
       body: { action: 'read', resource_type: 'user' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
-      body: { action: 'read', resource_type: 'group' },
+      body: { action: 'read', resource_type: 'role-assignment', check_any_project: true },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
-      body: { action: 'read', resource_type: 'project' },
+      body: { action: 'assign', resource_type: 'role-assignment', check_any_project: true },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
-      body: { action: 'read', resource_type: 'role-assignment' },
+      body: { action: 'read', resource_type: 'service_account', check_any_project: true },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
       body: { action: 'read', resource_type: 'service_account' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
-      body: { action: 'query', resource_type: 'authz' },
+      body: { action: 'read', resource_type: 'role' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
-      body: { action: 'read', resource_type: 'admin:revocation' },
+      body: { action: 'read', resource_type: 'policy' },
     })
   })
 
@@ -149,7 +211,7 @@ describe('useAccessManagementPermissions', () => {
     renderHook(() => useAccessManagementPermissions(), { wrapper })
 
     await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalledTimes(7)
+      expect(accessFetchClient.POST).toHaveBeenCalledTimes(CAN_I_COUNT)
     })
   })
 
@@ -167,6 +229,8 @@ describe('useAccessManagementPermissions', () => {
       canReadProjects: false,
       canReadAssignments: false,
       canReadServiceAccounts: false,
+      canReadRoles: false,
+      canReadPolicies: false,
       canQueryAuthz: false,
       canReadTokenRevocation: false,
       canAccessPage: false,

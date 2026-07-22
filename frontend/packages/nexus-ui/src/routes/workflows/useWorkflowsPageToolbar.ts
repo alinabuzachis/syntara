@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 
 import type { useDialogState } from '../../hooks/useDialogState'
 import type { ProjectRead } from '../access/types'
@@ -27,27 +27,21 @@ export function useWorkflowsPageToolbar({
   projectDeleteDialog,
   projectPermissions,
 }: UseWorkflowsPageToolbarOptions) {
-  const getProjectActions = useCallback(
-    (project: ProjectRead | null) =>
-      buildProjectRowActions(project, projectPermissions, {
-        onEdit: projectEditDialog.open,
-        onDelete: projectDeleteDialog.open,
-      }),
-    [projectPermissions, projectEditDialog, projectDeleteDialog]
-  )
-
   const headerProjectActions = useMemo(() => {
     if (isAllProjects || !selectedProjectId) return []
     const selectedProject = projects.find((p) => p.id === selectedProjectId) ?? null
-    return selectedProject ? getProjectActions(selectedProject) : []
-  }, [isAllProjects, selectedProjectId, projects, getProjectActions])
+    if (!selectedProject) return []
+    return buildProjectRowActions(selectedProject, projectPermissions, {
+      onEdit: projectEditDialog.open,
+      onDelete: projectDeleteDialog.open,
+    })
+  }, [isAllProjects, selectedProjectId, projects, projectPermissions, projectEditDialog, projectDeleteDialog])
 
   const showWorkflowActions = sortedWorkflowsLength > 0 || hasActiveFilters
   const showImportWorkflow = !isAllProjects || sortedWorkflowsLength > 0 || hasActiveFilters
   const showToolbar = showImportWorkflow || headerProjectActions.length > 0
 
   return {
-    getProjectActions,
     headerProjectActions,
     showWorkflowActions,
     showImportWorkflow,

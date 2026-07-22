@@ -9,12 +9,12 @@ Provides three query patterns:
 
 import re
 from collections.abc import Sequence
-from typing import Annotated, Any, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal, Self
 from uuid import UUID
 
 import structlog
 from fastapi import Depends, Query, Request
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 from pydantic import Field as PydanticField
 from sqlalchemy import Select
 from sqlmodel import Field, SQLModel, col, select
@@ -72,6 +72,25 @@ class CanIRequest(SQLModel):
     resource_project: str = Field(
         default="", title=None, description="Project scope of the resource (project name or UUID)"
     )
+    check_any_project: bool = Field(
+        default=False,
+        title=None,
+        description=(
+            "When true, allow if the user has the permission in any project "
+            "(project-scoped policies match without a concrete resource_project). "
+            "Mutually exclusive with a non-empty resource_project. "
+            "Default false preserves strict project matching — empty resource_project "
+            "alone is never a wildcard."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def reject_mixed_any_project_and_resource_project(self) -> Self:
+        """Reject combining check_any_project with a concrete resource_project."""
+        if self.check_any_project and self.resource_project.strip():
+            msg = "check_any_project cannot be combined with resource_project; use one or the other"
+            raise ValueError(msg)
+        return self
 
 
 class CanIResponse(SQLModel):
@@ -635,6 +654,7 @@ async def can_i(
             resource_labels=body.resource_labels,
             resource_metadata=body.resource_metadata,
             resource_project=resource_project,
+            check_any_project=body.check_any_project,
             user_labels=current_user.labels,
             user_metadata=current_user.authz_metadata,
         ),

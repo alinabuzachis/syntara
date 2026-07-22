@@ -116,6 +116,43 @@ describe('useCanI', () => {
     })
   })
 
+  it('passes check_any_project when checkAnyProject is true', async () => {
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({
+      data: { allowed: true },
+    })
+
+    const { result } = renderHook(() => useCanI('read', 'role-assignment', { checkAnyProject: true }), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(result.current.allowed).toBe(true)
+    })
+
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
+      body: { action: 'read', resource_type: 'role-assignment', check_any_project: true },
+    })
+  })
+
+  it('prefers resourceProject over checkAnyProject (never sends both)', async () => {
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({
+      data: { allowed: true },
+    })
+
+    const { result } = renderHook(
+      () => useCanI('update', 'service_account', { resourceProject: 'proj-1', checkAnyProject: true }),
+      { wrapper: createWrapper() }
+    )
+
+    await waitFor(() => {
+      expect(result.current.allowed).toBe(true)
+    })
+
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
+      body: { action: 'update', resource_type: 'service_account', resource_project: 'proj-1' },
+    })
+  })
+
   it('skips API call when enabled is false', () => {
     const { result } = renderHook(() => useCanI('read', 'setting', { enabled: false }), {
       wrapper: createWrapper(),

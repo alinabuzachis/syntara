@@ -289,8 +289,9 @@ function getCreateDisabledTooltip(
 export function CredentialsTab({
   serviceAccountId,
   serviceAccountName = 'This service account',
-}: Readonly<{ serviceAccountId: string; serviceAccountName?: string }>) {
-  const permissions = useServiceAccountPermissions()
+  resourceProject,
+}: Readonly<{ serviceAccountId: string; serviceAccountName?: string; resourceProject?: string }>) {
+  const permissions = useServiceAccountPermissions({ resourceProject })
   const deleteDialog = useDialogState<SACredentialRead>()
   const disableDialog = useDialogState<SACredentialRead>()
   const rotateDialog = useDialogState<SACredentialRead>()

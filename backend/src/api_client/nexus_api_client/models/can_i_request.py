@@ -27,6 +27,10 @@ class CanIRequest:
         resource_labels (CanIRequestResourceLabels | Unset): Labels on the target resource
         resource_metadata (CanIRequestResourceMetadata | Unset): Additional metadata about the target resource
         resource_project (str | Unset): Project scope of the resource (project name or UUID) Default: ''.
+        check_any_project (bool | Unset): When true, allow if the user has the permission in any project
+            (project-scoped policies match without a concrete resource_project). Default false
+            preserves strict project matching — empty resource_project alone is never a wildcard.
+            Default: False.
     """
 
     action: str
@@ -35,6 +39,7 @@ class CanIRequest:
     resource_labels: CanIRequestResourceLabels | Unset = UNSET
     resource_metadata: CanIRequestResourceMetadata | Unset = UNSET
     resource_project: str | Unset = ""
+    check_any_project: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -54,6 +59,8 @@ class CanIRequest:
 
         resource_project = self.resource_project
 
+        check_any_project = self.check_any_project
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -70,6 +77,8 @@ class CanIRequest:
             field_dict["resource_metadata"] = resource_metadata
         if resource_project is not UNSET:
             field_dict["resource_project"] = resource_project
+        if check_any_project is not UNSET:
+            field_dict["check_any_project"] = check_any_project
 
         return field_dict
 
@@ -101,6 +110,8 @@ class CanIRequest:
 
         resource_project = d.pop("resource_project", UNSET)
 
+        check_any_project = d.pop("check_any_project", UNSET)
+
         can_i_request = cls(
             action=action,
             resource_type=resource_type,
@@ -108,6 +119,7 @@ class CanIRequest:
             resource_labels=resource_labels,
             resource_metadata=resource_metadata,
             resource_project=resource_project,
+            check_any_project=check_any_project,
         )
 
         can_i_request.additional_properties = d

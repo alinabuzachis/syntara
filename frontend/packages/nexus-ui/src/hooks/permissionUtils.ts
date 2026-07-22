@@ -55,6 +55,20 @@ export function hasPermissionGrant(
 }
 
 /**
+ * True when unscoped `can_i` allowed the action, or `what_can_i` lists a
+ * project-scoped grant for the same `resourceType:action` key.
+ *
+ * Self-scoped grants are ignored by {@link hasPermissionGrant}.
+ */
+export function hasPermissionAnywhere(
+  canIAllowed: boolean,
+  allPerms: { effect?: string; actions: string[]; scope?: string }[],
+  actionKey: string
+): boolean {
+  return canIAllowed || hasPermissionGrant(allPerms, actionKey)
+}
+
+/**
  * Shared hook for create/update/delete permission checks on a resource type.
  * All values default to `false` (safe-false) until the checks resolve.
  */

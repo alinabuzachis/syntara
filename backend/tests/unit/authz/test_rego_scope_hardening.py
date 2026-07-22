@@ -6,7 +6,7 @@ by manipulating resource IDs or project fields.
 
 import pytest
 
-from tests.unit.authz.conftest import allow_policy, build_opa_input
+from tests.unit.authz.conftest import allow_policy, build_opa_input, deny_policy
 
 
 class TestSelfScopeBypass:
@@ -190,3 +190,131 @@ class TestProjectScopeBypass:
             )
         )
         assert result["allow"] is False
+
+    def test_any_project_flag_allows_empty_resource_project(self, opa_evaluate):
+        """check_any_project / any_project=true matches a concrete project grant."""
+        policies = [
+            allow_policy(
+                "role-assignment:read:proj-x",
+                ["role-assignment:read"],
+                scope="project",
+                project="proj-x",
+            ),
+        ]
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="role-assignment",
+                resource_project="",
+                any_project=True,
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is True
+
+    def test_any_project_flag_false_still_denies_empty_project(self, opa_evaluate):
+        """SEC-008 still holds when any_project is explicitly false."""
+        policies = [
+            allow_policy("workflow:read:proj-x", ["workflow:read"], scope="project", project="proj-x"),
+        ]
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="workflow",
+                resource_project="",
+                any_project=False,
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is False
+
+    def test_any_project_flag_ignores_empty_policy_project(self, opa_evaluate):
+        """any_project must not match project-scoped policies with empty project."""
+        policies = [
+            allow_policy("workflow:read:empty", ["workflow:read"], scope="project", project=""),
+        ]
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="workflow",
+                resource_project="",
+                any_project=True,
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is False
+
+    def test_any_project_does_not_grant_unrelated_action(self, opa_evaluate):
+        """any_project only widens scope matching — action must still match."""
+        policies = [
+            allow_policy("workflow:read:proj-x", ["workflow:read"], scope="project", project="proj-x"),
+        ]
+        result = opa_evaluate(
+            build_opa_input(
+                action="create",
+                resource_type="workflow",
+                resource_project="",
+                any_project=True,
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is False
+
+    def test_any_project_deny_in_one_project_blocks_allow_elsewhere(self, opa_evaluate):
+        """Deny+any_project is fail-closed across projects.
+
+        Deny policies also use _scope_matches — any_project makes a project
+        deny match without a concrete resource project. A targeted deny in any
+        project suppresses the action for check_any_project=true UI gates,
+        even if another project still has an allow grant.
+        """
+        policies = [
+            allow_policy(
+                "role-assignment:read:proj-a",
+                ["role-assignment:read"],
+                scope="project",
+                project="proj-a",
+            ),
+            {
+                **deny_policy(
+                    "role-assignment:read:deny-b",
+                    ["role-assignment:read"],
+                    scope="project",
+                ),
+                "project": "proj-b",
+            },
+        ]
+
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="role-assignment",
+                resource_project="",
+                any_project=True,
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is False
+        assert result["deny"] is True
+
+    def test_any_project_allow_without_deny_still_allows(self, opa_evaluate):
+        """Control: allow-only project grant still allows with any_project."""
+        policies = [
+            allow_policy(
+                "role-assignment:read:proj-a",
+                ["role-assignment:read"],
+                scope="project",
+                project="proj-a",
+            ),
+        ]
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="role-assignment",
+                resource_project="",
+                any_project=True,
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is True
+        assert result["deny"] is False

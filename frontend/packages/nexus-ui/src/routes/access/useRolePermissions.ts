@@ -13,17 +13,27 @@ type RolePermissions = {
   }
 }
 
+type UseRolePermissionsOptions = {
+  /**
+   * When set, check role CRUD against this concrete project (name or UUID).
+   * When omitted, checks are system-scoped (global Roles hub).
+   */
+  resourceProject?: string
+}
+
 /**
  * Permission checks for role management actions.
  *
- * Checks: role:create, role:update, role:delete.
- * All values default to `false` (safe-false) until the checks resolve.
+ * Pass `resourceProject` on project detail screens so a grant in project A
+ * does not enable create/edit/delete on project B. Omit it on the system
+ * Roles hub (system-scoped `can_i` only).
  */
-export function useRolePermissions(): RolePermissions {
+export function useRolePermissions(options?: UseRolePermissionsOptions): RolePermissions {
   const resourceType = 'role' as const
-  const { allowed: canCreate, isChecking: isCheckingCreate } = useCanI('create', resourceType)
-  const { allowed: canUpdate, isChecking: isCheckingUpdate } = useCanI('update', resourceType)
-  const { allowed: canDelete, isChecking: isCheckingDelete } = useCanI('delete', resourceType)
+  const canIOptions = options?.resourceProject ? { resourceProject: options.resourceProject } : undefined
+  const { allowed: canCreate, isChecking: isCheckingCreate } = useCanI('create', resourceType, canIOptions)
+  const { allowed: canUpdate, isChecking: isCheckingUpdate } = useCanI('update', resourceType, canIOptions)
+  const { allowed: canDelete, isChecking: isCheckingDelete } = useCanI('delete', resourceType, canIOptions)
 
   return {
     canCreate,

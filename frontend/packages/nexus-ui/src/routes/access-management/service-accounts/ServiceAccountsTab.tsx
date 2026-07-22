@@ -79,15 +79,76 @@ function getRowActions(
   ]
 }
 
+function ServiceAccountRow({
+  sa,
+  onToggleStatus,
+  onEdit,
+  onDelete,
+}: Readonly<{
+  sa: ServiceAccountRead
+  onToggleStatus: (sa: ServiceAccountRead) => void
+  onEdit: (sa: ServiceAccountRead) => void
+  onDelete: (sa: ServiceAccountRead) => void
+}>) {
+  const permissions = useServiceAccountPermissions({
+    resourceProject: sa.project_id || sa.project_name || undefined,
+  })
+
+  return (
+    <Tr>
+      <Td dataLabel="Name">
+        <NxLink to={getServiceAccountDetailPath(sa.id)}>
+          <Truncate content={sa.name} />
+        </NxLink>
+      </Td>
+      <Td dataLabel="Owning project">
+        {sa.project_name && !sa.is_project_deleted ? (
+          <NxLink to={getProjectDetailPath(sa.project_id)}>{sa.project_name}</NxLink>
+        ) : (
+          <>
+            {sa.project_name ?? sa.project_id}
+            {sa.is_project_deleted && (
+              <>
+                {' '}
+                <Tooltip content="The owning project for this service account has been deleted">
+                  {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+                  <span tabIndex={0}>
+                    <NxLabel color="grey">Deleted</NxLabel>
+                  </span>
+                </Tooltip>
+              </>
+            )}
+          </>
+        )}
+      </Td>
+      <Td dataLabel="Created">{formatDateTime(sa.created_at)}</Td>
+      <Td dataLabel="Last authenticated">
+        {sa.last_authenticated_at ? formatDateTime(sa.last_authenticated_at) : 'Never'}
+      </Td>
+      <Td dataLabel="State">
+        <Switch
+          id={`sa-toggle-${sa.id}`}
+          label={sa.status === 'active' ? 'Enabled' : 'Disabled'}
+          isChecked={sa.status === 'active'}
+          onChange={permissions.canUpdate ? () => onToggleStatus(sa) : undefined}
+          aria-label={`Toggle ${sa.name} status`}
+          aria-disabled={!permissions.canUpdate || undefined}
+        />
+      </Td>
+      <Td isActionCell>
+        <NxKebabMenu actions={getRowActions(sa, onEdit, onDelete, permissions)} aria-label={`Actions for ${sa.name}`} />
+      </Td>
+    </Tr>
+  )
+}
+
 function ServiceAccountTableBody({
   serviceAccounts,
-  permissions,
   onToggleStatus,
   onEdit,
   onDelete,
 }: Readonly<{
   serviceAccounts: ServiceAccountRead[]
-  permissions: ReturnType<typeof useServiceAccountPermissions>
   onToggleStatus: (sa: ServiceAccountRead) => void
   onEdit: (sa: ServiceAccountRead) => void
   onDelete: (sa: ServiceAccountRead) => void
@@ -95,53 +156,7 @@ function ServiceAccountTableBody({
   return (
     <Tbody>
       {serviceAccounts.map((sa) => (
-        <Tr key={sa.id}>
-          <Td dataLabel="Name">
-            <NxLink to={getServiceAccountDetailPath(sa.id)}>
-              <Truncate content={sa.name} />
-            </NxLink>
-          </Td>
-          <Td dataLabel="Owning project">
-            {sa.project_name && !sa.is_project_deleted ? (
-              <NxLink to={getProjectDetailPath(sa.project_id)}>{sa.project_name}</NxLink>
-            ) : (
-              <>
-                {sa.project_name ?? sa.project_id}
-                {sa.is_project_deleted && (
-                  <>
-                    {' '}
-                    <Tooltip content="The owning project for this service account has been deleted">
-                      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-                      <span tabIndex={0}>
-                        <NxLabel color="grey">Deleted</NxLabel>
-                      </span>
-                    </Tooltip>
-                  </>
-                )}
-              </>
-            )}
-          </Td>
-          <Td dataLabel="Created">{formatDateTime(sa.created_at)}</Td>
-          <Td dataLabel="Last authenticated">
-            {sa.last_authenticated_at ? formatDateTime(sa.last_authenticated_at) : 'Never'}
-          </Td>
-          <Td dataLabel="State">
-            <Switch
-              id={`sa-toggle-${sa.id}`}
-              label={sa.status === 'active' ? 'Enabled' : 'Disabled'}
-              isChecked={sa.status === 'active'}
-              onChange={permissions.canUpdate ? () => onToggleStatus(sa) : undefined}
-              aria-label={`Toggle ${sa.name} status`}
-              aria-disabled={!permissions.canUpdate || undefined}
-            />
-          </Td>
-          <Td isActionCell>
-            <NxKebabMenu
-              actions={getRowActions(sa, onEdit, onDelete, permissions)}
-              aria-label={`Actions for ${sa.name}`}
-            />
-          </Td>
-        </Tr>
+        <ServiceAccountRow key={sa.id} sa={sa} onToggleStatus={onToggleStatus} onEdit={onEdit} onDelete={onDelete} />
       ))}
     </Tbody>
   )
@@ -296,7 +311,6 @@ export function ServiceAccountsTab() {
               </Thead>
               <ServiceAccountTableBody
                 serviceAccounts={serviceAccounts}
-                permissions={permissions}
                 onToggleStatus={handleToggleStatus}
                 onEdit={editDialog.open}
                 onDelete={deleteDialog.open}

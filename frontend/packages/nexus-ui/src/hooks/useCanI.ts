@@ -14,6 +14,14 @@ type UseCanIResult = {
 type UseCanIOptions = {
   /** Scope the check to a specific resource instance (e.g. `project:my-project`). */
   resourceId?: string
+  /** Concrete project name or UUID for project-scoped policy matching. */
+  resourceProject?: string
+  /**
+   * When true, allow if the user has the permission in any project
+   * (`check_any_project` on `POST /authz/can_i`). Prefer a concrete
+   * `resourceProject` when the page already has project context.
+   */
+  checkAnyProject?: boolean
   /** Skip the API call when `false`. Defaults to `true`. */
   enabled?: boolean
 }
@@ -32,26 +40,25 @@ type UseCanIOptions = {
  * @example
  * ```ts
  * const { allowed: canDelete } = useCanI('delete', 'workflow')
+ * const { allowed: canAssign } = useCanI('assign', 'role-assignment', { checkAnyProject: true })
  * ```
  */
 export function useCanI(action: string, resourceType: string, options?: UseCanIOptions): UseCanIResult {
+  // Prefer concrete project scope; never send both (API rejects the mix).
+  const checkAnyProject = Boolean(options?.checkAnyProject && !options?.resourceProject)
+  const body = {
+    action,
+    resource_type: resourceType,
+    ...(options?.resourceId ? { resource_id: options.resourceId } : {}),
+    ...(options?.resourceProject ? { resource_project: options.resourceProject } : {}),
+    ...(checkAnyProject ? { check_any_project: true } : {}),
+  }
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: [
-      'authz',
-      'can_i',
-      {
-        action,
-        resource_type: resourceType,
-        ...(options?.resourceId ? { resource_id: options.resourceId } : {}),
-      },
-    ],
+    queryKey: ['authz', 'can_i', body],
     queryFn: () =>
       accessFetchClient.POST('/authz/can_i', {
-        body: {
-          action,
-          resource_type: resourceType,
-          ...(options?.resourceId ? { resource_id: options.resourceId } : {}),
-        },
+        body,
       }),
     enabled: options?.enabled !== false,
     select: (res) => res.data?.allowed === true,

@@ -93,7 +93,7 @@ export function ProjectDetail() {
   const { projectId }: { projectId: string } = useParams({ strict: false })
   const basePath = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId ?? '')
   const [activeTab] = useUrlTab<ProjectTab>(basePath)
-  const { canReadAssignments, isLoading: permissionsLoading } = useProjectDetailPermissions()
+  const { canReadAssignments, isLoading: permissionsLoading } = useProjectDetailPermissions(projectId ?? '')
 
   const validTabs = useMemo(() => {
     if (permissionsLoading || canReadAssignments) return ALL_PROJECT_TABS

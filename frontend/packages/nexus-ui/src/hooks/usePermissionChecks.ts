@@ -13,6 +13,14 @@ type UsePermissionChecksResult = {
   isLoading: boolean
 }
 
+type UsePermissionChecksOptions = {
+  /**
+   * When true, each check uses `check_any_project` so project-scoped grants
+   * count (e.g. nav visibility for project-admins). Defaults to false.
+   */
+  checkAnyProject?: boolean
+}
+
 /**
  * Checks multiple permissions in parallel via `POST /authz/can_i`.
  *
@@ -35,17 +43,26 @@ type UsePermissionChecksResult = {
  * // permissions['audit:read']   → boolean
  * ```
  */
-export function usePermissionChecks(checks: readonly PermissionRequirement[]): UsePermissionChecksResult {
+export function usePermissionChecks(
+  checks: readonly PermissionRequirement[],
+  options?: UsePermissionChecksOptions
+): UsePermissionChecksResult {
+  const checkAnyProject = options?.checkAnyProject === true
+
   const results = useQueries({
-    queries: checks.map((check) => ({
-      queryKey: ['authz', 'can_i', { action: check.action, resource_type: check.resourceType }] as const,
-      queryFn: () =>
-        accessFetchClient.POST('/authz/can_i', {
-          body: { action: check.action, resource_type: check.resourceType },
-        }),
-      staleTime: Infinity,
-      retry: false,
-    })),
+    queries: checks.map((check) => {
+      const body = {
+        action: check.action,
+        resource_type: check.resourceType,
+        ...(checkAnyProject ? { check_any_project: true as const } : {}),
+      }
+      return {
+        queryKey: ['authz', 'can_i', body] as const,
+        queryFn: () => accessFetchClient.POST('/authz/can_i', { body }),
+        staleTime: Infinity,
+        retry: false,
+      }
+    }),
   })
 
   const isLoading = results.some((r) => r.isLoading)

@@ -11,18 +11,27 @@ type AssignmentPermissions = {
   }
 }
 
+type UseAssignmentPermissionsOptions = {
+  /**
+   * When set, check assign/revoke against this concrete project.
+   * When omitted, use `check_any_project` (Assignments hub).
+   */
+  resourceProject?: string
+}
+
 /**
  * Permission checks for role assignment actions.
  *
- * Checks: role-assignment:assign, role-assignment:revoke.
- * All values default to `false` (safe-false) until the checks resolve.
- *
- * Used by the Assignments hub tab, RoleAssignmentsPanel (User/Group detail),
- * and ProjectRoleAssignmentsTab.
+ * Hub screens omit `resourceProject` (any-project). Project detail passes the
+ * concrete project so mixed-scope users do not get false-enabled buttons.
  */
-export function useAssignmentPermissions(): AssignmentPermissions {
-  const { allowed: canAssign, isChecking: isCheckingAssign } = useCanI('assign', 'role-assignment')
-  const { allowed: canRevoke, isChecking: isCheckingRevoke } = useCanI('revoke', 'role-assignment')
+export function useAssignmentPermissions(options?: UseAssignmentPermissionsOptions): AssignmentPermissions {
+  const canIOptions = options?.resourceProject
+    ? { resourceProject: options.resourceProject }
+    : { checkAnyProject: true as const }
+
+  const { allowed: canAssign, isChecking: isCheckingAssign } = useCanI('assign', 'role-assignment', canIOptions)
+  const { allowed: canRevoke, isChecking: isCheckingRevoke } = useCanI('revoke', 'role-assignment', canIOptions)
 
   return {
     canAssign,

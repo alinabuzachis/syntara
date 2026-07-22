@@ -153,6 +153,12 @@ export interface components {
        * @default
        */
       resource_project?: string
+      /**
+       * Check Any Project
+       * @description When true, allow if the user has the permission in any project (project-scoped policies match without a concrete resource_project). Mutually exclusive with a non-empty resource_project. Default false preserves strict project matching — empty resource_project alone is never a wildcard.
+       * @default false
+       */
+      check_any_project?: boolean
     }
     /**
      * Can I Response

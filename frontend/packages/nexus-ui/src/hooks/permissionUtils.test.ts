@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  hasPermissionAnywhere,
   hasPermissionGrant,
   isSystemScope,
   permissionKey,
@@ -109,5 +110,25 @@ describe('hasPermissionGrant', () => {
   it('returns false when effect is undefined', () => {
     const perms = [{ actions: ['approval:read'], scope: 'system' }]
     expect(hasPermissionGrant(perms, 'approval:read')).toBe(false)
+  })
+})
+
+describe('hasPermissionAnywhere', () => {
+  it('returns true when unscoped can_i allowed', () => {
+    expect(hasPermissionAnywhere(true, [], 'role-assignment:read')).toBe(true)
+  })
+
+  it('returns true when what_can_i has a project-scoped grant', () => {
+    const perms = [{ effect: 'allow', actions: ['role-assignment:read'], scope: 'project' }]
+    expect(hasPermissionAnywhere(false, perms, 'role-assignment:read')).toBe(true)
+  })
+
+  it('returns false for self-scoped grants when can_i denied', () => {
+    const perms = [{ effect: 'allow', actions: ['role-assignment:read'], scope: 'self' }]
+    expect(hasPermissionAnywhere(false, perms, 'role-assignment:read')).toBe(false)
+  })
+
+  it('returns false when both can_i and project grants deny', () => {
+    expect(hasPermissionAnywhere(false, [], 'role-assignment:read')).toBe(false)
   })
 })

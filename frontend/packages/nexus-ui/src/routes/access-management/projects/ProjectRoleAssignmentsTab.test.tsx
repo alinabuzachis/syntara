@@ -54,20 +54,18 @@ vi.mock('../../access/useRolePermissions', () => ({
   }),
 }))
 
-vi.mock('../../access/AddRoleDialog', () => ({
-  AddRoleDialog: ({
+vi.mock('./AddProjectRoleDialog', () => ({
+  AddProjectRoleDialog: ({
+    projectId,
     onClose,
     onSuccess,
-    defaultScope,
-    defaultProjectId,
   }: {
+    projectId: string
     onClose: () => void
     onSuccess: () => void
-    defaultScope?: string
-    defaultProjectId?: string
   }) => (
     <div>
-      Create role modal (scope: {defaultScope}, project: {defaultProjectId})
+      Create project role modal (project: {projectId})
       <button type="button" onClick={onSuccess}>
         Mock create success
       </button>
@@ -516,15 +514,13 @@ describe('ProjectRoleAssignmentsTab', () => {
     expect(screen.getByRole('button', { name: 'Create role' })).toBeInTheDocument()
   })
 
-  it('opens create role modal with project scope pre-populated', async () => {
+  it('opens create role modal for the project', async () => {
     const user = userEvent.setup()
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
 
     await user.click(screen.getByRole('button', { name: 'Create role' }))
 
-    expect(screen.getByText(/Create role modal/)).toBeInTheDocument()
-    expect(screen.getByText(/scope: project/)).toBeInTheDocument()
-    expect(screen.getByText(/project: proj-1/)).toBeInTheDocument()
+    expect(screen.getByText(/Create project role modal \(project: proj-1\)/)).toBeInTheDocument()
   })
 
   it('closes create role modal via onClose callback', async () => {
@@ -532,10 +528,10 @@ describe('ProjectRoleAssignmentsTab', () => {
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
 
     await user.click(screen.getByRole('button', { name: 'Create role' }))
-    expect(screen.getByText(/Create role modal/)).toBeInTheDocument()
+    expect(screen.getByText(/Create project role modal/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock close create modal' }))
-    expect(screen.queryByText(/Create role modal/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Create project role modal/)).not.toBeInTheDocument()
   })
 
   it('refetches data when create role reports success', async () => {

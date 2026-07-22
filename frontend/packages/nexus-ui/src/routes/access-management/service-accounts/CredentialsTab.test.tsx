@@ -136,14 +136,18 @@ describe('CredentialsTab', () => {
   })
 
   it('renders a table with credential data', () => {
-    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+      wrapper,
+    })
 
     expect(screen.getByText('client-id-abc')).toBeInTheDocument()
     expect(screen.getByText('client-id-def')).toBeInTheDocument()
   })
 
   it('renders column headers', () => {
-    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+      wrapper,
+    })
 
     expect(screen.getByRole('columnheader', { name: /client id/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /created/i })).toBeInTheDocument()
@@ -155,26 +159,34 @@ describe('CredentialsTab', () => {
   it('shows empty state when there are no credentials', () => {
     vi.mocked(accessClient.useQuery).mockReturnValue(buildQueryResult({ resources: [] }) as never)
 
-    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+      wrapper,
+    })
 
     expect(screen.getByText('No credentials yet')).toBeInTheDocument()
   })
 
   it('renders the Create credential button', () => {
-    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+      wrapper,
+    })
 
     expect(screen.getByRole('button', { name: 'Create credential' })).toBeInTheDocument()
   })
 
   it('renders status switches for each credential', () => {
-    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+      wrapper,
+    })
 
     expect(screen.getByRole('switch', { name: /toggle credential client-id-abc state/i })).toBeChecked()
     expect(screen.getByRole('switch', { name: /toggle credential client-id-def state/i })).not.toBeChecked()
   })
 
   it('shows Never for credentials without expiry date', () => {
-    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+    render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+      wrapper,
+    })
 
     const rows = screen.getAllByRole('row')
     const firstCredRow = rows.find((row) => within(row).queryByText('client-id-abc'))
@@ -185,7 +197,9 @@ describe('CredentialsTab', () => {
   describe('Delete credential flow', () => {
     it('shows confirmation dialog when delete is triggered', async () => {
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const kebab = screen.getByRole('button', { name: 'Actions for client-id-abc' })
       await user.click(kebab)
@@ -207,7 +221,9 @@ describe('CredentialsTab', () => {
       )
 
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const kebab = screen.getByRole('button', { name: 'Actions for client-id-abc' })
       await user.click(kebab)
@@ -229,7 +245,9 @@ describe('CredentialsTab', () => {
   describe('Rotate credential flow', () => {
     it('shows confirmation dialog with grace period select when rotate is triggered', async () => {
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const kebab = screen.getByRole('button', { name: 'Actions for client-id-abc' })
       await user.click(kebab)
@@ -253,7 +271,9 @@ describe('CredentialsTab', () => {
       )
 
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const kebab = screen.getByRole('button', { name: 'Actions for client-id-abc' })
       await user.click(kebab)
@@ -289,7 +309,7 @@ describe('CredentialsTab', () => {
       )
 
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" resourceProject="proj-1" />, { wrapper })
 
       const kebab = screen.getByRole('button', { name: 'Actions for client-id-abc' })
       await user.click(kebab)
@@ -325,7 +345,7 @@ describe('CredentialsTab', () => {
       vi.mocked(accessClient.useQuery).mockReturnValue(buildQueryResult({ resources: credsWithGracePeriod }) as never)
 
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" resourceProject="proj-1" />, { wrapper })
 
       const kebab = screen.getByRole('button', { name: 'Actions for client-id-abc' })
       await user.click(kebab)
@@ -342,7 +362,9 @@ describe('CredentialsTab', () => {
   describe('Disable credential flow', () => {
     it('shows confirmation dialog when toggling an active credential', async () => {
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const toggle = screen.getByRole('switch', { name: /toggle credential client-id-abc state/i })
       await user.click(toggle)
@@ -361,7 +383,9 @@ describe('CredentialsTab', () => {
       )
 
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const toggle = screen.getByRole('switch', { name: /toggle credential client-id-abc state/i })
       await user.click(toggle)
@@ -380,7 +404,9 @@ describe('CredentialsTab', () => {
       })
 
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const toggle = screen.getByRole('switch', { name: /toggle credential client-id-def state/i })
       await user.click(toggle)
@@ -396,7 +422,9 @@ describe('CredentialsTab', () => {
       })
 
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       await user.click(screen.getByRole('button', { name: 'Create credential' }))
 
@@ -418,7 +446,9 @@ describe('CredentialsTab', () => {
         buildQueryResult({ resources: maxCreds, max_credentials: 10, total_credentials: 10 }) as never
       )
 
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const createButton = screen.getByRole('button', { name: 'Create credential' })
       expect(createButton).toHaveAttribute('aria-disabled', 'true')
@@ -436,7 +466,9 @@ describe('CredentialsTab', () => {
       )
 
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const createButton = screen.getByRole('button', { name: 'Create credential' })
       await user.hover(createButton)
@@ -449,7 +481,9 @@ describe('CredentialsTab', () => {
 
   describe('Filtering', () => {
     it('shows dash for credentials with no last used date', () => {
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const rows = screen.getAllByRole('row')
       const secondCredRow = rows.find((row) => within(row).queryByText('client-id-def'))
@@ -459,7 +493,9 @@ describe('CredentialsTab', () => {
 
     it('passes status filter to the API query', async () => {
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const statusToggle = screen.getByRole('button', { name: 'Filter by status' })
       await user.click(statusToggle)
@@ -477,7 +513,9 @@ describe('CredentialsTab', () => {
 
     it('clears filters when clear all is clicked', async () => {
       const user = userEvent.setup()
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       const statusToggle = screen.getByRole('button', { name: 'Filter by status' })
       await user.click(statusToggle)
@@ -516,7 +554,9 @@ describe('CredentialsTab', () => {
         }) as never
       )
 
-      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, { wrapper })
+      render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />, {
+        wrapper,
+      })
 
       expect(screen.getByRole('heading', { name: 'Error loading credentials' })).toBeInTheDocument()
     })
@@ -524,9 +564,12 @@ describe('CredentialsTab', () => {
 
   describe('Accessibility', () => {
     it('has no accessibility violations with credentials table', async () => {
-      const { container } = render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, {
-        wrapper,
-      })
+      const { container } = render(
+        <CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />,
+        {
+          wrapper,
+        }
+      )
 
       const results = await axe(container)
       expect(results).toHaveNoViolations()
@@ -543,9 +586,12 @@ describe('CredentialsTab', () => {
         buildQueryResult({ resources: maxCreds, max_credentials: 10, total_credentials: 10 }) as never
       )
 
-      const { container } = render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, {
-        wrapper,
-      })
+      const { container } = render(
+        <CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />,
+        {
+          wrapper,
+        }
+      )
 
       const results = await axe(container)
       expect(results).toHaveNoViolations()
@@ -554,9 +600,12 @@ describe('CredentialsTab', () => {
     it('has no accessibility violations in empty state', async () => {
       vi.mocked(accessClient.useQuery).mockReturnValue(buildQueryResult({ resources: [] }) as never)
 
-      const { container } = render(<CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" />, {
-        wrapper,
-      })
+      const { container } = render(
+        <CredentialsTab serviceAccountId="sa-1" serviceAccountName="deploy-bot" resourceProject="proj-1" />,
+        {
+          wrapper,
+        }
+      )
 
       const results = await axe(container)
       expect(results).toHaveNoViolations()

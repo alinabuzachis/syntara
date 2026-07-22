@@ -13,17 +13,37 @@ type ProjectPermissions = {
   }
 }
 
+type UseProjectPermissionsOptions = {
+  /**
+   * Concrete project for row/detail update/delete checks.
+   * When omitted, only `project:create` is evaluated (hub chrome);
+   * update/delete stay safe-false until scoped per row.
+   */
+  resourceProject?: string
+}
+
 /**
  * Permission checks for project management actions.
  *
- * Checks: project:create, project:update, project:delete.
- * All values default to `false` (safe-false) until the checks resolve.
+ * - `project:create` stays unscoped `can_i` (system grant; creating a project
+ *   is not a project-scoped action).
+ * - `project:update` / `project:delete` require a concrete `resourceProject`
+ *   (never any-project for destructive UI).
  */
-export function useProjectPermissions(): ProjectPermissions {
+export function useProjectPermissions(options?: UseProjectPermissionsOptions): ProjectPermissions {
   const resourceType = 'project' as const
+  const resourceProject = options?.resourceProject
+  const hasProject = Boolean(resourceProject)
+
   const { allowed: canCreate, isChecking: isCheckingCreate } = useCanI('create', resourceType)
-  const { allowed: canUpdate, isChecking: isCheckingUpdate } = useCanI('update', resourceType)
-  const { allowed: canDelete, isChecking: isCheckingDelete } = useCanI('delete', resourceType)
+  const { allowed: canUpdate, isChecking: isCheckingUpdate } = useCanI('update', resourceType, {
+    resourceProject,
+    enabled: hasProject,
+  })
+  const { allowed: canDelete, isChecking: isCheckingDelete } = useCanI('delete', resourceType, {
+    resourceProject,
+    enabled: hasProject,
+  })
 
   return {
     canCreate,

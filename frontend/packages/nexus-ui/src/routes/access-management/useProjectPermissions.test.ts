@@ -46,7 +46,7 @@ describe('useProjectPermissions', () => {
     expect(result.current.isLoading).toBe(true)
   })
 
-  it('returns all true when API grants all permissions', async () => {
+  it('hub chrome only checks project:create', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
 
     const { result } = renderHook(() => useProjectPermissions(), { wrapper: createWrapper() })
@@ -55,27 +55,38 @@ describe('useProjectPermissions', () => {
       expect(result.current.isLoading).toBe(false)
     })
     expect(result.current.canCreate).toBe(true)
-    expect(result.current.canUpdate).toBe(true)
-    expect(result.current.canDelete).toBe(true)
-  })
-
-  it('calls can_i with correct action and resource_type', async () => {
-    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
-
-    renderHook(() => useProjectPermissions(), { wrapper: createWrapper() })
-
-    await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalledTimes(3)
-    })
+    expect(result.current.canUpdate).toBe(false)
+    expect(result.current.canDelete).toBe(false)
+    expect(accessFetchClient.POST).toHaveBeenCalledTimes(1)
     expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
       body: { action: 'create', resource_type: 'project' },
     })
+  })
+
+  it('scopes update/delete to a concrete resourceProject', async () => {
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+
+    const { result } = renderHook(() => useProjectPermissions({ resourceProject: 'proj-a' }), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.canUpdate).toBe(true)
+    expect(result.current.canDelete).toBe(true)
     expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'update', resource_type: 'project' },
+      body: { action: 'update', resource_type: 'project', resource_project: 'proj-a' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'delete', resource_type: 'project' },
+      body: { action: 'delete', resource_type: 'project', resource_project: 'proj-a' },
     })
+    const anyProjectCalls = (
+      vi.mocked(accessFetchClient.POST).mock.calls as unknown as Array<
+        [string, { body?: { check_any_project?: boolean } }]
+      >
+    ).filter(([, options]) => options.body?.check_any_project === true)
+    expect(anyProjectCalls).toHaveLength(0)
   })
 
   it('provides standardized tooltip messages', () => {
@@ -91,7 +102,9 @@ describe('useProjectPermissions', () => {
   it('returns safe defaults when requests fail', async () => {
     vi.mocked(accessFetchClient.POST).mockRejectedValue(new Error('network error'))
 
-    const { result } = renderHook(() => useProjectPermissions(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useProjectPermissions({ resourceProject: 'proj-a' }), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)

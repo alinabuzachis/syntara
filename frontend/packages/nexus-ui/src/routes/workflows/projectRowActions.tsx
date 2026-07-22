@@ -18,6 +18,8 @@ export function buildProjectRowActions(
 ): RowAction[] {
   // No actions for null projects (unknown project) or builtin projects
   if (!project || project.is_builtin) return []
+  // Hide the kebab entirely when the user cannot edit or delete (viewer/auditor).
+  if (!permissions.isLoading && !permissions.canUpdate && !permissions.canDelete) return []
 
   const noUpdate = permissions.canUpdate ? undefined : { content: permissions.tooltips.update }
   const noDelete = permissions.canDelete ? undefined : { content: permissions.tooltips.delete }

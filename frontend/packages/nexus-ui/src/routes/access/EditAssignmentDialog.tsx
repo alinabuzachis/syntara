@@ -13,10 +13,12 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@patternfly/react-core'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
+import { invalidateAuthzCaches } from '../../hooks/invalidateAuthzCaches'
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
 import { buildAssignmentBody } from '../access-management/RoleAssignmentTypes'
@@ -41,6 +43,7 @@ const editAssignmentSchema = z.object({
 type EditAssignmentFormData = z.infer<typeof editAssignmentSchema>
 
 export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: Readonly<EditAssignmentDialogProps>) {
+  const queryClient = useQueryClient()
   const { showSuccess } = useAlerts()
   const [isPending, setIsPending] = useState(false)
 
@@ -123,6 +126,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
       }
 
       showSuccess({ title: 'Assignment updated', description: `Updated role for ${displayName}` })
+      invalidateAuthzCaches(queryClient)
       onSuccess()
       onClose()
     } catch (error) {

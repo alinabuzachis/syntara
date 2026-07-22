@@ -138,6 +138,11 @@ class AuthzRequest:
     user_metadata: dict[str, Any] = field(default_factory=dict)
     groups: list[dict[str, Any]] | None = None
     resource_project: str = ""
+    # Advisory can_i only (POST /authz/can_i). When True, Rego matches
+    # project-scoped policies regardless of resource_project. Default False —
+    # empty resource_project alone must never act as a wildcard.
+    # PermissionChecker / enforcement paths must never set this True.
+    check_any_project: bool = False
 
 
 @dataclass
@@ -190,6 +195,7 @@ async def authorize(
             "type": request.resource_type,
             "id": request.resource_id,
             "project": request.resource_project,
+            "any_project": request.check_any_project,
             "metadata": request.resource_metadata,
             "labels": request.resource_labels,
         },

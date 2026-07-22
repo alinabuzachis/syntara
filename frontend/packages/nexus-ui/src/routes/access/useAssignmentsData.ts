@@ -1,5 +1,7 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
+import { invalidateAuthzCaches } from '../../hooks/invalidateAuthzCaches'
 import { useColumnSortState } from '../../hooks/useColumnSortState'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useAlerts } from '../../providers/alerts'
@@ -95,6 +97,7 @@ function sortRows(
 }
 
 export function useAssignmentsData() {
+  const queryClient = useQueryClient()
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
   const { activeSortIndex, sortDirection, getSortParams } = useColumnSortState(assignmentsSortFieldByColumn)
   const { showSuccess, showError } = useAlerts()
@@ -131,6 +134,7 @@ export function useAssignmentsData() {
 
   const refetchAll = () => {
     allAssignmentsQuery.refetch().catch(() => {})
+    invalidateAuthzCaches(queryClient)
   }
 
   const handleDelete = (row: PermissionRow, onSettled: () => void) => {

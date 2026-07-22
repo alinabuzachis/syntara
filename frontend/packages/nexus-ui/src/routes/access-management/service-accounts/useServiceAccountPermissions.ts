@@ -18,16 +18,42 @@ type ServiceAccountPermissions = {
   }
 }
 
-export function useServiceAccountPermissions(): ServiceAccountPermissions {
+type UseServiceAccountPermissionsOptions = {
+  /**
+   * Concrete project for detail/row actions. When omitted, only create uses
+   * `check_any_project` (hub chrome); update/delete/rotate stay safe-false.
+   */
+  resourceProject?: string
+}
+
+export function useServiceAccountPermissions(options?: UseServiceAccountPermissionsOptions): ServiceAccountPermissions {
   const resourceType = 'service_account' as const
-  const { allowed: canCreate, isChecking: isCheckingCreate, isError: isErrorCreate } = useCanI('create', resourceType)
-  const { allowed: canUpdate, isChecking: isCheckingUpdate, isError: isErrorUpdate } = useCanI('update', resourceType)
-  const { allowed: canDelete, isChecking: isCheckingDelete, isError: isErrorDelete } = useCanI('delete', resourceType)
+  const resourceProject = options?.resourceProject
+  const hasProject = Boolean(resourceProject)
+
+  const createOptions = hasProject ? { resourceProject } : { checkAnyProject: true as const }
+  const destructiveOptions = hasProject ? { resourceProject, enabled: true } : { enabled: false }
+
+  const {
+    allowed: canCreate,
+    isChecking: isCheckingCreate,
+    isError: isErrorCreate,
+  } = useCanI('create', resourceType, createOptions)
+  const {
+    allowed: canUpdate,
+    isChecking: isCheckingUpdate,
+    isError: isErrorUpdate,
+  } = useCanI('update', resourceType, destructiveOptions)
+  const {
+    allowed: canDelete,
+    isChecking: isCheckingDelete,
+    isError: isErrorDelete,
+  } = useCanI('delete', resourceType, destructiveOptions)
   const {
     allowed: canRotateSecret,
     isChecking: isCheckingRotate,
     isError: isErrorRotate,
-  } = useCanI('rotate_secret', resourceType)
+  } = useCanI('rotate_secret', resourceType, destructiveOptions)
 
   return useMemo(
     () => ({

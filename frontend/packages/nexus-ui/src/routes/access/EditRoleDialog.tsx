@@ -12,8 +12,10 @@ import {
   ModalHeader,
   TextInput,
 } from '@patternfly/react-core'
+import { useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 
+import { invalidateAuthzCaches } from '../../hooks/invalidateAuthzCaches'
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
 
@@ -30,6 +32,7 @@ type EditRoleDialogProps = {
 }
 
 export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDialogProps>) {
+  const queryClient = useQueryClient()
   const { showSuccess } = useAlerts()
 
   const {
@@ -63,6 +66,7 @@ export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDi
       {
         onSuccess: () => {
           showSuccess({ title: 'Role updated', description: 'Role updated successfully' })
+          invalidateAuthzCaches(queryClient)
           onSuccess()
           onClose()
         },

@@ -4832,11 +4832,21 @@ export const handlers = [
 
   // ── Authz ──────────────────────────────────────────────────────────
   // Returns role-appropriate permissions based on the user's access token.
+  // Honors check_any_project / resource_project for project-scoped personas
+  // (padmin / puser) so mock UI gates match real can_i semantics.
   http.post('/api/v1/authz/can_i', async ({ request }) => {
     const username = getUsernameFromRequest(request)
-    const body = (await request.json()) as { action?: string; resource_type?: string } | null
+    const body = (await request.json()) as {
+      action?: string
+      resource_type?: string
+      check_any_project?: boolean
+      resource_project?: string
+    } | null
     const action = (body?.action ?? '').toLowerCase()
     const resourceType = (body?.resource_type ?? '').toLowerCase()
+    const checkAnyProject = body?.check_any_project === true
+    const hasResourceProject = Boolean(body?.resource_project)
+    const projectContext = checkAnyProject || hasResourceProject
 
     if (!action || !resourceType) {
       return HttpResponse.json({
@@ -4863,7 +4873,31 @@ export const handlers = [
       'run',
       'decide',
       'rotate_secret',
+      'disable',
+      'enable',
     ])
+
+    const projectAdminGrants: Record<string, Set<string>> = {
+      project: new Set(['read', 'update', 'delete']),
+      'role-assignment': new Set(['read', 'assign', 'revoke']),
+      role: new Set(['read', 'create', 'update', 'delete']),
+      policy: new Set(['read', 'create', 'update', 'delete']),
+      service_account: new Set(['read', 'create', 'update', 'delete', 'rotate_secret', 'disable', 'enable']),
+      workflow: new Set(['read', 'create', 'update', 'delete']),
+      execution: new Set(['read', 'run']),
+      credential: new Set(['read', 'create', 'update', 'delete', 'use']),
+      approval: new Set(['read', 'decide']),
+    }
+
+    const projectUserGrants: Record<string, Set<string>> = {
+      project: new Set(['read']),
+      role: new Set(['read']),
+      policy: new Set(['read']),
+      workflow: new Set(['read', 'create', 'update', 'delete']),
+      execution: new Set(['read', 'run']),
+      credential: new Set(['read', 'create', 'update', 'use']),
+      approval: new Set(['read', 'decide']),
+    }
 
     let allowed = true
 
@@ -4896,6 +4930,19 @@ export const handlers = [
         allowed = false
       } else if (resourceType === 'user_identity') {
         allowed = false
+      }
+    } else if (username === 'padmin' || username === 'project-admin') {
+      // Project-admin: project-scoped grants only apply with project context.
+      if (!projectContext) {
+        allowed = false
+      } else {
+        allowed = projectAdminGrants[resourceType]?.has(action) ?? false
+      }
+    } else if (username === 'puser' || username === 'project-user') {
+      if (!projectContext) {
+        allowed = false
+      } else {
+        allowed = projectUserGrants[resourceType]?.has(action) ?? false
       }
     }
     // admin / demo / default: all actions allowed
@@ -4993,6 +5040,44 @@ export const handlers = [
     if (username === 'auditor') {
       return respond([
         { policy_name: 'auditor-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
+      ])
+    }
+
+    if (username === 'padmin' || username === 'project-admin') {
+      return respond([
+        {
+          policy_name: 'project-admin',
+          effect: 'allow',
+          actions: [
+            'project:read',
+            'project:update',
+            'role-assignment:read',
+            'role-assignment:assign',
+            'role-assignment:revoke',
+            'role:read',
+            'role:create',
+            'role:update',
+            'role:delete',
+            'service_account:read',
+            'service_account:create',
+            'service_account:update',
+            'service_account:delete',
+          ],
+          scope: 'project',
+          project: 'default',
+        },
+      ])
+    }
+
+    if (username === 'puser' || username === 'project-user') {
+      return respond([
+        {
+          policy_name: 'project-user',
+          effect: 'allow',
+          actions: ['project:read', 'workflow:read', 'workflow:create', 'role:read', 'policy:read'],
+          scope: 'project',
+          project: 'default',
+        },
       ])
     }
 

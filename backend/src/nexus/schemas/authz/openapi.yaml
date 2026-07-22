@@ -281,6 +281,16 @@ components:
           title: Resource Project
           default: ""
           description: Project scope of the resource (project name or UUID)
+        check_any_project:
+          type: boolean
+          title: Check Any Project
+          default: false
+          description: >
+            When true, allow if the user has the permission in any project
+            (project-scoped policies match without a concrete resource_project).
+            Mutually exclusive with a non-empty resource_project.
+            Default false preserves strict project matching — empty
+            resource_project alone is never a wildcard.
 
     CanIResponse:
       type: object

@@ -18,14 +18,14 @@ import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { downloadWorkflowExportById } from '../../utils/downloadWorkflowExport'
-import type { ProjectRead } from '../access/types'
-import { useProjectPermissions } from '../access-management/useProjectPermissions'
 
 import { buildProjectRowActions } from './projectRowActions'
 import { useDuplicateWorkflow } from './useDuplicateWorkflow'
 import { useProjectActions } from './useProjectActions'
 import { useWorkflowActions } from './useWorkflowActions'
+import { useWorkflowGrouping } from './useWorkflowGrouping'
 import { useWorkflowPermissions } from './useWorkflowPermissions'
+import { useWorkflowProjectControls } from './useWorkflowProjectControls'
 import { useWorkflowsPageToolbar } from './useWorkflowsPageToolbar'
 import { useWorkflowsQuery } from './useWorkflowsQuery'
 import { WorkflowDialogs } from './WorkflowDialogs'
@@ -83,7 +83,8 @@ export default function Workflows() {
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector, refetchProjects } =
     useProjectSelector()
   const permissions = useWorkflowPermissions()
-  const projectPermissions = useProjectPermissions()
+  const { projectPermissions, projectEditDialog, projectDeleteDialog, projectActionCallbacks } =
+    useWorkflowProjectControls(projects, selectedProjectId)
   const projectExtraParams = useMemo(
     () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
     [selectedProjectId]
@@ -105,8 +106,6 @@ export default function Workflows() {
   const publishDialog = useDialogState<Workflow>()
   const unpublishDialog = useDialogState<Workflow>()
   const [importDialogOpen, setImportDialogOpen] = useState(false)
-  const projectEditDialog = useDialogState<ProjectRead>()
-  const projectDeleteDialog = useDialogState<ProjectRead>()
 
   const { workflowsQuery, workflows } = useWorkflowsQuery({
     queryParams,
@@ -132,36 +131,11 @@ export default function Workflows() {
     onUnpublishSettled: () => unpublishDialog.close(),
   })
 
-  const builtinProjectIds = useMemo(() => new Set(projects.filter((p) => p.is_builtin).map((p) => p.id)), [projects])
-  const sortedWorkflows = useMemo(() => {
-    if (!isAllProjects) return workflows
-    return workflows.filter((w) => {
-      const pid = w.project_id
-      return !builtinProjectIds.has(pid)
-    })
-  }, [workflows, isAllProjects, builtinProjectIds])
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
-
-  const groupedWorkflows = useMemo(() => {
-    if (!isAllProjects) return null
-    const groups = new Map<string, { project: (typeof projects)[number] | null; workflows: Workflow[] }>()
-    for (const workflow of sortedWorkflows) {
-      const projectId = workflow.project_id
-      if (!groups.has(projectId)) {
-        groups.set(projectId, {
-          project: projects.find((p) => p.id === projectId) ?? null,
-          workflows: [],
-        })
-      }
-      groups.get(projectId)!.workflows.push(workflow)
-    }
-    return groups
-  }, [sortedWorkflows, projects, isAllProjects])
-
-  const toggleProjectCollapsed = (projectId: string) =>
-    setCollapsedProjects((prev) =>
-      prev.has(projectId) ? new Set([...prev].filter((id) => id !== projectId)) : new Set([...prev, projectId])
-    )
+  const { sortedWorkflows, groupedWorkflows, collapsedProjects, toggleProjectCollapsed } = useWorkflowGrouping(
+    workflows,
+    projects,
+    isAllProjects
+  )
 
   useCursorReset(sortedWorkflows.length, hasActiveFilters, cursor, workflowsQuery.isFetching, resetPagination)
 
@@ -182,17 +156,16 @@ export default function Workflows() {
     onSuccess: () => detachPromise(workflowsQuery.refetch()),
   })
 
-  const { getProjectActions, headerProjectActions, showWorkflowActions, showImportWorkflow, showToolbar } =
-    useWorkflowsPageToolbar({
-      isAllProjects,
-      selectedProjectId,
-      projects,
-      sortedWorkflowsLength: sortedWorkflows.length,
-      hasActiveFilters,
-      projectEditDialog,
-      projectDeleteDialog,
-      projectPermissions,
-    })
+  const { headerProjectActions, showWorkflowActions, showImportWorkflow, showToolbar } = useWorkflowsPageToolbar({
+    isAllProjects,
+    selectedProjectId,
+    projects,
+    sortedWorkflowsLength: sortedWorkflows.length,
+    hasActiveFilters,
+    projectEditDialog,
+    projectDeleteDialog,
+    projectPermissions,
+  })
 
   const getRowActions = (workflow: Workflow) =>
     buildWorkflowRowActions(workflow, permissions, {
@@ -260,7 +233,7 @@ export default function Workflows() {
               collapsedProjects={collapsedProjects}
               onToggleProject={toggleProjectCollapsed}
               getRowActions={getRowActions}
-              getProjectActions={getProjectActions}
+              projectActionCallbacks={projectActionCallbacks}
             />
           </NxListPanel>
         </NxPageBody>

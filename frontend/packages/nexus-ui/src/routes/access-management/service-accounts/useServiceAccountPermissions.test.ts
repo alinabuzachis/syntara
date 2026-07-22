@@ -46,7 +46,7 @@ describe('useServiceAccountPermissions', () => {
     expect(result.current.isLoading).toBe(true)
   })
 
-  it('returns all true when API grants all permissions', async () => {
+  it('hub chrome only checks create with check_any_project', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
 
     const { result } = renderHook(() => useServiceAccountPermissions(), { wrapper: createWrapper() })
@@ -55,31 +55,47 @@ describe('useServiceAccountPermissions', () => {
       expect(result.current.isLoading).toBe(false)
     })
     expect(result.current.canCreate).toBe(true)
+    expect(result.current.canUpdate).toBe(false)
+    expect(result.current.canDelete).toBe(false)
+    expect(result.current.canRotateSecret).toBe(false)
+    expect(accessFetchClient.POST).toHaveBeenCalledTimes(1)
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'create', resource_type: 'service_account', check_any_project: true },
+    })
+  })
+
+  it('scopes destructive actions to resourceProject on detail/row screens', async () => {
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+
+    const { result } = renderHook(() => useServiceAccountPermissions({ resourceProject: 'proj-1' }), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.canCreate).toBe(true)
     expect(result.current.canUpdate).toBe(true)
     expect(result.current.canDelete).toBe(true)
     expect(result.current.canRotateSecret).toBe(true)
-  })
-
-  it('calls can_i with correct action and resource_type', async () => {
-    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
-
-    renderHook(() => useServiceAccountPermissions(), { wrapper: createWrapper() })
-
-    await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalledTimes(4)
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'create', resource_type: 'service_account', resource_project: 'proj-1' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'create', resource_type: 'service_account' },
+      body: { action: 'update', resource_type: 'service_account', resource_project: 'proj-1' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'update', resource_type: 'service_account' },
+      body: { action: 'delete', resource_type: 'service_account', resource_project: 'proj-1' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'delete', resource_type: 'service_account' },
+      body: { action: 'rotate_secret', resource_type: 'service_account', resource_project: 'proj-1' },
     })
-    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'rotate_secret', resource_type: 'service_account' },
-    })
+    const anyProjectCalls = (
+      vi.mocked(accessFetchClient.POST).mock.calls as unknown as Array<
+        [string, { body?: { check_any_project?: boolean } }]
+      >
+    ).filter(([, options]) => options.body?.check_any_project === true)
+    expect(anyProjectCalls).toHaveLength(0)
   })
 
   it('provides standardized tooltip messages', () => {
@@ -96,7 +112,9 @@ describe('useServiceAccountPermissions', () => {
   it('returns safe defaults when requests fail', async () => {
     vi.mocked(accessFetchClient.POST).mockRejectedValue(new Error('network error'))
 
-    const { result } = renderHook(() => useServiceAccountPermissions(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useServiceAccountPermissions({ resourceProject: 'proj-1' }), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)

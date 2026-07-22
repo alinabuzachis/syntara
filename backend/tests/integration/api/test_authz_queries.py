@@ -22,10 +22,17 @@ from nexus.authz.dependencies import get_authz_evaluator
 from nexus.authz.evaluator import evaluate_policy_input
 from nexus.authz.models import RoleAssignment
 from nexus.authz.models.policy import Policy
+from nexus.authz.models.project import Project
 from nexus.authz.models.role import Role
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
-from tests.integration.api.conftest import make_admin, make_auditor, make_user_role
+from tests.integration.api.conftest import (
+    make_admin,
+    make_auditor,
+    make_project_admin,
+    make_project_user,
+    make_user_role,
+)
 
 
 async def _fetch_all_what_can_i(client: AsyncClient) -> list[dict[str, Any]]:
@@ -172,6 +179,111 @@ async def test_can_i_project_scoped(
     permissions = await _fetch_all_what_can_i(auth_client)
     project_perms = [p for p in permissions if p["scope"] == "project" and p["project"] == project_name]
     assert len(project_perms) > 0
+
+
+@pytest.mark.asyncio
+async def test_can_i_check_any_project(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+    auth_as: Callable[[User], None],
+) -> None:
+    """AAP-83294: check_any_project matches project-scoped grants without resource_project."""
+    admin = await user_factory(username="admin-any-proj", email="admin-any-proj@test.com")
+    proj_admin = await user_factory(username="padmin-any-proj", email="padmin-any-proj@test.com")
+    await make_admin(test_db_session, admin)
+
+    auth_as(admin)
+    response = await auth_client.post("/api/v1/projects", json={"name": "can-i-any-project"})
+    assert response.status_code == 201
+    project_name = response.json()["name"]
+    project = (await test_db_session.exec(select(Project).where(Project.name == project_name))).first()
+    assert project is not None
+    await make_project_admin(test_db_session, proj_admin, project)
+
+    auth_as(proj_admin)
+
+    # Unscoped can_i (no resource_project, flag false) must not match project grants.
+    unscoped = await auth_client.post(
+        "/api/v1/authz/can_i",
+        json={"action": "read", "resource_type": "role-assignment"},
+    )
+    assert unscoped.status_code == 200
+    assert unscoped.json()["allowed"] is False
+
+    # Concrete project still matches.
+    scoped = await auth_client.post(
+        "/api/v1/authz/can_i",
+        json={
+            "action": "read",
+            "resource_type": "role-assignment",
+            "resource_project": project_name,
+        },
+    )
+    assert scoped.status_code == 200
+    assert scoped.json()["allowed"] is True
+
+    # Explicit any-project check unlocks the same permission for hub/nav gates.
+    any_project = await auth_client.post(
+        "/api/v1/authz/can_i",
+        json={
+            "action": "read",
+            "resource_type": "role-assignment",
+            "check_any_project": True,
+        },
+    )
+    assert any_project.status_code == 200
+    assert any_project.json()["allowed"] is True
+
+
+@pytest.mark.asyncio
+async def test_can_i_rejects_mixed_any_project_and_resource_project(
+    auth_client: AsyncClient,
+) -> None:
+    """AAP-83294: check_any_project and resource_project are mutually exclusive."""
+    response = await auth_client.post(
+        "/api/v1/authz/can_i",
+        json={
+            "action": "read",
+            "resource_type": "role-assignment",
+            "resource_project": "some-project",
+            "check_any_project": True,
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_can_i_check_any_project_denied_for_project_user(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+    auth_as: Callable[[User], None],
+) -> None:
+    """AAP-83294: project-user must not unlock AM hub via check_any_project."""
+    admin = await user_factory(username="admin-puser-any", email="admin-puser-any@test.com")
+    proj_user = await user_factory(username="puser-any", email="puser-any@test.com")
+    await make_admin(test_db_session, admin)
+
+    auth_as(admin)
+    response = await auth_client.post("/api/v1/projects", json={"name": "can-i-puser-any"})
+    assert response.status_code == 201
+    project_name = response.json()["name"]
+    project = (await test_db_session.exec(select(Project).where(Project.name == project_name))).first()
+    assert project is not None
+    await make_project_user(test_db_session, proj_user, project)
+
+    auth_as(proj_user)
+    any_project = await auth_client.post(
+        "/api/v1/authz/can_i",
+        json={
+            "action": "read",
+            "resource_type": "role-assignment",
+            "check_any_project": True,
+        },
+    )
+    assert any_project.status_code == 200
+    assert any_project.json()["allowed"] is False
 
 
 @pytest.mark.asyncio
