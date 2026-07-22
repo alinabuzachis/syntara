@@ -1,39 +1,27 @@
 import { ExecutorTypeEnum, type Activity, type TaskActivity } from '@ansible/nexus-contracts'
 
+import { generateUUID } from '../../../utils/generateUUID'
+import { PROTOTYPE_POLLUTION_KEYS, safeJSONReviver } from '../../../utils/jsonSafeParse'
 import { parseJsonEnvironment } from '../../../utils/parseJsonEnvironment'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 
-/**
- * SECURITY: JSON.parse reviver that strips prototype pollution keys during parsing.
- */
-export function safeJSONReviver(key: string, value: unknown): unknown {
-  if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-    return undefined
-  }
-  return value
-}
+export { safeJSONReviver }
 
 /**
- * Parses a JSON object for HTTP headers: plain object with string values only.
- * Returns undefined if the input is not valid for API headers.
+ * Convert key-value entries from the form into a flat headers object.
+ * Skips entries with empty keys and prototype pollution keys.
  */
-function parseHttpHeadersJson(json: string): Record<string, string> | undefined {
-  try {
-    const parsed: unknown = JSON.parse(json, safeJSONReviver)
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return undefined
-    }
-    const out: Record<string, string> = {}
-    for (const [key, value] of Object.entries(parsed)) {
-      if (typeof value !== 'string') {
-        return undefined
-      }
-      out[key] = value
-    }
-    return out
-  } catch {
-    return undefined
+function headersEntriesToRecord(
+  entries: Array<{ key: string; value: string }> | undefined
+): Record<string, string> | undefined {
+  if (!entries?.length) return undefined
+
+  const result: Record<string, string> = {}
+  for (const { key, value } of entries) {
+    const trimmedKey = key.trim()
+    if (trimmedKey && !PROTOTYPE_POLLUTION_KEYS.has(trimmedKey)) result[trimmedKey] = value
   }
+  return Object.keys(result).length > 0 ? result : undefined
 }
 
 export function buildRegistryActionInitialData(
@@ -53,7 +41,11 @@ export function buildRegistryActionInitialData(
     url: executor === ExecutorTypeEnum.HTTP_REQUEST ? (parameters.url as string | undefined) : undefined,
     headers:
       executor === ExecutorTypeEnum.HTTP_REQUEST && parameters.headers
-        ? JSON.stringify(parameters.headers, null, 2)
+        ? Object.entries(parameters.headers as Record<string, string>).map(([key, value]) => ({
+            id: generateUUID(),
+            key,
+            value: String(value),
+          }))
         : undefined,
     body: (() => {
       if (executor !== ExecutorTypeEnum.HTTP_REQUEST || !parameters.body) {
@@ -70,8 +62,7 @@ export function buildRegistryActionInitialData(
 }
 
 export function buildRegistryActivityUpdate(taskData: TaskActivity, data: RegistryActionFormData): Activity {
-  const apiHeaders =
-    data.executor === ExecutorTypeEnum.HTTP_REQUEST && data.headers ? parseHttpHeadersJson(data.headers) : undefined
+  const apiHeaders = data.executor === ExecutorTypeEnum.HTTP_REQUEST ? headersEntriesToRecord(data.headers) : undefined
 
   let mergedApiHeaders: Record<string, string> | undefined
   if (data.executor !== ExecutorTypeEnum.HTTP_REQUEST || !data.authentication) {

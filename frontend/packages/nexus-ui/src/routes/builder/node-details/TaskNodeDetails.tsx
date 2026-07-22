@@ -18,6 +18,8 @@ import {
   useWorkflowStoreActions,
 } from '../../../stores/useWorkflowStore'
 import type { AAPJobTemplateConfig } from '../../../stores/workflowFactories'
+import { generateUUID } from '../../../utils/generateUUID'
+import { PROTOTYPE_POLLUTION_KEYS } from '../../../utils/jsonSafeParse'
 import { parseJsonEnvironment } from '../../../utils/parseJsonEnvironment'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 import { AAPJobTemplateForm } from '../node-forms/AAPJobTemplateForm'
@@ -99,50 +101,35 @@ function hasJobTemplateConfig(config: Record<string, unknown>): config is Stored
 }
 
 /**
- * Parse and validate headers JSON, returning parsed object or null on error.
- * Shows error alert if JSON is invalid.
- * Returns undefined if headersJSON is undefined (no headers provided).
- * Returns null if JSON parsing fails (validation error).
+ * Convert key-value entries from the form into a flat headers object.
+ * Skips entries with empty keys and prototype pollution keys.
  */
-function parseHeaders(
-  headersJSON: string | undefined,
-  showError: (options: AlertMessage) => void
-): Record<string, string> | undefined | null {
-  if (!headersJSON) return undefined
+function parseHeaders(entries: Array<{ key: string; value: string }> | undefined): Record<string, string> | undefined {
+  if (!entries?.length) return undefined
 
-  try {
-    return JSON.parse(headersJSON, safeJSONReviver) as Record<string, string>
-  } catch {
-    showError({
-      title: 'Invalid headers format',
-      description:
-        'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type":"application/json"}',
-    })
-    return null
+  const result: Record<string, string> = {}
+  for (const { key, value } of entries) {
+    const trimmedKey = key.trim()
+    if (trimmedKey && !PROTOTYPE_POLLUTION_KEYS.has(trimmedKey)) result[trimmedKey] = value
   }
+  return Object.keys(result).length > 0 ? result : undefined
 }
 
 /**
  * Build activity config and validate form data for submission.
- * Returns config object or null if validation fails.
  */
 function buildActivityConfig(
-  data: RegistryActionFormData,
-  showError: (options: AlertMessage) => void
+  data: RegistryActionFormData
 ):
   | { language: string; code: string; credential_id?: string }
-  | { method: string; url: string; headers?: Record<string, string>; body?: unknown; credential_id?: string }
-  | null {
+  | { method: string; url: string; headers?: Record<string, string>; body?: unknown; credential_id?: string } {
   const isScript = data.executor === ExecutorTypeEnum.SCRIPT
 
   if (isScript) {
     return buildScriptConfig(data)
   }
 
-  // HTTP Request validation and building
-  const parsedHeaders = parseHeaders(data.headers, showError)
-  if (parsedHeaders === null) return null // Validation failed
-
+  const parsedHeaders = parseHeaders(data.headers)
   const mergedHeaders = mergeAuthHeaders(parsedHeaders, data.authentication)
   return buildHTTPConfig(data, mergedHeaders)
 }
@@ -431,7 +418,14 @@ function buildExecutorInitialData(
     parameters: isScript && config.environment ? JSON.stringify(config.environment, null, 2) : undefined,
     method: isHTTP ? (config.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | undefined) : undefined,
     url: isHTTP ? (config.url as string | undefined) : undefined,
-    headers: isHTTP && config.headers ? JSON.stringify(config.headers, null, 2) : undefined,
+    headers:
+      isHTTP && config.headers
+        ? Object.entries(config.headers as Record<string, string>).map(([key, value]) => ({
+            id: generateUUID(),
+            key,
+            value: String(value),
+          }))
+        : undefined,
     body: serializedBody,
     credential_id:
       (config as { credentialId?: string; credential_id?: string }).credentialId ??
@@ -509,8 +503,7 @@ export function TaskNodeDetails({
 
   const handleSubmit = (data: RegistryActionFormData) => {
     try {
-      const config = buildActivityConfig(data, showError)
-      if (!config) return // Validation failed
+      const config = buildActivityConfig(data)
 
       const updatedActivity = {
         ...taskData,

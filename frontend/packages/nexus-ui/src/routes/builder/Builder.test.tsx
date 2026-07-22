@@ -127,15 +127,14 @@ describe('Builder Workflow Store Helpers', () => {
       expect(activity.parameters.body).toBeUndefined()
     })
 
-    it('creates API activity with valid JSON headers', async () => {
+    it('creates API activity with header entries', async () => {
       const { createApiActivity } = await import('../../stores/useWorkflowStore')
-      const headers = JSON.stringify({ 'Content-Type': 'application/json' })
       const activity = createApiActivity({
         id: 'api-2',
         name: 'POST Data',
         method: 'POST',
         url: 'https://api.example.com/data',
-        headers,
+        headers: [{ id: 'h1', key: 'Content-Type', value: 'application/json' }],
       })
 
       expect(activity.parameters.headers).toEqual({ 'Content-Type': 'application/json' })
@@ -155,14 +154,14 @@ describe('Builder Workflow Store Helpers', () => {
       expect(activity.parameters.body).toEqual({ name: 'Test' })
     })
 
-    it('handles invalid JSON headers gracefully', async () => {
+    it('skips header entries with empty keys', async () => {
       const { createApiActivity } = await import('../../stores/useWorkflowStore')
       const activity = createApiActivity({
         id: 'api-4',
         name: 'POST Data',
         method: 'POST',
         url: 'https://api.example.com/data',
-        headers: 'invalid-json',
+        headers: [{ id: 'h1', key: '', value: 'ignored' }],
       })
 
       expect(activity.parameters.headers).toBeUndefined()

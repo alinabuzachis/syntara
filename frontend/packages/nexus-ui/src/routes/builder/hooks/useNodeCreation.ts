@@ -23,7 +23,7 @@ export type ActionFormData = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   url?: string
   authentication?: string
-  headers?: string
+  headers?: Array<{ id: string; key: string; value: string }>
   body?: string
   parameters?: string
   requiresApproval?: boolean

@@ -22,6 +22,12 @@ const optionalJsonObjectSchema = z
     { message: 'Must be a valid JSON object with string values, e.g. {"MY_VAR": "value"}' }
   )
 
+const keyValueEntrySchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  value: z.string(),
+})
+
 const scriptActionSchema = z.object({
   executor: z.literal(ExecutorTypeEnum.SCRIPT),
   name: z.string(),
@@ -30,7 +36,7 @@ const scriptActionSchema = z.object({
   method: httpMethodSchema.optional(),
   url: z.string().optional(),
   authentication: z.string().optional(), // backward compat — old workflows may have this
-  headers: z.string().optional(),
+  headers: z.array(keyValueEntrySchema).optional(),
   body: z.string().optional(),
   parameters: optionalJsonObjectSchema,
   credential_id: z.string().optional(),
@@ -45,7 +51,7 @@ const apiActionSchema = z.object({
   method: httpMethodSchema.optional(),
   url: z.string().optional(),
   authentication: z.string().optional(), // backward compat — old workflows may have this
-  headers: z.string().optional(),
+  headers: z.array(keyValueEntrySchema).optional(),
   body: z.string().optional(),
   parameters: z.string().optional(),
   credential_id: z.string().optional(),

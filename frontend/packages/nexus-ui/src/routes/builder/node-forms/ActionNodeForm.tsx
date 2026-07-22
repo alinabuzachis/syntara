@@ -31,6 +31,7 @@ import { useIsVersionView } from '../VersionViewContext'
 
 import { actionFormSchema, type ActionFormData, type ActionFormValues } from './actionFormSchema'
 import { HttpCredentialSection, HttpUrlField, type ActionFormMethods } from './httpCredentialSection'
+import { KeyValueFields } from './KeyValueFields'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
@@ -309,15 +310,13 @@ function ActionParametersContent(props: ActionParametersContentProps) {
             </FormGroup>
           </StackItem>
           <StackItem>
-            <FormGroup label="Headers" fieldId="action-headers">
-              <TextArea
-                {...register('headers')}
-                id="action-headers"
-                placeholder='{"Content-Type": "application/json"}'
-                rows={2}
-                isDisabled={isVersionView}
-              />
-            </FormGroup>
+            <Controller
+              control={control}
+              name="headers"
+              render={({ field }) => (
+                <KeyValueFields entries={field.value ?? []} onChange={field.onChange} isDisabled={isVersionView} />
+              )}
+            />
           </StackItem>
           <StackItem>
             <FormGroup label="Body" fieldId="action-body">

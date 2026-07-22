@@ -55,7 +55,7 @@ describe('taskNodeSubmitHelpers', () => {
       expect(data.executor).toBe(ExecutorTypeEnum.HTTP_REQUEST)
       expect(data.method).toBe('GET')
       expect(data.url).toBe('https://example.com')
-      expect(data.headers).toContain('X-Test')
+      expect(data.headers).toEqual([expect.objectContaining({ key: 'X-Test', value: '1' })])
       expect(data.body).toContain('foo')
     })
 
@@ -111,13 +111,13 @@ describe('taskNodeSubmitHelpers', () => {
       expect((activity.parameters as { code: string }).code).toBe('pass')
     })
 
-    it('parses headers and merges authentication for http_request', () => {
+    it('converts header entries and merges authentication for http_request', () => {
       const data: ActionFormData = {
         name: 'H',
         executor: ExecutorTypeEnum.HTTP_REQUEST,
         method: 'POST',
         url: 'https://api',
-        headers: '{"X-A":"1"}',
+        headers: [{ id: 'h1', key: 'X-A', value: '1' }],
         authentication: 'Bearer t',
       }
       const activity = buildRegistryActivityUpdate(baseTask, data)
@@ -125,13 +125,13 @@ describe('taskNodeSubmitHelpers', () => {
       expect(config.headers).toEqual({ 'X-A': '1', Authorization: 'Bearer t' })
     })
 
-    it('uses only Authorization when headers JSON is invalid but authentication is set', () => {
+    it('uses only Authorization when headers are empty but authentication is set', () => {
       const data: ActionFormData = {
         name: 'H',
         executor: ExecutorTypeEnum.HTTP_REQUEST,
         method: 'GET',
         url: 'https://api',
-        headers: 'not json',
+        headers: [],
         authentication: 'Basic x',
       }
       const activity = buildRegistryActivityUpdate(baseTask, data)
@@ -139,32 +139,38 @@ describe('taskNodeSubmitHelpers', () => {
       expect(config.headers).toEqual({ Authorization: 'Basic x' })
     })
 
-    it('treats JSON null and non-string header values as absent headers', () => {
-      const nullHeaders: ActionFormData = {
+    it('skips entries with empty keys', () => {
+      const data: ActionFormData = {
         name: 'H',
         executor: ExecutorTypeEnum.HTTP_REQUEST,
         method: 'GET',
         url: 'https://api',
-        headers: 'null',
+        headers: [
+          { id: 'h1', key: '', value: 'ignored' },
+          { id: 'h2', key: 'Accept', value: 'application/json' },
+        ],
         authentication: 'Bearer t',
       }
-      const nullActivity = buildRegistryActivityUpdate(baseTask, nullHeaders)
-      expect((nullActivity.parameters as { headers: Record<string, string> }).headers).toEqual({
+      const activity = buildRegistryActivityUpdate(baseTask, data)
+      expect((activity.parameters as { headers: Record<string, string> }).headers).toEqual({
+        Accept: 'application/json',
         Authorization: 'Bearer t',
       })
+    })
 
-      const badValue: ActionFormData = {
+    it('returns undefined headers when all entries have empty keys', () => {
+      const data: ActionFormData = {
         name: 'H',
         executor: ExecutorTypeEnum.HTTP_REQUEST,
         method: 'GET',
         url: 'https://api',
-        headers: '{"a":1}',
-        authentication: 'Bearer t',
+        headers: [
+          { id: 'h1', key: '', value: 'ignored' },
+          { id: 'h2', key: '  ', value: 'also ignored' },
+        ],
       }
-      const badActivity = buildRegistryActivityUpdate(baseTask, badValue)
-      expect((badActivity.parameters as { headers: Record<string, string> }).headers).toEqual({
-        Authorization: 'Bearer t',
-      })
+      const activity = buildRegistryActivityUpdate(baseTask, data)
+      expect((activity.parameters as { headers?: unknown }).headers).toBeUndefined()
     })
 
     it('parses JSON body and falls back to raw string when invalid', () => {

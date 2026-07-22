@@ -45,7 +45,7 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
             executor: 'http_request',
             method: 'POST',
             url: 'https://api.test.com',
-            headers: '{"Content-Type": "application/json"}',
+            headers: [{ id: 'h1', key: 'Content-Type', value: 'application/json' }],
             body: '{"data": "test"}',
           })
         }
@@ -74,7 +74,7 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
             executor: 'http_request',
             method: 'POST',
             url: 'https://api.test.com',
-            headers: '{ invalid json',
+            headers: [{ id: 'h1', key: '', value: 'ignored' }],
           })
         }
         data-testid="submit-api-invalid-headers-button"
@@ -485,6 +485,23 @@ describe('TaskNodeDetails Component', () => {
     )
   })
 
+  it('loads stored headers into initial data for http_request', () => {
+    const taskData = {
+      type: 'http_request' as const,
+      id: 'task-api-headers',
+      name: 'API With Headers',
+      parameters: {
+        method: 'POST' as const,
+        url: 'https://api.example.com',
+        headers: { Accept: 'application/json', 'X-Custom': 'value' },
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-api-headers')
+
+    expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
+  })
+
   it('stores credential_id in snake_case in workflow config (AAP-73929)', async () => {
     const user = userEvent.setup()
     const taskData = {
@@ -623,7 +640,7 @@ describe('TaskNodeDetails Component', () => {
     expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })
 
-  it('shows error when submitting API form with invalid headers JSON', async () => {
+  it('skips header entries with empty keys when submitting', async () => {
     const user = userEvent.setup()
     const taskData = {
       type: 'http_request' as const,
@@ -639,15 +656,10 @@ describe('TaskNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('submit-api-invalid-headers-button'))
 
-    // Invalid headers JSON should show an error and prevent save
-    expect(mockShowError).toHaveBeenCalledWith({
-      title: 'Invalid headers format',
-      description:
-        'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type":"application/json"}',
-    })
-
-    // updateActivity should NOT be called when headers are invalid
-    expect(mockUpdateActivity).not.toHaveBeenCalled()
+    // Empty-key entries are silently skipped, activity still updates
+    expect(mockUpdateActivity).toHaveBeenCalled()
+    const updatedActivity = mockUpdateActivity.mock.calls[0][1] as { parameters: { headers?: unknown } }
+    expect(updatedActivity.parameters.headers).toBeUndefined()
   })
 
   it('renders AAPWorkflowTemplateForm for aap_workflow_job_template task', () => {

@@ -327,7 +327,7 @@ describe('workflowFactories', () => {
           name: 'API Call',
           method: 'POST',
           url: 'https://api.example.com',
-          headers: '{"Authorization": "Bearer token"}',
+          headers: [{ id: 'h1', key: 'Authorization', value: 'Bearer token' }],
         })
 
         expect(activity.parameters.headers).toEqual({ Authorization: 'Bearer token' })
@@ -339,7 +339,7 @@ describe('workflowFactories', () => {
           name: 'API Call',
           method: 'GET',
           url: 'https://api.example.com',
-          headers: '{"Content-Type": "application/json"}',
+          headers: [{ id: 'h1', key: 'Content-Type', value: 'application/json' }],
           authentication: 'Bearer token',
         })
 
@@ -373,13 +373,13 @@ describe('workflowFactories', () => {
         expect(activity.parameters.body).toBe('plain text body')
       })
 
-      it('ignores invalid JSON headers', () => {
+      it('skips header entries with empty keys', () => {
         const activity = createApiActivity({
           id: 'api-1',
           name: 'API Call',
           method: 'GET',
           url: 'https://api.example.com',
-          headers: 'invalid json',
+          headers: [{ id: 'h1', key: '', value: 'ignored' }],
         })
 
         expect(activity.parameters.headers).toBeUndefined()

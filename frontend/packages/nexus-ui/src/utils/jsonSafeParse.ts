@@ -2,11 +2,13 @@
  * Shared utilities for safely parsing JSON with prototype pollution protection.
  */
 
+export const PROTOTYPE_POLLUTION_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
 /**
  * SECURITY: JSON.parse reviver that strips prototype pollution keys during parsing.
  */
 export function safeJSONReviver(key: string, value: unknown): unknown {
-  if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+  if (PROTOTYPE_POLLUTION_KEYS.has(key)) {
     return undefined
   }
   return value

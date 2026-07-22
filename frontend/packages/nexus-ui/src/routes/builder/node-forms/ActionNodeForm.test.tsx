@@ -130,7 +130,7 @@ describe('ActionNodeForm', () => {
           executor: 'http_request',
           method: 'POST',
           url: 'https://example.com/api',
-          headers: '{"X-Custom": "header"}',
+          headers: [{ id: 'h1', key: 'X-Custom', value: 'header' }],
           body: '{"data": "test"}',
         }}
       />
@@ -138,7 +138,8 @@ describe('ActionNodeForm', () => {
 
     expect(screen.getByDisplayValue('Existing API')).toBeInTheDocument()
     expect(screen.getByDisplayValue('https://example.com/api')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('{"X-Custom": "header"}')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('X-Custom')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('header')).toBeInTheDocument()
     expect(screen.getByDisplayValue('{"data": "test"}')).toBeInTheDocument()
   })
 

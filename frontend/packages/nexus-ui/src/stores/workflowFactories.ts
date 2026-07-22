@@ -7,7 +7,7 @@ import {
   type NodeSettings,
 } from '@ansible/nexus-contracts'
 
-import { safeJSONReviver } from '../utils/jsonSafeParse'
+import { PROTOTYPE_POLLUTION_KEYS, safeJSONReviver } from '../utils/jsonSafeParse'
 import { parseJsonEnvironment } from '../utils/parseJsonEnvironment'
 
 import type { ActivityWithMetadata } from './workflowStoreTypes'
@@ -200,12 +200,19 @@ export type CreateApiActivityOptions = {
   name: string
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   url?: string
-  headers?: string
+  headers?: Array<{ id: string; key: string; value: string }>
   body?: string
   inputs?: string
   authentication?: string
   credentialId?: string
   settings?: NodeSettings
+}
+
+function headersEntriesToRecord(entries: Array<{ key: string; value: string }> | undefined) {
+  if (!entries?.length) return undefined
+  const safe = entries.filter(({ key }) => key.trim() && !PROTOTYPE_POLLUTION_KEYS.has(key.trim()))
+  if (!safe.length) return undefined
+  return Object.fromEntries(safe.map(({ key, value }) => [key.trim(), value])) as Record<string, string>
 }
 
 /**
@@ -218,13 +225,9 @@ export function createApiActivity(options: CreateApiActivityOptions): Activity {
     ...(url !== undefined && { url }),
   }
 
-  if (headers) {
-    try {
-      // SECURITY: Use reviver to strip prototype pollution keys
-      config.headers = JSON.parse(headers, safeJSONReviver) as { [key: string]: string }
-    } catch {
-      // If headers is not valid JSON, skip it
-    }
+  const headerRecord = headersEntriesToRecord(headers)
+  if (headerRecord) {
+    config.headers = headerRecord
   }
 
   if (authentication) {
