@@ -141,7 +141,7 @@ class TestStreamingEndToEnd:
                 "invocation_id": str(invocation_id),
                 "timestamp": datetime.now(UTC).isoformat(),
                 "data": {
-                    "type": "https://api.nexus.com/errors/llm-error",
+                    "type": "https://api.example.com/errors/llm-error",
                     "title": "LLM Service Unavailable",
                     "detail": "OpenRouter API returned error: rate limit exceeded",
                     "code": "RATE_LIMIT_EXCEEDED",

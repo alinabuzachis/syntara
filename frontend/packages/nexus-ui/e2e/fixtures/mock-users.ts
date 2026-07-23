@@ -9,7 +9,7 @@
 export const BUILT_IN_ADMIN_USER_INFO = {
   id: 'f5a7b8c9-d0e1-2345-fabc-456789012345',
   username: 'admin',
-  email: 'admin@nexus.local',
+  email: 'admin@example.com',
   groups: ['admins', 'platform-admins', 'authenticated'],
   rp_logout_enabled: false,
 }
@@ -17,7 +17,7 @@ export const BUILT_IN_ADMIN_USER_INFO = {
 export const BUILT_IN_ADMIN_USER_READ = {
   id: 'f5a7b8c9-d0e1-2345-fabc-456789012345',
   username: 'admin',
-  email: 'admin@nexus.local',
+  email: 'admin@example.com',
   first_name: 'Administrator',
   is_enabled: true,
   is_builtin: true,
@@ -32,7 +32,7 @@ export const BUILT_IN_ADMIN_USER_JWT_TOKEN = `eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmN
 export const AAP_ADMIN_USER_INFO = {
   id: '81a49ff5-79a1-4737-ab8e-a897720cf3e7',
   username: 'admin-aap',
-  email: 'admin@nexus.aap',
+  email: 'admin@example.com',
   groups: ['admins', 'platform-admins', 'authenticated'],
   rp_logout_enabled: false,
 }
@@ -40,7 +40,7 @@ export const AAP_ADMIN_USER_INFO = {
 export const AAP_ADMIN_USER_READ = {
   id: '81a49ff5-79a1-4737-ab8e-a897720cf3e7',
   username: 'admin-aap',
-  email: 'admin@nexus.aap',
+  email: 'admin@example.com',
   first_name: 'admin',
   is_enabled: true,
   is_builtin: false,

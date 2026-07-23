@@ -21,9 +21,9 @@ _AAP_API = f"{_AAP_URL}/api/gateway/v1"
 
 def _mock_settings() -> MagicMock:
     settings = MagicMock()
-    settings.jwt_issuer = "https://nexus.example.com"
-    settings.post_logout_redirect_uri = "https://nexus.example.com"
-    settings.cors_allow_origins = ["https://nexus.example.com"]
+    settings.jwt_issuer = "https://example.com"
+    settings.post_logout_redirect_uri = "https://example.com"
+    settings.cors_allow_origins = ["https://example.com"]
     return settings
 
 
@@ -140,7 +140,7 @@ class TestSetupHappyPath:
         await service.setup(_make_request())
 
         create_arg = idp_service.create_provider.call_args[0][0]
-        assert str(create_arg.configuration.redirect_uri) == "https://nexus.example.com/api/v1/auth/oidc/callback"
+        assert str(create_arg.configuration.redirect_uri) == "https://example.com/api/v1/auth/oidc/callback"
 
     @pytest.mark.asyncio
     @respx.mock
@@ -379,7 +379,7 @@ class TestOAuth2AppPayload:
         assert body["authorization_grant_type"] == "authorization-code"
         assert body["algorithm"] == "RS256"
         assert body["skip_authorization"] is True
-        assert body["app_url"] == "https://nexus.example.com"
+        assert body["app_url"] == "https://example.com"
         assert "redirect_uris" in body
 
     @pytest.mark.asyncio
@@ -391,8 +391,8 @@ class TestOAuth2AppPayload:
         import json
 
         settings = _mock_settings()
-        settings.post_logout_redirect_uri = "https://nexus.example.com"
-        settings.cors_allow_origins = ["https://nexus.example.com", "https://frontend.example.com"]
+        settings.post_logout_redirect_uri = "https://example.com"
+        settings.cors_allow_origins = ["https://example.com", "https://frontend.example.com"]
 
         service = _make_service(settings=settings)
         await service.setup(_make_request())
@@ -402,8 +402,8 @@ class TestOAuth2AppPayload:
         assert uris == {
             "https://frontend.example.com",
             "https://frontend.example.com/",
-            "https://nexus.example.com",
-            "https://nexus.example.com/",
+            "https://example.com",
+            "https://example.com/",
         }
 
     @pytest.mark.asyncio

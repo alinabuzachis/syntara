@@ -521,7 +521,7 @@ The error body uses the `ErrorData` model:
 
 | Field | Type | Description |
 |---|---|---|
-| `type` | `str` (URI) | Problem type identifier (e.g., `https://api.nexus.com/errors/validation-error`) |
+| `type` | `str` (URI) | Problem type identifier (e.g., `https://api.example.com/errors/validation-error`) |
 | `title` | `str` | Human-readable error category |
 | `detail` | `str` | Specific error message (safe to display to end users) |
 | `code` | `str` | Machine-readable error code (e.g., `VALIDATION_ERROR`) |
@@ -547,7 +547,7 @@ All list parameter validation errors are raised as `SafeValueError` (messages ar
 
 ```json
 {
-  "type": "https://api.nexus.com/errors/validation-error",
+  "type": "https://api.example.com/errors/validation-error",
   "title": "Validation Error",
   "detail": "Invalid field: bogus_field",
   "code": "VALIDATION_ERROR",

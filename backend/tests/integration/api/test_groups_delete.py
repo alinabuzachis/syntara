@@ -57,7 +57,7 @@ class TestGroupsDeleteContract:
         assert response.status_code == 404
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-not-found",
+            error_type="https://api.example.com/errors/resource-not-found",
             title="Group Not Found",
             detail="The requested group was not found",
             code="GROUP_NOT_FOUND",
@@ -117,7 +117,7 @@ class TestGroupsDeleteContract:
         assert response.status_code == 403
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/forbidden",
+            error_type="https://api.example.com/errors/forbidden",
             title="Forbidden",
             detail=f"The built-in '{group_name}' group cannot be deleted",
             code="BUILTIN_GROUP_DELETE_FORBIDDEN",

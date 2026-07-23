@@ -51,7 +51,7 @@ export const users: UserRead[] = [
   {
     id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     username: 'demo',
-    email: 'demo@nexus.local',
+    email: 'demo@example.com',
     first_name: 'Demo',
     last_name: 'Admin',
     is_enabled: true,
@@ -64,7 +64,7 @@ export const users: UserRead[] = [
   {
     id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
     username: 'jdoe',
-    email: 'jdoe@nexus.local',
+    email: 'jdoe@example.com',
     first_name: 'John',
     last_name: 'Doe',
     is_enabled: true,
@@ -77,7 +77,7 @@ export const users: UserRead[] = [
   {
     id: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
     username: 'asmith',
-    email: 'asmith@nexus.local',
+    email: 'asmith@example.com',
     first_name: 'Alice',
     last_name: 'Smith',
     is_enabled: true,
@@ -90,7 +90,7 @@ export const users: UserRead[] = [
   {
     id: 'd4e5f6a7-b8c9-0123-defa-234567890123',
     username: 'viewer1',
-    email: 'viewer1@nexus.local',
+    email: 'viewer1@example.com',
     first_name: 'View',
     last_name: 'Only',
     is_enabled: true,
@@ -103,7 +103,7 @@ export const users: UserRead[] = [
   {
     id: 'e5f6a7b8-c9d0-1234-efab-345678901234',
     username: 'inactive_user',
-    email: 'inactive@nexus.local',
+    email: 'inactive@example.com',
     first_name: 'Inactive',
     last_name: 'User',
     is_enabled: false,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/aap_job_template",
+  "$id": "https://automation.example.com/schemas/workflows/v2/executors/aap_job_template",
   "title": "AAP Job Template Node",
   "description": "Launch Ansible Automation Platform job templates",
   "parameterSchema": {

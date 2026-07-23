@@ -330,7 +330,7 @@ class TestToolsListContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Validation Error",
             detail="Invalid value 'nonexistent' for field 'status'. Valid values are: available, missing, error",
             code="VALIDATION_ERROR",

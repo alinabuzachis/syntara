@@ -20,7 +20,7 @@ import { APP_TITLE } from './helpers/appTitle'
 const USER_MANAGEMENT_ACCESS_URL = '/system-administration/access-management/users'
 
 const UNAUTHORIZED_RESPONSE = {
-  type: 'https://api.nexus.com/errors/unauthorized',
+  type: 'https://api.example.com/errors/unauthorized',
   title: 'Unauthorized',
   detail: 'Authentication required',
   code: 'AUTHENTICATION_REQUIRED',

@@ -310,7 +310,7 @@ export async function createUserViaApi(
       token,
       data: {
         username: options.username,
-        email: options.email ?? `${options.username}@nexus-e2e.redhat.com`,
+        email: options.email ?? `${options.username}@e2e.example.com`,
         first_name: options.username,
         password: options.password,
       },

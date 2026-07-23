@@ -71,7 +71,7 @@ class TestUsersGetContract:
         assert response.status_code == 404
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-not-found",
+            error_type="https://api.example.com/errors/resource-not-found",
             title="User Not Found",
             detail="The requested user was not found",
             code="USER_NOT_FOUND",

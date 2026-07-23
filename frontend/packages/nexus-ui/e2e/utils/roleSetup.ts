@@ -135,7 +135,7 @@ export async function setupRoleUsers(request: APIRequestContext): Promise<RoleSe
 
       const user = await postJson(request, api('/users'), headers, {
         username: prefix,
-        email: `${prefix}@nexus-e2e.redhat.com`,
+        email: `${prefix}@e2e.example.com`,
         first_name: `E2E ${role}`,
         password,
       })

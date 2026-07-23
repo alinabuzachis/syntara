@@ -136,7 +136,7 @@ Follow RFC 9457 Problem Details structure:
   "timestamp": "2026-04-06T12:34:56.789Z",
   "event_id": null,
   "data": {
-    "type": "https://api.nexus.com/errors/llm-error",
+    "type": "https://api.example.com/errors/llm-error",
     "title": "LLM Service Unavailable",
     "detail": "OpenRouter API returned error: rate limit exceeded",
     "code": "RATE_LIMIT_EXCEEDED",
@@ -388,7 +388,7 @@ from nexus.core.models.error import ErrorData
 
 # Raise in validation methods
 error_data = ErrorData(
-    type="https://api.nexus.com/errors/resource-not-found",
+    type="https://api.example.com/errors/resource-not-found",
     title="Invocation Not Found",
     detail=f"Invocation {invocation_id} does not exist",
     code="INVOCATION_NOT_FOUND",

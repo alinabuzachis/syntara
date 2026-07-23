@@ -37,7 +37,7 @@ class ErrorData(SQLModel):
         description="URI reference identifying the problem type",
         min_length=1,
         max_length=500,
-        examples=["https://api.nexus.com/errors/llm-error"],
+        examples=["https://api.example.com/errors/llm-error"],
     )
 
     title: str = PydanticField(
@@ -79,7 +79,7 @@ class ErrorData(SQLModel):
         json_schema_extra={
             "examples": [
                 {
-                    "type": "https://api.nexus.com/errors/llm-error",
+                    "type": "https://api.example.com/errors/llm-error",
                     "title": "LLM Rate Limit Exceeded",
                     "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
                     "code": "RATE_LIMIT_EXCEEDED",
@@ -87,7 +87,7 @@ class ErrorData(SQLModel):
                     "instance": _EXAMPLE_INVOCATION_PATH,
                 },
                 {
-                    "type": "https://api.nexus.com/errors/timeout-error",
+                    "type": "https://api.example.com/errors/timeout-error",
                     "title": "Streaming Timeout",
                     "detail": "LLM streaming timed out after 30 seconds",
                     "code": "STREAM_TIMEOUT",

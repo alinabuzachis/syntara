@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/switch",
+  "$id": "https://automation.example.com/schemas/workflows/v2/control-nodes/switch",
   "title": "Switch Node",
   "description": "Multi-case expression-based branching",
   "parameterSchema": {

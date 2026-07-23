@@ -135,7 +135,7 @@ class BaseWebSocketStreamingHandler(ABC):
 
         """
         error_data = ErrorData(
-            type="https://api.nexus.com/errors/cache-stream-not-found",
+            type="https://api.example.com/errors/cache-stream-not-found",
             title="Cache Stream Not Found",
             detail=f"Cache stream {stream_id} does not exist",
             code="CACHE_STREAM_NOT_FOUND",
@@ -357,7 +357,7 @@ class BaseWebSocketStreamingHandler(ABC):
                 detail_prefix = "An unexpected error occurred during streaming: "
                 error_msg = str(error)[: max_detail - len(detail_prefix)]
                 error_data = ErrorData(
-                    type="https://api.nexus.com/errors/internal-error",
+                    type="https://api.example.com/errors/internal-error",
                     title="Internal Server Error",
                     detail=f"{detail_prefix}{error_msg}",
                     code="INTERNAL_ERROR",

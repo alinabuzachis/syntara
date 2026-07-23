@@ -1140,7 +1140,7 @@ On success, the response also includes:
 | `APP_ADMIN_PASSWORD_PATH` | — | Path to file containing bootstrap admin password (migration skips seeding if unset; can also use `uv run python tools/set_admin_password.py`) |
 | `APP_ADMIN_PASSWORD` | — | Admin password value (used by `generate_secrets.sh` only) |
 | `APP_SERVER_SCHEME` | `https` | URL scheme for the constructed server URL (`https` for production, `http` for local dev). Used in the JWT issuer and post-logout redirect when `APP_SERVER_PUBLIC_URL` is not set. Also controls the `Secure` flag on the refresh cookie (HTTPS → `Secure=true`, HTTP → `Secure=false`) |
-| `APP_SERVER_PUBLIC_URL` | — | Public base URL for this Nexus instance (e.g., `https://nexus.example.com:8000`). Must be a valid URL. Used as the JWT issuer (`iss` claim), post-logout redirect, and frontend origin fallback. If not set, falls back to `{APP_SERVER_SCHEME}://{APP_SERVER_HOST}:{APP_SERVER_PORT}`. Required when the server binds to `0.0.0.0` or runs behind a reverse proxy |
+| `APP_SERVER_PUBLIC_URL` | — | Public base URL for this Nexus instance (e.g., `https://example.com:8000`). Must be a valid URL. Used as the JWT issuer (`iss` claim), post-logout redirect, and frontend origin fallback. If not set, falls back to `{APP_SERVER_SCHEME}://{APP_SERVER_HOST}:{APP_SERVER_PORT}`. Required when the server binds to `0.0.0.0` or runs behind a reverse proxy |
 | `APP_COOKIE_DOMAIN` | — | `Domain` attribute for refresh cookie |
 | `APP_CORS_ALLOW_ORIGINS` | `[]` | Allowed origins for CORS and OIDC redirect validation. Wildcard `*` is rejected when credentials are enabled |
 | `APP_CORS_ALLOW_CREDENTIALS` | `true` | Allow credentials (cookies) in CORS requests |

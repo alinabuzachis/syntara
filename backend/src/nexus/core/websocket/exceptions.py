@@ -46,7 +46,7 @@ class EventsExpiredError(StreamingValidationError):
 
         """
         error_data = ErrorData(
-            type="https://api.nexus.com/errors/events-expired",
+            type="https://api.example.com/errors/events-expired",
             title="Streaming Events Expired",
             detail=(
                 f"Streaming events have expired. Events are only retained for a limited time. "
@@ -72,7 +72,7 @@ class WaitForStreamTimeoutError(StreamingValidationError):
 
         """
         error_data = ErrorData(
-            type="https://api.nexus.com/errors/timeout-error",
+            type="https://api.example.com/errors/timeout-error",
             title="Streaming Timeout",
             detail=f"Timeout waiting for streaming to start. Resource status: {resource_status}",
             code="STREAM_TIMEOUT",

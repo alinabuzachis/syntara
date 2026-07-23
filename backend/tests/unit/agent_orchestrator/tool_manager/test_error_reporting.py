@@ -173,7 +173,7 @@ class TestErrorReporting:
             return_value=httpx.Response(
                 404,
                 json={
-                    "type": "https://nexus.com/problems/tool-not-found",
+                    "type": "https://example.com/problems/tool-not-found",
                     "title": "Tool Not Found",
                     "status": 404,
                     "detail": f"Tool with ID {tool_id} not found",
@@ -244,7 +244,7 @@ class TestErrorReporting:
             return_value=httpx.Response(
                 400,
                 json={
-                    "type": "https://nexus.com/problems/validation-error",
+                    "type": "https://example.com/problems/validation-error",
                     "title": "Validation Error",
                     "status": 400,
                     "detail": "Invalid status value provided",
@@ -285,7 +285,7 @@ class TestErrorReporting:
             return_value=httpx.Response(
                 409,
                 json={
-                    "type": "https://nexus.com/problems/concurrent-modification",
+                    "type": "https://example.com/problems/concurrent-modification",
                     "title": "Concurrent Modification",
                     "status": 409,
                     "detail": "Tool was modified by another process",
@@ -403,7 +403,7 @@ class TestErrorReporting:
             return_value=httpx.Response(
                 404,
                 json={
-                    "type": "https://nexus.com/problems/provider-not-found",
+                    "type": "https://example.com/problems/provider-not-found",
                     "title": "Provider Not Found",
                     "status": 404,
                     "detail": f"Provider with ID {provider_id} not found",

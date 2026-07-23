@@ -63,7 +63,7 @@ class TestGroupsGetContract:
         assert response.status_code == 404
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-not-found",
+            error_type="https://api.example.com/errors/resource-not-found",
             title="Group Not Found",
             detail="The requested group was not found",
             code="GROUP_NOT_FOUND",

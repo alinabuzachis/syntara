@@ -1725,7 +1725,7 @@ describe('Workflows Component', () => {
       const user = userEvent.setup()
       vi.mocked(workflowFetchClient.GET).mockResolvedValue(
         mockGetResponse(undefined, {
-          type: 'https://api.nexus.com/errors/workflow-not-found',
+          type: 'https://api.example.com/errors/workflow-not-found',
           title: 'Workflow Not Found',
           detail: 'Workflow not found',
           code: 'WORKFLOW_NOT_FOUND',
@@ -1762,7 +1762,7 @@ describe('Workflows Component', () => {
 
       vi.mocked(workflowFetchClient.POST).mockResolvedValue(
         mockPostResponse(undefined, {
-          type: 'https://api.nexus.com/errors/name-conflict',
+          type: 'https://api.example.com/errors/name-conflict',
           title: 'Workflow Name Conflict',
           detail: 'Name conflict',
           code: 'WORKFLOW_NAME_CONFLICT',

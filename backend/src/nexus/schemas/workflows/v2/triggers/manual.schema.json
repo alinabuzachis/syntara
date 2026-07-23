@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/triggers/manual",
+  "$id": "https://automation.example.com/schemas/workflows/v2/triggers/manual",
   "title": "Manual Trigger Node",
   "description": "Workflow entry point triggered manually with user-provided inputs",
   "parameterSchema": {

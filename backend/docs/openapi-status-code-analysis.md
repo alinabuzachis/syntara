@@ -107,7 +107,7 @@ Our error handling implementation now returns:
 ### Current Implementation Format (RFC 9457)
 ```json
 {
-  "type": "https://api.nexus.com/errors/validation-error",
+  "type": "https://api.example.com/errors/validation-error",
   "title": "Validation Error",
   "detail": "Field 'name' must be between 1 and 255 characters",
   "code": "VALIDATION_ERROR",
@@ -132,7 +132,7 @@ Our error handling implementation now returns:
       schema:
         $ref: '../base/shared-resources.openapi.yaml#/components/schemas/ErrorData'
       example:
-        type: "https://api.nexus.com/errors/name-conflict"
+        type: "https://api.example.com/errors/name-conflict"
         title: "Workflow Name Conflict"
         detail: "A workflow with this name already exists"
         code: "WORKFLOW_NAME_CONFLICT"

@@ -27,7 +27,7 @@ from nexus.workflows.validators.template_expressions import check_template_expre
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
 
 _SCHEMA_DIR = SCHEMA_DIR / "workflows" / "v2"
-_BASE_URI = "https://syntara-orchestration.io/schemas/workflows/v2/"
+_BASE_URI = "https://automation.example.com/schemas/workflows/v2/"
 _FEEDBACK_PORTS: frozenset[str] = frozenset({"iterate"})
 
 

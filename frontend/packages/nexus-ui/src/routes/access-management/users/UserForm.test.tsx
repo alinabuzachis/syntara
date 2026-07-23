@@ -102,7 +102,7 @@ function setupCreateMocks(mutateOverrides?: Partial<ReturnType<typeof vi.fn>>) {
 const mockUserData = {
   id: VALID_UUID,
   username: 'jdoe',
-  email: 'jdoe@nexus.local',
+  email: 'jdoe@example.com',
   first_name: 'John',
   last_name: 'Doe',
   is_enabled: true,
@@ -174,7 +174,7 @@ describe('UserForm', () => {
       await user.type(screen.getByRole('textbox', { name: 'Username' }), 'newuser')
       await user.type(screen.getByRole('textbox', { name: 'First Name' }), 'New')
       await user.type(screen.getByRole('textbox', { name: 'Last Name' }), 'User')
-      await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@nexus.local')
+      await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@example.com')
       await user.type(screen.getByLabelText('Password'), COMPLIANT_TEST_PASSWORD)
 
       await user.click(screen.getByRole('button', { name: 'Create user' }))
@@ -187,7 +187,7 @@ describe('UserForm', () => {
       expect(callArgs[0]).toEqual({
         body: {
           username: 'newuser',
-          email: 'new@nexus.local',
+          email: 'new@example.com',
           first_name: 'New',
           last_name: 'User',
           password: COMPLIANT_TEST_PASSWORD,
@@ -205,7 +205,7 @@ describe('UserForm', () => {
       await user.type(screen.getByRole('textbox', { name: 'Username' }), 'newuser')
       await user.type(screen.getByRole('textbox', { name: 'First Name' }), 'New')
       await user.type(screen.getByRole('textbox', { name: 'Last Name' }), 'User')
-      await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@nexus.local')
+      await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@example.com')
       await user.type(screen.getByLabelText('Password'), COMPLIANT_TEST_PASSWORD)
 
       await user.click(screen.getByRole('button', { name: 'Create user' }))
@@ -233,7 +233,7 @@ describe('UserForm', () => {
       await user.type(screen.getByRole('textbox', { name: 'Username' }), 'newuser')
       await user.type(screen.getByRole('textbox', { name: 'First Name' }), 'New')
       await user.type(screen.getByRole('textbox', { name: 'Last Name' }), 'User')
-      await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@nexus.local')
+      await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@example.com')
       await user.type(screen.getByLabelText('Password'), COMPLIANT_TEST_PASSWORD)
 
       await user.click(screen.getByRole('button', { name: 'Create user' }))
@@ -339,7 +339,7 @@ describe('UserForm', () => {
       // Change the email field
       const emailInput = screen.getByRole('textbox', { name: 'Email' })
       await user.clear(emailInput)
-      await user.type(emailInput, 'updated@nexus.local')
+      await user.type(emailInput, 'updated@example.com')
 
       await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -354,7 +354,7 @@ describe('UserForm', () => {
           username: 'jdoe',
           first_name: 'John',
           last_name: 'Doe',
-          email: 'updated@nexus.local',
+          email: 'updated@example.com',
           is_enabled: true,
         },
       })

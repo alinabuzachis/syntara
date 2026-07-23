@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/script",
+  "$id": "https://automation.example.com/schemas/workflows/v2/executors/script",
   "title": "Script Node",
   "description": "Execute scripts in various languages (TEMPORARY - added for initial testing)",
   "parameterSchema": {

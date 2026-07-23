@@ -46,7 +46,7 @@ test.describe('Login form error handling', () => {
         status: 401,
         contentType: 'application/json',
         body: JSON.stringify({
-          type: 'https://api.nexus.com/errors/unauthorized',
+          type: 'https://api.example.com/errors/unauthorized',
           title: 'Unauthorized',
           detail: 'Authentication required',
           code: 'AUTHENTICATION_REQUIRED',
@@ -85,7 +85,7 @@ test.describe('Login form error handling', () => {
           status: 401,
           contentType: 'application/json',
           body: JSON.stringify({
-            type: 'https://api.nexus.com/errors/unauthorized',
+            type: 'https://api.example.com/errors/unauthorized',
             title: 'Unauthorized',
             detail: 'Authentication required',
             code: 'AUTHENTICATION_REQUIRED',

@@ -45,7 +45,7 @@ class TestAddMember:
         assert response.status_code == 409
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-conflict",
+            error_type="https://api.example.com/errors/resource-conflict",
             title="Membership Conflict",
             detail="The user is already a member of this group",
             code="USER_ALREADY_IN_GROUP",
@@ -132,7 +132,7 @@ class TestRemoveMember:
         assert response.status_code == 404
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-not-found",
+            error_type="https://api.example.com/errors/resource-not-found",
             title="Membership Not Found",
             detail="The user is not a member of this group",
             code="USER_NOT_IN_GROUP",

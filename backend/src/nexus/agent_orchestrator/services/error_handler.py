@@ -9,7 +9,7 @@ from uuid import UUID
 from nexus.core.models.error import ErrorData
 
 # Base URI for error types
-ERROR_TYPE_BASE_URI = "https://api.nexus.com/errors"
+ERROR_TYPE_BASE_URI = "https://api.example.com/errors"
 
 
 def _build_instance_uri(invocation_id: UUID | None) -> str | None:
@@ -55,7 +55,7 @@ def classify_streaming_error(exception: Exception, invocation_id: UUID | None = 
     Examples:
         >>> error = classify_streaming_error(TimeoutError())
         >>> error.type
-        'https://api.nexus.com/errors/timeout-error'
+        'https://api.example.com/errors/timeout-error'
         >>> error.retryable
         True
 

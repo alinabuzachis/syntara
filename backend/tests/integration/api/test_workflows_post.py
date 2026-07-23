@@ -85,7 +85,7 @@ async def test_post_workflow_missing_name(jwt_client: AsyncClient, test_project_
     assert response.status_code == 422  # Pydantic validation errors return 422
     assert_error_data(
         response,
-        error_type="https://api.nexus.com/errors/validation-error",
+        error_type="https://api.example.com/errors/validation-error",
         title="Request Validation Error",
         detail="Validation failed: name: Field required",
         code="REQUEST_VALIDATION_ERROR",
@@ -112,7 +112,7 @@ async def test_post_workflow_missing_project_id(jwt_client: AsyncClient) -> None
     assert response.status_code == 422
     assert_error_data(
         response,
-        error_type="https://api.nexus.com/errors/validation-error",
+        error_type="https://api.example.com/errors/validation-error",
         title="Request Validation Error",
         detail="Validation failed: project_id: Field required",
         code="REQUEST_VALIDATION_ERROR",
@@ -268,7 +268,7 @@ async def test_post_workflow_with_labels_not_strings(jwt_client: AsyncClient, te
     assert response.status_code == 422
     assert_error_data(
         response,
-        error_type="https://api.nexus.com/errors/validation-error",
+        error_type="https://api.example.com/errors/validation-error",
         title="Request Validation Error",
         detail="Validation failed: labels: labels value for key 'invalid' must be a string, got int",
         code="REQUEST_VALIDATION_ERROR",
@@ -297,7 +297,7 @@ async def ***REMOVED***(jwt_client: AsyncClient, test_project_id: str) -> None:
     assert response.status_code == 422
     assert_error_data(
         response,
-        error_type="https://api.nexus.com/errors/validation-error",
+        error_type="https://api.example.com/errors/validation-error",
         title="Request Validation Error",
         detail="Validation failed: description: String should have at most 2000 characters",
         code="REQUEST_VALIDATION_ERROR",

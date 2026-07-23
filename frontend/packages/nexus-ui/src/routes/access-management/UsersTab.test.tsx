@@ -84,7 +84,7 @@ describe('UsersTab Component', () => {
     {
       id: 'u2',
       username: 'jdoe',
-      email: 'jdoe@nexus.local',
+      email: 'jdoe@example.com',
       first_name: 'John',
       last_name: 'Doe',
       is_enabled: true,
@@ -97,7 +97,7 @@ describe('UsersTab Component', () => {
     {
       id: 'u3',
       username: 'viewer1',
-      email: 'viewer@nexus.local',
+      email: 'viewer@example.com',
       first_name: 'View',
       last_name: 'Only',
       is_enabled: false,
@@ -368,7 +368,7 @@ describe('UsersTab Component', () => {
               {
                 id: 'u-no-sources',
                 username: 'nosources',
-                email: 'no@nexus.local',
+                email: 'no@example.com',
                 first_name: 'No',
                 last_name: 'Sources',
                 is_enabled: true,

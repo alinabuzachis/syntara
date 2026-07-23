@@ -339,7 +339,7 @@ servers:
     protocol: ws
     description: Local development server
   production:
-    host: api.nexus.example.com
+    host: api.automation.example.com
     protocol: wss
     description: Production server with TLS
 
@@ -634,7 +634,7 @@ servers:
     protocol: ws
     description: Local development server
   production:
-    host: api.nexus.example.com
+    host: api.automation.example.com
     protocol: wss
     description: Production server with TLS
 

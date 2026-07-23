@@ -169,7 +169,7 @@ describe('useWorkflowVerification', () => {
     mockPost.mockResolvedValue({
       data: undefined,
       error: {
-        type: 'https://api.nexus.com/errors/validation-error',
+        type: 'https://api.example.com/errors/validation-error',
         title: 'Workflow Definition Invalid',
         detail: 'The workflow definition failed validation',
         code: 'WORKFLOW_DEFINITION_INVALID',

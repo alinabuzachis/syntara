@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/workflow_definition",
+  "$id": "https://automation.example.com/schemas/workflows/v2/workflow_definition",
   "title": "Workflow Definition Schema v2",
   "description": "JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2",
   "type": "object",

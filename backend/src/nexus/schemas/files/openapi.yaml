@@ -26,7 +26,7 @@ info:
 
   contact:
     name: API Support
-    email: support@syntara-orchestration.example.com
+    email: support@automation.example.com
 
 servers:
   - url: /api/v1

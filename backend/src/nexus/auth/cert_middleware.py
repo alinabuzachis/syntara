@@ -82,7 +82,7 @@ async def _send_403(send: Any, detail: str) -> None:  # noqa: ANN401
     """Send a raw ASGI 403 response with RFC 9457 problem+json body."""
     body = json.dumps(
         {
-            "type": "https://api.nexus.com/errors/certificate-validation-failed",
+            "type": "https://api.example.com/errors/certificate-validation-failed",
             "title": "Certificate Validation Failed",
             "status": 403,
             "detail": detail,

@@ -507,7 +507,7 @@ describe('EditIntegrationForm', () => {
           configuration: {
             integration_type: 'llm_provider',
             provider_hint: 'red_hat_ai',
-            base_url: 'https://api.redhat.ai',
+            base_url: 'https://api.redhat-ai.example.com',
           },
         },
       })
@@ -525,7 +525,7 @@ describe('EditIntegrationForm', () => {
           configuration: {
             integration_type: 'llm_provider',
             provider_hint: 'red_hat_ai',
-            base_url: 'https://api.redhat.ai',
+            base_url: 'https://api.redhat-ai.example.com',
           },
         },
       })
@@ -784,7 +784,7 @@ describe('EditIntegrationForm', () => {
       configuration: {
         integration_type: 'llm_provider',
         provider_hint: 'red_hat_ai',
-        base_url: 'https://api.redhat.ai',
+        base_url: 'https://api.redhat-ai.example.com',
       },
     }
 
@@ -800,7 +800,7 @@ describe('EditIntegrationForm', () => {
       setupMocks({ integration: llmIntegration })
       render(<EditIntegrationForm />, { wrapper })
 
-      expect(screen.getByDisplayValue('https://api.redhat.ai')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('https://api.redhat-ai.example.com')).toBeInTheDocument()
     })
 
     it('shows error when URL is empty for red_hat_ai provider', async () => {
@@ -808,7 +808,7 @@ describe('EditIntegrationForm', () => {
       const user = userEvent.setup()
       render(<EditIntegrationForm />, { wrapper })
 
-      const urlInput = screen.getByDisplayValue('https://api.redhat.ai')
+      const urlInput = screen.getByDisplayValue('https://api.redhat-ai.example.com')
       await user.clear(urlInput)
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/converge",
+  "$id": "https://automation.example.com/schemas/workflows/v2/control-nodes/converge",
   "title": "Converge Node",
   "description": "Synchronization point that waits for all parallel branches to complete before proceeding.",
   "parameterSchema": {

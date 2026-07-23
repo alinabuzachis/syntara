@@ -134,7 +134,7 @@ class TestRetryExecution:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-not-found",
+            error_type="https://api.example.com/errors/resource-not-found",
             title="Execution Not Found",
             detail="The requested execution was not found",
             code="EXECUTION_NOT_FOUND",
@@ -168,7 +168,7 @@ class TestRetryExecution:
         data = response.json()
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-conflict",
+            error_type="https://api.example.com/errors/resource-conflict",
             title="Execution Not Retryable",
             detail=data["detail"],
             code="EXECUTION_NOT_RETRYABLE",
@@ -191,7 +191,7 @@ class TestRetryExecution:
         data = response.json()
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-conflict",
+            error_type="https://api.example.com/errors/resource-conflict",
             title="Execution Not Retryable",
             detail=data["detail"],
             code="EXECUTION_NOT_RETRYABLE",

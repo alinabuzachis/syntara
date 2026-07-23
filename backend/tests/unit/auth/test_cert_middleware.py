@@ -365,7 +365,7 @@ class TestClientCertAuthMiddleware:
         assert headers_dict[b"content-type"] == b"application/problem+json"
         body = json.loads(body_call["body"])
         assert body["status"] == 403
-        assert body["type"].startswith("https://api.nexus.com/errors/")
+        assert body["type"].startswith("https://api.example.com/errors/")
         assert "title" in body
         assert "detail" in body
 

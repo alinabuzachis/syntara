@@ -65,7 +65,7 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
       username: 'asmith',
       first_name: 'Alice',
       last_name: 'Smith',
-      email: 'asmith@nexus.local',
+      email: 'asmith@example.com',
       auth_type: 'federated',
     })
     await mockUsersList(app, usersListResponse)
@@ -89,7 +89,7 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
     await expect(wizardNav).toBeVisible()
 
     // Step 1: Select a user — click the email text to select via row click
-    await app.getByText('asmith@nexus.local').click()
+    await app.getByText('asmith@example.com').click()
 
     // Next button should now be enabled — click it
     await app.getByRole('button', { name: 'Next', exact: true }).click()
@@ -142,7 +142,7 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
       username: 'asmith',
       first_name: 'Alice',
       last_name: 'Smith',
-      email: 'asmith@nexus.local',
+      email: 'asmith@example.com',
       auth_type: 'federated',
     })
     await mockUsersList(app, usersListResponse)
@@ -154,7 +154,7 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
       timeout: 15_000,
     })
 
-    await app.getByText('asmith@nexus.local').click()
+    await app.getByText('asmith@example.com').click()
     await app.getByRole('button', { name: 'Next', exact: true }).click()
 
     await expect(app.getByText('No identities')).toBeVisible()

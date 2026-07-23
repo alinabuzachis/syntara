@@ -40,7 +40,7 @@ export async function goToLoginPage(page: Page, options: GoToLoginPageOptions = 
       status: 401,
       contentType: 'application/json',
       body: JSON.stringify({
-        type: 'https://api.nexus.com/errors/unauthorized',
+        type: 'https://api.example.com/errors/unauthorized',
         title: 'Unauthorized',
         detail: 'Authentication required',
         code: 'AUTHENTICATION_REQUIRED',

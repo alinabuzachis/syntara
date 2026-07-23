@@ -157,7 +157,7 @@ async def _send_429(
     retry_after_int = math.ceil(retry_after)
 
     body = {
-        "type": PROBLEM_TYPES.get("rate_limited", "https://api.nexus.com/errors/rate-limited"),
+        "type": PROBLEM_TYPES.get("rate_limited", "https://api.example.com/errors/rate-limited"),
         "title": "Too Many Requests",
         "detail": f"Rate limit exceeded. Try again in {retry_after_int} seconds.",
         "code": "RATE_LIMITED",

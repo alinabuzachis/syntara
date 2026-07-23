@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/internal_activity",
+  "$id": "https://automation.example.com/schemas/workflows/v2/executors/internal_activity",
   "title": "Internal Activity Node",
   "description": "Execute built-in system operations (document conversion, invocation execution) as native Temporal activities",
   "parameterSchema": {

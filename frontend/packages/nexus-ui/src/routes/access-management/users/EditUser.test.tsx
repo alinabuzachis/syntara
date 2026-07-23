@@ -61,7 +61,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 const mockUserData = {
   id: VALID_UUID,
   username: 'jdoe',
-  email: 'jdoe@nexus.local',
+  email: 'jdoe@example.com',
   first_name: 'John',
   last_name: 'Doe',
   is_enabled: true,

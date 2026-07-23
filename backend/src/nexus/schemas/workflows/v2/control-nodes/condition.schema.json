@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/condition",
+  "$id": "https://automation.example.com/schemas/workflows/v2/control-nodes/condition",
   "title": "Condition Node",
   "description": "Binary conditional branching (if/then/else)",
   "parameterSchema": {

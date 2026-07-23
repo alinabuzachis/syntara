@@ -82,7 +82,7 @@ async def test_upload_unauthorised(authenticated_only_client: AsyncClient) -> No
     assert response.status_code == 403
     assert_error_data(
         response,
-        error_type="https://api.nexus.com/errors/forbidden",
+        error_type="https://api.example.com/errors/forbidden",
         title="Authorization Denied",
         detail="Not authorized to perform upload on files",
         code="AUTHORIZATION_DENIED",

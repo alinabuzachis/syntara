@@ -83,11 +83,11 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
     // Apply Email filter
     await toolbar.getByRole('button', { name: 'Username' }).click()
     await app.getByRole('option', { name: 'Email' }).click()
-    await app.getByPlaceholder('Filter by email').fill('admin@nexus.local')
+    await app.getByPlaceholder('Filter by email').fill('admin@example.com')
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     const emailChipGroup = toolbar.getByRole('list', { name: 'Email' })
-    await expect(emailChipGroup.getByText('admin@nexus.local')).toBeVisible()
+    await expect(emailChipGroup.getByText('admin@example.com')).toBeVisible()
 
     // Add Authentication filter
     await toolbar.getByRole('button', { name: 'Email', exact: true }).click()
@@ -96,7 +96,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
     await app.getByRole('option', { name: 'Local' }).click()
 
     // Verify both filter chips are active
-    await expect(emailChipGroup.getByText('admin@nexus.local')).toBeVisible()
+    await expect(emailChipGroup.getByText('admin@example.com')).toBeVisible()
     const authChipGroup = toolbar.getByRole('list', { name: 'Authentication' })
     await expect(authChipGroup.getByText('Local')).toBeVisible()
 
@@ -107,7 +107,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
     // Verify narrowed results
     const dataRows = table.getByRole('row').filter({ hasNot: app.locator('th') })
     await expect(dataRows).toHaveCount(1)
-    await expect(dataRows.getByText('admin@nexus.local')).toBeVisible()
+    await expect(dataRows.getByText('admin@example.com')).toBeVisible()
     await expect(dataRows.getByText('Local', { exact: true })).toBeVisible()
   })
 
@@ -122,11 +122,11 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
     // Apply Email filter
     await toolbar.getByRole('button', { name: 'Username' }).click()
     await app.getByRole('option', { name: 'Email' }).click()
-    await app.getByPlaceholder('Filter by email').fill('admin@nexus.local')
+    await app.getByPlaceholder('Filter by email').fill('admin@example.com')
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     const emailChipGroup = toolbar.getByRole('list', { name: 'Email' })
-    await expect(emailChipGroup.getByText('admin@nexus.local')).toBeVisible()
+    await expect(emailChipGroup.getByText('admin@example.com')).toBeVisible()
 
     // Add Authentication filter
     await toolbar.getByRole('button', { name: 'Email', exact: true }).click()
@@ -146,10 +146,10 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
     // Verify auth filter removed, email filter remains
     await expect(authChipGroup).not.toBeVisible()
     await expect(app).not.toHaveURL(/auth_source=/)
-    await expect(emailChipGroup.getByText('admin@nexus.local')).toBeVisible()
+    await expect(emailChipGroup.getByText('admin@example.com')).toBeVisible()
 
     // Clear the email filter chip
-    await emailChipGroup.getByRole('button', { name: 'Close admin@nexus.local' }).click()
+    await emailChipGroup.getByRole('button', { name: 'Close admin@example.com' }).click()
 
     // Verify all filters removed and all results restored
     await expect(emailChipGroup).not.toBeVisible()

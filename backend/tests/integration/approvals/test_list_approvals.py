@@ -373,7 +373,7 @@ class TestListApprovalsContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
                 "Validation failed: query -> status: "
@@ -388,7 +388,7 @@ class TestListApprovalsContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
                 "Validation failed: query -> execution_id: Input should be a valid UUID, "
@@ -403,7 +403,7 @@ class TestListApprovalsContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: query -> limit: Input should be greater than 0",
             code="REQUEST_VALIDATION_ERROR",
@@ -414,7 +414,7 @@ class TestListApprovalsContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: query -> limit: Input should be less than or equal to 100",
             code="REQUEST_VALIDATION_ERROR",

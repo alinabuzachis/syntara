@@ -32,7 +32,7 @@ class ConcreteHandler(BaseWebSocketStreamingHandler):
         resource_id = params.get("resource_id")
         if not resource_id:
             error_data = ErrorData(
-                type="https://api.nexus.com/errors/missing-parameter",
+                type="https://api.example.com/errors/missing-parameter",
                 title="Missing Parameter",
                 detail="resource_id is required",
                 code="MISSING_PARAMETER",

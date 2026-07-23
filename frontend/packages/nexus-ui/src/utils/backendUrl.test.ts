@@ -37,14 +37,14 @@ describe('backendUrl', () => {
   it('falls back to location.origin when VITE_API_URL is not set', async () => {
     vi.stubEnv('VITE_API_URL', '')
     Object.defineProperty(globalThis, 'location', {
-      value: { origin: 'https://nexus.example.com' },
+      value: { origin: 'https://example.com' },
       writable: true,
       configurable: true,
     })
 
     const { backendOrigin, WEBHOOK_BASE_URL } = await import('./backendUrl')
 
-    expect(backendOrigin).toBe('https://nexus.example.com')
-    expect(WEBHOOK_BASE_URL).toBe('https://nexus.example.com/api/v1/webhooks')
+    expect(backendOrigin).toBe('https://example.com')
+    expect(WEBHOOK_BASE_URL).toBe('https://example.com/api/v1/webhooks')
   })
 })

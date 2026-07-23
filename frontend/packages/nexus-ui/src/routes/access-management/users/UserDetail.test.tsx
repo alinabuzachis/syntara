@@ -96,7 +96,7 @@ vi.mock('@tanstack/react-router', async () => {
 const mockUser = {
   id: VALID_USER_ID,
   username: 'jdoe',
-  email: 'jdoe@nexus.local',
+  email: 'jdoe@example.com',
   first_name: 'John',
   last_name: 'Doe',
   is_enabled: true,
@@ -283,7 +283,7 @@ describe('UserDetail', () => {
       expect(screen.getByText(VALID_USER_ID)).toBeInTheDocument()
       expect(screen.getByText('John')).toBeInTheDocument()
       expect(screen.getByText('Doe')).toBeInTheDocument()
-      expect(screen.getByText('jdoe@nexus.local')).toBeInTheDocument()
+      expect(screen.getByText('jdoe@example.com')).toBeInTheDocument()
       expect(screen.getByText('Local')).toBeInTheDocument()
     })
 

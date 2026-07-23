@@ -578,7 +578,7 @@ class ServerSettings(BaseSettings):
 
     server_public_url: HttpUrl | None = Field(
         default=None,
-        description="Public base URL for this Nexus instance (e.g., 'https://nexus.example.com:8000'). "
+        description="Public base URL for this Nexus instance (e.g., 'https://example.com:8000'). "
         "Used as the JWT issuer, post-logout redirect, and frontend origin fallback. "
         "If not set, falls back to server_scheme://server_host:server_port. "
         "Required when server_host is a bind address like 0.0.0.0.",

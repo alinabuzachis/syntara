@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/approval",
+  "$id": "https://automation.example.com/schemas/workflows/v2/executors/approval",
   "title": "Approval Node",
   "description": "Human approval gate that pauses workflow execution until approved or rejected",
   "parameterSchema": {

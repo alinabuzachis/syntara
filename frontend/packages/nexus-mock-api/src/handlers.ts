@@ -99,7 +99,7 @@ function workflowVersionConflictResponse(
 ) {
   return HttpResponse.json(
     {
-      type: 'https://api.nexus.com/errors/resource-conflict',
+      type: 'https://api.example.com/errors/resource-conflict',
       title: 'Version Conflict',
       detail: 'A newer version of this workflow has been saved by another user',
       code: 'WORKFLOW_VERSION_CONFLICT',
@@ -282,7 +282,7 @@ function validateCredentialId(url: URL): ReturnType<typeof HttpResponse.json> | 
   if (credentialId && !UUID_REGEX.test(credentialId)) {
     return HttpResponse.json(
       {
-        type: 'https://api.nexus.com/errors/validation-error',
+        type: 'https://api.example.com/errors/validation-error',
         title: 'Validation Error',
         detail: 'credential_id must be a valid UUID',
         code: 'VALIDATION_ERROR',
@@ -304,7 +304,7 @@ function createExecutionNotFoundResponse(executionId: string, subPath?: string) 
   const instance = subPath ? `/api/v1/executions/${executionId}/${subPath}` : `/api/v1/executions/${executionId}`
   return HttpResponse.json(
     {
-      type: 'https://api.nexus.com/errors/execution-not-found',
+      type: 'https://api.example.com/errors/execution-not-found',
       title: 'Execution Not Found',
       detail: 'Execution not found',
       code: 'EXECUTION_NOT_FOUND',
@@ -393,7 +393,7 @@ export const handlers = [
     if (!integration) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/not-found',
+          type: 'https://api.example.com/errors/not-found',
           title: 'Not Found',
           detail: `Integration ${params.integration_id as string} not found`,
           code: 'NOT_FOUND',
@@ -489,7 +489,7 @@ export const handlers = [
     const integration = integrations.find((i) => i.id === req.params.integration_id)
     if (!integration) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
@@ -502,7 +502,7 @@ export const handlers = [
     const index = integrations.findIndex((i) => i.id === params.integration_id)
     if (index === -1) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
@@ -514,7 +514,7 @@ export const handlers = [
     const integration = integrations.find((i) => i.id === params.integration_id)
     if (!integration) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
@@ -534,7 +534,7 @@ export const handlers = [
     const integration = integrations.find((i) => i.id === params.integration_id)
     if (!integration) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
@@ -558,7 +558,7 @@ export const handlers = [
     const integration = integrations.find((i) => i.id === params.integration_id)
     if (!integration) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
@@ -599,7 +599,7 @@ export const handlers = [
     const integration = integrations.find((i) => i.id === params.integration_id)
     if (!integration) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
@@ -613,7 +613,7 @@ export const handlers = [
     const integration = integrations.find((i) => i.id === params.integration_id)
     if (!integration) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
@@ -633,7 +633,7 @@ export const handlers = [
     const integration = integrations.find((i) => i.id === integrationId)
     if (!integration) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
@@ -659,14 +659,14 @@ export const handlers = [
     const integration = integrations.find((i) => i.id === integrationId)
     if (!integration) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
     const model = models.find((m) => m.id === modelId && m.integration_id === integrationId)
     if (!model) {
       return HttpResponse.json(
-        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
         { status: 404 }
       )
     }
@@ -680,7 +680,7 @@ export const handlers = [
     if (!integration) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/not-found',
+          type: 'https://api.example.com/errors/not-found',
           title: 'Not Found',
           detail: `Integration ${integrationId} not found`,
           code: 'INTEGRATION_NOT_FOUND',
@@ -693,7 +693,7 @@ export const handlers = [
     if (index === -1) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/not-found',
+          type: 'https://api.example.com/errors/not-found',
           title: 'Not Found',
           detail: `Model ${modelId} not found in integration ${integrationId}`,
           code: 'MODEL_NOT_FOUND',
@@ -732,7 +732,7 @@ export const handlers = [
     if (!integration) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/not-found',
+          type: 'https://api.example.com/errors/not-found',
           title: 'Not Found',
           detail: `Integration ${integrationId} not found`,
           code: 'NOT_FOUND',
@@ -746,7 +746,7 @@ export const handlers = [
     if (!body.model_ids || body.model_ids.length === 0) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/validation-error',
+          type: 'https://api.example.com/errors/validation-error',
           title: 'Validation Error',
           detail: 'model_ids must contain at least one ID',
           code: 'VALIDATION_ERROR',
@@ -898,7 +898,7 @@ export const handlers = [
     if (!definition) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/validation-error',
+          type: 'https://api.example.com/errors/validation-error',
           title: 'Validation Error',
           detail: 'workflow_definition is required',
           code: 'VALIDATION_ERROR',
@@ -958,7 +958,7 @@ export const handlers = [
     if (!body) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/workflow-not-found',
+          type: 'https://api.example.com/errors/workflow-not-found',
           title: 'Workflow Not Found',
           detail: `Workflow with id '${workflowId}' not found`,
           code: 'WORKFLOW_NOT_FOUND',
@@ -976,7 +976,7 @@ export const handlers = [
     if (!workflow) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/workflow-not-found',
+          type: 'https://api.example.com/errors/workflow-not-found',
           title: 'Workflow Not Found',
           detail: `Workflow with id '${workflowId}' not found`,
           code: 'WORKFLOW_NOT_FOUND',
@@ -1069,7 +1069,7 @@ export const handlers = [
     if (workflowIndex === -1) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/workflow-not-found',
+          type: 'https://api.example.com/errors/workflow-not-found',
           title: 'Workflow Not Found',
           detail: `Workflow with id '${workflowId}' not found`,
           code: 'WORKFLOW_NOT_FOUND',
@@ -1148,7 +1148,7 @@ export const handlers = [
     if (!workflow) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/workflow-not-found',
+          type: 'https://api.example.com/errors/workflow-not-found',
           title: 'Workflow Not Found',
           detail: `Workflow with id '${workflowId}' not found`,
           code: 'WORKFLOW_NOT_FOUND',
@@ -1178,7 +1178,7 @@ export const handlers = [
     if (isNaN(version) || version < 1) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/validation-error',
+          type: 'https://api.example.com/errors/validation-error',
           title: 'Invalid Version',
           detail: `Version must be a positive integer`,
           code: 'VALIDATION_ERROR',
@@ -1190,7 +1190,7 @@ export const handlers = [
     if (!workflow.version || workflow.version.version !== version) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/version-not-found',
+          type: 'https://api.example.com/errors/version-not-found',
           title: 'Version Not Found',
           detail: `Version ${version} not found for workflow '${workflowId as string}'`,
           code: 'VERSION_NOT_FOUND',
@@ -1228,7 +1228,7 @@ export const handlers = [
     if (!workflow) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/workflow-not-found',
+          type: 'https://api.example.com/errors/workflow-not-found',
           title: 'Workflow Not Found',
           detail: `Workflow with id '${workflowId}' not found`,
           code: 'WORKFLOW_NOT_FOUND',
@@ -1594,7 +1594,7 @@ export const handlers = [
     if (execution.status !== ExecutionStatusEnum.PENDING && execution.status !== ExecutionStatusEnum.RUNNING) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/invalid-state',
+          type: 'https://api.example.com/errors/invalid-state',
           title: 'Invalid State',
           detail: `Cannot cancel execution in '${execution.status}' state`,
           code: 'INVALID_STATE',
@@ -1623,7 +1623,7 @@ export const handlers = [
     if (!terminalStatuses.has(execution.status as (typeof ExecutionStatusEnum)[keyof typeof ExecutionStatusEnum])) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/resource-conflict',
+          type: 'https://api.example.com/errors/resource-conflict',
           title: 'Execution Not Retryable',
           detail: `Cannot retry execution in '${execution.status}' state`,
           code: 'EXECUTION_NOT_RETRYABLE',
@@ -1636,7 +1636,7 @@ export const handlers = [
     if (execution.mode === 'test') {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/resource-conflict',
+          type: 'https://api.example.com/errors/resource-conflict',
           title: 'Execution Not Retryable',
           detail: 'Test executions cannot be retried',
           code: 'EXECUTION_NOT_RETRYABLE',
@@ -1765,7 +1765,7 @@ export const handlers = [
     if (!body) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/approval-not-found',
+          type: 'https://api.example.com/errors/approval-not-found',
           title: 'Approval Not Found',
           detail: `Approval with id '${approvalId}' not found`,
           code: 'APPROVAL_NOT_FOUND',
@@ -1784,7 +1784,7 @@ export const handlers = [
     if (!approval) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/approval-not-found',
+          type: 'https://api.example.com/errors/approval-not-found',
           title: 'Approval Not Found',
           detail: `Approval with id '${approvalId}' not found`,
           code: 'APPROVAL_NOT_FOUND',
@@ -1812,7 +1812,7 @@ export const handlers = [
     if (approvalData.status && approvalData.status !== 'pending' && approvalData.status !== 'expired') {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/approval-conflict',
+          type: 'https://api.example.com/errors/approval-conflict',
           title: 'Approval Conflict',
           detail: 'Approval already decided or workflow cancelled',
           code: 'APPROVAL_CONFLICT',
@@ -1846,7 +1846,7 @@ export const handlers = [
     if (!body.decisions || body.decisions.length === 0 || body.decisions.length > 100) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/validation-error',
+          type: 'https://api.example.com/errors/validation-error',
           title: 'Validation Error',
           detail: 'Invalid payload: decisions array must contain 1-100 items',
           code: 'VALIDATION_ERROR',
@@ -1974,7 +1974,7 @@ export const handlers = [
       return HttpResponse.json({
         id: 'a0d1t0r0-0000-0000-0000-000000000000',
         username: 'auditor',
-        email: 'auditor@nexus.local',
+        email: 'auditor@example.com',
         groups: ['authenticated'],
         rp_logout_enabled: rpLogoutEnabled,
       })
@@ -1984,7 +1984,7 @@ export const handlers = [
       return HttpResponse.json({
         id: 'v13w3r00-0000-0000-0000-000000000000',
         username: 'viewer',
-        email: 'viewer@nexus.local',
+        email: 'viewer@example.com',
         groups: ['authenticated'],
         rp_logout_enabled: rpLogoutEnabled,
       })
@@ -1994,7 +1994,7 @@ export const handlers = [
       return HttpResponse.json({
         id: 'us3r0000-0000-0000-0000-000000000000',
         username: 'user',
-        email: 'user@nexus.local',
+        email: 'user@example.com',
         groups: ['authenticated'],
         rp_logout_enabled: rpLogoutEnabled,
       })
@@ -2003,7 +2003,7 @@ export const handlers = [
     return HttpResponse.json({
       id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       username: 'demo',
-      email: 'demo@nexus.local',
+      email: 'demo@example.com',
       groups: ['admins', 'platform-admins', 'authenticated'],
       rp_logout_enabled: rpLogoutEnabled,
     })
@@ -2067,7 +2067,7 @@ export const handlers = [
     if (jmespathError) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/validation-error',
+          type: 'https://api.example.com/errors/validation-error',
           title: 'Validation Error',
           detail: jmespathError,
           code: 'VALIDATION_ERROR',
@@ -2082,7 +2082,7 @@ export const handlers = [
     if (existing) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/provider-name-conflict',
+          type: 'https://api.example.com/errors/provider-name-conflict',
           title: 'Provider Name Conflict',
           detail: `An identity provider named "${body.name}" already exists. Choose a different name.`,
           code: 'PROVIDER_NAME_CONFLICT',
@@ -2115,7 +2115,7 @@ export const handlers = [
     if (!provider) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/provider-not-found',
+          type: 'https://api.example.com/errors/provider-not-found',
           title: 'Provider Not Found',
           detail: `Identity provider with id '${params.providerId as string}' not found`,
           code: 'PROVIDER_NOT_FOUND',
@@ -2133,7 +2133,7 @@ export const handlers = [
     if (!provider) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/provider-not-found',
+          type: 'https://api.example.com/errors/provider-not-found',
           title: 'Provider Not Found',
           detail: `Identity provider with id '${params.providerId as string}' not found`,
           code: 'PROVIDER_NOT_FOUND',
@@ -2158,7 +2158,7 @@ export const handlers = [
       if (conflict) {
         return HttpResponse.json(
           {
-            type: 'https://api.nexus.com/errors/provider-name-conflict',
+            type: 'https://api.example.com/errors/provider-name-conflict',
             title: 'Provider Name Conflict',
             detail: `An identity provider named "${body.name}" already exists. Choose a different name.`,
             code: 'PROVIDER_NAME_CONFLICT',
@@ -2176,7 +2176,7 @@ export const handlers = [
     if (jmespathError) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/validation-error',
+          type: 'https://api.example.com/errors/validation-error',
           title: 'Validation Error',
           detail: jmespathError,
           code: 'VALIDATION_ERROR',
@@ -2212,7 +2212,7 @@ export const handlers = [
     if (index === -1) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/provider-not-found',
+          type: 'https://api.example.com/errors/provider-not-found',
           title: 'Provider Not Found',
           detail: `Identity provider with id '${params.providerId as string}' not found`,
           code: 'PROVIDER_NOT_FOUND',
@@ -2242,7 +2242,7 @@ export const handlers = [
     if (!body.aap_url || (!hasBasicAuth && !hasToken)) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/validation-error',
+          type: 'https://api.example.com/errors/validation-error',
           title: 'Validation Error',
           detail: 'aap_url and either admin credentials or a personal access token are required',
           code: 'VALIDATION_ERROR',
@@ -2256,7 +2256,7 @@ export const handlers = [
     if (existing) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/name-conflict',
+          type: 'https://api.example.com/errors/name-conflict',
           title: 'Identity Provider Name Conflict',
           detail: "Identity provider with name 'Ansible Automation Platform' already exists",
           code: 'IDENTITY_PROVIDER_NAME_CONFLICT',
@@ -2418,7 +2418,7 @@ export const handlers = [
     if (existing) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/user-conflict',
+          type: 'https://api.example.com/errors/user-conflict',
           title: 'User Conflict',
           detail: `A user with that username or email already exists.`,
           code: 'USER_CONFLICT',
@@ -2452,7 +2452,7 @@ export const handlers = [
     if (!user) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/user-not-found',
+          type: 'https://api.example.com/errors/user-not-found',
           title: 'User Not Found',
           detail: `User with id '${params.userId as string}' not found`,
           code: 'USER_NOT_FOUND',
@@ -2470,7 +2470,7 @@ export const handlers = [
     if (!user) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/user-not-found',
+          type: 'https://api.example.com/errors/user-not-found',
           title: 'User Not Found',
           detail: `User with id '${params.userId as string}' not found`,
           code: 'USER_NOT_FOUND',
@@ -2494,7 +2494,7 @@ export const handlers = [
       if (conflict) {
         return HttpResponse.json(
           {
-            type: 'https://api.nexus.com/errors/user-conflict',
+            type: 'https://api.example.com/errors/user-conflict',
             title: 'Email Conflict',
             detail: `A user with that email already exists.`,
             code: 'USER_CONFLICT',
@@ -2524,7 +2524,7 @@ export const handlers = [
     if (index === -1) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/user-not-found',
+          type: 'https://api.example.com/errors/user-not-found',
           title: 'User Not Found',
           detail: `User with id '${params.userId as string}' not found`,
           code: 'USER_NOT_FOUND',
@@ -2543,7 +2543,7 @@ export const handlers = [
     if (!user) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/user-not-found',
+          type: 'https://api.example.com/errors/user-not-found',
           title: 'User Not Found',
           detail: `User with id '${params.userId as string}' not found`,
           code: 'USER_NOT_FOUND',
@@ -2570,7 +2570,7 @@ export const handlers = [
     if (!user) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/user-not-found',
+          type: 'https://api.example.com/errors/user-not-found',
           title: 'User Not Found',
           detail: `User with id '${params.userId as string}' not found`,
           code: 'USER_NOT_FOUND',
@@ -2594,7 +2594,7 @@ export const handlers = [
     if (!user) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/user-not-found',
+          type: 'https://api.example.com/errors/user-not-found',
           title: 'User Not Found',
           detail: `User with id '${params.userId as string}' not found`,
           code: 'USER_NOT_FOUND',
@@ -2613,7 +2613,7 @@ export const handlers = [
     if (!user) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/user-not-found',
+          type: 'https://api.example.com/errors/user-not-found',
           title: 'User Not Found',
           detail: `User with id '${params.userId as string}' not found`,
           code: 'USER_NOT_FOUND',
@@ -2639,7 +2639,7 @@ export const handlers = [
     if (!found) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/identity-not-found',
+          type: 'https://api.example.com/errors/identity-not-found',
           title: 'Identity Not Found',
           detail: `Identity with id '${body.identity_id}' not found`,
           code: 'IDENTITY_NOT_FOUND',
@@ -2662,7 +2662,7 @@ export const handlers = [
     if (!identities) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/identity-not-found',
+          type: 'https://api.example.com/errors/identity-not-found',
           title: 'Identity Not Found',
           detail: `Identity with id '${params.identityId as string}' not found`,
           code: 'IDENTITY_NOT_FOUND',
@@ -2676,7 +2676,7 @@ export const handlers = [
     if (idx === -1) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/identity-not-found',
+          type: 'https://api.example.com/errors/identity-not-found',
           title: 'Identity Not Found',
           detail: `Identity with id '${params.identityId as string}' not found`,
           code: 'IDENTITY_NOT_FOUND',
@@ -2697,7 +2697,7 @@ export const handlers = [
     if (!user) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/not-found',
+          type: 'https://api.example.com/errors/not-found',
           title: 'User Not Found',
           detail: `User with id '${params.userId as string}' not found`,
           code: 'USER_NOT_FOUND',
@@ -2841,7 +2841,7 @@ export const handlers = [
     if (existing) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/group-name-conflict',
+          type: 'https://api.example.com/errors/group-name-conflict',
           title: 'Group Name Conflict',
           detail: `A group named "${body.name}" already exists.`,
           code: 'GROUP_NAME_CONFLICT',
@@ -2873,7 +2873,7 @@ export const handlers = [
     if (!group) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/group-not-found',
+          type: 'https://api.example.com/errors/group-not-found',
           title: 'Group Not Found',
           detail: `Group with id '${params.groupId as string}' not found`,
           code: 'GROUP_NOT_FOUND',
@@ -2891,7 +2891,7 @@ export const handlers = [
     if (!group) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/group-not-found',
+          type: 'https://api.example.com/errors/group-not-found',
           title: 'Group Not Found',
           detail: `Group with id '${params.groupId as string}' not found`,
           code: 'GROUP_NOT_FOUND',
@@ -2909,7 +2909,7 @@ export const handlers = [
       if (conflict) {
         return HttpResponse.json(
           {
-            type: 'https://api.nexus.com/errors/group-name-conflict',
+            type: 'https://api.example.com/errors/group-name-conflict',
             title: 'Group Name Conflict',
             detail: `A group named "${body.name}" already exists.`,
             code: 'GROUP_NAME_CONFLICT',
@@ -2937,7 +2937,7 @@ export const handlers = [
     if (index === -1) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/group-not-found',
+          type: 'https://api.example.com/errors/group-not-found',
           title: 'Group Not Found',
           detail: `Group with id '${params.groupId as string}' not found`,
           code: 'GROUP_NOT_FOUND',
@@ -2959,7 +2959,7 @@ export const handlers = [
     if (!group) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/group-not-found',
+          type: 'https://api.example.com/errors/group-not-found',
           title: 'Group Not Found',
           detail: `Group with id '${params.groupId as string}' not found`,
           code: 'GROUP_NOT_FOUND',
@@ -2988,7 +2988,7 @@ export const handlers = [
     if (!group) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/group-not-found',
+          type: 'https://api.example.com/errors/group-not-found',
           title: 'Group Not Found',
           detail: `Group with id '${params.groupId as string}' not found`,
           code: 'GROUP_NOT_FOUND',
@@ -3004,7 +3004,7 @@ export const handlers = [
     if (!user) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/user-not-found',
+          type: 'https://api.example.com/errors/user-not-found',
           title: 'User Not Found',
           detail: `User with id '${body.user_id ?? ''}' not found`,
           code: 'USER_NOT_FOUND',
@@ -3021,7 +3021,7 @@ export const handlers = [
     if (userGroupMemberships[user.id].includes(group.id)) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/member-conflict',
+          type: 'https://api.example.com/errors/member-conflict',
           title: 'Member Conflict',
           detail: 'User is already a member of this group',
           code: 'MEMBER_CONFLICT',
@@ -3040,7 +3040,7 @@ export const handlers = [
     if (!group) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/group-not-found',
+          type: 'https://api.example.com/errors/group-not-found',
           title: 'Group Not Found',
           detail: `Group with id '${params.groupId as string}' not found`,
           code: 'GROUP_NOT_FOUND',
@@ -3056,7 +3056,7 @@ export const handlers = [
     if (!memberGroupIds || !memberGroupIds.includes(group.id)) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/member-not-found',
+          type: 'https://api.example.com/errors/member-not-found',
           title: 'Member Not Found',
           detail: 'User is not a member of this group',
           code: 'MEMBER_NOT_FOUND',
@@ -3077,7 +3077,7 @@ export const handlers = [
     if (!group) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/group-not-found',
+          type: 'https://api.example.com/errors/group-not-found',
           title: 'Group Not Found',
           detail: `Group with id '${groupId}' not found`,
           code: 'GROUP_NOT_FOUND',
@@ -3181,7 +3181,7 @@ export const handlers = [
     if (!matchingType) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/not-found',
+          type: 'https://api.example.com/errors/not-found',
           title: 'Not Found',
           detail: `Credential type '${body.credential_type_id}' not found`,
           code: 'NOT_FOUND',
@@ -3199,7 +3199,7 @@ export const handlers = [
     if (missingFields.length > 0) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/validation-error',
+          type: 'https://api.example.com/errors/validation-error',
           title: 'Validation Error',
           detail: `Missing required input fields: ${missingFields.join(', ')}`,
           code: 'VALIDATION_ERROR',
@@ -3402,7 +3402,7 @@ export const handlers = [
     if (!setting) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/setting-not-found',
+          type: 'https://api.example.com/errors/setting-not-found',
           title: 'Setting Not Found',
           detail: `Setting with key '${key}' not found`,
           code: 'SETTING_NOT_FOUND',
@@ -3426,7 +3426,7 @@ export const handlers = [
       if (!setting) {
         return HttpResponse.json(
           {
-            type: 'https://api.nexus.com/errors/setting-not-found',
+            type: 'https://api.example.com/errors/setting-not-found',
             title: 'Setting Not Found',
             detail: `Setting with key '${update.key}' not found`,
             code: 'SETTING_NOT_FOUND',
@@ -3439,7 +3439,7 @@ export const handlers = [
       if (setting.version !== update.expected_version) {
         return HttpResponse.json(
           {
-            type: 'https://api.nexus.com/errors/version-conflict',
+            type: 'https://api.example.com/errors/version-conflict',
             title: 'Version Conflict',
             detail: `Setting '${update.key}' has been modified (expected v${String(update.expected_version)}, current v${String(setting.version)})`,
             code: 'SETTING_VERSION_CONFLICT',
@@ -3466,7 +3466,7 @@ export const handlers = [
     if (!setting) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/setting-not-found',
+          type: 'https://api.example.com/errors/setting-not-found',
           title: 'Setting Not Found',
           detail: `Setting with key '${key}' not found`,
           code: 'SETTING_NOT_FOUND',
@@ -3481,7 +3481,7 @@ export const handlers = [
     if (setting.version !== body.expected_version) {
       return HttpResponse.json(
         {
-          type: 'https://api.nexus.com/errors/version-conflict',
+          type: 'https://api.example.com/errors/version-conflict',
           title: 'Version Conflict',
           detail: `Setting '${key}' has been modified (expected v${String(body.expected_version)}, current v${String(setting.version)})`,
           code: 'SETTING_VERSION_CONFLICT',

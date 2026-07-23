@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/agentic",
+  "$id": "https://automation.example.com/schemas/workflows/v2/executors/agentic",
   "title": "Agentic Node",
   "description": "Execute task agent tasks with optional tool selection and structured output",
   "parameterSchema": {

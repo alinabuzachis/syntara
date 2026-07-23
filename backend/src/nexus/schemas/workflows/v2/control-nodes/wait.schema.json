@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/wait",
+  "$id": "https://automation.example.com/schemas/workflows/v2/control-nodes/wait",
   "title": "Wait Node",
   "description": "Pause workflow execution for a specified duration in seconds.",
   "parameterSchema": {

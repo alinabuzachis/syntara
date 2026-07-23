@@ -73,7 +73,7 @@ test.describe('AAP Push Button OIDC Configuration', () => {
         status: 502,
         contentType: 'application/json',
         body: JSON.stringify({
-          type: 'https://api.nexus.com/errors/aap-connection-error',
+          type: 'https://api.example.com/errors/aap-connection-error',
           title: 'AAP Connection Error',
           detail: 'Unable to connect to AAP at https://unreachable.example.com: connection refused',
           code: 'AAP_CONNECTION_ERROR',

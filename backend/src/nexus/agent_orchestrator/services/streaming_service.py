@@ -52,7 +52,7 @@ class InvocationNotFoundError(StreamingValidationError):
     def __init__(self, invocation_id: UUID) -> None:
         """Initialize invocation not found error."""
         error_data = ErrorData(
-            type="https://api.nexus.com/errors/invocation-not-found",
+            type="https://api.example.com/errors/invocation-not-found",
             title="Invocation Not Found",
             detail=f"Invocation {invocation_id} not found in database",
             code="INVOCATION_NOT_FOUND",
@@ -97,7 +97,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
         invocation_id = params.get("invocation_id")
         if not invocation_id:
             error_data = ErrorData(
-                type="https://api.nexus.com/errors/missing-parameter",
+                type="https://api.example.com/errors/missing-parameter",
                 title="Missing Required Parameter",
                 detail="invocation_id is required for streaming",
                 code="MISSING_PARAMETER",
@@ -108,7 +108,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 
         if not isinstance(invocation_id, UUID):
             error_data = ErrorData(
-                type="https://api.nexus.com/errors/invalid-parameter",
+                type="https://api.example.com/errors/invalid-parameter",
                 title="Invalid Parameter Type",
                 detail=f"invocation_id must be a UUID, got {type(invocation_id).__name__}",
                 code="INVALID_PARAMETER",

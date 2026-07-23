@@ -99,7 +99,7 @@ servers:
         default: v1
         description: API version
   production:
-    host: api.syntara-orchestration.io
+    host: api.automation.example.com
     protocol: wss
     description: Production WebSocket server (API v1)
     pathname: /api/v1/ws

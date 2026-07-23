@@ -151,7 +151,7 @@ All error responses follow RFC 9457 Problem Details specification:
 
 ```json
 {
-  "type": "https://api.nexus.com/errors/name-conflict",
+  "type": "https://api.example.com/errors/name-conflict",
   "title": "Workflow Name Conflict",
   "detail": "A workflow with this name already exists",
   "code": "WORKFLOW_NAME_CONFLICT",

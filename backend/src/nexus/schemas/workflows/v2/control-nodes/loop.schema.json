@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/loop",
+  "$id": "https://automation.example.com/schemas/workflows/v2/control-nodes/loop",
   "title": "Loop Node",
   "description": "Iterate over collections or conditions (for_each/do_while)",
   "parameterSchema": {

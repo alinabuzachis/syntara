@@ -132,7 +132,7 @@ class TestCancelExecution:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-not-found",
+            error_type="https://api.example.com/errors/resource-not-found",
             title="Execution Not Found",
             detail="The requested execution was not found",
             code="EXECUTION_NOT_FOUND",
@@ -183,7 +183,7 @@ class TestCancelExecution:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Execution In Terminal State",
             detail=f"Cannot cancel execution in {terminal_status.value} state",
             code="EXECUTION_TERMINAL_STATE",
@@ -201,6 +201,6 @@ class TestCancelExecution:
         assert response.headers["content-type"] == "application/problem+json"
 
         data = response.json()
-        assert data["type"] == "https://api.nexus.com/errors/validation-error"
+        assert data["type"] == "https://api.example.com/errors/validation-error"
         assert data["code"] == "REQUEST_VALIDATION_ERROR"
         assert data["retryable"] is False

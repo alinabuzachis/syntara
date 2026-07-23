@@ -50,7 +50,7 @@ async def test_validate_empty_triggers_rejected(jwt_client: AsyncClient) -> None
 
     assert response.status_code == 422
     data = response.json()
-    assert data["type"] == "https://api.nexus.com/errors/validation-error"
+    assert data["type"] == "https://api.example.com/errors/validation-error"
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
     assert data["validation_result"]["is_valid"] is False
 
@@ -80,7 +80,7 @@ async def test_validate_invalid_edge_reference(jwt_client: AsyncClient) -> None:
 
     assert response.status_code == 422
     data = response.json()
-    assert data["type"] == "https://api.nexus.com/errors/validation-error"
+    assert data["type"] == "https://api.example.com/errors/validation-error"
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
     assert data["retryable"] is False
     vr = data["validation_result"]
@@ -125,7 +125,7 @@ async def test_validate_cycle_detection(jwt_client: AsyncClient) -> None:
 
     assert response.status_code == 422
     data = response.json()
-    assert data["type"] == "https://api.nexus.com/errors/validation-error"
+    assert data["type"] == "https://api.example.com/errors/validation-error"
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
     vr = data["validation_result"]
     assert vr["is_valid"] is False
@@ -150,7 +150,7 @@ async def test_validate_invalid_schema_version(jwt_client: AsyncClient) -> None:
 
     assert response.status_code == 422
     data = response.json()
-    assert data["type"] == "https://api.nexus.com/errors/validation-error"
+    assert data["type"] == "https://api.example.com/errors/validation-error"
     assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
     assert data["validation_result"]["is_valid"] is False
 
@@ -231,7 +231,7 @@ async def test_validate_orphaned_node_error(jwt_client: AsyncClient) -> None:
 
     assert response.status_code == 422
     data = response.json()
-    assert data["type"] == "https://api.nexus.com/errors/validation-error"
+    assert data["type"] == "https://api.example.com/errors/validation-error"
     vr = data["validation_result"]
     assert vr["is_valid"] is False
     orphan_errors = [e for e in vr["findings"] if e.get("node_id") == "orphaned_node"]

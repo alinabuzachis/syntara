@@ -101,7 +101,7 @@ class TestGroupsPatchContract:
         assert response.status_code == 409
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/name-conflict",
+            error_type="https://api.example.com/errors/name-conflict",
             title="Group Name Conflict",
             detail="A group with this name already exists",
             code="GROUP_NAME_CONFLICT",

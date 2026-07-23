@@ -869,7 +869,7 @@ describe('IntegrationDetail', () => {
       configuration: {
         integration_type: 'llm_provider',
         provider_hint: 'red_hat_ai',
-        base_url: 'https://api.redhat.ai',
+        base_url: 'https://api.redhat-ai.example.com',
       },
       total_model_count: 5,
       enabled_model_count: 3,
@@ -1127,7 +1127,7 @@ describe('IntegrationDetail', () => {
       configuration: {
         integration_type: 'llm_provider',
         provider_hint: 'red_hat_ai',
-        base_url: 'https://api.redhat.ai',
+        base_url: 'https://api.redhat-ai.example.com',
       },
       total_model_count: 5,
       enabled_model_count: 3,

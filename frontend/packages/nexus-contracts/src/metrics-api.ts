@@ -380,7 +380,7 @@ export interface components {
      *         retryable: Whether this error can be retried by creating a new invocation
      *         instance: Optional URI reference identifying the specific occurrence
      * @example {
-     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "type": "https://api.example.com/errors/llm-error",
      *       "title": "LLM Rate Limit Exceeded",
      *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
      *       "code": "RATE_LIMIT_EXCEEDED",
@@ -388,7 +388,7 @@ export interface components {
      *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
      *     }
      * @example {
-     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "type": "https://api.example.com/errors/timeout-error",
      *       "title": "Streaming Timeout",
      *       "detail": "LLM streaming timed out after 30 seconds",
      *       "code": "STREAM_TIMEOUT",
@@ -400,7 +400,7 @@ export interface components {
       /**
        * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/llm-error
+       * @example https://api.example.com/errors/llm-error
        */
       type: string
       /**
@@ -444,7 +444,7 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "type": "https://api.example.com/errors/bad-request",
          *       "title": "Bad Request",
          *       "detail": "The request was malformed or contained invalid parameters",
          *       "code": "BAD_REQUEST",
@@ -462,7 +462,7 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "type": "https://api.example.com/errors/unauthorized",
          *       "title": "Unauthorized",
          *       "detail": "Authentication is required to access this resource",
          *       "code": "UNAUTHORIZED",
@@ -480,7 +480,7 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "type": "https://api.example.com/errors/forbidden",
          *       "title": "Forbidden",
          *       "detail": "You do not have permission to access this resource",
          *       "code": "FORBIDDEN",
@@ -498,7 +498,7 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "type": "https://api.example.com/errors/not-found",
          *       "title": "Resource Not Found",
          *       "detail": "No resource exists with the provided identifier",
          *       "code": "NOT_FOUND",
@@ -517,7 +517,7 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "type": "https://api.example.com/errors/conflict",
          *       "title": "Conflict",
          *       "detail": "The request conflicts with the current state of the resource",
          *       "code": "CONFLICT",
@@ -535,7 +535,7 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "type": "https://api.example.com/errors/validation-error",
          *       "title": "Validation Error",
          *       "detail": "Field 'name' must be between 1 and 255 characters",
          *       "code": "VALIDATION_ERROR",
@@ -554,7 +554,7 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "type": "https://api.nexus.com/errors/rate-limited",
+         *       "type": "https://api.example.com/errors/rate-limited",
          *       "title": "Too Many Requests",
          *       "detail": "Rate limit exceeded. Try again in 60 seconds.",
          *       "code": "RATE_LIMITED",
@@ -572,7 +572,7 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "type": "https://api.example.com/errors/internal-error",
          *       "title": "Internal Server Error",
          *       "detail": "An unexpected error occurred",
          *       "code": "INTERNAL_ERROR",

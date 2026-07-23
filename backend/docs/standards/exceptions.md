@@ -194,17 +194,17 @@ Defined in `nexus.core.error_handlers`:
 
 ```python
 PROBLEM_TYPES = {
-    "unauthorized": "https://api.nexus.com/errors/unauthorized",
-    "forbidden": "https://api.nexus.com/errors/forbidden",
-    "resource_not_found": "https://api.nexus.com/errors/resource-not-found",
-    "name_conflict": "https://api.nexus.com/errors/name-conflict",
-    "resource_conflict": "https://api.nexus.com/errors/resource-conflict",
-    "validation_error": "https://api.nexus.com/errors/validation-error",
-    "integrity_constraint": "https://api.nexus.com/errors/integrity-constraint",
-    "service_unavailable": "https://api.nexus.com/errors/service-unavailable",
-    "resource_disabled": "https://api.nexus.com/errors/resource-disabled",
-    "provider_error": "https://api.nexus.com/errors/provider-error",
-    "internal_error": "https://api.nexus.com/errors/internal-error",
+    "unauthorized": "https://api.example.com/errors/unauthorized",
+    "forbidden": "https://api.example.com/errors/forbidden",
+    "resource_not_found": "https://api.example.com/errors/resource-not-found",
+    "name_conflict": "https://api.example.com/errors/name-conflict",
+    "resource_conflict": "https://api.example.com/errors/resource-conflict",
+    "validation_error": "https://api.example.com/errors/validation-error",
+    "integrity_constraint": "https://api.example.com/errors/integrity-constraint",
+    "service_unavailable": "https://api.example.com/errors/service-unavailable",
+    "resource_disabled": "https://api.example.com/errors/resource-disabled",
+    "provider_error": "https://api.example.com/errors/provider-error",
+    "internal_error": "https://api.example.com/errors/internal-error",
 }
 ```
 

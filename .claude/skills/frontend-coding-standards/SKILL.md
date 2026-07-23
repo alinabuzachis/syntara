@@ -672,7 +672,7 @@ All API errors follow the RFC 9457 Problem Details format:
 
 ```typescript
 {
-  type: "https://api.nexus.com/errors/validation-error",
+  type: "https://api.example.com/errors/validation-error",
   title: "Validation Error",
   detail: "Field 'name' must be between 1 and 255 characters",
   code: "VALIDATION_ERROR",

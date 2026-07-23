@@ -132,7 +132,7 @@ components:
           format: uri
           title: Error Type URI
           description: URI reference identifying the problem type
-          example: https://api.nexus.com/errors/llm-error
+          example: https://api.example.com/errors/llm-error
         title:
           type: string
           title: Error Title

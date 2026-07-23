@@ -256,7 +256,7 @@ class TestBatchApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: decisions: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -269,7 +269,7 @@ class TestBatchApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: decisions: List should have at least 1 item after validation, not 0",
             code="REQUEST_VALIDATION_ERROR",
@@ -370,7 +370,7 @@ class TestBatchApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: decisions -> 0 -> approval_id: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -383,7 +383,7 @@ class TestBatchApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
                 "Validation failed: decisions -> 0 -> approval_id: Input should be a valid UUID, "
@@ -399,7 +399,7 @@ class TestBatchApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: decisions -> 0 -> status: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -412,7 +412,7 @@ class TestBatchApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
                 "Validation failed: decisions -> 0 -> status: "
@@ -514,7 +514,7 @@ class TestBatchApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
                 "Validation failed: decisions -> 0 -> status: "
@@ -541,7 +541,7 @@ class TestBatchApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: root: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -553,7 +553,7 @@ class TestBatchApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail=("Validation failed: root: Input should be a valid dictionary or object to extract fields from"),
             code="REQUEST_VALIDATION_ERROR",

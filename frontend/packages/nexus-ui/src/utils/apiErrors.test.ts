@@ -148,7 +148,7 @@ describe('apiErrors', () => {
 
     it('handles RFC 9457 503 error format from backend', () => {
       const rfc9457Error = {
-        type: 'https://api.nexus.com/errors/configuration-error',
+        type: 'https://api.example.com/errors/configuration-error',
         title: 'Configuration Error',
         detail: 'OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys',
         code: 'LLM_CONFIGURATION_ERROR',

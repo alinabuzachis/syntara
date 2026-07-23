@@ -316,11 +316,11 @@ class TestServerSettings:
     ) -> None:
         """Test that jwt_issuer returns server_public_url when set."""
         with override_settings(
-            server_public_url=HttpUrl("https://nexus.example.com:8000"),
+            server_public_url=HttpUrl("https://example.com:8000"),
         ):
             from nexus.core.config.base import get_settings
 
-            assert get_settings().jwt_issuer == "https://nexus.example.com:8000"
+            assert get_settings().jwt_issuer == "https://example.com:8000"
 
     def test_jwt_issuer_strips_trailing_slash(
         self,
@@ -328,11 +328,11 @@ class TestServerSettings:
     ) -> None:
         """Test that jwt_issuer strips trailing slash from server_public_url."""
         with override_settings(
-            server_public_url=HttpUrl("https://nexus.example.com/"),
+            server_public_url=HttpUrl("https://example.com/"),
         ):
             from nexus.core.config.base import get_settings
 
-            assert get_settings().jwt_issuer == "https://nexus.example.com"
+            assert get_settings().jwt_issuer == "https://example.com"
 
     def test_jwt_issuer_falls_back_to_constructed_url(
         self,
@@ -355,7 +355,7 @@ class TestServerSettings:
     ) -> None:
         """Test post_logout_redirect_uri priority: explicit > public URL > constructed."""
         with override_settings(
-            server_public_url=HttpUrl("https://nexus.example.com"),
+            server_public_url=HttpUrl("https://example.com"),
             oidc_post_logout_redirect_uri="https://custom.example.com",
         ):
             from nexus.core.config.base import get_settings
@@ -368,11 +368,11 @@ class TestServerSettings:
     ) -> None:
         """Test post_logout_redirect_uri uses server_public_url when explicit URI is not set."""
         with override_settings(
-            server_public_url=HttpUrl("https://nexus.example.com"),
+            server_public_url=HttpUrl("https://example.com"),
         ):
             from nexus.core.config.base import get_settings
 
-            assert get_settings().post_logout_redirect_uri == "https://nexus.example.com"
+            assert get_settings().post_logout_redirect_uri == "https://example.com"
 
     def test_server_public_url_empty_string_treated_as_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that empty string APP_SERVER_PUBLIC_URL is treated as None."""

@@ -238,7 +238,7 @@ class TestDecideApprovalContract:
             )
             assert_error_data(
                 response,
-                error_type="https://api.nexus.com/errors/validation-error",
+                error_type="https://api.example.com/errors/validation-error",
                 title="Request Validation Error",
                 detail=("Validation failed: status: Input should be 'approved' or 'rejected'"),
                 code="REQUEST_VALIDATION_ERROR",
@@ -269,7 +269,7 @@ class TestDecideApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: status: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -281,7 +281,7 @@ class TestDecideApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: status: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -308,7 +308,7 @@ class TestDecideApprovalContract:
         assert response.status_code == 404
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-not-found",
+            error_type="https://api.example.com/errors/resource-not-found",
             title="Approval Not Found",
             detail="The requested approval was not found",
             code="APPROVAL_NOT_FOUND",
@@ -344,7 +344,7 @@ class TestDecideApprovalContract:
         assert response.status_code == 409
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-conflict",
+            error_type="https://api.example.com/errors/resource-conflict",
             title="Approval Already Decided",
             detail="The approval request has already been decided and cannot be modified",
             code="APPROVAL_ALREADY_DECIDED",
@@ -366,7 +366,7 @@ class TestDecideApprovalContract:
         assert response.status_code == 409
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-conflict",
+            error_type="https://api.example.com/errors/resource-conflict",
             title="Approval Already Decided",
             detail="The approval request has already been decided and cannot be modified",
             code="APPROVAL_ALREADY_DECIDED",
@@ -393,7 +393,7 @@ class TestDecideApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: path -> approval_id: Invalid UUID format: not-a-valid-uuid",
             code="REQUEST_VALIDATION_ERROR",
@@ -483,7 +483,7 @@ class TestDecideApprovalContract:
         assert response.status_code == 422  # Should exceed length limit
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: notes: String should have at most 2000 characters",
             code="REQUEST_VALIDATION_ERROR",

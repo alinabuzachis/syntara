@@ -223,7 +223,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
                 "Validation failed: execution_id: Input should be a valid UUID, "
@@ -245,7 +245,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
                 "Validation failed: workflow_context -> workflow_version_id: Input should be a valid UUID, "
@@ -290,7 +290,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: execution_id: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -304,7 +304,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: project_id: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -318,7 +318,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: approval_node_id: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -332,7 +332,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: name: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -346,7 +346,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: workflow_context: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -408,7 +408,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: next_step_approved -> type: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -492,7 +492,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 422
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/validation-error",
+            error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail="Validation failed: workflow_context -> workflow_name: Field required",
             code="REQUEST_VALIDATION_ERROR",
@@ -554,7 +554,7 @@ class TestCreateApprovalContract:
         assert response.status_code == 409
         assert_error_data(
             response,
-            error_type="https://api.nexus.com/errors/resource-conflict",
+            error_type="https://api.example.com/errors/resource-conflict",
             title="Approval Already Requested",
             detail="An approval request already exists for this execution and approval node",
             code="APPROVAL_ALREADY_REQUESTED",

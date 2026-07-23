@@ -76,7 +76,7 @@ servers:
     protocol: ws
     description: Development WebSocket server (API v1)
   production:
-    host: api.syntara-orchestration.io
+    host: api.automation.example.com
     protocol: wss
     description: Production WebSocket server (API v1)
 

@@ -52,7 +52,7 @@ class ExecutionStreamingNotFoundError(StreamingValidationError):
     def __init__(self, execution_id: UUID) -> None:
         """Initialize execution streaming not found error."""
         error_data = ErrorData(
-            type="https://api.nexus.com/errors/execution-not-found",
+            type="https://api.example.com/errors/execution-not-found",
             title="Execution Not Found",
             detail=f"Execution {execution_id} not found in database",
             code="EXECUTION_NOT_FOUND",
@@ -97,7 +97,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
         execution_id = params.get("execution_id")
         if not execution_id:
             error_data = ErrorData(
-                type="https://api.nexus.com/errors/missing-parameter",
+                type="https://api.example.com/errors/missing-parameter",
                 title="Missing Required Parameter",
                 detail="execution_id is required for streaming",
                 code="MISSING_PARAMETER",
@@ -108,7 +108,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 
         if not isinstance(execution_id, UUID):
             error_data = ErrorData(
-                type="https://api.nexus.com/errors/invalid-parameter",
+                type="https://api.example.com/errors/invalid-parameter",
                 title="Invalid Parameter Type",
                 detail=f"execution_id must be a UUID, got {type(execution_id).__name__}",
                 code="INVALID_PARAMETER",

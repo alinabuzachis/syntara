@@ -129,7 +129,7 @@ class TestUsersCreateContract:
         assert response2.status_code == 409
         assert_error_data(
             response2,
-            error_type="https://api.nexus.com/errors/name-conflict",
+            error_type="https://api.example.com/errors/name-conflict",
             title="Username Conflict",
             detail="A user with this username already exists",
             code="USER_USERNAME_CONFLICT",
