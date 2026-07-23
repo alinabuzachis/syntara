@@ -15,7 +15,7 @@ import pytest
 from nexus.integrations.services.model_profile_lookup import lookup_model_profile
 
 CURATED_OPENAI_MODELS = [
-    "gpt-5.6-sol",
+    pytest.param("gpt-5.6-sol", marks=pytest.mark.xfail(reason="Not yet in langchain-openai profiles")),
     "gpt-5.5",
     "gpt-5.4",
     "gpt-5.4-mini",

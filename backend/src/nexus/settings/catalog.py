@@ -300,21 +300,54 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
     # Context Manager — Token limits
     SettingDefinition(
         key="context_manager.max_total_tokens",
-        name="Max total tokens",
+        name="Max total tokens (fallback)",
         category=SettingCategory.CONTEXT_MANAGER,
         value_type=SettingValueType.INTEGER,
         default_value=4000,
         description=(
-            "The maximum number of tokens for the entire prompt sent to the "
-            "LLM, including system, context, and user sections. Higher "
-            "values allow more documents and detailed instructions but "
-            "increase latency and cost. Lower values are faster and cheaper, "
-            "but the model can lose context or miss key facts because they "
-            "were truncated."
+            "Fallback token budget used when the model's context window "
+            "cannot be determined automatically from its profile. When a "
+            "model profile is available, the budget is derived from the "
+            "model's context window minus the output token reserve, with "
+            "the tokenizer safety margin applied."
         ),
         helper_text="Minimum 1 token",
         group=ContextManagerGroup.TOKEN_LIMITS,
         validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="context_manager.output_token_reserve",
+        name="Output token reserve",
+        category=SettingCategory.CONTEXT_MANAGER,
+        value_type=SettingValueType.INTEGER,
+        default_value=4096,
+        description=(
+            "Number of tokens reserved for the LLM's response generation. "
+            "This amount is subtracted from the model's context window "
+            "before allocating tokens for input context. Higher values "
+            "allow longer responses but reduce the budget available for "
+            "retrieved documents."
+        ),
+        helper_text="Minimum 256 tokens",
+        group=ContextManagerGroup.TOKEN_LIMITS,
+        validation_schema={"min": 256},
+    ),
+    SettingDefinition(
+        key="context_manager.tokenizer_safety_margin",
+        name="Tokenizer safety margin",
+        category=SettingCategory.CONTEXT_MANAGER,
+        value_type=SettingValueType.FLOAT,
+        default_value=0.90,
+        description=(
+            "Safety factor applied to the computed input token budget to "
+            "compensate for tokenizer mismatch. The system uses the GPT-4 "
+            "tokenizer for all models, which can under-count tokens for "
+            "non-OpenAI models. A value of 0.90 means 10 percent of the "
+            "budget is kept as a safety margin."
+        ),
+        helper_text="Range 0.5-1.0. Default 0.90 (10% margin).",
+        group=ContextManagerGroup.TOKEN_LIMITS,
+        validation_schema={"min": 0.5, "max": 1.0},
     ),
     SettingDefinition(
         key="context_manager.max_context_tokens",

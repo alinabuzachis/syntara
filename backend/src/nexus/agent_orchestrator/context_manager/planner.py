@@ -28,6 +28,7 @@ from nexus.settings.cache.settings_cache import get_runtime_settings
 
 from .assembler_service import AssemblerService
 from .compressor import CompressorService
+from .model_profile_service import ModelProfileService
 from .models import ContextPackage
 from .retriever_service.services import RetrieverService, get_retriever_service
 
@@ -121,6 +122,44 @@ class ContextManagerPlanner:
                 error=str(e),
                 exc_info=True,
             )
+
+    async def _resolve_token_budget(self) -> int:
+        """Resolve the token budget from the model profile or fallback settings."""
+        try:
+            profile_service = ModelProfileService()
+            model_name = self.llm_credential_config.model if self.llm_credential_config else None
+            provider_hint = self.llm_credential_config.provider_hint if self.llm_credential_config else None
+            output_reserve = await self.settings.get_int("context_manager.output_token_reserve")
+            safety_margin = await self.settings.get_float("context_manager.tokenizer_safety_margin")
+
+            budget = await profile_service.get_token_budget(
+                model=model_name,
+                provider_hint=provider_hint,
+                output_reserve=output_reserve,
+                safety_margin=safety_margin,
+            )
+
+            if budget.source == "fallback":
+                max_tokens = await self.settings.get_int("context_manager.max_total_tokens")
+            else:
+                max_tokens = budget.effective_context_budget
+
+            logger.info(
+                "Token budget resolved",
+                max_tokens=max_tokens,
+                source=budget.source,
+                model=model_name,
+                max_input_tokens=budget.max_input_tokens,
+            )
+            return max_tokens
+        except Exception:  # noqa: BLE001
+            max_tokens = await self.settings.get_int("context_manager.max_total_tokens")
+            logger.warning(
+                "Model-aware budget resolution failed, falling back to max_total_tokens",
+                max_tokens=max_tokens,
+                exc_info=True,
+            )
+            return max_tokens
 
     async def plan_request(
         self,
@@ -268,8 +307,8 @@ class ContextManagerPlanner:
         assembly_start = time.time()
         try:
             # Get configuration parameters from runtime settings
-            max_tokens = await self.settings.get_int("context_manager.max_total_tokens")
             compression_loop = await self.settings.get_int("context_manager.compression_loop")
+            max_tokens = await self._resolve_token_budget()
 
             # Create assembler with injected dependencies
             token_service = TokenValidationService()

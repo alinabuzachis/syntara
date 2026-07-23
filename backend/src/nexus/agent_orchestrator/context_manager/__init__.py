@@ -6,6 +6,7 @@ to support coordinated AI agent workflows.
 
 from .assembler_service import AssemblerService
 from .compressor import CompressorService
+from .model_profile_service import ModelProfileService, ModelTokenBudget
 from .models import ContextPackage
 from .planner import ContextManagerPlanner
 
@@ -14,4 +15,6 @@ __all__ = [
     "CompressorService",
     "ContextManagerPlanner",
     "ContextPackage",
+    "ModelProfileService",
+    "ModelTokenBudget",
 ]

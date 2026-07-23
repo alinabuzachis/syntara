@@ -13,6 +13,7 @@ Tests cover:
 """
 
 import hashlib
+import socket
 import time
 from base64 import urlsafe_b64encode
 from datetime import UTC, datetime, timedelta
@@ -32,6 +33,32 @@ from nexus.auth.services.oidc_service import (
     _is_ssl_verification_error,
 )
 from nexus.identity_providers.models.identity_provider_configuration import OIDCClaimMapping
+
+_real_getaddrinfo = socket.getaddrinfo
+
+_PUBLIC_IP = "93.184.216.34"
+_STUBBED_HOSTS = {"example.com", "evil-idp.com", "other-issuer.com"}
+
+
+def _fake_getaddrinfo(
+    host: str,
+    port: int | str | None,
+    family: int = 0,
+    type: int = 0,  # noqa: A002
+    proto: int = 0,
+    flags: int = 0,
+) -> list[tuple[socket.AddressFamily, socket.SocketKind, int, str, tuple[str, int]]]:
+    """Return a public IP for test hostnames so validate_safe_url skips real DNS."""
+    if host in _STUBBED_HOSTS:
+        resolved_port = int(port) if port else 443
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (_PUBLIC_IP, resolved_port))]
+    return _real_getaddrinfo(host, port, family, type, proto, flags)  # type: ignore[return-value]
+
+
+@pytest.fixture(autouse=True)
+def _stub_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent validate_safe_url from doing real DNS lookups in unit tests."""
+    monkeypatch.setattr(socket, "getaddrinfo", _fake_getaddrinfo)
 
 
 @pytest.fixture

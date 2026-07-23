@@ -18,6 +18,7 @@ from nexus.agent_orchestrator.context_manager import (
     ContextPackage,
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.services import get_retriever_service
+from nexus.agent_orchestrator.models import LLMCredentialConfig
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 
@@ -309,6 +310,132 @@ class TestContextManagerPlanner:
 
         call_kwargs = mock_assemble.call_args.kwargs
         assert call_kwargs["max_tokens"] == 8000
+
+    @pytest.mark.asyncio
+    async def test_plan_request_uses_model_derived_budget(
+        self, mock_user: User, mock_session_factory, mock_compressor
+    ) -> None:
+        """When llm_credential_config is set, max_tokens is derived from the model profile."""
+        mock_context_package = ContextPackage(
+            payload={},
+            grounding_score=0.0,
+            citations=[],
+            package_metadata={},
+        )
+
+        credential_config = LLMCredentialConfig(
+            api_key="test-key",
+            base_url="https://api.openai.com/v1",
+            model="gpt-4o",
+            provider_hint="openai",
+        )
+
+        planner = ContextManagerPlanner(
+            session_factory=mock_session_factory,
+            compressor_service_factory=lambda: mock_compressor,
+            llm_credential_config=credential_config,
+        )
+
+        with patch(
+            "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
+            new_callable=AsyncMock,
+            return_value=mock_context_package,
+        ) as mock_assemble:
+            await planner.plan_request(
+                query="model budget query",
+                session_id="test-session",
+                invocation_id=uuid4(),
+                execution_id=uuid4(),
+                request_id=uuid4(),
+                user_id=mock_user.id,
+            )
+
+        call_kwargs = mock_assemble.call_args.kwargs
+        # Model-derived budget should be much larger than the fallback 4000
+        assert call_kwargs["max_tokens"] > 4000
+
+    @pytest.mark.asyncio
+    async def test_plan_request_falls_back_without_credential_config(
+        self, mock_user: User, mock_session_factory, mock_compressor
+    ) -> None:
+        """Without llm_credential_config, planner uses the fallback settings value."""
+        mock_context_package = ContextPackage(
+            payload={},
+            grounding_score=0.0,
+            citations=[],
+            package_metadata={},
+        )
+
+        planner = ContextManagerPlanner(
+            session_factory=mock_session_factory,
+            compressor_service_factory=lambda: mock_compressor,
+        )
+
+        with patch(
+            "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
+            new_callable=AsyncMock,
+            return_value=mock_context_package,
+        ) as mock_assemble:
+            await planner.plan_request(
+                query="fallback query",
+                session_id="test-session",
+                invocation_id=uuid4(),
+                execution_id=uuid4(),
+                request_id=uuid4(),
+                user_id=mock_user.id,
+            )
+
+        call_kwargs = mock_assemble.call_args.kwargs
+        assert call_kwargs["max_tokens"] == 4000  # Fallback default
+
+    @pytest.mark.asyncio
+    async def test_resolve_token_budget_fallback_on_exception(
+        self, mock_user: User, mock_session_factory, mock_compressor
+    ) -> None:
+        """When model profile resolution fails, fall back to max_total_tokens from settings."""
+        mock_context_package = ContextPackage(
+            payload={},
+            grounding_score=0.0,
+            citations=[],
+            package_metadata={},
+        )
+
+        credential_config = LLMCredentialConfig(
+            api_key="test-key",
+            base_url="https://api.openai.com/v1",
+            model="gpt-4o",
+            provider_hint="openai",
+        )
+
+        planner = ContextManagerPlanner(
+            session_factory=mock_session_factory,
+            compressor_service_factory=lambda: mock_compressor,
+            llm_credential_config=credential_config,
+        )
+
+        with (
+            patch(
+                "nexus.agent_orchestrator.context_manager.planner.ModelProfileService.get_token_budget",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Registry import failed"),
+            ),
+            patch(
+                "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
+                new_callable=AsyncMock,
+                return_value=mock_context_package,
+            ) as mock_assemble,
+        ):
+            await planner.plan_request(
+                query="fallback query",
+                session_id="test-session",
+                invocation_id=uuid4(),
+                execution_id=uuid4(),
+                request_id=uuid4(),
+                user_id=mock_user.id,
+            )
+
+        call_kwargs = mock_assemble.call_args.kwargs
+        assert call_kwargs["max_tokens"] == 4000  # Falls back to settings default
 
     def test_context_package_model_validation(self) -> None:
         """Test ContextPackage model validation."""

@@ -47,6 +47,8 @@ _EXPECTED_KEYS: list[str] = [
     "context_manager.compression_loop",
     "context_manager.compression_temperature",
     "context_manager.compression_max_tokens",
+    "context_manager.output_token_reserve",
+    "context_manager.tokenizer_safety_margin",
 ]
 
 
@@ -125,6 +127,8 @@ def test_context_manager_keys_have_correct_category(key: str) -> None:
         ("context_manager.compression_loop", SettingValueType.INTEGER),
         ("context_manager.compression_temperature", SettingValueType.FLOAT),
         ("context_manager.compression_max_tokens", SettingValueType.INTEGER),
+        ("context_manager.output_token_reserve", SettingValueType.INTEGER),
+        ("context_manager.tokenizer_safety_margin", SettingValueType.FLOAT),
     ],
 )
 def test_context_manager_value_types(key: str, expected_type: SettingValueType) -> None:
@@ -163,6 +167,8 @@ def test_context_manager_value_types(key: str, expected_type: SettingValueType) 
         ("context_manager.compression_loop", 3),
         ("context_manager.compression_temperature", 0.3),
         ("context_manager.compression_max_tokens", 2000),
+        ("context_manager.output_token_reserve", 4096),
+        ("context_manager.tokenizer_safety_margin", 0.90),
     ],
 )
 def test_context_manager_default_values(key: str, expected_default: object) -> None:
@@ -203,6 +209,8 @@ def test_context_manager_default_values(key: str, expected_default: object) -> N
         ("context_manager.compression_loop", {"min": 0}),
         ("context_manager.compression_temperature", {"min": 0.0, "max": 1.0}),
         ("context_manager.compression_max_tokens", {"min": 1}),
+        ("context_manager.output_token_reserve", {"min": 256}),
+        ("context_manager.tokenizer_safety_margin", {"min": 0.5, "max": 1.0}),
     ],
 )
 def test_context_manager_validation_schemas(key: str, expected_schema: dict[str, int | float] | None) -> None:
