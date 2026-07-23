@@ -371,7 +371,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true' && github.event_name != 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Wait for E2E commit statuses
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -383,7 +383,7 @@ jobs:
             } else {
               sha = context.payload.pull_request.head.sha;
             }
-            const timeout = 60 * 60 * 1000; // 60 minutes
+            const timeout = 90 * 60 * 1000; // 90 minutes
             const interval = 30 * 1000; // poll every 30s
             const start = Date.now();
             const required = ['E2E Tests (UI)'];
