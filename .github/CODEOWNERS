@@ -15,6 +15,7 @@
 /frontend/.cursor/rules/patternfly-ux-design-system.mdc @syntara-orchestration/uxd-team
 
 # CI/CD — workflows, custom actions, and CI-adjacent config
+/.github/scripts/ @syntara-orchestration/syntara-ci-stability
 /.github/workflows/ @syntara-orchestration/syntara-ci-stability
 /.github/actions/ @syntara-orchestration/syntara-ci-stability
 /.github/actionlint.yaml @syntara-orchestration/syntara-ci-stability
