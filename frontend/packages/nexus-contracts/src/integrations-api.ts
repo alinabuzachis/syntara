@@ -1299,6 +1299,8 @@ export interface operations {
         scope?: components['schemas']['IntegrationScope'] | null
         /** @description Filter by management credential ID (credential used for admin operations like validation and tool/model discovery) */
         management_credential_id?: string | null
+        /** @description Filter to integrations that are global or assigned to this project. Restricted to projects the user has RBAC access to; querying inaccessible projects returns only global integrations. */
+        project_id?: string | null
       }
       header?: never
       path?: never

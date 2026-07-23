@@ -9,6 +9,7 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.authz.exceptions import ProjectNotFoundError
 from nexus.authz.models import Project
 from nexus.core.models import User
@@ -295,7 +296,9 @@ class TestProjectIdsOnIntegrationRead:
         created = await integration_service.create_integration(_mcp_create(scope=IntegrationScope.PROJECT))
         await integration_service.assign_project(created.id, project.id)
 
-        response = await integration_service.list_integrations()
+        response = await integration_service.list_integrations(
+            allowed_projects=AllowedProjectsResult(all_projects=True, project_ids=[])
+        )
 
         matching = [r for r in response.resources if r.id == created.id]
         assert len(matching) == 1

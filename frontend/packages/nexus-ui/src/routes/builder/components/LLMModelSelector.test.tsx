@@ -118,12 +118,20 @@ describe('LLMModelSelector', () => {
   })
 
   it('shows guidance link when no integrations exist and user can create integrations', () => {
+    vi.mocked(useIntegrationPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: false,
+      canDelete: false,
+      isLoading: false,
+      tooltips: { create: '', update: '', enable: '', validate: '', delete: '' },
+    })
     mockClients({ integrations: [] })
     renderSelector()
 
     const link = screen.getByRole('link', { name: /configure an LLM provider integration/i })
     expect(link).toBeInTheDocument()
     expect(link).toHaveAttribute('href', '/configuration/integrations/configure')
+    expect(screen.getByText(/before models can be selected/i)).toBeInTheDocument()
   })
 
   it('shows plain text guidance without link when user lacks integration:create permission', () => {
@@ -137,7 +145,9 @@ describe('LLMModelSelector', () => {
     mockClients({ integrations: [] })
     renderSelector()
 
-    expect(screen.getByText(/An administrator must configure an LLM provider integration/i)).toBeInTheDocument()
+    expect(
+      screen.getByText('An administrator must configure an LLM provider integration before models can be selected.')
+    ).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /configure an LLM provider integration/i })).not.toBeInTheDocument()
   })
 
@@ -200,5 +210,36 @@ describe('LLMModelSelector', () => {
       expect(screen.getByDisplayValue('OpenAI / GPT-4o')).toBeInTheDocument()
     })
     expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('passes project_id to the integrations query when projectId is provided', () => {
+    renderSelector({ projectId: 'proj-456' })
+    expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+      params: {
+        query: { integration_type: 'llm_provider', enabled: true, project_id: 'proj-456' },
+      },
+    })
+  })
+
+  it('does not include project_id in the query when projectId is omitted', () => {
+    renderSelector()
+    expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+      params: {
+        query: { integration_type: 'llm_provider', enabled: true },
+      },
+    })
+  })
+
+  it('renders only models from project-scoped integrations when projectId filters results', async () => {
+    mockClients({ integrations: [mockIntegrations[0]] })
+    const user = userEvent.setup()
+    renderSelector({ projectId: 'proj-456' })
+
+    await user.click(screen.getByRole('button', { name: /model/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('GPT-4o')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Claude Sonnet')).not.toBeInTheDocument()
   })
 })

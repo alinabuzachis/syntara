@@ -15,6 +15,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { integrationsFetchClient, integrationsClient } from '../../../client'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { NxLabel } from '../../../components/labels/NxLabel'
+import { projectIdParam } from '../../../utils/queryParams'
 
 import { IntegrationRequiredHelper } from './IntegrationRequiredHelper'
 import styles from './LLMModelSelector.module.css'
@@ -40,11 +41,27 @@ export type LLMModelSelectorProps = {
   isDisabled?: boolean
   /** Help text rendered in a popover next to the label. */
   helpText?: React.ReactNode
+  /** When provided, filters LLM provider integrations to those that are global or assigned to this project. */
+  projectId?: string
 }
 
 type VisibleGroup = {
   integration: IntegrationRead & { id: string }
   models: LLMModelRead[]
+}
+
+function resolveToggleLabel(
+  value: LLMModelSelection | undefined,
+  integrations: (IntegrationRead & { id: string })[],
+  modelsByIntegration: Map<string, LLMModelRead[]>
+): string {
+  if (!value) return ''
+  for (const integration of integrations) {
+    const models = modelsByIntegration.get(integration.id) ?? []
+    const model = models.find((m) => m.id === value.llm_model_id)
+    if (model) return `${integration.name} / ${model.name}`
+  }
+  return value.llm_model_id
 }
 
 /**
@@ -67,6 +84,7 @@ export function LLMModelSelector({
   fieldId = 'llm-model-selector',
   isDisabled = false,
   helpText,
+  projectId,
 }: Readonly<LLMModelSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
@@ -76,7 +94,11 @@ export function LLMModelSelector({
     '/integrations',
     {
       params: {
-        query: { integration_type: IntegrationTypeEnum.LLM_PROVIDER, enabled: true },
+        query: {
+          integration_type: IntegrationTypeEnum.LLM_PROVIDER,
+          enabled: true,
+          ...projectIdParam(projectId),
+        },
       },
     }
   )
@@ -116,7 +138,6 @@ export function LLMModelSelector({
 
   const isPending = isIntegrationsPending || isModelsPending
 
-  // Groups visible after applying the typeahead filter
   const visibleGroups = useMemo((): VisibleGroup[] => {
     const query = filterText.toLowerCase().trim()
     return integrations
@@ -137,16 +158,10 @@ export function LLMModelSelector({
       .filter(({ integration, models }) => models.length > 0 || failedIntegrationIds.has(integration.id))
   }, [integrations, modelsByIntegration, filterText, failedIntegrationIds])
 
-  // Display label shown in the toggle when the dropdown is closed
-  const toggleLabel = useMemo(() => {
-    if (!value) return ''
-    for (const integration of integrations) {
-      const models = modelsByIntegration.get(integration.id) ?? []
-      const model = models.find((m) => m.id === value.llm_model_id)
-      if (model) return `${integration.name} / ${model.name}`
-    }
-    return value.llm_model_id
-  }, [value, integrations, modelsByIntegration])
+  const toggleLabel = useMemo(
+    () => resolveToggleLabel(value, integrations, modelsByIntegration),
+    [value, integrations, modelsByIntegration]
+  )
 
   const handleSelect = useCallback(
     (_event: React.MouseEvent | undefined, selectedValue: string | number | undefined) => {

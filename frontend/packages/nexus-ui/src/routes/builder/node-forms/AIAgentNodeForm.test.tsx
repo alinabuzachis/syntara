@@ -637,6 +637,40 @@ describe('AIAgentNodeForm', () => {
     })
   })
 
+  describe('project scoping', () => {
+    it('passes project_id to the MCP integrations query when projectId is provided', () => {
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="proj-abc" />)
+      expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+        params: {
+          query: { integration_type: 'mcp_server', enabled: true, project_id: 'proj-abc' },
+        },
+      })
+    })
+
+    it('passes project_id to the LLM integrations query when projectId is provided', () => {
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="proj-abc" />)
+      expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+        params: {
+          query: { integration_type: 'llm_provider', enabled: true, project_id: 'proj-abc' },
+        },
+      })
+    })
+
+    it('does not include project_id in integration queries when projectId is omitted', () => {
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+      expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+        params: {
+          query: { integration_type: 'mcp_server', enabled: true },
+        },
+      })
+      expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+        params: {
+          query: { integration_type: 'llm_provider', enabled: true },
+        },
+      })
+    })
+  })
+
   describe('Accessibility', () => {
     it('has no accessibility violations (excluding known PatternFly Tabs issue)', async () => {
       const { container } = renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)

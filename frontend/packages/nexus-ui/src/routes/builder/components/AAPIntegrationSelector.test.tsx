@@ -394,4 +394,35 @@ describe('AAPIntegrationSelector', () => {
     expect(screen.getByText('AAP Production')).toBeInTheDocument()
     expect(screen.getByText('AAP Staging')).toBeInTheDocument()
   })
+
+  it('passes project_id to the integrations query when projectId is provided', () => {
+    renderSelector({ projectId: 'proj-aap-123' })
+    expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+      params: {
+        query: { integration_type: 'ansible_automation_platform', enabled: true, project_id: 'proj-aap-123' },
+      },
+    })
+  })
+
+  it('does not include project_id in the query when projectId is omitted', () => {
+    renderSelector()
+    expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+      params: {
+        query: { integration_type: 'ansible_automation_platform', enabled: true },
+      },
+    })
+  })
+
+  it('renders only project-scoped integrations when projectId filters the result set', async () => {
+    const projectScopedIntegrations = [mockIntegrations[0]]
+    mockClients({ integrations: projectScopedIntegrations })
+    const user = userEvent.setup()
+    renderSelector({ projectId: 'proj-aap-123' })
+
+    const input = screen.getByRole('textbox', { name: /integration/i })
+    await user.click(input)
+
+    expect(screen.getByText('AAP Production')).toBeInTheDocument()
+    expect(screen.queryByText('AAP Staging')).not.toBeInTheDocument()
+  })
 })

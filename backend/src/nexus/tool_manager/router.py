@@ -16,7 +16,8 @@ from nexus.authz.exceptions import AuthorizationDeniedError
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
-from nexus.integrations.router import _resolve_visible_integration_ids, integration_read_visibility
+from nexus.integrations.router import integration_read_visibility
+from nexus.integrations.services.integration_service import IntegrationService
 from nexus.tool_manager.exceptions import ToolNotFoundError
 from nexus.tool_manager.models import ToolListParams
 from nexus.tool_manager.models.tool import (
@@ -82,7 +83,7 @@ async def get_tools(
     Tools are filtered by the caller's integration visibility — only tools
     belonging to visible integrations are returned.
     """
-    visible_ids = await _resolve_visible_integration_ids(db, allowed_projects)
+    visible_ids = await IntegrationService.resolve_visible_integration_ids(db, allowed_projects)
     return await service.list_tools(
         limit=params.limit,
         cursor=params.cursor,
@@ -102,7 +103,7 @@ async def get_tool(
 ) -> ToolWithParameters:
     """Get tool details by ID."""
     tool = await service.get_tool_detail(tool_id)
-    visible_ids = await _resolve_visible_integration_ids(db, allowed_projects)
+    visible_ids = await IntegrationService.resolve_visible_integration_ids(db, allowed_projects)
     if visible_ids is not None and tool.integration_id not in set(visible_ids):
         raise ToolNotFoundError(str(tool_id))
     return tool

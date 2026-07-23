@@ -192,4 +192,34 @@ describe('IntegrationSelector', () => {
 
     expect(await axe(container)).toHaveNoViolations()
   })
+
+  it('passes project_id to the integrations query when projectId is provided', () => {
+    renderSelector({ projectId: 'proj-123' })
+    expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+      params: {
+        query: { integration_type: 'mcp_server', enabled: true, project_id: 'proj-123' },
+      },
+    })
+  })
+
+  it('does not include project_id in the query when projectId is omitted', () => {
+    renderSelector()
+    expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
+      params: {
+        query: { integration_type: 'mcp_server', enabled: true },
+      },
+    })
+  })
+
+  it('renders only project-scoped integrations when projectId filters the result set', async () => {
+    const projectScopedIntegrations = [mockIntegrations[0]]
+    mockQuerySuccess(projectScopedIntegrations)
+    const user = userEvent.setup()
+    renderSelector({ projectId: 'proj-123' })
+
+    await user.click(screen.getByRole('button', { name: /MCP server integration/i }))
+
+    expect(screen.getByRole('option', { name: /Primary MCP Server/i })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Dev MCP Server/i })).not.toBeInTheDocument()
+  })
 })

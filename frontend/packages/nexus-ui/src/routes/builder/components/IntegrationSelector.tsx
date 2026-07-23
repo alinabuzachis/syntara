@@ -17,6 +17,7 @@ import { integrationsClient } from '../../../client'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { NxLabel } from '../../../components/labels/NxLabel'
 import { detachPromise } from '../../../utils/detachPromise'
+import { projectIdParam } from '../../../utils/queryParams'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 type IntegrationStatus = (typeof IntegrationStatusEnum)[keyof typeof IntegrationStatusEnum]
@@ -58,6 +59,8 @@ export type IntegrationSelectorProps = {
   isDisabled?: boolean
   placeholder?: string
   helpText?: React.ReactNode
+  /** When provided, filters integrations to those that are global or assigned to this project. */
+  projectId?: string
 }
 
 function IntegrationMenuToggle(
@@ -107,12 +110,17 @@ export function IntegrationSelector({
   isDisabled = false,
   placeholder = 'Select an MCP server integration...',
   helpText,
+  projectId,
 }: Readonly<IntegrationSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
 
   const { data, isPending, isError, refetch } = integrationsClient.useQuery('get', '/integrations', {
     params: {
-      query: { integration_type: IntegrationTypeEnum.MCP_SERVER, enabled: true },
+      query: {
+        integration_type: IntegrationTypeEnum.MCP_SERVER,
+        enabled: true,
+        ...projectIdParam(projectId),
+      },
     },
   })
 

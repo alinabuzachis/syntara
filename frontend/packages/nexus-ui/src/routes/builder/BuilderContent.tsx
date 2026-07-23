@@ -647,7 +647,7 @@ export function BuilderContent(props: BuilderContentProps) {
                       onClose={handleCloseNodeEditor}
                       onNavigateToNode={handleNavigateToNode}
                       onAddStep={handleAddStepFromPanel}
-                      projectId={(workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id}
+                      projectId={workflow?.project_id ?? selectedProject?.id}
                       workflowMetadata={workflowMetadata}
                       onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
                     />

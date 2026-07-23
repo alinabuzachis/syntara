@@ -24,6 +24,7 @@ import {
   useFileStorageStatus,
 } from '../../../hooks/useFileStorageStatus'
 import { detachPromise } from '../../../utils/detachPromise'
+import { projectIdParam } from '../../../utils/queryParams'
 import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
 import { FileUpload, type UploadedFile } from '../components/file-upload'
 import { LLMCredentialStatus } from '../components/LLMCredentialStatus'
@@ -66,6 +67,7 @@ export type AIAgentNodeFormProps = {
   initialData?: AIAgentFormInitialData
   existingFileIds?: string[]
   onHeaderContentChange?: (content: ReactNode | null) => void
+  /** Project ID to scope integration and credential queries to this project. */
   projectId?: string
 }
 
@@ -186,6 +188,7 @@ function LLMSection({ isVersionView, projectId }: LLMSectionProps) {
             if (!newSelection) setValue('credential_id', undefined, { shouldDirty: true })
           }}
           isDisabled={isVersionView}
+          projectId={projectId}
         />
       </StackItem>
       <StackItem>
@@ -409,7 +412,13 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
     isError: isIntegrationsError,
     refetch: refetchIntegrations,
   } = integrationsClient.useQuery('get', '/integrations', {
-    params: { query: { integration_type: IntegrationTypeEnum.MCP_SERVER, enabled: true } },
+    params: {
+      query: {
+        integration_type: IntegrationTypeEnum.MCP_SERVER,
+        enabled: true,
+        ...projectIdParam(props.projectId),
+      },
+    },
   })
 
   const isLoadingIntegrations = isLoadingTools || isLoadingIntegrationsQuery

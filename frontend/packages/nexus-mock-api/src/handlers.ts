@@ -380,6 +380,10 @@ export const handlers = [
     if (managementCredentialId) {
       filtered = filtered.filter((i) => i.management_credential_id === managementCredentialId)
     }
+    const projectId = url.searchParams.get('project_id')
+    if (projectId) {
+      filtered = filtered.filter((i) => i.scope === 'global' || (i.project_ids && i.project_ids.includes(projectId)))
+    }
 
     return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
   }),

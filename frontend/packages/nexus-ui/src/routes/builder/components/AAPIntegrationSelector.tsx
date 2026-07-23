@@ -5,6 +5,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
+import { projectIdParam } from '../../../utils/queryParams'
 
 import styles from './AAPIntegrationSelector.module.css'
 import { IntegrationRequiredHelper } from './IntegrationRequiredHelper'
@@ -20,6 +21,8 @@ export type AAPIntegrationSelectorProps = {
   isDisabled?: boolean
   isRequired?: boolean
   helpText?: React.ReactNode
+  /** When provided, filters AAP integrations to those that are global or assigned to this project. */
+  projectId?: string
 }
 
 function getIntegrationUrl(integration: IntegrationRead): string | undefined {
@@ -38,13 +41,18 @@ export function AAPIntegrationSelector({
   isDisabled = false,
   isRequired = false,
   helpText,
+  projectId,
 }: Readonly<AAPIntegrationSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
 
   const { data: integrationsData, isPending } = integrationsClient.useQuery('get', '/integrations', {
     params: {
-      query: { integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM, enabled: true },
+      query: {
+        integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
+        enabled: true,
+        ...projectIdParam(projectId),
+      },
     },
   })
 

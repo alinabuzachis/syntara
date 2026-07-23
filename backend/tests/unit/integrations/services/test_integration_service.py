@@ -8,6 +8,7 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.authz.models import Project
 from nexus.core.models import User
 from nexus.integrations.exceptions import IntegrationNameConflictError, IntegrationNotFoundError
@@ -22,6 +23,8 @@ from nexus.integrations.models.integration import (
     IntegrationType,
 )
 from nexus.integrations.services.integration_service import IntegrationService
+
+_UNRESTRICTED = AllowedProjectsResult(all_projects=True, project_ids=[])
 
 
 @pytest.fixture(autouse=True)
@@ -219,7 +222,7 @@ class TestListIntegrations:
         await integration_service.create_integration(_mcp_create(name="Integration A"))
         await integration_service.create_integration(_mcp_create(name="Integration B"))
 
-        result = await integration_service.list_integrations()
+        result = await integration_service.list_integrations(allowed_projects=_UNRESTRICTED)
 
         assert len(result.resources) == 2
 
@@ -231,7 +234,7 @@ class TestListIntegrations:
         to_delete = await integration_service.create_integration(_mcp_create(name="To Delete"))
         await integration_service.delete_integration(to_delete.id)
 
-        result = await integration_service.list_integrations()
+        result = await integration_service.list_integrations(allowed_projects=_UNRESTRICTED)
 
         ids = {r.id for r in result.resources}
         assert active.id in ids
@@ -254,7 +257,9 @@ class TestListIntegrations:
             )
         )
 
-        result = await integration_service.list_integrations(query_params_items=[("integration_type", "mcp_server")])
+        result = await integration_service.list_integrations(
+            allowed_projects=_UNRESTRICTED, query_params_items=[("integration_type", "mcp_server")]
+        )
 
         assert len(result.resources) == 1
         assert result.resources[0].integration_type == IntegrationType.MCP_SERVER
@@ -266,7 +271,9 @@ class TestListIntegrations:
         await integration_service.create_integration(_mcp_create(name="Enabled", enabled=True))
         disabled = await integration_service.create_integration(_mcp_create(name="Disabled", enabled=False))
 
-        result = await integration_service.list_integrations(query_params_items=[("enabled", "false")])
+        result = await integration_service.list_integrations(
+            allowed_projects=_UNRESTRICTED, query_params_items=[("enabled", "false")]
+        )
 
         assert len(result.resources) == 1
         assert result.resources[0].id == disabled.id
@@ -278,7 +285,7 @@ class TestListIntegrations:
         await integration_service.create_integration(_mcp_create(name="Zebra"))
         await integration_service.create_integration(_mcp_create(name="Alpha"))
 
-        result = await integration_service.list_integrations(sort="name")
+        result = await integration_service.list_integrations(allowed_projects=_UNRESTRICTED, sort="name")
 
         names = [r.name for r in result.resources]
         assert names == sorted(names)
@@ -291,7 +298,9 @@ class TestListIntegrations:
         await integration_service.create_integration(_mcp_create(name="Two"))
         await integration_service.create_integration(_mcp_create(name="Three"))
 
-        result = await integration_service.list_integrations(limit=2, include_total=True)
+        result = await integration_service.list_integrations(
+            allowed_projects=_UNRESTRICTED, limit=2, include_total=True
+        )
 
         assert len(result.resources) == 2
         assert result.total == 3
@@ -338,6 +347,130 @@ class TestListIntegrations:
         ids = {r.id for r in result.resources}
         assert project_integration.id in ids
         assert all(r.name in {"Global", "Project Scoped"} for r in result.resources)
+
+
+class TestListIntegrationsProjectFilter:
+    """Tests for project_id parameter on list_integrations."""
+
+    @pytest.mark.asyncio
+    async def test_project_id_returns_global_and_assigned(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        project = Project(name=f"pf-proj-{uuid4().hex[:8]}")
+        test_db_session.add(project)
+        await test_db_session.flush()
+
+        global_intg = await integration_service.create_integration(
+            _mcp_create(name="Global PF", scope=IntegrationScope.GLOBAL)
+        )
+        assigned_intg = await integration_service.create_integration(
+            _mcp_create(name="Assigned PF", scope=IntegrationScope.PROJECT)
+        )
+        unassigned_intg = await integration_service.create_integration(
+            _mcp_create(name="Unassigned PF", scope=IntegrationScope.PROJECT)
+        )
+
+        test_db_session.add(IntegrationProjectAssignment(integration_id=assigned_intg.id, project_id=project.id))
+        await test_db_session.flush()
+
+        result = await integration_service.list_integrations(
+            allowed_projects=AllowedProjectsResult(all_projects=True, project_ids=[]),
+            project_id=project.id,
+        )
+        ids = {r.id for r in result.resources}
+        assert global_intg.id in ids
+        assert assigned_intg.id in ids
+        assert unassigned_intg.id not in ids
+
+    @pytest.mark.asyncio
+    async def test_project_id_with_rbac_intersection(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        project_a = Project(name=f"pf-a-{uuid4().hex[:8]}")
+        project_b = Project(name=f"pf-b-{uuid4().hex[:8]}")
+        test_db_session.add(project_a)
+        test_db_session.add(project_b)
+        await test_db_session.flush()
+
+        global_intg = await integration_service.create_integration(
+            _mcp_create(name="G-RBAC", scope=IntegrationScope.GLOBAL)
+        )
+        intg_a = await integration_service.create_integration(
+            _mcp_create(name="A-RBAC", scope=IntegrationScope.PROJECT)
+        )
+        intg_b = await integration_service.create_integration(
+            _mcp_create(name="B-RBAC", scope=IntegrationScope.PROJECT)
+        )
+
+        test_db_session.add(IntegrationProjectAssignment(integration_id=intg_a.id, project_id=project_a.id))
+        test_db_session.add(IntegrationProjectAssignment(integration_id=intg_b.id, project_id=project_b.id))
+        await test_db_session.flush()
+
+        rbac = AllowedProjectsResult(all_projects=False, project_ids=[project_a.id])
+        result = await integration_service.list_integrations(allowed_projects=rbac, project_id=project_a.id)
+
+        ids = {r.id for r in result.resources}
+        assert global_intg.id in ids
+        assert intg_a.id in ids
+        assert intg_b.id not in ids
+
+    @pytest.mark.asyncio
+    async def test_project_id_for_inaccessible_project_returns_only_globals(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        project_a = Project(name=f"pf-own-{uuid4().hex[:8]}")
+        project_b = Project(name=f"pf-other-{uuid4().hex[:8]}")
+        test_db_session.add(project_a)
+        test_db_session.add(project_b)
+        await test_db_session.flush()
+
+        global_intg = await integration_service.create_integration(
+            _mcp_create(name="G-Inacc", scope=IntegrationScope.GLOBAL)
+        )
+        intg_both = await integration_service.create_integration(
+            _mcp_create(name="Both-Inacc", scope=IntegrationScope.PROJECT)
+        )
+
+        test_db_session.add(IntegrationProjectAssignment(integration_id=intg_both.id, project_id=project_a.id))
+        test_db_session.add(IntegrationProjectAssignment(integration_id=intg_both.id, project_id=project_b.id))
+        await test_db_session.flush()
+
+        rbac = AllowedProjectsResult(all_projects=False, project_ids=[project_a.id])
+        result = await integration_service.list_integrations(allowed_projects=rbac, project_id=project_b.id)
+
+        ids = {r.id for r in result.resources}
+        assert global_intg.id in ids
+        assert intg_both.id not in ids
+
+    @pytest.mark.asyncio
+    async def test_project_id_none_returns_all(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        await integration_service.create_integration(_mcp_create(name="Any-1", scope=IntegrationScope.GLOBAL))
+        await integration_service.create_integration(_mcp_create(name="Any-2", scope=IntegrationScope.PROJECT))
+
+        result = await integration_service.list_integrations(allowed_projects=_UNRESTRICTED)
+        assert len(result.resources) >= 2
+
+
+class TestIntersectIdRestrictions:
+    """Tests for IntegrationService._intersect_id_restrictions."""
+
+    def test_rbac_none_returns_project_ids(self) -> None:
+        project_ids = [uuid4(), uuid4()]
+        result = IntegrationService._intersect_id_restrictions(None, project_ids)
+        assert set(result) == set(project_ids)
+
+    def test_both_lists_returns_intersection(self) -> None:
+        shared = uuid4()
+        rbac_only = uuid4()
+        project_only = uuid4()
+        result = IntegrationService._intersect_id_restrictions([shared, rbac_only], [shared, project_only])
+        assert set(result) == {shared}
+
+    def test_no_overlap_returns_empty(self) -> None:
+        result = IntegrationService._intersect_id_restrictions([uuid4()], [uuid4()])
+        assert result == []
 
 
 class TestPatchIntegration:

@@ -456,7 +456,7 @@ class IntegrationService(BaseService):
         """Raise IntegrationNotFoundError if the integration is not visible to the caller."""
         if allowed_projects.all_projects:
             return
-        visible_ids = await self._resolve_visible_integration_ids(allowed_projects)
+        visible_ids = await self.resolve_visible_integration_ids(self.session, allowed_projects)
         if visible_ids is not None and integration.id not in set(visible_ids):
             raise IntegrationNotFoundError(integration.id)
 
@@ -468,19 +468,30 @@ class IntegrationService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
-        allowed_projects: AllowedProjectsResult | None = None,
+        allowed_projects: AllowedProjectsResult,
+        project_id: UUID | None = None,
     ) -> IntegrationListResponse:
         """List integrations with filtering, sorting, and pagination.
 
         Scope visibility rules:
-        - GLOBAL integrations are visible to all callers.
+        - GLOBAL integrations are visible to all callers with integration:read.
         - PROJECT integrations are visible only when the caller has access to at least one
           of the projects the integration is assigned to.
-        - Pass allowed_projects=None to skip scope filtering (internal/admin callers).
+        - When project_id is provided, results are further restricted to integrations that
+          are global or assigned to that specific project. The user must have RBAC access
+          to the project; querying an inaccessible project returns only globals.
         """
         id_restriction: list[UUID] | None = None
-        if allowed_projects is not None:
-            id_restriction = await self._resolve_visible_integration_ids(allowed_projects)
+        id_restriction = await self.resolve_visible_integration_ids(self.session, allowed_projects)
+
+        if project_id is not None:
+            user_has_project_access = allowed_projects.all_projects or project_id in allowed_projects.project_ids
+            project_scoped_ids = await self._resolve_project_scoped_ids(
+                project_id, include_assignments=user_has_project_access
+            )
+            id_restriction = self._intersect_id_restrictions(id_restriction, project_scoped_ids)
+
+        filtered_params = [(k, v) for k, v in query_params_items if k != "project_id"] if query_params_items else None
 
         response = await self.list_resources(
             model=Integration,
@@ -488,7 +499,7 @@ class IntegrationService(BaseService):
             limit=limit,
             cursor=cursor,
             sort=sort,
-            query_params_items=query_params_items,
+            query_params_items=filtered_params,
             include_total=include_total,
             id_restriction=id_restriction,
         )
@@ -510,7 +521,10 @@ class IntegrationService(BaseService):
 
         return response
 
-    async def _resolve_visible_integration_ids(self, allowed_projects: AllowedProjectsResult) -> list[UUID] | None:
+    @staticmethod
+    async def resolve_visible_integration_ids(
+        session: AsyncSession, allowed_projects: AllowedProjectsResult
+    ) -> list[UUID] | None:
         """Return the set of integration IDs visible to the caller, or None for unrestricted access."""
         if allowed_projects.all_projects:
             return None
@@ -520,15 +534,43 @@ class IntegrationService(BaseService):
         )
 
         if not allowed_projects.project_ids:
-            result = await self.session.exec(global_query)
-            return list(result.all())
+            result = await session.execute(global_query)
+            return list(result.scalars().all())
 
         assignment_query = select(IntegrationProjectAssignment.integration_id).where(
             col(IntegrationProjectAssignment.project_id).in_(allowed_projects.project_ids),
         )
 
-        union_result = await self.session.execute(global_query.union(assignment_query))
+        union_result = await session.execute(global_query.union(assignment_query))
         return list(union_result.scalars().all())
+
+    async def _resolve_project_scoped_ids(self, project_id: UUID, *, include_assignments: bool = True) -> list[UUID]:
+        """Return integration IDs that are global or assigned to a specific project.
+
+        When include_assignments is False (caller lacks access to the project),
+        only global integrations are returned.
+        """
+        global_query = select(Integration.id).where(
+            Integration.scope == IntegrationScope.GLOBAL,
+        )
+        if not include_assignments:
+            result = await self.session.execute(global_query)
+            return list(result.scalars().all())
+        assignment_query = select(IntegrationProjectAssignment.integration_id).where(
+            IntegrationProjectAssignment.project_id == project_id,
+        )
+        result = await self.session.execute(global_query.union(assignment_query))
+        return list(result.scalars().all())
+
+    @staticmethod
+    def _intersect_id_restrictions(
+        rbac_ids: list[UUID] | None,
+        project_ids: list[UUID],
+    ) -> list[UUID]:
+        """Intersect RBAC visibility with project-scoped IDs."""
+        if rbac_ids is None:
+            return project_ids
+        return list(set(rbac_ids) & set(project_ids))
 
     async def patch_integration(self, integration_id: UUID, data: IntegrationPatch) -> IntegrationRead:
         """Apply partial updates to an integration."""

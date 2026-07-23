@@ -20,3 +20,9 @@ class IntegrationListParams(BaseListParams):
     enabled: bool | None = Field(default=None, description="Filter by enabled status")
     scope: IntegrationScope | None = Field(default=None, description="Filter by visibility scope")
     management_credential_id: UUID | None = Field(default=None, description="Filter by management credential ID")
+    project_id: UUID | None = Field(
+        default=None,
+        description="Filter to integrations that are global or assigned to this project. "
+        "Restricted to projects the user has RBAC access to; querying inaccessible projects "
+        "returns only global integrations.",
+    )

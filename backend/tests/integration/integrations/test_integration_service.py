@@ -6,6 +6,7 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.authz.models import Project
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
@@ -28,6 +29,8 @@ from nexus.integrations.models.integration import (
     IntegrationType,
 )
 from nexus.integrations.services.integration_service import IntegrationService
+
+_UNRESTRICTED = AllowedProjectsResult(all_projects=True, project_ids=[])
 
 
 @pytest.fixture
@@ -233,7 +236,7 @@ class TestListIntegrations:
         await integration_service.create_integration(_mcp_create(name="Integration A"))
         await integration_service.create_integration(_mcp_create(name="Integration B"))
 
-        result = await integration_service.list_integrations()
+        result = await integration_service.list_integrations(allowed_projects=_UNRESTRICTED)
 
         assert len(result.resources) == 2
 
@@ -245,7 +248,7 @@ class TestListIntegrations:
         deleted = await integration_service.create_integration(_mcp_create(name="Deleted"))
         await integration_service.delete_integration(deleted.id)
 
-        result = await integration_service.list_integrations()
+        result = await integration_service.list_integrations(allowed_projects=_UNRESTRICTED)
 
         ids = {r.id for r in result.resources}
         assert active.id in ids
@@ -276,7 +279,9 @@ class TestListIntegrations:
             )
         )
 
-        result = await integration_service.list_integrations(query_params_items=[("integration_type", "mcp_server")])
+        result = await integration_service.list_integrations(
+            allowed_projects=_UNRESTRICTED, query_params_items=[("integration_type", "mcp_server")]
+        )
 
         assert len(result.resources) == 1
         assert result.resources[0].integration_type == IntegrationType.MCP_SERVER
@@ -288,7 +293,9 @@ class TestListIntegrations:
         await integration_service.create_integration(_mcp_create(name="Enabled", enabled=True))
         disabled = await integration_service.create_integration(_mcp_create(name="Disabled", enabled=False))
 
-        result = await integration_service.list_integrations(query_params_items=[("enabled", "false")])
+        result = await integration_service.list_integrations(
+            allowed_projects=_UNRESTRICTED, query_params_items=[("enabled", "false")]
+        )
 
         assert len(result.resources) == 1
         assert result.resources[0].id == disabled.id
@@ -300,7 +307,7 @@ class TestListIntegrations:
         await integration_service.create_integration(_mcp_create(name="Zebra"))
         await integration_service.create_integration(_mcp_create(name="Alpha"))
 
-        result = await integration_service.list_integrations(sort="name")
+        result = await integration_service.list_integrations(allowed_projects=_UNRESTRICTED, sort="name")
 
         names = [r.name for r in result.resources]
         assert names == sorted(names)
@@ -313,7 +320,9 @@ class TestListIntegrations:
         await integration_service.create_integration(_mcp_create(name="Two"))
         await integration_service.create_integration(_mcp_create(name="Three"))
 
-        result = await integration_service.list_integrations(limit=2, include_total=True)
+        result = await integration_service.list_integrations(
+            allowed_projects=_UNRESTRICTED, limit=2, include_total=True
+        )
 
         assert len(result.resources) == 2
         assert result.total == 3

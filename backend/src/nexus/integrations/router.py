@@ -37,8 +37,6 @@ from nexus.integrations.models import (
 )
 from nexus.integrations.models.integration import (
     Integration,
-    IntegrationProjectAssignment,
-    IntegrationScope,
     IntegrationTestConnection,
     IntegrationType,
     RefreshResult,
@@ -176,6 +174,7 @@ async def list_integrations(
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
         allowed_projects=allowed_projects,
+        project_id=params.project_id,
     )
 
 
@@ -378,31 +377,14 @@ def get_llm_model_service(
     return LLMModelService(db, current_user)
 
 
-async def _resolve_visible_integration_ids(db: AsyncSession, allowed: AllowedProjectsResult) -> list[UUID] | None:
-    """Return visible integration IDs, or None for unrestricted access."""
-    if allowed.all_projects:
-        return None
-
-    global_query = select(Integration.id).where(
-        Integration.scope == IntegrationScope.GLOBAL,
-    )
-
-    if not allowed.project_ids:
-        result = await db.exec(global_query)
-        return list(result.all())
-
-    assignment_query = select(IntegrationProjectAssignment.integration_id).where(
-        col(IntegrationProjectAssignment.project_id).in_(allowed.project_ids),
-    )
-    union_result = await db.execute(global_query.union(assignment_query))
-    return list(union_result.scalars().all())
-
-
 async def _check_integration_visibility(
     db: AsyncSession, integration: Integration, allowed: AllowedProjectsResult
 ) -> None:
-    """Raise IntegrationNotFoundError if the integration is not visible to the caller."""
-    visible_ids = await _resolve_visible_integration_ids(db, allowed)
+    """Raise IntegrationNotFoundError if the integration is not visible to the caller.
+
+    Delegates to IntegrationService to avoid duplicating visibility query logic.
+    """
+    visible_ids = await IntegrationService.resolve_visible_integration_ids(db, allowed)
     if visible_ids is not None and integration.id not in set(visible_ids):
         raise IntegrationNotFoundError(integration.id)
 

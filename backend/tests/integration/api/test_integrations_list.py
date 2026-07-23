@@ -1,12 +1,16 @@
 """Contract tests for GET /api/v1/integrations."""
 
+from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 from httpx import AsyncClient
 from nexus_test_sdk.helpers.integration import IntegrationFactory
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.models import Project
+from nexus.core.models import User
 from nexus.integrations.models.integration import IntegrationType
+from tests.integration.api.conftest import make_admin, make_project_user, mcp_payload
 
 BASE_URL = "/api/v1/integrations"
 
@@ -172,3 +176,144 @@ class TestIntegrationsList:
         assert "total" in data
         assert isinstance(data["total"], int)
         assert data["total"] >= 3
+
+
+async def _create_project(session: AsyncSession, name: str | None = None) -> Project:
+    project = Project(name=name or f"proj-{uuid4().hex[:8]}", description="Test project")
+    session.add(project)
+    await session.commit()
+    await session.refresh(project)
+    return project
+
+
+class TestIntegrationsListProjectFilter:
+    """Tests for project_id query parameter on GET /api/v1/integrations."""
+
+    async def test_project_id_returns_global_and_assigned(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        """project_id filter returns global integrations and those assigned to the project."""
+        admin = await user_factory(username=f"pf-adm-{uuid4().hex[:6]}", email=f"pf-adm-{uuid4().hex[:6]}@t.com")
+        await make_admin(test_db_session, admin)
+        auth_as(admin)
+
+        project = await _create_project(test_db_session)
+
+        global_resp = await auth_client.post(BASE_URL, json=mcp_payload(name=f"global-{uuid4().hex[:8]}"))
+        assert global_resp.status_code == 201
+        global_id = global_resp.json()["id"]
+
+        assigned_resp = await auth_client.post(
+            BASE_URL, json=mcp_payload(name=f"assigned-{uuid4().hex[:8]}", scope="project")
+        )
+        assert assigned_resp.status_code == 201
+        assigned_id = assigned_resp.json()["id"]
+
+        assign_resp = await auth_client.post(f"{BASE_URL}/{assigned_id}/projects/{project.id}")
+        assert assign_resp.status_code == 201
+
+        unassigned_resp = await auth_client.post(
+            BASE_URL, json=mcp_payload(name=f"other-{uuid4().hex[:8]}", scope="project")
+        )
+        assert unassigned_resp.status_code == 201
+        unassigned_id = unassigned_resp.json()["id"]
+
+        response = await auth_client.get(BASE_URL, params={"project_id": str(project.id)})
+        assert response.status_code == 200
+        returned_ids = {r["id"] for r in response.json()["resources"]}
+
+        assert global_id in returned_ids
+        assert assigned_id in returned_ids
+        assert unassigned_id not in returned_ids
+
+    async def test_project_id_omitted_returns_all(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        """Omitting project_id returns all visible integrations (existing behavior)."""
+        admin = await user_factory(username=f"pf-all-{uuid4().hex[:6]}", email=f"pf-all-{uuid4().hex[:6]}@t.com")
+        await make_admin(test_db_session, admin)
+        auth_as(admin)
+
+        global_resp = await auth_client.post(BASE_URL, json=mcp_payload(name=f"g-{uuid4().hex[:8]}"))
+        assert global_resp.status_code == 201
+        global_id = global_resp.json()["id"]
+
+        project_resp = await auth_client.post(BASE_URL, json=mcp_payload(name=f"p-{uuid4().hex[:8]}", scope="project"))
+        assert project_resp.status_code == 201
+        project_id = project_resp.json()["id"]
+
+        response = await auth_client.get(BASE_URL)
+        assert response.status_code == 200
+        returned_ids = {r["id"] for r in response.json()["resources"]}
+
+        assert global_id in returned_ids
+        assert project_id in returned_ids
+
+    async def test_project_id_global_always_included(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        """Global integrations are always included regardless of project_id value."""
+        admin = await user_factory(username=f"pf-ga-{uuid4().hex[:6]}", email=f"pf-ga-{uuid4().hex[:6]}@t.com")
+        await make_admin(test_db_session, admin)
+        auth_as(admin)
+
+        global_resp = await auth_client.post(BASE_URL, json=mcp_payload(name=f"ga-{uuid4().hex[:8]}"))
+        assert global_resp.status_code == 201
+        global_id = global_resp.json()["id"]
+
+        nonexistent_project_id = str(uuid4())
+        response = await auth_client.get(BASE_URL, params={"project_id": nonexistent_project_id})
+        assert response.status_code == 200
+        returned_ids = {r["id"] for r in response.json()["resources"]}
+
+        assert global_id in returned_ids
+
+    async def test_project_user_filtering_by_inaccessible_project(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        """A project-user filtering by a project they lack access to sees only globals."""
+        admin = await user_factory(username=f"pf-pu-adm-{uuid4().hex[:6]}", email=f"pf-pu-adm-{uuid4().hex[:6]}@t.com")
+        await make_admin(test_db_session, admin)
+        auth_as(admin)
+
+        project_a = await _create_project(test_db_session, name=f"pf-a-{uuid4().hex[:8]}")
+        project_b = await _create_project(test_db_session, name=f"pf-b-{uuid4().hex[:8]}")
+
+        global_resp = await auth_client.post(BASE_URL, json=mcp_payload(name=f"pu-g-{uuid4().hex[:8]}"))
+        assert global_resp.status_code == 201
+        global_id = global_resp.json()["id"]
+
+        assigned_resp = await auth_client.post(
+            BASE_URL, json=mcp_payload(name=f"pu-b-{uuid4().hex[:8]}", scope="project")
+        )
+        assert assigned_resp.status_code == 201
+        assigned_id = assigned_resp.json()["id"]
+        assign_resp = await auth_client.post(f"{BASE_URL}/{assigned_id}/projects/{project_b.id}")
+        assert assign_resp.status_code == 201
+
+        proj_user = await user_factory(username=f"pf-pu-{uuid4().hex[:6]}", email=f"pf-pu-{uuid4().hex[:6]}@t.com")
+        await make_project_user(test_db_session, proj_user, project_a)
+        auth_as(proj_user)
+
+        response = await auth_client.get(BASE_URL, params={"project_id": str(project_b.id)})
+        assert response.status_code == 200
+        returned_ids = {r["id"] for r in response.json()["resources"]}
+
+        assert global_id in returned_ids
+        assert assigned_id not in returned_ids

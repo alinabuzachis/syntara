@@ -33,6 +33,7 @@ export function AAPIntegrationSection({
         }}
         isDisabled={isDisabled}
         isRequired
+        projectId={projectId}
       />
       <AAPCredentialStatus
         integrationSelected={!!selectedIntegrationId}
