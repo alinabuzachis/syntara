@@ -117,15 +117,12 @@ function useCredentialActions(
       enableCredential(
         { params: { path: { service_account_id: serviceAccountId, credential_id: cred.id } } },
         {
-          onSuccess: () => {
-            showSuccess({ title: 'Credential enabled', description: 'Credential has been enabled.' })
-            detachPromise(refetch())
-          },
+          onSuccess: () => detachPromise(refetch()),
           onError: handleMutationError({ title: 'Failed to enable credential' }),
         }
       )
     },
-    [enableCredential, serviceAccountId, refetch, showSuccess, handleMutationError]
+    [enableCredential, serviceAccountId, refetch, handleMutationError]
   )
 
   const handleToggleStatus = useCallback(
@@ -145,16 +142,13 @@ function useCredentialActions(
       disableCredential(
         { params: { path: { service_account_id: serviceAccountId, credential_id: cred.id } } },
         {
-          onSuccess: () => {
-            showSuccess({ title: 'Credential disabled', description: 'Credential has been disabled.' })
-            detachPromise(refetch())
-          },
+          onSuccess: () => detachPromise(refetch()),
           onError: handleMutationError({ title: 'Failed to disable credential' }),
           onSettled,
         }
       )
     },
-    [disableCredential, serviceAccountId, refetch, showSuccess, handleMutationError]
+    [disableCredential, serviceAccountId, refetch, handleMutationError]
   )
 
   const handleRotateConfirm = useCallback(

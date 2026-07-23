@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { identityProvidersClient } from '../../../client'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
-import { useAlerts } from '../../../providers/alerts'
 
 import { useIdentityProviderToggle } from './useIdentityProviderToggle'
 
@@ -18,10 +17,6 @@ vi.mock('../../../client', () => ({
 
 vi.mock('../../../hooks/useMutationErrorHandler', () => ({
   useMutationErrorHandler: vi.fn(),
-}))
-
-vi.mock('../../../providers/alerts', () => ({
-  useAlerts: vi.fn(),
 }))
 
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
@@ -47,7 +42,6 @@ function getMutationCallbacks(mockFn: ReturnType<typeof vi.fn>) {
 
 describe('useIdentityProviderToggle', () => {
   const mockPatchMutate = vi.fn()
-  const mockShowAlert = vi.fn()
   const mockOnSuccess = vi.fn()
   const mockErrorHandler = vi.fn()
 
@@ -56,11 +50,9 @@ describe('useIdentityProviderToggle', () => {
       mutate: mockPatchMutate,
       isPending: false,
     } as never)
-    vi.mocked(useAlerts).mockReturnValue({ showAlert: mockShowAlert } as never)
     mockErrorHandler.mockReturnValue(vi.fn())
     vi.mocked(useMutationErrorHandler).mockReturnValue(mockErrorHandler)
     mockPatchMutate.mockClear()
-    mockShowAlert.mockClear()
     mockOnSuccess.mockClear()
     mockErrorHandler.mockClear()
     mockErrorHandler.mockReturnValue(vi.fn())
@@ -92,7 +84,7 @@ describe('useIdentityProviderToggle', () => {
     )
   })
 
-  it('shows success alert when enabling', () => {
+  it('calls onSuccess when enabling', () => {
     const { result } = renderHook(() => useIdentityProviderToggle(mockOnSuccess))
 
     act(() => {
@@ -103,9 +95,6 @@ describe('useIdentityProviderToggle', () => {
       getMutationCallbacks(mockPatchMutate).onSuccess?.()
     })
 
-    expect(mockShowAlert).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Identity provider enabled', variant: 'success' })
-    )
     expect(mockOnSuccess).toHaveBeenCalled()
   })
 
@@ -140,7 +129,7 @@ describe('useIdentityProviderToggle', () => {
     )
   })
 
-  it('closes dialog and shows success alert after disabling', () => {
+  it('closes dialog and calls onSuccess after disabling', () => {
     const { result } = renderHook(() => useIdentityProviderToggle(mockOnSuccess))
 
     act(() => {
@@ -156,9 +145,7 @@ describe('useIdentityProviderToggle', () => {
       getMutationCallbacks(mockPatchMutate).onSettled?.()
     })
 
-    expect(mockShowAlert).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Identity provider disabled', variant: 'success' })
-    )
+    expect(mockOnSuccess).toHaveBeenCalled()
     expect(result.current.disableDialog.isOpen).toBe(false)
     expect(result.current.isDisabling).toBe(false)
   })

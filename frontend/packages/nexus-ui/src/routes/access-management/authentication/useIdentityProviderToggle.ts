@@ -3,12 +3,9 @@ import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { identityProvidersClient } from '../../../client'
 import { useDialogState } from '../../../hooks/useDialogState'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
-import { useAlerts } from '../../../providers/alerts'
-
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 
 export function useIdentityProviderToggle(onSuccess: () => void) {
-  const { showAlert } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
   const { mutate: patchProvider, isPending: isDisabling } = identityProvidersClient.useMutation(
     'patch',
@@ -24,10 +21,7 @@ export function useIdentityProviderToggle(onSuccess: () => void) {
       patchProvider(
         { params: { path: { provider_id: provider.id } }, body: { enabled: true } },
         {
-          onSuccess: () => {
-            showAlert({ title: 'Identity provider enabled', variant: 'success', autoDismiss: true })
-            onSuccess()
-          },
+          onSuccess,
           onError: handleMutationError({ title: 'Failed to enable identity provider' }),
         }
       )
@@ -40,10 +34,7 @@ export function useIdentityProviderToggle(onSuccess: () => void) {
     patchProvider(
       { params: { path: { provider_id: provider.id } }, body: { enabled: false } },
       {
-        onSuccess: () => {
-          showAlert({ title: 'Identity provider disabled', variant: 'success', autoDismiss: true })
-          onSuccess()
-        },
+        onSuccess,
         onError: handleMutationError({ title: 'Failed to disable identity provider' }),
         onSettled: () => {
           disableDialog.close()
