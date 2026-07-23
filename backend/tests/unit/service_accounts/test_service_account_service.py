@@ -163,31 +163,54 @@ class TestUpdateServiceAccount:
 
 
 class TestDeleteServiceAccount:
-    """Tests for soft-deleting a service account."""
+    """Tests for hard-deleting a service account."""
 
     @pytest.mark.asyncio
-    async def test_delete_calls_soft_delete(
+    async def test_delete_hard_deletes_with_cleanup(
         self, service: ServiceAccountService, mock_session: AsyncMock, mock_user: MagicMock
     ) -> None:
         mock_sa = MagicMock(spec=ServiceAccount)
-        mock_sa.soft_delete = MagicMock()
+        mock_sa.name = "TestSA"
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = mock_sa
         mock_session.exec.return_value = mock_result
 
         await service.delete_service_account(uuid4())
-        mock_sa.soft_delete.assert_called_once_with(mock_user.id)
+
+        # 4 exec calls: select SA, token_version update, credential delete, role assignment delete
+        assert mock_session.exec.call_count == 4
+        mock_session.delete.assert_called_once_with(mock_sa)
+        mock_session.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_delete_commits(self, service: ServiceAccountService, mock_session: AsyncMock) -> None:
+    async def test_delete_cleans_credentials_and_non_builtin_roles(
+        self, service: ServiceAccountService, mock_session: AsyncMock, mock_user: MagicMock
+    ) -> None:
+        """Verify credential deletion and is_builtin filter on role assignment cleanup."""
         mock_sa = MagicMock(spec=ServiceAccount)
-        mock_sa.soft_delete = MagicMock()
+        mock_sa.name = "TestSA"
+        sa_id = uuid4()
+        mock_sa.id = sa_id
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = mock_sa
         mock_session.exec.return_value = mock_result
 
-        await service.delete_service_account(uuid4())
-        mock_session.commit.assert_called_once()
+        await service.delete_service_account(sa_id)
+
+        # Inspect the delete statements passed to exec
+        exec_calls = mock_session.exec.call_args_list
+        # Call 0: select SA, Call 1: token_version update, Call 2: credential delete, Call 3: role delete
+        assert len(exec_calls) == 4
+
+        # Verify credential delete targets the SA's credentials
+        cred_delete_stmt = exec_calls[2][0][0]
+        assert "service_account_credentials" in str(cred_delete_stmt)
+
+        # Verify role assignment delete includes is_builtin filter
+        role_delete_stmt = exec_calls[3][0][0]
+        role_stmt_str = str(role_delete_stmt)
+        assert "role_assignments" in role_stmt_str
+        assert "is_builtin" in role_stmt_str
 
     @pytest.mark.asyncio
     async def test_delete_raises_not_found(self, service: ServiceAccountService, mock_session: AsyncMock) -> None:

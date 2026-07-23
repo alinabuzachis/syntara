@@ -51,8 +51,6 @@ class TestServiceAccountModel:
             "updated_by",
             "created_at",
             "updated_at",
-            "deleted_at",
-            "deleted_by",
             "labels",
         }
         assert column_names == expected
@@ -78,8 +76,6 @@ class TestServiceAccountModel:
         )
         assert sa.last_authenticated_at is None
         assert sa.updated_by is None
-        assert sa.deleted_at is None
-        assert sa.deleted_by is None
 
 
 class TestServiceAccountAuditConfig:

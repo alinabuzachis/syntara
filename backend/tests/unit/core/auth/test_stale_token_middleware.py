@@ -430,7 +430,6 @@ def _make_sa_payload(sub: str = "sa-456", token_version: int = 0) -> TokenPayloa
 def _mock_sa_async_session(
     sa_status: str = "active",
     *,
-    is_alive: bool = True,
     token_version: int = 0,
     not_found: bool = False,
 ) -> AsyncMock:
@@ -440,7 +439,7 @@ def _mock_sa_async_session(
     if not_found:
         mock_result.one_or_none.return_value = None
     else:
-        mock_result.one_or_none.return_value = (sa_status, is_alive, token_version)
+        mock_result.one_or_none.return_value = (sa_status, token_version)
     mock_session.exec.return_value = mock_result
 
     mock_ctx = AsyncMock()
@@ -493,12 +492,12 @@ class TestStaleTokenMiddlewareSA:
         assert response.json()["code"] == "SA_DISABLED"
 
     def test_deleted_sa_returns_401(self) -> None:
-        """Deleted SA (is_alive=False) returns 401 SA_DISABLED."""
+        """Hard-deleted SA (not found in DB) returns 401 SA_DELETED."""
         app = _build_app()
         payload = _make_sa_payload(sub="sa-456", token_version=0)
 
         mock_ts = _mock_token_service(payload=payload)
-        mock_ctx = _mock_sa_async_session(sa_status="active", is_alive=False, token_version=0)
+        mock_ctx = _mock_sa_async_session(not_found=True)
 
         with (
             patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
@@ -508,7 +507,7 @@ class TestStaleTokenMiddlewareSA:
             response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
 
         assert response.status_code == 401
-        assert response.json()["code"] == "SA_DISABLED"
+        assert response.json()["code"] == "SA_DELETED"
 
     def test_stale_sa_token_returns_401(self) -> None:
         """SA token with token_ver < DB version returns 401 SA_TOKEN_REVOKED."""
@@ -530,7 +529,7 @@ class TestStaleTokenMiddlewareSA:
         assert response.json()["retryable"] is False
 
     def test_sa_not_found_returns_401(self) -> None:
-        """SA not found in DB returns 401 SA_DISABLED."""
+        """SA not found in DB returns 401 SA_DELETED."""
         app = _build_app()
         payload = _make_sa_payload(sub="sa-nonexistent", token_version=0)
 
@@ -545,4 +544,4 @@ class TestStaleTokenMiddlewareSA:
             response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
 
         assert response.status_code == 401
-        assert response.json()["code"] == "SA_DISABLED"
+        assert response.json()["code"] == "SA_DELETED"

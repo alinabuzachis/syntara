@@ -4,12 +4,14 @@ from collections.abc import Iterable
 from uuid import UUID
 
 import structlog
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.core.config.base import get_settings
 from nexus.core.exceptions import assert_project_id_unchanged
@@ -18,6 +20,7 @@ from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.service_accounts.exceptions import ServiceAccountNameConflictError, ServiceAccountNotFoundError
 from nexus.service_accounts.models.service_account import ServiceAccount, ServiceAccountStatus
+from nexus.service_accounts.models.service_account_credential import ServiceAccountCredential
 from nexus.service_accounts.schemas import ServiceAccountListResponse, ServiceAccountRead
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -123,12 +126,11 @@ class ServiceAccountService(BaseService):
         """Get a service account by ID.
 
         Raises:
-            ServiceAccountNotFoundError: If not found or soft-deleted.
+            ServiceAccountNotFoundError: If not found.
 
         """
         query = select(ServiceAccount).where(
             ServiceAccount.id == service_account_id,
-            ServiceAccount.deleted_at.is_(None),  # type: ignore[union-attr]
         )
         result = await self.session.exec(query)
         service_account = result.one_or_none()
@@ -211,26 +213,45 @@ class ServiceAccountService(BaseService):
         return service_account
 
     async def delete_service_account(self, service_account_id: UUID) -> None:
-        """Soft-delete a service account.
+        """Hard-delete a service account and clean up linked resources.
+
+        Deletes credentials, revokes non-builtin role assignments, then
+        removes the service account row. The principals row is left intact
+        to preserve created_by/updated_by FK integrity.
 
         Raises:
             ServiceAccountNotFoundError: If not found.
 
         """
         service_account = await self.get_service_account(service_account_id)
+        sa_name = service_account.name
 
+        # Invalidate outstanding tokens
         await self.session.exec(
             update(ServiceAccount)
             .where(ServiceAccount.id == service_account_id)  # type: ignore[arg-type]
             .values(token_version=ServiceAccount.token_version + 1)
         )
 
-        service_account.soft_delete(self.user.id)
-        self.session.add(service_account)
-        await self.session.flush()
+        # Delete all credentials for this SA
+        await self.session.exec(
+            sa_delete(ServiceAccountCredential).where(
+                col(ServiceAccountCredential.service_account_id) == service_account_id
+            )
+        )
+
+        # Clean up non-builtin role assignments
+        await self.session.exec(
+            sa_delete(RoleAssignment).where(
+                col(RoleAssignment.principal_id) == service_account_id,
+                col(RoleAssignment.is_builtin) == False,  # noqa: E712
+            )
+        )
+
+        await self.session.delete(service_account)
         await self.session.commit()
 
-        logger.info("Service account soft-deleted", service_account_id=str(service_account_id))
+        logger.info("Service account deleted", service_account_id=str(service_account_id), name=sa_name)
 
     async def disable_service_account(self, service_account_id: UUID) -> ServiceAccount:
         """Set a service account's status to disabled.

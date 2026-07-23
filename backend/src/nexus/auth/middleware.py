@@ -26,21 +26,19 @@ from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_resp
 logger = structlog.stdlib.get_logger(__name__)
 
 _user_status_cache: TTLCache[str, tuple[int, bool]] = TTLCache(maxsize=4096, ttl=5)
-_sa_status_cache: TTLCache[str, tuple[str, bool, int]] = TTLCache(maxsize=4096, ttl=5)
+_SA_NOT_FOUND: tuple[str, int] = ("__not_found__", -1)
+_sa_status_cache: TTLCache[str, tuple[str, int]] = TTLCache(maxsize=4096, ttl=5)
 _stale_audit_cache: TTLCache[str, bool] = TTLCache(maxsize=4096, ttl=60)
 
 _GET_USER_STATUS_SQL = "SELECT token_version, is_enabled FROM users WHERE id = :uid"
-_GET_SA_STATUS_SQL = (
-    "SELECT sa.status, (sa.deleted_at IS NULL) AS is_alive, sa.token_version"
-    " FROM service_accounts sa WHERE sa.id = :sa_id"
-)
+_GET_SA_STATUS_SQL = "SELECT sa.status, sa.token_version FROM service_accounts sa WHERE sa.id = :sa_id"
 
 
-async def _check_sa_status(sa_id: str) -> tuple[str, bool, int] | None:
-    """Look up service account status (cached 5s). Returns (status, is_alive, token_version)."""
+async def _check_sa_status(sa_id: str) -> tuple[str, int] | None:
+    """Look up service account status (cached 5s). Returns (status, token_version) or None if not found."""
     cached = _sa_status_cache.get(sa_id)
     if cached is not None:
-        return cached
+        return None if cached is _SA_NOT_FOUND else cached
 
     async with AsyncSessionLocal() as session:
         result = await session.exec(  # type: ignore[call-overload]
@@ -49,11 +47,11 @@ async def _check_sa_status(sa_id: str) -> tuple[str, bool, int] | None:
         )
         row = result.one_or_none()
         if row:
-            status_val, is_alive, token_ver = str(row[0]), bool(row[1]), int(row[2])
-            _sa_status_cache[sa_id] = (status_val, is_alive, token_ver)
-            return status_val, is_alive, token_ver
-        _sa_status_cache[sa_id] = ("unknown", False, 0)
-        return "unknown", False, 0
+            status_val, token_ver = str(row[0]), int(row[1])
+            _sa_status_cache[sa_id] = (status_val, token_ver)
+            return status_val, token_ver
+        _sa_status_cache[sa_id] = _SA_NOT_FOUND
+        return None
 
 
 class StaleTokenMiddleware(BaseHTTPMiddleware):
@@ -94,70 +92,92 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
             logger.debug("SA status check failed, skipping", exc_info=True)
             return await call_next(request)
 
-        if sa_result is not None:
-            status_val, is_alive, current_ver = sa_result
-            token_ver = payload.token_version or 0
+        if sa_result is None:
+            from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+            from nexus.auth.audit.sa_rejection import DisabledSARejectionEvent  # noqa: PLC0415
 
-            if not is_alive or status_val != "active":
-                from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
-                from nexus.auth.audit.sa_rejection import DisabledSARejectionEvent  # noqa: PLC0415
-
-                AuditEventDispatcher.dispatch(
-                    DisabledSARejectionEvent(
-                        service_account_id=sa_id,
-                        sa_status=status_val,
-                        is_alive=is_alive,
-                    )
+            AuditEventDispatcher.dispatch(
+                DisabledSARejectionEvent(
+                    service_account_id=sa_id,
+                    sa_status="deleted",
+                    is_alive=False,
                 )
-                logger.warning(
-                    "Rejected request from disabled/deleted service account",
+            )
+            logger.warning("Rejected request from deleted service account", service_account_id=sa_id)
+            response = create_problem_details_response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                problem_type=PROBLEM_TYPES["unauthorized"],
+                title="Unauthorized",
+                detail="Service account no longer exists",
+                code="SA_DELETED",
+                retryable=False,
+                instance=str(request.url),
+            )
+            response.headers["X-Auth-Failure-Type"] = "deleted_sa"
+            return response
+
+        status_val, current_ver = sa_result
+        token_ver = payload.token_version or 0
+
+        if status_val != "active":
+            from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+            from nexus.auth.audit.sa_rejection import DisabledSARejectionEvent  # noqa: PLC0415
+
+            AuditEventDispatcher.dispatch(
+                DisabledSARejectionEvent(
                     service_account_id=sa_id,
                     sa_status=status_val,
-                    is_alive=is_alive,
+                    is_alive=True,
                 )
-                response = create_problem_details_response(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    problem_type=PROBLEM_TYPES["unauthorized"],
-                    title="Unauthorized",
-                    detail="Service account is disabled or deleted",
-                    code="SA_DISABLED",
-                    retryable=False,
-                    instance=str(request.url),
-                )
-                response.headers["X-Auth-Failure-Type"] = "disabled_sa"
-                return response
+            )
+            logger.warning(
+                "Rejected request from disabled service account",
+                service_account_id=sa_id,
+                sa_status=status_val,
+            )
+            response = create_problem_details_response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                problem_type=PROBLEM_TYPES["unauthorized"],
+                title="Unauthorized",
+                detail="Service account is disabled",
+                code="SA_DISABLED",
+                retryable=False,
+                instance=str(request.url),
+            )
+            response.headers["X-Auth-Failure-Type"] = "disabled_sa"
+            return response
 
-            if current_ver > token_ver:
-                if sa_id not in _stale_audit_cache:
-                    from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
-                    from nexus.auth.audit.sa_rejection import StaleSATokenDetectionEvent  # noqa: PLC0415
+        if current_ver > token_ver:
+            if sa_id not in _stale_audit_cache:
+                from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+                from nexus.auth.audit.sa_rejection import StaleSATokenDetectionEvent  # noqa: PLC0415
 
-                    AuditEventDispatcher.dispatch(
-                        StaleSATokenDetectionEvent(
-                            service_account_id=sa_id,
-                            token_version=token_ver,
-                            current_version=current_ver,
-                        )
+                AuditEventDispatcher.dispatch(
+                    StaleSATokenDetectionEvent(
+                        service_account_id=sa_id,
+                        token_version=token_ver,
+                        current_version=current_ver,
                     )
-                    _stale_audit_cache[sa_id] = True
+                )
+                _stale_audit_cache[sa_id] = True
 
-                logger.warning(
-                    "Rejected request with stale service account token",
-                    service_account_id=sa_id,
-                    token_version=token_ver,
-                    current_version=current_ver,
-                )
-                response = create_problem_details_response(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    problem_type=PROBLEM_TYPES["unauthorized"],
-                    title="Unauthorized",
-                    detail="Service account token has been revoked",
-                    code="SA_TOKEN_REVOKED",
-                    retryable=False,
-                    instance=str(request.url),
-                )
-                response.headers["X-Auth-Failure-Type"] = "revoked_sa_token"
-                return response
+            logger.warning(
+                "Rejected request with stale service account token",
+                service_account_id=sa_id,
+                token_version=token_ver,
+                current_version=current_ver,
+            )
+            response = create_problem_details_response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                problem_type=PROBLEM_TYPES["unauthorized"],
+                title="Unauthorized",
+                detail="Service account token has been revoked",
+                code="SA_TOKEN_REVOKED",
+                retryable=False,
+                instance=str(request.url),
+            )
+            response.headers["X-Auth-Failure-Type"] = "revoked_sa_token"
+            return response
 
         return await call_next(request)
 

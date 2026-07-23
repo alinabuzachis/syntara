@@ -440,7 +440,7 @@ class RoleAssignmentService:
             )
             .outerjoin(
                 ServiceAccount,
-                (RoleAssignment.principal_id == ServiceAccount.id) & (ServiceAccount.deleted_at.is_(None)),  # type: ignore[union-attr]
+                RoleAssignment.principal_id == ServiceAccount.id,  # type: ignore[arg-type]
             )
             .outerjoin(Principal, RoleAssignment.principal_id == Principal.id)  # type: ignore[arg-type]
             .outerjoin(Project, RoleAssignment.project_id == Project.id)  # type: ignore[arg-type]

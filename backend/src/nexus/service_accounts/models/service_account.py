@@ -6,7 +6,7 @@ are stored separately in the service_account_credentials table.
 
 from datetime import datetime
 from enum import StrEnum
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 from sqlalchemy import Index, String, text
@@ -14,7 +14,6 @@ from sqlmodel import CheckConstraint, DateTime, Field
 
 from nexus.core.models.base.base_resource import AuditLevel
 from nexus.core.models.base.named import NamedResource
-from nexus.core.models.base.soft_deletable import SoftDeletableResource
 from nexus.core.models.base.user_owned import UserOwnedResource
 from nexus.core.models.principal import PrincipalType
 
@@ -26,8 +25,13 @@ class ServiceAccountStatus(StrEnum):
     DISABLED = "disabled"
 
 
-class ServiceAccount(NamedResource, SoftDeletableResource, UserOwnedResource, table=True):
-    """Service account for programmatic API access."""
+class ServiceAccount(NamedResource, UserOwnedResource, table=True):
+    """Service account for programmatic API access (hard delete)."""
+
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
+        **NamedResource.FIELD_SCHEMA_EXTRAS,
+        **UserOwnedResource.FIELD_SCHEMA_EXTRAS,
+    }
 
     __tablename__ = "service_accounts"
     __principal_type__: ClassVar[PrincipalType] = PrincipalType.SERVICE_ACCOUNT
@@ -77,7 +81,6 @@ class ServiceAccount(NamedResource, SoftDeletableResource, UserOwnedResource, ta
         dict.fromkeys(
             [
                 *NamedResource.__filterable_fields__,
-                *SoftDeletableResource.__filterable_fields__,
                 *UserOwnedResource.__filterable_fields__,
                 "status",
                 "project_id",
@@ -90,7 +93,6 @@ class ServiceAccount(NamedResource, SoftDeletableResource, UserOwnedResource, ta
         dict.fromkeys(
             [
                 *NamedResource.__sortable_fields__,
-                *SoftDeletableResource.__sortable_fields__,
                 *UserOwnedResource.__sortable_fields__,
                 "last_authenticated_at",
             ]

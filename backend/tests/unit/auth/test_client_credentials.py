@@ -29,7 +29,6 @@ def _make_sa_and_credential(
     secret: str = "test-secret",  # noqa: S107
     sa_status: ServiceAccountStatus = ServiceAccountStatus.ACTIVE,
     cred_status: ServiceAccountCredentialStatus = ServiceAccountCredentialStatus.ACTIVE,
-    deleted_at: datetime | None = None,
     old_hashed_secret: str | None = None,
     old_secret_valid_until: datetime | None = None,
 ) -> tuple[ServiceAccountCredential, ServiceAccount, str]:
@@ -44,7 +43,6 @@ def _make_sa_and_credential(
         created_by=uuid4(),
         updated_by=uuid4(),
     )
-    sa.deleted_at = deleted_at
 
     credential = ServiceAccountCredential(
         id=uuid4(),
@@ -280,9 +278,8 @@ class TestTokenEndpoint:
 
     @pytest.mark.asyncio
     async def ***REMOVED***(self, mock_db: AsyncMock) -> None:
-        """AC8: Soft-deleted service account returns 401."""
-        cred, sa, secret = _make_sa_and_credential(deleted_at=datetime.now(UTC))
-        self._setup_db_result(mock_db, (cred, sa))
+        """AC8: Hard-deleted service account (credential gone) returns 401."""
+        self._setup_db_result(mock_db, None)
 
         req = _mock_request()
         with (
@@ -293,8 +290,8 @@ class TestTokenEndpoint:
                 request=req,
                 db=mock_db,
                 grant_type="client_credentials",
-                client_id=cred.identifier,
-                client_secret=secret,
+                client_id="nx_sa_deleted",
+                client_secret="any-secret",  # noqa: S106
             )
 
         from nexus.auth.exceptions import AuthenticationRequiredError

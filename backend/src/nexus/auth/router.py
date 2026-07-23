@@ -354,14 +354,11 @@ def _validate_sa_credential(
     ):
         secret_valid = verify_password(client_secret, credential.old_hashed_secret)
 
-    is_deleted = sa.deleted_at is not None
     is_sa_disabled = sa.status != ServiceAccountStatus.ACTIVE
     is_cred_disabled = credential.status != ServiceAccountCredentialStatus.ACTIVE
     is_expired = credential.expires_at is not None and datetime.now(UTC) >= credential.expires_at
 
-    if is_deleted:
-        _dispatch_sa_login_failure(client_id, LoginErrorReason.DELETED_SERVICE_ACCOUNT, sa.id)
-    elif is_sa_disabled or is_cred_disabled or is_expired:
+    if is_sa_disabled or is_cred_disabled or is_expired:
         _dispatch_sa_login_failure(client_id, LoginErrorReason.DISABLED_SERVICE_ACCOUNT, sa.id)
     elif not secret_valid:
         _dispatch_sa_login_failure(client_id, LoginErrorReason.BAD_PASSWORD, sa.id)
