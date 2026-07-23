@@ -51,8 +51,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/syntara-ui:latest
             ghcr.io/${{ github.repository_owner }}/syntara-ui:${{ github.sha }}
-            quay.io/ansible/syntara-ui:latest
-            quay.io/ansible/syntara-ui:${{ github.sha }}
+            quay.io/ansible/nexus-ui:latest
+            quay.io/ansible/nexus-ui:${{ github.sha }}
 
       - name: Build and push nexus-mock-api image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
