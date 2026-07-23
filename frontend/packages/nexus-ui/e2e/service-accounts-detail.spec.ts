@@ -117,13 +117,16 @@ test.describe('UI-6: Service Account Detail — Disable/Enable Toggle', () => {
     await expect(dialog.getByText(sa.name)).toBeVisible()
     await dialog.getByRole('button', { name: 'Disable' }).click()
 
-    await expect(toggle).not.toBeChecked()
+    // Wait for the disable mutation + refetch to complete
+    await expect(toggle).not.toBeChecked({ timeout: 10_000 })
 
-    // Re-enable — no confirmation dialog, direct toggle
+    // Re-enable — no confirmation dialog, direct toggle.
+    // Wait for the toggle to be stable before clicking.
+    await expect(dialog).not.toBeVisible()
     await toggle.click({ force: true })
 
-    // Verify no dialog appeared and toggle is now checked
-    await expect(toggle).toBeChecked()
+    // Wait for the enable mutation + refetch to update the toggle
+    await expect(toggle).toBeChecked({ timeout: 10_000 })
   })
 })
 
@@ -175,13 +178,19 @@ test.describe('UI-7: Service Account Detail — Delete with Confirmation', () =>
 
     await dialog.getByRole('button', { name: 'Delete' }).click()
 
-    // Should redirect to list page
-    await expect(app).toHaveURL(/service-accounts/)
+    // Wait for redirect to the list page ($ anchor excludes detail URL /service-accounts/<uuid>)
+    await app.waitForURL(/\/service-accounts$/)
     await expect(app.getByRole('tab', { name: 'Service Accounts', exact: true })).toBeVisible()
 
-    // Verify the SA is gone
-    await filterServiceAccountByName(app, sa.name)
-    await expect(app.getByText('No results found')).toBeVisible()
+    // Verify the SA is gone — list may be empty (no toolbar) or populated (toolbar visible)
+    const emptyState = app.getByText('No service accounts yet')
+    const filterInput = app.getByPlaceholder('Filter by name')
+    await expect(emptyState.or(filterInput)).toBeVisible()
+
+    if (await filterInput.isVisible()) {
+      await filterServiceAccountByName(app, sa.name)
+      await expect(app.getByText('No results found')).toBeVisible()
+    }
   })
 })
 
