@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from nexus.agent_orchestrator.agents import GenericAgent
 from nexus.agent_orchestrator.exceptions import (
@@ -189,6 +189,175 @@ class TestGenericAgentLLMIntegration:
             await agent.execute_as_node(state)
 
         assert exc_info.value.invocation_id == str(invocation_id)
+
+
+class TestGenericAgentContextInjection:
+    """Test that GenericAgent sends the context-enhanced prompt to the LLM."""
+
+    @pytest.mark.asyncio
+    async def test_execute_sends_context_enhanced_prompt_to_llm(self) -> None:
+        """Verify standard execution uses state['prompt'] (with context), not state['messages']."""
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = AIMessage(content="Hello Jane!", response_metadata={})
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
+
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
+        original_prompt = "Say hello! Use my name from context."
+        enhanced_prompt = (
+            "Say hello! Use my name from context.\n\n--- CONTEXT ---\n## documents\nName: Jane Doe\n--- END CONTEXT ---"
+        )
+        state: AgentState = {
+            "prompt": enhanced_prompt,
+            "original_prompt": original_prompt,
+            "session_id": "test-session",
+            "invocation_id": uuid4(),
+            "actor_context": AuditActorContext(),
+            "context_package": {"grounding_score": 0.95, "context_applied": True},
+            "current_agent": "generic_agent",
+            "messages": [HumanMessage(original_prompt)],
+            "result": None,
+            "metadata": None,
+            "llm_token_usage_log": [],
+        }
+
+        await agent.execute_as_node(state)
+
+        mock_llm_with_tools.ainvoke.assert_called_once()
+        messages_sent = mock_llm_with_tools.ainvoke.call_args[0][0]
+        human_messages = [m for m in messages_sent if isinstance(m, HumanMessage)]
+        assert len(human_messages) == 1
+        assert "--- CONTEXT ---" in human_messages[0].content
+        assert "Jane Doe" in human_messages[0].content
+
+    @pytest.mark.asyncio
+    async def test_execute_structured_sends_context_enhanced_prompt_to_llm(self) -> None:
+        """Verify structured output execution uses state['prompt'] (with context)."""
+        mock_llm = Mock()
+        parsed_output = {"greeting": "Hello Jane!"}
+        mock_structured_llm = AsyncMock()
+        mock_structured_llm.ainvoke.return_value = parsed_output
+        mock_llm.with_structured_output.return_value = mock_structured_llm
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
+
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
+        original_prompt = "Say hello! Use my name from context."
+        enhanced_prompt = (
+            "Say hello! Use my name from context.\n\n--- CONTEXT ---\n## documents\nName: Jane Doe\n--- END CONTEXT ---"
+        )
+        state: AgentState = {
+            "prompt": enhanced_prompt,
+            "original_prompt": original_prompt,
+            "session_id": "test-session",
+            "invocation_id": uuid4(),
+            "actor_context": AuditActorContext(),
+            "context_package": {"grounding_score": 0.95, "context_applied": True},
+            "current_agent": "generic_agent",
+            "messages": [HumanMessage(original_prompt)],
+            "result": None,
+            "metadata": None,
+            "llm_token_usage_log": [],
+            "response_schema": {
+                "type": "object",
+                "properties": {"greeting": {"type": "string"}},
+            },
+        }
+
+        with patch("nexus.agent_orchestrator.agents.generic_agent.record_llm_call") as mock_record:
+
+            async def _passthrough(_recorder: object, fn: object, *, model: object = None) -> object:
+                return await fn()  # type: ignore[operator]
+
+            mock_record.side_effect = _passthrough
+            await agent.execute_as_node(state)
+
+        mock_structured_llm.ainvoke.assert_called_once()
+        messages_sent = mock_structured_llm.ainvoke.call_args[0][0]
+        human_messages = [m for m in messages_sent if isinstance(m, HumanMessage)]
+        assert len(human_messages) == 1
+        assert "--- CONTEXT ---" in human_messages[0].content
+        assert "Jane Doe" in human_messages[0].content
+
+
+class TestGenericAgentToolLoopReEntry:
+    """Test that tool-call history is preserved on re-entry after tool execution."""
+
+    @pytest.mark.asyncio
+    async def test_tool_call_history_preserved_on_reentry(self) -> None:
+        """On TOOLS → GENERIC_AGENT re-entry, AIMessage + ToolMessage must be forwarded to the LLM."""
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = AIMessage(content="The sum is 42.", response_metadata={})
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
+
+        mock_tool = Mock(spec=["name", "description"])
+        mock_tool.name = "calculate_sum"
+        mock_tool.description = "Calculate the sum of two numbers"
+        agent = GenericAgent(llm=mock_llm, available_tools=[mock_tool])
+
+        tool_call_ai_msg = AIMessage(
+            content="",
+            tool_calls=[{"id": "call_1", "name": "calculate_sum", "args": {"a": 20, "b": 22}}],
+        )
+        tool_result_msg = ToolMessage(content="42", tool_call_id="call_1")
+
+        state: AgentState = {
+            "prompt": "What is 20 + 22?",
+            "original_prompt": "What is 20 + 22?",
+            "session_id": "test-session",
+            "invocation_id": uuid4(),
+            "actor_context": AuditActorContext(),
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "messages": [HumanMessage("What is 20 + 22?"), tool_call_ai_msg, tool_result_msg],
+            "result": None,
+            "metadata": None,
+            "llm_token_usage_log": [],
+        }
+
+        await agent.execute_as_node(state)
+
+        mock_llm_with_tools.ainvoke.assert_called_once()
+        messages_sent = mock_llm_with_tools.ainvoke.call_args[0][0]
+        ai_messages = [m for m in messages_sent if isinstance(m, AIMessage)]
+        tool_messages = [m for m in messages_sent if isinstance(m, ToolMessage)]
+        assert len(ai_messages) == 1, "AIMessage with tool_calls must be forwarded"
+        assert ai_messages[0].tool_calls[0]["name"] == "calculate_sum"
+        assert len(tool_messages) == 1, "ToolMessage with results must be forwarded"
+        assert tool_messages[0].content == "42"
+
+    @pytest.mark.asyncio
+    async def test_first_call_has_no_extra_messages(self) -> None:
+        """On the first call (no tool history), only SystemMessage + HumanMessage are sent."""
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = AIMessage(content="Hello!", response_metadata={})
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
+
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
+        state: AgentState = {
+            "prompt": "Hello",
+            "original_prompt": "Hello",
+            "session_id": "test-session",
+            "invocation_id": uuid4(),
+            "actor_context": AuditActorContext(),
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "messages": [HumanMessage("Hello")],
+            "result": None,
+            "metadata": None,
+            "llm_token_usage_log": [],
+        }
+
+        await agent.execute_as_node(state)
+
+        messages_sent = mock_llm_with_tools.ainvoke.call_args[0][0]
+        assert len(messages_sent) == 2
+        assert messages_sent[0].__class__.__name__ == "SystemMessage"
+        assert isinstance(messages_sent[1], HumanMessage)
 
 
 class TestGenericAgentPromptEngineering:

@@ -154,13 +154,20 @@ class GenericAgent(BaseAgent):
 
         # Query LLM via LangChain (async)
         llm_with_tools = self.llm.bind_tools(annotated_tools)
+        # Use state["prompt"] which contains the context-enhanced prompt
+        # (with retrieved documents) from the orchestrator, rather than
+        # state["messages"] which only has the original user input.
         messages: list[AnyMessage] = [
             SystemMessage(
                 content="You are an information assistant for the Nexus automation system. "
                 "Answer user questions concisely and accurately. "
                 "Focus on providing helpful, direct answers about tools, services, and capabilities."
-            )
-        ] + state["messages"]
+            ),
+            HumanMessage(content=state["prompt"]),
+        ]
+        # On re-entry after tool execution, carry forward tool-call history
+        # (AIMessage with tool_calls + ToolMessage with results).
+        messages.extend(msg for msg in state["messages"] if not isinstance(msg, HumanMessage))
         result_message = await record_llm_call(
             get_metrics_recorder(),
             lambda: llm_with_tools.ainvoke(messages),
@@ -251,8 +258,9 @@ class GenericAgent(BaseAgent):
                     f"```json\n{schema_str}\n```\n\n"
                     "Use exactly the property names from the schema. "
                     "Do not include any text outside the JSON object."
-                )
-            ] + state["messages"]
+                ),
+                HumanMessage(content=state["prompt"]),
+            ]
 
             parsed_output = await record_llm_call(
                 get_metrics_recorder(),

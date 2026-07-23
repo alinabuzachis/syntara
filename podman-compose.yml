@@ -125,7 +125,7 @@ services:
       dockerfile: containers/nexus/Containerfile
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, 'chmod -R g+rwX /data/audit-exports 2>/dev/null; uv run --no-sync alembic upgrade head && uv run --no-sync python -m nexus.seed --all && (uv run --no-sync python -c "import boto3; boto3.client(\"s3\", endpoint_url=\"http://moto:5000\", aws_access_key_id=\"testing\", aws_secret_access_key=\"testing\", region_name=\"us-east-1\").create_bucket(Bucket=\"nexus-files\")" || true) && uv run --no-sync python -m nexus.api.main']
+    command: [sh, -c, 'chmod -R g+rwX /data/audit-exports 2>/dev/null; uv run --no-sync alembic upgrade head && uv run --no-sync python -m nexus.seed --all && (uv run --no-sync python -c "import os,boto3; boto3.client(\"s3\", endpoint_url=os.environ[\"APP_S3_ENDPOINT_URL\"], aws_access_key_id=os.environ[\"APP_S3_ACCESS_KEY_ID\"], aws_secret_access_key=os.environ[\"APP_S3_SECRET_ACCESS_KEY\"], region_name=os.environ[\"APP_S3_REGION\"]).create_bucket(Bucket=os.environ[\"APP_S3_BUCKET_NAME\"])" || true) && uv run --no-sync python -m nexus.api.main']
     ports:
       - ${APP_API_PORT:-8000}:8000
     environment:
@@ -135,13 +135,13 @@ services:
       - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
       - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
 
-      - APP_S3_ENDPOINT_URL=http://moto:5000
+      - APP_S3_ENDPOINT_URL=${APP_S3_ENDPOINT_URL:-http://moto:5000}
       - APP_S3_BUCKET_NAME=${APP_S3_BUCKET_NAME:-nexus-files}
       - APP_S3_REGION=${APP_S3_REGION:-us-east-1}
       - APP_S3_ACCESS_KEY_ID=${APP_S3_ACCESS_KEY_ID:-testing}
       - APP_S3_SECRET_ACCESS_KEY=${APP_S3_SECRET_ACCESS_KEY:-testing}
-      - APP_S3_VERIFY_SSL=false
-      - APP_S3_USE_PATH_STYLE=true
+      - APP_S3_VERIFY_SSL=${APP_S3_VERIFY_SSL:-false}
+      - APP_S3_USE_PATH_STYLE=${APP_S3_USE_PATH_STYLE:-true}
 
       - APP_TEMPORAL_ADDRESS=temporal:7233
       - APP_TEMPORAL_NAMESPACE=default
@@ -215,13 +215,13 @@ services:
       - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
       - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
 
-      - APP_S3_ENDPOINT_URL=http://moto:5000
+      - APP_S3_ENDPOINT_URL=${APP_S3_ENDPOINT_URL:-http://moto:5000}
       - APP_S3_BUCKET_NAME=${APP_S3_BUCKET_NAME:-nexus-files}
       - APP_S3_REGION=${APP_S3_REGION:-us-east-1}
       - APP_S3_ACCESS_KEY_ID=${APP_S3_ACCESS_KEY_ID:-testing}
       - APP_S3_SECRET_ACCESS_KEY=${APP_S3_SECRET_ACCESS_KEY:-testing}
-      - APP_S3_VERIFY_SSL=false
-      - APP_S3_USE_PATH_STYLE=true
+      - APP_S3_VERIFY_SSL=${APP_S3_VERIFY_SSL:-false}
+      - APP_S3_USE_PATH_STYLE=${APP_S3_USE_PATH_STYLE:-true}
 
       - APP_SERVER_SCHEME=${APP_SERVER_SCHEME:-https}
       - APP_SERVER_HOST=${APP_SERVER_HOST:-0.0.0.0}
@@ -312,13 +312,13 @@ services:
       - APP_SEGMENT_ENDPOINT=${APP_SEGMENT_ENDPOINT:-http://mock-segment:9999}
       - APP_ENTITLEMENT_ID=${APP_ENTITLEMENT_ID}
       - APP_CONTAINER_IMAGE_VERSION=${APP_CONTAINER_IMAGE_VERSION:-dev}
-      - APP_S3_ENDPOINT_URL=http://moto:5000
+      - APP_S3_ENDPOINT_URL=${APP_S3_ENDPOINT_URL:-http://moto:5000}
       - APP_S3_BUCKET_NAME=${APP_S3_BUCKET_NAME:-nexus-files}
       - APP_S3_REGION=${APP_S3_REGION:-us-east-1}
       - APP_S3_ACCESS_KEY_ID=${APP_S3_ACCESS_KEY_ID:-testing}
       - APP_S3_SECRET_ACCESS_KEY=${APP_S3_SECRET_ACCESS_KEY:-testing}
-      - APP_S3_VERIFY_SSL=false
-      - APP_S3_USE_PATH_STYLE=true
+      - APP_S3_VERIFY_SSL=${APP_S3_VERIFY_SSL:-false}
+      - APP_S3_USE_PATH_STYLE=${APP_S3_USE_PATH_STYLE:-true}
       - APP_S2S_TLS_ENABLED=${APP_S2S_TLS_ENABLED:-true}
       - APP_S2S_TLS_CA_CERT_PATH=/run/secrets/s2s-ca.pem
       - APP_S2S_TLS_CERT_PATH=/run/secrets/s2s-cert.crt

@@ -154,6 +154,46 @@ class TestOrchestratorAgentContextIntegration:
             assert result_state["prompt"] == original_prompt, f"Failed for {type(exception).__name__}"
             assert result_state["current_agent"] == AgentRoutes.GENERIC_AGENT, f"Failed for {type(exception).__name__}"
 
+    @pytest.mark.asyncio
+    async def test_enhanced_prompt_differs_from_original_messages(self) -> None:
+        """Verify orchestrator updates state['prompt'] with context but leaves state['messages'] unchanged.
+
+        GenericAgent reads state['prompt'] for the LLM call, so the orchestrator
+        must store context-enhanced content there. The messages list retains the
+        original prompt because LangGraph's operator.add reducer would append
+        rather than replace.
+        """
+        mock_context_manager = MagicMock()
+        test_context = ContextPackage(
+            payload={"documents": "Name: Jane Doe"},
+            grounding_score=0.95,
+            citations=["file-id-1"],
+        )
+        mock_context_manager.plan_request = AsyncMock(return_value=test_context)
+
+        orchestrator = OrchestratorAgent(mock_context_manager)
+        original_prompt = "Say hello! Use my name from context."
+        state: AgentState = {
+            "prompt": original_prompt,
+            "original_prompt": original_prompt,
+            "session_id": "test-session",
+            "invocation_id": uuid4(),
+            "actor_context": AuditActorContext(),
+            "context_package": None,
+            "current_agent": "",
+            "messages": [HumanMessage(original_prompt)],
+            "result": None,
+            "metadata": None,
+            "llm_token_usage_log": [],
+        }
+
+        result_state = await orchestrator.execute(state)
+
+        assert "--- CONTEXT ---" in result_state["prompt"]
+        assert "Jane Doe" in result_state["prompt"]
+        assert result_state["messages"][0].content == original_prompt
+        assert "--- CONTEXT ---" not in result_state["messages"][0].content
+
 
 class TestOrchestratorAgentRouting:
     """Test OrchestratorAgent routing logic."""
