@@ -7,6 +7,7 @@ import { credentialsClient, integrationsClient, toolManagerClient } from '../../
 import { useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { useAllProjects } from '../../access/useAllProjects'
+import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 
 import { AIAgentNodeForm } from './AIAgentNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
@@ -540,6 +541,39 @@ describe('AIAgentNodeForm', () => {
 
       expect(refetchTools).toHaveBeenCalled()
       expect(refetchIntegrations).toHaveBeenCalled()
+    })
+
+    it('shows helper text with link when no MCP integrations and user has create permission', () => {
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      expect(screen.getByText('configure an MCP server integration')).toBeInTheDocument()
+      const link = screen.getByRole('link', { name: 'configure an MCP server integration' })
+      expect(link).toHaveAttribute('href', '/configuration/integrations/configure')
+    })
+
+    it('shows helper text without link when no MCP integrations and user lacks create permission', () => {
+      vi.mocked(useIntegrationPermissions).mockReturnValue({
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+        isLoading: false,
+        tooltips: { create: '', update: '', enable: '', validate: '', delete: '' },
+      })
+
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      const helperTexts = screen.getAllByText(/before tools can be selected/)
+      expect(helperTexts.length).toBeGreaterThan(0)
+      expect(screen.queryByRole('link', { name: 'configure an MCP server integration' })).not.toBeInTheDocument()
+    })
+
+    it('does not show MCP helper text when integrations are available', () => {
+      setupToolMocks()
+
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      expect(screen.queryByText('configure an MCP server integration')).not.toBeInTheDocument()
+      expect(screen.queryByText(/before tools can be selected/)).not.toBeInTheDocument()
     })
 
     it('shows loading state while integrations query is still pending', () => {

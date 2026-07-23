@@ -28,6 +28,7 @@ export type ToolsMultiSelectProps = {
   onChange: (selection: ToolSelection) => void
   integrations: IntegrationWithTools[]
   isLoading?: boolean
+  hasNoIntegrations?: boolean
 }
 
 const INTEGRATION_PREFIX = 'integration:'
@@ -169,6 +170,7 @@ export function ToolsMultiSelect({
   onChange,
   integrations,
   isLoading = false,
+  hasNoIntegrations = false,
 }: Readonly<ToolsMultiSelectProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
@@ -193,12 +195,13 @@ export function ToolsMultiSelect({
   const allToolIds = useMemo(() => integrations.flatMap((i) => i.discovered_tools.map((t) => t.id)), [integrations])
 
   const toggleLabel = useMemo(() => {
+    if (hasNoIntegrations) return ''
     if (value.strategy === 'ALL') return 'All tools selected'
     if (value.strategy === 'NONE') return 'No tools selected'
     const count = value.toolIds.length
     if (count === 0) return 'No tools selected'
     return `${String(count)} of ${String(totalTools)} tools selected`
-  }, [value, totalTools])
+  }, [value, totalTools, hasNoIntegrations])
 
   // Set of explicitly selected IDs — only meaningful for SELECTED strategy
   const selectedSet = useMemo(() => new Set(value.strategy === 'SELECTED' ? value.toolIds : []), [value])
@@ -255,6 +258,11 @@ export function ToolsMultiSelect({
       popperProps={{ position: 'start' }}
     >
       <SelectList aria-label="Tool options">
+        {hasNoIntegrations && (
+          <SelectOption isAriaDisabled value="__empty__">
+            No MCP server integrations configured
+          </SelectOption>
+        )}
         {isFiltering && filteredIntegrations.length === 0 && (
           <SelectOption isAriaDisabled value="__no_results__">
             No results match &quot;{filterText}&quot;

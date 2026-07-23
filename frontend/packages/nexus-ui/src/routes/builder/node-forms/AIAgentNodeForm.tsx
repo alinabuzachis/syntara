@@ -17,7 +17,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { Control, UseFormSetValue } from 'react-hook-form'
 import { Controller, FormProvider, useForm, useFormContext, useFormState, useWatch } from 'react-hook-form'
 
+import { AppRoute } from '../../../app/AppRoute'
 import { integrationsClient, toolManagerClient } from '../../../client'
+import { NxLink } from '../../../components/NxLink'
 import {
   FILE_STORAGE_UNAVAILABLE_MESSAGE,
   FILE_STORAGE_UNCONFIGURED_MESSAGE,
@@ -25,6 +27,7 @@ import {
 } from '../../../hooks/useFileStorageStatus'
 import { detachPromise } from '../../../utils/detachPromise'
 import { projectIdParam } from '../../../utils/queryParams'
+import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
 import { FileUpload, type UploadedFile } from '../components/file-upload'
 import { LLMCredentialStatus } from '../components/LLMCredentialStatus'
@@ -244,6 +247,7 @@ type AIAgentFormFieldsProps = Readonly<{
   isToolsError: boolean
   onRetryTools: () => void
   hasExistingFiles: boolean
+  hasNoIntegrations: boolean
 }>
 
 function AIAgentFormFields({
@@ -254,11 +258,13 @@ function AIAgentFormFields({
   isToolsError,
   onRetryTools,
   hasExistingFiles,
+  hasNoIntegrations,
 }: AIAgentFormFieldsProps) {
   const isVersionView = useIsVersionView()
   const { register, control, getValues, setValue } = useFormContext<AIAgentFormData>()
   const { toolSelection, handleToolSelectionChange } = useToolSelection(control, setValue)
   const { errors } = useFormState({ control })
+  const { canCreate: canCreateIntegration } = useIntegrationPermissions()
   const fileContext = useContext(FileContext)
   if (!fileContext) throw new Error('AIAgentFormFields must be used within FileContext.Provider')
   const { isFilesError } = fileContext
@@ -307,7 +313,27 @@ function AIAgentFormFields({
             onChange={handleToolSelectionChange}
             integrations={integrations}
             isLoading={isLoadingIntegrations}
+            hasNoIntegrations={hasNoIntegrations}
           />
+          {hasNoIntegrations && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  {canCreateIntegration ? (
+                    <>
+                      An administrator must{' '}
+                      <NxLink to={AppRoute.Configuration.Integrations.Configure}>
+                        configure an MCP server integration
+                      </NxLink>{' '}
+                      before tools can be selected.
+                    </>
+                  ) : (
+                    'An administrator must configure an MCP server integration before tools can be selected.'
+                  )}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
           {isToolsError && <ToolsLoadError onRetry={onRetryTools} />}
         </FormGroup>
       </StackItem>
@@ -433,6 +459,7 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
       groupToolsByIntegration((toolsData?.resources ?? []) as ToolWithParameters[], integrationsData?.resources ?? []),
     [toolsData, integrationsData]
   )
+  const hasNoIntegrations = integrations.length === 0 && !isLoadingIntegrations
 
   const { data: hydratedFiles, isError: isFilesError } = useFilesMetadata(props.existingFileIds)
   const [userFiles, setUserFiles] = useState<UploadedFile[]>([])
@@ -519,6 +546,7 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
             isToolsError={isAnyToolsError}
             onRetryTools={handleRetryTools}
             hasExistingFiles={!!props.existingFileIds?.length}
+            hasNoIntegrations={hasNoIntegrations}
           />
         </NodeFormContainer>
       </FormProvider>

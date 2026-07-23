@@ -34,10 +34,17 @@ function renderComponent(
   value: ToolSelection = NONE,
   onChange = vi.fn(),
   integrations: IntegrationWithTools[] = mockIntegrations,
-  isLoading = false
+  isLoading = false,
+  hasNoIntegrations = false
 ) {
   return render(
-    <ToolsMultiSelect value={value} onChange={onChange} integrations={integrations} isLoading={isLoading} />
+    <ToolsMultiSelect
+      value={value}
+      onChange={onChange}
+      integrations={integrations}
+      isLoading={isLoading}
+      hasNoIntegrations={hasNoIntegrations}
+    />
   )
 }
 
@@ -250,5 +257,38 @@ describe('ToolsMultiSelect', () => {
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  describe('empty integrations state', () => {
+    it('shows placeholder text instead of "No tools selected" when hasNoIntegrations is true', () => {
+      renderComponent(NONE, vi.fn(), [], false, true)
+      expect(screen.getByPlaceholderText('Select tools')).toBeInTheDocument()
+      expect(screen.queryByDisplayValue('No tools selected')).not.toBeInTheDocument()
+    })
+
+    it('shows "No MCP server integrations configured" in dropdown when hasNoIntegrations is true', async () => {
+      const user = userEvent.setup()
+      renderComponent(NONE, vi.fn(), [], false, true)
+
+      await user.click(screen.getByRole('textbox', { name: 'Select tools' }))
+
+      expect(screen.getByText('No MCP server integrations configured')).toBeInTheDocument()
+    })
+
+    it('does not show "All tools" option when hasNoIntegrations is true', async () => {
+      const user = userEvent.setup()
+      renderComponent(NONE, vi.fn(), [], false, true)
+
+      await user.click(screen.getByRole('textbox', { name: 'Select tools' }))
+
+      expect(screen.queryByRole('checkbox', { name: 'All tools' })).not.toBeInTheDocument()
+    })
+
+    it('has no accessibility violations when hasNoIntegrations is true', async () => {
+      const { container } = renderComponent(NONE, vi.fn(), [], false, true)
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
   })
 })
