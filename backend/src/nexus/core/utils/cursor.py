@@ -88,6 +88,62 @@ def serialize_sort_value(value: Any) -> str:  # noqa: ANN401
     return str(value)
 
 
+def column_python_type(column: Any) -> type | None:  # noqa: ANN401
+    """Return ``column.type.python_type``, or ``None`` when unavailable.
+
+    Same approach as ``nexus.core.utils.filters._convert_filter_value``:
+    some SQLAlchemy types raise ``NotImplementedError`` / lack ``python_type``.
+    """
+    try:
+        return column.type.python_type  # type: ignore[no-any-return]
+    except (AttributeError, NotImplementedError):
+        return None
+
+
+def deserialize_sort_value(value: str, python_type: type | None) -> Any:  # noqa: ANN401
+    """Deserialize a cursor ``sort_value`` string back to a typed Python value.
+
+    Inverse of :func:`serialize_sort_value`. Callers typically pass
+    :func:`column_python_type` (same approach as filter value coercion in
+    ``nexus.core.utils.filters``).
+
+    Args:
+        value: Serialized sort value from the cursor.
+        python_type: Target Python type inferred from the SQLAlchemy column, if known.
+
+    Returns:
+        Value suitable for keyset comparison against the sort column.
+        Empty strings for datetime/UUID/int targets become ``None``.
+
+    Raises:
+        SafeValueError: If ``value`` cannot be coerced to ``python_type``
+            (malformed user-controlled cursor token → API 422).
+
+    """
+    if value == "" and python_type in {datetime, UUID, int}:
+        return None
+    try:
+        if python_type is datetime:
+            # Match filters._convert_datetime_value ISO/'Z' handling
+            iso_value = value.replace("Z", "+00:00") if value.endswith("Z") else value
+            return datetime.fromisoformat(iso_value)
+        if python_type is UUID:
+            return UUID(value)
+        if python_type is bool:
+            return value.lower() == "true"
+        if python_type is int:
+            return int(value)
+    except (ValueError, TypeError) as e:
+        msg = ValidationMessages.CURSOR_INVALID_FORMAT.format(error=e)
+        raise SafeValueError(msg) from e
+    return value
+
+
+def deserialize_column_sort_value(value: str, column: Any) -> Any:  # noqa: ANN401
+    """Deserialize a cursor sort_value using the column's Python type."""
+    return deserialize_sort_value(value, column_python_type(column))
+
+
 def create_cursor_data(
     *,
     resource_id: str | UUID | None = None,

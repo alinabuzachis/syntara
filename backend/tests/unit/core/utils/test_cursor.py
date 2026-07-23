@@ -9,7 +9,7 @@ import base64
 import json
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -18,8 +18,11 @@ from nexus.core.utils.cursor import (
     CursorData,
     PaginationDirection,
     SortDirection,
+    column_python_type,
     create_cursor_data,
     decode_cursor,
+    deserialize_column_sort_value,
+    deserialize_sort_value,
     encode_cursor,
     extract_keyset_from_cursor,
     extract_pagination_from_cursor,
@@ -600,6 +603,99 @@ class TestSerializeSortValue:
     def test_serialize_uuid(self) -> None:
         uid = uuid4()
         assert serialize_sort_value(uid) == str(uid)
+
+
+class TestDeserializeSortValue:
+    """Tests for deserialize_sort_value (inverse of serialize_sort_value)."""
+
+    def test_deserialize_datetime(self) -> None:
+        dt = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
+        assert deserialize_sort_value(dt.isoformat(), datetime) == dt
+
+    def test_deserialize_datetime_z_suffix(self) -> None:
+        result = deserialize_sort_value("2025-01-15T10:30:00Z", datetime)
+        assert result == datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
+
+    def test_deserialize_datetime_empty(self) -> None:
+        assert deserialize_sort_value("", datetime) is None
+
+    def test_deserialize_uuid(self) -> None:
+        uid = uuid4()
+        assert deserialize_sort_value(str(uid), UUID) == uid
+
+    def test_deserialize_uuid_empty(self) -> None:
+        assert deserialize_sort_value("", UUID) is None
+
+    def test_deserialize_bool(self) -> None:
+        assert deserialize_sort_value("true", bool) is True
+        assert deserialize_sort_value("false", bool) is False
+
+    def test_deserialize_int(self) -> None:
+        assert deserialize_sort_value("42", int) == 42
+
+    def test_deserialize_int_empty(self) -> None:
+        assert deserialize_sort_value("", int) is None
+
+    def test_deserialize_string_passthrough(self) -> None:
+        assert deserialize_sort_value("alice", str) == "alice"
+        assert deserialize_sort_value("alice", None) == "alice"
+
+    def test_roundtrip_datetime(self) -> None:
+        dt = datetime(2025, 6, 1, 12, 0, 0, tzinfo=UTC)
+        assert deserialize_sort_value(serialize_sort_value(dt), datetime) == dt
+
+    def test_invalid_datetime_raises_safe_value_error(self) -> None:
+        with pytest.raises(SafeValueError, match="Invalid cursor format"):
+            deserialize_sort_value("not-a-datetime", datetime)
+
+    def test_invalid_uuid_raises_safe_value_error(self) -> None:
+        with pytest.raises(SafeValueError, match="Invalid cursor format"):
+            deserialize_sort_value("not-a-uuid", UUID)
+
+    def test_invalid_int_raises_safe_value_error(self) -> None:
+        with pytest.raises(SafeValueError, match="Invalid cursor format"):
+            deserialize_sort_value("not-an-int", int)
+
+
+class TestColumnPythonType:
+    """Tests for column_python_type / deserialize_column_sort_value helpers."""
+
+    def test_returns_python_type_for_datetime_column(self) -> None:
+        from nexus.workflows.models.workflow import Workflow
+
+        assert column_python_type(Workflow.updated_at) is datetime
+
+    def test_missing_python_type_returns_none(self) -> None:
+        from sqlalchemy import String, TypeDecorator, column
+
+        class _NoPythonType(TypeDecorator[str]):
+            impl = String
+            cache_ok = True
+
+            @property
+            def python_type(self) -> type:
+                raise NotImplementedError
+
+        assert column_python_type(column("name", _NoPythonType())) is None
+
+    def test_deserialize_column_sort_value_datetime(self) -> None:
+        from nexus.workflows.models.workflow import Workflow
+
+        dt = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
+        assert deserialize_column_sort_value(dt.isoformat(), Workflow.updated_at) == dt
+
+    def test_deserialize_column_sort_value_string_fallback(self) -> None:
+        from sqlalchemy import String, TypeDecorator, column
+
+        class _NoPythonType(TypeDecorator[str]):
+            impl = String
+            cache_ok = True
+
+            @property
+            def python_type(self) -> type:
+                raise NotImplementedError
+
+        assert deserialize_column_sort_value("alice", column("name", _NoPythonType())) == "alice"
 
 
 class TestCreateCursorDataSortValue:

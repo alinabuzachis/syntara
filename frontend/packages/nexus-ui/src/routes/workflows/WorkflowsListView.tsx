@@ -1,5 +1,5 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { Th, Thead, Tr } from '@patternfly/react-table'
+import { Th, Thead, Tr, type ThProps } from '@patternfly/react-table'
 
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
@@ -27,6 +27,7 @@ export type WorkflowsListViewProps = Readonly<{
   onClearAllFilters: () => void
   onCreateWorkflow?: () => void
   footer?: TableFooterProps
+  getSortParams: (columnField: string) => ThProps['sort']
   isAllProjects: boolean
   groupedWorkflows: GroupedWorkflows | null
   collapsedProjects: Set<string>
@@ -48,6 +49,7 @@ export function WorkflowsListView({
   onClearAllFilters,
   onCreateWorkflow,
   footer,
+  getSortParams,
   isAllProjects,
   groupedWorkflows,
   collapsedProjects,
@@ -89,10 +91,10 @@ export function WorkflowsListView({
         <NxListPanelTable caption="Workflows table" footer={footer}>
           <Thead>
             <Tr>
-              <Th>Name</Th>
-              <Th>Created at</Th>
-              <Th>Updated at</Th>
-              <Th>State</Th>
+              <Th sort={getSortParams('name')}>Name</Th>
+              <Th sort={getSortParams('created_at')}>Created at</Th>
+              <Th sort={getSortParams('updated_at')}>Updated at</Th>
+              <Th sort={getSortParams('is_enabled')}>State</Th>
               <Th screenReaderText="Actions" />
             </Tr>
           </Thead>

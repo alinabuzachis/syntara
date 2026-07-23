@@ -20,6 +20,7 @@ from nexus.authz.role_conventions import (
     builtin_role_policy_names,
     get_builtin_role,
 )
+from nexus.core.constants import ValidationMessages
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.models.group import Group
@@ -29,6 +30,7 @@ from nexus.core.utils.cursor import (
     SortDirection,
     create_cursor_data,
     decode_cursor,
+    deserialize_column_sort_value,
     encode_cursor,
     serialize_sort_value,
 )
@@ -638,21 +640,28 @@ class RoleAssignmentService:
         )
 
         if rid and cat:
-            cursor_dt = datetime.fromisoformat(cat)
+            try:
+                cursor_dt = datetime.fromisoformat(cat)
+            except ValueError as e:
+                msg = ValidationMessages.CURSOR_INVALID_FORMAT.format(error=e)
+                raise SafeValueError(msg) from e
+
             go_forward = descending ^ is_backward
 
             if use_sort_col:
+                # Raises SafeValueError on malformed sort_value → API 422.
+                typed_sv = deserialize_column_sort_value(str(cursor_sv), sort_col)
                 if go_forward:
                     stmt = stmt.where(
-                        (sort_col < cursor_sv)
-                        | ((sort_col == cursor_sv) & (created_at_col < cursor_dt))
-                        | ((sort_col == cursor_sv) & (created_at_col == cursor_dt) & (id_col < rid))
+                        (sort_col < typed_sv)
+                        | ((sort_col == typed_sv) & (created_at_col < cursor_dt))
+                        | ((sort_col == typed_sv) & (created_at_col == cursor_dt) & (id_col < rid))
                     )
                 else:
                     stmt = stmt.where(
-                        (sort_col > cursor_sv)
-                        | ((sort_col == cursor_sv) & (created_at_col > cursor_dt))
-                        | ((sort_col == cursor_sv) & (created_at_col == cursor_dt) & (id_col > rid))
+                        (sort_col > typed_sv)
+                        | ((sort_col == typed_sv) & (created_at_col > cursor_dt))
+                        | ((sort_col == typed_sv) & (created_at_col == cursor_dt) & (id_col > rid))
                     )
             elif go_forward:
                 stmt = stmt.where((created_at_col < cursor_dt) | ((created_at_col == cursor_dt) & (id_col < rid)))

@@ -12,7 +12,7 @@ from uuid import UUID
 
 import structlog
 from pydantic import TypeAdapter, ValidationError
-from sqlalchemy import Select, func
+from sqlalchemy import Integer, Select, cast, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -29,6 +29,7 @@ from nexus.core.utils.cursor import (
     PaginationDirection,
     SortDirection,
     decode_cursor,
+    deserialize_column_sort_value,
     extract_keyset_from_cursor,
 )
 from nexus.core.utils.filters import Filter, apply_filters, parse_filters
@@ -370,37 +371,57 @@ class BaseService:
             and cursor_sort_field == sort_field
         )
 
-        try:
-            if resource_id:
+        if resource_id:
+            try:
                 cursor_id = UUID(resource_id)
+            except ValueError:
+                # Legacy / partially corrupt keyset id: ignore filter and continue.
+                return query, needs_reverse
 
-                if use_sort_col and hasattr(model, sort_field):
-                    sort_col = getattr(model, sort_field)
-                    cursor_sv = cursor_sort_value  # already a string
-                    query, needs_reverse = self._apply_keyset_filter(
-                        query,
-                        sort_col,
-                        cursor_sv,
-                        model.id,
-                        cursor_id,
-                        sort_direction,
-                        direction,
-                    )
-                elif created_at:
+            if use_sort_col and hasattr(model, sort_field):
+                sort_col = getattr(model, sort_field)
+                # Cursor tokens store sort_value via serialize_sort_value.
+                # Coerce back before keyset compare — otherwise Postgres
+                # rejects string vs timestamptz (HTTP 500 on page 2+).
+                # SafeValueError from deserialize_column_sort_value propagates as 422.
+                cursor_sv = deserialize_column_sort_value(str(cursor_sort_value), sort_col)
+                query, needs_reverse = self._apply_keyset_filter(
+                    query,
+                    sort_col,
+                    cursor_sv,
+                    model.id,
+                    cursor_id,
+                    sort_direction,
+                    direction,
+                )
+            elif created_at:
+                try:
                     cursor_timestamp = datetime.fromisoformat(created_at)
-                    query, needs_reverse = self._apply_keyset_filter(
-                        query,
-                        model.created_at,
-                        cursor_timestamp,
-                        model.id,
-                        cursor_id,
-                        sort_direction,
-                        direction,
-                    )
-        except (ValueError, KeyError):
-            pass
+                except ValueError:
+                    # Legacy / partially corrupt created_at: ignore filter and continue.
+                    return query, needs_reverse
+                query, needs_reverse = self._apply_keyset_filter(
+                    query,
+                    model.created_at,
+                    cursor_timestamp,
+                    model.id,
+                    cursor_id,
+                    sort_direction,
+                    direction,
+                )
 
         return query, needs_reverse
+
+    @staticmethod
+    def _coerce_boolean_keyset(col: Any, val: Any) -> tuple[Any, Any]:  # noqa: ANN401
+        """Cast boolean keyset operands so SQLAlchemy accepts < / > comparisons.
+
+        SQLAlchemy rejects inequalities against boolean True/False literals
+        (ArgumentError). Postgres orders false < true, same as 0 < 1.
+        """
+        if isinstance(val, bool):
+            return cast(col, Integer), int(val)
+        return col, val
 
     @staticmethod
     def _apply_keyset_filter(
@@ -418,6 +439,8 @@ class BaseService:
         """
         needs_reverse = False
         is_desc = sort_direction.value == "desc"
+
+        col_a, val_a = BaseService._coerce_boolean_keyset(col_a, val_a)
 
         if pagination_direction == PaginationDirection.NEXT:
             if is_desc:
@@ -495,17 +518,16 @@ class BaseService:
 
         # Check if any items exist before first_item using the sort column keyset.
         sort_field_name, original_sort_direction = parse_sort(sort or "-created_at", model.__sortable_fields__)
-        sort_col = getattr(model, sort_field_name, model.created_at)
-        sort_val = getattr(first_item, sort_field_name, first_item.created_at)
+        sort_col: Any = getattr(model, sort_field_name, model.created_at)
+        sort_val: Any = getattr(first_item, sort_field_name, first_item.created_at)
+        sort_col, sort_val = BaseService._coerce_boolean_keyset(sort_col, sort_val)
         if original_sort_direction.value == "desc":
             check_query = check_query.filter(
-                (sort_col > sort_val)  # type: ignore[arg-type]
-                | ((sort_col == sort_val) & (model.id > first_item.id))
+                (sort_col > sort_val) | ((sort_col == sort_val) & (model.id > first_item.id))
             )
         else:
             check_query = check_query.filter(
-                (sort_col < sort_val)  # type: ignore[arg-type]
-                | ((sort_col == sort_val) & (model.id < first_item.id))
+                (sort_col < sort_val) | ((sort_col == sort_val) & (model.id < first_item.id))
             )
 
         check_result = await self.session.exec(check_query.limit(1))  # type: ignore[arg-type]

@@ -976,6 +976,61 @@ class TestWorkflowServiceListWorkflows(TestWorkflowServiceBase):
         assert first_names.isdisjoint(second_names)
 
     @pytest.mark.asyncio
+    async def test_list_workflows_cursor_with_updated_at_sort(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        """Cursor pagination must work with datetime sorts like -updated_at (not just name)."""
+        service = WorkflowService(test_db_session, test_user)
+
+        workflows = [self._create_test_workflow(name=f"workflow-{i:02d}", created_by=test_user.id) for i in range(10)]
+        test_db_session.add_all(workflows)
+        await test_db_session.commit()
+
+        first_page = await service.list_workflows_cursor(limit=3, sort="-updated_at")
+
+        assert len(first_page.resources) == 3
+        assert first_page.next is not None
+
+        second_page = await service.list_workflows_cursor(limit=3, cursor=first_page.next, sort="-updated_at")
+
+        assert len(second_page.resources) == 3
+        assert second_page.prev is not None
+
+        first_ids = {w.id for w in first_page.resources}
+        second_ids = {w.id for w in second_page.resources}
+        assert first_ids.isdisjoint(second_ids)
+
+    @pytest.mark.asyncio
+    async def test_list_workflows_cursor_with_is_enabled_sort(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        """Cursor pagination must work with boolean sorts like is_enabled (next and prev)."""
+        service = WorkflowService(test_db_session, test_user)
+
+        workflows = [self._create_test_workflow(name=f"workflow-{i:02d}", created_by=test_user.id) for i in range(10)]
+        test_db_session.add_all(workflows)
+        await test_db_session.commit()
+
+        first_page = await service.list_workflows_cursor(limit=3, sort="is_enabled")
+
+        assert len(first_page.resources) == 3
+        assert first_page.next is not None
+
+        second_page = await service.list_workflows_cursor(limit=3, cursor=first_page.next, sort="is_enabled")
+
+        assert len(second_page.resources) == 3
+        assert second_page.prev is not None
+
+        first_ids = {w.id for w in first_page.resources}
+        second_ids = {w.id for w in second_page.resources}
+        assert first_ids.isdisjoint(second_ids)
+
+        # Backward pagination runs _check_has_items_before, which also keysets on the sort col.
+        back_to_first = await service.list_workflows_cursor(limit=3, cursor=second_page.prev, sort="is_enabled")
+        assert len(back_to_first.resources) == 3
+        assert {w.id for w in back_to_first.resources} == first_ids
+
+    @pytest.mark.asyncio
     async def test_list_workflows_cursor_empty_results_with_cursor(
         self, test_db_session: AsyncSession, test_user: User
     ) -> None:

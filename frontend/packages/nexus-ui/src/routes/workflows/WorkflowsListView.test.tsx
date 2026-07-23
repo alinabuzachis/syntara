@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -22,6 +22,7 @@ const defaultProps: WorkflowsListViewProps = {
   onFilterChange: vi.fn(),
   onClearAllFilters: vi.fn(),
   onCreateWorkflow: vi.fn(),
+  getSortParams: vi.fn(() => undefined),
   isAllProjects: false,
   groupedWorkflows: null,
   collapsedProjects: new Set(),
@@ -88,6 +89,31 @@ describe('WorkflowsListView', () => {
       render(<WorkflowsListView {...defaultProps} sortedWorkflows={mockWorkflows} />)
       expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: 'Created at' })).toBeInTheDocument()
+    })
+
+    it('applies sort props to sortable columns and not to actions', () => {
+      const getSortParams = vi.fn((field: string) =>
+        field === 'name'
+          ? {
+              sortBy: { index: 0, direction: 'asc' as const, defaultDirection: 'asc' as const },
+              onSort: vi.fn(),
+              columnIndex: 0,
+            }
+          : undefined
+      )
+
+      render(<WorkflowsListView {...defaultProps} sortedWorkflows={mockWorkflows} getSortParams={getSortParams} />)
+
+      expect(getSortParams).toHaveBeenCalledWith('name')
+      expect(getSortParams).toHaveBeenCalledWith('created_at')
+      expect(getSortParams).toHaveBeenCalledWith('updated_at')
+      expect(getSortParams).toHaveBeenCalledWith('is_enabled')
+
+      const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
+      expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
+
+      const actionsHeader = screen.getByRole('columnheader', { name: 'Actions' })
+      expect(within(actionsHeader).queryByRole('button')).not.toBeInTheDocument()
     })
 
     it('does not render the no-data empty state when workflows are present', () => {

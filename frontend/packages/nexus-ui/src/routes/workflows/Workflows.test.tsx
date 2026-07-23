@@ -2666,5 +2666,98 @@ describe('Workflows Component', () => {
     })
   })
 
-  // NOTE: Sorting tests removed - client-side sorting disabled for cursor-paginated data
+  describe('API sorting', () => {
+    beforeEach(() => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: { id: 'proj-default', name: 'Default Project' },
+        selectedProjectId: 'proj-default',
+        stableProjectId: 'proj-default',
+        isAllProjects: false,
+        projects: [{ id: 'proj-default', name: 'Default Project' }],
+        ProjectSelector: null,
+        refetchProjects: vi.fn(),
+      } as never)
+    })
+
+    it('defaults query sort to -updated_at', () => {
+      render(<Workflows />, { wrapper })
+
+      expect(accessClient.useQuery).toHaveBeenCalledWith(
+        'get',
+        '/projects/{project_id}/workflows',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              sort: '-updated_at',
+            }) as unknown,
+          }) as unknown,
+        }) as unknown,
+        expect.anything()
+      )
+    })
+
+    it('excludes built-in workflows from all-projects queries so page size matches the table', () => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: null,
+        selectedProjectId: undefined,
+        stableProjectId: undefined,
+        isAllProjects: true,
+        projects: [{ id: 'proj-default', name: 'Default Project', is_builtin: false }],
+        ProjectSelector: null,
+        refetchProjects: vi.fn(),
+      } as never)
+
+      render(<Workflows />, { wrapper })
+
+      expect(workflowClient.useQuery).toHaveBeenCalledWith(
+        'get',
+        '/workflows',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              is_builtin: false,
+              sort: '-updated_at',
+            }) as unknown,
+          }) as unknown,
+        }) as unknown,
+        expect.objectContaining({ enabled: true }) as unknown
+      )
+    })
+
+    it('renders sortable headers for name, created, updated, and state', () => {
+      render(<Workflows />, { wrapper })
+
+      for (const name of [/Name/i, /Created at/i, /Updated at/i, /^State$/i]) {
+        const header = screen.getByRole('columnheader', { name })
+        expect(within(header).getByRole('button')).toBeInTheDocument()
+      }
+
+      const actionsHeader = screen.getByRole('columnheader', { name: 'Actions' })
+      expect(within(actionsHeader).queryByRole('button')).not.toBeInTheDocument()
+    })
+
+    it('writes sort URL param when a column header is clicked', async () => {
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
+      await user.click(within(nameHeader).getByRole('button'))
+
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'sort', 'name')
+      })
+    })
+
+    it('can sort by is_enabled via the State column', async () => {
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      const stateHeader = screen.getByRole('columnheader', { name: /^State$/i })
+      await user.click(within(stateHeader).getByRole('button'))
+
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'sort', 'is_enabled')
+      })
+    })
+  })
 })

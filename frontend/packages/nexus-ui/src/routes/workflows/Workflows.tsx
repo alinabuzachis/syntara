@@ -32,6 +32,7 @@ import { WorkflowDialogs } from './WorkflowDialogs'
 import { transformIsEnabledFilter, workflowFilterDefinitions } from './workflowFilterDefinitions'
 import { buildWorkflowRowActions } from './workflowRowActions'
 import { WorkflowsListView } from './WorkflowsListView'
+import { workflowDefaultSort, workflowTableColumns } from './workflowTableColumns'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
@@ -85,10 +86,14 @@ export default function Workflows() {
   const permissions = useWorkflowPermissions()
   const { projectPermissions, projectEditDialog, projectDeleteDialog, projectActionCallbacks } =
     useWorkflowProjectControls(projects, selectedProjectId)
-  const projectExtraParams = useMemo(
-    () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
-    [selectedProjectId]
-  )
+  // All-projects view hides built-in workflows in the UI. Filter them out in the
+  // API query so cursor pagination limit/total match what's rendered (otherwise
+  // sorting can fill a page with built-ins that get stripped client-side).
+  const projectExtraParams = useMemo(() => {
+    if (isAllProjects) return { is_builtin: false }
+    if (selectedProjectId) return { project_id: selectedProjectId }
+    return undefined
+  }, [isAllProjects, selectedProjectId])
 
   const {
     cursor,
@@ -99,7 +104,13 @@ export default function Workflows() {
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination({ transformFilters: transformIsEnabledFilter, extraParams: projectExtraParams })
+    getSortParams,
+  } = useCursorPagination({
+    transformFilters: transformIsEnabledFilter,
+    extraParams: projectExtraParams,
+    defaultSort: workflowDefaultSort,
+    columns: workflowTableColumns,
+  })
 
   const runDialog = useDialogState<Workflow>()
   const deleteDialog = useDialogState<Workflow>()
@@ -228,6 +239,7 @@ export default function Workflows() {
                 permissions.canCreate ? () => detachPromise(navigate({ to: '/workflow-builder/new' })) : undefined
               }
               footer={getFooterProps(workflowsQuery.data)}
+              getSortParams={getSortParams}
               isAllProjects={isAllProjects}
               groupedWorkflows={groupedWorkflows}
               collapsedProjects={collapsedProjects}

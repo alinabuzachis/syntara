@@ -4,15 +4,26 @@ Covers _resolve_assignment_identity, _validate_principal_id, and is_visible
 branches introduced by the principal_id/group_id refactor.
 """
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import String, TypeDecorator, column
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
+from nexus.core.utils.cursor import (
+    PaginationDirection,
+    SortDirection,
+    create_cursor_data,
+    encode_cursor,
+    serialize_sort_value,
+)
 
 
 def _make_service(mock_session: AsyncMock, test_user: User) -> RoleAssignmentService:
@@ -304,3 +315,119 @@ class TestIsVisible:
             group_ids=[],
             allowed_project_ids=[],
         )
+
+
+class TestApplyCursor:
+    """Tests for RoleAssignmentService._apply_cursor sort_value coercion."""
+
+    def test_deserializes_datetime_sort_value(self) -> None:
+        boundary = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
+        cursor = encode_cursor(
+            create_cursor_data(
+                resource_id=uuid4(),
+                created_at=boundary,
+                direction=PaginationDirection.NEXT,
+                sort_field="updated_at",
+                sort_direction=SortDirection.DESC,
+                sort_value=serialize_sort_value(boundary),
+            )
+        )
+
+        stmt, is_backward = RoleAssignmentService._apply_cursor(
+            select(RoleAssignment),
+            cursor,
+            RoleAssignment.created_at,  # any datetime column exercises coercion
+            RoleAssignment.created_at,
+            RoleAssignment.id,
+            descending=True,
+            sort_field="updated_at",
+        )
+
+        assert is_backward is False
+        params = stmt.compile().params
+        assert any(isinstance(value, datetime) for value in params.values())
+
+    def test_malformed_sort_value_raises_safe_value_error(self) -> None:
+        boundary = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
+        cursor = encode_cursor(
+            create_cursor_data(
+                resource_id=uuid4(),
+                created_at=boundary,
+                direction=PaginationDirection.NEXT,
+                sort_field="updated_at",
+                sort_direction=SortDirection.DESC,
+                sort_value="not-a-datetime",
+            )
+        )
+
+        stmt = select(RoleAssignment)
+        with pytest.raises(SafeValueError, match="Invalid cursor format"):
+            RoleAssignmentService._apply_cursor(
+                stmt,
+                cursor,
+                RoleAssignment.created_at,
+                RoleAssignment.created_at,
+                RoleAssignment.id,
+                descending=True,
+                sort_field="updated_at",
+            )
+
+    def test_malformed_created_at_raises_safe_value_error(self) -> None:
+        cursor = encode_cursor(
+            {
+                "id": str(uuid4()),
+                "created_at": "not-a-datetime",
+                "direction": "next",
+                "sort_field": "principal_name",
+                "sort_value": "alice",
+                "sort_direction": "asc",
+            }
+        )
+
+        stmt = select(RoleAssignment)
+        with pytest.raises(SafeValueError, match="Invalid cursor format"):
+            RoleAssignmentService._apply_cursor(
+                stmt,
+                cursor,
+                RoleAssignment.created_at,
+                RoleAssignment.created_at,
+                RoleAssignment.id,
+                descending=False,
+                sort_field="principal_name",
+            )
+
+    def test_missing_python_type_falls_back_to_string_compare(self) -> None:
+        boundary = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
+        cursor = encode_cursor(
+            create_cursor_data(
+                resource_id=uuid4(),
+                created_at=boundary,
+                direction=PaginationDirection.NEXT,
+                sort_field="principal_name",
+                sort_direction=SortDirection.ASC,
+                sort_value="alice",
+            )
+        )
+
+        class _NoPythonType(TypeDecorator[str]):
+            impl = String
+            cache_ok = True
+
+            @property
+            def python_type(self) -> type:
+                raise NotImplementedError
+
+        sort_col = column("principal_name", _NoPythonType())
+
+        stmt, is_backward = RoleAssignmentService._apply_cursor(
+            select(RoleAssignment),
+            cursor,
+            sort_col,
+            RoleAssignment.created_at,
+            RoleAssignment.id,
+            descending=False,
+            sort_field="principal_name",
+        )
+
+        assert is_backward is False
+        assert stmt is not None

@@ -63,6 +63,7 @@ class Workflow(Resource, table=True):
     # Define sortable fields for API endpoints - extend base Resource fields
     __sortable_fields__: ClassVar[list[str]] = [
         *Resource.__sortable_fields__,
+        "is_enabled",
     ]
 
     # Workflow-specific fields
