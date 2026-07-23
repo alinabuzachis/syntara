@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import false, func, or_
+from sqlalchemy import case, false, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -23,6 +23,7 @@ from nexus.authz.role_conventions import (
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.models.group import Group
+from nexus.core.models.principal import Principal
 from nexus.core.utils.cursor import (
     PaginationDirection,
     SortDirection,
@@ -114,20 +115,14 @@ class RoleAssignmentService:
 
         await self._validate_role(role_name, project_id)
 
-        dup_clauses: builtins.list[Any] = [
-            RoleAssignment.role_name == role_name,
-            RoleAssignment.project_id == project_id,
-        ]
-        if principal_id is not None:
-            dup_clauses.append(RoleAssignment.principal_id == principal_id)
-        else:
-            dup_clauses.append(RoleAssignment.group_id == group_id)
-
-        existing = await self.session.exec(select(RoleAssignment).where(*dup_clauses))
         target_display = group_name if group_name else f"{principal_type_label} '{principal_name}'"
-        if existing.first():
-            msg = f"Role '{role_name}' is already assigned to {target_display}"
-            raise SafeValueError(msg)
+        await self._check_duplicate_assignment(
+            principal_id=principal_id,
+            group_id=group_id,
+            role_name=role_name,
+            project_id=project_id,
+            target_display=target_display,
+        )
 
         assignment = RoleAssignment(
             principal_id=principal_id,
@@ -170,7 +165,8 @@ class RoleAssignmentService:
             ),
         )
         display_name = principal_name or group_name
-        result = self._to_dict(assignment, display_name, project_name)
+        resolved_type = principal_type_label or ("group" if group_id else None)
+        result = self._to_dict(assignment, display_name, project_name, resolved_type)
         await self._enrich_with_role_info([result])
         return result
 
@@ -283,7 +279,7 @@ class RoleAssignmentService:
         if has_more:
             rows = rows[1:] if is_backward else rows[:limit]
 
-        resources = [self._to_dict(a, pn, prn) for a, pn, prn in rows]
+        resources = [self._to_dict(a, pn, prn, pt) for a, pn, prn, pt in rows]
         await self._enrich_with_role_info(resources)
 
         return {
@@ -383,16 +379,48 @@ class RoleAssignmentService:
     # Private helpers
     # ------------------------------------------------------------------
 
+    async def _check_duplicate_assignment(
+        self,
+        *,
+        principal_id: UUID | None,
+        group_id: UUID | None,
+        role_name: str,
+        project_id: UUID | None,
+        target_display: str,
+    ) -> None:
+        """Raise if an identical role assignment already exists."""
+        clauses: builtins.list[Any] = [
+            RoleAssignment.role_name == role_name,
+            RoleAssignment.project_id == project_id,
+        ]
+        if principal_id is not None:
+            clauses.append(RoleAssignment.principal_id == principal_id)
+        else:
+            clauses.append(RoleAssignment.group_id == group_id)
+
+        existing = await self.session.exec(select(RoleAssignment).where(*clauses))
+        if existing.first():
+            msg = f"Role '{role_name}' is already assigned to {target_display}"
+            raise SafeValueError(msg)
+
     @staticmethod
     def _principal_name_col() -> Any:  # noqa: ANN401
         """COALESCE expression that resolves a principal's display name from joined tables."""
         return func.coalesce(User.username, ServiceAccount.name, Group.name).label("principal_name")
 
     @staticmethod
+    def _principal_type_col() -> Any:  # noqa: ANN401
+        """CASE expression that resolves principal type from joined tables."""
+        return case(
+            (RoleAssignment.group_id.is_not(None), "group"),  # type: ignore[union-attr]
+            else_=Principal.principal_type,
+        ).label("principal_type")
+
+    @staticmethod
     def _base_assignment_query() -> Any:  # noqa: ANN401
         """Build the base SELECT with principal name resolution and outerjoins.
 
-        Returns a Select with columns (RoleAssignment, principal_name, project_name).
+        Returns a Select with columns (RoleAssignment, principal_name, project_name, principal_type).
         Used by both ``list()`` and ``_query_one()`` to avoid duplication.
         """
         return (
@@ -400,6 +428,7 @@ class RoleAssignmentService:
                 RoleAssignment,
                 RoleAssignmentService._principal_name_col(),
                 Project.name.label("project_name"),  # type: ignore[attr-defined]
+                RoleAssignmentService._principal_type_col(),
             )
             .outerjoin(
                 User,
@@ -413,6 +442,7 @@ class RoleAssignmentService:
                 ServiceAccount,
                 (RoleAssignment.principal_id == ServiceAccount.id) & (ServiceAccount.deleted_at.is_(None)),  # type: ignore[union-attr]
             )
+            .outerjoin(Principal, RoleAssignment.principal_id == Principal.id)  # type: ignore[arg-type]
             .outerjoin(Project, RoleAssignment.project_id == Project.id)  # type: ignore[arg-type]
         )
 
@@ -423,8 +453,8 @@ class RoleAssignmentService:
         row = result.first()
         if not row:
             return None
-        assignment, pn, prn = row
-        return self._to_dict(assignment, pn, prn)
+        assignment, pn, prn, pt = row
+        return self._to_dict(assignment, pn, prn, pt)
 
     async def _validate_principal_id(self, principal_id: UUID) -> tuple[str, str]:
         """Validate that a principal exists and return (name, label)."""
@@ -549,12 +579,18 @@ class RoleAssignmentService:
         return result.first()
 
     @staticmethod
-    def _to_dict(assignment: RoleAssignment, principal_name: str | None, project_name: str | None) -> dict[str, Any]:
+    def _to_dict(
+        assignment: RoleAssignment,
+        principal_name: str | None,
+        project_name: str | None,
+        principal_type: str | None = None,
+    ) -> dict[str, Any]:
         return {
             "id": assignment.id,
             "principal_id": assignment.principal_id,
             "group_id": assignment.group_id,
             "principal_name": principal_name or "",
+            "principal_type": principal_type,
             "role_name": assignment.role_name,
             "project_id": assignment.project_id,
             "project_name": project_name,

@@ -36,6 +36,7 @@ import {
   mockProjectGroupRoleAssignments,
   mockGroupRoleAssignments,
   mockUserRoleAssignments,
+  mockServiceAccountRoleAssignments,
   mockUsers,
   mockGroups,
   getUserName,
@@ -3629,6 +3630,7 @@ export const handlers = [
         principal_id: a.user_id,
         group_id: null,
         principal_name: a.username,
+        principal_type: 'user' as const,
         role_name: a.role_name,
         role_policies: mockRoles.find((r) => r.name === a.role_name)?.policies ?? [],
         project_id: a.project_id,
@@ -3642,13 +3644,28 @@ export const handlers = [
         principal_id: null,
         group_id: a.group_id,
         principal_name: a.group_name,
+        principal_type: 'group' as const,
         role_name: a.role_name,
         role_policies: mockRoles.find((r) => r.name === a.role_name)?.policies ?? [],
         project_id: a.project_id,
         created_at: a.created_at,
       }))
 
-    return HttpResponse.json({ resources: [...userEntries, ...groupEntries] })
+    const saEntries = mockServiceAccountRoleAssignments
+      .filter((a) => a.project_id === pid)
+      .map((a) => ({
+        id: a.id,
+        principal_id: a.service_account_id,
+        group_id: null,
+        principal_name: a.service_account_name,
+        principal_type: 'service_account' as const,
+        role_name: a.role_name,
+        role_policies: mockRoles.find((r) => r.name === a.role_name)?.policies ?? [],
+        project_id: a.project_id,
+        created_at: a.created_at,
+      }))
+
+    return HttpResponse.json({ resources: [...userEntries, ...groupEntries, ...saEntries] })
   }),
 
   http.post('/api/v1/projects/:project_id/role_assignments', async ({ params, request }) => {
@@ -4234,6 +4251,7 @@ export const handlers = [
         principal_id: a.user_id,
         group_id: null,
         principal_name: a.username,
+        principal_type: 'user' as const,
         role_name: a.role_name,
         role_description: role?.description ?? null,
         role_policies: role?.policies ?? [],
@@ -4250,6 +4268,7 @@ export const handlers = [
         principal_id: null,
         group_id: a.group_id,
         principal_name: a.group_name,
+        principal_type: 'group' as const,
         role_name: a.role_name,
         role_description: role?.description ?? null,
         role_policies: role?.policies ?? [],
@@ -4266,6 +4285,7 @@ export const handlers = [
         principal_id: a.user_id,
         group_id: null,
         principal_name: a.username,
+        principal_type: 'user' as const,
         role_name: a.role_name,
         role_description: role?.description ?? null,
         role_policies: role?.policies ?? [],
@@ -4282,6 +4302,7 @@ export const handlers = [
         principal_id: null,
         group_id: a.group_id,
         principal_name: a.group_name,
+        principal_type: 'group' as const,
         role_name: a.role_name,
         role_description: role?.description ?? null,
         role_policies: role?.policies ?? [],
@@ -4291,7 +4312,24 @@ export const handlers = [
       }
     })
 
-    let all = [...userEntries, ...groupEntries, ...projectUserEntries, ...projectGroupEntries]
+    const saEntries = mockServiceAccountRoleAssignments.map((a) => {
+      const role = mockRoles.find((r) => r.name === a.role_name)
+      return {
+        id: a.id,
+        principal_id: a.service_account_id,
+        group_id: null,
+        principal_name: a.service_account_name,
+        principal_type: 'service_account' as const,
+        role_name: a.role_name,
+        role_description: role?.description ?? null,
+        role_policies: role?.policies ?? [],
+        project_id: a.project_id,
+        project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
+        created_at: a.created_at,
+      }
+    })
+
+    let all = [...userEntries, ...groupEntries, ...projectUserEntries, ...projectGroupEntries, ...saEntries]
 
     // Apply filters
     if (groupId != null) {

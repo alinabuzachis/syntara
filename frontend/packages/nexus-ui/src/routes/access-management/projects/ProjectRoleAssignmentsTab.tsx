@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
+import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { invalidateAuthzCaches } from '../../../hooks/invalidateAuthzCaches'
@@ -25,6 +26,14 @@ import { useRolePermissions } from '../../access/useRolePermissions'
 
 import { AddProjectRoleDialog } from './AddProjectRoleDialog'
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
+
+type PrincipalTypeDisplay = { text: string; color: 'blue' | 'teal' | 'green' }
+
+function principalTypeDisplay(a: RoleAssignmentRead): PrincipalTypeDisplay {
+  if (a.principal_type === 'service_account') return { text: 'Service Account', color: 'green' }
+  if (a.principal_type === 'group' || a.group_id != null) return { text: 'Group', color: 'teal' }
+  return { text: 'User', color: 'blue' }
+}
 
 const SORT_FIELDS = ['principal_name', 'role_name'] as const
 
@@ -85,37 +94,38 @@ function RoleAssignmentsTable({
         </Tr>
       </Thead>
       <Tbody>
-        {assignments.map((assignment) => (
-          <Tr key={assignment.id}>
-            <Td dataLabel="Principal Name">
-              <Truncate content={assignment.principal_name} />
-            </Td>
-            <Td dataLabel="Principal Type">
-              <Label isCompact color={assignment.group_id != null ? 'orange' : 'teal'}>
-                {assignment.group_id != null ? 'Group' : 'User'}
-              </Label>
-            </Td>
-            <Td dataLabel="Role Name">
-              <Truncate content={assignment.role_name} />
-            </Td>
-            <Td dataLabel="Policies">
-              {(assignment.role_policies ?? []).length > 0 ? (
-                <LabelGroup numLabels={3}>
-                  {(assignment.role_policies ?? []).map((name) => (
-                    <Label key={name} isCompact>
-                      {name}
-                    </Label>
-                  ))}
-                </LabelGroup>
-              ) : (
-                '-'
-              )}
-            </Td>
-            <Td isActionCell>
-              <ActionsColumn items={getAssignmentActions(assignment, onUnassign, permissions)} />
-            </Td>
-          </Tr>
-        ))}
+        {assignments.map((assignment) => {
+          const { color, text } = principalTypeDisplay(assignment)
+          return (
+            <Tr key={assignment.id}>
+              <Td dataLabel="Principal Name">
+                <Truncate content={assignment.principal_name} />
+              </Td>
+              <Td dataLabel="Principal Type">
+                <NxLabel color={color}>{text}</NxLabel>
+              </Td>
+              <Td dataLabel="Role Name">
+                <Truncate content={assignment.role_name} />
+              </Td>
+              <Td dataLabel="Policies">
+                {(assignment.role_policies ?? []).length > 0 ? (
+                  <LabelGroup numLabels={3}>
+                    {(assignment.role_policies ?? []).map((name) => (
+                      <Label key={name} isCompact>
+                        {name}
+                      </Label>
+                    ))}
+                  </LabelGroup>
+                ) : (
+                  '-'
+                )}
+              </Td>
+              <Td isActionCell>
+                <ActionsColumn items={getAssignmentActions(assignment, onUnassign, permissions)} />
+              </Td>
+            </Tr>
+          )
+        })}
       </Tbody>
     </>
   )

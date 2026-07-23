@@ -326,6 +326,15 @@ components:
         principal_name:
           type: string
           title: Principal Name
+        principal_type:
+          anyOf:
+            - type: string
+              enum:
+                - user
+                - group
+                - service_account
+            - type: 'null'
+          title: Principal Type
         role_name:
           type: string
           title: Role Name

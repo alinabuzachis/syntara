@@ -914,3 +914,65 @@ async def test_is_visible_own_service_account_assignment(seeded_db: AsyncSession
         group_ids=[],
         allowed_project_ids=[],
     )
+
+
+# ============================================================================
+# principal_type regression coverage
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_assign_user_returns_principal_type_user(seeded_db: AsyncSession, test_user: User) -> None:
+    """User assignment returns principal_type='user'."""
+    svc = RoleAssignmentService(seeded_db, test_user)
+    result = await svc.assign(principal_id=test_user.id, role_name="admin")
+    assert result["principal_type"] == "user"
+
+
+@pytest.mark.asyncio
+async def test_assign_group_returns_principal_type_group(seeded_db: AsyncSession, test_user: User) -> None:
+    """Group assignment returns principal_type='group'."""
+    group = await _create_group(seeded_db, name="pt-group")
+    svc = RoleAssignmentService(seeded_db, test_user)
+    result = await svc.assign(group_id=group.id, role_name="user")
+    assert result["principal_type"] == "group"
+
+
+@pytest.mark.asyncio
+async def test_assign_service_account_returns_principal_type_service_account(
+    seeded_db: AsyncSession, test_user: User
+) -> None:
+    """Service account assignment returns principal_type='service_account'."""
+    project = await _create_project(seeded_db, name="pt-sa-project")
+    sa = await _create_service_account(seeded_db, project, created_by=test_user.id, name="pt-sa")
+    svc = RoleAssignmentService(seeded_db, test_user)
+    result = await svc.assign(principal_id=sa.id, role_name="project-user", project_id=project.id)
+    assert result["principal_type"] == "service_account"
+
+
+@pytest.mark.asyncio
+async def test_get_returns_principal_type(seeded_db: AsyncSession, test_user: User) -> None:
+    """GET resolves principal_type via the joined query."""
+    svc = RoleAssignmentService(seeded_db, test_user)
+    created = await svc.assign(principal_id=test_user.id, role_name="auditor")
+    fetched = await svc.get(created["id"])
+    assert fetched["principal_type"] == "user"
+
+
+@pytest.mark.asyncio
+async def test_list_returns_principal_type_for_all_types(seeded_db: AsyncSession, test_user: User) -> None:
+    """List returns correct principal_type for user, group, and service account."""
+    group = await _create_group(seeded_db, name="pt-list-group")
+    project = await _create_project(seeded_db, name="pt-list-project")
+    sa = await _create_service_account(seeded_db, project, created_by=test_user.id, name="pt-list-sa")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(principal_id=test_user.id, role_name="admin")
+    await svc.assign(group_id=group.id, role_name="user")
+    await svc.assign(principal_id=sa.id, role_name="project-user", project_id=project.id)
+
+    result = await svc.list()
+    types_by_name = {r["principal_name"]: r["principal_type"] for r in result["resources"]}
+    assert types_by_name[test_user.username] == "user"
+    assert types_by_name[group.name] == "group"
+    assert types_by_name["pt-list-sa"] == "service_account"

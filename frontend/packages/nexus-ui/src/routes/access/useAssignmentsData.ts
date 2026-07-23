@@ -13,9 +13,9 @@ import { accessClient } from './accessClient'
 import type { PermissionRow, RoleAssignmentRead } from './types'
 import { useAllProjects } from './useAllProjects'
 
-// SA detection is not possible from RoleAssignmentRead (no discriminator field); SAs appear as users until the API adds one.
 function derivePrincipalType(a: RoleAssignmentRead): RolePrincipalType {
-  if (a.group_id) return RolePrincipalType.GROUP
+  if (a.principal_type === 'service_account') return RolePrincipalType.SERVICE_ACCOUNT
+  if (a.principal_type === 'group' || a.group_id) return RolePrincipalType.GROUP
   return RolePrincipalType.USER
 }
 

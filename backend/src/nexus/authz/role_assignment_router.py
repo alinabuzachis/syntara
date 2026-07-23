@@ -1,7 +1,7 @@
 """Unified role-assignment API endpoints (global scope)."""
 
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import Depends, Request, status
@@ -55,6 +55,7 @@ class RoleAssignmentRead(SQLModel):
     principal_id: UUID | None = None
     group_id: UUID | None = None
     principal_name: str
+    principal_type: Literal["user", "group", "service_account"] | None = None
     role_name: str
     role_description: str | None = None
     role_policies: list[str] = []

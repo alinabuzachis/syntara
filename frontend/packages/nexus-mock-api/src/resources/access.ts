@@ -569,6 +569,30 @@ export const mockUserRoleAssignments: MockUserRoleAssignment[] = [
   },
 ]
 
+// ── Service Account Role Assignments (SA → role in project) ─────────────
+
+export interface MockServiceAccountRoleAssignment {
+  id: string
+  service_account_id: string
+  service_account_name: string
+  project_id: string
+  role_id: string
+  role_name: string
+  created_at: string
+}
+
+export const mockServiceAccountRoleAssignments: MockServiceAccountRoleAssignment[] = [
+  {
+    id: 'sara-001',
+    service_account_id: 'sa-001',
+    service_account_name: 'ci-pipeline',
+    project_id: 'p-001',
+    role_id: 'r-005',
+    role_name: 'project-user',
+    created_at: '2024-03-10T00:00:00.000Z',
+  },
+]
+
 // ── Service Accounts ─────────────────────────────────────────────────────
 
 export type ServiceAccountStatus = 'active' | 'disabled'

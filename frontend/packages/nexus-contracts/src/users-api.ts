@@ -974,6 +974,8 @@ export interface components {
       group_id?: string | null
       /** Principal Name */
       principal_name: string
+      /** Principal Type */
+      principal_type?: ('user' | 'group' | 'service_account') | null
       /** Role Name */
       role_name: string
       /** Role Description */
