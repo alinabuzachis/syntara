@@ -304,25 +304,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
 
 
 # Create FastAPI application
+_settings = get_settings()
 app = FastAPI(
     title="Nexus API",
     description="A distributed multi-agent workflow orchestration system",
     version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    docs_url="/docs" if _settings.enable_api_docs else None,
+    redoc_url="/redoc" if _settings.enable_api_docs else None,
+    openapi_url="/openapi.json" if _settings.enable_api_docs else None,
     lifespan=lifespan,
     responses=problem_details_response_map(),
 )
 
 # Configure CORS middleware using centralized settings
-_cors_settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_settings.cors_allow_origins,
-    allow_credentials=_cors_settings.cors_allow_credentials,
-    allow_methods=_cors_settings.cors_allow_methods,
-    allow_headers=_cors_settings.cors_allow_headers,
+    allow_origins=_settings.cors_allow_origins,
+    allow_credentials=_settings.cors_allow_credentials,
+    allow_methods=_settings.cors_allow_methods,
+    allow_headers=_settings.cors_allow_headers,
 )
 
 # Register stale token rejection middleware.
@@ -441,11 +441,10 @@ async def root() -> dict[str, str]:
         dict: Welcome message with API information
 
     """
-    return {
-        "message": "Nexus API",
-        "version": "0.1.0",
-        "docs": "/docs",
-    }
+    response: dict[str, str] = {"message": "Nexus API", "version": "0.1.0"}
+    if _settings.enable_api_docs:
+        response["docs"] = "/docs"
+    return response
 
 
 # ---------------------------------------------------------------------------
