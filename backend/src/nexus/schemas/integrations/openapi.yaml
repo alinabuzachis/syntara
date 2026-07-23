@@ -349,58 +349,6 @@ paths:
       security:
         - bearerAuth: []
 
-  /integrations/{integration_id}/status:
-    patch:
-      summary: Update Integration Status
-      description: |-
-        Update integration enabled/validation_status/validation_error (service-to-service only).
-      operationId: update_integration_status
-      tags:
-        - Integrations
-      x-app-permission:
-        resource: integration
-        action: update
-      parameters:
-        - name: integration_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Integration Id
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/IntegrationStatusPatch"
-      responses:
-        "200":
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IntegrationRead"
-        "400":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
-        "401":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
-        "404":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
-        "409":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
-        "422":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
-        "500":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
-        "429":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
-
-      security:
-        - bearerAuth: []
-
   /integrations/{integration_id}/validate:
     post:
       summary: Validate Integration
@@ -1155,33 +1103,6 @@ components:
           title: Labels
           description: Key-value labels
       title: IntegrationPatch
-      type: object
-
-    IntegrationStatusPatch:
-      description: |-
-        Schema for service-to-service status updates (not user-facing).
-
-        Used by internal components (e.g. agent orchestrator) to update
-        enabled/validation_status/validation_error together in a single call.
-      properties:
-        enabled:
-          anyOf:
-            - type: boolean
-            - type: "null"
-          title: Enabled
-          description: Whether the integration is active
-        validation_status:
-          anyOf:
-            - $ref: "#/components/schemas/IntegrationStatus"
-            - type: "null"
-          description: Validation status of the integration
-        validation_error:
-          anyOf:
-            - type: string
-            - type: "null"
-          title: Validation Error
-          description: Error message from last validation attempt
-      title: IntegrationStatusPatch
       type: object
 
     IntegrationTestConnection:

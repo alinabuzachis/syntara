@@ -450,22 +450,6 @@ class IntegrationSystemUpdate(SQLModel):
         return self
 
 
-class IntegrationStatusPatch(SQLModel):
-    """Schema for service-to-service status updates (not user-facing).
-
-    Used by internal components (e.g. agent orchestrator) to update
-    enabled/validation_status/validation_error together in a single call.
-    """
-
-    enabled: bool | None = Field(default=None, description=_ENABLED_DESCRIPTION)
-
-    validation_status: IntegrationStatus | None = Field(
-        default=None, description="Validation status of the integration"
-    )
-
-    validation_error: str | None = Field(default=None, description="Error message from last validation attempt")
-
-
 class IntegrationTestConnection(SQLModel):
     """Schema for testing a connection without saving an integration."""
 

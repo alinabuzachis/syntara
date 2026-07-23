@@ -33,13 +33,10 @@ class ToolExecution:
         updated_at: Last update timestamp
         created_by: UUID of user who created the resource
         updated_by: Optional UUID of user who last updated the resource
-        deleted_at: Optional timestamp when resource was soft deleted
-        deleted_by: Optional UUID of user who performed the soft delete
         labels: Optional key-value metadata
 
         Attributes:
             created_by (UUID): User (or automation) that created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
-            tool_id (UUID): Foreign key to Tool
             user_id (UUID): Identifier of executing user/agent
             execution_start (datetime.datetime): Execution start timestamp
             status (ToolExecutionStatus): Status of a tool execution.
@@ -51,6 +48,7 @@ class ToolExecution:
                 {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
             updated_by (None | Unset | UUID): User (or automation) that last updated the resource Example:
                 880e8400-e29b-41d4-a716-446655440000.
+            tool_id (None | Unset | UUID): Foreign key to Tool
             integration_id (None | Unset | UUID): Foreign key to Integration (denormalized from tool)
             execution_end (datetime.datetime | None | Unset): Execution completion timestamp
             duration_ms (int | None | Unset): Execution duration in milliseconds
@@ -60,7 +58,6 @@ class ToolExecution:
     """
 
     created_by: UUID
-    tool_id: UUID
     user_id: UUID
     execution_start: datetime.datetime
     status: ToolExecutionStatus
@@ -70,6 +67,7 @@ class ToolExecution:
     updated_at: datetime.datetime | Unset = UNSET
     labels: ToolExecutionLabels | Unset = UNSET
     updated_by: None | Unset | UUID = UNSET
+    tool_id: None | Unset | UUID = UNSET
     integration_id: None | Unset | UUID = UNSET
     execution_end: datetime.datetime | None | Unset = UNSET
     duration_ms: int | None | Unset = UNSET
@@ -81,8 +79,6 @@ class ToolExecution:
         from ..models.tool_execution_output_data_type_0 import ToolExecutionOutputDataType0
 
         created_by = str(self.created_by)
-
-        tool_id = str(self.tool_id)
 
         user_id = str(self.user_id)
 
@@ -115,6 +111,14 @@ class ToolExecution:
             updated_by = str(self.updated_by)
         else:
             updated_by = self.updated_by
+
+        tool_id: None | str | Unset
+        if isinstance(self.tool_id, Unset):
+            tool_id = UNSET
+        elif isinstance(self.tool_id, UUID):
+            tool_id = str(self.tool_id)
+        else:
+            tool_id = self.tool_id
 
         integration_id: None | str | Unset
         if isinstance(self.integration_id, Unset):
@@ -163,7 +167,6 @@ class ToolExecution:
         field_dict.update(
             {
                 "created_by": created_by,
-                "tool_id": tool_id,
                 "user_id": user_id,
                 "execution_start": execution_start,
                 "status": status,
@@ -180,6 +183,8 @@ class ToolExecution:
             field_dict["labels"] = labels
         if updated_by is not UNSET:
             field_dict["updated_by"] = updated_by
+        if tool_id is not UNSET:
+            field_dict["tool_id"] = tool_id
         if integration_id is not UNSET:
             field_dict["integration_id"] = integration_id
         if execution_end is not UNSET:
@@ -203,8 +208,6 @@ class ToolExecution:
 
         d = dict(src_dict)
         created_by = UUID(d.pop("created_by"))
-
-        tool_id = UUID(d.pop("tool_id"))
 
         user_id = UUID(d.pop("user_id"))
 
@@ -258,6 +261,23 @@ class ToolExecution:
             return cast(None | Unset | UUID, data)
 
         updated_by = _parse_updated_by(d.pop("updated_by", UNSET))
+
+        def _parse_tool_id(data: object) -> None | Unset | UUID:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                tool_id_type_0 = UUID(data)
+
+                return tool_id_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | UUID, data)
+
+        tool_id = _parse_tool_id(d.pop("tool_id", UNSET))
 
         def _parse_integration_id(data: object) -> None | Unset | UUID:
             if data is None:
@@ -339,7 +359,6 @@ class ToolExecution:
 
         tool_execution = cls(
             created_by=created_by,
-            tool_id=tool_id,
             user_id=user_id,
             execution_start=execution_start,
             status=status,
@@ -349,6 +368,7 @@ class ToolExecution:
             updated_at=updated_at,
             labels=labels,
             updated_by=updated_by,
+            tool_id=tool_id,
             integration_id=integration_id,
             execution_end=execution_end,
             duration_ms=duration_ms,

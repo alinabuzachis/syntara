@@ -11,7 +11,7 @@ import structlog
 from nexus.core.exceptions import SafeValueError
 from nexus.core.tls.http_client import build_internal_http_client
 from nexus.core.utils.retry import retry_with_backoff
-from nexus.integrations.models.integration import IntegrationRead, IntegrationStatus, IntegrationType
+from nexus.integrations.models.integration import IntegrationRead, IntegrationType
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -199,64 +199,6 @@ class ToolManagerClient:
 
         logger.info("Retrieved total MCP integrations", integration_count=len(integrations))
         return integrations
-
-    @retry_with_backoff
-    async def update_integration_status(
-        self,
-        integration_id: UUID,
-        validation_status: IntegrationStatus,
-        validation_error: str | None = None,
-    ) -> None:
-        """Update integration validation status in the Integrations API.
-
-        Used to persist connection error state when an MCP server cannot be reached,
-        or to clear error state when a previously-failing server recovers.
-
-        Args:
-            integration_id: UUID of the integration to update
-            validation_status: New validation status for the integration
-            validation_error: Error message to set in validation_error field (optional)
-
-        Raises:
-            ValueError: If integration_id is None
-            httpx.HTTPStatusError: On API error responses (404, 409, etc.)
-            httpx.TimeoutException: On request timeout
-            httpx.ConnectError: On network connectivity issues
-
-        """
-        if not integration_id:
-            msg = "Integration ID cannot be None"
-            raise SafeValueError(msg)
-
-        # Build request payload
-        update_data: dict[str, str | None | bool] = {
-            "validation_status": validation_status.value,
-            "validation_error": validation_error,
-        }
-
-        # Disable integration if status is error
-        if validation_status == IntegrationStatus.ERROR:
-            update_data["enabled"] = False
-        # Enable integration if status is available
-        elif validation_status == IntegrationStatus.AVAILABLE:
-            update_data["enabled"] = True
-
-        logger.debug(
-            "Updating integration status",
-            integration_id=integration_id,
-            validation_status=validation_status.value,
-            validation_error=validation_error,
-        )
-
-        # Make API request to the internal status sub-resource (not the user-facing PATCH)
-        response = await self.session.patch(f"/integrations/{integration_id}/status", json=update_data)
-        response.raise_for_status()
-
-        logger.info(
-            "Updated integration status",
-            integration_id=integration_id,
-            validation_status=validation_status.value,
-        )
 
     @retry_with_backoff
     async def _get_tools_page(self, params: dict[str, str]) -> dict[str, Any]:

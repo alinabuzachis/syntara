@@ -1,8 +1,8 @@
 """Unit tests for IntegrationService operational methods.
 
 Covers validate_integration(), discover(), refresh_resources(),
-update_system_status(), and _resolve_credential() — methods that interact
-with external adapters, credentials, and audit dispatching.
+and _resolve_credential() — methods that interact with external adapters,
+credentials, and audit dispatching.
 """
 
 from datetime import UTC, datetime
@@ -32,7 +32,6 @@ from nexus.integrations.models.integration import (
     IntegrationCreate,
     IntegrationRefreshStatus,
     IntegrationStatus,
-    IntegrationStatusPatch,
     IntegrationType,
 )
 from nexus.integrations.services.integration_service import IntegrationService
@@ -107,53 +106,6 @@ def _mock_runtime_settings(timeout: int = 10) -> AsyncMock:
     mock = MagicMock()
     mock.get = AsyncMock(return_value=timeout)
     return mock
-
-
-class TestUpdateSystemStatus:
-    """Tests for IntegrationService.update_system_status."""
-
-    @pytest.mark.asyncio
-    async def test_updates_enabled_field(
-        self, test_db_session: AsyncSession, integration_service: IntegrationService
-    ) -> None:
-        created = await integration_service.create_integration(_mcp_create())
-        assert created.enabled is True
-
-        result = await integration_service.update_system_status(created.id, IntegrationStatusPatch(enabled=False))
-
-        assert result.enabled is False
-
-    @pytest.mark.asyncio
-    async def test_updates_validation_status(
-        self, test_db_session: AsyncSession, integration_service: IntegrationService
-    ) -> None:
-        created = await integration_service.create_integration(_mcp_create())
-
-        result = await integration_service.update_system_status(
-            created.id,
-            IntegrationStatusPatch(validation_status=IntegrationStatus.ERROR, validation_error="Server down"),
-        )
-
-        assert result.validation_status == IntegrationStatus.ERROR
-        assert result.validation_error == "Server down"
-
-    @pytest.mark.asyncio
-    async def test_partial_update_only_sets_provided_fields(
-        self, test_db_session: AsyncSession, integration_service: IntegrationService
-    ) -> None:
-        created = await integration_service.create_integration(_mcp_create())
-
-        result = await integration_service.update_system_status(created.id, IntegrationStatusPatch(enabled=False))
-
-        assert result.enabled is False
-        assert result.validation_status == created.validation_status
-
-    @pytest.mark.asyncio
-    async def test_not_found_raises(
-        self, test_db_session: AsyncSession, integration_service: IntegrationService
-    ) -> None:
-        with pytest.raises(IntegrationNotFoundError):
-            await integration_service.update_system_status(uuid4(), IntegrationStatusPatch(enabled=False))
 
 
 class TestResolveCredential:

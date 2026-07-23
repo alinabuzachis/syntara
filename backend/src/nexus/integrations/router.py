@@ -33,7 +33,6 @@ from nexus.integrations.models import (
     IntegrationProjectAssignmentListResponse,
     IntegrationProjectAssignmentRead,
     IntegrationRead,
-    IntegrationStatusPatch,
 )
 from nexus.integrations.models.integration import (
     Integration,
@@ -207,20 +206,6 @@ async def update_integration(
 ) -> IntegrationRead:
     """Update an integration."""
     return await service.patch_integration(integration_id, data)
-
-
-@router.patch(
-    "/integrations/{integration_id}/status",
-    dependencies=[Depends(_perm_update)],
-    operation_id="update_integration_status",
-)
-async def update_integration_status(
-    integration_id: UUID,
-    data: IntegrationStatusPatch,
-    service: Annotated[IntegrationService, Depends(get_integration_service)],
-) -> IntegrationRead:
-    """Update integration enabled/validation_status/validation_error (service-to-service only)."""
-    return await service.update_system_status(integration_id, data)
 
 
 @router.delete(

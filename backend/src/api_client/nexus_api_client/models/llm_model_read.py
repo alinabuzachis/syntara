@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -10,6 +10,10 @@ from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.model_capability_profile import ModelCapabilityProfile
+
 
 T = TypeVar("T", bound="LLMModelRead")
 
@@ -27,6 +31,7 @@ class LLMModelRead:
         enabled (bool | Unset):  Default: True.
         is_default (bool | Unset):  Default: False.
         last_refreshed_at (datetime.datetime | None | Unset):
+        profile (ModelCapabilityProfile | None | Unset): Model capability profile
         created_at (datetime.datetime | None | Unset):
         updated_at (datetime.datetime | None | Unset):
     """
@@ -39,11 +44,14 @@ class LLMModelRead:
     enabled: bool | Unset = True
     is_default: bool | Unset = False
     last_refreshed_at: datetime.datetime | None | Unset = UNSET
+    profile: ModelCapabilityProfile | None | Unset = UNSET
     created_at: datetime.datetime | None | Unset = UNSET
     updated_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.model_capability_profile import ModelCapabilityProfile
+
         id = str(self.id)
 
         integration_id = str(self.integration_id)
@@ -69,6 +77,14 @@ class LLMModelRead:
             last_refreshed_at = self.last_refreshed_at.isoformat()
         else:
             last_refreshed_at = self.last_refreshed_at
+
+        profile: dict[str, Any] | None | Unset
+        if isinstance(self.profile, Unset):
+            profile = UNSET
+        elif isinstance(self.profile, ModelCapabilityProfile):
+            profile = self.profile.to_dict()
+        else:
+            profile = self.profile
 
         created_at: None | str | Unset
         if isinstance(self.created_at, Unset):
@@ -104,6 +120,8 @@ class LLMModelRead:
             field_dict["is_default"] = is_default
         if last_refreshed_at is not UNSET:
             field_dict["last_refreshed_at"] = last_refreshed_at
+        if profile is not UNSET:
+            field_dict["profile"] = profile
         if created_at is not UNSET:
             field_dict["created_at"] = created_at
         if updated_at is not UNSET:
@@ -113,6 +131,8 @@ class LLMModelRead:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.model_capability_profile import ModelCapabilityProfile
+
         d = dict(src_dict)
         id = UUID(d.pop("id"))
 
@@ -151,6 +171,23 @@ class LLMModelRead:
             return cast(datetime.datetime | None | Unset, data)
 
         last_refreshed_at = _parse_last_refreshed_at(d.pop("last_refreshed_at", UNSET))
+
+        def _parse_profile(data: object) -> ModelCapabilityProfile | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                profile_type_0 = ModelCapabilityProfile.from_dict(data)
+
+                return profile_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(ModelCapabilityProfile | None | Unset, data)
+
+        profile = _parse_profile(d.pop("profile", UNSET))
 
         def _parse_created_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -195,6 +232,7 @@ class LLMModelRead:
             enabled=enabled,
             is_default=is_default,
             last_refreshed_at=last_refreshed_at,
+            profile=profile,
             created_at=created_at,
             updated_at=updated_at,
         )

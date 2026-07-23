@@ -57,7 +57,6 @@ from nexus.integrations.models.integration import (
     IntegrationRefreshStatus,
     IntegrationScope,
     IntegrationStatus,
-    IntegrationStatusPatch,
     IntegrationSystemUpdate,
     IntegrationTestConnection,
     IntegrationType,
@@ -650,21 +649,6 @@ class IntegrationService(BaseService):
             setattr(integration, field, getattr(data, field))
 
         integration.last_validated_at = datetime.now(UTC)
-
-        await self.session.flush()
-        return await self._to_read_with_counts(integration)
-
-    async def update_system_status(self, integration_id: UUID, data: IntegrationStatusPatch) -> IntegrationRead:
-        """Apply service-to-service status updates (enabled, validation_status, validation_error).
-
-        Used by internal components such as the agent orchestrator to mark an
-        integration as ERROR when an MCP server becomes unreachable, or to
-        re-enable it when the server recovers.
-        """
-        integration = await self._get_or_raise(integration_id)
-
-        for field in data.model_fields_set:
-            setattr(integration, field, getattr(data, field))
 
         await self.session.flush()
         return await self._to_read_with_counts(integration)

@@ -3,12 +3,10 @@
 from .tool_filtering import (
     enhance_namespaced_tools_with_metadata,
     filter_base_tools_by_enabled,
-    identify_missing_tools,
-    identify_unregistered_tools,
 )
 from .tool_manager_client import ToolManagerClient
 from .tool_services import (
-    ToolSynchronizer,
+    ToolRetriever,
     report_tool_execution_failure,
 )
 from .types import NamespacedBaseTool
@@ -16,10 +14,8 @@ from .types import NamespacedBaseTool
 __all__ = [
     "NamespacedBaseTool",
     "ToolManagerClient",
-    "ToolSynchronizer",
+    "ToolRetriever",
     "enhance_namespaced_tools_with_metadata",
     "filter_base_tools_by_enabled",
-    "identify_missing_tools",
-    "identify_unregistered_tools",
     "report_tool_execution_failure",
 ]

@@ -1,7 +1,7 @@
 """Tool Manager Integration Services.
 
 This module provides functions for integrating with the Tool Manager component,
-including tool discovery, synchronization, and error reporting.
+including tool discovery, retrieval, and error reporting.
 """
 
 import re
@@ -16,9 +16,6 @@ from nexus.agent_orchestrator.audit.tool_management import ToolDiscoveryEvent, T
 from nexus.agent_orchestrator.tool_manager.tool_filtering import (
     enhance_namespaced_tools_with_metadata,
     filter_base_tools_by_enabled,
-    identify_missing_tools,
-    identify_re_enableable_tools,
-    identify_unregistered_tools,
 )
 from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.agent_orchestrator.tool_manager.types import (
@@ -28,7 +25,7 @@ from nexus.agent_orchestrator.tool_manager.types import (
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.sanitization import CREDENTIAL_PATTERNS, REDACTED
 from nexus.core.config.base import get_settings
-from nexus.integrations.models.integration import IntegrationRead, IntegrationStatus, IntegrationType
+from nexus.integrations.models.integration import IntegrationRead, IntegrationType
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 
@@ -82,7 +79,6 @@ async def _discover_tools() -> ToolDiscoveryResult:
             max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
         ) as client:
             all_tools = await client.get_all_tools()
-            # Filter to enabled and disabled tools at service layer
             enabled_tools = [t for t in all_tools if t.enabled]
             disabled_tools = [t for t in all_tools if not t.enabled]
             logger.info(
@@ -128,21 +124,8 @@ def _should_skip_integration(integration: IntegrationRead) -> bool:
     return False
 
 
-def _should_retry_disabled_integration(integration: IntegrationRead) -> bool:
-    """Check if a disabled integration should be retried for re-enablement.
-
-    Only retry integrations that are:
-    - disabled (enabled=False)
-    - AND in ERROR state (status=ERROR)
-
-    This avoids overriding user-intentionally disabled integrations.
-    """
-    return not integration.enabled and integration.validation_status == IntegrationStatus.ERROR
-
-
 def _is_integration_type_supported(integration: IntegrationRead, provider_factory: ProviderFactory) -> bool:
     """Check if integration type is supported by the provider factory."""
-    # MCP server integrations always use the "mcp" provider type
     if integration.integration_type != IntegrationType.MCP_SERVER:
         logger.warning(
             "Skipping integration with unsupported type",
@@ -176,8 +159,6 @@ def _prepare_config_params(integration: IntegrationRead, api_key: str | None = N
     parameters on the adapter implementations.
     """
     config = integration.configuration
-    # Only include scalar fields that provider adapters accept as constructor kwargs.
-    # Exclude discriminator keys and system-managed fields.
     excluded_fields = frozenset({"integration_type", "discovered_models"})
     config_params = {k: v for k, v in config.model_dump().items() if k not in excluded_fields and v is not None}
     config_params["integration_id"] = integration.id
@@ -189,11 +170,15 @@ def _prepare_config_params(integration: IntegrationRead, api_key: str | None = N
 
 def _create_namespaced_tools(integration: IntegrationRead, provider_tools: list[BaseTool]) -> list[NamespacedBaseTool]:
     """Create namespaced tools from integration tools."""
-    namespaced_tools = []
-    for tool in provider_tools:
-        namespaced_name = f"{integration.name}::{tool.name}"
-        namespaced_tools.append((namespaced_name, tool))
-    return namespaced_tools
+    return [
+        NamespacedBaseTool(
+            integration_id=integration.id,
+            integration_name=integration.name,
+            tool_name=tool.name,
+            base_tool=tool,
+        )
+        for tool in provider_tools
+    ]
 
 
 def _sanitize_error_message(error: Exception, max_length: int = 200) -> str:
@@ -216,76 +201,6 @@ def _sanitize_error_message(error: Exception, max_length: int = 200) -> str:
     return msg
 
 
-async def _handle_integration_errors(integration: IntegrationRead, error: Exception) -> None:
-    """Handle different types of integration errors with appropriate logging and disabling."""
-    safe_msg = _sanitize_error_message(error)
-
-    if isinstance(error, ConnectionError | TimeoutError):
-        logger.warning(
-            "Failed to get tools from integration, disabling", integration_name=integration.name, error=str(error)
-        )
-        validation_error = f"Connection/timeout error: {safe_msg}"
-    elif isinstance(error, OSError):
-        logger.warning(
-            "Network/system error from integration, disabling", integration_name=integration.name, error=str(error)
-        )
-        validation_error = f"Network/system error: {safe_msg}"
-    elif isinstance(error, RuntimeError):
-        logger.warning(
-            "Unexpected error from integration, disabling", integration_name=integration.name, error=str(error)
-        )
-        validation_error = f"Runtime error: {safe_msg}"
-    elif isinstance(error, ValueError):
-        logger.warning(
-            "Invalid configuration for integration, disabling", integration_name=integration.name, error=str(error)
-        )
-        validation_error = f"Invalid configuration: {safe_msg}"
-    else:
-        logger.exception("Unexpected error processing integration, disabling", integration_name=integration.name)
-        validation_error = f"Unexpected error: {safe_msg}"
-
-    # Disable the integration and set error status using ToolManagerClient
-    settings = get_settings()
-    try:
-        async with ToolManagerClient(
-            base_url=str(settings.tool_manager_base_url),
-            timeout=settings.tool_manager_timeout_seconds,
-            max_connections=settings.tool_manager_max_connections,
-            max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
-        ) as client:
-            await client.update_integration_status(
-                integration_id=integration.id,
-                validation_status=IntegrationStatus.ERROR,
-                validation_error=validation_error,
-            )
-            logger.info("Disabled integration due to error", integration_name=integration.name)
-    except Exception:
-        logger.exception("Failed to disable integration via ToolManagerClient", integration_name=integration.name)
-
-
-async def _handle_integration_re_enablement(integration: IntegrationRead) -> None:
-    """Re-enable a previously disabled integration that is now working.
-
-    Sets enabled=True, validation_status=AVAILABLE, and clears validation_error.
-    """
-    settings = get_settings()
-    try:
-        async with ToolManagerClient(
-            base_url=str(settings.tool_manager_base_url),
-            timeout=settings.tool_manager_timeout_seconds,
-            max_connections=settings.tool_manager_max_connections,
-            max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
-        ) as client:
-            await client.update_integration_status(
-                integration_id=integration.id,
-                validation_status=IntegrationStatus.AVAILABLE,
-                validation_error=None,
-            )
-            logger.info("Re-enabled previously disabled integration", integration_name=integration.name)
-    except Exception:
-        logger.exception("Failed to re-enable integration via ToolManagerClient", integration_name=integration.name)
-
-
 async def _process_single_integration(
     integration: IntegrationRead,
     provider_factory: ProviderFactory,
@@ -293,9 +208,9 @@ async def _process_single_integration(
 ) -> list[NamespacedBaseTool]:
     """Process a single integration and return its namespaced tools.
 
-    For enabled integrations: Attempt connection, disable on failure.
-    For disabled ERROR integrations: Retry connection, re-enable on success.
-    For disabled AVAILABLE integrations: Skip (user-intentionally disabled).
+    Read-only: connects to the MCP server and returns tools.
+    Does NOT mutate integration or tool status on failure — just skips.
+    Only processes enabled integrations with valid configuration.
     """
     if _should_skip_integration(integration):
         return []
@@ -303,12 +218,11 @@ async def _process_single_integration(
     if not _is_integration_type_supported(integration, provider_factory):
         return []
 
-    # Skip disabled integrations unless they're in ERROR state (eligible for retry)
-    if not integration.enabled and not _should_retry_disabled_integration(integration):
+    if not integration.enabled:
         logger.debug(
             "Skipping disabled integration",
             integration_name=integration.name,
-            integration_status=integration.validation_status.value,
+            integration_status=integration.validation_status.value if integration.validation_status else "unknown",
         )
         return []
 
@@ -328,25 +242,15 @@ async def _process_single_integration(
             "Retrieved tools from integration", tool_count=len(provider_tools), integration_name=integration.name
         )
 
-        # If this was a disabled ERROR integration that succeeded, re-enable it
-        if _should_retry_disabled_integration(integration):
-            await _handle_integration_re_enablement(integration)
-
         return namespaced_tools
 
-    except (OSError, RuntimeError, ValueError) as e:
-        # Only disable if integration was enabled (don't update status for failed retries)
-        if integration.enabled:
-            await _handle_integration_errors(integration, e)
-        else:
-            logger.debug("Retry failed for disabled integration", integration_name=integration.name, error=str(e))
-        return []
-    except Exception as e:  # noqa: BLE001 (Handle any unexpected integration errors gracefully)
-        # Only disable if integration was enabled (don't update status for failed retries)
-        if integration.enabled:
-            await _handle_integration_errors(integration, e)
-        else:
-            logger.debug("Retry failed for disabled integration", integration_name=integration.name, error=str(e))
+    except Exception as e:  # noqa: BLE001 (Handle any integration errors gracefully without mutating state)
+        safe_msg = _sanitize_error_message(e)
+        logger.warning(
+            "Failed to get tools from integration during execution, skipping",
+            integration_name=integration.name,
+            error=safe_msg,
+        )
         return []
 
 
@@ -356,15 +260,15 @@ async def _retrieve_base_tools_from_integrations(
 ) -> list[NamespacedBaseTool]:
     """Retrieve BaseTools from MCP server integrations using ProviderFactory pattern.
 
-    Processes all integrations (enabled and disabled). For disabled integrations in ERROR
-    state, attempts to retry connection to potentially re-enable them.
+    Read-only: connects to enabled integrations and retrieves callable tools.
+    Does NOT update integration or tool status.
 
     Args:
-        all_integrations: List of all mcp_server integrations (enabled and disabled)
+        all_integrations: List of all mcp_server integrations
         credential_resolver: Optional async callable that resolves a bearer token given an integration_id
 
     Returns:
-        List of NamespacedTool containing (namespaced_name, BaseTool) retrieved from integrations
+        List of NamespacedBaseTool containing tools retrieved from integrations
 
     """
     namespaced_tools: list[NamespacedBaseTool] = []
@@ -387,10 +291,10 @@ def _filter_enabled_tools(
     namespaced_tools: list[NamespacedBaseTool],
     enabled_tools: list[ToolWithParameters],
 ) -> list[NamespacedBaseTool]:
-    """Filter NamespacedBaseTools by enabled status using namespaced_name.
+    """Filter NamespacedBaseTools by enabled status using (integration_id, name).
 
     Args:
-        namespaced_tools: List of NamespacedTool from integrations
+        namespaced_tools: List of NamespacedBaseTool from integrations
         enabled_tools: List of enabled tools from Tool Manager
 
     Returns:
@@ -406,7 +310,7 @@ def _enhance_tools_with_metadata(
     namespaced_tools: list[NamespacedBaseTool],
     enabled_tools: list[ToolWithParameters],
 ) -> list[BaseTool]:
-    """Enhance NamespacedBaseTools with metadata from Tool Manager (optimized).
+    """Enhance NamespacedBaseTools with metadata from Tool Manager.
 
     Args:
         namespaced_tools: List of filtered NamespacedBaseTools
@@ -421,107 +325,16 @@ def _enhance_tools_with_metadata(
     return enhanced_tools
 
 
-async def _update_missing_tools(
-    namespaced_tools: list[NamespacedBaseTool],
-    enabled_tools: list[ToolWithParameters],
-) -> None:
-    """Update missing tools in Tool Manager (async, best-effort).
+class ToolRetriever:
+    """Read-only tool retrieval orchestrator for agent execution.
 
-    Args:
-        namespaced_tools: List of NamespacedTool from integrations
-        enabled_tools: List of enabled tools from Tool Manager
+    Retrieves tools from MCP servers and matches them against the Tool Manager
+    database to provide the agent with callable, metadata-enriched tools.
 
-    """
-    settings = get_settings()
-
-    # Identify missing tools using the filtering function
-    missing_tools = identify_missing_tools(namespaced_tools, enabled_tools)
-
-    async with ToolManagerClient(
-        base_url=str(settings.tool_manager_base_url),
-        timeout=settings.tool_manager_timeout_seconds,
-        max_connections=settings.tool_manager_max_connections,
-        max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
-    ) as client:
-        # Update missing tools status in Tool Manager
-        for missing_tool in missing_tools:
-            try:
-                await client.update_tool_status(
-                    tool_id=missing_tool.id, status=ToolStatus.MISSING, refresh_error="Tool not found in MCP server"
-                )
-                logger.info("Updated missing tool status", tool_name=missing_tool.namespaced_name)
-            except (OSError, RuntimeError) as e:
-                logger.warning("Failed to update missing tool status", error=str(e))
-            except Exception:
-                logger.exception("Failed to update tool status", tool_name=missing_tool.namespaced_name)
-
-
-async def _update_re_enabled_tools(
-    namespaced_tools: list[NamespacedBaseTool],
-    disabled_tools: list[ToolWithParameters],
-) -> None:
-    """Re-enable disabled tools that are now available on MCP servers (async, best-effort).
-
-    Args:
-        namespaced_tools: List of NamespacedTool from integrations
-        disabled_tools: List of disabled tools from Tool Manager
-
-    """
-    settings = get_settings()
-
-    # Identify disabled tools that can be re-enabled using the filtering function
-    re_enableable_tools = identify_re_enableable_tools(namespaced_tools, disabled_tools)
-
-    if not re_enableable_tools:
-        return
-
-    async with ToolManagerClient(
-        base_url=str(settings.tool_manager_base_url),
-        timeout=settings.tool_manager_timeout_seconds,
-        max_connections=settings.tool_manager_max_connections,
-        max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
-    ) as client:
-        # Re-enable tools that are now available on MCP servers
-        for re_enableable_tool in re_enableable_tools:
-            try:
-                await client.update_tool_status(
-                    tool_id=re_enableable_tool.id, status=ToolStatus.AVAILABLE, refresh_error=None
-                )
-                logger.info("Re-enabled previously disabled tool", tool_name=re_enableable_tool.namespaced_name)
-            except (OSError, RuntimeError) as e:
-                logger.warning("Failed to re-enable tool status", error=str(e))
-            except Exception:
-                logger.exception("Failed to re-enable tool", tool_name=re_enableable_tool.namespaced_name)
-
-    logger.info(
-        "Re-enabled previously disabled tools that are now available on MCP servers",
-        re_enabled_count=len(re_enableable_tools),
-    )
-
-
-def _log_unregistered_tools(
-    namespaced_tools: list[NamespacedBaseTool],
-    enabled_tools: list[ToolWithParameters],
-) -> None:
-    """Log unregistered tools for awareness.
-
-    Args:
-        namespaced_tools: List of NamespacedTool from integrations
-        enabled_tools: List of enabled tools from Tool Manager
-
-    """
-    unregistered_tools = identify_unregistered_tools(namespaced_tools, enabled_tools)
-    if unregistered_tools:
-        unregistered_names = [tool.name for tool in unregistered_tools]
-        logger.info("Unregistered tools found in MCP servers", unregistered_tool_names=unregistered_names)
-
-
-class ToolSynchronizer:
-    """Stateful tool synchronization orchestrator.
-
-    Provides a class-based interface for tool synchronization while internally
-    using the module-level functions. Maintains state for a synchronization session
-    and eliminates the need for repeated parameter passing.
+    Unlike the former ToolSynchronizer, this class does NOT mutate any state:
+    it does not mark tools MISSING, does not re-enable tools, and does not
+    update integration status. State management is the responsibility of the
+    integrations domain's own refresh/health-check flows.
     """
 
     def __init__(
@@ -534,19 +347,7 @@ class ToolSynchronizer:
         activity_id: str | None = None,
         activity_name: str | None = None,
     ) -> None:
-        """Initialize the tool synchronizer.
-
-        Args:
-            session_id: Session identifier for multi-tenant isolation
-            invocation_id: Unique identifier for this synchronization session
-            execution_id: Optional Workflow Execution ID
-            request_id: Optional X-Request-Id from the originating HTTP request.
-            credential_resolver: Optional async callable that resolves a bearer token given an integration_id.
-                Called per integration at sync time, before the provider adapter is instantiated.
-            activity_id: Optional activity identifier from workflow context
-            activity_name: Optional activity name from workflow context
-
-        """
+        """Initialize the tool retriever."""
         self.session_id = session_id
         self.invocation_id = invocation_id
         self.execution_id = execution_id
@@ -559,19 +360,15 @@ class ToolSynchronizer:
         self.disabled_tools: list[ToolWithParameters] = []
         self.namespaced_tools: list[NamespacedBaseTool] = []
 
-    async def synchronize_tools(self) -> list[BaseTool]:
-        """Perform tool synchronization and validation before execution.
-
-        This method orchestrates all the tool management components using
-        the module-level functions while maintaining state internally.
+    async def retrieve_tools(self) -> list[BaseTool]:
+        """Retrieve tools from MCP servers, filtered by what is enabled in the DB.
 
         Returns:
             List of filtered BaseTools ready for execution
 
         """
-        logger.info("Starting tool synchronization", invocation_id=self.invocation_id)
+        logger.info("Starting tool retrieval", invocation_id=self.invocation_id)
 
-        # Emit STARTED event
         AuditEventDispatcher.dispatch(
             ToolDiscoveryEvent(
                 status=ToolDiscoveryStatus.STARTED,
@@ -589,7 +386,7 @@ class ToolSynchronizer:
             self.all_integrations = await _discover_mcp_integrations()
             self.enabled_tools, self.disabled_tools = await _discover_tools()
 
-            # Step 2: Process all integrations and retrieve BaseTools
+            # Step 2: Connect to enabled integrations and retrieve BaseTools
             self.namespaced_tools = await _retrieve_base_tools_from_integrations(
                 self.all_integrations, self.credential_resolver
             )
@@ -600,18 +397,8 @@ class ToolSynchronizer:
             # Step 4: Enhance BaseTools with metadata for failure handling
             enhanced_tools = _enhance_tools_with_metadata(filtered_tools, self.enabled_tools)
 
-            # Step 5: Update missing tools in Tool Manager (async, best-effort)
-            await _update_missing_tools(self.namespaced_tools, self.enabled_tools)
+            logger.info("Tool retrieval completed", invocation_id=self.invocation_id)
 
-            # Step 6: Re-enable previously disabled tools that are now available
-            await _update_re_enabled_tools(self.namespaced_tools, self.disabled_tools)
-
-            # Step 7: Log unregistered tools for awareness
-            _log_unregistered_tools(self.namespaced_tools, self.enabled_tools)
-
-            logger.info("Tool synchronization completed", invocation_id=self.invocation_id)
-
-            # Emit COMPLETED event with metrics
             tool_names = [tool.name for tool in enhanced_tools]
             AuditEventDispatcher.dispatch(
                 ToolDiscoveryEvent(
@@ -635,7 +422,6 @@ class ToolSynchronizer:
             return enhanced_tools
 
         except Exception as e:
-            # Emit FAILED event
             AuditEventDispatcher.dispatch(
                 ToolDiscoveryEvent(
                     status=ToolDiscoveryStatus.FAILED,
@@ -649,6 +435,5 @@ class ToolSynchronizer:
                 )
             )
 
-            # Don't fail the entire execution if tool sync fails
-            logger.exception("Tool synchronization failed", invocation_id=self.invocation_id)
+            logger.exception("Tool retrieval failed", invocation_id=self.invocation_id)
             return []

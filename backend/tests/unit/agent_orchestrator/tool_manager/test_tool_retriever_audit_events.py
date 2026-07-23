@@ -1,6 +1,6 @@
-"""Unit tests for ToolSynchronizer audit event dispatch.
+"""Unit tests for ToolRetriever audit event dispatch.
 
-Verifies that ToolSynchronizer emits the expected audit events during execution:
+Verifies that ToolRetriever emits the expected audit events during execution:
 - ToolDiscoveryEvent (STARTED, COMPLETED, FAILED)
 """
 
@@ -16,20 +16,27 @@ from nexus.agent_orchestrator.audit.tool_management import (
     ToolDiscoveryEvent,
     ToolDiscoveryHandler,
 )
-from nexus.agent_orchestrator.tool_manager.tool_services import ToolSynchronizer
+from nexus.agent_orchestrator.tool_manager.tool_services import ToolRetriever
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
 
 
 @pytest.fixture
 def mock_tool_sync_internals() -> Callable[..., Any]:
-    """Fixture that patches all ToolSynchronizer internal functions with configurable behavior.
+    """Fixture that patches all ToolRetriever internal functions with configurable behavior.
 
     Returns a context manager factory that accepts overrides for specific patches.
 
     Usage:
         with mock_tool_sync_internals({"discover_providers": {"side_effect": ValueError("error")}}):
             # Test code here
+
+    Supported patch names:
+        - discover_integrations: _discover_mcp_integrations
+        - discover_tools: _discover_tools
+        - retrieve_base_tools: _retrieve_base_tools_from_integrations
+        - filter_enabled: _filter_enabled_tools
+        - enhance_metadata: _enhance_tools_with_metadata
     """
 
     @contextmanager
@@ -47,9 +54,6 @@ def mock_tool_sync_internals() -> Callable[..., Any]:
             - retrieve_base_tools: _retrieve_base_tools_from_integrations
             - filter_enabled: _filter_enabled_tools
             - enhance_metadata: _enhance_tools_with_metadata
-            - update_missing: _update_missing_tools
-            - update_re_enabled: _update_re_enabled_tools
-            - log_unregistered: _log_unregistered_tools
 
         """
         overrides = overrides or {}
@@ -94,18 +98,6 @@ def mock_tool_sync_internals() -> Callable[..., Any]:
                 "nexus.agent_orchestrator.tool_manager.tool_services._enhance_tools_with_metadata",
                 **_get_patch_config("enhance_metadata", [], is_async=False),
             ),
-            patch(
-                "nexus.agent_orchestrator.tool_manager.tool_services._update_missing_tools",
-                **_get_patch_config("update_missing", None, is_async=True),
-            ),
-            patch(
-                "nexus.agent_orchestrator.tool_manager.tool_services._update_re_enabled_tools",
-                **_get_patch_config("update_re_enabled", None, is_async=True),
-            ),
-            patch(
-                "nexus.agent_orchestrator.tool_manager.tool_services._log_unregistered_tools",
-                **_get_patch_config("log_unregistered", None, is_async=False),
-            ),
         ]
 
         with ExitStack() as stack:
@@ -117,7 +109,7 @@ def mock_tool_sync_internals() -> Callable[..., Any]:
 
 
 class TestToolDiscoveryEventDispatch:
-    """Test ToolDiscoveryEvent emission from ToolSynchronizer.synchronize_tools()."""
+    """Test ToolDiscoveryEvent emission from ToolRetriever.retrieve_tools()."""
 
     def setup_method(self) -> None:
         """Register audit event handlers."""
@@ -128,21 +120,21 @@ class TestToolDiscoveryEventDispatch:
         )
 
     @pytest.mark.asyncio
-    async def test_synchronize_emits_started_and_completed_events(
+    async def test_retrieve_emits_started_and_completed_events(
         self, mock_tool_sync_internals: Callable[..., Any]
     ) -> None:
-        """Successful synchronization emits STARTED and COMPLETED events."""
+        """Successful retrieval emits STARTED and COMPLETED events."""
         session_id = "sess-sync-123"
         invocation_id = uuid4()
         execution_id = uuid4()
 
-        synchronizer = ToolSynchronizer(
+        retriever = ToolRetriever(
             session_id=session_id,
             invocation_id=invocation_id,
             execution_id=execution_id,
         )
 
-        # Mock data for successful sync
+        # Mock data for successful retrieval
         mock_providers = [
             {"id": "provider1", "name": "Provider 1"},
             {"id": "provider2", "name": "Provider 2"},
@@ -173,7 +165,7 @@ class TestToolDiscoveryEventDispatch:
                 }
             ),
         ):
-            result = await synchronizer.synchronize_tools()
+            result = await retriever.retrieve_tools()
 
         # Verify tools returned
         assert len(result) == 3
@@ -209,13 +201,13 @@ class TestToolDiscoveryEventDispatch:
         assert len(completed_event.structured_data.tool_names) == 3  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
-    async def test_synchronize_emits_failed_event_on_error(self, mock_tool_sync_internals: Callable[..., Any]) -> None:
-        """Failed synchronization emits STARTED and FAILED events."""
+    async def test_retrieve_emits_failed_event_on_error(self, mock_tool_sync_internals: Callable[..., Any]) -> None:
+        """Failed retrieval emits STARTED and FAILED events."""
         session_id = "sess-sync-fail"
         invocation_id = uuid4()
         execution_id = uuid4()
 
-        synchronizer = ToolSynchronizer(
+        retriever = ToolRetriever(
             session_id=session_id,
             invocation_id=invocation_id,
             execution_id=execution_id,
@@ -228,7 +220,7 @@ class TestToolDiscoveryEventDispatch:
                 {"discover_providers": {"side_effect": ConnectionError("Tool Manager unavailable")}}
             ),
         ):
-            result = await synchronizer.synchronize_tools()
+            result = await retriever.retrieve_tools()
 
         # Verify empty list returned (graceful degradation)
         assert result == []
@@ -260,19 +252,19 @@ class TestToolDiscoveryEventDispatch:
         execution_id = uuid4()
         request_id = uuid4()
 
-        synchronizer = ToolSynchronizer(
+        retriever = ToolRetriever(
             session_id=session_id,
             invocation_id=invocation_id,
             execution_id=execution_id,
             request_id=request_id,
         )
 
-        # Mock minimal successful sync (defaults provide empty lists)
+        # Mock minimal successful retrieval (defaults provide empty lists)
         with (
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
             mock_tool_sync_internals(),
         ):
-            await synchronizer.synchronize_tools()
+            await retriever.retrieve_tools()
 
         # Verify all events contain session_id, invocation_id, execution_id and request_id
         events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
@@ -292,17 +284,17 @@ class TestToolDiscoveryEventDispatch:
         session_id = "sess-zero-tools"
         invocation_id = uuid4()
 
-        synchronizer = ToolSynchronizer(
+        retriever = ToolRetriever(
             session_id=session_id,
             invocation_id=invocation_id,
         )
 
-        # Mock sync that finds no tools (defaults provide empty lists)
+        # Mock retrieval that finds no tools (defaults provide empty lists)
         with (
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
             mock_tool_sync_internals(),
         ):
-            result = await synchronizer.synchronize_tools()
+            result = await retriever.retrieve_tools()
 
         assert result == []
 

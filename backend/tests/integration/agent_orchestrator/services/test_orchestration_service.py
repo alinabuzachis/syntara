@@ -135,18 +135,13 @@ class TestOrchestrationServiceGetTools:
     ) -> None:
         """Test _get_tools when MCP server returns zero tools.
 
-        Should set enabled tool to MISSING with refresh_error.
-        Disabled tools are not processed since they're filtered out at the service layer.
+        The retriever is read-only: it should return no tools but NOT
+        mutate the tool or integration status in the database.
         """
         _integration_id, [enabled_tool_id, disabled_tool_id] = test_integration_with_tools
         session_id = "session-abc"
         invocation_id = uuid4()
         execution_id = uuid4()
-
-        tools_response = await jwt_client.get("/api/v1/tool_manager/tools")
-        tools = tools_response.json()["resources"]
-        enabled_tools = [t for t in tools if t["enabled"]]
-        logger.info("Enabled tools: %s", enabled_tools)
 
         with (
             patch(
@@ -166,22 +161,22 @@ class TestOrchestrationServiceGetTools:
             assert mock_mcp_client_class.called, "MultiServerMCPClient class should have been instantiated"
             assert mock_mcp_instance.get_tools.called, "get_tools should have been called"
 
-            # Verify that the enabled tool was marked as MISSING
+            # Verify the enabled tool was NOT mutated (still available, still enabled)
             tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{enabled_tool_id}")
             assert tool_response.status_code == 200
             enabled_tool = tool_response.json()
 
-            assert enabled_tool["status"] == "missing"
-            assert enabled_tool["refresh_error"] == "Tool not found in MCP server"
-            assert enabled_tool["enabled"] is False
+            assert enabled_tool["status"] == "available"
+            assert enabled_tool["refresh_error"] is None
+            assert enabled_tool["enabled"] is True
 
-            # Verify that the disabled tool remains unchanged (not processed by sync)
+            # Verify that the disabled tool also remains unchanged
             tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{disabled_tool_id}")
             assert tool_response.status_code == 200
             disabled_tool = tool_response.json()
 
-            assert disabled_tool["status"] == "available"  # Status unchanged since not processed
-            assert disabled_tool["enabled"] is False  # Still disabled
+            assert disabled_tool["status"] == "available"
+            assert disabled_tool["enabled"] is False
 
     async def test_get_tools_with_matching_mcp_tool(
         self,
@@ -233,80 +228,18 @@ class TestOrchestrationServiceGetTools:
             assert disabled_tool["status"] == "available"
             assert disabled_tool["enabled"] is False  # Still disabled
 
-    async def test_missing_tool_re_enablement_when_mcp_server_recovers(
+    async def test_integration_not_mutated_when_mcp_server_unreachable(
         self,
         orchestration_service: OrchestrationService,
         jwt_client: AsyncClient,
         test_db_session: AsyncSession,
         test_user,
     ) -> None:
-        """Test that MISSING tools are re-enabled when MCP server returns them again.
+        """Test that integration state is NOT mutated when MCP server is unreachable.
 
-        Critical: Only re-enables automatically disabled tools (status=MISSING),
-        not manually disabled tools (status=AVAILABLE).
+        The retriever is read-only: a connection failure should return no tools
+        but leave the integration enabled and in AVAILABLE status.
         """
-        integration = await _create_test_integration(test_db_session, test_user, "recovery-test-integration")
-
-        # Create a tool that was automatically disabled (MISSING status)
-        missing_tool = Tool(
-            name="recovery_tool",
-            namespaced_name=f"{integration.name}::recovery_tool",
-            description="Tool that was missing but now available",
-            integration_id=integration.id,
-            enabled=False,  # Disabled by system
-            status=ToolStatus.MISSING,
-            refresh_error="Tool not found in MCP server",
-            parameters=[],
-            created_by=test_user.id,
-        )
-
-        test_db_session.add(missing_tool)
-        await test_db_session.commit()
-
-        session_id = "session-abc"
-        invocation_id = uuid4()
-        execution_id = uuid4()
-
-        # Mock MCP server to now return the previously missing tool
-        mock_recovery_tool = Mock(spec=BaseTool)
-        mock_recovery_tool.name = "recovery_tool"
-        mock_recovery_tool.description = "Tool that was missing but now available"
-
-        with (
-            patch(
-                "nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient",
-                create_test_tool_manager_client(jwt_client),
-            ),
-            patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient") as mock_mcp_client_class,
-        ):
-            mock_mcp_instance = Mock()
-            mock_mcp_client_class.return_value = mock_mcp_instance
-            mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_recovery_tool])
-
-            result_tools = await orchestration_service._get_tools(session_id, invocation_id, execution_id)
-
-            assert isinstance(result_tools, list)
-
-            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{missing_tool.id}")
-            assert tool_response.status_code == 200
-            recovered_tool = tool_response.json()
-
-            assert recovered_tool["enabled"] is True  # Re-enabled!
-            assert recovered_tool["status"] == "available"
-            assert recovered_tool["refresh_error"] is None
-
-            result_tools_2 = await orchestration_service._get_tools(session_id, invocation_id, execution_id)
-            assert len(result_tools_2) == 1
-            assert result_tools_2[0] is mock_recovery_tool
-
-    async def test_integration_disabled_when_mcp_server_unreachable(
-        self,
-        orchestration_service: OrchestrationService,
-        jwt_client: AsyncClient,
-        test_db_session: AsyncSession,
-        test_user,
-    ) -> None:
-        """Test that integration is marked as ERROR when MCP server is unreachable."""
         integration = await _create_test_integration(
             test_db_session,
             test_user,
@@ -315,7 +248,6 @@ class TestOrchestrationServiceGetTools:
         )
         integration_id = str(integration.id)
 
-        # Create a tool for this integration
         integration_tool = Tool(
             name="unreachable_tool",
             namespaced_name=f"{integration.name}::unreachable_tool",
@@ -349,91 +281,20 @@ class TestOrchestrationServiceGetTools:
 
             assert result_tools == []
 
-            # Verify the integration was marked as ERROR via the integrations API
+            # Verify the integration was NOT mutated
             integration_response = await jwt_client.get(f"/api/v1/integrations/{integration_id}")
             assert integration_response.status_code == 200
             updated_integration = integration_response.json()
 
-            assert updated_integration["enabled"] is False  # Disabled due to error
-            assert updated_integration["validation_status"] == "error"  # Marked as ERROR
-            assert "Connection/timeout error" in updated_integration["validation_error"]
+            assert updated_integration["enabled"] is True  # Still enabled
+            assert updated_integration["validation_status"] == "available"  # Still available
+            assert updated_integration["validation_error"] is None  # No error set
 
-            # Tool should be marked as MISSING since integration failed
+            # Tool should also be untouched
             tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{integration_tool.id}")
             assert tool_response.status_code == 200
             affected_tool = tool_response.json()
 
-            assert affected_tool["enabled"] is False  # Disabled due to missing
-            assert affected_tool["status"] == "missing"
-            assert affected_tool["refresh_error"] == "Tool not found in MCP server"
-
-    async def test_integration_re_enablement_when_mcp_server_recovers(
-        self,
-        orchestration_service: OrchestrationService,
-        jwt_client: AsyncClient,
-        test_db_session: AsyncSession,
-        test_user,
-    ) -> None:
-        """Test that ERROR integrations are re-enabled when MCP server becomes available."""
-        integration = await _create_test_integration(
-            test_db_session,
-            test_user,
-            name="recovery-integration",
-            base_url="http://recovery-server:8000/mcp",
-            enabled=False,
-            status=IntegrationStatus.ERROR,
-        )
-        integration_id = str(integration.id)
-
-        # Update with validation error
-        integration.validation_error = "Connection/timeout error: Connection refused"
-        test_db_session.add(integration)
-        await test_db_session.commit()
-
-        # Create tools for this integration
-        integration_tool = Tool(
-            name="recovery_integration_tool",
-            namespaced_name=f"{integration.name}::recovery_integration_tool",
-            description="Tool from recovering integration",
-            integration_id=integration.id,
-            enabled=True,
-            status=ToolStatus.AVAILABLE,
-            parameters=[],
-            created_by=test_user.id,
-        )
-
-        test_db_session.add(integration_tool)
-        await test_db_session.commit()
-
-        session_id = "session-abc"
-        invocation_id = uuid4()
-        execution_id = uuid4()
-
-        mock_integration_tool = Mock(spec=BaseTool)
-        mock_integration_tool.name = "recovery_integration_tool"
-        mock_integration_tool.description = "Tool from recovering integration"
-
-        with (
-            patch(
-                "nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient",
-                create_test_tool_manager_client(jwt_client),
-            ),
-            patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient") as mock_mcp_client_class,
-        ):
-            mock_mcp_instance = Mock()
-            mock_mcp_client_class.return_value = mock_mcp_instance
-            mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_integration_tool])
-
-            result_tools = await orchestration_service._get_tools(session_id, invocation_id, execution_id)
-
-            assert len(result_tools) == 1
-            assert result_tools[0] is mock_integration_tool
-
-            # Verify the integration was re-enabled
-            integration_response = await jwt_client.get(f"/api/v1/integrations/{integration_id}")
-            assert integration_response.status_code == 200
-            recovered_integration = integration_response.json()
-
-            assert recovered_integration["enabled"] is True  # Re-enabled!
-            assert recovered_integration["validation_status"] == "available"
-            assert recovered_integration["validation_error"] is None  # Error cleared
+            assert affected_tool["enabled"] is True  # Still enabled
+            assert affected_tool["status"] == "available"  # Still available
+            assert affected_tool["refresh_error"] is None  # No error set

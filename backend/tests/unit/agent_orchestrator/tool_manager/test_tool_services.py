@@ -1,10 +1,9 @@
 """Unit tests for tool services in Agent Orchestrator.
 
-Tests the tool discovery, synchronization, and error reporting functions
+Tests the tool discovery, retrieval, and error reporting functions
 in the tool_services module.
 """
 
-from collections.abc import AsyncGenerator
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
@@ -19,7 +18,6 @@ from nexus.integrations.models.integration import (
     IntegrationType,
 )
 from nexus.integrations.models.integration_configuration import MCPServerConfiguration
-from nexus.tool_manager.lib.providers.factory import ProviderFactory
 from nexus.tool_manager.models.tool import ToolWithParameters
 
 
@@ -113,13 +111,13 @@ class TestToolServices:
             # Should return empty list when Tool Manager is unavailable
             assert all_integrations == []
 
-    async def test_tool_synchronization_integration(
+    async def test_tool_retrieval_integration(
         self,
         tool_manager_client: Mock,
         sample_mcp_integrations: list[IntegrationRead],
         sample_tools: list[ToolWithParameters],
     ) -> None:
-        """Test the full tool synchronization workflow."""
+        """Test the full tool retrieval workflow."""
         # Setup successful responses
         tool_manager_client.get_all_mcp_integrations.return_value = sample_mcp_integrations
         tool_manager_client.get_all_tools.return_value = sample_tools
@@ -141,105 +139,60 @@ class TestToolServices:
             mock_mcp_client_class.return_value = mock_mcp_instance
             mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_tool])
 
-            # Test the full synchronization process
+            # Test the full retrieval process
             session_id = "session-abc"
             invocation_id = uuid4()
             execution_id = uuid4()
-            synchronizer = tool_services.ToolSynchronizer(session_id, invocation_id, execution_id=execution_id)
-            result = await synchronizer.synchronize_tools()
+            retriever = tool_services.ToolRetriever(session_id, invocation_id, execution_id=execution_id)
+            result = await retriever.retrieve_tools()
 
             # Should return filtered tools
             assert isinstance(result, list)
-            # Verify the synchronization process was executed
+            # Verify the retrieval process was executed
             tool_manager_client.get_all_mcp_integrations.assert_called_once()
             tool_manager_client.get_all_tools.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_process_single_integration_error_handling(self, test_provider_factory) -> None:
-        """Test that _process_single_integration disables integration on adapter.get_base_tools() exception."""
+        """Test that _process_single_integration returns empty list on adapter.get_base_tools() exception."""
         integration_id = uuid4()
         integration = _make_integration("Test Integration")
         integration = IntegrationRead(**{**integration.model_dump(), "id": integration_id})
 
-        # Mock the ToolManagerClient
-        mock_tool_manager_client = Mock()
-        mock_tool_manager_client.update_integration_status = AsyncMock()
-
         # Patch MockMCPProvider to raise exception
-        with (
-            patch("nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient") as mock_client_class,
-            patch("nexus.agent_orchestrator.tool_manager.tool_services.get_provider_factory") as mock_factory_getter,
-            patch(
-                "nexus_test_sdk.app.mock_mcp_provider.MockMCPProvider.get_base_tools",
-                side_effect=RuntimeError("Connection failed to MCP server"),
-            ),
+        with patch(
+            "nexus_test_sdk.app.mock_mcp_provider.MockMCPProvider.get_base_tools",
+            side_effect=RuntimeError("Connection failed to MCP server"),
         ):
-            # Setup ToolManagerClient context manager
-            mock_client_class.return_value.__aenter__.return_value = mock_tool_manager_client
-            mock_client_class.return_value.__aexit__.return_value = None
-
-            # Return the test factory with MockMCPProvider registered
-            async def async_factory_generator() -> AsyncGenerator[ProviderFactory, None]:
-                yield test_provider_factory
-
-            mock_factory_getter.return_value = async_factory_generator()
-
             # Call _process_single_integration
             result = await tool_services._process_single_integration(integration, test_provider_factory)
 
-            # Should return empty list due to exception
+            # Should return empty list due to exception (no state mutation)
             assert result == []
-
-            # Should have attempted to disable the integration
-            mock_tool_manager_client.update_integration_status.assert_called_once_with(
-                integration_id=integration_id,
-                validation_status=IntegrationStatus.ERROR,
-                validation_error="Runtime error: Connection failed to MCP server",
-            )
 
     @pytest.mark.asyncio
-    async def test_process_single_integration_error_handling_client_failure(self, test_provider_factory) -> None:
-        """Test graceful handling when ToolManagerClient itself fails."""
+    async def test_process_single_integration_error_handling_graceful(self, test_provider_factory) -> None:
+        """Test graceful handling when provider raises an exception."""
         integration = _make_integration("Test Integration")
 
-        # Mock the ToolManagerClient to fail
-        mock_tool_manager_client = Mock()
-        mock_tool_manager_client.update_integration_status = AsyncMock(
-            side_effect=ConnectionError("Tool Manager unavailable")
-        )
-
         # Patch MockMCPProvider to raise exception
-        with (
-            patch("nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient") as mock_client_class,
-            patch(
-                "nexus_test_sdk.app.mock_mcp_provider.MockMCPProvider.get_base_tools",
-                side_effect=ValueError("Invalid configuration parameter"),
-            ),
+        with patch(
+            "nexus_test_sdk.app.mock_mcp_provider.MockMCPProvider.get_base_tools",
+            side_effect=ValueError("Invalid configuration parameter"),
         ):
-            # Setup ToolManagerClient context manager
-            mock_client_class.return_value.__aenter__.return_value = mock_tool_manager_client
-            mock_client_class.return_value.__aexit__.return_value = None
-
-            # Call _process_single_integration - should not raise exception even if client fails
+            # Call _process_single_integration - should not raise exception
             result = await tool_services._process_single_integration(integration, test_provider_factory)
 
-            # Should return empty list due to exception
+            # Should return empty list due to exception (no state mutation)
             assert result == []
 
-            # Should have attempted to disable the integration (even though it failed)
-            mock_tool_manager_client.update_integration_status.assert_called_once_with(
-                integration_id=integration.id,
-                validation_status=IntegrationStatus.ERROR,
-                validation_error="Invalid configuration: Invalid configuration parameter",
-            )
-
-    async def test_tool_synchronizer_class(
+    async def test_tool_retriever_class(
         self,
         tool_manager_client: Mock,
         sample_mcp_integrations: list[IntegrationRead],
         sample_tools: list[ToolWithParameters],
     ) -> None:
-        """Test that the ToolSynchronizer class works correctly."""
+        """Test that the ToolRetriever class works correctly."""
         # Setup mock responses
         tool_manager_client.get_all_mcp_integrations.return_value = sample_mcp_integrations
         tool_manager_client.get_all_tools.return_value = sample_tools
@@ -261,27 +214,27 @@ class TestToolServices:
             mock_mcp_client_class.return_value = mock_mcp_instance
             mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_tool])
 
-            # Test the ToolSynchronizer class
+            # Test the ToolRetriever class
             session_id = "session-abc"
             invocation_id = uuid4()
             execution_id = uuid4()
-            synchronizer = tool_services.ToolSynchronizer(session_id, invocation_id, execution_id)
+            retriever = tool_services.ToolRetriever(session_id, invocation_id, execution_id)
 
             # Verify initial state
-            assert synchronizer.invocation_id == invocation_id
-            assert synchronizer.all_integrations == []
-            assert synchronizer.enabled_tools == []
-            assert synchronizer.disabled_tools == []
-            assert synchronizer.namespaced_tools == []
+            assert retriever.invocation_id == invocation_id
+            assert retriever.all_integrations == []
+            assert retriever.enabled_tools == []
+            assert retriever.disabled_tools == []
+            assert retriever.namespaced_tools == []
 
-            # Test synchronization
-            result = await synchronizer.synchronize_tools()
+            # Test retrieval
+            result = await retriever.retrieve_tools()
 
             # Should return filtered tools and populate state
             assert isinstance(result, list)
-            assert len(synchronizer.all_integrations) == 2
-            assert len(synchronizer.enabled_tools) == 3
-            assert len(synchronizer.disabled_tools) == 1
+            assert len(retriever.all_integrations) == 2
+            assert len(retriever.enabled_tools) == 3
+            assert len(retriever.disabled_tools) == 1
 
             # Should return exactly 1 filtered tool (only code_search is mocked from MCP)
             assert len(result) == 1
@@ -298,7 +251,7 @@ class TestToolServices:
             expected_tool_id = str(code_search_tool_data.id)
             assert code_search_tool.metadata["tool_id"] == expected_tool_id
 
-            # Verify the synchronization process was executed
+            # Verify the retrieval process was executed
             tool_manager_client.get_all_mcp_integrations.assert_called_once()
             tool_manager_client.get_all_tools.assert_called_once()
 

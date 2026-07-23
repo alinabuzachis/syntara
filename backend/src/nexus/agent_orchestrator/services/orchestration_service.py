@@ -36,7 +36,7 @@ from nexus.agent_orchestrator.models.streaming_events import (
 )
 from nexus.agent_orchestrator.services.error_handler import classify_streaming_error
 from nexus.agent_orchestrator.services.streaming_service import get_invocation_stream_id
-from nexus.agent_orchestrator.tool_manager import ToolSynchronizer
+from nexus.agent_orchestrator.tool_manager import ToolRetriever
 from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
     create_tool_awrapper,
     create_tool_wrapper,
@@ -77,7 +77,7 @@ class OrchestrationService:
             llm: Language model for agent execution
             context_manager_planner: Context manager for prompt enhancement
             credential_resolver: Optional async callable that resolves a bearer token given an
-                integration_id. Passed to ToolSynchronizer so MCP providers with a linked
+                integration_id. Passed to ToolRetriever so MCP providers with a linked
                 integration are authenticated at tool-call time.
             tool_selection_strategy: "ALL", "NONE", or "SELECTED". None/absent treated as "NONE" (no tools).
             tool_selections: Tool UUIDs to make available when strategy is "SELECTED".
@@ -179,7 +179,7 @@ class OrchestrationService:
             List of synchronized BaseTool instances available for agent use
 
         """
-        synchronizer = ToolSynchronizer(
+        retriever = ToolRetriever(
             session_id,
             invocation_id,
             execution_id=execution_id,
@@ -188,7 +188,7 @@ class OrchestrationService:
             activity_id=activity_id,
             activity_name=activity_name,
         )
-        tools = await synchronizer.synchronize_tools()
+        tools = await retriever.retrieve_tools()
         return self._apply_tool_selection(tools)
 
     def _apply_tool_selection(self, tools: list[BaseTool]) -> list[BaseTool]:

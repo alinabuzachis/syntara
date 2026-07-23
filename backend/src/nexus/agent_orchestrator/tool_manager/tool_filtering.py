@@ -1,14 +1,23 @@
 """Tool filtering logic for matching LangChain BaseTools with Tool Manager tools.
 
 This module provides filtering functionality to match LangChain BaseTools retrieved
-from MCP servers with ToolWithParameters from Tool Manager using namespaced_name matching.
+from MCP servers with ToolWithParameters from Tool Manager using (integration_id, name)
+matching, which is immune to integration renames.
 """
 
-import structlog
-from langchain_core.tools import BaseTool
+from __future__ import annotations
 
-from nexus.agent_orchestrator.tool_manager.types import NamespacedBaseTool
-from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
+from typing import TYPE_CHECKING
+
+import structlog
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from langchain_core.tools import BaseTool
+
+    from nexus.agent_orchestrator.tool_manager.types import NamespacedBaseTool
+    from nexus.tool_manager.models.tool import ToolWithParameters
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -17,10 +26,14 @@ def filter_base_tools_by_enabled(
     namespaced_tools: list[NamespacedBaseTool],
     enabled_tools: list[ToolWithParameters],
 ) -> list[NamespacedBaseTool]:
-    """Filter NamespacedBaseTools by enabled ToolWithParameters using namespaced_name.
+    """Filter NamespacedBaseTools by enabled ToolWithParameters using (integration_id, name).
+
+    Matches on the stable (integration_id, short_name) pair rather than the
+    display-oriented namespaced_name string, so integration renames do not
+    break tool resolution.
 
     Args:
-        namespaced_tools: List of NamespacedTool from MCP servers
+        namespaced_tools: List of NamespacedBaseTool from MCP servers
         enabled_tools: List of enabled ToolWithParameters from Tool Manager
 
     Returns:
@@ -30,16 +43,18 @@ def filter_base_tools_by_enabled(
     if not namespaced_tools or not enabled_tools:
         return []
 
-    # Create a set of enabled tool names for O(1) lookup
-    enabled_names = {tool.namespaced_name for tool in enabled_tools}
+    enabled_keys: set[tuple[UUID, str]] = {
+        (tool.integration_id, tool.name) for tool in enabled_tools if tool.integration_id is not None
+    }
 
     filtered_tools = []
-    for namespaced_name, base_tool in namespaced_tools:
-        if namespaced_name in enabled_names:
-            filtered_tools.append((namespaced_name, base_tool))
-            logger.debug("Including enabled tool", tool_name=namespaced_name)
+    for nbt in namespaced_tools:
+        key = (nbt.integration_id, nbt.tool_name)
+        if key in enabled_keys:
+            filtered_tools.append(nbt)
+            logger.debug("Including enabled tool", tool_name=nbt.namespaced_name)
         else:
-            logger.debug("Excluding tool (not enabled or not registered)", tool_name=namespaced_name)
+            logger.debug("Excluding tool (not enabled or not registered)", tool_name=nbt.namespaced_name)
 
     logger.info("Filtered tools from base tools", filtered_count=len(filtered_tools), base_count=len(namespaced_tools))
     return filtered_tools
@@ -49,13 +64,12 @@ def enhance_namespaced_tools_with_metadata(
     namespaced_tools: list[NamespacedBaseTool],
     enabled_tools: list[ToolWithParameters],
 ) -> list[BaseTool]:
-    """Enhance NamespacedBaseTools with metadata from Tool Manager (optimized version).
+    """Enhance NamespacedBaseTools with metadata from Tool Manager.
 
-    This function is optimized to work with NamespacedBaseTools to avoid regenerating
-    namespace names during metadata enhancement.
+    Uses (integration_id, name) for matching, making it immune to renames.
 
     Args:
-        namespaced_tools: List of NamespacedBaseTools (namespaced_name, BaseTool)
+        namespaced_tools: List of NamespacedBaseTools (integration_id, integration_name, tool_name, BaseTool)
         enabled_tools: List of enabled ToolWithParameters from Tool Manager
 
     Returns:
@@ -63,134 +77,31 @@ def enhance_namespaced_tools_with_metadata(
 
     """
     if not namespaced_tools or not enabled_tools:
-        return [base_tool for _, base_tool in namespaced_tools]
+        return [nbt.base_tool for nbt in namespaced_tools]
 
-    # Create mapping of namespaced_name to (tool_id, integration_id) for O(1) lookup
-    # Skip orphaned tools (integration_id is None when the parent integration was deleted)
-    namespaced_name_to_id = {
-        tool.namespaced_name: (tool.id, str(tool.integration_id))
+    key_to_db_info: dict[tuple[UUID, str], tuple[UUID, str, str]] = {
+        (tool.integration_id, tool.name): (tool.id, str(tool.integration_id), tool.namespaced_name)
         for tool in enabled_tools
         if tool.integration_id is not None
     }
 
     enhanced_tools = []
-    for namespaced_name, base_tool in namespaced_tools:
-        if namespaced_name in namespaced_name_to_id:
-            tool_id, integration_id = namespaced_name_to_id[namespaced_name]
+    for nbt in namespaced_tools:
+        key = (nbt.integration_id, nbt.tool_name)
+        if key in key_to_db_info:
+            tool_id, integration_id, db_namespaced_name = key_to_db_info[key]
 
-            # Add tool_id and namespaced_name to BaseTool metadata for failure handling and metrics
-            if not hasattr(base_tool, "metadata") or base_tool.metadata is None:
-                base_tool.metadata = {}
-            base_tool.metadata["tool_id"] = str(tool_id)
-            base_tool.metadata["namespaced_name"] = namespaced_name
-            base_tool.metadata["integration_id"] = integration_id
+            if not hasattr(nbt.base_tool, "metadata") or nbt.base_tool.metadata is None:
+                nbt.base_tool.metadata = {}
+            nbt.base_tool.metadata["tool_id"] = str(tool_id)
+            nbt.base_tool.metadata["namespaced_name"] = db_namespaced_name
+            nbt.base_tool.metadata["integration_id"] = integration_id
 
-            logger.debug("Enhanced tool with metadata", tool_name=namespaced_name, tool_id=tool_id)
+            logger.debug("Enhanced tool with metadata", tool_name=nbt.namespaced_name, tool_id=tool_id)
         else:
-            logger.warning("Could not find tool_id for tool", tool_name=namespaced_name)
+            logger.warning("Could not find tool_id for tool", tool_name=nbt.namespaced_name)
 
-        enhanced_tools.append(base_tool)
+        enhanced_tools.append(nbt.base_tool)
 
     logger.info("Enhanced tools with metadata", enhanced_count=len(enhanced_tools))
     return enhanced_tools
-
-
-def identify_missing_tools(
-    namespaced_tools: list[NamespacedBaseTool],
-    enabled_tools: list[ToolWithParameters],
-) -> list[ToolWithParameters]:
-    """Identify ToolWithParameters that are missing from MCP server BaseTools.
-
-    Args:
-        namespaced_tools: List of NamespacedTool from MCP servers
-        enabled_tools: List of enabled ToolWithParameters from Tool Manager
-
-    Returns:
-        List of ToolWithParameters that are missing from MCP servers
-
-    """
-    if not enabled_tools:
-        return []
-
-    # Create a set of namespaced tool names for O(1) lookup
-    namespaced_names = {namespaced_name for namespaced_name, _ in namespaced_tools} if namespaced_tools else set()
-
-    missing_tools = []
-    for enabled_tool in enabled_tools:
-        if enabled_tool.namespaced_name not in namespaced_names:
-            missing_tools.append(enabled_tool)
-            logger.debug("Tool missing from MCP server", tool_name=enabled_tool.namespaced_name)
-
-    logger.info("Identified tools missing from MCP servers", missing_count=len(missing_tools))
-    return missing_tools
-
-
-def identify_unregistered_tools(
-    namespaced_tools: list[NamespacedBaseTool],
-    enabled_tools: list[ToolWithParameters],
-) -> list[BaseTool]:
-    """Identify BaseTools that are not registered in Tool Manager.
-
-    Args:
-        namespaced_tools: List of NamespacedTool from MCP servers
-        enabled_tools: List of enabled ToolWithParameters from Tool Manager
-
-    Returns:
-        List of BaseTools that are not registered in Tool Manager
-
-    """
-    if not namespaced_tools:
-        return []
-
-    # Create a set of enabled tool names for O(1) lookup
-    enabled_names = {tool.namespaced_name for tool in enabled_tools} if enabled_tools else set()
-
-    unregistered_tools = []
-    for namespaced_name, base_tool in namespaced_tools:
-        if namespaced_name not in enabled_names:
-            unregistered_tools.append(base_tool)
-            logger.debug("Unregistered tool found in MCP server", tool_name=namespaced_name)
-
-    logger.info("Identified unregistered tools in MCP servers", unregistered_count=len(unregistered_tools))
-    return unregistered_tools
-
-
-def identify_re_enableable_tools(
-    namespaced_tools: list[NamespacedBaseTool],
-    disabled_tools: list[ToolWithParameters],
-) -> list[ToolWithParameters]:
-    """Identify disabled ToolWithParameters that are now available on MCP servers.
-
-    Only re-enables tools that were automatically disabled by the system (status=MISSING),
-    not tools that were manually disabled by users (status=AVAILABLE).
-
-    Args:
-        namespaced_tools: List of NamespacedTool from MCP servers
-        disabled_tools: List of disabled ToolWithParameters from Tool Manager
-
-    Returns:
-        List of disabled ToolWithParameters that can now be re-enabled
-
-    """
-    if not disabled_tools or not namespaced_tools:
-        return []
-
-    # Create a set of namespaced tool names for O(1) lookup
-    namespaced_names = {namespaced_name for namespaced_name, _ in namespaced_tools}
-
-    re_enableable_tools = []
-    for disabled_tool in disabled_tools:
-        # Only re-enable tools that were automatically disabled (MISSING status)
-        # Do NOT re-enable manually disabled tools (AVAILABLE status)
-        if disabled_tool.namespaced_name in namespaced_names and disabled_tool.status == ToolStatus.MISSING:
-            re_enableable_tools.append(disabled_tool)
-            logger.debug("Previously missing tool now available on MCP server", tool_name=disabled_tool.namespaced_name)
-        elif disabled_tool.namespaced_name in namespaced_names and disabled_tool.status == ToolStatus.AVAILABLE:
-            logger.debug(
-                "Skipping manually disabled tool (will not auto re-enable)", tool_name=disabled_tool.namespaced_name
-            )
-
-    logger.info(
-        "Identified automatically disabled tools that can be re-enabled", re_enableable_count=len(re_enableable_tools)
-    )
-    return re_enableable_tools

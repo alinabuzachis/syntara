@@ -81,26 +81,6 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/integrations/{integration_id}/status': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    /**
-     * Update Integration Status
-     * @description Update integration enabled/validation_status/validation_error (service-to-service only).
-     */
-    patch: operations['update_integration_status']
-    trace?: never
-  }
   '/integrations/{integration_id}/validate': {
     parameters: {
       query?: never
@@ -480,27 +460,6 @@ export interface components {
       labels?: {
         [key: string]: string
       } | null
-    }
-    /**
-     * IntegrationStatusPatch
-     * @description Schema for service-to-service status updates (not user-facing).
-     *
-     *     Used by internal components (e.g. agent orchestrator) to update
-     *     enabled/validation_status/validation_error together in a single call.
-     */
-    IntegrationStatusPatch: {
-      /**
-       * Enabled
-       * @description Whether the integration is active
-       */
-      enabled?: boolean | null
-      /** @description Validation status of the integration */
-      validation_status?: components['schemas']['IntegrationStatus'] | null
-      /**
-       * Validation Error
-       * @description Error message from last validation attempt
-       */
-      validation_error?: string | null
     }
     /**
      * IntegrationTestConnection
@@ -1471,40 +1430,6 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['DiscoverResult']
-        }
-      }
-      400: components['responses']['BadRequestError']
-      401: components['responses']['UnauthorizedError']
-      403: components['responses']['ForbiddenError']
-      404: components['responses']['NotFoundError']
-      409: components['responses']['ConflictError']
-      422: components['responses']['ValidationError']
-      429: components['responses']['RateLimitError']
-      500: components['responses']['InternalServerError']
-    }
-  }
-  update_integration_status: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        integration_id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['IntegrationStatusPatch']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['IntegrationRead']
         }
       }
       400: components['responses']['BadRequestError']

@@ -181,7 +181,7 @@ class TestToolExecutionWorkflow:
 
         This test verifies the complete workflow:
         1. Invocation created with tool-requiring prompt
-        2. OrchestrationService discovers available tools via ToolSynchronizer
+        2. OrchestrationService discovers available tools via ToolRetriever
         3. StateGraph includes ToolNode with discovered tools
         4. LLM intelligently selects and calls appropriate tools
         5. Tool execution results are included in invocation response
