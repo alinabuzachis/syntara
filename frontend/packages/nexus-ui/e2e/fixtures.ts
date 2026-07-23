@@ -59,7 +59,7 @@ async function loginAsRole(page: Page, username: string): Promise<void> {
 }
 
 export const test = base.extend<
-  { app: Page; auditorApp: Page; viewerApp: Page; userApp: Page },
+  { app: Page; auditorApp: Page; viewerApp: Page; userApp: Page; projectAdminApp: Page },
   { roleSetup: RoleSetupResult | null }
 >({
   // Worker-scoped: create role users once per worker on real backend.
@@ -119,6 +119,15 @@ export const test = base.extend<
     } else {
       await loginAsRole(page, 'user')
     }
+    await use(page)
+    await context.close()
+  },
+
+  // Mock-only — no roleSetup support; real-backend tests skip via isRealBackend guard in spec files
+  projectAdminApp: async ({ browser }, use) => {
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    await loginAsRole(page, 'project-admin')
     await use(page)
     await context.close()
   },

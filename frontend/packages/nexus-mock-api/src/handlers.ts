@@ -2000,6 +2000,17 @@ export const handlers = [
       })
     }
 
+    if (username === 'project-admin') {
+      return HttpResponse.json({
+        id: 'pr0j4dm1-0000-0000-0000-000000000000',
+        username: 'project-admin',
+        email: 'project-admin@nexus.local',
+        groups: ['authenticated'],
+        project_id: 'p-001',
+        rp_logout_enabled: rpLogoutEnabled,
+      })
+    }
+
     return HttpResponse.json({
       id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       username: 'demo',
@@ -4666,6 +4677,11 @@ export const handlers = [
     const includeTotal = url.searchParams.get('include_total') === 'true'
 
     let results = [...mockServiceAccounts]
+
+    const username = getUsernameFromRequest(request)
+    if (username === 'project-admin') {
+      results = results.filter((sa) => sa.project_id === 'p-001')
+    }
 
     if (nameFilter) results = results.filter((sa) => sa.name.toLowerCase().includes(nameFilter))
     if (statusFilter) results = results.filter((sa) => sa.status === statusFilter)
