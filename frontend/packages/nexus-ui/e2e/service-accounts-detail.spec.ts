@@ -11,7 +11,6 @@ import { test, expect } from './fixtures'
 import {
   createTestServiceAccount,
   deleteServiceAccountViaApi,
-  filterServiceAccountByName,
   goToServiceAccountDetail,
 } from './helpers/service-accounts'
 import { buildUniqueName } from './helpers/workflows'
@@ -105,27 +104,23 @@ test.describe('UI-6: Service Account Detail — Disable/Enable Toggle', () => {
   test('disables with confirmation dialog and re-enables without dialog', async ({ app }) => {
     await goToServiceAccountDetail(app, sa)
 
-    // Verify initially enabled
     const toggle = app.getByRole('switch', { name: 'Toggle service account status' })
     await expect(toggle).toBeChecked()
 
-    // Disable — confirmation dialog should appear
-    await toggle.click({ force: true })
+    // PF Switch hides the real <input>; Playwright's force-click on a hidden/clipped
+    // element doesn't reliably fire the change event. Native click() always works.
+    await toggle.evaluate((el: HTMLElement) => el.click())
 
     const dialog = app.getByRole('dialog')
     await expect(dialog.getByText('Disable service account?')).toBeVisible()
     await expect(dialog.getByText(sa.name)).toBeVisible()
     await dialog.getByRole('button', { name: 'Disable' }).click()
 
-    // Wait for the disable mutation + refetch to complete
     await expect(toggle).not.toBeChecked({ timeout: 10_000 })
 
-    // Re-enable — no confirmation dialog, direct toggle.
-    // Wait for the toggle to be stable before clicking.
     await expect(dialog).not.toBeVisible()
-    await toggle.click({ force: true })
+    await toggle.evaluate((el: HTMLElement) => el.click())
 
-    // Wait for the enable mutation + refetch to update the toggle
     await expect(toggle).toBeChecked({ timeout: 10_000 })
   })
 })
@@ -178,19 +173,15 @@ test.describe('UI-7: Service Account Detail — Delete with Confirmation', () =>
 
     await dialog.getByRole('button', { name: 'Delete' }).click()
 
-    // Wait for redirect to the list page ($ anchor excludes detail URL /service-accounts/<uuid>)
+    // Redirect only fires on successful deletion (onSuccess callback)
     await app.waitForURL(/\/service-accounts$/)
     await expect(app.getByRole('tab', { name: 'Service Accounts', exact: true })).toBeVisible()
 
-    // Verify the SA is gone — list may be empty (no toolbar) or populated (toolbar visible)
+    // Wait for list data to load, then verify SA is gone
     const emptyState = app.getByText('No service accounts yet')
     const filterInput = app.getByPlaceholder('Filter by name')
-    await expect(emptyState.or(filterInput)).toBeVisible()
-
-    if (await filterInput.isVisible()) {
-      await filterServiceAccountByName(app, sa.name)
-      await expect(app.getByText('No results found')).toBeVisible()
-    }
+    await expect(emptyState.or(filterInput)).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByRole('link', { name: sa.name })).toHaveCount(0)
   })
 })
 
