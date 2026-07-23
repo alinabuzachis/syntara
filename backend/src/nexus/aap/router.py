@@ -11,7 +11,9 @@ environment variables (APP_AAP_TOKEN or APP_AAP_USERNAME/PASSWORD).
 
 Authorization: The ``current_user`` dependency ensures only authenticated
 Nexus users can call these endpoints. When using credential_id, users can
-only use credentials they own (authorization check enforced).
+only use credentials they own (authorization check enforced). When using
+integration_id, project-scoped integration visibility is enforced via
+``ProjectScopeFilter("integration", "read")``.
 """
 
 from collections.abc import AsyncGenerator
@@ -43,6 +45,8 @@ from nexus.aap.models.responses import (
 from nexus.aap.services.aap_proxy_service import AAPProxyService
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.auth import get_current_user
+from nexus.authz.dependencies import ProjectScopeFilter
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.config.base import Settings, get_settings
 from nexus.core.database.session import get_db
 from nexus.core.models import User
@@ -50,6 +54,8 @@ from nexus.core.models import User
 logger = structlog.stdlib.get_logger(__name__)
 
 router = APIRouter(prefix="/aap", tags=["aap"])
+
+_integration_scope = ProjectScopeFilter("integration", "read")
 
 
 # ============================================================================
@@ -60,9 +66,10 @@ router = APIRouter(prefix="/aap", tags=["aap"])
 async def _get_aap_proxy_service(
     settings: Annotated[Settings, Depends(get_settings)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    allowed_projects: Annotated[AllowedProjectsResult, Depends(_integration_scope)],
 ) -> AsyncGenerator[AAPProxyService]:
     """Provide AAPProxyService with settings and db session wired; close client after request."""
-    service = AAPProxyService(settings, db)
+    service = AAPProxyService(settings, db, allowed_projects=allowed_projects)
     try:
         yield service
     finally:
@@ -151,8 +158,12 @@ async def get_job_template(
     error_type = None
     resource_name = None
     try:
+        integration_id_str = str(query.integration_id) if query.integration_id else None
         result = await service.get_job_template(
-            job_template_id, credential_id=credential_id_str, user_id=current_user.id
+            job_template_id,
+            credential_id=credential_id_str,
+            user_id=current_user.id,
+            integration_id=integration_id_str,
         )
         resource_name = result.name
     except Exception as exc:
@@ -220,8 +231,12 @@ async def get_workflow_job_template(
     error_type = None
     resource_name = None
     try:
+        integration_id_str = str(query.integration_id) if query.integration_id else None
         result = await service.get_workflow_job_template(
-            workflow_job_template_id, credential_id=credential_id_str, user_id=current_user.id
+            workflow_job_template_id,
+            credential_id=credential_id_str,
+            user_id=current_user.id,
+            integration_id=integration_id_str,
         )
         resource_name = result.name
     except Exception as exc:

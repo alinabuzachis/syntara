@@ -137,6 +137,7 @@ class ActivityName(StrEnum):
     SCRIPT = "execute_script_activity"
     # Internal
     CREDENTIAL_RESOLUTION = "resolve_workflow_credentials"
+    INTEGRATION_RESOLUTION = "resolve_workflow_integration"
     APPROVER_RESOLUTION = "resolve_approvers"
     EXPIRE_APPROVAL = "expire_approval_requests"
     CANCEL_APPROVAL = "cancel_approval_requests"
@@ -553,6 +554,10 @@ class AAPResourceReferenceMixin(BaseModel):
         default=None,
         description="Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.",
     )
+    integration_id: str | None = Field(
+        default=None,
+        description="UUID of the AAP Gateway integration for connection URL resolution.",
+    )
 
     # Organization and inventory references
     organization_id: int | None = Field(
@@ -601,6 +606,14 @@ class AAPResourceReferenceMixin(BaseModel):
             "Note: Labels are APPENDED to template defaults, not replaced."
         ),
     )
+
+    @field_validator("integration_id", "credential_id")
+    @classmethod
+    def validate_uuid_fields(cls, v: str | None, info: ValidationInfo) -> str | None:
+        """Validate that UUID fields are valid UUIDs or template expressions."""
+        if v is not None:
+            validate_uuid_or_template(v, info.field_name or "unknown")
+        return v
 
     def _validate_id_or_name_reference(
         self,

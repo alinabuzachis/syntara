@@ -1,11 +1,11 @@
 import { Stack, StackItem, Switch, Title } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
+import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { useAAPBrowser } from '../../../hooks/useAAPBrowser'
 import { detachPromise } from '../../../utils/detachPromise'
-import { CredentialSelector } from '../components/CredentialSelector'
+import { AAPIntegrationSection } from '../components/AAPIntegrationSection'
 import type { ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -13,7 +13,6 @@ import { isExpression } from './aapFormHelpers'
 import { AAPWorkflowTemplatePromptFields } from './AAPWorkflowTemplatePromptFields'
 import { AAPWorkflowTemplateResourcePickers } from './AAPWorkflowTemplateResourcePickers'
 import { aapWorkflowTemplateSchema, type AAPWorkflowTemplateFormData } from './aapWorkflowTemplateSchema'
-import { credentialHelpText } from './credentialSelectorHelpText'
 import { WorkflowExpressionTextField } from './ExpressionTextField'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
@@ -36,17 +35,19 @@ function AAPFormFields({
   onHeaderContentChange,
   initialData,
   selectedCredentialId,
+  selectedIntegrationId,
   projectId,
   extraVarsEditorRef,
 }: Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   initialData?: Partial<AAPWorkflowTemplateFormData>
   selectedCredentialId: string | undefined
+  selectedIntegrationId: string | undefined
   projectId?: string
   extraVarsEditorRef: React.RefObject<ExpandableCodeEditorHandle | null>
 }>) {
   const isVersionView = useIsVersionView()
-  const { register, control } = useFormContext<AAPWorkflowTemplateFormData>()
+  const { register } = useFormContext<AAPWorkflowTemplateFormData>()
 
   // Auto-detect expression mode from initial data
   const hasExpressionInInitialData =
@@ -64,7 +65,8 @@ function AAPFormFields({
       organization: initialData?.organization_name,
       templateId: initialData?.workflow_job_template_id,
     },
-    'workflow' // Use workflow template mode
+    'workflow',
+    selectedIntegrationId
   )
 
   const nameField = useMemo(
@@ -95,116 +97,106 @@ function AAPFormFields({
       </StackItem>
 
       <StackItem>
-        <Controller
-          control={control}
-          name="credential_id"
-          render={({ field }) => (
-            <CredentialSelector
-              value={field.value}
-              onChange={field.onChange}
-              compatibleTypeNames={['Ansible Automation Platform']}
-              label="Authentication credential"
-              fieldId="aap-wf-credential"
-              placeholder="Select credential"
-              allowCreate
-              isDisabled={isVersionView}
-              projectId={projectId}
-              helpText={credentialHelpText(
-                'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
-              )}
-            />
-          )}
+        <AAPIntegrationSection
+          selectedIntegrationId={selectedIntegrationId}
+          selectedCredentialId={selectedCredentialId}
+          isDisabled={isVersionView}
+          projectId={projectId}
         />
       </StackItem>
 
-      <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
-        {expressionMode ? (
-          <>
-            <StackItem>
-              <WorkflowExpressionTextField
-                name="organization_name"
-                id="aap-wf-organization-expr"
-                label="Organization"
-                placeholder="org name or drag expression"
-                isRequired
-              />
-            </StackItem>
-            <StackItem>
-              <WorkflowExpressionTextField
-                name="workflow_job_template_name"
-                id="aap-wf-workflowTemplate-expr"
-                label="Workflow template"
-                placeholder="template name or drag expression"
-                isRequired
-              />
-            </StackItem>
-            <StackItem>
-              <WorkflowExpressionTextField
-                name="inventory_name"
-                id="aap-wf-inventory-expr"
-                label="Inventory"
-                placeholder="inventory name or drag expression"
-              />
-            </StackItem>
-            <StackItem>
-              <WorkflowExpressionTextField
-                name="limit"
-                id="aap-wf-limit-expr"
-                label="Limit"
-                placeholder="host pattern or drag expression"
-              />
-            </StackItem>
-            <StackItem>
-              <WorkflowExpressionTextField
-                name="scm_branch"
-                id="aap-wf-scmBranch-expr"
-                label="Source control branch"
-                placeholder="branch name or drag expression"
-              />
-            </StackItem>
-            <StackItem>
-              <WorkflowExpressionTextField
-                name="tags"
-                id="aap-wf-tags-expr"
-                label="Tags"
-                placeholder="tags or drag expression"
-              />
-            </StackItem>
-            <StackItem>
-              <WorkflowExpressionTextField
-                name="skip_tags"
-                id="aap-wf-skipTags-expr"
-                label="Skip tags"
-                placeholder="skip tags or drag expression"
-              />
-            </StackItem>
-            <StackItem>
-              <WorkflowExpressionTextField
-                name="extra_vars"
-                id="aap-wf-extraVars-expr"
-                label="Extra variables"
-                placeholder='{"key": "value"} or drag expression'
-              />
-            </StackItem>
-          </>
-        ) : (
-          <>
-            <AAPWorkflowTemplateResourcePickers browser={browser} />
+      <StackItem>
+        <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+          <Stack hasGutter>
+            {expressionMode ? (
+              <>
+                <StackItem>
+                  <WorkflowExpressionTextField
+                    name="organization_name"
+                    id="aap-wf-organization-expr"
+                    label="Organization"
+                    placeholder="org name or drag expression"
+                    isRequired
+                  />
+                </StackItem>
+                <StackItem>
+                  <WorkflowExpressionTextField
+                    name="workflow_job_template_name"
+                    id="aap-wf-workflowTemplate-expr"
+                    label="Workflow template"
+                    placeholder="template name or drag expression"
+                    isRequired
+                  />
+                </StackItem>
+                <StackItem>
+                  <WorkflowExpressionTextField
+                    name="inventory_name"
+                    id="aap-wf-inventory-expr"
+                    label="Inventory"
+                    placeholder="inventory name or drag expression"
+                  />
+                </StackItem>
+                <StackItem>
+                  <WorkflowExpressionTextField
+                    name="limit"
+                    id="aap-wf-limit-expr"
+                    label="Limit"
+                    placeholder="host pattern or drag expression"
+                  />
+                </StackItem>
+                <StackItem>
+                  <WorkflowExpressionTextField
+                    name="scm_branch"
+                    id="aap-wf-scmBranch-expr"
+                    label="Source control branch"
+                    placeholder="branch name or drag expression"
+                  />
+                </StackItem>
+                <StackItem>
+                  <WorkflowExpressionTextField
+                    name="tags"
+                    id="aap-wf-tags-expr"
+                    label="Tags"
+                    placeholder="tags or drag expression"
+                  />
+                </StackItem>
+                <StackItem>
+                  <WorkflowExpressionTextField
+                    name="skip_tags"
+                    id="aap-wf-skipTags-expr"
+                    label="Skip tags"
+                    placeholder="skip tags or drag expression"
+                  />
+                </StackItem>
+                <StackItem>
+                  <WorkflowExpressionTextField
+                    name="extra_vars"
+                    id="aap-wf-extraVars-expr"
+                    label="Extra variables"
+                    placeholder='{"key": "value"} or drag expression'
+                  />
+                </StackItem>
+              </>
+            ) : (
+              <>
+                <AAPWorkflowTemplateResourcePickers browser={browser} />
 
-            <AAPWorkflowTemplatePromptFields
-              templateDetail={browser.workflowTemplateDetail}
-              isLoadingDetail={browser.loadingTemplateDetail}
-              inventories={browser.inventories}
-              loadingInventories={browser.loadingInventories}
-              labels={browser.labels}
-              loadingLabels={browser.loadingLabels}
-              onSearchInventories={browser.searchInventories}
-              onSearchLabels={browser.searchLabels}
-              extraVarsEditorRef={extraVarsEditorRef}
-            />
-          </>
-        )}
-      </fieldset>
+                <AAPWorkflowTemplatePromptFields
+                  templateDetail={browser.workflowTemplateDetail}
+                  isLoadingDetail={browser.loadingTemplateDetail}
+                  inventories={browser.inventories}
+                  loadingInventories={browser.loadingInventories}
+                  labels={browser.labels}
+                  loadingLabels={browser.loadingLabels}
+                  onSearchInventories={browser.searchInventories}
+                  onSearchLabels={browser.searchLabels}
+                  extraVarsEditorRef={extraVarsEditorRef}
+                />
+              </>
+            )}
+          </Stack>
+        </fieldset>
+      </StackItem>
     </Stack>
   )
 
@@ -219,6 +211,7 @@ export function AAPWorkflowTemplateForm(props: Readonly<AAPWorkflowTemplateFormP
   const defaultValues: AAPWorkflowTemplateFormData = {
     name: '',
     credential_id: undefined,
+    integration_id: undefined,
     organization_name: '',
     workflow_job_template_name: '',
     workflow_job_template_id: undefined,
@@ -240,7 +233,11 @@ export function AAPWorkflowTemplateForm(props: Readonly<AAPWorkflowTemplateFormP
     reValidateMode: 'onChange',
   })
 
-  // Watch credential_id using useWatch for proper reactivity
+  const selectedIntegrationId = useWatch({
+    control: methods.control,
+    name: 'integration_id',
+  })
+
   const selectedCredentialId = useWatch({
     control: methods.control,
     name: 'credential_id',
@@ -276,6 +273,7 @@ export function AAPWorkflowTemplateForm(props: Readonly<AAPWorkflowTemplateFormP
           onHeaderContentChange={props.onHeaderContentChange}
           initialData={props.initialData}
           selectedCredentialId={selectedCredentialId}
+          selectedIntegrationId={selectedIntegrationId}
           projectId={props.projectId}
           extraVarsEditorRef={extraVarsEditorRef}
         />

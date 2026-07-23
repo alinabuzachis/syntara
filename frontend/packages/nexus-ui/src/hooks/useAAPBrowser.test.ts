@@ -252,4 +252,60 @@ describe('useAAPBrowser', () => {
 
     expect(result.current.loadingTemplateDetail).toBe(false)
   })
+
+  describe('integrationId parameter', () => {
+    it('is active when integrationId is provided but credentialId is undefined', () => {
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isPending: true,
+        isError: false,
+        error: null,
+      })
+
+      const { result } = renderHook(() => useAAPBrowser(undefined, undefined, 'job', 'int-123'))
+
+      expect(result.current.loadingOrgs).toBe(true)
+      expect(result.current.loadingTemplates).toBe(true)
+      expect(result.current.loadingInventories).toBe(true)
+    })
+
+    it('is active when both credentialId and integrationId are provided', () => {
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isPending: true,
+        isError: false,
+        error: null,
+      })
+
+      const { result } = renderHook(() => useAAPBrowser('cred-1', undefined, 'job', 'int-123'))
+
+      expect(result.current.loadingOrgs).toBe(true)
+    })
+
+    it('is not active when neither credentialId nor integrationId is provided', () => {
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isPending: true,
+        isError: false,
+        error: null,
+      })
+
+      const { result } = renderHook(() => useAAPBrowser(undefined, undefined, 'job', undefined))
+
+      expect(result.current.loadingOrgs).toBe(false)
+      expect(result.current.loadingTemplates).toBe(false)
+      expect(result.current.loadingInventories).toBe(false)
+    })
+
+    it('passes integrationId to query params', () => {
+      renderHook(() => useAAPBrowser(undefined, undefined, 'job', 'int-456'))
+
+      // Verify useQuery was called with integration_id in query params
+      const calls = mockUseQuery.mock.calls
+      const orgCall = calls.find((c: unknown[]) => c[1] === '/aap/organizations')
+      expect(orgCall).toBeDefined()
+      const orgCallOptions = orgCall![2] as { params: { query: { integration_id: string } } }
+      expect(orgCallOptions.params.query.integration_id).toBe('int-456')
+    })
+  })
 })

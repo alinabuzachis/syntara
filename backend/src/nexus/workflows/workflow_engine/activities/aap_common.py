@@ -593,27 +593,30 @@ class AAPResolvedAuth:
 
 
 def resolve_aap_auth(input_config: dict[str, Any], settings: Settings) -> AAPResolvedAuth:
-    """Resolve AAP authentication from credentials or environment settings.
+    """Resolve AAP authentication from integration and credentials.
 
-    Credential takes priority over env vars. Raises ApplicationError on failure.
+    URL and SSL come exclusively from the resolved integration.
+    Auth (headers/basic_auth) comes from the credential or environment settings.
     """
     resolved_creds = input_config.get("_resolved_credentials")
+    resolved_integration = input_config.get("_resolved_integration")
+
+    if not resolved_integration:
+        msg = "AAP integration not configured. Attach an AAP integration to this node."
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True)
+
+    base_url = resolved_integration["base_url"]
+    verify_ssl = resolved_integration["verify_ssl"]
+
     try:
         if resolved_creds:
             resolved_creds = ensure_resolved_credentials_dict(resolved_creds)
             cred_auth = get_aap_auth_from_credentials(resolved_creds)
             auth_headers = cred_auth.headers
             basic_auth = cred_auth.basic_auth
-            base_url = cred_auth.host_override or (settings.aap_base_url or "").rstrip("/")
-            # Credential SSL setting takes priority over global setting (supports per-AAP-instance SSL)
-            verify_ssl = (
-                cred_auth.verify_ssl_override if cred_auth.verify_ssl_override is not None else settings.aap_verify_ssl
-            )
         else:
-            base_url = (settings.aap_base_url or "").rstrip("/")
             auth_headers = get_aap_auth_headers(settings)
             basic_auth = get_aap_basic_auth(settings)
-            verify_ssl = settings.aap_verify_ssl
     except (AAPActivityExecutionError, TypeError, KeyError, ValueError) as e:
         logger.warning("AAP auth resolution failed", error=str(e), exc_info=True)
         msg = "Authentication failed — verify AAP credentials"

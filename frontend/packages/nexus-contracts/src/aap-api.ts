@@ -854,7 +854,19 @@ export interface components {
       }
     }
   }
-  parameters: never
+  parameters: {
+    /**
+     * @description Optional Nexus credential ID for AAP Controller authentication.
+     *     If provided, the credential is decrypted and used instead of environment variables.
+     *     Credential must be of type "Ansible Automation Platform".
+     */
+    credentialId: string | null
+    /**
+     * @description Optional AAP Gateway integration ID for connection URL resolution.
+     *     When provided, the integration's configured URL is used instead of environment variables.
+     */
+    integrationId: string | null
+  }
   requestBodies: never
   headers: never
   pathItems: never
@@ -871,7 +883,12 @@ export interface operations {
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
-        credential_id?: string | null
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
       }
       header?: never
       path?: never
@@ -908,7 +925,12 @@ export interface operations {
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
-        credential_id?: string | null
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
         organization?: string | null
       }
       header?: never
@@ -946,7 +968,12 @@ export interface operations {
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
-        credential_id?: string | null
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
       }
       header?: never
       path: {
@@ -985,7 +1012,12 @@ export interface operations {
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
-        credential_id?: string | null
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
         organization?: string | null
       }
       header?: never
@@ -1023,7 +1055,12 @@ export interface operations {
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
-        credential_id?: string | null
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
       }
       header?: never
       path: {
@@ -1062,7 +1099,12 @@ export interface operations {
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
-        credential_id?: string | null
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
         organization?: string | null
       }
       header?: never
@@ -1100,7 +1142,12 @@ export interface operations {
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
-        credential_id?: string | null
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
         organization?: string | null
       }
       header?: never
@@ -1138,7 +1185,12 @@ export interface operations {
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
-        credential_id?: string | null
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
       }
       header?: never
       path?: never
@@ -1175,7 +1227,12 @@ export interface operations {
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
-        credential_id?: string | null
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
       }
       header?: never
       path?: never
@@ -1207,7 +1264,17 @@ export interface operations {
       query?: {
         search?: string | null
         page_size?: number
-        credential_id?: string | null
+        /**
+         * @description Optional Nexus credential ID for AAP Controller authentication.
+         *     If provided, the credential is decrypted and used instead of environment variables.
+         *     Credential must be of type "Ansible Automation Platform".
+         */
+        credential_id?: components['parameters']['credentialId']
+        /**
+         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         *     When provided, the integration's configured URL is used instead of environment variables.
+         */
+        integration_id?: components['parameters']['integrationId']
       }
       header?: never
       path?: never

@@ -10,6 +10,11 @@
       "credential_id": {
         "$ref": "../common-definitions.schema.json#/$defs/credential_id"
       },
+      "integration_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "UUID of the AAP Gateway integration for connection URL resolution"
+      },
       "job_template_id": {
         "type": "integer",
         "description": "AAP job template ID to launch (takes precedence over name)",

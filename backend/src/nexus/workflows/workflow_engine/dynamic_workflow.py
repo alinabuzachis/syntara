@@ -17,6 +17,7 @@ from temporalio.exceptions import ActivityError, ApplicationError
 with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
+    from nexus.workflows.workflow_engine.activities.integration_resolution_activity import resolve_workflow_integration
     from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait
     from nexus.workflows.workflow_engine.constants import (
         DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
@@ -1287,10 +1288,42 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
                 if isinstance(val, str):
                     self._secret_values.add(val)
 
+    _AAP_NODE_TYPES: ClassVar[frozenset[str]] = frozenset(
+        {NodeType.AAP_JOB_TEMPLATE, NodeType.AAP_WORKFLOW_JOB_TEMPLATE}
+    )
+
+    async def _resolve_and_inject_integration(
+        self,
+        node: ActivityNode,
+        resolved_parameters: dict[str, Any],
+    ) -> None:
+        """Resolve and inject integration connection settings for AAP nodes.
+
+        If the node has an integration_id, calls the integration resolution
+        activity to fetch the integration's URL and SSL settings and injects
+        them into the parameters so execution uses the same connection as the UI.
+        """
+        if node.type not in self._AAP_NODE_TYPES:
+            return
+
+        integration_id = resolved_parameters.get("integration_id")
+        if not integration_id:
+            return
+
+        resolved_integration = await workflow.execute_activity(
+            resolve_workflow_integration,
+            args=[integration_id],
+            activity_id="__internal__resolve_integration",
+            start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+        )
+
+        resolved_parameters["_resolved_integration"] = resolved_integration
+
     @staticmethod
     def _scrub_activity_credentials(resolved_parameters: dict[str, Any]) -> None:
-        """Remove resolved credentials from parameters after execution."""
+        """Remove resolved credentials and integration data from parameters after execution."""
         resolved_parameters.pop("_resolved_credentials", None)
+        resolved_parameters.pop("_resolved_integration", None)
         scrubbed = scrub_credentials(resolved_parameters)
         resolved_parameters.clear()
         resolved_parameters.update(scrubbed)
@@ -1306,8 +1339,8 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
 
         Resolves credentials before dispatch and scrubs them after execution.
         """
-        # Resolve credentials if the node has a credential_id
         await self._resolve_and_inject_credentials(node, resolved_parameters)
+        await self._resolve_and_inject_integration(node, resolved_parameters)
 
         try:
             return await self._dispatch_node_to_executor(node, resolved_parameters, graph, timeout_seconds)

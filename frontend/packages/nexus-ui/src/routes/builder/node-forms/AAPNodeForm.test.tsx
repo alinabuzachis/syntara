@@ -34,8 +34,32 @@ vi.mock('../../../client', () => ({
     })),
     useMutation: vi.fn(),
   },
+  integrationsClient: {
+    useQuery: vi.fn(() => ({
+      data: {
+        resources: [
+          { id: 'int-123', name: 'AAP Gateway', integration_type: 'ansible_automation_platform', enabled: true },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    })),
+    useMutation: vi.fn(),
+  },
   authMiddleware: { onRequest: vi.fn() },
   interfaceTagMiddleware: { onRequest: vi.fn() },
+}))
+
+// Mock useIntegrationPermissions to avoid async act() warnings from permission queries
+vi.mock('../../configuration/integrations/useIntegrationPermissions', () => ({
+  useIntegrationPermissions: vi.fn(() => ({
+    canCreate: true,
+    canUpdate: false,
+    canDelete: false,
+    isLoading: false,
+    tooltips: { create: '', update: '', enable: '', validate: '', delete: '' },
+  })),
 }))
 
 // Mock CredentialFormModal
@@ -189,20 +213,24 @@ describe('AAPNodeForm', () => {
   })
 
   it('renders form with required fields', () => {
-    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+    renderWithHeader(
+      <AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} initialData={{ integration_id: 'int-123' }} />
+    )
 
     expect(screen.getByLabelText(/Name/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/Select an organization/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/Select a job template/i)).toBeInTheDocument()
-    // CredentialSelector renders with a select placeholder
-    expect(screen.getByText(/Select credential/i)).toBeInTheDocument()
+    // AAPCredentialStatus renders when an integration is selected
+    expect(screen.getByText(/Set up connection/i)).toBeInTheDocument()
   })
 
   it('renders credential selector', () => {
-    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+    renderWithHeader(
+      <AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} initialData={{ integration_id: 'int-123' }} />
+    )
 
-    // CredentialSelector renders a select with placeholder text
-    expect(screen.getByText(/Select credential/i)).toBeInTheDocument()
+    // AAPCredentialStatus renders when an integration is selected
+    expect(screen.getByText(/Set up connection/i)).toBeInTheDocument()
   })
 
   it('renders job template typeahead even when no organization is selected', () => {
@@ -250,13 +278,23 @@ describe('AAPNodeForm', () => {
     expect(screen.getByDisplayValue('Deploy App')).toBeInTheDocument()
   })
 
-  it('passes projectId to CredentialSelector', () => {
+  it('passes projectId to CredentialSelector', async () => {
+    const user = userEvent.setup()
     const useQueryMock = vi.mocked(credentialsClient.useQuery)
     useQueryMock.mockClear()
 
     renderWithHeader(
-      <AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} onHeaderContentChange={vi.fn()} projectId="project-456" />
+      <AAPNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={vi.fn()}
+        onHeaderContentChange={vi.fn()}
+        projectId="project-456"
+        initialData={{ integration_id: 'int-123' }}
+      />
     )
+
+    // Open credential picker via "Set up connection" button
+    await user.click(screen.getByText(/Set up connection/i))
 
     const hasProjectIdCall = useQueryMock.mock.calls.some((call) => {
       const params = (call[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
@@ -471,7 +509,7 @@ describe('AAPNodeForm', () => {
   })
 
   describe('Form Submission', () => {
-    it('submits form with pre-filled required fields', async () => {
+    it('submits form with pre-filled required fields including integration_id', async () => {
       renderWithHeader(
         <AAPNodeForm
           onSubmit={mockOnSubmit}
@@ -481,6 +519,7 @@ describe('AAPNodeForm', () => {
             organization_name: 'Default',
             job_template_name: 'Deploy App',
             job_template_id: 10,
+            integration_id: 'int-123',
           }}
         />
       )
@@ -494,6 +533,7 @@ describe('AAPNodeForm', () => {
             organization_name: 'Default',
             job_template_name: 'Deploy App',
             job_template_id: 10,
+            integration_id: 'int-123',
           })
         )
       })

@@ -1728,6 +1728,12 @@ components:
             - type: 'null'
           title: Credential Id
           description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+        integration_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Integration Id
+          description: UUID of the AAP Gateway integration for connection URL resolution.
         organizationId:
           anyOf:
             - type: integer
@@ -1873,6 +1879,12 @@ components:
             - type: 'null'
           title: Credential Id
           description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+        integration_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Integration Id
+          description: UUID of the AAP Gateway integration for connection URL resolution.
         organizationId:
           anyOf:
             - type: integer

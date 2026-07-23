@@ -56,19 +56,8 @@ paths:
             maximum: 200
             default: 50
             title: Page Size
-        - in: query
-          name: credential_id
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
-          description: |
-            Optional Nexus credential ID for AAP Controller authentication.
-            If provided, the credential is decrypted and used instead of environment variables.
-            Credential must be of type "Ansible Automation Platform".
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
       responses:
         "200":
           description: Successful Response
@@ -124,19 +113,8 @@ paths:
             maximum: 200
             default: 50
             title: Page Size
-        - in: query
-          name: credential_id
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
-          description: |
-            Optional Nexus credential ID for AAP Controller authentication.
-            If provided, the credential is decrypted and used instead of environment variables.
-            Credential must be of type "Ansible Automation Platform".
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
         - in: query
           name: organization
           required: false
@@ -208,19 +186,8 @@ paths:
             maximum: 200
             default: 50
             title: Page Size
-        - in: query
-          name: credential_id
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
-          description: |
-            Optional Nexus credential ID for AAP Controller authentication.
-            If provided, the credential is decrypted and used instead of environment variables.
-            Credential must be of type "Ansible Automation Platform".
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
       responses:
         "200":
           description: Successful Response
@@ -276,19 +243,8 @@ paths:
             maximum: 200
             default: 50
             title: Page Size
-        - in: query
-          name: credential_id
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
-          description: |
-            Optional Nexus credential ID for AAP Controller authentication.
-            If provided, the credential is decrypted and used instead of environment variables.
-            Credential must be of type "Ansible Automation Platform".
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
         - in: query
           name: organization
           required: false
@@ -360,19 +316,8 @@ paths:
             maximum: 200
             default: 50
             title: Page Size
-        - in: query
-          name: credential_id
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
-          description: |
-            Optional Nexus credential ID for AAP Controller authentication.
-            If provided, the credential is decrypted and used instead of environment variables.
-            Credential must be of type "Ansible Automation Platform".
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
       responses:
         "200":
           description: Successful Response
@@ -428,19 +373,8 @@ paths:
             maximum: 200
             default: 50
             title: Page Size
-        - in: query
-          name: credential_id
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
-          description: |
-            Optional Nexus credential ID for AAP Controller authentication.
-            If provided, the credential is decrypted and used instead of environment variables.
-            Credential must be of type "Ansible Automation Platform".
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
         - in: query
           name: organization
           required: false
@@ -505,19 +439,8 @@ paths:
             maximum: 200
             default: 50
             title: Page Size
-        - in: query
-          name: credential_id
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
-          description: |
-            Optional Nexus credential ID for AAP Controller authentication.
-            If provided, the credential is decrypted and used instead of environment variables.
-            Credential must be of type "Ansible Automation Platform".
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
         - in: query
           name: organization
           required: false
@@ -582,19 +505,8 @@ paths:
             maximum: 200
             default: 50
             title: Page Size
-        - in: query
-          name: credential_id
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
-          description: |
-            Optional Nexus credential ID for AAP Controller authentication.
-            If provided, the credential is decrypted and used instead of environment variables.
-            Credential must be of type "Ansible Automation Platform".
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
       responses:
         "200":
           description: Successful Response
@@ -650,19 +562,8 @@ paths:
             maximum: 200
             default: 50
             title: Page Size
-        - in: query
-          name: credential_id
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
-          description: |
-            Optional Nexus credential ID for AAP Controller authentication.
-            If provided, the credential is decrypted and used instead of environment variables.
-            Credential must be of type "Ansible Automation Platform".
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
       responses:
         "200":
           description: Successful Response
@@ -717,15 +618,8 @@ paths:
             minimum: 1
             default: 50
             title: Page Size
-        - name: credential_id
-          in: query
-          required: false
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: "null"
-            title: Credential Id
+        - $ref: "#/components/parameters/credentialId"
+        - $ref: "#/components/parameters/integrationId"
       responses:
         "200":
           description: Successful Response
@@ -1352,6 +1246,35 @@ components:
           title: Results
           items:
             $ref: "#/components/schemas/AAPLabel"
+
+  parameters:
+    credentialId:
+      in: query
+      name: credential_id
+      required: false
+      schema:
+        anyOf:
+          - type: string
+            format: uuid
+          - type: "null"
+        title: Credential Id
+      description: |
+        Optional Nexus credential ID for AAP Controller authentication.
+        If provided, the credential is decrypted and used instead of environment variables.
+        Credential must be of type "Ansible Automation Platform".
+    integrationId:
+      in: query
+      name: integration_id
+      required: false
+      schema:
+        anyOf:
+          - type: string
+            format: uuid
+          - type: "null"
+        title: Integration Id
+      description: |
+        Optional AAP Gateway integration ID for connection URL resolution.
+        When provided, the integration's configured URL is used instead of environment variables.
 
   securitySchemes:
     bearerAuth:

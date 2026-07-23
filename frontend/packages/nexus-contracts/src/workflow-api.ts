@@ -1464,6 +1464,11 @@ export interface components {
        */
       credential_id?: string | null
       /**
+       * Integration Id
+       * @description UUID of the AAP Gateway integration for connection URL resolution.
+       */
+      integration_id?: string | null
+      /**
        * Organizationid
        * @description AAP organization ID (takes precedence over organization_name)
        */
@@ -1581,6 +1586,11 @@ export interface components {
        * @description Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
        */
       credential_id?: string | null
+      /**
+       * Integration Id
+       * @description UUID of the AAP Gateway integration for connection URL resolution.
+       */
+      integration_id?: string | null
       /**
        * Organizationid
        * @description AAP organization ID (takes precedence over organization_name)

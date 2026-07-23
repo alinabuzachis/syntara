@@ -19,6 +19,7 @@ export const aapWorkflowTemplateSchema = z
   .object({
     name: z.string(),
     credential_id: z.string().optional(),
+    integration_id: z.string().optional(),
 
     // ── Core fields (from cascading dropdowns) ────────────────────────
     organization_name: z.string().optional(),

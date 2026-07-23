@@ -743,6 +743,32 @@ describe('workflowFactories', () => {
         expect(activity.parameters.job_slice_count).toBe(2)
         expect(activity.parameters.diff_mode).toBe(true)
       })
+
+      it('includes integration_id when integrationId is set in config', () => {
+        const activity = createAAPJobTemplateActivity('aap-1', 'Run Playbook', 123, {
+          integrationId: 'int-aap-1',
+        })
+
+        expect(activity.parameters.integration_id).toBe('int-aap-1')
+      })
+
+      it('omits integration_id when integrationId is empty string', () => {
+        const activity = createAAPJobTemplateActivity('aap-1', 'Run Playbook', 123, {
+          integrationId: '',
+        })
+
+        expect(activity.parameters).not.toHaveProperty('integration_id')
+      })
+
+      it('includes both credential_id and integration_id when both set', () => {
+        const activity = createAAPJobTemplateActivity('aap-1', 'Run Playbook', 123, {
+          credentialId: 'cred-123',
+          integrationId: 'int-aap-1',
+        })
+
+        expect(activity.parameters.credential_id).toBe('cred-123')
+        expect(activity.parameters.integration_id).toBe('int-aap-1')
+      })
     })
 
     describe('createAAPWorkflowTemplateActivity', () => {
@@ -785,6 +811,24 @@ describe('workflowFactories', () => {
         expect(activity.parameters.credential_id).toBe('cred-123')
         expect(activity.parameters.organization_id).toBe(10)
         expect(activity.parameters.organization_name).toBe('Engineering')
+      })
+
+      it('includes integration_id when set in workflow config', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          integration_id: 'int-aap-2',
+        })
+
+        expect(activity.parameters.integration_id).toBe('int-aap-2')
+      })
+
+      it('includes both credential_id and integration_id in workflow config', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          credential_id: 'cred-xyz',
+          integration_id: 'int-aap-3',
+        })
+
+        expect(activity.parameters.credential_id).toBe('cred-xyz')
+        expect(activity.parameters.integration_id).toBe('int-aap-3')
       })
 
       it('creates an AAP workflow template activity with inventory name', () => {

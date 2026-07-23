@@ -140,10 +140,8 @@ function setVerbosityField(config: AAPJobTemplateConfig, data: AAPJobTemplateFor
 }
 
 function setCredentialFields(config: AAPJobTemplateConfig, data: AAPJobTemplateFormData): void {
-  // Nexus credential for AAP authentication
   if (data.credential_id) config.credentialId = data.credential_id
-
-  // AAP Controller credential IDs for job execution (prompt-on-launch override)
+  if (data.integration_id) config.integrationId = data.integration_id
   if (data.job_credentials && data.job_credentials.length > 0) {
     config.jobCredentials = data.job_credentials
   }
@@ -266,6 +264,7 @@ function setWorkflowInventoryFields(config: AAPWorkflowTemplateConfig, data: AAP
 
 function setWorkflowCredentialField(config: AAPWorkflowTemplateConfig, data: AAPWorkflowTemplateFormData): void {
   if (data.credential_id) config.credential_id = data.credential_id
+  if (data.integration_id) config.integration_id = data.integration_id
 }
 
 function setWorkflowLabelsField(config: AAPWorkflowTemplateConfig, data: AAPWorkflowTemplateFormData): void {

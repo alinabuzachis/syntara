@@ -30,9 +30,7 @@ import type { ActivityWithMetadata } from './workflowStoreTypes'
 /** Copy non-empty values from source to target. Skips undefined, null, empty strings, and non-finite numbers. */
 function copyDefinedValues(source: Record<string, unknown>, target: Record<string, unknown>) {
   for (const [key, value] of Object.entries(source)) {
-    if (value === undefined || value === null) continue
-    if (typeof value === 'number' && !Number.isFinite(value)) continue
-    if (typeof value === 'string' && value === '') continue
+    if (value == null || (typeof value === 'number' && !Number.isFinite(value)) || value === '') continue
     target[key] = value
   }
 }
@@ -322,7 +320,8 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ac
  * AAP Job Template config — matches the backend AAPJobTemplateExecutorConfig fields.
  */
 export type AAPJobTemplateConfig = {
-  credentialId?: string // Nexus credential for AAP authentication
+  credentialId?: string
+  integrationId?: string
   organizationId?: number
   organization?: string
   jobTemplateName?: string
@@ -348,6 +347,7 @@ export type AAPJobTemplateConfig = {
 /** Mapping from AAPJobTemplateConfig key → API config key, with a predicate type. */
 const aapConfigMapping: [keyof AAPJobTemplateConfig, string, 'truthy' | 'defined'][] = [
   ['credentialId', 'credential_id', 'truthy'],
+  ['integrationId', 'integration_id', 'truthy'],
   ['organizationId', 'organization_id', 'defined'],
   ['organization', 'organization_name', 'truthy'],
   ['jobTemplateName', 'job_template_name', 'truthy'],
@@ -412,7 +412,8 @@ export function createAAPJobTemplateActivity(
  * Timeout is configured via node settings, not here.
  */
 export type AAPWorkflowTemplateConfig = {
-  credential_id?: string // Nexus credential for AAP authentication
+  credential_id?: string
+  integration_id?: string
   organization_id?: number
   organization_name?: string
   workflow_job_template_name?: string

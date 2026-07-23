@@ -39,10 +39,18 @@ def build_config(**kwargs: object) -> AAPWorkflowJobTemplateExecutorParameters:
     return AAPWorkflowJobTemplateExecutorParameters.model_validate(kwargs)
 
 
+_DEFAULT_RESOLVED_INTEGRATION: dict[str, object] = {
+    "base_url": "https://aap.example.com",
+    "verify_ssl": True,
+}
+
+
 def build_activity_config(**kwargs: object) -> dict[str, object]:
     """Helper to build flat activity config dict (v2 convention)."""
     config = build_config(**kwargs)
-    return config.model_dump(by_alias=True)
+    result = config.model_dump(by_alias=True)
+    result["_resolved_integration"] = _DEFAULT_RESOLVED_INTEGRATION
+    return result
 
 
 def create_http_response(

@@ -1,34 +1,24 @@
 import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
-  Button,
   Divider,
   FormGroup,
-  FormHelperText,
-  HelperText,
-  HelperTextItem,
-  MenuToggle,
   type MenuToggleElement,
   Select,
   SelectGroup,
   SelectList,
   SelectOption,
-  TextInputGroup,
-  TextInputGroupMain,
-  TextInputGroupUtilities,
 } from '@patternfly/react-core'
-import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { useQueries } from '@tanstack/react-query'
 import React, { useCallback, useMemo, useState } from 'react'
 
-import { AppRoute } from '../../../app/AppRoute'
 import { integrationsFetchClient, integrationsClient } from '../../../client'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { NxLabel } from '../../../components/labels/NxLabel'
-import { NxLink } from '../../../components/NxLink'
-import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 
+import { IntegrationRequiredHelper } from './IntegrationRequiredHelper'
 import styles from './LLMModelSelector.module.css'
+import { TypeaheadMenuToggle } from './TypeaheadMenuToggle'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 type LLMModelRead = IntegrationsAPI.components['schemas']['LLMModelRead']
@@ -55,87 +45,6 @@ export type LLMModelSelectorProps = {
 type VisibleGroup = {
   integration: IntegrationRead & { id: string }
   models: LLMModelRead[]
-}
-
-type ModelMenuToggleProps = Readonly<{
-  toggleRef: React.Ref<MenuToggleElement>
-  displayText: string
-  ariaLabel: string
-  fieldId: string
-  isOpen: boolean
-  isDisabled: boolean
-  isPending: boolean
-  hasSelection: boolean
-  filterText: string
-  onFilterChange: (val: string) => void
-  onClear: () => void
-  onToggle: () => void
-}>
-
-function ModelMenuToggle({
-  toggleRef,
-  displayText,
-  ariaLabel,
-  fieldId,
-  isOpen,
-  isDisabled,
-  isPending,
-  hasSelection,
-  filterText,
-  onFilterChange,
-  onClear,
-  onToggle,
-}: ModelMenuToggleProps) {
-  const showClearFilter = isOpen && filterText
-  const showClearSelection = !isOpen && hasSelection && !isDisabled && !isPending
-
-  return (
-    <MenuToggle
-      ref={toggleRef}
-      variant="typeahead"
-      isExpanded={isOpen}
-      isDisabled={isDisabled || isPending}
-      isFullWidth
-      aria-label={ariaLabel}
-      onClick={onToggle}
-    >
-      <TextInputGroup isPlain isDisabled={isDisabled || isPending}>
-        <TextInputGroupMain
-          value={isOpen ? filterText : displayText}
-          placeholder={isPending ? 'Loading models...' : 'Select a model'}
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggle()
-          }}
-          onChange={(_event, val) => onFilterChange(val)}
-          autoComplete="off"
-          id={`${fieldId}-filter`}
-          aria-label={ariaLabel}
-        />
-        {showClearFilter && (
-          <TextInputGroupUtilities>
-            <Button variant="plain" onClick={() => onFilterChange('')} aria-label="Clear filter">
-              <RhUiCloseIcon />
-            </Button>
-          </TextInputGroupUtilities>
-        )}
-        {showClearSelection && (
-          <TextInputGroupUtilities>
-            <Button
-              variant="plain"
-              onClick={(e) => {
-                e.stopPropagation()
-                onClear()
-              }}
-              aria-label="Clear selection"
-            >
-              <RhUiCloseIcon />
-            </Button>
-          </TextInputGroupUtilities>
-        )}
-      </TextInputGroup>
-    </MenuToggle>
-  )
 }
 
 /**
@@ -263,7 +172,7 @@ export function LLMModelSelector({
 
   const renderToggle = useCallback(
     (toggleRef: React.Ref<MenuToggleElement>) => (
-      <ModelMenuToggle
+      <TypeaheadMenuToggle
         toggleRef={toggleRef}
         displayText={toggleLabel}
         ariaLabel={label}
@@ -273,6 +182,8 @@ export function LLMModelSelector({
         isPending={isPending}
         hasSelection={!!selectedKey}
         filterText={filterText}
+        placeholder="Select a model"
+        loadingPlaceholder="Loading models..."
         onFilterChange={setFilterText}
         onClear={() => onChange(undefined)}
         onToggle={() => setIsOpen((prev) => !prev)}
@@ -284,7 +195,6 @@ export function LLMModelSelector({
   const formGroupLabel = helpText ? <FormLabelWithHelp label={label} helpText={helpText} /> : label
 
   const hasNoIntegrations = integrations.length === 0 && !isPending
-  const { canCreate: canCreateIntegration } = useIntegrationPermissions()
 
   return (
     <FormGroup label={formGroupLabel} fieldId={fieldId} isRequired>
@@ -345,23 +255,10 @@ export function LLMModelSelector({
         ))}
       </Select>
       {hasNoIntegrations && (
-        <FormHelperText>
-          <HelperText>
-            <HelperTextItem>
-              {canCreateIntegration ? (
-                <>
-                  An administrator must{' '}
-                  <NxLink to={AppRoute.Configuration.Integrations.Configure}>
-                    configure an LLM provider integration
-                  </NxLink>{' '}
-                  before models can be selected.
-                </>
-              ) : (
-                'An administrator must configure an LLM provider integration before models can be selected.'
-              )}
-            </HelperTextItem>
-          </HelperText>
-        </FormHelperText>
+        <IntegrationRequiredHelper
+          integrationLabel="an LLM provider integration"
+          actionLabel="models can be selected"
+        />
       )}
     </FormGroup>
   )

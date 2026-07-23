@@ -174,6 +174,17 @@ describe('buildAAPConfig', () => {
     expect(result?.credentialId).toBe('cred-123')
   })
 
+  it('includes integrationId when integration_id is set', () => {
+    const result = buildAAPConfig(makeFormData({ integration_id: 'int-aap-1' }))
+    expect(result?.integrationId).toBe('int-aap-1')
+  })
+
+  it('includes both credentialId and integrationId when both set', () => {
+    const result = buildAAPConfig(makeFormData({ credential_id: 'cred-123', integration_id: 'int-aap-1' }))
+    expect(result?.credentialId).toBe('cred-123')
+    expect(result?.integrationId).toBe('int-aap-1')
+  })
+
   it('includes organizationId when set', () => {
     const result = buildAAPConfig(makeFormData({ organization_id: 5 }))
     expect(result?.organizationId).toBe(5)
@@ -297,6 +308,19 @@ describe('buildAAPWorkflowTemplateConfig', () => {
   it('includes credentialId when set', () => {
     const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData({ credential_id: 'cred-xyz' }))
     expect(result?.credential_id).toBe('cred-xyz')
+  })
+
+  it('includes integration_id when set', () => {
+    const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData({ integration_id: 'int-aap-2' }))
+    expect(result?.integration_id).toBe('int-aap-2')
+  })
+
+  it('includes both credential_id and integration_id when both set', () => {
+    const result = buildAAPWorkflowTemplateConfig(
+      makeWorkflowFormData({ credential_id: 'cred-xyz', integration_id: 'int-aap-2' })
+    )
+    expect(result?.credential_id).toBe('cred-xyz')
+    expect(result?.integration_id).toBe('int-aap-2')
   })
 
   it('includes labels array when set', () => {

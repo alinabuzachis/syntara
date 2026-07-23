@@ -34,8 +34,32 @@ vi.mock('../../../client', () => ({
     })),
     useMutation: vi.fn(),
   },
+  integrationsClient: {
+    useQuery: vi.fn(() => ({
+      data: {
+        resources: [
+          { id: 'int-123', name: 'AAP Gateway', integration_type: 'ansible_automation_platform', enabled: true },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    })),
+    useMutation: vi.fn(),
+  },
   authMiddleware: { onRequest: vi.fn() },
   interfaceTagMiddleware: { onRequest: vi.fn() },
+}))
+
+// Mock useIntegrationPermissions to avoid async act() warnings from permission queries
+vi.mock('../../configuration/integrations/useIntegrationPermissions', () => ({
+  useIntegrationPermissions: vi.fn(() => ({
+    canCreate: true,
+    canUpdate: false,
+    canDelete: false,
+    isLoading: false,
+    tooltips: { create: '', update: '', enable: '', validate: '', delete: '' },
+  })),
 }))
 
 // Mock CredentialFormModal
@@ -162,20 +186,24 @@ describe('AAPWorkflowTemplateForm', () => {
   })
 
   it('renders form with required fields', () => {
-    renderWithHeader(<AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+    renderWithHeader(
+      <AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} initialData={{ integration_id: 'int-123' }} />
+    )
 
     expect(screen.getByLabelText(/Name/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/Select an organization/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/Select a workflow template/i)).toBeInTheDocument()
-    // CredentialSelector renders with a select placeholder
-    expect(screen.getByText(/Select credential/i)).toBeInTheDocument()
+    // AAPCredentialStatus renders when an integration is selected
+    expect(screen.getByText(/Set up connection/i)).toBeInTheDocument()
   })
 
   it('renders credential selector', () => {
-    renderWithHeader(<AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+    renderWithHeader(
+      <AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} initialData={{ integration_id: 'int-123' }} />
+    )
 
-    // CredentialSelector renders a select with placeholder text
-    expect(screen.getByText(/Select credential/i)).toBeInTheDocument()
+    // AAPCredentialStatus renders when an integration is selected
+    expect(screen.getByText(/Set up connection/i)).toBeInTheDocument()
   })
 
   it('renders workflow template typeahead even when no organization is selected', () => {
@@ -223,7 +251,8 @@ describe('AAPWorkflowTemplateForm', () => {
     expect(screen.getByDisplayValue('Deploy Workflow')).toBeInTheDocument()
   })
 
-  it('passes projectId to CredentialSelector', () => {
+  it('passes projectId to CredentialSelector', async () => {
+    const user = userEvent.setup()
     const useQueryMock = vi.mocked(credentialsClient.useQuery)
     useQueryMock.mockClear()
 
@@ -233,8 +262,12 @@ describe('AAPWorkflowTemplateForm', () => {
         onCancel={vi.fn()}
         onHeaderContentChange={vi.fn()}
         projectId="project-456"
+        initialData={{ integration_id: 'int-123' }}
       />
     )
+
+    // Open credential picker via "Set up connection" button
+    await user.click(screen.getByText(/Set up connection/i))
 
     const hasProjectIdCall = useQueryMock.mock.calls.some((call) => {
       const params = (call[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
@@ -408,7 +441,7 @@ describe('AAPWorkflowTemplateForm', () => {
   })
 
   describe('Form Submission', () => {
-    it('submits form with pre-filled required fields', async () => {
+    it('submits form with pre-filled required fields including integration_id', async () => {
       renderWithHeader(
         <AAPWorkflowTemplateForm
           onSubmit={mockOnSubmit}
@@ -418,6 +451,7 @@ describe('AAPWorkflowTemplateForm', () => {
             organization_name: 'Default',
             workflow_job_template_name: 'Deploy Workflow',
             workflow_job_template_id: 20,
+            integration_id: 'int-123',
           }}
         />
       )
@@ -431,6 +465,7 @@ describe('AAPWorkflowTemplateForm', () => {
             organization_name: 'Default',
             workflow_job_template_name: 'Deploy Workflow',
             workflow_job_template_id: 20,
+            integration_id: 'int-123',
           })
         )
       })
@@ -478,6 +513,86 @@ describe('AAPWorkflowTemplateForm', () => {
 
       const expressionSwitch = screen.getByLabelText(/Use expressions/i)
       expect(expressionSwitch).toBeChecked()
+    })
+
+    it('auto-detects expression mode from workflow_job_template_name expression', () => {
+      renderWithHeader(
+        <AAPWorkflowTemplateForm
+          onSubmit={mockOnSubmit}
+          onCancel={vi.fn()}
+          initialData={{
+            organization_name: 'Default',
+            workflow_job_template_name: '${workflow.context.template}',
+          }}
+        />
+      )
+
+      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      expect(expressionSwitch).toBeChecked()
+    })
+
+    it('auto-detects expression mode from inventory_name expression', () => {
+      renderWithHeader(
+        <AAPWorkflowTemplateForm
+          onSubmit={mockOnSubmit}
+          onCancel={vi.fn()}
+          initialData={{
+            inventory_name: '${workflow.context.inventory}',
+          }}
+        />
+      )
+
+      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      expect(expressionSwitch).toBeChecked()
+    })
+
+    it('auto-detects expression mode from limit expression', () => {
+      renderWithHeader(
+        <AAPWorkflowTemplateForm
+          onSubmit={mockOnSubmit}
+          onCancel={vi.fn()}
+          initialData={{
+            limit: '${workflow.context.limit}',
+          }}
+        />
+      )
+
+      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      expect(expressionSwitch).toBeChecked()
+    })
+
+    it('auto-detects expression mode from scm_branch expression', () => {
+      renderWithHeader(
+        <AAPWorkflowTemplateForm
+          onSubmit={mockOnSubmit}
+          onCancel={vi.fn()}
+          initialData={{
+            scm_branch: '${workflow.context.branch}',
+          }}
+        />
+      )
+
+      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      expect(expressionSwitch).toBeChecked()
+    })
+
+    it('does not auto-detect expression mode when no fields contain expressions', () => {
+      renderWithHeader(
+        <AAPWorkflowTemplateForm
+          onSubmit={mockOnSubmit}
+          onCancel={vi.fn()}
+          initialData={{
+            organization_name: 'Default',
+            workflow_job_template_name: 'Deploy Workflow',
+            inventory_name: 'prod',
+            limit: 'webservers',
+            scm_branch: 'main',
+          }}
+        />
+      )
+
+      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      expect(expressionSwitch).not.toBeChecked()
     })
   })
 })

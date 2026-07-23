@@ -105,6 +105,18 @@ paths:
             Optional Nexus credential ID for AAP Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
+        - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
           description: Successful Response
@@ -254,6 +266,18 @@ paths:
             Optional Nexus credential ID for AAP Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
+        - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
         - in: query
           name: organization
           required: false
@@ -419,6 +443,18 @@ paths:
             Optional Nexus credential ID for AAP Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
+        - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
           description: Successful Response
@@ -568,6 +604,18 @@ paths:
             Optional Nexus credential ID for AAP Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
+        - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
         - in: query
           name: organization
           required: false
@@ -733,6 +781,18 @@ paths:
             Optional Nexus credential ID for AAP Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
+        - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
           description: Successful Response
@@ -882,6 +942,18 @@ paths:
             Optional Nexus credential ID for AAP Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
+        - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
         - in: query
           name: organization
           required: false
@@ -1041,6 +1113,18 @@ paths:
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
+        - in: query
           name: organization
           required: false
           schema:
@@ -1198,6 +1282,18 @@ paths:
             Optional Nexus credential ID for AAP Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
+        - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
           description: Successful Response
@@ -1347,6 +1443,18 @@ paths:
             Optional Nexus credential ID for AAP Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
+        - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
           description: Successful Response
@@ -1482,8 +1590,8 @@ paths:
             minimum: 1
             default: 50
             title: Page Size
-        - name: credential_id
-          in: query
+        - in: query
+          name: credential_id
           required: false
           schema:
             anyOf:
@@ -1491,6 +1599,22 @@ paths:
                 format: uuid
               - type: 'null'
             title: Credential Id
+          description: |
+            Optional Nexus credential ID for AAP Controller authentication.
+            If provided, the credential is decrypted and used instead of environment variables.
+            Credential must be of type "Ansible Automation Platform".
+        - in: query
+          name: integration_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Integration Id
+          description: |
+            Optional AAP Gateway integration ID for connection URL resolution.
+            When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
           description: Successful Response
@@ -36905,6 +37029,12 @@ components:
             - type: 'null'
           title: Credential Id
           description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+        integration_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Integration Id
+          description: UUID of the AAP Gateway integration for connection URL resolution.
         organizationId:
           anyOf:
             - type: integer
@@ -37054,6 +37184,12 @@ components:
             - type: 'null'
           title: Credential Id
           description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+        integration_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Integration Id
+          description: UUID of the AAP Gateway integration for connection URL resolution.
         organizationId:
           anyOf:
             - type: integer

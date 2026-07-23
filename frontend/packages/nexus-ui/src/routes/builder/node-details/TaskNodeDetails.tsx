@@ -46,6 +46,7 @@ import { AIAgentNodeDetails } from './AIAgentNodeDetails'
 type StoredAAPConfig = AAPJobTemplateConfig & {
   // Snake_case API field names (backend format)
   credential_id?: string
+  integration_id?: string
   organization_id?: number
   organization_name?: string
   job_template_id?: number
@@ -225,6 +226,14 @@ function buildScriptConfig(data: RegistryActionFormData): {
  * Build initial form data from a stored AAP job template config.
  * Handles both snake_case (API) and camelCase (legacy) field names.
  */
+function getStringField(config: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const val = config[key]
+    if (typeof val === 'string') return val
+  }
+  return undefined
+}
+
 function buildAAPInitialData(taskName: string, config: Record<string, unknown>): Partial<AAPJobTemplateFormData> {
   if (!hasJobTemplateConfig(config)) {
     return { name: taskName }
@@ -233,7 +242,8 @@ function buildAAPInitialData(taskName: string, config: Record<string, unknown>):
 
   return {
     name: taskName,
-    credential_id: c.credential_id ?? c.credentialId,
+    credential_id: getStringField(c, 'credential_id', 'credentialId'),
+    integration_id: getStringField(c, 'integration_id', 'integrationId'),
     organization_id: c.organization_id ?? c.organizationId,
     organization_name: getField(c.organization_name, c.organization, ''),
     job_template_name: getField(c.job_template_name, c.jobTemplateName, ''),
@@ -267,7 +277,8 @@ function buildAAPWorkflowInitialData(
   const c = config
   return {
     name: taskName,
-    credential_id: (c.credential_id ?? c.credentialId) as string | undefined,
+    credential_id: getStringField(c, 'credential_id', 'credentialId'),
+    integration_id: getStringField(c, 'integration_id', 'integrationId'),
     organization_id: (c.organization_id ?? c.organizationId) as number | undefined,
     organization_name: getField(c.organization_name, c.organization, '') as string | undefined,
     workflow_job_template_name: getField(c.workflow_job_template_name, c.workflowJobTemplateName, '') as

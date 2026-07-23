@@ -2,12 +2,13 @@
 
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
 
 from nexus.aap.auth import AAPConnection
-from nexus.aap.exceptions import AAPAuthenticationError, AAPConnectionError, AAPUpstreamError
+from nexus.aap.exceptions import AAPAuthenticationError, AAPConnectionError, AAPNotConfiguredError, AAPUpstreamError
 from nexus.aap.models.queries import AAPBaseQuery, AAPResourceQuery
 from nexus.aap.services.aap_proxy_service import AAPProxyService
 
@@ -875,12 +876,36 @@ class TestCredentialAuthorization:
     """Tests for credential-based authorization (security)."""
 
     @pytest.mark.asyncio
+    async def test_missing_integration_id_raises_not_configured(self) -> None:
+        """Calling _resolve_connection without integration_id must raise AAPNotConfiguredError."""
+        service = _service()
+        user_id = uuid4()
+
+        with pytest.raises(AAPNotConfiguredError, match="integration_id is required"):
+            await service._resolve_connection(credential_id="550e8400-e29b-41d4-a716-446655440000", user_id=user_id)
+
+    @pytest.mark.asyncio
+    async def test_missing_credential_id_raises_not_configured(self) -> None:
+        """Calling _resolve_connection without credential_id must raise AAPNotConfiguredError."""
+        service = _service()
+        integration_id = uuid4()
+        user_id = uuid4()
+
+        with pytest.raises(AAPNotConfiguredError, match="credential_id is required"):
+            await service._resolve_connection(integration_id=integration_id, user_id=user_id)
+
+    @pytest.mark.asyncio
     async def test_credential_id_without_user_id_raises_value_error(self) -> None:
         """Passing credential_id without user_id must raise ValueError (security violation)."""
         service = _service()
+        integration_id = uuid4()
 
         with pytest.raises(ValueError, match="user_id is required when credential_id is provided"):
-            await service._resolve_connection(credential_id="550e8400-e29b-41d4-a716-446655440000", user_id=None)
+            await service._resolve_connection(
+                credential_id="550e8400-e29b-41d4-a716-446655440000",
+                integration_id=integration_id,
+                user_id=None,
+            )
 
     @pytest.mark.asyncio
     async def test_invalid_credential_id_format_raises_authentication_error(self) -> None:
@@ -895,4 +920,293 @@ class TestCredentialAuthorization:
         with pytest.raises(AAPAuthenticationError, match="Invalid credential_id format"):
             await resolve_aap_connection_from_credential(
                 session=mock_session, credential_id="not-a-uuid", user_id=user_id
+            )
+
+
+def _mock_integration(
+    *,
+    integration_id: UUID | None = None,
+    integration_type: str = "ansible_automation_platform",
+    enabled: bool = True,
+    name: str = "Test AAP Integration",
+    aap_url: str = "https://aap-integration.example.com",
+    insecure_skip_tls_verify: bool = False,
+    config_valid: bool = True,
+) -> MagicMock:
+    """Build a mock Integration with AAPConfiguration."""
+    from nexus.integrations.models.integration import IntegrationType
+
+    integration = MagicMock()
+    integration.id = integration_id or uuid4()
+    integration.name = name
+    integration.enabled = enabled
+    integration.integration_type = IntegrationType(integration_type)
+
+    if config_valid:
+        config = MagicMock()
+        config.aap_url = aap_url
+        config.insecure_skip_tls_verify = insecure_skip_tls_verify
+        # Make isinstance check pass for AAPConfiguration
+        from nexus.integrations.models.integration_configuration import AAPConfiguration
+
+        config.__class__ = AAPConfiguration  # type: ignore[assignment]
+        integration.configuration = config
+    else:
+        integration.configuration = "invalid"
+
+    return integration
+
+
+def _mock_session_with_integration(integration: MagicMock | None) -> AsyncMock:
+    """Build an AsyncMock session that returns the given integration from exec().one_or_none()."""
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.one_or_none.return_value = integration
+    mock_session.exec.return_value = mock_result
+    return mock_session
+
+
+class TestResolveConnectionFromIntegration:
+    """Tests for _resolve_connection_from_integration."""
+
+    @pytest.mark.asyncio
+    async def test_integration_with_credential_uses_integration_url_and_credential_auth(self) -> None:
+        """URL from integration, auth from credential when both IDs provided.
+
+        When integration_id and credential_id are provided, URL comes from integration,
+        auth comes from credential.
+        """
+        integration = _mock_integration(aap_url="https://aap-gw.example.com/")
+        mock_session = _mock_session_with_integration(integration)
+        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+
+        cred_connection = AAPConnection(
+            base_url="https://ignored.example.com",
+            headers={"Authorization": "Bearer cred-token"},
+            verify_ssl=True,
+            timeout=30.0,
+        )
+
+        credential_id = uuid4()
+        user_id = uuid4()
+
+        with patch(
+            "nexus.aap.services.aap_proxy_service.resolve_aap_connection_from_credential",
+            new_callable=AsyncMock,
+            return_value=cred_connection,
+        ) as mock_cred_resolver:
+            result = await service._resolve_connection(
+                integration_id=integration.id,
+                credential_id=credential_id,
+                user_id=user_id,
+            )
+
+        # URL comes from integration (trailing slash stripped)
+        assert result.base_url == "https://aap-gw.example.com"
+        # Auth comes from credential
+        assert result.headers == {"Authorization": "Bearer cred-token"}
+        # verify_ssl from integration config (insecure_skip_tls_verify=False -> verify_ssl=True)
+        assert result.verify_ssl is True
+        # Credential resolver was called
+        mock_cred_resolver.assert_called_once_with(session=mock_session, credential_id=credential_id, user_id=user_id)
+
+    @pytest.mark.asyncio
+    async def test_integration_not_found_raises_not_configured(self) -> None:
+        """When integration_id does not match any record, AAPNotConfiguredError is raised."""
+        mock_session = _mock_session_with_integration(None)
+        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+
+        missing_id = uuid4()
+
+        credential_id = uuid4()
+        user_id = uuid4()
+
+        with pytest.raises(AAPNotConfiguredError, match=f"Integration {missing_id} not found"):
+            await service._resolve_connection(integration_id=missing_id, credential_id=credential_id, user_id=user_id)
+
+    @pytest.mark.asyncio
+    async def test_integration_disabled_raises_not_configured(self) -> None:
+        """When integration is disabled, AAPNotConfiguredError is raised."""
+        integration = _mock_integration(enabled=False, name="Disabled AAP")
+        mock_session = _mock_session_with_integration(integration)
+        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+
+        credential_id = uuid4()
+        user_id = uuid4()
+
+        with pytest.raises(AAPNotConfiguredError, match="disabled"):
+            await service._resolve_connection(
+                integration_id=integration.id, credential_id=credential_id, user_id=user_id
+            )
+
+    @pytest.mark.asyncio
+    async def test_integration_wrong_type_raises_not_configured(self) -> None:
+        """When integration is not type ansible_automation_platform, AAPNotConfiguredError is raised."""
+        integration = _mock_integration(integration_type="mcp_server")
+        mock_session = _mock_session_with_integration(integration)
+        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+
+        credential_id = uuid4()
+        user_id = uuid4()
+
+        with pytest.raises(AAPNotConfiguredError, match="expected 'ansible_automation_platform'"):
+            await service._resolve_connection(
+                integration_id=integration.id, credential_id=credential_id, user_id=user_id
+            )
+
+    @pytest.mark.asyncio
+    async def test_integration_id_as_string_uuid_is_accepted(self) -> None:
+        """String-form UUID for integration_id should be parsed and accepted."""
+        integration_id = uuid4()
+        integration = _mock_integration(integration_id=integration_id, aap_url="https://aap-str.example.com")
+        mock_session = _mock_session_with_integration(integration)
+        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+
+        cred_connection = AAPConnection(
+            base_url="https://ignored.example.com",
+            headers={"Authorization": "Bearer cred-token"},
+            verify_ssl=True,
+            timeout=30.0,
+        )
+
+        credential_id = uuid4()
+        user_id = uuid4()
+
+        with patch(
+            "nexus.aap.services.aap_proxy_service.resolve_aap_connection_from_credential",
+            new_callable=AsyncMock,
+            return_value=cred_connection,
+        ):
+            result = await service._resolve_connection(
+                integration_id=str(integration_id),
+                credential_id=credential_id,
+                user_id=user_id,
+            )
+
+        assert result.base_url == "https://aap-str.example.com"
+
+    @pytest.mark.asyncio
+    async def test_integration_id_invalid_string_raises_not_configured(self) -> None:
+        """Non-UUID string for integration_id should raise AAPNotConfiguredError."""
+        mock_session = AsyncMock()
+        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+
+        credential_id = uuid4()
+        user_id = uuid4()
+
+        with pytest.raises(AAPNotConfiguredError, match="Invalid integration_id format"):
+            await service._resolve_connection(integration_id="not-a-uuid", credential_id=credential_id, user_id=user_id)
+
+    @pytest.mark.asyncio
+    async def test_integration_with_insecure_tls_sets_verify_ssl_false(self) -> None:
+        """When integration config has insecure_skip_tls_verify=True, verify_ssl should be False."""
+        integration = _mock_integration(
+            aap_url="https://aap-insecure.example.com",
+            insecure_skip_tls_verify=True,
+        )
+        mock_session = _mock_session_with_integration(integration)
+        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+
+        cred_connection = AAPConnection(
+            base_url="https://ignored.example.com",
+            headers={"Authorization": "Bearer cred-token"},
+            verify_ssl=True,
+            timeout=30.0,
+        )
+
+        credential_id = uuid4()
+        user_id = uuid4()
+
+        with patch(
+            "nexus.aap.services.aap_proxy_service.resolve_aap_connection_from_credential",
+            new_callable=AsyncMock,
+            return_value=cred_connection,
+        ):
+            result = await service._resolve_connection(
+                integration_id=integration.id,
+                credential_id=credential_id,
+                user_id=user_id,
+            )
+
+        assert result.verify_ssl is False
+
+    @pytest.mark.asyncio
+    async def test_integration_with_credential_but_no_user_id_raises_value_error(self) -> None:
+        """Passing credential_id without user_id must raise ValueError."""
+        service = _service()
+        integration_id = uuid4()
+        credential_id = uuid4()
+
+        with pytest.raises(ValueError, match="user_id is required when credential_id is provided"):
+            await service._resolve_connection(
+                integration_id=integration_id,
+                credential_id=credential_id,
+                user_id=None,
+            )
+
+
+class TestEnforceIntegrationVisibility:
+    """Tests for _enforce_integration_visibility."""
+
+    @pytest.mark.asyncio
+    async def test_global_scope_integration_accessible_with_restricted_projects(self) -> None:
+        """GLOBAL-scoped integrations must be accessible regardless of allowed_projects."""
+        from nexus.authz.engine import AllowedProjectsResult
+        from nexus.integrations.models.integration import IntegrationScope
+
+        integration = _mock_integration(aap_url="https://aap-global.example.com")
+        integration.scope = IntegrationScope.GLOBAL
+        mock_session = _mock_session_with_integration(integration)
+
+        restricted_projects = AllowedProjectsResult(all_projects=False, project_ids=[uuid4()])
+        service = AAPProxyService(settings=_mock_settings(), session=mock_session, allowed_projects=restricted_projects)
+
+        cred_connection = AAPConnection(
+            base_url="https://ignored.example.com",
+            headers={"Authorization": "Bearer cred-token"},
+            verify_ssl=True,
+            timeout=30.0,
+        )
+
+        with patch(
+            "nexus.aap.services.aap_proxy_service.resolve_aap_connection_from_credential",
+            new_callable=AsyncMock,
+            return_value=cred_connection,
+        ):
+            result = await service._resolve_connection(
+                integration_id=integration.id,
+                credential_id=uuid4(),
+                user_id=uuid4(),
+            )
+
+        assert result.base_url == "https://aap-global.example.com"
+
+    @pytest.mark.asyncio
+    async def test_project_scope_integration_blocked_without_matching_project(self) -> None:
+        """PROJECT-scoped integrations must raise when user has no matching project."""
+        from nexus.authz.engine import AllowedProjectsResult
+        from nexus.integrations.models.integration import IntegrationScope
+
+        integration = _mock_integration(aap_url="https://aap-project.example.com")
+        integration.scope = IntegrationScope.PROJECT
+
+        mock_session = AsyncMock()
+        mock_result_integration = MagicMock()
+        mock_result_integration.one_or_none.return_value = integration
+        mock_result_projects = MagicMock()
+        mock_result_projects.all.return_value = [uuid4()]
+        mock_session.exec = AsyncMock(side_effect=[mock_result_integration, mock_result_projects])
+
+        unrelated_project = uuid4()
+        restricted_projects = AllowedProjectsResult(all_projects=False, project_ids=[unrelated_project])
+        service = AAPProxyService(settings=_mock_settings(), session=mock_session, allowed_projects=restricted_projects)
+
+        credential_id = uuid4()
+        user_id = uuid4()
+
+        with pytest.raises(AAPNotConfiguredError, match="not found"):
+            await service._resolve_connection(
+                integration_id=integration.id,
+                credential_id=credential_id,
+                user_id=user_id,
             )

@@ -1,11 +1,11 @@
 import { Stack, StackItem, Switch, Title } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
+import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { useAAPBrowser } from '../../../hooks/useAAPBrowser'
 import { detachPromise } from '../../../utils/detachPromise'
-import { CredentialSelector } from '../components/CredentialSelector'
+import { AAPIntegrationSection } from '../components/AAPIntegrationSection'
 import type { ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -13,7 +13,6 @@ import { applyDefaultValues, isExpression, sanitizeArrayField } from './aapFormH
 import { aapJobTemplateSchema, type AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { PromptOnLaunchFields } from './AAPPromptOnLaunchFields'
 import { AAPResourcePickers } from './AAPResourcePickers'
-import { credentialHelpText } from './credentialSelectorHelpText'
 import { ExpressionTextField } from './ExpressionTextField'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
@@ -37,16 +36,18 @@ function AAPFormFields({
   extraVarsEditorRef,
   initialData,
   selectedCredentialId,
+  selectedIntegrationId,
   projectId,
 }: Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   extraVarsEditorRef: React.RefObject<ExpandableCodeEditorHandle | null>
   initialData?: Partial<AAPJobTemplateFormData>
   selectedCredentialId: string | undefined
+  selectedIntegrationId: string | undefined
   projectId?: string
 }>) {
   const isVersionView = useIsVersionView()
-  const { register, setValue, getValues, control } = useFormContext<AAPJobTemplateFormData>()
+  const { register, setValue, getValues } = useFormContext<AAPJobTemplateFormData>()
 
   // Auto-detect expression mode from initial data
   const hasExpressionInInitialData =
@@ -57,10 +58,15 @@ function AAPFormFields({
 
   const [expressionMode, setExpressionMode] = useState(hasExpressionInInitialData)
 
-  const browser = useAAPBrowser(selectedCredentialId, {
-    organization: initialData?.organization_name,
-    jobTemplateId: initialData?.job_template_id,
-  })
+  const browser = useAAPBrowser(
+    selectedCredentialId,
+    {
+      organization: initialData?.organization_name,
+      jobTemplateId: initialData?.job_template_id,
+    },
+    undefined,
+    selectedIntegrationId
+  )
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="aap-name" ariaLabel="Name" />,
@@ -110,114 +116,109 @@ function AAPFormFields({
       </StackItem>
 
       <StackItem>
-        <Controller
-          control={control}
-          name="credential_id"
-          render={({ field }) => (
-            <CredentialSelector
-              value={field.value}
-              onChange={field.onChange}
-              compatibleTypeNames={['Ansible Automation Platform']}
-              label="Authentication credential"
-              fieldId="aap-credential"
-              placeholder="Select credential"
-              allowCreate
-              isDisabled={isVersionView}
-              projectId={projectId}
-              helpText={credentialHelpText(
-                'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
-              )}
-            />
-          )}
+        <AAPIntegrationSection
+          selectedIntegrationId={selectedIntegrationId}
+          selectedCredentialId={selectedCredentialId}
+          isDisabled={isVersionView}
+          projectId={projectId}
         />
       </StackItem>
 
-      <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
-        {expressionMode ? (
-          <>
-            <StackItem>
-              <ExpressionTextField
-                name="organization_name"
-                id="aap-organization-expr"
-                label="Organization"
-                placeholder="org name or drag expression"
-                isRequired
-              />
-            </StackItem>
-            <StackItem>
-              <ExpressionTextField
-                name="job_template_name"
-                id="aap-jobTemplate-expr"
-                label="Job template"
-                placeholder="template name or drag expression"
-                isRequired
-              />
-            </StackItem>
-            <StackItem>
-              <ExpressionTextField
-                name="inventory_name"
-                id="aap-inventory-expr"
-                label="Inventory"
-                placeholder="inventory name or drag expression"
-              />
-            </StackItem>
-            <StackItem>
-              <ExpressionTextField
-                name="limit"
-                id="aap-limit-expr"
-                label="Limit"
-                placeholder="host pattern or drag expression"
-              />
-            </StackItem>
-            <StackItem>
-              <ExpressionTextField name="tags" id="aap-tags-expr" label="Tags" placeholder="tags or drag expression" />
-            </StackItem>
-            <StackItem>
-              <ExpressionTextField
-                name="skip_tags"
-                id="aap-skipTags-expr"
-                label="Skip tags"
-                placeholder="skip tags or drag expression"
-              />
-            </StackItem>
-            <StackItem>
-              <ExpressionTextField
-                name="extra_vars"
-                id="aap-extraVars-expr"
-                label="Extra variables"
-                placeholder='{"key": "value"} or drag expression'
-              />
-            </StackItem>
-          </>
-        ) : (
-          <>
-            <AAPResourcePickers browser={browser} />
+      <StackItem>
+        <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+          <Stack hasGutter>
+            {expressionMode ? (
+              <>
+                <StackItem>
+                  <ExpressionTextField
+                    name="organization_name"
+                    id="aap-organization-expr"
+                    label="Organization"
+                    placeholder="org name or drag expression"
+                    isRequired
+                  />
+                </StackItem>
+                <StackItem>
+                  <ExpressionTextField
+                    name="job_template_name"
+                    id="aap-jobTemplate-expr"
+                    label="Job template"
+                    placeholder="template name or drag expression"
+                    isRequired
+                  />
+                </StackItem>
+                <StackItem>
+                  <ExpressionTextField
+                    name="inventory_name"
+                    id="aap-inventory-expr"
+                    label="Inventory"
+                    placeholder="inventory name or drag expression"
+                  />
+                </StackItem>
+                <StackItem>
+                  <ExpressionTextField
+                    name="limit"
+                    id="aap-limit-expr"
+                    label="Limit"
+                    placeholder="host pattern or drag expression"
+                  />
+                </StackItem>
+                <StackItem>
+                  <ExpressionTextField
+                    name="tags"
+                    id="aap-tags-expr"
+                    label="Tags"
+                    placeholder="tags or drag expression"
+                  />
+                </StackItem>
+                <StackItem>
+                  <ExpressionTextField
+                    name="skip_tags"
+                    id="aap-skipTags-expr"
+                    label="Skip tags"
+                    placeholder="skip tags or drag expression"
+                  />
+                </StackItem>
+                <StackItem>
+                  <ExpressionTextField
+                    name="extra_vars"
+                    id="aap-extraVars-expr"
+                    label="Extra variables"
+                    placeholder='{"key": "value"} or drag expression'
+                  />
+                </StackItem>
+              </>
+            ) : (
+              <>
+                <AAPResourcePickers browser={browser} />
 
-            <StackItem>
-              <PromptOnLaunchFields
-                extraVarsEditorRef={extraVarsEditorRef}
-                templateDetail={browser.templateDetail}
-                isLoadingDetail={browser.loadingTemplateDetail}
-                inventories={browser.inventories}
-                loadingInventories={browser.loadingInventories}
-                executionEnvironments={browser.executionEnvironments}
-                loadingExecutionEnvironments={browser.loadingExecutionEnvironments}
-                credentials={browser.credentials}
-                loadingCredentials={browser.loadingCredentials}
-                instanceGroups={browser.instanceGroups}
-                loadingInstanceGroups={browser.loadingInstanceGroups}
-                labels={browser.labels}
-                loadingLabels={browser.loadingLabels}
-                onSearchInventories={browser.searchInventories}
-                onSearchExecutionEnvironments={browser.searchExecutionEnvironments}
-                onSearchCredentials={browser.searchCredentials}
-                onSearchInstanceGroups={browser.searchInstanceGroups}
-                onSearchLabels={browser.searchLabels}
-              />
-            </StackItem>
-          </>
-        )}
-      </fieldset>
+                <StackItem>
+                  <PromptOnLaunchFields
+                    extraVarsEditorRef={extraVarsEditorRef}
+                    templateDetail={browser.templateDetail}
+                    isLoadingDetail={browser.loadingTemplateDetail}
+                    inventories={browser.inventories}
+                    loadingInventories={browser.loadingInventories}
+                    executionEnvironments={browser.executionEnvironments}
+                    loadingExecutionEnvironments={browser.loadingExecutionEnvironments}
+                    credentials={browser.credentials}
+                    loadingCredentials={browser.loadingCredentials}
+                    instanceGroups={browser.instanceGroups}
+                    loadingInstanceGroups={browser.loadingInstanceGroups}
+                    labels={browser.labels}
+                    loadingLabels={browser.loadingLabels}
+                    onSearchInventories={browser.searchInventories}
+                    onSearchExecutionEnvironments={browser.searchExecutionEnvironments}
+                    onSearchCredentials={browser.searchCredentials}
+                    onSearchInstanceGroups={browser.searchInstanceGroups}
+                    onSearchLabels={browser.searchLabels}
+                  />
+                </StackItem>
+              </>
+            )}
+          </Stack>
+        </fieldset>
+      </StackItem>
     </Stack>
   )
 
@@ -244,6 +245,7 @@ export function AAPJobTemplateForm(props: Readonly<AAPNodeFormProps>) {
   const defaultValues: AAPJobTemplateFormData = {
     name: '',
     credential_id: undefined,
+    integration_id: undefined,
     organization_name: '',
     job_template_name: '',
     job_template_id: undefined,
@@ -268,7 +270,11 @@ export function AAPJobTemplateForm(props: Readonly<AAPNodeFormProps>) {
     reValidateMode: 'onChange',
   })
 
-  // Watch credential_id using useWatch for proper reactivity
+  const selectedIntegrationId = useWatch({
+    control: methods.control,
+    name: 'integration_id',
+  })
+
   const selectedCredentialId = useWatch({
     control: methods.control,
     name: 'credential_id',
@@ -309,6 +315,7 @@ export function AAPJobTemplateForm(props: Readonly<AAPNodeFormProps>) {
           extraVarsEditorRef={extraVarsEditorRef}
           initialData={props.initialData}
           selectedCredentialId={selectedCredentialId}
+          selectedIntegrationId={selectedIntegrationId}
           projectId={props.projectId}
         />
       </NodeFormContainer>
