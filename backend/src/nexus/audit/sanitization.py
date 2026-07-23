@@ -81,7 +81,10 @@ def redact_by_partial_key(patterns: list[str]) -> PIIDetector:  # noqa: C901
 
         return middle in key_lower
 
-    def detector(_: Any, key: str) -> Any | None:  # noqa: ANN401
+    def detector(value: Any, key: str) -> Any | None:  # noqa: ANN401
+        if isinstance(value, bool):
+            return None
+
         key_lower = key.lower()
 
         for pattern in patterns_lower:
@@ -124,7 +127,10 @@ def redact_by_camel_case_key(patterns: list[str]) -> PIIDetector:
     """
     patterns_lower = tuple(p.lower() for p in patterns)
 
-    def detector(_: Any, key: str) -> Any | None:  # noqa: ANN401
+    def detector(value: Any, key: str) -> Any | None:  # noqa: ANN401
+        if isinstance(value, bool):
+            return None
+
         # Split camelCase/PascalCase into words using regex
         # This handles: userPassword -> ['user', 'Password']
         #              PASSWORD -> ['PASSWORD']

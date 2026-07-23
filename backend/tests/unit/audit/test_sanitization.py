@@ -589,6 +589,87 @@ class TestEventSanitizer:
         assert sanitized_data.function_args == original_args
 
 
+class TestBooleanPreservation:
+    """Test that boolean values are never redacted by key-based detectors (AAP-83652).
+
+    Booleans are forensic metadata (e.g. credential_used, password_set, token_expired)
+    and should pass through even when their key matches a sensitive pattern.
+    """
+
+    def test_partial_key_preserves_booleans(self) -> None:
+        """redact_by_partial_key should not redact boolean values."""
+        detector = redact_by_partial_key(["credential", "password", "token"])
+
+        assert detector(True, "credential_used") is None  # noqa: FBT003
+        assert detector(False, "credential_used") is None  # noqa: FBT003
+        assert detector(True, "password_set") is None  # noqa: FBT003
+        assert detector(False, "token_expired") is None  # noqa: FBT003
+
+    def test_camel_case_key_preserves_booleans(self) -> None:
+        """redact_by_camel_case_key should not redact boolean values."""
+        detector = redact_by_camel_case_key(["credential", "password", "token"])
+
+        assert detector(True, "credentialUsed") is None  # noqa: FBT003
+        assert detector(False, "credentialUsed") is None  # noqa: FBT003
+        assert detector(True, "passwordSet") is None  # noqa: FBT003
+        assert detector(False, "tokenExpired") is None  # noqa: FBT003
+
+    def test_partial_key_still_redacts_strings_for_credential_keys(self) -> None:
+        """String values for credential-pattern keys must still be redacted."""
+        detector = redact_by_partial_key(["credential", "password"])
+
+        assert detector("my-secret-credential", "credential_value") == REDACTED
+        assert detector("hunter2", "password_hash") == REDACTED
+
+    def test_camel_case_still_redacts_strings_for_credential_keys(self) -> None:
+        """String values for credential-pattern camelCase keys must still be redacted."""
+        detector = redact_by_camel_case_key(["credential", "password"])
+
+        assert detector("my-secret", "credentialValue") == REDACTED
+        assert detector("hunter2", "passwordHash") == REDACTED
+
+    def test_sanitizer_preserves_credential_used_boolean(self) -> None:
+        """Full sanitizer should preserve credential_used boolean in AuditContextData."""
+        from nexus.audit.sanitization import sanitizer
+
+        data = AuditContextData(data_type="aap-resource-access")
+        data.credential_used = True
+
+        sanitized = sanitizer.sanitize(data)
+        assert sanitized.credential_used is True
+
+    def test_sanitizer_preserves_credential_used_false(self) -> None:
+        """Full sanitizer should preserve credential_used=False."""
+        from nexus.audit.sanitization import sanitizer
+
+        data = AuditContextData(data_type="aap-resource-access")
+        data.credential_used = False
+
+        sanitized = sanitizer.sanitize(data)
+        assert sanitized.credential_used is False
+
+    def test_sanitizer_preserves_nested_booleans_with_sensitive_keys(self) -> None:
+        """Nested booleans in dicts with credential-pattern keys should be preserved."""
+        from nexus.audit.sanitization import sanitizer
+
+        data = AuditContextData(
+            data_type="test",
+            function_args={
+                "credential_used": True,
+                "password_set": False,
+                "token_expired": True,
+                "password_value": "should-be-redacted",
+            },
+        )
+
+        sanitized = sanitizer.sanitize(data)
+        assert sanitized.function_args is not None
+        assert sanitized.function_args["credential_used"] is True
+        assert sanitized.function_args["password_set"] is False
+        assert sanitized.function_args["token_expired"] is True
+        assert sanitized.function_args["password_value"] == REDACTED
+
+
 class TestPIIDetectorType:
     """Test the PIIDetector type alias."""
 
