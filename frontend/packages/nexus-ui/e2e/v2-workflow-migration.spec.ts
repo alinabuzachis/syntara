@@ -31,9 +31,11 @@ import {
   addApprovalNodeWithBranch,
   addConditionNodeWithBranch,
   addLoopNodeWithBody,
+  createLlmIntegration,
+  deleteLlmIntegration,
 } from './helpers/v2-nodes'
 import { addConvergeNode } from './helpers/v2-nodes-converge'
-import { buildUniqueName, selectProjectIfRequired } from './helpers/workflows'
+import { buildUniqueName, selectProjectIfRequired, deleteWorkflow } from './helpers/workflows'
 
 /** Inline v2 schema type (formerly in toV2Definition.ts stub, now replaced by generated contracts). */
 type V2WorkflowDefinition = {
@@ -139,62 +141,71 @@ test.describe('V2 Workflow Schema Migration', () => {
   // 2. All executor node types
   // -------------------------------------------------------------------------
 
-  // TODO: Fix E2E test helpers - UI text changed from "node" to "step" in v2 migration
-  // These tests validate v2 schema correctness but need helper updates for terminology changes.
   test.skip('creates and saves all v2 executor node types', async ({ app }) => {
     const workflowName = buildUniqueName('v2-all-executors')
     await app.goto(toAppUrl('/workflow-builder/new'))
 
-    // Manual trigger + all 5 executor types
-    // Note: Approval node must have a branch completed to be valid
-    await addManualTrigger(app, 'Start workflow')
-    await addScriptNode(app, 'Run script', 'echo "hello"')
-    await addHttpRequestNode(app, 'Fetch data', 'https://api.example.com/data')
-    await addAgenticNode(app, 'AI analysis', 'Analyze the fetched data')
-    await addAapNode(app, 'Deploy with Ansible', '456')
-    await addApprovalNodeWithBranch(app, 'Approve deployment')
-    // After approval, the workflow ends (the WithBranch helper adds a script on approved branch)
+    // Create LLM integration for agentic node
+    const llmIntegrationName = buildUniqueName('test-llm-integration')
+    const llmIntegration = await createLlmIntegration(app, llmIntegrationName)
 
-    // Wait for the approval node to be fully rendered before saving
-    await expect(app.getByText('Approve deployment')).toBeVisible({ timeout: 10_000 })
+    try {
+      // Manual trigger + all 5 executor types
+      // Note: Approval node must have a branch completed to be valid
+      await addManualTrigger(app, 'Start workflow')
+      await addScriptNode(app, 'Run script', 'echo "hello"')
+      await addHttpRequestNode(app, 'Fetch data', 'https://api.example.com/data')
+      await addAgenticNode(app, 'AI analysis', 'Analyze the fetched data')
+      await addAapNode(app, 'Deploy with Ansible', '456')
+      await addApprovalNodeWithBranch(app, 'Approve deployment')
+      // After approval, the workflow ends (the WithBranch helper adds a script on approved branch)
 
-    // Intercept save
-    const saveRequestPromise = app.waitForRequest((req) => req.url().includes('/workflows') && req.method() === 'POST')
-    await app.getByPlaceholder('Workflow name').fill(workflowName)
-    await app.getByRole('button', { name: 'Save' }).click()
-    const saveRequest = await saveRequestPromise
-    const def = getV2DefFromRequest(saveRequest)
+      // Wait for the approval node to be fully rendered before saving
+      await expect(app.getByText('Approve deployment')).toBeVisible({ timeout: 10_000 })
 
-    // Verify v2 schema
-    expectV2SchemaStructure(def)
+      // Intercept save
+      const saveRequestPromise = app.waitForRequest(
+        (req) => req.url().includes('/workflows') && req.method() === 'POST'
+      )
+      await app.getByPlaceholder('Workflow name').fill(workflowName)
+      await app.getByRole('button', { name: 'Save' }).click()
+      const saveRequest = await saveRequestPromise
+      const def = getV2DefFromRequest(saveRequest)
 
-    // All 5 executor node types must be present
-    const nodeTypes = def.nodes.map((n) => n.type)
-    expect(nodeTypes).toContain('script')
-    expect(nodeTypes).toContain('http_request')
-    expect(nodeTypes).toContain('agentic')
-    expect(nodeTypes).toContain('aap_job_template')
-    expect(nodeTypes).toContain('approval')
+      // Verify v2 schema
+      expectV2SchemaStructure(def)
 
-    // Each node must use v2 direct type (not v1 "task" with executor)
-    for (const node of def.nodes) {
-      expect(node).not.toHaveProperty('task')
-      expect(node).toHaveProperty('parameters')
+      // All 5 executor node types must be present
+      const nodeTypes = def.nodes.map((n) => n.type)
+      expect(nodeTypes).toContain('script')
+      expect(nodeTypes).toContain('http_request')
+      expect(nodeTypes).toContain('agentic')
+      expect(nodeTypes).toContain('aap_job_template')
+      expect(nodeTypes).toContain('approval')
+
+      // Each node must use v2 direct type (not v1 "task" with executor)
+      for (const node of def.nodes) {
+        expect(node).not.toHaveProperty('task')
+        expect(node).toHaveProperty('parameters')
+      }
+
+      // Trigger
+      expect(def.triggers[0].type).toBe('manual_trigger')
+
+      // Edges form a chain: trigger → script → http → ai → aap → approval
+      expect(def.edges.length).toBeGreaterThanOrEqual(5)
+
+      // Verify workflow appears in workflows list
+      await expect(app).toHaveURL(/workflow-builder\/.+/)
+      await app.goto(toAppUrl('/workflows'))
+      await app.getByPlaceholder('Filter by name').fill(workflowName)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      const targetRow = app.getByRole('row', { name: new RegExp(workflowName) })
+      await expect(targetRow).toBeVisible()
+    } finally {
+      await deleteWorkflow(app, workflowName)
+      await deleteLlmIntegration(app, llmIntegration.id)
     }
-
-    // Trigger
-    expect(def.triggers[0].type).toBe('manual_trigger')
-
-    // Edges form a chain: trigger → script → http → ai → aap → approval
-    expect(def.edges.length).toBeGreaterThanOrEqual(5)
-
-    // Verify workflow appears in workflows list
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
-    await app.goto(toAppUrl('/workflows'))
-    await app.getByPlaceholder('Filter by name').fill(workflowName)
-    await app.getByRole('button', { name: 'Apply filter' }).click()
-    const targetRow = app.getByRole('row', { name: new RegExp(workflowName) })
-    await expect(targetRow).toBeVisible()
   })
 
   // -------------------------------------------------------------------------
@@ -205,56 +216,62 @@ test.describe('V2 Workflow Schema Migration', () => {
     const workflowName = buildUniqueName('v2-control-flow')
     await app.goto(toAppUrl('/workflow-builder/new'))
 
-    // Manual trigger + all 3 control flow types
-    await addManualTrigger(app, 'Start')
-    await addConditionNodeWithBranch(app, 'Check condition')
-    await addLoopNodeWithBody(app, 'Iterate items')
-    await addConvergeNode(app, 'Merge branches')
+    try {
+      // Manual trigger + all 3 control flow types
+      await addManualTrigger(app, 'Start')
+      await addConditionNodeWithBranch(app, 'Check condition')
+      await addLoopNodeWithBody(app, 'Iterate items')
+      await addConvergeNode(app, 'Merge branches')
 
-    // Intercept save
-    const saveRequestPromise = app.waitForRequest((req) => req.url().includes('/workflows') && req.method() === 'POST')
-    await app.getByPlaceholder('Workflow name').fill(workflowName)
-    await app.getByRole('button', { name: 'Save' }).click()
-    const saveRequest = await saveRequestPromise
-    const def = getV2DefFromRequest(saveRequest)
+      // Intercept save
+      const saveRequestPromise = app.waitForRequest(
+        (req) => req.url().includes('/workflows') && req.method() === 'POST'
+      )
+      await app.getByPlaceholder('Workflow name').fill(workflowName)
+      await app.getByRole('button', { name: 'Save' }).click()
+      const saveRequest = await saveRequestPromise
+      const def = getV2DefFromRequest(saveRequest)
 
-    // Verify v2 schema
-    expectV2SchemaStructure(def)
+      // Verify v2 schema
+      expectV2SchemaStructure(def)
 
-    // All 3 control flow node types present
-    const nodeTypes = def.nodes.map((n) => n.type)
-    expect(nodeTypes).toContain('condition')
-    expect(nodeTypes).toContain('loop')
-    expect(nodeTypes).toContain('converge')
+      // All 3 control flow node types present
+      const nodeTypes = def.nodes.map((n) => n.type)
+      expect(nodeTypes).toContain('condition')
+      expect(nodeTypes).toContain('loop')
+      expect(nodeTypes).toContain('converge')
 
-    // Condition node: v2 flat parameters (not v1 nested then/else arrays)
-    const conditionNode = def.nodes.find((n) => n.type === 'condition')!
-    expect(conditionNode).toHaveProperty('parameters')
-    expect(conditionNode).not.toHaveProperty('then')
-    expect(conditionNode).not.toHaveProperty('else')
+      // Condition node: v2 flat parameters (not v1 nested then/else arrays)
+      const conditionNode = def.nodes.find((n) => n.type === 'condition')!
+      expect(conditionNode).toHaveProperty('parameters')
+      expect(conditionNode).not.toHaveProperty('then')
+      expect(conditionNode).not.toHaveProperty('else')
 
-    // Loop node: v2 flat parameters (not v1 nested do array)
-    const loopNode = def.nodes.find((n) => n.type === 'loop')!
-    expect(loopNode).toHaveProperty('parameters')
-    expect(loopNode).not.toHaveProperty('do')
+      // Loop node: v2 flat parameters (not v1 nested do array)
+      const loopNode = def.nodes.find((n) => n.type === 'loop')!
+      expect(loopNode).toHaveProperty('parameters')
+      expect(loopNode).not.toHaveProperty('do')
 
-    // Converge node: v2 uses parameters.strategy (not v1 nested branches array)
-    const convergeNode = def.nodes.find((n) => n.type === 'converge')!
-    expect(convergeNode).toHaveProperty('parameters')
+      // Converge node: v2 uses parameters.strategy (not v1 nested branches array)
+      const convergeNode = def.nodes.find((n) => n.type === 'converge')!
+      expect(convergeNode).toHaveProperty('parameters')
 
-    // Edges: condition should produce port-based edges in v2
-    const conditionEdges = def.edges.filter((e) => e.from === conditionNode.id)
-    const hasTruePort = conditionEdges.some((e) => e.from_port === 'true')
-    const hasFalsePort = conditionEdges.some((e) => e.from_port === 'false')
-    expect(hasTruePort).toBe(true)
-    expect(hasFalsePort).toBe(true)
+      // Edges: condition should produce port-based edges in v2
+      const conditionEdges = def.edges.filter((e) => e.from === conditionNode.id)
+      const hasTruePort = conditionEdges.some((e) => e.from_port === 'true')
+      const hasFalsePort = conditionEdges.some((e) => e.from_port === 'false')
+      expect(hasTruePort).toBe(true)
+      expect(hasFalsePort).toBe(true)
 
-    // Loop edges should use iterate/complete ports
-    const loopEdges = def.edges.filter((e) => e.from === loopNode.id)
-    const hasIteratePort = loopEdges.some((e) => e.from_port === 'iterate')
-    const hasCompletePort = loopEdges.some((e) => e.from_port === 'complete')
-    expect(hasIteratePort).toBe(true)
-    expect(hasCompletePort).toBe(true)
+      // Loop edges should use iterate/complete ports
+      const loopEdges = def.edges.filter((e) => e.from === loopNode.id)
+      const hasIteratePort = loopEdges.some((e) => e.from_port === 'iterate')
+      const hasCompletePort = loopEdges.some((e) => e.from_port === 'complete')
+      expect(hasIteratePort).toBe(true)
+      expect(hasCompletePort).toBe(true)
+    } finally {
+      await deleteWorkflow(app, workflowName)
+    }
   })
 
   // -------------------------------------------------------------------------
@@ -265,77 +282,88 @@ test.describe('V2 Workflow Schema Migration', () => {
     const workflowName = buildUniqueName('v2-comprehensive')
     await app.goto(toAppUrl('/workflow-builder/new'))
 
-    // --- Build a workflow with ALL 9 v2 node types ---
+    // Create LLM integration for agentic node
+    const llmIntegrationName = buildUniqueName('test-llm-integration-comprehensive')
+    const llmIntegration = await createLlmIntegration(app, llmIntegrationName)
 
-    // Trigger
-    await addManualTrigger(app, 'Start workflow')
+    try {
+      // --- Build a workflow with ALL 9 v2 node types ---
 
-    // Executors (sequential chain)
-    await addScriptNode(app, 'Validate input', 'print("validating")')
-    await addHttpRequestNode(app, 'Fetch API data', 'https://api.example.com')
-    await addAgenticNode(app, 'AI processing', 'Process the data')
-    await addAapNode(app, 'Ansible deployment', '789')
-    await addApprovalNodeWithBranch(app, 'Manual approval')
+      // Trigger
+      await addManualTrigger(app, 'Start workflow')
 
-    // Control flow
-    await addConditionNodeWithBranch(app, 'Branch decision')
-    await addLoopNodeWithBody(app, 'Process items')
-    await addConvergeNode(app, 'Merge results')
+      // Executors (sequential chain)
+      await addScriptNode(app, 'Validate input', 'print("validating")')
+      await addHttpRequestNode(app, 'Fetch API data', 'https://api.example.com')
+      await addAgenticNode(app, 'AI processing', 'Process the data')
+      await addAapNode(app, 'Ansible deployment', '789')
+      await addApprovalNodeWithBranch(app, 'Manual approval')
 
-    // --- Save ---
-    const saveRequestPromise = app.waitForRequest((req) => req.url().includes('/workflows') && req.method() === 'POST')
-    await app.getByPlaceholder('Workflow name').fill(workflowName)
-    await app.getByRole('button', { name: 'Save' }).click()
-    const saveRequest = await saveRequestPromise
-    const def = getV2DefFromRequest(saveRequest)
+      // Control flow
+      await addConditionNodeWithBranch(app, 'Branch decision')
+      await addLoopNodeWithBody(app, 'Process items')
+      await addConvergeNode(app, 'Merge results')
 
-    // --- Verify v2 payload contains all 9 types ---
-    expectV2SchemaStructure(def)
+      // --- Save ---
+      const saveRequestPromise = app.waitForRequest(
+        (req) => req.url().includes('/workflows') && req.method() === 'POST'
+      )
+      await app.getByPlaceholder('Workflow name').fill(workflowName)
+      await app.getByRole('button', { name: 'Save' }).click()
+      const saveRequest = await saveRequestPromise
+      const def = getV2DefFromRequest(saveRequest)
 
-    const allTypes = collectAllTypes(def)
-    const expectedTypes = [
-      'manual_trigger',
-      'script',
-      'http_request',
-      'agentic',
-      'aap_job_template',
-      'approval',
-      'condition',
-      'loop',
-      'converge',
-    ]
-    for (const t of expectedTypes) {
-      expect(allTypes, `missing v2 node type: ${t}`).toContain(t)
-    }
+      // --- Verify v2 payload contains all 9 types ---
+      expectV2SchemaStructure(def)
 
-    // --- Round-trip: navigate away, come back, verify all nodes visible ---
-    await expect(app).toHaveURL(/workflow-builder\/.+/)
-    await app.goto(toAppUrl('/workflows'))
-    await app.getByPlaceholder('Filter by name').fill(workflowName)
-    await app.getByRole('button', { name: 'Apply filter' }).click()
-    const targetRow = app.getByRole('row', { name: new RegExp(workflowName) })
-    await expect(targetRow).toBeVisible()
+      const allTypes = collectAllTypes(def)
+      const expectedTypes = [
+        'manual_trigger',
+        'script',
+        'http_request',
+        'agentic',
+        'aap_job_template',
+        'approval',
+        'condition',
+        'loop',
+        'converge',
+      ]
+      for (const t of expectedTypes) {
+        expect(allTypes, `missing v2 node type: ${t}`).toContain(t)
+      }
 
-    // Reopen the saved workflow
-    await targetRow.getByRole('link', { name: workflowName, exact: true }).click()
+      // --- Round-trip: navigate away, come back, verify all nodes visible ---
+      await expect(app).toHaveURL(/workflow-builder\/.+/)
+      await app.goto(toAppUrl('/workflows'))
+      await app.getByPlaceholder('Filter by name').fill(workflowName)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      const targetRow = app.getByRole('row', { name: new RegExp(workflowName) })
+      await expect(targetRow).toBeVisible()
 
-    // Every node name should be visible on the canvas
-    const nodeNames = [
-      'Start workflow',
-      'Validate input',
-      'Fetch API data',
-      'AI processing',
-      'Ansible deployment',
-      'Manual approval',
-      'Branch decision',
-      'Process items',
-      'Merge results',
-    ]
-    for (const nodeName of nodeNames) {
-      await expect(
-        app.locator('.react-flow').getByText(nodeName, { exact: true }),
-        `node "${nodeName}" should be visible after reload`
-      ).toBeVisible()
+      // Reopen the saved workflow
+      await targetRow.getByRole('link', { name: workflowName, exact: true }).click()
+
+      // Every node name should be visible on the canvas
+      const nodeNames = [
+        'Start workflow',
+        'Validate input',
+        'Fetch API data',
+        'AI processing',
+        'Ansible deployment',
+        'Manual approval',
+        'Branch decision',
+        'Process items',
+        'Merge results',
+      ]
+      for (const nodeName of nodeNames) {
+        await expect(
+          app.locator('.react-flow').getByText(nodeName, { exact: true }),
+          `node "${nodeName}" should be visible after reload`
+        ).toBeVisible()
+      }
+    } finally {
+      await deleteWorkflow(app, workflowName)
+      await deleteLlmIntegration(app, llmIntegration.id)
     }
   })
 
@@ -394,5 +422,107 @@ test.describe('V2 Workflow Schema Migration', () => {
     expect(def.triggers[0].type).toBe('manual_trigger')
     expect(def.nodes[0].type).toBe('script')
     expect(def.nodes[0]).not.toHaveProperty('task')
+  })
+
+  // -------------------------------------------------------------------------
+  // 6. Edit and re-save persists changes
+  // -------------------------------------------------------------------------
+
+  test('edit and save workflow persists changes', async ({ app }) => {
+    const workflowName = buildUniqueName('v2-edit-persist')
+    await app.goto(toAppUrl('/workflow-builder/new'))
+
+    try {
+      // Create a simple workflow
+      await addManualTrigger(app)
+      await addScriptNode(app, 'Original script', 'print("original")')
+      await selectProjectIfRequired(app)
+      await app.getByPlaceholder('Workflow name').fill(workflowName)
+      await app.getByRole('button', { name: 'Save' }).click()
+      await expect(app).toHaveURL(/workflow-builder\/(?!new)/)
+
+      // Add a second node (edit the workflow)
+      await addScriptNode(app, 'Added script', 'print("added")')
+
+      // Re-save and capture the PATCH payload
+      const patchPromise = app.waitForRequest((req) => req.url().includes('/workflows/') && req.method() === 'PATCH')
+      await app.getByRole('button', { name: 'Save' }).click()
+      const patchRequest = await patchPromise
+      const editedDef = getV2DefFromRequest(patchRequest)
+
+      // Verify the edited definition retains v2 structure
+      expectV2SchemaStructure(editedDef)
+
+      // Both original and added nodes should be in the definition
+      expect(editedDef.nodes.length).toBeGreaterThanOrEqual(2)
+      const nodeNames = editedDef.nodes.map((n) => n.name)
+      expect(nodeNames).toContain('Original script')
+      expect(nodeNames).toContain('Added script')
+
+      // Edges should connect trigger → original → added
+      expect(editedDef.edges.length).toBeGreaterThanOrEqual(2)
+    } finally {
+      await deleteWorkflow(app, workflowName)
+    }
+  })
+
+  // -------------------------------------------------------------------------
+  // 7. Edges with ports persist after reload
+  // -------------------------------------------------------------------------
+
+  test('edges with from_port persist after page reload', async ({ app }) => {
+    const workflowName = buildUniqueName('v2-edge-ports')
+    await app.goto(toAppUrl('/workflow-builder/new'))
+
+    try {
+      // Create a workflow with a condition node (produces true/false port edges)
+      await addManualTrigger(app)
+      await addConditionNodeWithBranch(app, 'Branch check')
+
+      // Save
+      const savePromise = app.waitForRequest((req) => req.url().includes('/workflows') && req.method() === 'POST')
+      await selectProjectIfRequired(app)
+      await app.getByPlaceholder('Workflow name').fill(workflowName)
+      await app.getByRole('button', { name: 'Save' }).click()
+      const saveRequest = await savePromise
+      const savedDef = getV2DefFromRequest(saveRequest)
+
+      // Verify the saved definition has port-based edges
+      expectV2SchemaStructure(savedDef)
+      const conditionEdges = savedDef.edges.filter((e) => e.from_port === 'true' || e.from_port === 'false')
+      expect(conditionEdges.length).toBeGreaterThanOrEqual(1)
+
+      // Navigate away and reload the workflow
+      await expect(app).toHaveURL(/workflow-builder\/(?!new)/)
+      await app.goto(toAppUrl('/workflows'))
+      await app.getByPlaceholder('Filter by name').fill(workflowName)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+
+      // Intercept the GET response to verify edges are preserved
+      let reloadedBody: unknown = null
+      await app.route('**/workflows/*', async (route) => {
+        if (route.request().method() !== 'GET') {
+          await route.continue()
+          return
+        }
+        const response = await route.fetch()
+        reloadedBody = await response.json()
+        await route.fulfill({ response })
+      })
+
+      await app.getByRole('link', { name: workflowName, exact: true }).click()
+      await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName, { timeout: 30000 })
+      await app.unroute('**/workflows/*')
+
+      // Verify port-based edges survived the round-trip
+      expect(reloadedBody).not.toBeNull()
+      const reloadedDef = getV2DefFromResponse(reloadedBody)
+      expectV2SchemaStructure(reloadedDef)
+
+      const reloadedCondEdges = reloadedDef.edges.filter((e) => e.from_port === 'true' || e.from_port === 'false')
+      expect(reloadedCondEdges.length).toBeGreaterThanOrEqual(1)
+    } finally {
+      await deleteWorkflow(app, workflowName)
+    }
   })
 })

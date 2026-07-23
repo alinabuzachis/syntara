@@ -339,7 +339,8 @@ export const builderInteractivePages: CanvasPageEntry[] = [
       await page.getByRole('button', { name: 'Schedule trigger' }).click()
       const scheduleExpression = page.getByLabel('Schedule expression', { exact: true })
       await expect(scheduleExpression).toBeVisible()
-      await scheduleExpression.selectOption('interval')
+      await scheduleExpression.click()
+      await page.getByRole('option', { name: 'Visual schedule builder', exact: true }).click()
       await expect(page.getByLabel('Start date', { exact: true })).toBeVisible()
       await expect(page.getByLabel('Frequency', { exact: true })).toBeVisible()
     },

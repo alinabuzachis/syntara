@@ -83,7 +83,8 @@ test.describe('Visual regression — PF6 token migration', { tag: '@local-only' 
     // Select Visual schedule builder to show ScheduleBuilderFields
     const scheduleExpression = app.getByLabel('Schedule expression', { exact: true })
     await expect(scheduleExpression).toBeVisible()
-    await scheduleExpression.selectOption('interval')
+    await scheduleExpression.click()
+    await app.getByRole('option', { name: 'Visual schedule builder', exact: true }).click()
 
     // Wait for the schedule builder to render
     await expect(app.getByLabel('Start date', { exact: true })).toBeVisible()

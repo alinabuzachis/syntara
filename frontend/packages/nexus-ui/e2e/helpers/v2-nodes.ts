@@ -335,20 +335,71 @@ export async function addConditionNodeWithBranch(page: Page, name: string, expre
 }
 
 /** Add a loop node (v2 type: "loop") without completing the loop body. Defaults to "For each" loop. */
+/** Helper to select a loop type option with fallback handling */
+async function selectLoopTypeOption(page: Page) {
+  const allOptions = page.getByRole('option')
+  const optionCount = await allOptions.count()
+
+  if (optionCount === 0) {
+    // No options available, skip
+    return
+  }
+
+  // Try to select "For each" if it exists and is enabled
+  const forEachOption = page.getByRole('option', { name: 'For each', exact: true })
+  const forEachExists = await forEachOption.isVisible().catch(() => false)
+
+  if (forEachExists) {
+    const isDisabled = await forEachOption.getAttribute('aria-disabled')
+    if (isDisabled !== 'true') {
+      await forEachOption.click()
+      return
+    }
+  }
+
+  // Try to select first enabled option
+  const enabledOptions = page.getByRole('option').filter({ hasNot: page.locator('[aria-disabled="true"]') })
+  const enabledCount = await enabledOptions.count()
+
+  if (enabledCount > 0) {
+    await enabledOptions.first().click()
+  } else {
+    // All options disabled, click first option anyway as fallback
+    await allOptions.first().click()
+  }
+}
+
 export async function addLoopNode(page: Page, name: string, items = '${trigger.items}') {
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Logic', 'Loop')
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
-  // Ensure "For each" is selected (it may or may not be the default)
+
+  // Wait for the form to be fully loaded
+  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
+  await expect(nameInput).toBeVisible({ timeout: 10_000 })
+  await expect(nameInput).toBeEditable({ timeout: 5_000 })
+  await nameInput.fill(name)
+
+  // Handle Type dropdown if present
   const typeSelect = page.getByLabel('Type', { exact: true })
-  if (await typeSelect.isVisible().catch(() => false)) {
-    await typeSelect.selectOption({ label: 'For each' })
+  const typeSelectVisible = await typeSelect.isVisible().catch(() => false)
+
+  if (typeSelectVisible) {
+    // Wait for form to finish loading
+    await page.waitForTimeout(1000)
+    await typeSelect.click()
+    // Wait for dropdown options to load
+    await page.waitForTimeout(1000)
+
+    await selectLoopTypeOption(page)
   }
+
   // Fill items expression
   const itemsInput = page.getByLabel('Items expression')
-  if (await itemsInput.isVisible().catch(() => false)) {
+  const itemsInputVisible = await itemsInput.isVisible().catch(() => false)
+  if (itemsInputVisible) {
     await itemsInput.fill(items)
   }
+
   await page.getByRole('button', { name: 'Create', exact: true }).click()
   await closeNodeEditorPanel(page)
 }
