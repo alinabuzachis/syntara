@@ -43,6 +43,9 @@ class TemporalWorkerService:
         namespace: str,
         task_queue: str,
         activity_registry: dict[ActivityName, Callable[..., Any]] = ACTIVITY_REGISTRY,
+        max_cached_workflows: int = 50,
+        max_concurrent_workflow_tasks: int = 50,
+        max_concurrent_activities: int = 50,
     ) -> None:
         """Initialize Temporal worker service.
 
@@ -56,16 +59,37 @@ class TemporalWorkerService:
             task_queue: Task queue name for this worker
             activity_registry: Activity registry to use. Defaults to the full ACTIVITY_REGISTRY.
                 Pass BACKGROUND_ACTIVITY_REGISTRY for the background queue worker.
+            max_cached_workflows: Maximum workflow states cached in memory for replay.
+            max_concurrent_workflow_tasks: Maximum concurrent workflow task executions.
+            max_concurrent_activities: Maximum concurrent activity executions.
 
         """
         self.temporal_address = temporal_address
         self.namespace = namespace
         self._activity_registry = activity_registry
         self.task_queue = task_queue
+        self.max_cached_workflows = max_cached_workflows
+        self.max_concurrent_workflow_tasks = max_concurrent_workflow_tasks
+        self.max_concurrent_activities = max_concurrent_activities
+        concurrency = self._build_concurrency_config()
+        logger.info("worker_concurrency_configured", **concurrency)
+        workflow_thread_pool = self.max_concurrent_workflow_tasks
+        activity_thread_pool = self.max_concurrent_activities
+        total_thread_pool = workflow_thread_pool + activity_thread_pool
+        logger.info("worker_workflow_thread_pool", count=workflow_thread_pool)
+        logger.info("worker_activity_thread_pool", count=activity_thread_pool)
+        logger.info("worker_total_thread_pool", count=total_thread_pool)
         self.client: Client | None = None
         self.worker: Worker | None = None
         self._worker_task: asyncio.Task[None] | None = None
         self.activity_sync_service: ActivitySyncService | None = None
+
+    def _build_concurrency_config(self) -> dict[str, int]:
+        config: dict[str, int] = {}
+        config["max_cached_workflows"] = self.max_cached_workflows
+        config["max_concurrent_workflow_tasks"] = self.max_concurrent_workflow_tasks
+        config["max_concurrent_activities"] = self.max_concurrent_activities
+        return config
 
     async def start(self) -> None:
         """Start the Temporal worker.
@@ -128,18 +152,26 @@ class TemporalWorkerService:
             activities: list[Callable[..., Any]] = [*self._activity_registry.values(), scheduled_launcher.run]
 
             # Create worker with workflows, activities, and interceptors
+            logger.debug("creating_temporal_worker", task_queue=self.task_queue)
+            logger.debug("worker_max_cached_workflows", value=self.max_cached_workflows)
+            logger.debug("worker_max_concurrent_workflow_tasks", value=self.max_concurrent_workflow_tasks)
+            logger.debug("worker_max_concurrent_activities", value=self.max_concurrent_activities)
             self.worker = Worker(
                 self.client,
                 task_queue=self.task_queue,
                 workflows=[NexusWorkflow, ScheduledWorkflowLauncher],
                 activities=activities,
                 interceptors=[MonitoringWorkflowInterceptor(), CredentialOutputInterceptor()],
+                max_cached_workflows=self.max_cached_workflows,
+                max_concurrent_workflow_tasks=self.max_concurrent_workflow_tasks,
+                max_concurrent_activities=self.max_concurrent_activities,
             )
 
             # Start worker in background task
             self._worker_task = asyncio.create_task(self.worker.run())
 
-            logger.info("Temporal worker started successfully on queue", task_queue=self.task_queue)
+            concurrency = self._build_concurrency_config()
+            logger.info("temporal_worker_started", task_queue=self.task_queue, **concurrency)
 
         except Exception:
             logger.exception("Failed to start Temporal worker")
@@ -272,7 +304,19 @@ async def start_worker(
         namespace=namespace or settings.temporal_namespace,
         task_queue=task_queue or settings.task_queue,
         activity_registry=activity_registry,
+        max_cached_workflows=settings.max_cached_workflows,
+        max_concurrent_workflow_tasks=settings.max_concurrent_workflow_tasks,
+        max_concurrent_activities=settings.max_concurrent_activities,
     )
+
+    logger.info("temporal_worker_service_created")
+    logger.info("starting_temporal_worker", temporal_address=worker_service.temporal_address)
+    logger.info("temporal_worker_namespace", namespace=worker_service.namespace)
+    logger.info("temporal_worker_task_queue", task_queue=worker_service.task_queue)
+    logger.info("temporal_worker_max_cached_workflows", value=worker_service.max_cached_workflows)
+    logger.info("temporal_worker_max_concurrent_workflow_tasks", value=worker_service.max_concurrent_workflow_tasks)
+    logger.info("temporal_worker_max_concurrent_activities", value=worker_service.max_concurrent_activities)
+    logger.info("temporal_worker_config_complete")
 
     await worker_service.start()
     registry.set_worker(worker_service)

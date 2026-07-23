@@ -33,6 +33,9 @@ class TestTemporalWorkerServiceInit:
         assert service.temporal_address == "test-address"
         assert service.namespace == "test-namespace"
         assert service.task_queue == "test-queue"
+        assert service.max_cached_workflows == 50
+        assert service.max_concurrent_workflow_tasks == 50
+        assert service.max_concurrent_activities == 50
         assert service.client is None
         assert service.worker is None
         assert service._worker_task is None
@@ -43,11 +46,17 @@ class TestTemporalWorkerServiceInit:
             temporal_address="temporal.example.com:7233",
             namespace="production",
             task_queue="custom-queue",
+            max_cached_workflows=100,
+            max_concurrent_workflow_tasks=75,
+            max_concurrent_activities=25,
         )
 
         assert service.temporal_address == "temporal.example.com:7233"
         assert service.namespace == "production"
         assert service.task_queue == "custom-queue"
+        assert service.max_cached_workflows == 100
+        assert service.max_concurrent_workflow_tasks == 75
+        assert service.max_concurrent_activities == 25
 
 
 class TestTemporalWorkerServiceStart:
@@ -145,6 +154,93 @@ class TestTemporalWorkerServiceStart:
             mock_worker_class.assert_called_once()
             _, kwargs = mock_worker_class.call_args
             assert kwargs["task_queue"] == "staging-queue"
+
+    @pytest.mark.asyncio
+    async def test_start_passes_concurrency_controls_to_worker(self) -> None:
+        """Test that concurrency and caching params are forwarded to the Worker constructor."""
+        service = TemporalWorkerService(
+            temporal_address="test-address",
+            namespace="test-namespace",
+            task_queue="test-queue",
+            max_cached_workflows=25,
+            max_concurrent_workflow_tasks=30,
+            max_concurrent_activities=35,
+        )
+
+        mock_client = MagicMock()
+        mock_worker = MagicMock()
+
+        async def mock_run() -> None:
+            await asyncio.sleep(0)
+
+        mock_worker.run = mock_run
+
+        original_create_task = asyncio.create_task
+
+        def mock_create_task(coro: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
+            return original_create_task(coro)
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker
+            ) as mock_worker_class,
+            patch("asyncio.create_task", side_effect=mock_create_task),
+        ):
+            await service.start()
+
+            mock_worker_class.assert_called_once()
+            _, kwargs = mock_worker_class.call_args
+            assert kwargs["max_cached_workflows"] == 25
+            assert kwargs["max_concurrent_workflow_tasks"] == 30
+            assert kwargs["max_concurrent_activities"] == 35
+
+    @pytest.mark.asyncio
+    async def test_start_uses_default_concurrency_controls(self) -> None:
+        """Test that default concurrency values (50) are forwarded to the Worker constructor."""
+        service = TemporalWorkerService(
+            temporal_address="test-address",
+            namespace="test-namespace",
+            task_queue="test-queue",
+        )
+
+        assert service.max_cached_workflows == 50
+        assert service.max_concurrent_workflow_tasks == 50
+        assert service.max_concurrent_activities == 50
+
+        mock_client = MagicMock()
+        mock_worker = MagicMock()
+
+        async def mock_run() -> None:
+            await asyncio.sleep(0)
+
+        mock_worker.run = mock_run
+
+        original_create_task = asyncio.create_task
+
+        def mock_create_task(coro: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
+            return original_create_task(coro)
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker
+            ) as mock_worker_class,
+            patch("asyncio.create_task", side_effect=mock_create_task),
+        ):
+            await service.start()
+
+            mock_worker_class.assert_called_once()
+            _, kwargs = mock_worker_class.call_args
+            assert kwargs["max_cached_workflows"] == 50
+            assert kwargs["max_concurrent_workflow_tasks"] == 50
+            assert kwargs["max_concurrent_activities"] == 50
 
     @pytest.mark.asyncio
     async def test_start_client_connection_failure(self) -> None:
@@ -363,7 +459,9 @@ class TestGlobalWorkerManagement:
                 "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
                 new=AsyncMock(return_value=mock_client),
             ),
-            patch("nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker
+            ) as mock_worker_class,
             patch("asyncio.create_task", side_effect=mock_create_task),
         ):
             worker = await start_worker(
@@ -376,6 +474,12 @@ class TestGlobalWorkerManagement:
             assert worker.temporal_address == "test.temporal.io:7233"
             assert worker.namespace == "test"
             assert worker.task_queue == "test-queue"
+
+            mock_worker_class.assert_called_once()
+            _, kwargs = mock_worker_class.call_args
+            assert kwargs["max_cached_workflows"] == 50
+            assert kwargs["max_concurrent_workflow_tasks"] == 50
+            assert kwargs["max_concurrent_activities"] == 50
 
         # Cleanup
         nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(None)

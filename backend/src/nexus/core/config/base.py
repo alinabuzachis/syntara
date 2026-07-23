@@ -1169,6 +1169,24 @@ class TemporalSettings(BaseSettings):
         ),
     )
 
+    max_cached_workflows: int = Field(
+        default=50,
+        ge=1,
+        description="Maximum number of workflow states cached in memory for replay efficiency",
+    )
+
+    max_concurrent_workflow_tasks: int = Field(
+        default=50,
+        ge=1,
+        description="Maximum concurrent workflow task executions (also caps thread pool size)",
+    )
+
+    max_concurrent_activities: int = Field(
+        default=50,
+        ge=1,
+        description="Maximum concurrent activity executions",
+    )
+
 
 @lru_cache(maxsize=4)
 def _read_cert_cn(cert_path: str) -> str:
