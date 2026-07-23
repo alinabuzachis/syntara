@@ -1277,7 +1277,7 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
         resolved_creds = await workflow.execute_activity(
             resolve_workflow_credentials,
             args=[credential_map, self._project_id],
-            activity_id="__internal__resolve_credentials",
+            activity_id=f"__internal__resolve_credentials_{node.id}",
             start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
         )
 
@@ -1313,7 +1313,7 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
         resolved_integration = await workflow.execute_activity(
             resolve_workflow_integration,
             args=[integration_id],
-            activity_id="__internal__resolve_integration",
+            activity_id=f"__internal__resolve_integration_{node.id}",
             start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
         )
 

@@ -811,3 +811,79 @@ class TestLoopMaxIterationsEnforcement:
             result = await wf._execute_loop_node("loop_1", node, node.parameters)
 
         assert result["control"]["next_port"] == "complete"
+
+
+class TestResolveAndInjectUniqueActivityIds:
+    """Credential and integration resolution must use per-node activity IDs.
+
+    When two AAP nodes fan out in parallel from the same predecessor, both call
+    _resolve_and_inject_credentials / _resolve_and_inject_integration concurrently.
+    Temporal requires activity IDs to be unique within a workflow execution, so
+    hardcoded IDs cause a collision that silently blocks the second node.
+    """
+
+    @pytest.mark.asyncio
+    async def test_credential_resolution_uses_node_specific_activity_id(
+        self,
+        _mock_temporal_workflow: MagicMock,  # noqa: PT019
+    ) -> None:
+        """Each credential resolution call must include the node ID in its activity_id."""
+        _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"node_a": {"token": "t"}})
+
+        wf = _make_workflow()
+        wf._project_id = "proj-1"
+        wf._secret_values = set()
+        node = ActivityNode("node_a", "aap_job_template", {"credential_id": "cred-1"})
+
+        await wf._resolve_and_inject_credentials(node, dict(node.parameters))
+
+        call_kwargs = _mock_temporal_workflow.execute_activity.call_args
+        assert call_kwargs.kwargs["activity_id"] == "__internal__resolve_credentials_node_a"
+
+    @pytest.mark.asyncio
+    async def test_integration_resolution_uses_node_specific_activity_id(
+        self,
+        _mock_temporal_workflow: MagicMock,  # noqa: PT019
+    ) -> None:
+        """Each integration resolution call must include the node ID in its activity_id."""
+        _mock_temporal_workflow.execute_activity = AsyncMock(
+            return_value={"base_url": "https://aap.example.com", "verify_ssl": True}
+        )
+
+        wf = _make_workflow()
+        node = ActivityNode("node_b", "aap_job_template", {"integration_id": "int-1"})
+
+        await wf._resolve_and_inject_integration(node, dict(node.parameters))
+
+        call_kwargs = _mock_temporal_workflow.execute_activity.call_args
+        assert call_kwargs.kwargs["activity_id"] == "__internal__resolve_integration_node_b"
+
+    @pytest.mark.asyncio
+    async def test_parallel_aap_nodes_get_distinct_credential_activity_ids(
+        self,
+        _mock_temporal_workflow: MagicMock,  # noqa: PT019
+    ) -> None:
+        """Two concurrent AAP nodes must not collide on credential activity IDs."""
+        _mock_temporal_workflow.execute_activity = AsyncMock(
+            side_effect=[
+                {"aap_1": {"token": "t1"}},
+                {"aap_2": {"token": "t2"}},
+            ]
+        )
+
+        wf = _make_workflow()
+        wf._project_id = "proj-1"
+        wf._secret_values = set()
+
+        node_1 = ActivityNode("aap_1", "aap_job_template", {"credential_id": "cred-1"})
+        node_2 = ActivityNode("aap_2", "aap_job_template", {"credential_id": "cred-2"})
+
+        await asyncio.gather(
+            wf._resolve_and_inject_credentials(node_1, dict(node_1.parameters)),
+            wf._resolve_and_inject_credentials(node_2, dict(node_2.parameters)),
+        )
+
+        activity_ids = [call.kwargs["activity_id"] for call in _mock_temporal_workflow.execute_activity.call_args_list]
+        assert "__internal__resolve_credentials_aap_1" in activity_ids
+        assert "__internal__resolve_credentials_aap_2" in activity_ids
+        assert len(set(activity_ids)) == 2
