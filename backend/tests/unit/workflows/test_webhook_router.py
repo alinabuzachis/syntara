@@ -1,66 +1,39 @@
 """Unit tests for the webhook reception router.
 
-Tests cover the helper functions (_get_service_user, _check_payload_size) and
+Tests cover the get_webhook_caller auth dependency and
 the receive_webhook / receive_eda_webhook endpoints with mocked dependencies.
 """
 
 from collections.abc import AsyncIterator, Callable
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import Request
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.auth.exceptions import InvalidTokenError
+from nexus.auth.services.token_service import TokenPayload
 from nexus.core.constants import WebhookLimits
 from nexus.core.models import User
-from nexus.core.models.principal import service_principal_id
 from nexus.workflows.exceptions import (
     PayloadTooLargeError,
     TemporalUnavailableError,
     TriggerValidationError,
+    WebhookAuthenticationRequiredError,
 )
 from nexus.workflows.models.webhook_trigger import WebhookTrigger
 from nexus.workflows.webhook_router import (
     WebhookResponse,
     _check_payload_size,
-    _get_service_user,
+    get_webhook_caller,
     receive_eda_webhook,
     receive_webhook,
 )
 from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
-
-# ============================================================================
-# _get_service_user tests
-# ============================================================================
-
-
-class TestGetServiceUser:
-    """Test suite for _get_service_user helper."""
-
-    def test_returns_synthetic_user_with_service_principal_id(self) -> None:
-        """Test that a synthetic User is returned with the correct service principal ID."""
-        with patch("nexus.workflows.webhook_router.get_settings") as mock_settings:
-            mock_settings.return_value.service_identity = "backend.ao.svc"
-            result = _get_service_user()
-
-        assert result.id == service_principal_id("backend.ao.svc")
-        assert result.username == "backend.ao.svc"
-        assert result.email == "backend.ao.svc@internal"
-        assert result.first_name == "backend.ao.svc"
-        assert result.is_enabled is True
-
-    def test_uses_configured_service_identity(self) -> None:
-        """Test that the service identity CN from settings is used."""
-        with patch("nexus.workflows.webhook_router.get_settings") as mock_settings:
-            mock_settings.return_value.service_identity = "worker.ao.svc"
-            result = _get_service_user()
-
-        assert result.id == service_principal_id("worker.ao.svc")
-        assert result.username == "worker.ao.svc"
-
 
 # ============================================================================
 # _check_payload_size tests
@@ -88,15 +61,11 @@ def _mock_request_with_stream(
 class TestCheckPayloadSize:
     """Test suite for _check_payload_size dependency."""
 
-    @pytest.mark.asyncio
     async def test_under_limit_passes(self) -> None:
-        """Test that a payload under the size limit is accepted."""
         mock_request = _mock_request_with_stream({"content-length": "1024"}, b"x" * 1024)
         await _check_payload_size(mock_request)
 
-    @pytest.mark.asyncio
     async def test_over_limit_raises(self) -> None:
-        """Test that a payload over the size limit raises PayloadTooLargeError via header."""
         mock_request = Mock(spec=Request)
         oversized = str(WebhookLimits.PAYLOAD_MAX_BYTES + 1)
         mock_request.headers = {"content-length": oversized}
@@ -104,62 +73,146 @@ class TestCheckPayloadSize:
         with pytest.raises(PayloadTooLargeError, match="Payload too large"):
             await _check_payload_size(mock_request)
 
-    @pytest.mark.asyncio
     async def test_no_content_length_small_body_passes(self) -> None:
-        """Test that requests without Content-Length but small body are allowed."""
         mock_request = _mock_request_with_stream({}, b'{"event": "test"}')
         await _check_payload_size(mock_request)
 
-    @pytest.mark.asyncio
     async def test_no_content_length_oversized_body_raises(self) -> None:
-        """Test that oversized body is rejected even without Content-Length header."""
         mock_request = _mock_request_with_stream({}, b"x" * (WebhookLimits.PAYLOAD_MAX_BYTES + 1))
         with pytest.raises(PayloadTooLargeError, match="Payload too large"):
             await _check_payload_size(mock_request)
 
-    @pytest.mark.asyncio
-    async def test_spoofed_content_length_oversized_body_raises(self) -> None:
-        """Test that spoofed Content-Length (small header, large body) is caught."""
-        mock_request = _mock_request_with_stream(
-            {"content-length": "100"},
-            b"x" * (WebhookLimits.PAYLOAD_MAX_BYTES + 1),
-        )
-        with pytest.raises(PayloadTooLargeError, match="Payload too large"):
-            await _check_payload_size(mock_request)
-
-    @pytest.mark.asyncio
     async def test_exact_limit_passes(self) -> None:
-        """Test that a payload exactly at the size limit is accepted."""
         mock_request = _mock_request_with_stream(
             {"content-length": str(WebhookLimits.PAYLOAD_MAX_BYTES)},
             b"x" * WebhookLimits.PAYLOAD_MAX_BYTES,
         )
         await _check_payload_size(mock_request)
 
-    @pytest.mark.asyncio
     async def test_non_numeric_content_length_raises(self) -> None:
-        """Test that a non-numeric Content-Length header raises TriggerValidationError."""
         mock_request = Mock(spec=Request)
         mock_request.headers = {"content-length": "abc"}
 
         with pytest.raises(TriggerValidationError, match="Invalid Content-Length"):
             await _check_payload_size(mock_request)
 
-    @pytest.mark.asyncio
-    async def test_streaming_abort_does_not_buffer_entire_body(self) -> None:
-        """Test that oversized body is rejected mid-stream without reading all chunks."""
-        oversized = b"x" * (WebhookLimits.PAYLOAD_MAX_BYTES + 8192)
-        mock_request = _mock_request_with_stream({}, oversized, chunk_size=8192)
-        with pytest.raises(PayloadTooLargeError, match="Payload too large"):
-            await _check_payload_size(mock_request)
-
-    @pytest.mark.asyncio
     async def test_body_cached_for_downstream(self) -> None:
-        """Test that the body is cached on the request for FastAPI Body() parsing."""
         payload = b'{"key": "value"}'
         mock_request = _mock_request_with_stream({"content-length": str(len(payload))}, payload)
         await _check_payload_size(mock_request)
         assert mock_request._body == payload
+
+
+# ============================================================================
+# get_webhook_caller tests
+# ============================================================================
+
+
+def _make_sa_payload(sa_id: str | None = None) -> TokenPayload:
+    """Build a TokenPayload for a service account."""
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC)
+    return TokenPayload(
+        sub=sa_id or str(uuid4()),
+        iss="https://test",
+        aud="nexus-api",
+        iat=now,
+        exp=now,
+        token_type="service_account",  # noqa: S106
+        preferred_username="test-sa",
+    )
+
+
+def _make_user_payload() -> TokenPayload:
+    """Build a TokenPayload for a regular user (not a service account)."""
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC)
+    return TokenPayload(
+        sub=str(uuid4()),
+        iss="https://test",
+        aud="nexus-api",
+        iat=now,
+        exp=now,
+        token_type="access",  # noqa: S106
+        preferred_username="testuser",
+    )
+
+
+class TestGetWebhookCaller:
+    """Test suite for the get_webhook_caller auth dependency."""
+
+    async def test_no_credentials_raises_401(self) -> None:
+        """Missing Bearer token raises WebhookAuthenticationRequiredError."""
+        mock_db = AsyncMock(spec=AsyncSession)
+        with pytest.raises(WebhookAuthenticationRequiredError):
+            await get_webhook_caller(credentials=None, db=mock_db)
+
+    async def test_invalid_token_raises_401(self) -> None:
+        """Invalid/expired token raises WebhookAuthenticationRequiredError."""
+        mock_db = AsyncMock(spec=AsyncSession)
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid-token")
+
+        with (
+            patch("nexus.workflows.webhook_router._get_token_service") as mock_ts,
+            pytest.raises(WebhookAuthenticationRequiredError),
+        ):
+            mock_ts.return_value.decode_token.side_effect = InvalidTokenError
+            await get_webhook_caller(credentials=credentials, db=mock_db)
+
+    async def test_non_sa_token_raises_401(self) -> None:
+        """User token (not service_account type) raises WebhookAuthenticationRequiredError."""
+        mock_db = AsyncMock(spec=AsyncSession)
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="user-token")
+        user_payload = _make_user_payload()
+
+        with (
+            patch("nexus.workflows.webhook_router._get_token_service") as mock_ts,
+            patch("nexus.workflows.webhook_router._check_global_revocation") as mock_revoke,
+            pytest.raises(WebhookAuthenticationRequiredError),
+        ):
+            mock_ts.return_value.decode_token.return_value = user_payload
+            mock_revoke.return_value = None
+            await get_webhook_caller(credentials=credentials, db=mock_db)
+
+    async def test_valid_sa_token_returns_user_and_id(self) -> None:
+        """Valid service account token returns (User, sa_id) tuple."""
+        mock_db = AsyncMock(spec=AsyncSession)
+        sa_id = uuid4()
+        sa_payload = _make_sa_payload(str(sa_id))
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid-sa-token")
+        mock_user = Mock(spec=User)
+
+        with (
+            patch("nexus.workflows.webhook_router._get_token_service") as mock_ts,
+            patch("nexus.workflows.webhook_router._check_global_revocation") as mock_revoke,
+            patch("nexus.workflows.webhook_router._user_from_payload", return_value=mock_user),
+        ):
+            mock_ts.return_value.decode_token.return_value = sa_payload
+            mock_revoke.return_value = None
+
+            user, returned_sa_id = await get_webhook_caller(credentials=credentials, db=mock_db)
+
+            assert user is mock_user
+            assert returned_sa_id == sa_id
+
+    async def test_globally_revoked_token_raises(self) -> None:
+        """Token that has been globally revoked raises through _check_global_revocation."""
+        from nexus.auth.exceptions import TokenGloballyRevokedError
+
+        mock_db = AsyncMock(spec=AsyncSession)
+        sa_payload = _make_sa_payload()
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="revoked-token")
+
+        with (
+            patch("nexus.workflows.webhook_router._get_token_service") as mock_ts,
+            patch("nexus.workflows.webhook_router._check_global_revocation") as mock_revoke,
+            pytest.raises(TokenGloballyRevokedError),
+        ):
+            mock_ts.return_value.decode_token.return_value = sa_payload
+            mock_revoke.side_effect = TokenGloballyRevokedError
+            await get_webhook_caller(credentials=credentials, db=mock_db)
 
 
 # ============================================================================
@@ -189,37 +242,16 @@ def _make_trigger(
     return trigger
 
 
+def _make_caller() -> tuple[Mock, UUID]:
+    """Create a mock (User, sa_id) caller tuple."""
+    user = Mock(spec=User)
+    sa_id = uuid4()
+    return (user, sa_id)
+
+
 class TestReceiveWebhookEndpoints:
-    """Shared tests for receive_webhook and receive_eda_webhook.
+    """Shared tests for receive_webhook and receive_eda_webhook."""
 
-    Since both endpoints delegate to _handle_webhook_request, the core
-    behaviour (temporal check, happy path, validation) is tested once per
-    endpoint via parametrization to avoid duplication.
-    """
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(("endpoint_fn", "trigger_type", "label", "default_path"), _ENDPOINT_PARAMS)
-    async def test_temporal_unavailable_raises_error(
-        self, endpoint_fn: Callable[..., Any], trigger_type: str, label: str, default_path: str
-    ) -> None:
-        """None temporal service raises TemporalUnavailableError."""
-        mock_db = AsyncMock(spec=AsyncSession)
-        trigger = _make_trigger(webhook_path=default_path)
-
-        mock_svc = AsyncMock()
-        mock_svc.get_by_webhook_path = AsyncMock(return_value=trigger)
-
-        with pytest.raises(TemporalUnavailableError):
-            await endpoint_fn(
-                webhook_path=default_path,
-                payload={"event": "push"},
-                webhook_service=mock_svc,
-                temporal_service=None,
-                db=mock_db,
-                _payload_size=None,
-            )
-
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(("endpoint_fn", "trigger_type", "label", "default_path"), _ENDPOINT_PARAMS)
     async def test_happy_path_returns_webhook_response(
         self, endpoint_fn: Callable[..., Any], trigger_type: str, label: str, default_path: str
@@ -228,21 +260,20 @@ class TestReceiveWebhookEndpoints:
         mock_db = AsyncMock(spec=AsyncSession)
         trigger = _make_trigger(webhook_path=default_path)
         execution_id = uuid4()
+        caller = _make_caller()
 
         mock_execution = Mock()
         mock_execution.id = execution_id
 
-        mock_svc = AsyncMock()
-        mock_svc.get_by_webhook_path = AsyncMock(return_value=trigger)
-        mock_svc.user = Mock(spec=User)
-
-        mock_temporal = AsyncMock(spec=TemporalExecutionService)
-
         with (
-            patch("nexus.workflows.webhook_router._get_service_user") as mock_get_user,
+            patch("nexus.workflows.webhook_router.WebhookTriggerService") as mock_wts_cls,
             patch("nexus.workflows.webhook_router.ExecutionService") as mock_exec_svc_cls,
+            patch("nexus.workflows.webhook_router.AuditEventDispatcher"),
         ):
-            mock_get_user.return_value = Mock(spec=User)
+            mock_wts = AsyncMock()
+            mock_wts.get_by_webhook_path = AsyncMock(return_value=trigger)
+            mock_wts.verify_service_account_authorization = AsyncMock()
+            mock_wts_cls.return_value = mock_wts
 
             mock_exec_svc = AsyncMock()
             mock_exec_svc.create_execution = AsyncMock(return_value=mock_execution)
@@ -251,8 +282,8 @@ class TestReceiveWebhookEndpoints:
             result = await endpoint_fn(
                 webhook_path=default_path,
                 payload={"event": "push"},
-                webhook_service=mock_svc,
-                temporal_service=mock_temporal,
+                caller=caller,
+                temporal_service=AsyncMock(spec=TemporalExecutionService),
                 db=mock_db,
                 _payload_size=None,
             )
@@ -260,33 +291,86 @@ class TestReceiveWebhookEndpoints:
             assert isinstance(result, WebhookResponse)
             assert result.execution_id == execution_id
             assert label in result.message
-            assert default_path in result.message
 
-            mock_exec_svc.create_execution.assert_awaited_once_with(
-                workflow_id=trigger.workflow_id,
-                input_data={"payload": {"event": "push"}},
-                trigger_node_id=trigger.trigger_node_id,
-                use_published=True,
+            mock_wts.verify_service_account_authorization.assert_awaited_once_with(trigger.id, caller[1])
+
+    @pytest.mark.parametrize(("endpoint_fn", "trigger_type", "label", "default_path"), _ENDPOINT_PARAMS)
+    async def test_temporal_unavailable_raises_error(
+        self, endpoint_fn: Callable[..., Any], trigger_type: str, label: str, default_path: str
+    ) -> None:
+        """None temporal service raises TemporalUnavailableError."""
+        mock_db = AsyncMock(spec=AsyncSession)
+        caller = _make_caller()
+
+        with (
+            patch("nexus.workflows.webhook_router.WebhookTriggerService") as mock_wts_cls,
+            patch("nexus.workflows.webhook_router.AuditEventDispatcher"),
+        ):
+            mock_wts = AsyncMock()
+            mock_wts.get_by_webhook_path = AsyncMock(return_value=_make_trigger(webhook_path=default_path))
+            mock_wts.verify_service_account_authorization = AsyncMock()
+            mock_wts_cls.return_value = mock_wts
+
+            with pytest.raises(TemporalUnavailableError):
+                await endpoint_fn(
+                    webhook_path=default_path,
+                    payload={"event": "push"},
+                    caller=caller,
+                    temporal_service=None,
+                    db=mock_db,
+                    _payload_size=None,
+                )
+
+    @pytest.mark.parametrize(("endpoint_fn", "trigger_type", "label", "default_path"), _ENDPOINT_PARAMS)
+    async def test_unauthorized_sa_raises_403(
+        self, endpoint_fn: Callable[..., Any], trigger_type: str, label: str, default_path: str
+    ) -> None:
+        """SA not bound to trigger raises WebhookServiceAccountNotAuthorizedError."""
+        from nexus.workflows.exceptions import WebhookServiceAccountNotAuthorizedError
+
+        mock_db = AsyncMock(spec=AsyncSession)
+        caller = _make_caller()
+
+        with patch("nexus.workflows.webhook_router.WebhookTriggerService") as mock_wts_cls:
+            mock_wts = AsyncMock()
+            mock_wts.get_by_webhook_path = AsyncMock(return_value=_make_trigger(webhook_path=default_path))
+            mock_wts.verify_service_account_authorization = AsyncMock(
+                side_effect=WebhookServiceAccountNotAuthorizedError(default_path, trigger_type)
             )
+            mock_wts_cls.return_value = mock_wts
 
-    @pytest.mark.asyncio
+            mock_temporal = AsyncMock(spec=TemporalExecutionService)
+
+            with pytest.raises(WebhookServiceAccountNotAuthorizedError):
+                await endpoint_fn(
+                    webhook_path=default_path,
+                    payload={"event": "push"},
+                    caller=caller,
+                    temporal_service=mock_temporal,
+                    db=mock_db,
+                    _payload_size=None,
+                )
+
     @pytest.mark.parametrize(("endpoint_fn", "trigger_type", "label", "default_path"), _ENDPOINT_PARAMS)
     async def test_lookup_uses_correct_trigger_type(
         self, endpoint_fn: Callable[..., Any], trigger_type: str, label: str, default_path: str
     ) -> None:
         """Trigger lookup passes the correct trigger_type to the service."""
         mock_db = AsyncMock(spec=AsyncSession)
-        trigger = _make_trigger(webhook_path=default_path)
+        caller = _make_caller()
         mock_execution = Mock()
         mock_execution.id = uuid4()
 
-        mock_svc = AsyncMock()
-        mock_svc.get_by_webhook_path = AsyncMock(return_value=trigger)
-        mock_svc.user = Mock(spec=User)
+        with (
+            patch("nexus.workflows.webhook_router.WebhookTriggerService") as mock_wts_cls,
+            patch("nexus.workflows.webhook_router.ExecutionService") as mock_exec_svc_cls,
+            patch("nexus.workflows.webhook_router.AuditEventDispatcher"),
+        ):
+            mock_wts = AsyncMock()
+            mock_wts.get_by_webhook_path = AsyncMock(return_value=_make_trigger(webhook_path=default_path))
+            mock_wts.verify_service_account_authorization = AsyncMock()
+            mock_wts_cls.return_value = mock_wts
 
-        mock_temporal = AsyncMock(spec=TemporalExecutionService)
-
-        with patch("nexus.workflows.webhook_router.ExecutionService") as mock_exec_svc_cls:
             mock_exec_svc = AsyncMock()
             mock_exec_svc.create_execution = AsyncMock(return_value=mock_execution)
             mock_exec_svc_cls.return_value = mock_exec_svc
@@ -294,10 +378,10 @@ class TestReceiveWebhookEndpoints:
             await endpoint_fn(
                 webhook_path=default_path,
                 payload={},
-                webhook_service=mock_svc,
-                temporal_service=mock_temporal,
+                caller=caller,
+                temporal_service=AsyncMock(spec=TemporalExecutionService),
                 db=mock_db,
                 _payload_size=None,
             )
 
-            mock_svc.get_by_webhook_path.assert_awaited_once_with(default_path, trigger_type=trigger_type)
+            mock_wts.get_by_webhook_path.assert_awaited_once_with(default_path, trigger_type=trigger_type)

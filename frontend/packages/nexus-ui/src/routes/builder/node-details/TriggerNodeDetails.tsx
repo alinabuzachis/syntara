@@ -159,6 +159,9 @@ function buildWebhookStyleTrigger(
     parameters: {
       webhook_path: webhookPath,
       ...(inputSchema && { input_schema: inputSchema }),
+      ...(data.authorizedServiceAccountIds?.length && {
+        authorized_service_account_ids: data.authorizedServiceAccountIds,
+      }),
     },
   }
 }
@@ -253,6 +256,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
         triggerType: trigger.type,
         webhookPath: (trigger.parameters?.webhook_path as string) ?? '',
         inputSchema: serializeInputSchema(trigger.parameters?.input_schema),
+        authorizedServiceAccountIds: (trigger.parameters?.authorized_service_account_ids as string[] | undefined) ?? [],
       }
     }
 

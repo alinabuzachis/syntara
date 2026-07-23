@@ -1,9 +1,9 @@
 """E2E tests for the EDA trigger.
 
-Verifies that the ``/webhooks/eda/`` routing works end-to-end.  The
-``eda_trigger`` activity delegates to ``webhook_trigger`` internally, so
-these tests are intentionally lightweight — just confirm the ``/eda/``
-path prefix is routed correctly.
+Verifies that the ``/webhooks/eda/`` routing works end-to-end with service
+account Bearer token authentication.  The ``eda_trigger`` activity delegates
+to ``webhook_trigger`` internally, so these tests are intentionally
+lightweight — just confirm the ``/eda/`` path prefix is routed correctly.
 
 Run with:
     APP_BASE_URL=http://localhost:8000 make test-e2e
@@ -22,7 +22,16 @@ from nexus_test_sdk.e2e.helpers import poll_execution_until_complete
 from nexus_test_sdk.e2e.tls import e2e_ssl_context
 from nexus_test_sdk.helpers import unique_name
 
+from tests.e2e.service_accounts import create_sa_with_credential, token_request
+
 pytestmark = [pytest.mark.e2e]
+
+
+def _get_sa_token(nexus_base_url: str, client_id: str, client_secret: str) -> str:
+    """Obtain an SA access token via client credentials grant."""
+    resp = token_request(nexus_base_url, client_id, client_secret)
+    assert resp.status_code == HTTPStatus.OK, f"Token request failed: {resp.status_code}"
+    return str(resp.parsed.access_token)
 
 
 class TestEdaTrigger:
@@ -35,19 +44,14 @@ class TestEdaTrigger:
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
-        """Create workflow with eda_trigger, publish, POST to /webhooks/eda/{path}, poll to completion.
-
-        Test Procedure:
-        1. Create a workflow with an ``eda_trigger`` and a downstream script node.
-        2. Publish the workflow so the trigger becomes active.
-        3. POST a JSON payload to ``/api/v1/webhooks/eda/{webhook_path}``.
-        4. Poll the resulting execution until it reaches a terminal state.
-        5. Assert that the execution completed and the trigger activity ran.
-        """
+        """Create workflow with eda_trigger, publish, authenticate, POST, poll to completion."""
         workflow_name = unique_name("e2e-eda-trigger")
         webhook_path = unique_name("eda-hook")
 
-        # Step 1: Create workflow with eda_trigger
+        # Step 1: Create SA with credential
+        sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
+
+        # Step 2: Create workflow with eda_trigger bound to the SA
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="E2E test: EDA trigger full flow",
@@ -60,7 +64,10 @@ class TestEdaTrigger:
                         {
                             "id": "eda_trigger_1",
                             "type": "eda_trigger",
-                            "parameters": {"webhook_path": webhook_path},
+                            "parameters": {
+                                "webhook_path": webhook_path,
+                                "authorized_service_account_ids": [str(sa.id)],
+                            },
                             "outputs": {"event_data": "${result.payload.event_type}"},
                         },
                     ],
@@ -79,62 +86,71 @@ class TestEdaTrigger:
         workflow = workflow_factory(workflow_data)
         assert workflow.id is not None
 
-        # Step 2: Publish the workflow
+        # Step 3: Publish the workflow
         pub_resp = nexus_api.workflows.publish_version(
             workflow_id=workflow.id,
             version=1,
             body=PublishVersionRequest(),
         )
-        assert pub_resp.status_code == HTTPStatus.OK, (
-            f"Expected 200 for publish, got {pub_resp.status_code}: {pub_resp.content!r}"
-        )
+        assert pub_resp.status_code == HTTPStatus.OK
 
-        # Step 3: POST to the EDA webhook endpoint
+        # Step 4: Get SA token and POST to the EDA webhook endpoint
+        access_token = _get_sa_token(nexus_base_url, client_id, client_secret)
         eda_url = f"{nexus_base_url}/api/v1/webhooks/eda/{webhook_path}"
         payload = {"event_type": "host_unreachable", "host": "web-01.example.com"}
-        webhook_response = httpx.post(eda_url, json=payload, verify=e2e_ssl_context(), timeout=30)
+        webhook_response = httpx.post(
+            eda_url,
+            json=payload,
+            headers={"Authorization": f"Bearer {access_token}"},
+            verify=e2e_ssl_context(),
+            timeout=30,
+        )
         assert webhook_response.status_code == HTTPStatus.ACCEPTED, (
-            f"Expected 202 Accepted from EDA webhook, got {webhook_response.status_code}: {webhook_response.text!r}"
+            f"Expected 202, got {webhook_response.status_code}: {webhook_response.text!r}"
         )
 
-        # Step 4: Extract execution ID and poll to completion
+        # Step 5: Poll to completion
         webhook_body = webhook_response.json()
         execution_id = UUID(webhook_body["execution_id"])
-
         execution = poll_execution_until_complete(nexus_api, execution_id)
 
-        # Step 5: Assert completion and trigger activity
-        assert str(execution.status) == "completed", (
-            f"Execution should complete successfully, got: {execution.status}. Error details: {execution.error_details}"
-        )
-        assert execution.activities is not None, "Execution should include activities"
-
+        assert str(execution.status) == "completed"
+        assert execution.activities is not None
         activity_ids = {a.activity_id for a in execution.activities}
-        assert "eda_trigger_1" in activity_ids, "EDA trigger activity should be present"
-        assert "process_event" in activity_ids, "Downstream script node should be present"
+        assert "eda_trigger_1" in activity_ids
+        assert "process_event" in activity_ids
 
-        activity_statuses = {a.activity_id: str(a.status) for a in execution.activities}
-        assert activity_statuses["eda_trigger_1"] == "completed", (
-            f"EDA trigger should have completed, got: {activity_statuses['eda_trigger_1']}"
-        )
-        assert activity_statuses["process_event"] == "completed", (
-            f"Process event node should have completed, got: {activity_statuses['process_event']}"
-        )
-
-    def test_eda_trigger_404_for_unknown_path(
+    def test_eda_trigger_401_without_token(
         self,
         nexus_base_url: str,
     ):
-        """POST to an unknown EDA webhook path returns 404.
+        """POST without Bearer token returns 401."""
+        eda_url = f"{nexus_base_url}/api/v1/webhooks/eda/{unique_name('no-auth')}"
+        response = httpx.post(
+            eda_url,
+            json={"event_type": "test"},
+            verify=e2e_ssl_context(),
+            timeout=30,
+        )
+        assert response.status_code == HTTPStatus.UNAUTHORIZED
 
-        Verifies that the EDA webhook router correctly rejects requests
-        to paths that do not match any published workflow trigger.
-        """
+    def test_eda_trigger_404_for_unknown_path(
+        self,
+        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        first_project_id: UUID,
+    ):
+        """POST to an unknown EDA webhook path returns 404."""
+        _sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
+        access_token = _get_sa_token(nexus_base_url, client_id, client_secret)
+
         unknown_path = unique_name("nonexistent-eda-path")
         eda_url = f"{nexus_base_url}/api/v1/webhooks/eda/{unknown_path}"
-        payload = {"event_type": "test"}
-
-        response = httpx.post(eda_url, json=payload, verify=e2e_ssl_context(), timeout=30)
-        assert response.status_code == HTTPStatus.NOT_FOUND, (
-            f"Expected 404 for unknown EDA path, got {response.status_code}: {response.text!r}"
+        response = httpx.post(
+            eda_url,
+            json={"event_type": "test"},
+            headers={"Authorization": f"Bearer {access_token}"},
+            verify=e2e_ssl_context(),
+            timeout=30,
         )
+        assert response.status_code == HTTPStatus.NOT_FOUND

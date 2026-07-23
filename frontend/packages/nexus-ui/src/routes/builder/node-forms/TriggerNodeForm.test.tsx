@@ -33,6 +33,12 @@ vi.mock('../components/ExpandableCodeEditor', () => ({
 // Mock backendUrl
 vi.mock('../../../utils/backendUrl', () => ({
   WEBHOOK_BASE_URL: 'https://example.com/api/v1/webhooks',
+  backendOrigin: 'https://example.com',
+}))
+
+// Mock ServiceAccountSelect to avoid async state updates from useQuery/useCanI
+vi.mock('./ServiceAccountSelect', () => ({
+  ServiceAccountSelect: () => null,
 }))
 
 // Mock ScheduleBuilderFields

@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.core.models import User
 from nexus.workflows.exceptions import (
     TriggerValidationError,
+    WebhookServiceAccountNotAuthorizedError,
     WebhookTriggerNotFoundError,
     WebhookTriggerPathConflictError,
 )
@@ -200,6 +201,66 @@ class TestGetByWebhookPath:
 
 
 # ============================================================================
+# verify_service_account_authorization
+# ============================================================================
+
+
+class TestVerifyServiceAccountAuthorization:
+    """Test suite for verify_service_account_authorization."""
+
+    async def test_authorized_sa_passes(self) -> None:
+        """No exception when the SA is bound to the trigger."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = Mock()  # binding exists
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        service = _make_service(session=mock_session)
+        await service.verify_service_account_authorization(uuid4(), uuid4())
+
+    async def test_unauthorized_sa_raises(self) -> None:
+        """WebhookServiceAccountNotAuthorizedError when SA is not bound."""
+        trigger_id = uuid4()
+        sa_id = uuid4()
+
+        mock_session = AsyncMock(spec=AsyncSession)
+
+        # First exec: binding lookup returns None
+        binding_result = Mock()
+        binding_result.one_or_none.return_value = None
+
+        # Second call: session.get returns a trigger for the error message
+        trigger = _make_trigger(webhook_path="test-hook")
+        mock_session.exec = AsyncMock(return_value=binding_result)
+        mock_session.get = AsyncMock(return_value=trigger)
+
+        service = _make_service(session=mock_session)
+
+        with pytest.raises(WebhookServiceAccountNotAuthorizedError) as exc_info:
+            await service.verify_service_account_authorization(trigger_id, sa_id)
+
+        assert exc_info.value.webhook_path == "test-hook"
+
+    async def test_unauthorized_sa_with_missing_trigger_uses_unknown(self) -> None:
+        """Error uses '<unknown>' when trigger cannot be found for the message."""
+        mock_session = AsyncMock(spec=AsyncSession)
+
+        binding_result = Mock()
+        binding_result.one_or_none.return_value = None
+        mock_session.exec = AsyncMock(return_value=binding_result)
+        mock_session.get = AsyncMock(return_value=None)
+
+        service = _make_service(session=mock_session)
+        trigger_id = uuid4()
+        sa_id = uuid4()
+
+        with pytest.raises(WebhookServiceAccountNotAuthorizedError) as exc_info:
+            await service.verify_service_account_authorization(trigger_id, sa_id)
+
+        assert exc_info.value.webhook_path == "<unknown>"
+
+
+# ============================================================================
 # sync_webhook_triggers
 # ============================================================================
 
@@ -245,9 +306,12 @@ class TestSyncWebhookTriggers:
         )
 
         mock_session = AsyncMock(spec=AsyncSession)
-        mock_result = Mock()
-        mock_result.all.return_value = [existing]
-        mock_session.exec = AsyncMock(return_value=mock_result)
+        # First exec: existing triggers lookup; second exec: SA binding lookup
+        existing_result = Mock()
+        existing_result.all.return_value = [existing]
+        sa_result = Mock()
+        sa_result.all.return_value = []
+        mock_session.exec = AsyncMock(side_effect=[existing_result, sa_result])
         mock_session.flush = AsyncMock()
 
         service = _make_service(session=mock_session)
@@ -325,8 +389,9 @@ class TestSyncWebhookTriggers:
             ]
         )
 
+        workflow_id = uuid4()
         with pytest.raises(WebhookTriggerPathConflictError) as exc_info:
-            await service.sync_webhook_triggers(uuid4(), definition)
+            await service.sync_webhook_triggers(workflow_id, definition)
 
         # Only the conflicting path is reported, not all paths
         assert exc_info.value.webhook_path == "duplicate-path"
@@ -360,8 +425,9 @@ class TestSyncWebhookTriggers:
             ]
         )
 
+        workflow_id = uuid4()
         with pytest.raises(WebhookTriggerPathConflictError) as exc_info:
-            await service.sync_webhook_triggers(uuid4(), definition)
+            await service.sync_webhook_triggers(workflow_id, definition)
 
         assert exc_info.value.webhook_path == "<unknown>"
         mock_session.rollback.assert_awaited_once()
@@ -442,8 +508,9 @@ class TestSyncWebhookTriggers:
             ]
         )
 
+        workflow_id = uuid4()
         with pytest.raises(IntegrityError):
-            await service.sync_webhook_triggers(uuid4(), definition)
+            await service.sync_webhook_triggers(workflow_id, definition)
 
     @pytest.mark.asyncio
     async def test_create_and_update_mixed(self) -> None:
@@ -454,9 +521,14 @@ class TestSyncWebhookTriggers:
         )
 
         mock_session = AsyncMock(spec=AsyncSession)
-        mock_result = Mock()
-        mock_result.all.return_value = [existing]
-        mock_session.exec = AsyncMock(return_value=mock_result)
+        # First exec: existing triggers; then two SA binding lookups (one per trigger)
+        existing_result = Mock()
+        existing_result.all.return_value = [existing]
+        sa_result1 = Mock()
+        sa_result1.all.return_value = []
+        sa_result2 = Mock()
+        sa_result2.all.return_value = []
+        mock_session.exec = AsyncMock(side_effect=[existing_result, sa_result1, sa_result2])
         mock_session.flush = AsyncMock()
 
         service = _make_service(session=mock_session)
@@ -527,8 +599,9 @@ class TestSyncWebhookTriggers:
             ]
         )
 
+        workflow_id = uuid4()
         with pytest.raises(TriggerValidationError, match="trigger-1"):
-            await service.sync_webhook_triggers(uuid4(), definition)
+            await service.sync_webhook_triggers(workflow_id, definition)
 
         mock_session.add.assert_not_called()
 
@@ -552,8 +625,9 @@ class TestSyncWebhookTriggers:
             ]
         )
 
+        workflow_id = uuid4()
         with pytest.raises(TriggerValidationError, match="trigger-1"):
-            await service.sync_webhook_triggers(uuid4(), definition)
+            await service.sync_webhook_triggers(workflow_id, definition)
 
         mock_session.add.assert_not_called()
 
@@ -577,8 +651,9 @@ class TestSyncWebhookTriggers:
             ]
         )
 
+        workflow_id = uuid4()
         with pytest.raises(TriggerValidationError, match="trigger-1"):
-            await service.sync_webhook_triggers(uuid4(), definition)
+            await service.sync_webhook_triggers(workflow_id, definition)
 
         mock_session.add.assert_not_called()
 
@@ -610,8 +685,9 @@ class TestSyncWebhookTriggers:
             ]
         )
 
+        workflow_id = uuid4()
         with pytest.raises(TriggerValidationError, match="trigger-1"):
-            await service.sync_webhook_triggers(uuid4(), definition)
+            await service.sync_webhook_triggers(workflow_id, definition)
 
         mock_session.add.assert_not_called()
 
@@ -705,8 +781,9 @@ class TestSyncWebhookTriggers:
             ]
         )
 
+        workflow_id = uuid4()
         with pytest.raises(TriggerValidationError, match="trigger-1"):
-            await service.sync_webhook_triggers(uuid4(), definition)
+            await service.sync_webhook_triggers(workflow_id, definition)
 
         mock_session.add.assert_not_called()
 
@@ -792,3 +869,117 @@ class TestDeleteTriggersForWorkflow:
         assert count == 0
         mock_session.delete.assert_not_called()
         mock_session.flush.assert_not_called()
+
+
+# ============================================================================
+# _sync_trigger_sa_bindings
+# ============================================================================
+
+
+class TestSyncTriggerSaBindings:
+    """Test suite for _sync_trigger_sa_bindings."""
+
+    @pytest.mark.asyncio
+    async def test_no_op_when_desired_and_existing_match(self) -> None:
+        """No DB changes when desired SA IDs equal existing bindings."""
+        from nexus.workflows.models.webhook_trigger_service_account import WebhookTriggerServiceAccount
+
+        sa_id = uuid4()
+        trigger_id = uuid4()
+        workflow_id = uuid4()
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        existing_link = Mock(spec=WebhookTriggerServiceAccount)
+        existing_link.service_account_id = sa_id
+        existing_result = Mock()
+        existing_result.all.return_value = [existing_link]
+        # First exec: SA existence check; second exec: existing bindings
+        sa_check_result = Mock()
+        sa_check_result.all.return_value = [sa_id]
+        mock_workflow = Mock()
+        mock_workflow.project_id = uuid4()
+        mock_session.exec = AsyncMock(side_effect=[sa_check_result, existing_result])
+        mock_session.get = AsyncMock(return_value=mock_workflow)
+
+        service = _make_service(session=mock_session)
+        await service._sync_trigger_sa_bindings(trigger_id, {sa_id}, workflow_id)
+
+        mock_session.add.assert_not_called()
+        mock_session.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_adds_new_binding(self) -> None:
+        """New SA binding is inserted when not already present."""
+        sa_id = uuid4()
+        trigger_id = uuid4()
+        workflow_id = uuid4()
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        sa_check_result = Mock()
+        sa_check_result.all.return_value = [sa_id]
+        existing_result = Mock()
+        existing_result.all.return_value = []
+        mock_workflow = Mock()
+        mock_workflow.project_id = uuid4()
+        mock_session.exec = AsyncMock(side_effect=[sa_check_result, existing_result])
+        mock_session.get = AsyncMock(return_value=mock_workflow)
+
+        service = _make_service(session=mock_session)
+        await service._sync_trigger_sa_bindings(trigger_id, {sa_id}, workflow_id)
+
+        mock_session.add.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_removes_stale_binding(self) -> None:
+        """Stale SA binding is deleted when no longer in desired set."""
+        from nexus.workflows.models.webhook_trigger_service_account import WebhookTriggerServiceAccount
+
+        stale_sa_id = uuid4()
+        trigger_id = uuid4()
+        workflow_id = uuid4()
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        existing_link = Mock(spec=WebhookTriggerServiceAccount)
+        existing_link.service_account_id = stale_sa_id
+        existing_result = Mock()
+        existing_result.all.return_value = [existing_link]
+        mock_session.exec = AsyncMock(return_value=existing_result)
+
+        service = _make_service(session=mock_session)
+        await service._sync_trigger_sa_bindings(trigger_id, set(), workflow_id)
+
+        mock_session.execute.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_raises_when_sa_not_found_in_project(self) -> None:
+        """TriggerValidationError raised when SA ID doesn't exist in the project."""
+        sa_id = uuid4()
+        trigger_id = uuid4()
+        workflow_id = uuid4()
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        sa_check_result = Mock()
+        sa_check_result.all.return_value = []  # SA not found
+        mock_workflow = Mock()
+        mock_workflow.project_id = uuid4()
+        mock_session.exec = AsyncMock(return_value=sa_check_result)
+        mock_session.get = AsyncMock(return_value=mock_workflow)
+
+        service = _make_service(session=mock_session)
+
+        with pytest.raises(TriggerValidationError, match="not found in this project"):
+            await service._sync_trigger_sa_bindings(trigger_id, {sa_id}, workflow_id)
+
+    @pytest.mark.asyncio
+    async def test_empty_desired_set_is_no_op(self) -> None:
+        """No SA validation or changes when desired set is empty."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        existing_result = Mock()
+        existing_result.all.return_value = []
+        mock_session.exec = AsyncMock(return_value=existing_result)
+
+        service = _make_service(session=mock_session)
+        await service._sync_trigger_sa_bindings(uuid4(), set(), uuid4())
+
+        mock_session.add.assert_not_called()
+        mock_session.execute.assert_not_called()

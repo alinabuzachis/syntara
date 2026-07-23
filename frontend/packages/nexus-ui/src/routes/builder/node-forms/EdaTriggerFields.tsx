@@ -1,9 +1,12 @@
-import { Alert, Content, ContentVariants, List, ListItem, StackItem } from '@patternfly/react-core'
+import { Alert, Content, ContentVariants, FormGroup, List, ListItem, StackItem } from '@patternfly/react-core'
+import { Controller, useFormContext } from 'react-hook-form'
 
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { WEBHOOK_BASE_URL } from '../../../utils/backendUrl'
 
 import { JsonSchemaField } from './JsonSchemaField'
+import { ServiceAccountSelect } from './ServiceAccountSelect'
+import type { TriggerFormData } from './triggerFormSchema'
 import { DEFAULT_JSON_SCHEMA, EXAMPLE_JSON_SCHEMA, JSON_SCHEMA_DOWNLOAD_FILENAME } from './triggerFormSchema'
 import { useWebhookUrl } from './useWebhookUrl'
 import { WebhookPathField } from './WebhookPathField'
@@ -56,6 +59,7 @@ export function EdaFields({
   errors: Readonly<{ webhookPath?: { message?: string }; inputSchema?: { message?: string } }>
 }>) {
   const fullEdaUrl = useWebhookUrl(EDA_WEBHOOK_BASE_URL)
+  const { control } = useFormContext<TriggerFormData>()
 
   return (
     <>
@@ -92,6 +96,30 @@ export function EdaFields({
         helperText="A unique slug for this endpoint (e.g., /eda-events)."
         error={errors.webhookPath?.message}
       />
+
+      <StackItem>
+        <FormGroup
+          label={
+            <FormLabelWithHelp
+              label="Authorized service accounts"
+              helpText="Select the service accounts that are allowed to invoke this EDA trigger endpoint. Callers must authenticate with a Bearer token from one of these service accounts."
+            />
+          }
+          fieldId="eda-authorized-service-accounts"
+        >
+          <Controller
+            control={control}
+            name="authorizedServiceAccountIds"
+            render={({ field }) => (
+              <ServiceAccountSelect
+                id="eda-authorized-service-accounts"
+                selectedIds={field.value ?? []}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </FormGroup>
+      </StackItem>
 
       <JsonSchemaField
         fieldId="eda-json-schema"

@@ -54,6 +54,7 @@ from .visualization import (
     JsonPatchOperation,
 )
 from .webhook_trigger import WebhookTrigger, WebhookTriggerRead
+from .webhook_trigger_service_account import WebhookTriggerServiceAccount
 from .workflow import (
     PublishWorkflowVersionResponse,
     Workflow,
@@ -105,6 +106,7 @@ __all__ = [
     "ValidationSeverity",
     "WebhookTrigger",
     "WebhookTriggerRead",
+    "WebhookTriggerServiceAccount",
     "Workflow",
     "WorkflowCreate",
     "WorkflowDefinition",

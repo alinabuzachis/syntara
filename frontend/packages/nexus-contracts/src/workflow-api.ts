@@ -243,7 +243,7 @@ export interface paths {
     put?: never
     /**
      * Receive webhook event
-     * @description Receive a webhook event from an external system and trigger the matching workflow. Only POST method is supported; other methods receive 405 Method Not Allowed.
+     * @description Receive a webhook event from an external system and trigger the matching workflow. Requires a service account Bearer token. Only POST method is supported; other methods receive 405 Method Not Allowed.
      */
     post: operations['receive_webhook']
     delete?: never
@@ -263,7 +263,7 @@ export interface paths {
     put?: never
     /**
      * Receive EDA webhook event
-     * @description Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Each EDA trigger node has its own unique webhook path. The payload can be any JSON structure.
+     * @description Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can be any JSON structure.
      */
     post: operations['receive_eda_webhook']
     delete?: never
@@ -2984,6 +2984,24 @@ export interface operations {
         }
       }
       400: components['responses']['BadRequestError']
+      /** @description Missing or invalid service account Bearer token */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Service account is not authorized for this trigger */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
       404: components['responses']['NotFoundError']
       409: components['responses']['ConflictError']
       /** @description Payload exceeds the 1 MB size limit */
@@ -3025,6 +3043,24 @@ export interface operations {
         }
       }
       400: components['responses']['BadRequestError']
+      /** @description Missing or invalid service account Bearer token */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Service account is not authorized for this trigger */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
       404: components['responses']['NotFoundError']
       409: components['responses']['ConflictError']
       /** @description Payload exceeds the 1 MB size limit */

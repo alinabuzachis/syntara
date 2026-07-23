@@ -858,11 +858,12 @@ class ApprovalNodeParameters(BaseModel):
     decision_window: int | None = Field(default=None, ge=1, description="Response timeout in seconds")
 
 
-class WebhookTriggerConfig(TemplateAwareBaseModel):
+class WebhookTriggerParameters(TemplateAwareBaseModel):
     """Parameters for webhook trigger nodes.
 
     Defines the endpoint configuration for a webhook trigger, including the
-    URL path slug and an optional JSON Schema for payload validation.
+    URL path slug, an optional JSON Schema for payload validation, and
+    authorized service accounts.
 
     Attributes:
         webhook_path: Unique URL slug identifying this webhook endpoint
@@ -871,6 +872,8 @@ class WebhookTriggerConfig(TemplateAwareBaseModel):
         input_schema: Optional JSON Schema (Draft-07) for validating incoming
             webhook payloads. If set, requests with non-conforming payloads
             are rejected with 422 Unprocessable Content.
+        authorized_service_account_ids: UUIDs of service accounts authorized
+            to invoke this trigger endpoint.
 
     """
 
@@ -883,6 +886,10 @@ class WebhookTriggerConfig(TemplateAwareBaseModel):
     input_schema: dict[str, Any] | None = Field(
         default=None,
         description="Optional JSON Schema (Draft-07) for validating incoming webhook payloads",
+    )
+    authorized_service_account_ids: list[uuid.UUID] = Field(
+        default_factory=list,
+        description="UUIDs of service accounts authorized to invoke this trigger endpoint",
     )
 
     @field_validator("input_schema")

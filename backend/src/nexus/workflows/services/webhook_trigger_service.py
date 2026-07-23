@@ -11,22 +11,28 @@ from uuid import UUID, uuid4
 
 import structlog
 from pydantic import ValidationError
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.core.services import BaseService
+from nexus.service_accounts.models.service_account import ServiceAccount
 from nexus.workflows.exceptions import (
     TriggerValidationError,
+    WebhookServiceAccountNotAuthorizedError,
     WebhookTriggerNotFoundError,
     WebhookTriggerPathConflictError,
 )
 from nexus.workflows.models.webhook_trigger import WebhookTrigger, WebhookTriggerRead
+from nexus.workflows.models.webhook_trigger_service_account import WebhookTriggerServiceAccount
 from nexus.workflows.models.workflow import Workflow
-from nexus.workflows.workflow_engine.models.workflow_definition import NodeType, WebhookTriggerConfig
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType, WebhookTriggerParameters
 
 logger = structlog.stdlib.get_logger(__name__)
+
+_UNKNOWN = "<unknown>"
 
 WEBHOOK_TRIGGER_TYPES: tuple[str, ...] = (
     NodeType.WEBHOOK_TRIGGER,
@@ -44,6 +50,35 @@ class WebhookTriggerService(BaseService):
     def __init__(self, session: AsyncSession, user: User) -> None:
         """Initialize WebhookTriggerService."""
         super().__init__(session, user)
+
+    async def verify_service_account_authorization(
+        self,
+        trigger_id: UUID,
+        service_account_id: UUID,
+    ) -> None:
+        """Verify that a service account is authorized to invoke a trigger.
+
+        Args:
+            trigger_id: The webhook trigger ID.
+            service_account_id: The service account ID from the Bearer token.
+
+        Raises:
+            WebhookServiceAccountNotAuthorizedError: If the SA is not bound to the trigger.
+
+        """
+        result = await self.session.exec(
+            select(WebhookTriggerServiceAccount).where(
+                WebhookTriggerServiceAccount.webhook_trigger_id == trigger_id,
+                WebhookTriggerServiceAccount.service_account_id == service_account_id,
+            )
+        )
+        if result.one_or_none() is None:
+            trigger = await self.session.get(WebhookTrigger, trigger_id)
+            raise WebhookServiceAccountNotAuthorizedError(
+                webhook_path=trigger.webhook_path if trigger else _UNKNOWN,
+                trigger_type=trigger.trigger_type if trigger else _UNKNOWN,
+                service_account_id=service_account_id,
+            )
 
     async def get_by_webhook_path(
         self,
@@ -109,22 +144,8 @@ class WebhookTriggerService(BaseService):
                 by a different workflow.
 
         """
-        # Extract trigger nodes matching the given type from definition
-        triggers = workflow_definition.get("triggers", [])
-        webhook_nodes: dict[str, dict[str, Any]] = {}
-        for trigger in triggers:
-            if trigger.get("type") == trigger_type:
-                node_id = trigger.get("id")
-                if not node_id:
-                    logger.warning(
-                        "Skipping trigger with missing id",
-                        workflow_id=str(workflow_id),
-                        trigger_type=trigger_type,
-                    )
-                    continue
-                webhook_nodes[node_id] = trigger.get("parameters", {})
+        webhook_nodes = self._extract_webhook_nodes(workflow_definition, trigger_type, workflow_id)
 
-        # Fetch existing triggers for this workflow and type
         result = await self.session.exec(
             select(WebhookTrigger).where(
                 WebhookTrigger.workflow_id == workflow_id,
@@ -133,41 +154,10 @@ class WebhookTriggerService(BaseService):
         )
         existing_triggers = {t.trigger_node_id: t for t in result.all()}
 
-        results: list[WebhookTriggerRead] = []
+        results, sa_bindings = self._upsert_triggers(
+            webhook_nodes, existing_triggers, workflow_id, trigger_type, is_enabled=is_enabled
+        )
 
-        # Create or update triggers
-        for node_id, parameters in webhook_nodes.items():
-            try:
-                validated_parameters = WebhookTriggerConfig.model_validate(parameters)
-            except ValidationError as e:
-                msg = f"Invalid webhook trigger parameters for node '{node_id}': {e}"
-                raise TriggerValidationError(msg) from e
-            webhook_path = validated_parameters.webhook_path
-            input_schema = validated_parameters.input_schema
-
-            if node_id in existing_triggers:
-                # Update existing trigger
-                trigger = existing_triggers.pop(node_id)
-                trigger.webhook_path = webhook_path
-                trigger.input_schema = input_schema
-                trigger.is_enabled = is_enabled
-                self.session.add(trigger)
-                results.append(WebhookTriggerRead.model_validate(trigger))
-            else:
-                # Create new trigger
-                trigger = WebhookTrigger(
-                    id=uuid4(),
-                    trigger_type=trigger_type,
-                    webhook_path=webhook_path,
-                    workflow_id=workflow_id,
-                    trigger_node_id=node_id,
-                    input_schema=input_schema,
-                    is_enabled=is_enabled,
-                )
-                self.session.add(trigger)
-                results.append(WebhookTriggerRead.model_validate(trigger))
-
-        # Delete triggers whose nodes were removed from the definition
         for trigger in existing_triggers.values():
             await self.session.delete(trigger)
             logger.info(
@@ -177,18 +167,10 @@ class WebhookTriggerService(BaseService):
                 webhook_path=trigger.webhook_path,
             )
 
-        # Flush — catch path uniqueness violations
-        try:
-            await self.session.flush()
-        except IntegrityError as e:
-            await self.session.rollback()
-            error_str = str(e)
-            if "ix_webhook_triggers_type_path_unique" in error_str or "webhook_path" in error_str:
-                # Extract the actual conflicting path from PostgreSQL DETAIL
-                match = re.search(r"Key \(trigger_type, webhook_path\)=\([^,]+, ([^)]+)\)", error_str)
-                conflicting_path = match.group(1) if match else "<unknown>"
-                raise WebhookTriggerPathConflictError(conflicting_path) from e
-            raise
+        await self._flush_with_conflict_guard()
+
+        for trigger_id, desired_sa_ids in sa_bindings:
+            await self._sync_trigger_sa_bindings(trigger_id, desired_sa_ids, workflow_id)
 
         logger.info(
             "Synced webhook triggers",
@@ -199,6 +181,124 @@ class WebhookTriggerService(BaseService):
         )
 
         return results
+
+    @staticmethod
+    def _extract_webhook_nodes(
+        workflow_definition: dict[str, Any], trigger_type: str, workflow_id: UUID
+    ) -> dict[str, dict[str, Any]]:
+        """Extract trigger nodes matching the given type from a workflow definition."""
+        webhook_nodes: dict[str, dict[str, Any]] = {}
+        for trigger in workflow_definition.get("triggers", []):
+            if trigger.get("type") != trigger_type:
+                continue
+            node_id = trigger.get("id")
+            if not node_id:
+                logger.warning(
+                    "Skipping trigger with missing id",
+                    workflow_id=str(workflow_id),
+                    trigger_type=trigger_type,
+                )
+                continue
+            webhook_nodes[node_id] = trigger.get("parameters", {})
+        return webhook_nodes
+
+    def _upsert_triggers(
+        self,
+        webhook_nodes: dict[str, dict[str, Any]],
+        existing_triggers: dict[str, WebhookTrigger],
+        workflow_id: UUID,
+        trigger_type: str,
+        *,
+        is_enabled: bool,
+    ) -> tuple[list[WebhookTriggerRead], list[tuple[UUID, set[UUID]]]]:
+        """Create or update triggers, returning results and SA bindings to sync."""
+        results: list[WebhookTriggerRead] = []
+        sa_bindings: list[tuple[UUID, set[UUID]]] = []
+
+        for node_id, parameters in webhook_nodes.items():
+            try:
+                validated = WebhookTriggerParameters.model_validate(parameters)
+            except ValidationError as e:
+                msg = f"Invalid webhook trigger parameters for node '{node_id}': {e}"
+                raise TriggerValidationError(msg) from e
+
+            if node_id in existing_triggers:
+                trigger = existing_triggers.pop(node_id)
+                trigger.webhook_path = validated.webhook_path
+                trigger.input_schema = validated.input_schema
+                trigger.is_enabled = is_enabled
+            else:
+                trigger = WebhookTrigger(
+                    id=uuid4(),
+                    trigger_type=trigger_type,
+                    webhook_path=validated.webhook_path,
+                    workflow_id=workflow_id,
+                    trigger_node_id=node_id,
+                    input_schema=validated.input_schema,
+                    is_enabled=is_enabled,
+                )
+
+            self.session.add(trigger)
+            results.append(WebhookTriggerRead.model_validate(trigger))
+            sa_bindings.append((trigger.id, set(validated.authorized_service_account_ids)))
+
+        return results, sa_bindings
+
+    async def _flush_with_conflict_guard(self) -> None:
+        """Flush the session, converting path uniqueness violations to domain errors."""
+        try:
+            await self.session.flush()
+        except IntegrityError as e:
+            await self.session.rollback()
+            error_str = str(e)
+            if "ix_webhook_triggers_type_path_unique" in error_str or "webhook_path" in error_str:
+                match = re.search(r"Key \(trigger_type, webhook_path\)=\([^,]+, ([^)]+)\)", error_str)
+                conflicting_path = match.group(1) if match else _UNKNOWN
+                raise WebhookTriggerPathConflictError(conflicting_path) from e
+            raise
+
+    async def _sync_trigger_sa_bindings(
+        self,
+        trigger_id: UUID,
+        desired_sa_ids: set[UUID],
+        workflow_id: UUID,
+    ) -> None:
+        """Sync the authorized service account bindings for a trigger."""
+        if desired_sa_ids:
+            workflow = await self.session.get(Workflow, workflow_id)
+            project_id = workflow.project_id if workflow else None
+            query = select(ServiceAccount.id).where(col(ServiceAccount.id).in_(desired_sa_ids))
+            if project_id:
+                query = query.where(ServiceAccount.project_id == project_id)
+            result = await self.session.exec(query)
+            found_ids = set(result.all())
+            missing = desired_sa_ids - found_ids
+            if missing:
+                msg = f"Service account(s) not found in this project: {', '.join(str(i) for i in missing)}"
+                raise TriggerValidationError(msg)
+
+        existing_result = await self.session.exec(
+            select(WebhookTriggerServiceAccount).where(
+                WebhookTriggerServiceAccount.webhook_trigger_id == trigger_id,
+            )
+        )
+        existing_sa_ids = {link.service_account_id for link in existing_result.all()}
+
+        to_remove = existing_sa_ids - desired_sa_ids
+        for sa_id_to_remove in to_remove:
+            stmt = sa_delete(WebhookTriggerServiceAccount).where(
+                WebhookTriggerServiceAccount.webhook_trigger_id == trigger_id,  # type: ignore[arg-type]
+                WebhookTriggerServiceAccount.service_account_id == sa_id_to_remove,  # type: ignore[arg-type]
+            )
+            await self.session.execute(stmt)
+
+        for sa_id in desired_sa_ids - existing_sa_ids:
+            self.session.add(
+                WebhookTriggerServiceAccount(
+                    webhook_trigger_id=trigger_id,
+                    service_account_id=sa_id,
+                )
+            )
 
     async def delete_triggers_for_workflow(self, workflow_id: UUID) -> int:
         """Delete all webhook triggers for a workflow.

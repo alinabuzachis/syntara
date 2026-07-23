@@ -10,7 +10,10 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from temporalio.service import RPCError
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
+from nexus.workflows.audit.webhook_auth import WebhookAuthFailureEvent
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 
 if TYPE_CHECKING:
     from nexus.workflows.exceptions import (
@@ -25,6 +28,8 @@ if TYPE_CHECKING:
         ScheduledTriggerSyncError,
         TemporalUnavailableError,
         TriggerValidationError,
+        WebhookAuthenticationRequiredError,
+        WebhookServiceAccountNotAuthorizedError,
         WebhookTriggerNotFoundError,
         WebhookTriggerPathConflictError,
         WorkflowDefinitionInvalidError,
@@ -326,6 +331,51 @@ def webhook_trigger_path_conflict_handler(request: Request, exc: "WebhookTrigger
         title="Webhook Path Conflict",
         detail="The requested webhook path is already in use by another trigger",
         code="WEBHOOK_TRIGGER_PATH_CONFLICT",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def webhook_auth_required_handler(request: Request, exc: "WebhookAuthenticationRequiredError") -> JSONResponse:
+    """Handle WebhookAuthenticationRequiredError with RFC 9457 format."""
+    logger.warning("Webhook authentication required", exc_info=exc)
+    webhook_path = request.path_params.get("webhook_path", "")
+    trigger_type = NodeType.EDA_TRIGGER if "/eda/" in request.url.path else NodeType.WEBHOOK_TRIGGER
+    AuditEventDispatcher.dispatch(
+        WebhookAuthFailureEvent(
+            webhook_path=webhook_path,
+            trigger_type=trigger_type,
+            failure_reason="missing_or_invalid_token",
+        )
+    )
+    return create_problem_details_response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        problem_type=PROBLEM_TYPES["unauthorized"],
+        title="Authentication Required",
+        detail="A valid service account Bearer token is required to invoke this webhook",
+        code="WEBHOOK_AUTH_REQUIRED",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def webhook_sa_not_authorized_handler(request: Request, exc: "WebhookServiceAccountNotAuthorizedError") -> JSONResponse:
+    """Handle WebhookServiceAccountNotAuthorizedError with RFC 9457 format."""
+    logger.warning("Service account not authorized for webhook trigger", exc_info=exc)
+    AuditEventDispatcher.dispatch(
+        WebhookAuthFailureEvent(
+            webhook_path=exc.webhook_path,
+            trigger_type=exc.trigger_type,
+            failure_reason="sa_not_authorized",
+            service_account_id=exc.service_account_id,
+        )
+    )
+    return create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Not Authorized",
+        detail="The service account is not authorized to invoke this webhook trigger",
+        code="WEBHOOK_SA_NOT_AUTHORIZED",
         retryable=False,
         instance=str(request.url),
     )

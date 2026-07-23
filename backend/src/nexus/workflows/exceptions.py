@@ -240,6 +240,28 @@ class WebhookTriggerPathConflictError(WebhookTriggerError):
         super().__init__(f"Webhook path '{webhook_path}' is already in use")
 
 
+@fastapi_exception(handler="nexus.workflows.error_handlers.webhook_auth_required_handler")
+class WebhookAuthenticationRequiredError(WebhookTriggerError):
+    """Raised when a webhook request has no valid service account Bearer token."""
+
+    def __init__(self, detail: str = "A valid service account Bearer token is required") -> None:
+        """Initialize exception with detail message."""
+        self.detail = detail
+        super().__init__(detail)
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.webhook_sa_not_authorized_handler")
+class WebhookServiceAccountNotAuthorizedError(WebhookTriggerError):
+    """Raised when the service account is valid but not bound to the trigger."""
+
+    def __init__(self, webhook_path: str, trigger_type: str, service_account_id: "UUID | None" = None) -> None:
+        """Initialize exception with webhook path, trigger type, and optional SA ID."""
+        self.webhook_path = webhook_path
+        self.trigger_type = trigger_type
+        self.service_account_id = service_account_id
+        super().__init__(f"Service account is not authorized for trigger '{webhook_path}' (type={trigger_type})")
+
+
 # ============================================================================
 # Scheduled Trigger Exceptions
 # ============================================================================

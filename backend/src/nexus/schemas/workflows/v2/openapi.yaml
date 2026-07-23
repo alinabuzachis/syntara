@@ -750,11 +750,12 @@ paths:
       summary: Receive webhook event
       description: >-
         Receive a webhook event from an external system and trigger the matching
-        workflow. Only POST method is supported; other methods receive 405 Method
-        Not Allowed.
+        workflow. Requires a service account Bearer token. Only POST method is
+        supported; other methods receive 405 Method Not Allowed.
       operationId: receive_webhook
       tags: [webhooks]
-      security: []
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: null
         action: null
@@ -782,33 +783,47 @@ paths:
                 $ref: '#/components/schemas/WebhookResponse'
         '400':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
-        '404':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
-        '409':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
-        '413':
-          description: Payload exceeds the 1 MB size limit
+        '401':
+          description: Missing or invalid service account Bearer token
           content:
             application/problem+json:
               schema:
                 $ref: '../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData'
+        '403':
+          description: Service account is not authorized for this trigger
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
         "429":
           $ref: "../../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+        '413':
+          description: Payload exceeds the 1 MB size limit
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData'
 
   /webhooks/eda/{webhook_path}:
     post:
       summary: Receive EDA webhook event
       description: >-
         Receive a webhook event from Event-Driven Ansible and trigger the
-        matching workflow. Each EDA trigger node has its own unique webhook
-        path. The payload can be any JSON structure.
+        matching workflow. Requires a service account Bearer token. Each EDA
+        trigger node has its own unique webhook path. The payload can be any
+        JSON structure.
       operationId: receive_eda_webhook
       tags: [webhooks]
-      security: []
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: null
         action: null
@@ -836,22 +851,34 @@ paths:
                 $ref: '#/components/schemas/WebhookResponse'
         '400':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
-        '404':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
-        '409':
-          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
-        '413':
-          description: Payload exceeds the 1 MB size limit
+        '401':
+          description: Missing or invalid service account Bearer token
           content:
             application/problem+json:
               schema:
                 $ref: '../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData'
+        '403':
+          description: Service account is not authorized for this trigger
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
         "429":
           $ref: "../../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+        '413':
+          description: Payload exceeds the 1 MB size limit
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData'
 
 components:
   schemas:

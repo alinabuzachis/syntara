@@ -285,6 +285,73 @@ describe('TriggerNodeDetails Component', () => {
         })
       )
     })
+
+    it('includes timezone and missedSchedulePolicy when present', () => {
+      const trigger = {
+        id: 'scheduled_trigger',
+        type: TriggerTypeEnum.SCHEDULED,
+        name: 'TZ Trigger',
+        parameters: {
+          schedule_type: 'interval',
+          interval: 'PT1H',
+          timezone: 'America/New_York',
+          missed_schedule_policy: 'skip',
+        },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const initialDataText = screen.getByTestId('initial-data').textContent ?? '{}'
+      expect(initialDataText).toContain('"timezone":"America/New_York"')
+      expect(initialDataText).toContain('"missedSchedulePolicy":"skip"')
+    })
+
+    it('submits scheduled trigger with timezone and missedSchedulePolicy', async () => {
+      const user = userEvent.setup()
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-tz"
+          onClick={() => {
+            onSubmit({
+              name: 'TZ Trigger',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'PT2H',
+              timezone: 'UTC',
+              missedSchedulePolicy: 'skip',
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        id: 'sched-tz',
+        type: TriggerTypeEnum.SCHEDULED,
+        name: 'Old',
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+      await user.click(screen.getByTestId('submit-tz'))
+
+      expect(mockUpdateTrigger).toHaveBeenCalledWith(0, {
+        id: 'sched-tz',
+        type: TriggerTypeEnum.SCHEDULED,
+        name: 'TZ Trigger',
+        parameters: {
+          schedule_type: 'interval',
+          interval: 'PT2H',
+          timezone: 'UTC',
+          missed_schedule_policy: 'skip',
+        },
+      })
+
+      formSpy.mockRestore()
+    })
   })
 
   describe('Scheduled Trigger - Cron', () => {
@@ -980,6 +1047,106 @@ describe('TriggerNodeDetails Component', () => {
         description: 'Webhook path is required and must be a valid slug',
       })
       expect(mockOnClose).not.toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('loads webhook trigger with authorizedServiceAccountIds', () => {
+      const trigger = {
+        id: 'wh-auth',
+        type: TriggerTypeEnum.WEBHOOK_TRIGGER,
+        name: 'Auth Webhook',
+        parameters: {
+          webhook_path: 'auth-path',
+          authorized_service_account_ids: ['sa-1', 'sa-2'],
+        },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const initialDataText = screen.getByTestId('initial-data').textContent ?? '{}'
+      expect(initialDataText).toContain('"authorizedServiceAccountIds"')
+      expect(initialDataText).toContain('sa-1')
+      expect(initialDataText).toContain('sa-2')
+    })
+
+    it('submits webhook trigger with authorizedServiceAccountIds', async () => {
+      const user = userEvent.setup()
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-webhook-auth"
+          onClick={() => {
+            onSubmit({
+              name: 'Auth Webhook',
+              triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
+              webhookPath: 'auth-path',
+              authorizedServiceAccountIds: ['sa-1'],
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        id: 'wh-auth',
+        type: TriggerTypeEnum.WEBHOOK_TRIGGER,
+        name: 'Auth Webhook',
+        parameters: { webhook_path: 'old-path' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+      await user.click(screen.getByTestId('submit-webhook-auth'))
+
+      expect(mockUpdateTrigger).toHaveBeenCalledWith(0, {
+        id: 'wh-auth',
+        type: TriggerTypeEnum.WEBHOOK_TRIGGER,
+        name: 'Auth Webhook',
+        parameters: {
+          webhook_path: 'auth-path',
+          authorized_service_account_ids: ['sa-1'],
+        },
+      })
+
+      formSpy.mockRestore()
+    })
+
+    it('shows error for invalid input schema on webhook submit', async () => {
+      const user = userEvent.setup()
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-bad-json"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
+              webhookPath: 'valid-path',
+              inputSchema: 'not json at all { broken',
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        id: 'wh-bad',
+        type: TriggerTypeEnum.WEBHOOK_TRIGGER,
+        name: 'Test',
+        parameters: { webhook_path: 'old' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+      await user.click(screen.getByTestId('submit-bad-json'))
+
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Update failed',
+        description: expect.stringContaining('Invalid JSON schema') as unknown as string,
+      })
 
       formSpy.mockRestore()
     })

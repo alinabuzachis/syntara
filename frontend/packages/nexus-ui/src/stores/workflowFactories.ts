@@ -1,30 +1,20 @@
-import {
-  ActivityTypeEnum,
-  EdgeHandleEnum,
-  type ScheduleType,
-  TriggerTypeEnum,
-  type Activity,
-  type NodeSettings,
-} from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, type Activity, type NodeSettings } from '@ansible/nexus-contracts'
 
 import { PROTOTYPE_POLLUTION_KEYS, safeJSONReviver } from '../utils/jsonSafeParse'
 import { parseJsonEnvironment } from '../utils/parseJsonEnvironment'
 
 import type { ActivityWithMetadata } from './workflowStoreTypes'
 
+export {
+  createEdaTrigger,
+  createEventTrigger,
+  createManualTrigger,
+  createScheduledTrigger,
+  createWebhookTrigger,
+} from './triggerFactories'
+
 // ============================================================================
 // V2 Workflow Entity Factory Functions
-// ============================================================================
-// These functions create properly typed v2 workflow entities.
-// They are pure functions and don't interact with the store directly.
-//
-// V2 key differences from v1:
-//   - Executor nodes use direct type ("script", "http_request", …)
-//     instead of type "task" with a task.executor wrapper
-//   - Parameters live at node.parameters (not nested under task.parameters)
-//   - Control flow nodes store parameters in node.parameters
-//   - Triggers have id and parameters fields
-//   - No nested child arrays (then/else/do/onApproved/onRejected)
 // ============================================================================
 
 /** Copy non-empty values from source to target. Skips undefined, null, empty strings, and non-finite numbers. */
@@ -33,129 +23,6 @@ function copyDefinedValues(source: Record<string, unknown>, target: Record<strin
     if (value == null || (typeof value === 'number' && !Number.isFinite(value)) || value === '') continue
     target[key] = value
   }
-}
-
-// ============================================================================
-// Trigger Factory Functions
-// ============================================================================
-
-/**
- * Create a manual trigger (v2).
- */
-export function createManualTrigger(
-  id: string,
-  _requiresApproval?: boolean,
-  name?: string,
-  inputSchema?: Record<string, unknown>
-): Activity {
-  return {
-    id,
-    type: TriggerTypeEnum.MANUAL_TRIGGER,
-    name: name ?? 'Manual Trigger',
-    parameters: {
-      ...(inputSchema && { input_schema: inputSchema }),
-    },
-  }
-}
-
-/**
- * Create a scheduled trigger (v2).
- * @note This trigger type is not yet in the v2 backend schema
- */
-export function createScheduledTrigger(
-  id: string,
-  scheduleType: ScheduleType,
-  config: {
-    cron?: string
-    timezone?: string
-    interval?: string
-    missed_schedule_policy?: string
-  },
-  name?: string
-): Activity {
-  return {
-    id,
-    type: TriggerTypeEnum.SCHEDULED,
-    name: name ?? 'Scheduled Trigger',
-    parameters: {
-      schedule_type: scheduleType,
-      ...(config.cron && { cron: config.cron }),
-      ...(config.timezone && { timezone: config.timezone }),
-      ...(config.interval && { interval: config.interval }),
-      ...(config.missed_schedule_policy && { missed_schedule_policy: config.missed_schedule_policy }),
-    },
-  }
-}
-
-/**
- * Create an event trigger (v2).
- * @note This trigger type is not yet in the v2 backend schema
- */
-export function createEventTrigger(
-  id: string,
-  source: string,
-  eventType: string,
-  filter?: Record<string, unknown>,
-  name?: string
-): Activity {
-  return {
-    id,
-    type: TriggerTypeEnum.EVENT,
-    name: name ?? 'Event Trigger',
-    parameters: {
-      source,
-      event_type: eventType,
-      ...(filter && { filter }),
-    },
-  }
-}
-
-function createWebhookStyleTrigger(
-  id: string,
-  webhookPath: string,
-  type: typeof TriggerTypeEnum.WEBHOOK_TRIGGER | typeof TriggerTypeEnum.EDA_TRIGGER,
-  name: string,
-  inputSchema?: Record<string, unknown>
-): Activity {
-  return {
-    id,
-    type,
-    name,
-    parameters: {
-      webhook_path: webhookPath,
-      ...(inputSchema && { input_schema: inputSchema }),
-    },
-  }
-}
-
-/**
- * Create a webhook trigger (v2).
- */
-export function createWebhookTrigger(
-  id: string,
-  webhookPath: string,
-  inputSchema?: Record<string, unknown>,
-  name?: string
-): Activity {
-  return createWebhookStyleTrigger(
-    id,
-    webhookPath,
-    TriggerTypeEnum.WEBHOOK_TRIGGER,
-    name ?? 'Webhook Trigger',
-    inputSchema
-  )
-}
-
-/**
- * Create an EDA trigger (v2).
- */
-export function createEdaTrigger(
-  id: string,
-  webhookPath: string,
-  inputSchema?: Record<string, unknown>,
-  name?: string
-): Activity {
-  return createWebhookStyleTrigger(id, webhookPath, TriggerTypeEnum.EDA_TRIGGER, name ?? 'EDA Trigger', inputSchema)
 }
 
 // ============================================================================
@@ -172,9 +39,7 @@ export type CreateScriptActivityOptions = {
   settings?: NodeSettings
 }
 
-/**
- * Create a script node (v2).
- */
+/** Create a script node (v2). */
 export function createScriptActivity(options: CreateScriptActivityOptions): Activity {
   const { id, name, language, code, credentialId, environment, settings } = options
   const parsedEnvironment = parseJsonEnvironment(environment)
@@ -213,9 +78,7 @@ function headersEntriesToRecord(entries: Array<{ key: string; value: string }> |
   return Object.fromEntries(safe.map(({ key, value }) => [key.trim(), value])) as Record<string, string>
 }
 
-/**
- * Create an HTTP request node (v2).
- */
+/** Create an HTTP request node (v2). */
 export function createApiActivity(options: CreateApiActivityOptions): Activity {
   const { id, name, method, url, headers, body, authentication, credentialId, settings } = options
   const config: Record<string, unknown> = {

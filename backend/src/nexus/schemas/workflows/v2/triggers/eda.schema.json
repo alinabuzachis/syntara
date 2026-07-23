@@ -18,6 +18,15 @@
         "type": "object",
         "description": "Optional JSON Schema (Draft-07) for validating incoming EDA webhook payloads. If set, requests with non-conforming payloads are rejected with 422 Unprocessable Content.",
         "additionalProperties": true
+      },
+      "authorized_service_account_ids": {
+        "type": "array",
+        "description": "UUIDs of service accounts authorized to invoke this EDA trigger endpoint",
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "default": []
       }
     },
     "additionalProperties": false

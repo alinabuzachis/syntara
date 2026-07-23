@@ -454,6 +454,7 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
       timezone: isScheduled ? data.timezone : undefined,
       missedSchedulePolicy: isScheduled ? data.missedSchedulePolicy : undefined,
       webhookPath: isWebhookStyle ? normalizeWebhookPath(data.webhookPath ?? '') : undefined,
+      authorizedServiceAccountIds: isWebhookStyle ? data.authorizedServiceAccountIds : undefined,
     }
     props.onSubmit(cleanedData)
   }

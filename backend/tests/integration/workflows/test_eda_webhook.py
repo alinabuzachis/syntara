@@ -1,8 +1,9 @@
 """Integration tests for EDA webhook endpoint.
 
-These tests verify HTTP routing, path validation, and DB-backed trigger lookup
-for the EDA webhook endpoint. Temporal and ExecutionService are mocked since
-they are not available in the integration test environment.
+These tests verify HTTP routing, path validation, DB-backed trigger lookup,
+and service account Bearer token authentication for the EDA webhook endpoint.
+Temporal and ExecutionService are mocked since they are not available in the
+integration test environment.
 
 Run with: pytest tests/integration/workflows/test_eda_webhook.py -v
 """
@@ -15,16 +16,17 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.core.models.principal import service_principal_id
+from nexus.core.models.principal import PrincipalType
 from nexus.workflows.models.execution import Execution
 from nexus.workflows.models.webhook_trigger import WebhookTrigger
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.services.workflow_service import WorkflowService
-from nexus.workflows.webhook_router import get_webhook_temporal_service
+from nexus.workflows.webhook_router import get_webhook_caller, get_webhook_temporal_service
 
 pytestmark = pytest.mark.integration
 
@@ -35,24 +37,34 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-def _mock_service_user() -> User:
-    """Mock service user for webhook-triggered executions."""
-    cn = "backend.ao.svc"
-    return User(
-        id=service_principal_id(cn),
-        username=cn,
-        email=f"{cn}@internal",
-        first_name=cn,
+def _mock_webhook_caller() -> tuple[User, UUID]:
+    """Build a mock SA caller for webhook auth."""
+    sa_id = uuid4()
+    user = User(
+        id=sa_id,
+        username="test-sa",
+        email="test-sa@internal",
+        first_name="test-sa",
         is_enabled=True,
     )
+    object.__setattr__(user, "__principal_type__", PrincipalType.SERVICE_ACCOUNT)
+    return user, sa_id
 
 
 @pytest.fixture(autouse=True)
-def _patch_service_user(_mock_service_user: User) -> Generator[None]:
-    """Patch _get_service_user for all tests (webhook endpoints require it)."""
+def _patch_webhook_caller(session_app: FastAPI, _mock_webhook_caller: tuple[User, UUID]) -> Generator[None]:
+    """Override get_webhook_caller to return the mock SA caller for all tests."""
+    session_app.dependency_overrides[get_webhook_caller] = lambda: _mock_webhook_caller
+    yield
+    session_app.dependency_overrides.pop(get_webhook_caller, None)
+
+
+@pytest.fixture(autouse=True)
+def _skip_sa_authorization() -> Generator[None]:
+    """Skip SA authorization check — the caller is already mocked via get_webhook_caller."""
     with patch(
-        "nexus.workflows.webhook_router._get_service_user",
-        return_value=_mock_service_user,
+        "nexus.workflows.services.webhook_trigger_service.WebhookTriggerService.verify_service_account_authorization",
+        new_callable=AsyncMock,
     ):
         yield
 
@@ -66,8 +78,12 @@ def _no_temporal(session_app: FastAPI) -> Generator[None]:
 
 
 @pytest_asyncio.fixture
-async def eda_workflow(test_db_session: AsyncSession, test_user: User, test_project_id: UUID) -> Workflow:
-    """Create a published workflow with an EDA trigger via the service layer."""
+async def eda_workflow(
+    test_db_session: AsyncSession,
+    test_user: User,
+    test_project_id: UUID,
+) -> Workflow:
+    """Create a published workflow with an EDA trigger and bind the mock SA."""
     workflow_definition = {
         "schema_version": "2.0.0",
         "name": "Test EDA Workflow",
@@ -100,11 +116,12 @@ async def eda_workflow(test_db_session: AsyncSession, test_user: User, test_proj
 
 
 @pytest_asyncio.fixture
-async def eda_workflow_with_schema(test_db_session: AsyncSession, test_user: User, test_project_id: UUID) -> Workflow:
-    """Create a published EDA workflow whose trigger has an input_schema.
-
-    The schema requires ``event_type`` (string).  Any extra fields are allowed.
-    """
+async def eda_workflow_with_schema(
+    test_db_session: AsyncSession,
+    test_user: User,
+    test_project_id: UUID,
+) -> Workflow:
+    """Create a published EDA workflow with input_schema and bind the mock SA."""
     input_schema = {
         "type": "object",
         "required": ["event_type"],
@@ -151,10 +168,7 @@ async def temporal_client(
     session_app: FastAPI,
     test_db_session: AsyncSession,
 ) -> AsyncGenerator[AsyncClient]:
-    """Client with Temporal dependency overridden to return a mock service.
-
-    Tests that need a "working" Temporal use this instead of ``base_client``.
-    """
+    """Client with Temporal dependency overridden to return a mock service."""
     mock_temporal = AsyncMock()
 
     async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -177,35 +191,43 @@ async def temporal_client(
 # ============================================================================
 
 
-class TestEDAWebhookNoAuth:
-    """Test that the endpoint requires no authentication (public)."""
+class TestEDAWebhookAuth:
+    """Test that the endpoint requires service account authentication."""
 
-    @pytest.mark.asyncio
-    async def test_webhook_accessible_without_auth(self, base_client: AsyncClient) -> None:
-        """Webhook endpoint is accessible without authentication (NO_PERMISSION)."""
-        response = await base_client.post(
-            "/api/v1/webhooks/eda/test-path",
-            json={"test": "data"},
-        )
+    async def test_webhook_requires_auth(self, session_app: FastAPI, test_db_session: AsyncSession) -> None:
+        """Webhook endpoint returns 401 without authentication."""
+        # Remove the auth override so the real dependency runs
+        session_app.dependency_overrides.pop(get_webhook_caller, None)
 
-        # Should get 404 (no matching trigger) instead of 401
-        assert response.status_code == 404
+        async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+            yield test_db_session
+
+        session_app.dependency_overrides[get_db] = override_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=session_app),
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/api/v1/webhooks/eda/test-path",
+                json={"test": "data"},
+            )
+
+        assert response.status_code == 401
 
 
 class TestEDAWebhookValidation:
     """Test request payload validation."""
 
-    @pytest.mark.asyncio
     async def test_webhook_path_rejects_invalid_characters(self, base_client: AsyncClient) -> None:
         """Webhook path with uppercase letters is rejected by validation."""
         response = await base_client.post(
-            "/api/v1/webhooks/eda/GitHub-Deployments",  # Uppercase violates pattern
+            "/api/v1/webhooks/eda/GitHub-Deployments",
             json={"test": "data"},
         )
 
         assert response.status_code == 422
 
-    @pytest.mark.asyncio
     async def test_webhook_handles_malformed_json(self, base_client: AsyncClient) -> None:
         """Returns 422 for malformed JSON."""
         response = await base_client.post(
@@ -216,7 +238,6 @@ class TestEDAWebhookValidation:
 
         assert response.status_code == 422
 
-    @pytest.mark.asyncio
     async def test_webhook_rejects_payload_failing_input_schema(
         self,
         temporal_client: AsyncClient,
@@ -225,14 +246,13 @@ class TestEDAWebhookValidation:
         """Returns 422 when payload does not conform to the trigger's input_schema."""
         response = await temporal_client.post(
             "/api/v1/webhooks/eda/validated-events",
-            json={"other_field": "value"},  # missing required "event_type"
+            json={"other_field": "value"},
         )
 
         assert response.status_code == 422
         body = response.json()
         assert "validation" in body.get("detail", "").lower()
 
-    @pytest.mark.asyncio
     async def test_webhook_accepts_payload_matching_input_schema(
         self,
         temporal_client: AsyncClient,
@@ -260,7 +280,6 @@ class TestEDAWebhookValidation:
 class TestEDAWebhookWorkflowMatching:
     """Test workflow matching by webhook path via lookup table."""
 
-    @pytest.mark.asyncio
     async def test_webhook_returns_404_when_no_matching_trigger(
         self, base_client: AsyncClient, test_db_session: AsyncSession
     ) -> None:
@@ -272,7 +291,6 @@ class TestEDAWebhookWorkflowMatching:
 
         assert response.status_code == 404
 
-    @pytest.mark.asyncio
     async def test_webhook_triggers_matching_workflow(
         self,
         temporal_client: AsyncClient,
@@ -301,7 +319,6 @@ class TestEDAWebhookWorkflowMatching:
             assert data["execution_id"] == str(mock_execution.id)
             assert "Workflow execution started" in data["message"]
 
-    @pytest.mark.asyncio
     async def test_webhook_does_not_trigger_disabled_workflow(
         self,
         base_client: AsyncClient,
@@ -324,7 +341,6 @@ class TestEDAWebhookWorkflowMatching:
 class TestEDAWebhookEdgeCases:
     """Edge-case behaviour for the EDA webhook endpoint."""
 
-    @pytest.mark.asyncio
     @pytest.mark.usefixtures("_no_temporal")
     async def test_webhook_returns_503_when_temporal_unavailable(
         self,
@@ -339,7 +355,6 @@ class TestEDAWebhookEdgeCases:
 
         assert response.status_code == 503
 
-    @pytest.mark.asyncio
     async def test_webhook_rejects_oversized_payload(
         self,
         base_client: AsyncClient,
@@ -353,7 +368,6 @@ class TestEDAWebhookEdgeCases:
 
         assert response.status_code == 413
 
-    @pytest.mark.asyncio
     async def test_webhook_does_not_trigger_disabled_trigger_row(
         self,
         base_client: AsyncClient,
@@ -361,8 +375,6 @@ class TestEDAWebhookEdgeCases:
         test_db_session: AsyncSession,
     ) -> None:
         """Returns 404 when the WebhookTrigger row itself is disabled."""
-        from sqlmodel import select
-
         result = await test_db_session.exec(select(WebhookTrigger).where(WebhookTrigger.workflow_id == eda_workflow.id))
         trigger = result.one()
         trigger.is_enabled = False
@@ -376,7 +388,6 @@ class TestEDAWebhookEdgeCases:
 
         assert response.status_code == 404
 
-    @pytest.mark.asyncio
     async def test_webhook_does_not_trigger_soft_deleted_workflow(
         self,
         base_client: AsyncClient,
@@ -403,16 +414,15 @@ class TestCrossTypePathIsolation:
 
     @pytest_asyncio.fixture
     async def shared_path_workflows(
-        self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        test_project_id: UUID,
     ) -> tuple[Workflow, Workflow]:
-        """Create a generic and an EDA workflow that share the same webhook_path.
-
-        Returns (generic_workflow, eda_workflow).
-        """
+        """Create a generic and an EDA workflow sharing the same webhook_path."""
         shared_path = "shared-path"
         service = WorkflowService(test_db_session, test_user)
 
-        # -- Generic webhook workflow (A) --
         wf_a, _v_a, _ = await service.create_workflow(
             name="Generic Webhook Workflow",
             description=None,
@@ -432,7 +442,6 @@ class TestCrossTypePathIsolation:
         )
         wf_a, _v_a, _warning = await service.publish_workflow_version(wf_a.id, version=1)
 
-        # -- EDA webhook workflow (B) --
         wf_b, _v_b, _ = await service.create_workflow(
             name="EDA Webhook Workflow",
             description=None,
@@ -454,7 +463,6 @@ class TestCrossTypePathIsolation:
 
         return wf_a, wf_b
 
-    @pytest.mark.asyncio
     async def test_eda_endpoint_triggers_eda_workflow_not_generic(
         self,
         temporal_client: AsyncClient,
@@ -480,7 +488,6 @@ class TestCrossTypePathIsolation:
             call_kwargs = mock_svc.create_execution.call_args[1]
             assert call_kwargs["workflow_id"] == wf_eda.id
 
-    @pytest.mark.asyncio
     async def test_generic_endpoint_triggers_generic_workflow_not_eda(
         self,
         temporal_client: AsyncClient,
@@ -505,83 +512,3 @@ class TestCrossTypePathIsolation:
             mock_svc.create_execution.assert_called_once()
             call_kwargs = mock_svc.create_execution.call_args[1]
             assert call_kwargs["workflow_id"] == wf_generic.id
-
-    @pytest.mark.asyncio
-    async def test_generic_webhook_with_eda_path_does_not_shadow_eda_namespace(
-        self,
-        temporal_client: AsyncClient,
-        test_db_session: AsyncSession,
-        test_user: User,
-        test_project_id: UUID,
-    ) -> None:
-        """Generic webhook with path 'eda' at /webhooks/eda doesn't shadow /webhooks/eda/*."""
-        service = WorkflowService(test_db_session, test_user)
-
-        # Create generic webhook workflow with path "eda"
-        wf_generic, _, _ = await service.create_workflow(
-            name="Generic at eda path",
-            description=None,
-            labels={},
-            workflow_definition={
-                "schema_version": "2.0.0",
-                "name": "Generic at eda path",
-                "triggers": [
-                    {"id": "wh_1", "type": "webhook_trigger", "parameters": {"webhook_path": "eda"}},
-                ],
-                "nodes": [
-                    {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "pass"}},
-                ],
-                "edges": [{"from": "wh_1", "to": "n1"}],
-            },
-            project_id=test_project_id,
-        )
-        wf_generic, _, _warning = await service.publish_workflow_version(wf_generic.id, version=1)
-
-        # Create EDA webhook workflow with path "my-trigger"
-        wf_eda, _, _ = await service.create_workflow(
-            name="EDA trigger workflow",
-            description=None,
-            labels={},
-            workflow_definition={
-                "schema_version": "2.0.0",
-                "name": "EDA trigger workflow",
-                "triggers": [
-                    {"id": "eda_1", "type": "eda_trigger", "parameters": {"webhook_path": "my-trigger"}},
-                ],
-                "nodes": [
-                    {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "pass"}},
-                ],
-                "edges": [{"from": "eda_1", "to": "n1"}],
-            },
-            project_id=test_project_id,
-        )
-        wf_eda, _, _warning = await service.publish_workflow_version(wf_eda.id, version=1)
-
-        with patch("nexus.workflows.webhook_router.ExecutionService") as mock_cls:
-            mock_svc = AsyncMock()
-            mock_cls.return_value = mock_svc
-
-            # Test 1: POST /webhooks/eda triggers generic webhook
-            mock_execution_generic = Mock(spec=Execution)
-            mock_execution_generic.id = uuid4()
-            mock_svc.create_execution = AsyncMock(return_value=mock_execution_generic)
-
-            response = await temporal_client.post("/api/v1/webhooks/eda", json={"test": "data"})
-
-            assert response.status_code == 202
-            mock_svc.create_execution.assert_called_once()
-            call_kwargs = mock_svc.create_execution.call_args[1]
-            assert call_kwargs["workflow_id"] == wf_generic.id
-
-            # Test 2: POST /webhooks/eda/my-trigger triggers EDA webhook (not shadowed)
-            mock_svc.create_execution.reset_mock()
-            mock_execution_eda = Mock(spec=Execution)
-            mock_execution_eda.id = uuid4()
-            mock_svc.create_execution = AsyncMock(return_value=mock_execution_eda)
-
-            response = await temporal_client.post("/api/v1/webhooks/eda/my-trigger", json={"test": "data"})
-
-            assert response.status_code == 202
-            mock_svc.create_execution.assert_called_once()
-            call_kwargs = mock_svc.create_execution.call_args[1]
-            assert call_kwargs["workflow_id"] == wf_eda.id

@@ -1,7 +1,8 @@
 """Unit tests for webhook trigger error handlers."""
 
 import json
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+from uuid import uuid4
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -10,12 +11,16 @@ from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.workflows.error_handlers import (
     payload_too_large_handler,
     trigger_validation_handler,
+    webhook_auth_required_handler,
+    webhook_sa_not_authorized_handler,
     webhook_trigger_not_found_handler,
     webhook_trigger_path_conflict_handler,
 )
 from nexus.workflows.exceptions import (
     PayloadTooLargeError,
     TriggerValidationError,
+    WebhookAuthenticationRequiredError,
+    WebhookServiceAccountNotAuthorizedError,
     WebhookTriggerNotFoundError,
     WebhookTriggerPathConflictError,
 )
@@ -177,3 +182,90 @@ class TestPayloadTooLargeHandler:
         assert data["code"] == "PAYLOAD_TOO_LARGE"
         assert data["detail"] == "Payload exceeds 1MB limit"
         assert data["retryable"] is False
+
+
+class TestWebhookAuthRequiredHandler:
+    """Test suite for webhook_auth_required_handler."""
+
+    def test_returns_401_with_problem_json(self) -> None:
+        """Test that handler returns 401 with RFC 9457 format."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/v1/webhooks/my-hook"
+        request.url.__str__ = Mock(return_value="https://api.example.com/webhooks/my-hook")
+        request.path_params = {"webhook_path": "my-hook"}
+
+        exc = WebhookAuthenticationRequiredError()
+
+        with patch("nexus.workflows.error_handlers.AuditEventDispatcher"):
+            response = webhook_auth_required_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 401
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["unauthorized"]
+        assert data["code"] == "WEBHOOK_AUTH_REQUIRED"
+        assert data["retryable"] is False
+
+    def test_dispatches_audit_failure_event(self) -> None:
+        """Test that an audit failure event is dispatched."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/v1/webhooks/eda/my-eda-hook"
+        request.url.__str__ = Mock(return_value="https://api.example.com/webhooks/eda/my-eda-hook")
+        request.path_params = {"webhook_path": "my-eda-hook"}
+
+        exc = WebhookAuthenticationRequiredError()
+
+        with patch("nexus.workflows.error_handlers.AuditEventDispatcher") as mock_dispatcher:
+            webhook_auth_required_handler(request, exc)
+
+        mock_dispatcher.dispatch.assert_called_once()
+        event = mock_dispatcher.dispatch.call_args[0][0]
+        assert event.webhook_path == "my-eda-hook"
+        assert event.trigger_type == "eda_trigger"
+        assert event.failure_reason == "missing_or_invalid_token"
+
+
+class TestWebhookSaNotAuthorizedHandler:
+    """Test suite for webhook_sa_not_authorized_handler."""
+
+    def test_returns_403_with_problem_json(self) -> None:
+        """Test that handler returns 403 with RFC 9457 format."""
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/webhooks/my-hook"
+
+        sa_id = uuid4()
+        exc = WebhookServiceAccountNotAuthorizedError("my-hook", "webhook_trigger", service_account_id=sa_id)
+
+        with patch("nexus.workflows.error_handlers.AuditEventDispatcher"):
+            response = webhook_sa_not_authorized_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 403
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["forbidden"]
+        assert data["code"] == "WEBHOOK_SA_NOT_AUTHORIZED"
+        assert data["retryable"] is False
+
+    def test_dispatches_audit_failure_event_with_sa_id(self) -> None:
+        """Test that an audit failure event includes the service account ID."""
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/webhooks/my-hook"
+
+        sa_id = uuid4()
+        exc = WebhookServiceAccountNotAuthorizedError("my-hook", "webhook_trigger", service_account_id=sa_id)
+
+        with patch("nexus.workflows.error_handlers.AuditEventDispatcher") as mock_dispatcher:
+            webhook_sa_not_authorized_handler(request, exc)
+
+        mock_dispatcher.dispatch.assert_called_once()
+        event = mock_dispatcher.dispatch.call_args[0][0]
+        assert event.webhook_path == "my-hook"
+        assert event.trigger_type == "webhook_trigger"
+        assert event.failure_reason == "sa_not_authorized"
+        assert event.service_account_id == sa_id

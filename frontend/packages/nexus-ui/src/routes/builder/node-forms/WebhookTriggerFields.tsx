@@ -1,9 +1,12 @@
-import { Alert, Content, ContentVariants, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
+import { Alert, Content, ContentVariants, FormGroup, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
+import { Controller, useFormContext } from 'react-hook-form'
 
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { WEBHOOK_BASE_URL } from '../../../utils/backendUrl'
 
 import { JsonSchemaField } from './JsonSchemaField'
+import { ServiceAccountSelect } from './ServiceAccountSelect'
+import type { TriggerFormData } from './triggerFormSchema'
 import { DEFAULT_JSON_SCHEMA, EXAMPLE_JSON_SCHEMA, JSON_SCHEMA_DOWNLOAD_FILENAME } from './triggerFormSchema'
 import { useWebhookUrl } from './useWebhookUrl'
 import { WebhookPathField } from './WebhookPathField'
@@ -55,6 +58,7 @@ export function WebhookFields({
   errors: Readonly<{ webhookPath?: { message?: string }; inputSchema?: { message?: string } }>
 }>) {
   const fullWebhookUrl = useWebhookUrl(WEBHOOK_BASE_URL)
+  const { control } = useFormContext<TriggerFormData>()
 
   return (
     <>
@@ -109,6 +113,30 @@ export function WebhookFields({
         helperText="A unique slug for this endpoint (e.g., /jira-updates)."
         error={errors.webhookPath?.message}
       />
+
+      <StackItem>
+        <FormGroup
+          label={
+            <FormLabelWithHelp
+              label="Authorized service accounts"
+              helpText="Select the service accounts that are allowed to invoke this webhook trigger endpoint. Callers must authenticate with a Bearer token from one of these service accounts."
+            />
+          }
+          fieldId="webhook-authorized-service-accounts"
+        >
+          <Controller
+            control={control}
+            name="authorizedServiceAccountIds"
+            render={({ field }) => (
+              <ServiceAccountSelect
+                id="webhook-authorized-service-accounts"
+                selectedIds={field.value ?? []}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </FormGroup>
+      </StackItem>
 
       <JsonSchemaField
         label={

@@ -7,7 +7,7 @@ authentication causes this test to fail.
 Routes exempted by design:
 - Health / docs / internal endpoints (already excluded from middleware)
 - Auth routes (/auth/*) — use dedicated token deps or are public
-- Webhook routes (/webhooks/*) — use webhook-secret authentication
+- Webhook routes (/webhooks/*) — use service account Bearer token authentication (get_webhook_caller)
 - Public utility routes (resource_actions, validate_name)
 """
 
