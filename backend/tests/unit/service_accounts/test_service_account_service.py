@@ -177,8 +177,8 @@ class TestDeleteServiceAccount:
 
         await service.delete_service_account(uuid4())
 
-        # 4 exec calls: select SA, token_version update, credential delete, role assignment delete
-        assert mock_session.exec.call_count == 4
+        # 3 exec calls: select SA, credential delete, role assignment delete
+        assert mock_session.exec.call_count == 3
         mock_session.delete.assert_called_once_with(mock_sa)
         mock_session.commit.assert_called_once()
 
@@ -199,15 +199,15 @@ class TestDeleteServiceAccount:
 
         # Inspect the delete statements passed to exec
         exec_calls = mock_session.exec.call_args_list
-        # Call 0: select SA, Call 1: token_version update, Call 2: credential delete, Call 3: role delete
-        assert len(exec_calls) == 4
+        # Call 0: select SA, Call 1: credential delete, Call 2: role delete
+        assert len(exec_calls) == 3
 
         # Verify credential delete targets the SA's credentials
-        cred_delete_stmt = exec_calls[2][0][0]
+        cred_delete_stmt = exec_calls[1][0][0]
         assert "service_account_credentials" in str(cred_delete_stmt)
 
         # Verify role assignment delete includes is_builtin filter
-        role_delete_stmt = exec_calls[3][0][0]
+        role_delete_stmt = exec_calls[2][0][0]
         role_stmt_str = str(role_delete_stmt)
         assert "role_assignments" in role_stmt_str
         assert "is_builtin" in role_stmt_str

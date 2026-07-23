@@ -226,13 +226,6 @@ class ServiceAccountService(BaseService):
         service_account = await self.get_service_account(service_account_id)
         sa_name = service_account.name
 
-        # Invalidate outstanding tokens
-        await self.session.exec(
-            update(ServiceAccount)
-            .where(ServiceAccount.id == service_account_id)  # type: ignore[arg-type]
-            .values(token_version=ServiceAccount.token_version + 1)
-        )
-
         # Delete all credentials for this SA
         await self.session.exec(
             sa_delete(ServiceAccountCredential).where(
@@ -240,7 +233,7 @@ class ServiceAccountService(BaseService):
             )
         )
 
-        # Clean up non-builtin role assignments
+        # SAs never receive builtin assignments; filter is defensive
         await self.session.exec(
             sa_delete(RoleAssignment).where(
                 col(RoleAssignment.principal_id) == service_account_id,
