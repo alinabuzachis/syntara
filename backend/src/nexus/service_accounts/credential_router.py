@@ -130,12 +130,12 @@ async def list_credentials(
     response_description="Credential details",
 )
 async def get_credential(
-    service_account_id: UUID,  # noqa: ARG001
+    service_account_id: UUID,
     credential_id: UUID,
     service: Annotated[ServiceAccountCredentialService, Depends(get_credential_service)],
 ) -> SACredentialRead:
     """Get a credential by ID (secret is never included)."""
-    credential = await service.get_credential(credential_id)
+    credential = await service.get_credential(credential_id, service_account_id=service_account_id)
     return service.to_read(credential)
 
 
@@ -148,12 +148,12 @@ async def get_credential(
 )
 @audit(EventCategory.USER_ACTION, event_action="sa_credential_delete", capture_args={"credential_id"})
 async def delete_credential(
-    service_account_id: UUID,  # noqa: ARG001
+    service_account_id: UUID,
     credential_id: UUID,
     service: Annotated[ServiceAccountCredentialService, Depends(get_credential_service)],
 ) -> None:
     """Hard-delete a credential."""
-    await service.delete_credential(credential_id)
+    await service.delete_credential(credential_id, service_account_id=service_account_id)
 
 
 @router.post(
@@ -164,7 +164,7 @@ async def delete_credential(
 )
 @audit(EventCategory.USER_ACTION, event_action="sa_credential_rotate", capture_args={"credential_id"})
 async def rotate_credential(
-    service_account_id: UUID,  # noqa: ARG001
+    service_account_id: UUID,
     credential_id: UUID,
     request: SACredentialRotateRequest,
     service: Annotated[ServiceAccountCredentialService, Depends(get_credential_service)],
@@ -172,6 +172,7 @@ async def rotate_credential(
     """Rotate a credential's secret; returns the new one-time plaintext secret."""
     credential, plaintext_secret = await service.rotate_credential(
         credential_id,
+        service_account_id=service_account_id,
         grace_period_seconds=request.grace_period_seconds,
     )
     return service.to_rotate_response(credential, plaintext_secret)
@@ -185,12 +186,12 @@ async def rotate_credential(
 )
 @audit(EventCategory.USER_ACTION, event_action="sa_credential_disable", capture_args={"credential_id"})
 async def disable_credential(
-    service_account_id: UUID,  # noqa: ARG001
+    service_account_id: UUID,
     credential_id: UUID,
     service: Annotated[ServiceAccountCredentialService, Depends(get_credential_service)],
 ) -> SACredentialRead:
     """Set a credential's status to disabled."""
-    credential = await service.disable_credential(credential_id)
+    credential = await service.disable_credential(credential_id, service_account_id=service_account_id)
     return service.to_read(credential)
 
 
@@ -202,10 +203,10 @@ async def disable_credential(
 )
 @audit(EventCategory.USER_ACTION, event_action="sa_credential_enable", capture_args={"credential_id"})
 async def enable_credential(
-    service_account_id: UUID,  # noqa: ARG001
+    service_account_id: UUID,
     credential_id: UUID,
     service: Annotated[ServiceAccountCredentialService, Depends(get_credential_service)],
 ) -> SACredentialRead:
     """Set a credential's status to active."""
-    credential = await service.enable_credential(credential_id)
+    credential = await service.enable_credential(credential_id, service_account_id=service_account_id)
     return service.to_read(credential)

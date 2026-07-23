@@ -93,12 +93,14 @@ class TestGetCredentialEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_returns_read(self, mock_service: MagicMock) -> None:
+        sa_id = uuid4()
         cred = _make_credential()
         mock_service.get_credential.return_value = cred
         mock_service.to_read.return_value = SACredentialRead.model_validate(cred)
 
-        result = await get_credential(uuid4(), cred.id, mock_service)
+        result = await get_credential(sa_id, cred.id, mock_service)
         assert isinstance(result, SACredentialRead)
+        mock_service.get_credential.assert_called_once_with(cred.id, service_account_id=sa_id)
 
 
 class TestDeleteCredentialEndpoint:
@@ -106,9 +108,10 @@ class TestDeleteCredentialEndpoint:
 
     @pytest.mark.asyncio
     async def test_delete_calls_service(self, mock_service: MagicMock) -> None:
+        sa_id = uuid4()
         cred_id = uuid4()
-        await delete_credential(uuid4(), cred_id, mock_service)
-        mock_service.delete_credential.assert_called_once_with(cred_id)
+        await delete_credential(sa_id, cred_id, mock_service)
+        mock_service.delete_credential.assert_called_once_with(cred_id, service_account_id=sa_id)
 
 
 class TestRotateCredentialEndpoint:
@@ -116,6 +119,7 @@ class TestRotateCredentialEndpoint:
 
     @pytest.mark.asyncio
     async def test_rotate_returns_response(self, mock_service: MagicMock) -> None:
+        sa_id = uuid4()
         cred = _make_credential()
         secret = "new-secret"  # noqa: S105
 
@@ -126,10 +130,14 @@ class TestRotateCredentialEndpoint:
         )
 
         request = SACredentialRotateRequest()
-        result = await rotate_credential(uuid4(), cred.id, request, mock_service)
+        result = await rotate_credential(sa_id, cred.id, request, mock_service)
 
         assert isinstance(result, SACredentialRotateResponse)
-        mock_service.rotate_credential.assert_called_once()
+        mock_service.rotate_credential.assert_called_once_with(
+            cred.id,
+            service_account_id=sa_id,
+            grace_period_seconds=request.grace_period_seconds,
+        )
 
 
 class TestDisableCredentialEndpoint:
@@ -137,13 +145,15 @@ class TestDisableCredentialEndpoint:
 
     @pytest.mark.asyncio
     async def test_disable_returns_read(self, mock_service: MagicMock) -> None:
+        sa_id = uuid4()
         cred = _make_credential()
         cred.status = ServiceAccountCredentialStatus.DISABLED
         mock_service.disable_credential.return_value = cred
         mock_service.to_read.return_value = SACredentialRead.model_validate(cred)
 
-        result = await disable_credential(uuid4(), cred.id, mock_service)
+        result = await disable_credential(sa_id, cred.id, mock_service)
         assert isinstance(result, SACredentialRead)
+        mock_service.disable_credential.assert_called_once_with(cred.id, service_account_id=sa_id)
 
 
 class TestEnableCredentialEndpoint:
@@ -151,9 +161,11 @@ class TestEnableCredentialEndpoint:
 
     @pytest.mark.asyncio
     async def test_enable_returns_read(self, mock_service: MagicMock) -> None:
+        sa_id = uuid4()
         cred = _make_credential()
         mock_service.enable_credential.return_value = cred
         mock_service.to_read.return_value = SACredentialRead.model_validate(cred)
 
-        result = await enable_credential(uuid4(), cred.id, mock_service)
+        result = await enable_credential(sa_id, cred.id, mock_service)
         assert isinstance(result, SACredentialRead)
+        mock_service.enable_credential.assert_called_once_with(cred.id, service_account_id=sa_id)

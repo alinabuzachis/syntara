@@ -137,7 +137,7 @@ class TestGetCredential:
         mock_result.one_or_none.return_value = mock_cred
         mock_session.exec.return_value = mock_result
 
-        result = await service.get_credential(uuid4())
+        result = await service.get_credential(uuid4(), service_account_id=uuid4())
         assert result is mock_cred
 
     @pytest.mark.asyncio
@@ -149,7 +149,23 @@ class TestGetCredential:
         mock_session.exec.return_value = mock_result
 
         with pytest.raises(ServiceAccountCredentialNotFoundError, match="not found"):
-            await service.get_credential(uuid4())
+            await service.get_credential(uuid4(), service_account_id=uuid4())
+
+    @pytest.mark.asyncio
+    async def test_get_query_filters_by_both_id_and_service_account(
+        self, service: ServiceAccountCredentialService, mock_session: AsyncMock
+    ) -> None:
+        """Regression: the query must include service_account_id to prevent cross-SA access (BOLA)."""
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = MagicMock(spec=ServiceAccountCredential)
+        mock_session.exec.return_value = mock_result
+
+        await service.get_credential(uuid4(), service_account_id=uuid4())
+
+        query = mock_session.exec.call_args[0][0]
+        where_str = str(query.whereclause)
+        assert "service_account_credentials.id" in where_str
+        assert "service_account_credentials.service_account_id" in where_str
 
 
 class TestDisableCredential:
@@ -163,8 +179,20 @@ class TestDisableCredential:
         mock_result.one_or_none.return_value = mock_cred
         mock_session.exec.return_value = mock_result
 
-        await service.disable_credential(uuid4())
+        await service.disable_credential(uuid4(), service_account_id=uuid4())
         assert mock_cred.status == ServiceAccountCredentialStatus.DISABLED
+
+    @pytest.mark.asyncio
+    async def test_disable_raises_not_found(
+        self, service: ServiceAccountCredentialService, mock_session: AsyncMock
+    ) -> None:
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_session.exec.return_value = mock_result
+        cred_id, sa_id = uuid4(), uuid4()
+
+        with pytest.raises(ServiceAccountCredentialNotFoundError):
+            await service.disable_credential(cred_id, service_account_id=sa_id)
 
 
 class TestEnableCredential:
@@ -178,8 +206,20 @@ class TestEnableCredential:
         mock_result.one_or_none.return_value = mock_cred
         mock_session.exec.return_value = mock_result
 
-        await service.enable_credential(uuid4())
+        await service.enable_credential(uuid4(), service_account_id=uuid4())
         assert mock_cred.status == ServiceAccountCredentialStatus.ACTIVE
+
+    @pytest.mark.asyncio
+    async def test_enable_raises_not_found(
+        self, service: ServiceAccountCredentialService, mock_session: AsyncMock
+    ) -> None:
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_session.exec.return_value = mock_result
+        cred_id, sa_id = uuid4(), uuid4()
+
+        with pytest.raises(ServiceAccountCredentialNotFoundError):
+            await service.enable_credential(cred_id, service_account_id=sa_id)
 
 
 class TestDeleteCredential:
@@ -194,7 +234,7 @@ class TestDeleteCredential:
         mock_result.one_or_none.return_value = mock_cred
         mock_session.exec.return_value = mock_result
 
-        await service.delete_credential(uuid4())
+        await service.delete_credential(uuid4(), service_account_id=uuid4())
         mock_session.delete.assert_called_once_with(mock_cred)
         mock_session.commit.assert_called_once()
 
@@ -207,7 +247,23 @@ class TestDeleteCredential:
         mock_session.exec.return_value = mock_result
 
         with pytest.raises(ServiceAccountCredentialNotFoundError):
-            await service.delete_credential(uuid4())
+            await service.delete_credential(uuid4(), service_account_id=uuid4())
+
+
+class TestRotateCredential:
+    """Tests for rotating a credential's secret."""
+
+    @pytest.mark.asyncio
+    async def test_rotate_raises_not_found(
+        self, service: ServiceAccountCredentialService, mock_session: AsyncMock
+    ) -> None:
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_session.exec.return_value = mock_result
+        cred_id, sa_id = uuid4(), uuid4()
+
+        with pytest.raises(ServiceAccountCredentialNotFoundError):
+            await service.rotate_credential(cred_id, service_account_id=sa_id)
 
 
 class TestConversionMethods:
@@ -410,7 +466,7 @@ class TestCredentialMaxLifetime:
 
         with override_settings(sa_credential_max_lifetime_days=90):
             before = datetime.now(tz=UTC)
-            await service.rotate_credential(uuid4())
+            await service.rotate_credential(uuid4(), service_account_id=uuid4())
             after = datetime.now(tz=UTC)
 
         assert mock_cred.expires_at != old_expiry
@@ -434,7 +490,7 @@ class TestCredentialMaxLifetime:
         mock_session.exec.return_value = mock_result
 
         with override_settings(sa_credential_max_lifetime_days=-1):
-            await service.rotate_credential(uuid4())
+            await service.rotate_credential(uuid4(), service_account_id=uuid4())
 
         assert mock_cred.expires_at is None
 

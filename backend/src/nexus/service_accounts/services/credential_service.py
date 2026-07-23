@@ -141,15 +141,16 @@ class ServiceAccountCredentialService(BaseService):
 
         return credential, plaintext_secret
 
-    async def get_credential(self, credential_id: UUID) -> ServiceAccountCredential:
-        """Get a credential by ID.
+    async def get_credential(self, credential_id: UUID, *, service_account_id: UUID) -> ServiceAccountCredential:
+        """Get a credential by ID, scoped to the owning service account.
 
         Raises:
-            ServiceAccountCredentialNotFoundError: If not found.
+            ServiceAccountCredentialNotFoundError: If not found or not owned by the given SA.
 
         """
         query = select(ServiceAccountCredential).where(
             ServiceAccountCredential.id == credential_id,
+            ServiceAccountCredential.service_account_id == service_account_id,
         )
         result = await self.session.exec(query)
         credential = result.one_or_none()
@@ -164,6 +165,7 @@ class ServiceAccountCredentialService(BaseService):
         self,
         credential_id: UUID,
         *,
+        service_account_id: UUID,
         grace_period_seconds: int | None = None,
     ) -> tuple[ServiceAccountCredential, str]:
         """Rotate a credential's secret.
@@ -172,7 +174,7 @@ class ServiceAccountCredentialService(BaseService):
             Tuple of (updated credential, new plaintext secret/key).
 
         """
-        credential = await self.get_credential(credential_id)
+        credential = await self.get_credential(credential_id, service_account_id=service_account_id)
 
         grace = grace_period_seconds if grace_period_seconds is not None else credential.grace_period_seconds
 
@@ -198,14 +200,14 @@ class ServiceAccountCredentialService(BaseService):
 
         return credential, plaintext_secret
 
-    async def disable_credential(self, credential_id: UUID) -> ServiceAccountCredential:
+    async def disable_credential(self, credential_id: UUID, *, service_account_id: UUID) -> ServiceAccountCredential:
         """Set a credential's status to disabled.
 
         Raises:
-            ServiceAccountCredentialNotFoundError: If not found.
+            ServiceAccountCredentialNotFoundError: If not found or not owned by the given SA.
 
         """
-        credential = await self.get_credential(credential_id)
+        credential = await self.get_credential(credential_id, service_account_id=service_account_id)
         credential.status = ServiceAccountCredentialStatus.DISABLED
         credential.update_by_user(self.user.id)
 
@@ -217,14 +219,14 @@ class ServiceAccountCredentialService(BaseService):
         logger.info("Service account credential disabled", credential_id=str(credential_id))
         return credential
 
-    async def enable_credential(self, credential_id: UUID) -> ServiceAccountCredential:
+    async def enable_credential(self, credential_id: UUID, *, service_account_id: UUID) -> ServiceAccountCredential:
         """Set a credential's status to active.
 
         Raises:
-            ServiceAccountCredentialNotFoundError: If not found.
+            ServiceAccountCredentialNotFoundError: If not found or not owned by the given SA.
 
         """
-        credential = await self.get_credential(credential_id)
+        credential = await self.get_credential(credential_id, service_account_id=service_account_id)
         credential.status = ServiceAccountCredentialStatus.ACTIVE
         credential.update_by_user(self.user.id)
 
@@ -236,14 +238,14 @@ class ServiceAccountCredentialService(BaseService):
         logger.info("Service account credential enabled", credential_id=str(credential_id))
         return credential
 
-    async def delete_credential(self, credential_id: UUID) -> None:
+    async def delete_credential(self, credential_id: UUID, *, service_account_id: UUID) -> None:
         """Hard-delete a credential.
 
         Raises:
-            ServiceAccountCredentialNotFoundError: If not found.
+            ServiceAccountCredentialNotFoundError: If not found or not owned by the given SA.
 
         """
-        credential = await self.get_credential(credential_id)
+        credential = await self.get_credential(credential_id, service_account_id=service_account_id)
 
         await self.session.delete(credential)
         await self.session.flush()
