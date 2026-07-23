@@ -314,8 +314,11 @@ import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDia
 export function MyListPage() {
   const {
     cursor, setCursor, filters, hasActiveFilters, queryParams,
-    handleFilterChange, handleClearAllFilters, getFooterProps,
-  } = useCursorPagination()
+    handleFilterChange, handleClearAllFilters, getFooterProps, getSortParams,
+  } = useCursorPagination({
+    defaultSort: { field: 'name', direction: 'asc' },
+    columns: [{ field: 'name', label: 'Name', isSortable: true }],
+  })
 
   const deleteDialog = useDialogState<MyItem>()
 
@@ -340,7 +343,7 @@ export function MyListPage() {
       <NxScrollableTableContainer
         footer={getFooterProps(query.data)}
       >
-        {/* table content */}
+        {/* <Th sort={getSortParams('name')}>Name</Th> */}
       </NxScrollableTableContainer>
       <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
@@ -867,13 +870,13 @@ const deleteDialog = useDialogState<User>()
 ## 14. `useCursorPagination` — Never Duplicate Cursor Boilerplate
 
 ```typescript
-// ❌ BAD — 50+ lines repeated per list view
+// ❌ BAD — 50+ lines repeated per list view (also: do not wire useSortState / useColumnSortState separately)
 const [cursor, setCursor] = useState<string | null>(null)
 const { filters, clearAllFilters, setAllFilters } = useFilterState()
 const filterParams = buildFilterParams(filters)
 const queryParams = { limit: 20, ...filterParams, ...(cursor ? { cursor } : {}) }
 
-// ✅ GOOD
+// ✅ GOOD — filters + sort + cursor in one hook
 const {
   cursor,
   setCursor,
@@ -883,7 +886,15 @@ const {
   handleFilterChange,
   handleClearAllFilters,
   getFooterProps,
-} = useCursorPagination({ limit: 20, extraParams, defaultFilters, transformFilters })
+  getSortParams,
+} = useCursorPagination({
+  limit: 20,
+  extraParams,
+  defaultFilters,
+  transformFilters,
+  defaultSort, // optional — URL-synced sort merged into queryParams
+  columns, // optional — PatternFly getSortParams / handleSort
+})
 ```
 
 ---

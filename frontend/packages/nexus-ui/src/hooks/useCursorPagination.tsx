@@ -1,11 +1,15 @@
+import type { ThProps } from '@patternfly/react-table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { PaginationFooterProps } from '../components/table/PaginationFooter'
 import type { FilterConfig } from '../types/filters'
+import type { SortableColumn, SortConfig } from '../types/sorting'
 import { buildFilterParams } from '../utils/filterUtils'
 
 import { createFilterChangeHandler } from './useFilterChangeHandler'
 import { useFilterState } from './useFilterState'
+import { useSortableTableControls } from './useSortableTable'
+import { useSortState } from './useSortState'
 
 type PaginatedResponse = {
   resources?: unknown[]
@@ -21,8 +25,22 @@ type UseCursorPaginationOptions = {
   defaultFilters?: FilterConfig[]
   /** Optional transform for filter values before applying (e.g., string → boolean) */
   transformFilters?: (filters: FilterConfig[]) => FilterConfig[]
-  /** Extra query params merged into every request (e.g., provider_id) */
+  /**
+   * Extra query params merged into every request (e.g., provider_id).
+   * Do not pass `sort` here — use `defaultSort` / URL sort instead. When owned
+   * `sortParam` is set, it overwrites `extraParams.sort`.
+   */
   extraParams?: Record<string, unknown>
+  /**
+   * Default sort when the URL has no valid `sort` param.
+   * Sort is URL-synced via {@link useSortState} and merged into `queryParams`.
+   */
+  defaultSort?: SortConfig
+  /**
+   * Sortable column definitions for PatternFly table headers.
+   * When provided (or omitted as `[]`), exposes `getSortParams` / `handleSort`.
+   */
+  columns?: SortableColumn[]
 }
 
 export type UseCursorPaginationResult = {
@@ -36,7 +54,7 @@ export type UseCursorPaginationResult = {
   filters: FilterConfig[]
   /** Whether any filters are active */
   hasActiveFilters: boolean
-  /** Built query params ready to pass to useQuery */
+  /** Built query params ready to pass to useQuery (includes `sort` when active) */
   queryParams: Record<string, unknown>
   /** Handler for FilterBar onFilterChange */
   handleFilterChange: (newFilters: FilterConfig[]) => void
@@ -50,6 +68,26 @@ export type UseCursorPaginationResult = {
   handlePerPageChange: (perPage: number) => void
   /** Build footer props for NxScrollableTableContainer from a query response */
   getFooterProps: (data: PaginatedResponse | undefined) => PaginationFooterProps
+  /** Current sort configuration (URL-synced) */
+  sort: SortConfig | null
+  /** Nexus API `sort` query param (`field` / `-field`), or `undefined` when unsorted */
+  sortParam: string | undefined
+  /** Set sort and reset pagination to page 1 */
+  setSort: (sort: SortConfig) => void
+  /** Clear sort from the URL and reset pagination */
+  clearSort: () => void
+  /** Toggle sort for a field; resets pagination */
+  toggleSort: (field: string) => void
+  /**
+   * PatternFly `<Th sort={...}>` props for a column field.
+   * Useful when `columns` is passed; returns `undefined` for non-sortable fields.
+   */
+  getSortParams: (columnField: string) => ThProps['sort']
+  /**
+   * Toggle sort for a column field (same field flips; different field → asc).
+   * No-op when the field is missing or not sortable.
+   */
+  handleSort: (columnField: string) => void
 }
 
 /**
@@ -58,18 +96,26 @@ export type UseCursorPaginationResult = {
  * Handles:
  * - Cursor state management
  * - Filter state (via useFilterState) with optional transform
- * - Query params building (filters + cursor + limit + extras)
+ * - Sort state (via useSortState) merged into query params
+ * - Optional PatternFly sortable headers via `columns`
+ * - Query params building (filters + sort + cursor + limit + extras)
  * - Cursor reset when data is empty and no filters active
  * - handleClearAllFilters (reset cursor + clear filters)
  * - Footer props for NxScrollableTableContainer
  */
 export function useCursorPagination(options: UseCursorPaginationOptions = {}): UseCursorPaginationResult {
-  const { limit = 20, defaultFilters, transformFilters, extraParams } = options
+  const { limit = 20, defaultFilters, transformFilters, extraParams, defaultSort, columns = [] } = options
 
   const [cursor, setCursor] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(limit)
   const { filters, clearAllFilters, setAllFilters } = useFilterState(defaultFilters)
+  const {
+    sort,
+    setSort: setSortState,
+    clearSort: clearSortState,
+    toggleSort: toggleSortState,
+  } = useSortState(defaultSort)
 
   const hasActiveFilters = filters.length > 0
 
@@ -77,6 +123,33 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}): U
     setCursor(null)
     setPage(1)
   }, [])
+
+  const setSort = useCallback(
+    (newSort: SortConfig) => {
+      setSortState(newSort)
+      resetPagination()
+    },
+    [setSortState, resetPagination]
+  )
+
+  const clearSort = useCallback(() => {
+    clearSortState()
+    resetPagination()
+  }, [clearSortState, resetPagination])
+
+  const toggleSort = useCallback(
+    (field: string) => {
+      toggleSortState(field)
+      resetPagination()
+    },
+    [toggleSortState, resetPagination]
+  )
+
+  const { sortParam, getSortParams, handleSort } = useSortableTableControls(columns, {
+    sort,
+    setSort,
+    toggleSort,
+  })
 
   const handleFilterChange = useMemo(
     () => createFilterChangeHandler(cursor, resetPagination, clearAllFilters, setAllFilters, transformFilters),
@@ -96,20 +169,30 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}): U
     [resetPagination]
   )
 
-  // Reset pagination when extraParams change (e.g., project selection).
-  // Uses the React "store previous value" pattern to detect change during render
-  // so queryParams excludes the stale cursor in the same render cycle.
+  // Reset pagination when extraParams or sortParam change (e.g., project selection,
+  // or browser back/forward updating `?sort=`). Uses the React "store previous value"
+  // pattern to detect change during render so queryParams excludes the stale cursor
+  // in the same render cycle.
   //
   // Timing: setCursor(null) clears the cursor state, but React batches state updates
-  // so `cursor` still holds its previous value during this render. The `extraParamsChanged`
-  // guard below prevents the stale cursor from leaking into queryParams for this one
-  // render cycle. On the next render both `cursor` and `prevExtraParamsKey` are up to date,
-  // so `extraParamsChanged` becomes false and normal cursor inclusion resumes.
+  // so `cursor` still holds its previous value during this render. The
+  // `extraParamsChanged` / `sortParamChanged` guards below prevent the stale cursor
+  // from leaking into queryParams for this one render cycle. On the next render both
+  // `cursor` and the previous-value trackers are up to date, so the guards become
+  // false and normal cursor inclusion resumes.
   const extraParamsKey = JSON.stringify(extraParams)
   const [prevExtraParamsKey, setPrevExtraParamsKey] = useState(extraParamsKey)
   const extraParamsChanged = prevExtraParamsKey !== extraParamsKey
   if (extraParamsChanged) {
     setPrevExtraParamsKey(extraParamsKey)
+    setCursor(null)
+    setPage(1)
+  }
+
+  const [prevSortParam, setPrevSortParam] = useState(sortParam)
+  const sortParamChanged = prevSortParam !== sortParam
+  if (sortParamChanged) {
+    setPrevSortParam(sortParam)
     setCursor(null)
     setPage(1)
   }
@@ -124,12 +207,16 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}): U
     const filterParams = buildFilterParams(filters)
     Object.assign(params, filterParams)
 
-    if (cursor && !extraParamsChanged) {
+    if (sortParam !== undefined) {
+      params.sort = sortParam
+    }
+
+    if (cursor && !extraParamsChanged && !sortParamChanged) {
       params.cursor = cursor
     }
 
     return params
-  }, [filters, cursor, perPage, extraParams, extraParamsChanged])
+  }, [filters, cursor, perPage, extraParams, extraParamsChanged, sortParam, sortParamChanged])
 
   const getFooterProps = useCallback(
     (data: PaginatedResponse | undefined): PaginationFooterProps => ({
@@ -163,6 +250,13 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}): U
     perPage,
     handlePerPageChange,
     getFooterProps,
+    sort,
+    sortParam,
+    setSort,
+    clearSort,
+    toggleSort,
+    getSortParams,
+    handleSort,
   }
 }
 

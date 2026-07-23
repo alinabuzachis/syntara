@@ -233,7 +233,7 @@ See: [`docs/data-flow.md`](docs/data-flow.md) — "Type-Safe API Clients"
 Use **`FilterBar` + `useCursorPagination`** (not a hand-rolled cursor/`useFilterState` stack). Keyword search is a TEXT field with `contains` applied on **Enter** or the **Apply filter** control — there is no separate free-standing search input on `FilterBar`.
 
 1. **Define fields** in a colocated `*Filters.ts` / `*FilterDefinitions.ts` using `FilterFieldDefinition` + `FilterTypeEnum` / `FilterOperatorEnum` from `src/types/filters.ts`.
-2. **Wire pagination + filters** with `useCursorPagination` — it owns URL-synced filters, cursor reset, and `queryParams`.
+2. **Wire pagination + filters + sort** with `useCursorPagination` — it owns URL-synced filters, sort (`defaultSort` / `columns`), cursor reset, and `queryParams`.
 3. **Render** `FilterBar` (or `NxListPanelToolbar`) with `fieldDefinitions`, `filters`, `onFilterChange={handleFilterChange}`, and `clearAllFilters={handleClearAllFilters}`.
 4. **Query** with the typed client: `client.useQuery('get', '/resource', { params: { query: queryParams } })`.
 5. **Empty filtered results** → `NxEmptyStateFilter` with clear-all; unfiltered empty → `NxEmptyStateNoData`.
@@ -243,6 +243,7 @@ import { FilterBar } from '../../components/filters/FilterBar'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import type { FilterFieldDefinition } from '../../types/filters'
+import type { SortableColumn } from '../../types/sorting'
 
 const fieldDefinitions: FilterFieldDefinition[] = [
   {
@@ -255,6 +256,8 @@ const fieldDefinitions: FilterFieldDefinition[] = [
   },
 ]
 
+const columns: SortableColumn[] = [{ field: 'name', label: 'Name', isSortable: true }]
+
 function MyListPage() {
   const {
     cursor,
@@ -265,7 +268,11 @@ function MyListPage() {
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination()
+    getSortParams,
+  } = useCursorPagination({
+    defaultSort: { field: 'name', direction: 'asc' },
+    columns,
+  })
 
   const query = myClient.useQuery('get', '/items', { params: { query: queryParams } })
   const items = query.data?.resources ?? []
@@ -279,7 +286,7 @@ function MyListPage() {
         onFilterChange={handleFilterChange}
         clearAllFilters={handleClearAllFilters}
       />
-      {/* table + getFooterProps(query.data) */}
+      {/* <Th sort={getSortParams('name')}>Name</Th> + getFooterProps(query.data) */}
     </>
   )
 }

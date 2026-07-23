@@ -1233,14 +1233,15 @@ Related components live under `packages/nexus-ui/src/components/filters/`:
 
 **State hooks:**
 
-| Hook                        | Role                                                                           |
-| --------------------------- | ------------------------------------------------------------------------------ |
-| `useFilterState`            | URL ↔ `FilterConfig[]` (`setFilter`, `setAllFilters`, `clearAllFilters`)       |
-| `useSortState`              | URL ↔ `SortConfig` via `sort` (`setSort`, `clearSort`, `toggleSort`)           |
-| `useColumnSortState`        | PatternFly table column sort ↔ URL `sort` (`getSortParams`, `sortParam`)       |
-| `createFilterChangeHandler` | Reset cursor + write filters (optional `transformFilters`)                     |
-| `useCursorPagination`       | **Preferred for list pages** — filters + cursor + `queryParams` + footer props |
-| `useFilteredQuery`          | Lower-level: builds filter params and calls `client.useQuery` (see below)      |
+| Hook                        | Role                                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `useFilterState`            | URL ↔ `FilterConfig[]` (`setFilter`, `setAllFilters`, `clearAllFilters`)                                            |
+| `useSortState`              | URL ↔ `SortConfig` via `sort` (`setSort`, `clearSort`, `toggleSort`)                                                |
+| `useSortableTable`          | Standalone PatternFly sort helpers + `sortParam` (uses `useSortState`); prefer `useCursorPagination` on list pages  |
+| `useColumnSortState`        | PatternFly table column sort ↔ URL `sort` (`getSortParams`, `sortParam`) — prefer `useCursorPagination` + `columns` |
+| `createFilterChangeHandler` | Reset cursor + write filters (optional `transformFilters`)                                                          |
+| `useCursorPagination`       | **Preferred for list pages** — filters + sort + cursor + `queryParams` + footer props (`defaultSort` / `columns`)   |
+| `useFilteredQuery`          | Lower-level: builds filter params and calls `client.useQuery` (see below)                                           |
 
 **Sorting utilities** — `packages/nexus-ui/src/utils/sortUtils.ts`:
 
@@ -1250,7 +1251,7 @@ Related components live under `packages/nexus-ui/src/components/filters/`:
 
 ### List page pattern (preferred)
 
-Use `useCursorPagination` — do not hand-roll cursor + `useFilterState` + `buildFilterParams`. Colocate field definitions in `*Filters.ts` / `*FilterDefinitions.ts`.
+Use `useCursorPagination` — do not hand-roll cursor + `useFilterState` + `useSortState` + `buildFilterParams`. Pass `defaultSort` / `columns` for API sort + PatternFly headers. Colocate field definitions in `*Filters.ts` / `*FilterDefinitions.ts`.
 
 ```typescript
 // routes/workflows/workflowFilterDefinitions.ts
@@ -1282,6 +1283,11 @@ const transformIsEnabledFilter = (filters: FilterConfig[]) =>
       : filter
   )
 
+const columns: SortableColumn[] = [
+  { field: 'name', label: 'Name', isSortable: true },
+  { field: 'created_at', label: 'Created', isSortable: true },
+]
+
 const {
   cursor,
   setCursor,
@@ -1291,14 +1297,19 @@ const {
   handleFilterChange,
   handleClearAllFilters,
   getFooterProps,
+  getSortParams,
 } = useCursorPagination({
   transformFilters: transformIsEnabledFilter,
   extraParams: projectExtraParams,
+  defaultSort: { field: 'name', direction: 'asc' },
+  columns,
 })
 
 const query = workflowClient.useQuery('get', '/workflows', {
-  params: { query: queryParams },
+  params: { query: queryParams }, // includes sort when set
 })
+
+// <Th sort={getSortParams('name')}>Name</Th>
 ```
 
 Wire `filters` / `handleFilterChange` / `handleClearAllFilters` into `FilterBar` or `NxListPanelToolbar`. Use `NxEmptyStateFilter` when filters are active but the list is empty.

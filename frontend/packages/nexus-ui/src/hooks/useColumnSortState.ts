@@ -15,8 +15,12 @@ export type UseColumnSortStateResult = {
  * URL-synced PatternFly table column sort state.
  *
  * Maps column indexes to API field names and reads/writes the `sort` query
- * parameter (`field` / `-field`). Prefer {@link useSortState} when you need
- * `SortConfig`-based URL state without PatternFly column wiring.
+ * parameter (`field` / `-field`).
+ *
+ * @deprecated Prefer {@link useCursorPagination} with `defaultSort` / `columns` on
+ * list pages, or {@link useSortableTable} for standalone / non-paginated tables.
+ * Prefer {@link useSortState} when you need `SortConfig`-based URL state without
+ * PatternFly column wiring. Existing callers will be migrated in a follow-up.
  */
 export function useColumnSortState(
   sortFieldByColumn: Record<number, string>,

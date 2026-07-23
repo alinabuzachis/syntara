@@ -2,10 +2,12 @@ import { act, renderHook } from '@testing-library/react'
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { FilterConfig } from '../types/filters'
+import type { SortableColumn, SortConfig } from '../types/sorting'
 
 import { useCursorPagination, useCursorReset } from './useCursorPagination'
 import { createFilterChangeHandler } from './useFilterChangeHandler'
 import { useFilterState } from './useFilterState'
+import { useSortState } from './useSortState'
 
 vi.mock('./useFilterState', () => ({
   useFilterState: vi.fn(() => ({
@@ -21,18 +23,36 @@ vi.mock('./useFilterChangeHandler', () => ({
   createFilterChangeHandler: vi.fn(() => vi.fn()),
 }))
 
+vi.mock('./useSortState', () => ({
+  useSortState: vi.fn(() => ({
+    sort: null,
+    setSort: vi.fn(),
+    clearSort: vi.fn(),
+    toggleSort: vi.fn(),
+  })),
+}))
+
 const mockUseFilterState = vi.mocked(useFilterState)
 const mockCreateFilterChangeHandler = vi.mocked(createFilterChangeHandler)
+const mockUseSortState = vi.mocked(useSortState)
 
 describe('useCursorPagination', () => {
   let mockClearAllFilters: Mock
   let mockSetAllFilters: Mock
+  let mockSetSort: Mock
+  let mockClearSort: Mock
+  let mockToggleSort: Mock
+  let mockSort: SortConfig | null
 
   beforeEach(() => {
     vi.clearAllMocks()
 
     mockClearAllFilters = vi.fn()
     mockSetAllFilters = vi.fn()
+    mockSetSort = vi.fn()
+    mockClearSort = vi.fn()
+    mockToggleSort = vi.fn()
+    mockSort = null
 
     mockUseFilterState.mockReturnValue({
       filters: [],
@@ -41,6 +61,13 @@ describe('useCursorPagination', () => {
       clearAllFilters: mockClearAllFilters,
       setAllFilters: mockSetAllFilters,
     })
+
+    mockUseSortState.mockImplementation(() => ({
+      sort: mockSort,
+      setSort: mockSetSort,
+      clearSort: mockClearSort,
+      toggleSort: mockToggleSort,
+    }))
 
     mockCreateFilterChangeHandler.mockReturnValue(vi.fn())
   })
@@ -78,6 +105,12 @@ describe('useCursorPagination', () => {
 
       expect(mockUseFilterState).toHaveBeenCalledWith(undefined)
     })
+
+    it('calls useSortState with undefined when no defaultSort provided', () => {
+      renderHook(() => useCursorPagination())
+
+      expect(mockUseSortState).toHaveBeenCalledWith(undefined)
+    })
   })
 
   describe('options', () => {
@@ -96,6 +129,14 @@ describe('useCursorPagination', () => {
       renderHook(() => useCursorPagination({ defaultFilters }))
 
       expect(mockUseFilterState).toHaveBeenCalledWith(defaultFilters)
+    })
+
+    it('passes defaultSort to useSortState', () => {
+      const defaultSort: SortConfig = { field: 'name', direction: 'asc' }
+
+      renderHook(() => useCursorPagination({ defaultSort }))
+
+      expect(mockUseSortState).toHaveBeenCalledWith(defaultSort)
     })
 
     it('merges extraParams into queryParams', () => {
@@ -231,7 +272,7 @@ describe('useCursorPagination', () => {
       const { result } = renderHook(() =>
         useCursorPagination({
           limit: 10,
-          extraParams: { sort: '-created_at' },
+          extraParams: { provider_id: 'proj-1' },
         })
       )
 
@@ -242,10 +283,139 @@ describe('useCursorPagination', () => {
       expect(result.current.queryParams).toEqual({
         limit: 10,
         include_total: true,
-        sort: '-created_at',
+        provider_id: 'proj-1',
         status: 'active',
         cursor: 'page-2',
       })
+    })
+
+    it('includes owned sortParam in queryParams and overrides extraParams.sort', () => {
+      mockSort = { field: 'created_at', direction: 'desc' }
+
+      const { result } = renderHook(() =>
+        useCursorPagination({
+          extraParams: { sort: 'name' },
+        })
+      )
+
+      expect(result.current.queryParams).toEqual({
+        limit: 20,
+        include_total: true,
+        sort: '-created_at',
+      })
+      expect(result.current.sortParam).toBe('-created_at')
+      expect(result.current.sort).toEqual({ field: 'created_at', direction: 'desc' })
+    })
+  })
+
+  describe('sort', () => {
+    const columns: SortableColumn[] = [
+      { field: 'name', label: 'Name', isSortable: true },
+      { field: 'status', label: 'Status' },
+      { field: 'created_at', label: 'Created', isSortable: true },
+    ]
+
+    it('exposes sort helpers from useSortState with pagination reset', () => {
+      const { result } = renderHook(() => useCursorPagination())
+
+      act(() => {
+        result.current.setCursor('page-2')
+      })
+      expect(result.current.cursor).toBe('page-2')
+
+      act(() => {
+        result.current.setSort({ field: 'name', direction: 'asc' })
+      })
+
+      expect(mockSetSort).toHaveBeenCalledWith({ field: 'name', direction: 'asc' })
+      expect(result.current.cursor).toBeNull()
+    })
+
+    it('resets pagination when toggleSort is called', () => {
+      const { result } = renderHook(() => useCursorPagination())
+
+      act(() => {
+        result.current.setCursor('page-2')
+      })
+
+      act(() => {
+        result.current.toggleSort('name')
+      })
+
+      expect(mockToggleSort).toHaveBeenCalledWith('name')
+      expect(result.current.cursor).toBeNull()
+    })
+
+    it('resets pagination when clearSort is called', () => {
+      const { result } = renderHook(() => useCursorPagination())
+
+      act(() => {
+        result.current.setCursor('page-2')
+      })
+
+      act(() => {
+        result.current.clearSort()
+      })
+
+      expect(mockClearSort).toHaveBeenCalledOnce()
+      expect(result.current.cursor).toBeNull()
+    })
+
+    it('exposes getSortParams for sortable columns', () => {
+      mockSort = { field: 'name', direction: 'asc' }
+
+      const { result } = renderHook(() => useCursorPagination({ columns }))
+
+      expect(result.current.getSortParams('name')).toEqual(
+        expect.objectContaining({
+          sortBy: {
+            index: 0,
+            direction: 'asc',
+            defaultDirection: 'asc',
+          },
+          columnIndex: 0,
+        })
+      )
+      expect(result.current.getSortParams('status')).toBeUndefined()
+    })
+
+    it('handleSort delegates to toggleSort for sortable columns', () => {
+      const { result } = renderHook(() => useCursorPagination({ columns }))
+
+      act(() => {
+        result.current.handleSort('created_at')
+      })
+
+      expect(mockToggleSort).toHaveBeenCalledWith('created_at')
+    })
+
+    it('resets pagination and omits stale cursor when sortParam changes externally', () => {
+      mockSort = { field: 'name', direction: 'asc' }
+
+      const { result, rerender } = renderHook(() => useCursorPagination())
+
+      act(() => {
+        result.current.setCursor('page-3-cursor')
+      })
+
+      expect(result.current.queryParams).toEqual({
+        limit: 20,
+        include_total: true,
+        sort: 'name',
+        cursor: 'page-3-cursor',
+      })
+
+      // Simulate browser back/forward updating URL sort without going through setSort
+      mockSort = { field: 'created_at', direction: 'desc' }
+      rerender()
+
+      expect(result.current.cursor).toBeNull()
+      expect(result.current.queryParams).toEqual({
+        limit: 20,
+        include_total: true,
+        sort: '-created_at',
+      })
+      expect(result.current.queryParams).not.toHaveProperty('cursor')
     })
   })
 
