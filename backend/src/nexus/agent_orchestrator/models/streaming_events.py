@@ -2,12 +2,43 @@
 
 This module contains typed models for streaming event data payloads,
 conforming to the AsyncAPI specification for WebSocket events.
+Also includes models for persisted agent trace data.
 """
 
 from typing import Any, ClassVar
 
 from pydantic import ConfigDict, Field
 from sqlmodel import SQLModel
+
+
+class TraceStep(SQLModel):
+    """Single step in a persisted agent execution trace."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
+
+    type: str = Field(description="Step type: reasoning, tool_call, tool_result, or final_answer")
+    timestamp: str = Field(description="ISO 8601 timestamp")
+    content: str = Field(description="Human-readable description of this step")
+    duration_ms: int | None = Field(default=None, description="Step duration in milliseconds")
+    tokens: int | None = Field(default=None, description="Token count for this step")
+    tool_name: str | None = Field(default=None, description="Tool name (tool_call and tool_result)")
+    tool_input: dict[str, Any] | None = Field(default=None, description="Tool input args (tool_call)")
+    tool_output: str | None = Field(default=None, description="Tool output (tool_result)")
+    status: str | None = Field(default=None, description="Tool execution status: success or failed (tool_result)")
+    call_id: str | None = Field(
+        default=None, description="Unique call identifier for matching tool_call/tool_result pairs"
+    )
+
+
+class AgentTrace(SQLModel):
+    """Persisted agent execution trace with accumulated steps."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
+
+    model: str = Field(description="LLM model used for this execution")
+    total_tokens: int = Field(default=0, description="Total tokens across all steps")
+    total_duration_ms: int = Field(default=0, description="Total execution duration in milliseconds")
+    steps: list[TraceStep] = Field(default_factory=list, description="Ordered trace steps")
 
 
 class DeltaEventData(SQLModel):

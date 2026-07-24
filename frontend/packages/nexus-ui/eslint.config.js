@@ -459,6 +459,7 @@ export default tseslint.config(
     // Any route file with `export default function Page()` must render
     // <title>{toPageTitle(['...'])}</title>. New pages are covered automatically.
     files: ['**/routes/**/*.tsx'],
+    ignores: ['**/*.stories.tsx'],
     rules: {
       'nexus/require-page-title': 'error',
     },

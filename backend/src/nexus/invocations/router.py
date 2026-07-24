@@ -24,6 +24,7 @@ from nexus.agent_orchestrator.models import (
     InvocationListParams,
     InvocationListResponse,
     InvocationRequestWithFile,
+    InvocationTraceRead,
 )
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.agent_orchestrator.services import InvocationService
@@ -308,6 +309,62 @@ async def list_invocations(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
+    )
+
+
+@router.get(
+    "/{invocation_id}/trace",
+    summary="Get Invocation Trace",
+    description="Retrieve the agent execution trace for a completed invocation, "
+    "including reasoning steps, tool calls, and tool results.",
+    dependencies=[Depends(_invocation_perm_read)],
+    operation_id="get_invocation_trace",
+    response_description="Agent execution trace",
+)
+async def get_invocation_trace(
+    invocation_id: Annotated[UUID, Path(description="UUID of the invocation")],
+    service: Annotated[InvocationService, Depends(get_invocation_service)],
+) -> InvocationTraceRead:
+    """Get agent execution trace for an invocation.
+
+    Returns the persisted trace data including reasoning blocks,
+    tool calls, and tool results accumulated during agent execution.
+
+    Args:
+        invocation_id: UUID of the invocation
+        service: Invocation service
+
+    Returns:
+        InvocationTraceRead with invocation_id, status, and agent_trace
+
+    Raises:
+        HTTPException: 404 if invocation not found
+
+    """
+    invocation = await service.get_invocation(invocation_id)
+    if not invocation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Invocation {invocation_id} not found",
+        )
+
+    # Prefer agent_trace from result (authoritative, includes computed aggregates).
+    # Fall back to trace_events column if result doesn't contain it.
+    agent_trace = None
+    if isinstance(invocation.result, dict):
+        agent_trace = invocation.result.get("agent_trace")
+    if agent_trace is None and invocation.trace_events:
+        agent_trace = {
+            "model": invocation.model_name or "unknown",
+            "total_tokens": sum(t for s in invocation.trace_events if isinstance(t := s.get("tokens"), int)),
+            "total_duration_ms": sum(t for s in invocation.trace_events if isinstance(t := s.get("duration_ms"), int)),
+            "steps": invocation.trace_events,
+        }
+
+    return InvocationTraceRead(
+        invocation_id=invocation.id,
+        status=invocation.status,
+        agent_trace=agent_trace,
     )
 
 

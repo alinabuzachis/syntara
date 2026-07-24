@@ -298,6 +298,20 @@ describe('NodeExecutionDetailsPanel', () => {
     expect(screen.getByText(/\d{2}:\d{2}:\d{2} [AP]M, 1 Jan 2024/)).toBeInTheDocument()
   })
 
+  it('renders only start timestamp when completion time is missing', () => {
+    const propsWithoutCompletedAt = {
+      ...defaultProps,
+      nodeState: {
+        ...defaultProps.nodeState,
+        completedAt: undefined,
+      },
+    }
+    render(<NodeExecutionDetailsPanel {...propsWithoutCompletedAt} />, { wrapper })
+
+    expect(screen.getByText(/\d{2}:\d{2}:\d{2} [AP]M, 1 Jan 2024/)).toBeInTheDocument()
+    expect(screen.queryByText(/ - /)).not.toBeInTheDocument()
+  })
+
   it('switches between different view modes for input pane', async () => {
     const user = userEvent.setup()
     render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
@@ -391,6 +405,30 @@ describe('NodeExecutionDetailsPanel', () => {
       expect(screen.queryByText('Notes')).not.toBeInTheDocument()
     })
 
+    it('renders unknown decision with info fallback when decision is unmapped', () => {
+      const dataWithUnknownDecision = {
+        resources: [
+          {
+            activity_name: 'review_deployment',
+            input_data: {},
+            output_data: {
+              status: 'completed',
+              decision: 'deferred',
+              decided_by: 'admin',
+              decided_at: '2026-06-15T09:00:00.000Z',
+            },
+            status: 'completed',
+          },
+        ],
+      }
+      mockUseQuery.mockReturnValue({ data: dataWithUnknownDecision, isLoading: false, error: null, refetch: vi.fn() })
+      render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
+
+      expect(screen.getByText('Deferred')).toBeInTheDocument()
+      expect(screen.getByText('Decided by')).toBeInTheDocument()
+      expect(screen.getByText('admin')).toBeInTheDocument()
+    })
+
     it('has no accessibility violations with approval audit displayed', async () => {
       mockUseQuery.mockReturnValue({ data: approvalOutputData, isLoading: false, error: null, refetch: vi.fn() })
       const { container } = render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
@@ -461,6 +499,162 @@ describe('NodeExecutionDetailsPanel', () => {
       render(<NodeExecutionDetailsPanel {...defaultProps} nodeType="aap_job_template" />, { wrapper })
 
       expect(screen.queryByRole('link', { name: /View job in AAP/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('agentic node', () => {
+    const agenticProps = {
+      ...defaultProps,
+      nodeId: 'triage_agent',
+      nodeName: 'AI Agent',
+      nodeType: 'agentic',
+    }
+
+    const mockAgenticActivityData = {
+      resources: [
+        {
+          activity_name: 'triage_agent',
+          input_data: { prompt: 'Investigate incident' },
+          output_data: {
+            result: {
+              content: 'Investigation complete',
+              agent_trace: {
+                model: 'test-model',
+                total_tokens: 150,
+                total_duration_ms: 5000,
+                steps: [
+                  {
+                    type: 'reasoning',
+                    timestamp: '2024-01-01T10:00:00Z',
+                    content: 'Analyzing the incident logs',
+                  },
+                  {
+                    type: 'tool_call',
+                    timestamp: '2024-01-01T10:00:01Z',
+                    content: 'Calling search_logs',
+                    tool_name: 'search_logs',
+                    tool_input: { query: 'error' },
+                    call_id: 'call-0',
+                  },
+                  {
+                    type: 'tool_result',
+                    timestamp: '2024-01-01T10:00:02Z',
+                    content: 'Found 47 errors',
+                    tool_name: 'search_logs',
+                    tool_output: 'Found 47 errors',
+                    status: 'success',
+                    call_id: 'call-0',
+                    duration_ms: 30,
+                  },
+                ],
+              },
+            },
+          },
+          status: 'completed',
+        },
+      ],
+    }
+
+    it('renders tab bar with Input/Output and Agent steps tabs', () => {
+      mockUseQuery.mockReturnValue({
+        data: mockAgenticActivityData,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<NodeExecutionDetailsPanel {...agenticProps} />, { wrapper })
+
+      expect(screen.getByRole('tab', { name: /Input\/Output/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Agent steps/i })).toBeInTheDocument()
+    })
+
+    it('does not render tab bar for non-agentic nodes', () => {
+      mockUseQuery.mockReturnValue({
+        data: mockActivityData,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<NodeExecutionDetailsPanel {...defaultProps} nodeType="script" />, { wrapper })
+
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    })
+
+    it('shows agent trace content when Agent steps tab is clicked', async () => {
+      const user = userEvent.setup()
+      mockUseQuery.mockReturnValue({
+        data: mockAgenticActivityData,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<NodeExecutionDetailsPanel {...agenticProps} />, { wrapper })
+
+      await user.click(screen.getByRole('tab', { name: /Agent steps/i }))
+
+      expect(screen.getByText('Analyzing the incident logs')).toBeInTheDocument()
+    })
+
+    it('switches back to I/O view when Input/Output tab is clicked', async () => {
+      const user = userEvent.setup()
+      mockUseQuery.mockReturnValue({
+        data: mockAgenticActivityData,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<NodeExecutionDetailsPanel {...agenticProps} />, { wrapper })
+
+      await user.click(screen.getByRole('tab', { name: /Agent steps/i }))
+      expect(screen.getByText('Analyzing the incident logs')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('tab', { name: /Input\/Output/i }))
+      expect(screen.getByText('Parameters')).toBeInTheDocument()
+      expect(screen.getByText('Output')).toBeInTheDocument()
+    })
+
+    it('shows empty state when output has no agent trace', async () => {
+      const user = userEvent.setup()
+      mockUseQuery.mockReturnValue({
+        data: {
+          resources: [
+            {
+              activity_name: 'triage_agent',
+              input_data: { prompt: 'test' },
+              output_data: { result: { content: 'done' } },
+              status: 'completed',
+            },
+          ],
+        },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<NodeExecutionDetailsPanel {...agenticProps} />, { wrapper })
+
+      await user.click(screen.getByRole('tab', { name: /Agent steps/i }))
+
+      expect(screen.getByText(/No agent steps yet/i)).toBeInTheDocument()
+    })
+
+    it('defaults to Input/Output tab as selected', () => {
+      mockUseQuery.mockReturnValue({
+        data: mockAgenticActivityData,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<NodeExecutionDetailsPanel {...agenticProps} />, { wrapper })
+
+      expect(screen.getByRole('tab', { name: /Input\/Output/i, selected: true })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Agent steps/i, selected: false })).toBeInTheDocument()
+      expect(screen.getByText('Parameters')).toBeInTheDocument()
     })
   })
 })

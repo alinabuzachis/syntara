@@ -430,6 +430,12 @@ class InvocationExecutor:
             # Extract model name from result metadata
             model_name = _extract_model_name(result_dict)
 
+            # Intentional denormalization: trace steps are stored in both result.agent_trace
+            # (for the workflow callback signal) and trace_events column (for future indexed
+            # queries, e.g. "find all invocations that called tool X").
+            agent_trace = result_dict.get("agent_trace")
+            trace_events = agent_trace.get("steps") if isinstance(agent_trace, dict) else None
+
             # Atomically update to COMPLETED only if not already CANCELLED
             # This prevents race condition where cancellation is overwritten
             updated = await self._complete_invocation_if_not_cancelled(
@@ -437,6 +443,7 @@ class InvocationExecutor:
                 result=result_dict,
                 model_name=model_name,
                 completed_at=datetime.now(UTC),
+                trace_events=trace_events,
             )
 
             if not updated:

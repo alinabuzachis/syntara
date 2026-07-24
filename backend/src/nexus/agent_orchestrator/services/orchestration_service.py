@@ -5,6 +5,9 @@ multiple specialized agents with context integration and checkpointing.
 """
 
 import asyncio
+import contextlib
+import time
+from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable, Coroutine
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -51,6 +54,205 @@ from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.instrumentation import LLMStreamTracker
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+_MAX_TOOL_OUTPUT_LENGTH = 10_000
+_MAX_TOOL_CONTENT_LENGTH = 200
+
+
+class _TraceAccumulator:
+    """Accumulates LangGraph streaming events into a persisted agent trace.
+
+    Coalesces consecutive LLM delta tokens into single reasoning blocks and
+    captures tool call/result steps with timing and token metadata.
+    """
+
+    def __init__(self) -> None:
+        self._steps: list[dict[str, Any]] = []
+        self._reasoning_buffer: list[str] = []
+        self._reasoning_start_ns: int | None = None
+        self._reasoning_explicit_tokens: int = 0
+        self._reasoning_fallback_chunks: int = 0
+        self._tool_start_ns: dict[int, int] = {}
+        self._tool_run_to_call_index: dict[str, int] = {}
+        self._tool_name_to_call_indices: dict[str, deque[int]] = defaultdict(deque)
+        self._tool_call_counter: int = 0
+
+    def accumulate(self, event_dict: dict[str, Any]) -> None:
+        event_type = event_dict.get("event")
+        if event_type == "on_chat_model_stream":
+            self._on_chat_stream(event_dict)
+        elif event_type == "on_tool_start":
+            self._on_tool_start(event_dict)
+        elif event_type == "on_tool_end":
+            self._on_tool_end(event_dict)
+
+    def _on_chat_stream(self, event: dict[str, Any]) -> None:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            return
+        chunk = data.get("chunk")
+        if chunk is None:
+            return
+        content = chunk.content if hasattr(chunk, "content") else None
+        if not content:
+            return
+
+        if self._reasoning_start_ns is None:
+            self._reasoning_start_ns = time.monotonic_ns()
+        self._reasoning_buffer.append(content)
+        token_count = 0
+        usage = getattr(chunk, "usage_metadata", None)
+        if isinstance(usage, dict):
+            raw = usage.get("output_tokens", 0)
+            token_count = raw if isinstance(raw, int) else 0
+        # Prefer provider-reported output tokens when available.
+        # If unavailable for the full block, fall back to chunk count.
+        if token_count > 0:
+            self._reasoning_explicit_tokens += token_count
+        else:
+            self._reasoning_fallback_chunks += 1
+
+    def _on_tool_start(self, event: dict[str, Any]) -> None:
+        self._flush_reasoning()
+        tool_name = event.get("name", "unknown")
+        data = event.get("data", {})
+        tool_input = data.get("input", {}) if isinstance(data, dict) else {}
+        serializable_types = (str, int, float, bool, list, dict, type(None))
+        tool_input = {k: v for k, v in tool_input.items() if isinstance(v, serializable_types)}
+
+        call_index = self._tool_call_counter
+        self._tool_call_counter += 1
+        self._tool_start_ns[call_index] = time.monotonic_ns()
+        self._tool_name_to_call_indices[tool_name].append(call_index)
+        run_id = event.get("run_id")
+        if isinstance(run_id, str) and run_id:
+            self._tool_run_to_call_index[run_id] = call_index
+        call_id = f"call-{call_index}"
+        self._steps.append(
+            {
+                "type": "tool_call",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "content": f"Calling {tool_name}",
+                "tool_name": tool_name,
+                "tool_input": tool_input,
+                "call_id": call_id,
+                "_call_index": call_index,
+            }
+        )
+
+    @staticmethod
+    def _detect_tool_failure(data: object, raw_output: object) -> str:
+        if isinstance(data, dict) and data.get("error") is not None:
+            return "failed"
+        if hasattr(raw_output, "status") and raw_output.status in ("error", "failed"):
+            return "failed"
+        if isinstance(raw_output, dict) and raw_output.get("status") in ("error", "failed"):
+            return "failed"
+        return "success"
+
+    def _evict_stale_name_index(self, tool_name: str, call_index: int) -> None:
+        q = self._tool_name_to_call_indices.get(tool_name)
+        if q:
+            with contextlib.suppress(ValueError):
+                q.remove(call_index)
+
+    def _resolve_call_index(self, tool_name: str, event: dict[str, Any]) -> int | None:
+        run_id = event.get("run_id")
+        if isinstance(run_id, str) and run_id:
+            call_index = self._tool_run_to_call_index.pop(run_id, None)
+            if call_index is not None:
+                self._evict_stale_name_index(tool_name, call_index)
+                return call_index
+        q = self._tool_name_to_call_indices.get(tool_name)
+        return q.popleft() if q else None
+
+    def _on_tool_end(self, event: dict[str, Any]) -> None:
+        tool_name = event.get("name", "unknown")
+        data = event.get("data", {})
+        raw_output = data.get("output", "") if isinstance(data, dict) else ""
+        tool_output = str(raw_output.content) if hasattr(raw_output, "content") else str(raw_output)
+        status = self._detect_tool_failure(data, raw_output)
+
+        call_index = self._resolve_call_index(tool_name, event)
+        duration_ms: int | None = None
+        if call_index is not None:
+            start_ns = self._tool_start_ns.pop(call_index, None)
+            if start_ns is not None:
+                duration_ms = int((time.monotonic_ns() - start_ns) / 1_000_000)
+
+        if len(tool_output) > _MAX_TOOL_OUTPUT_LENGTH:
+            tool_output = tool_output[:_MAX_TOOL_OUTPUT_LENGTH] + "... [truncated]"
+
+        result_step: dict[str, Any] = {
+            "type": "tool_result",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "content": (
+                tool_output[:_MAX_TOOL_CONTENT_LENGTH] if len(tool_output) > _MAX_TOOL_CONTENT_LENGTH else tool_output
+            ),
+            "tool_name": tool_name,
+            "tool_output": tool_output,
+            "status": status,
+        }
+        if call_index is not None:
+            result_step["call_id"] = f"call-{call_index}"
+        if duration_ms is not None:
+            result_step["duration_ms"] = duration_ms
+        self._steps.append(result_step)
+
+    def _flush_reasoning(self) -> None:
+        if not self._reasoning_buffer:
+            return
+        text = "".join(self._reasoning_buffer)
+        duration_ms: int | None = None
+        if self._reasoning_start_ns is not None:
+            duration_ms = int((time.monotonic_ns() - self._reasoning_start_ns) / 1_000_000)
+
+        step: dict[str, Any] = {
+            "type": "reasoning",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "content": text,
+            "tokens": (
+                self._reasoning_explicit_tokens
+                if self._reasoning_explicit_tokens > 0
+                else self._reasoning_fallback_chunks
+            ),
+        }
+        if duration_ms is not None:
+            step["duration_ms"] = duration_ms
+        self._steps.append(step)
+        self._reasoning_buffer.clear()
+        self._reasoning_start_ns = None
+        self._reasoning_explicit_tokens = 0
+        self._reasoning_fallback_chunks = 0
+
+    def finalize(self, model_name: str, final_answer: str | None = None) -> dict[str, Any]:
+        self._flush_reasoning()
+        last_reasoning = next(
+            (s.get("content") for s in reversed(self._steps) if s.get("type") == "reasoning"),
+            None,
+        )
+        if final_answer and final_answer != last_reasoning:
+            self._steps.append(
+                {
+                    "type": "final_answer",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "content": final_answer,
+                }
+            )
+
+        # Strip any remaining internal tracking keys
+        for step in self._steps:
+            step.pop("_call_index", None)
+
+        total_tokens = sum(s.get("tokens", 0) for s in self._steps)
+        total_duration_ms = sum(s.get("duration_ms", 0) for s in self._steps)
+        return {
+            "model": model_name,
+            "total_tokens": total_tokens,
+            "total_duration_ms": total_duration_ms,
+            "steps": self._steps,
+        }
 
 
 class OrchestrationService:
@@ -264,24 +466,48 @@ class OrchestrationService:
 
         graph: CompiledStateGraph[AgentState, None, Any, Any] = await self._setup_graph(initial_state)
 
+        trace_accumulator = _TraceAccumulator()
+
         async with StreamClient() as client:
             try:
                 # Execute graph with streaming events
                 config: RunnableConfig = cast("RunnableConfig", {"configurable": {"thread_id": session_id}})
                 final_state = await self._execute_graph_streaming(
-                    graph, initial_state, config, invocation_id, stream_id, client
+                    graph, initial_state, config, invocation_id, stream_id, client, trace_accumulator
                 )
+
+                # Build response with streaming metadata and context enhancement
+                result = self._build_streaming_result(invocation_id, stream_id, final_state)
+
+                # Embed agent trace in result so it flows to workflow activity output_data
+                final_answer = self._extract_final_answer_text(final_state)
+                result["agent_trace"] = trace_accumulator.finalize(
+                    model_name=self._get_model_name(),
+                    final_answer=final_answer,
+                )
+                tool_calls = [
+                    {
+                        "tool_name": s["tool_name"],
+                        "duration_ms": s.get("duration_ms"),
+                        "status": s.get("status", "success"),
+                    }
+                    for s in result["agent_trace"]["steps"]
+                    if s.get("type") == "tool_result"
+                ]
+                tools_used = [s["tool_name"] for s in result["agent_trace"]["steps"] if s.get("type") == "tool_call"]
+                result["tools_used"] = tools_used
+                result["tool_calls"] = tool_calls
+                result["tokens_used"] = result["agent_trace"]["total_tokens"]
 
                 # Publish completion event
                 await self._publish_completion_event(invocation_id, stream_id, client)
 
-                # Handle completion callback
-                await self._handle_completion_callback(final_state, invocation_id, ctx)
+                # Handle completion callback with enriched result payload.
+                await self._handle_completion_callback(final_state, invocation_id, ctx, signal_result=result)
 
                 logger.info("Streaming orchestration completed", invocation_id=invocation_id)
 
-                # Build response with streaming metadata and context enhancement
-                return self._build_streaming_result(invocation_id, stream_id, final_state)
+                return result
 
             except Exception as e:
                 # Handle streaming errors
@@ -306,6 +532,7 @@ class OrchestrationService:
         invocation_id: UUID,
         stream_id: str,
         client: StreamClient,
+        trace_accumulator: _TraceAccumulator,
     ) -> AgentState | None:
         """Execute graph with streaming and capture final state.
 
@@ -316,6 +543,7 @@ class OrchestrationService:
             invocation_id: Invocation UUID
             stream_id: Redis stream ID
             client: StreamClient for publishing events
+            trace_accumulator: Accumulates events for persistence
 
         Returns:
             Final agent state or None if not captured
@@ -333,6 +561,9 @@ class OrchestrationService:
             event_dict = cast("dict[str, Any]", event)
             ttft_tracker.process_event(event_dict)
             await self._process_streaming_event(event_dict, invocation_id, stream_id, client)
+
+            # Accumulate for trace persistence
+            trace_accumulator.accumulate(event_dict)
 
             # Capture final state from graph end events
             final_state = self._extract_final_state(event_dict, final_state)
@@ -359,11 +590,22 @@ class OrchestrationService:
 
         return current_final_state
 
+    @staticmethod
+    def _extract_final_answer_text(final_state: AgentState | None) -> str | None:
+        """Extract the final answer text from the agent's result."""
+        if not final_state:
+            return None
+        result = final_state.get("result")
+        if isinstance(result, dict):
+            return result.get("content")
+        return None
+
     async def _handle_completion_callback(
         self,
         final_state: AgentState | None,
         invocation_id: UUID,
         ctx: InvocationContextData | None = None,
+        signal_result: dict[str, Any] | None = None,
     ) -> None:
         """Handle completion callback with error handling.
 
@@ -372,6 +614,7 @@ class OrchestrationService:
             invocation_id: Invocation UUID for logging
             ctx: Original typed context_data (fallback when final_state
                 doesn't preserve metadata, e.g. some LangGraph configurations)
+            signal_result: Pre-built result dict to send in the callback signal
 
         """
         logger.info(
@@ -385,7 +628,7 @@ class OrchestrationService:
             return
 
         try:
-            await self._send_completion_callback(final_state, invocation_id, ctx)
+            await self._send_completion_callback(final_state, invocation_id, ctx, signal_result=signal_result)
         except (httpx.RequestError, httpx.HTTPStatusError, httpx.TimeoutException):
             logger.exception("Activity signal failed for invocation", invocation_id=invocation_id)
             # Continue without failing - notification is not critical
@@ -677,6 +920,7 @@ class OrchestrationService:
         final_state: AgentState,
         invocation_id: UUID,
         ctx: InvocationContextData | None = None,
+        signal_result: dict[str, Any] | None = None,
     ) -> None:
         """Send completion callback to workflow after agent execution.
 
@@ -690,6 +934,7 @@ class OrchestrationService:
             final_state: Final state containing agent result and metadata
             invocation_id: Invocation UUID for logging
             ctx: Original typed context_data (fallback for callback_url)
+            signal_result: Pre-built result dict to send in the callback signal
 
         """
         logger.info(
@@ -717,8 +962,8 @@ class OrchestrationService:
             )
             return
 
-        # Extract agent result
-        result = final_state.get("result")
+        # Extract agent result, preferring explicit payload prepared by execute().
+        result = signal_result if signal_result is not None else final_state.get("result")
         if not result:
             logger.warning("No result found in final_state for callback", invocation_id=invocation_id)
             return

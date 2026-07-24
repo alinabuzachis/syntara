@@ -34,12 +34,26 @@ import { isExecutionCancellable } from './executionCancellable'
 import styles from './ExecutionDetail.module.css'
 import { ExecutionDetailHeaderToolbar, ExecutionDetailTitleRowAddons } from './ExecutionDetailPageHeaderParts'
 import { executionDetailHasTitleRowExtras, executionDetailPageHeading } from './executionDetailPageHeaderTitle'
+import { executionRefetchInterval } from './executionPolling'
 import { useApprovalNavigation } from './hooks/useApprovalNavigation'
 import { useExecutionApprovalPanel } from './hooks/useExecutionApprovalPanel'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 import { useExecutionStreaming, useSyncActivityStore } from './hooks/useExecutionStreaming'
 import { useExecutionWorkflow } from './hooks/useExecutionWorkflow'
 import { useForkWorkflow } from './hooks/useForkWorkflow'
+
+/** Reset execution store only when the execution ID actually changes. */
+function useResetOnExecutionChange(executionId: string | undefined) {
+  const { reset } = useExecutionStore.getState()
+  const prevExecutionIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (executionId && prevExecutionIdRef.current !== executionId) {
+      reset()
+    }
+    prevExecutionIdRef.current = executionId ?? null
+  }, [executionId, reset])
+}
 
 /** Build activity name map from workflow definition for resolving approval node names. */
 function useActivityNamesForExecution(
@@ -256,23 +270,22 @@ export default function ExecutionDetail() {
   const navigate = useNavigate()
   const searchParams = useRouterState({ select: (s) => s.location.searchStr.replace(/^\?/, '') })
 
-  const { reset } = useExecutionStore.getState()
+  useResetOnExecutionChange(executionId)
 
-  useEffect(() => {
-    if (executionId) {
-      reset()
-    }
-  }, [executionId, reset])
-
-  const executionQuery = executionsClient.useQuery('get', '/executions/{execution_id}', {
-    params: {
-      path: { execution_id: executionId ?? '' },
-      query: {
-        include: 'workflow_definition,activities',
+  const executionQuery = executionsClient.useQuery(
+    'get',
+    '/executions/{execution_id}',
+    {
+      params: {
+        path: { execution_id: executionId ?? '' },
+        query: {
+          include: 'workflow_definition,activities',
+        },
       },
+      enabled: !!executionId,
     },
-    enabled: !!executionId,
-  })
+    { refetchInterval: executionRefetchInterval }
+  )
 
   const execution = useExecutionWithLiveStatus(executionQuery.data)
 

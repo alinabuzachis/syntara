@@ -1,3 +1,4 @@
+import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import {
   Content,
   ContentVariants,
@@ -9,6 +10,9 @@ import {
   Spinner,
   Stack,
   StackItem,
+  Tab,
+  Tabs,
+  TabTitleText,
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
@@ -35,6 +39,8 @@ import { ViewToggle, type PanelView } from '../builder/panels/ViewToggle'
 import type { ActivityState } from '../workflows/execution/types'
 import { extractApprovalAudit, type ApprovalAudit } from '../workflows/execution/utils/activityState'
 
+import { extractAgentTrace } from './agentTraceTypes'
+import { AgentTraceView } from './AgentTraceView'
 import { useNodeExecutionDetails } from './hooks/useNodeExecutionDetails'
 import styles from './NodeExecutionDetailsPanel.module.css'
 
@@ -108,8 +114,8 @@ function DataPane({ title, nodeId, data, view, onViewChange, isErrorState = fals
   }
 
   return (
-    <Stack style={{ height: '100%', overflow: 'hidden' }}>
-      <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--xs)' }}>
+    <Stack className={styles.contentContainer}>
+      <StackItem className={styles.dataPaneHeaderRow}>
         <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} flexWrap={{ default: 'wrap' }}>
           <FlexItem flex={{ default: 'flexNone' }} className={styles.dataPaneTitle}>
             {title}
@@ -136,7 +142,7 @@ function DataPane({ title, nodeId, data, view, onViewChange, isErrorState = fals
           </FlexItem>
         </Flex>
       </StackItem>
-      <StackItem isFilled style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+      <StackItem isFilled className={styles.scrollPane}>
         <div ref={scrollContainerRef}>{renderContent()}</div>
       </StackItem>
     </Stack>
@@ -216,10 +222,64 @@ function AAPJobLink({
   )
 }
 
-/**
- * Renders a node details section with its own header (name, status, elapsed, close)
- * and side-by-side Input / Output data panes beneath it.
- */
+type NodeContentAreaProps = Readonly<{
+  nodeId: string
+  inputData: Record<string, unknown> | null
+  outputData: Record<string, unknown> | null
+  isLoading: boolean
+  error: unknown
+  refetch: () => Promise<unknown>
+  nodeIsFailed: boolean
+  isAgenticNode: boolean
+  activeTab: 'io' | 'agent-steps'
+}>
+
+function NodeContentArea({
+  nodeId,
+  inputData,
+  outputData,
+  isLoading,
+  error,
+  refetch,
+  nodeIsFailed,
+  isAgenticNode,
+  activeTab,
+}: NodeContentAreaProps) {
+  const [inputView, setInputView] = useState<PanelView>('json')
+  const [outputView, setOutputView] = useState<PanelView>('json')
+
+  if (error) {
+    return <NxErrorState title="Error loading activity data" message={error} onRetry={() => detachPromise(refetch())} />
+  }
+  if (isLoading) {
+    return <Spinner aria-label="Loading activity data" />
+  }
+  if (activeTab === 'agent-steps' && isAgenticNode) {
+    return <AgentTraceView agentTrace={extractAgentTrace(outputData)} />
+  }
+  return (
+    <Flex
+      flexWrap={{ default: 'nowrap' }}
+      alignItems={{ default: 'alignItemsStretch' }}
+      className={styles.dataPaneContainer}
+    >
+      <FlexItem flex={{ default: 'flex_1' }} className={styles.paneItem}>
+        <DataPane title="Parameters" nodeId={nodeId} data={inputData} view={inputView} onViewChange={setInputView} />
+      </FlexItem>
+      <FlexItem flex={{ default: 'flex_1' }} className={styles.paneItem}>
+        <DataPane
+          title="Output"
+          nodeId={nodeId}
+          data={outputData}
+          view={outputView}
+          onViewChange={setOutputView}
+          isErrorState={nodeIsFailed}
+        />
+      </FlexItem>
+    </Flex>
+  )
+}
+
 export function NodeExecutionDetailsPanel({
   nodeId,
   nodeName,
@@ -227,8 +287,8 @@ export function NodeExecutionDetailsPanel({
   nodeState,
   nodeType,
 }: Readonly<NodeExecutionDetailsPanelProps>) {
-  const [inputView, setPanelView] = useState<PanelView>('json')
-  const [outputView, setOutputView] = useState<PanelView>('json')
+  const [activeTab, setActiveTab] = useState<'io' | 'agent-steps'>('io')
+  const isAgenticNode = nodeType === ActivityTypeEnum.AGENTIC
   const { inputData, outputData, isLoading, error, refetch } = useNodeExecutionDetails(
     nodeId,
     executionId,
@@ -245,9 +305,9 @@ export function NodeExecutionDetailsPanel({
   const nodeElapsedLabel = elapsedMs === undefined ? undefined : formatElapsedTime(elapsedMs)
 
   return (
-    <Stack style={{ height: '100%', overflow: 'hidden' }}>
+    <Stack className={styles.contentContainer}>
       {/* Node-specific header */}
-      <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--sm)' }}>
+      <StackItem className={styles.headerRow}>
         <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
           <FlexItem>
             <Title headingLevel="h2" size={TitleSizes.md} style={{ margin: 0 }}>
@@ -292,39 +352,32 @@ export function NodeExecutionDetailsPanel({
 
       <AAPJobLink outputData={outputData} nodeType={nodeType} />
 
-      {/* Side-by-side Input / Output panes */}
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        {!!error && (
-          <NxErrorState title="Error loading activity data" message={error} onRetry={() => detachPromise(refetch())} />
-        )}
-        {!error && isLoading && <Spinner aria-label="Loading activity data" />}
-        {!error && !isLoading && (
-          <Flex
-            flexWrap={{ default: 'nowrap' }}
-            alignItems={{ default: 'alignItemsStretch' }}
-            style={{ height: '100%', gap: 'var(--pf-t--global--spacer--sm)' }}
+      {/* Tab bar for agentic nodes */}
+      {isAgenticNode && (
+        <StackItem className={styles.tabBar}>
+          <Tabs
+            activeKey={activeTab}
+            onSelect={(_e, key) => setActiveTab(key as 'io' | 'agent-steps')}
+            variant="default"
           >
-            <FlexItem flex={{ default: 'flex_1' }} style={{ minWidth: 0, overflow: 'hidden' }}>
-              <DataPane
-                title="Parameters"
-                nodeId={nodeId}
-                data={inputData}
-                view={inputView}
-                onViewChange={setPanelView}
-              />
-            </FlexItem>
-            <FlexItem flex={{ default: 'flex_1' }} style={{ minWidth: 0, overflow: 'hidden' }}>
-              <DataPane
-                title="Output"
-                nodeId={nodeId}
-                data={outputData}
-                view={outputView}
-                onViewChange={setOutputView}
-                isErrorState={nodeIsFailed}
-              />
-            </FlexItem>
-          </Flex>
-        )}
+            <Tab eventKey="io" title={<TabTitleText>Input/Output</TabTitleText>} />
+            <Tab eventKey="agent-steps" title={<TabTitleText>Agent steps</TabTitleText>} />
+          </Tabs>
+        </StackItem>
+      )}
+
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <NodeContentArea
+          nodeId={nodeId}
+          inputData={inputData}
+          outputData={outputData}
+          isLoading={isLoading}
+          error={error}
+          refetch={refetch}
+          nodeIsFailed={nodeIsFailed}
+          isAgenticNode={isAgenticNode}
+          activeTab={activeTab}
+        />
       </StackItem>
     </Stack>
   )

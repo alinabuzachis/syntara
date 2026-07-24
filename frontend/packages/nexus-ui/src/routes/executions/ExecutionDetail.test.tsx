@@ -351,6 +351,9 @@ describe('ExecutionDetail', () => {
             include: 'workflow_definition,activities',
           },
         },
+      }),
+      expect.objectContaining({
+        refetchInterval: expect.any(Function) as unknown,
       })
     )
   })
@@ -633,6 +636,44 @@ describe('ExecutionDetail', () => {
       expect(mockReset).toHaveBeenCalledTimes(1)
 
       // Restore original
+      useExecutionStore.getState = originalGetState
+    })
+
+    it('does not reset execution store when executionId is undefined', async () => {
+      const queryClient = new QueryClient()
+      const mockReset = vi.fn()
+      const mockSetActivityExecutions = vi.fn()
+
+      const { useExecutionStore } = await import('../workflows/stores/useExecutionStore')
+      const originalGetState = useExecutionStore.getState
+      useExecutionStore.getState = vi.fn(() => ({
+        ...originalGetState(),
+        reset: mockReset,
+        setActivityExecutions: mockSetActivityExecutions,
+      }))
+
+      vi.mocked(useParams).mockReturnValue({ executionId: undefined })
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(mockReset).not.toHaveBeenCalled()
+      expect(vi.mocked(executionsClient.useQuery)).toHaveBeenCalledWith(
+        'get',
+        '/executions/{execution_id}',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            path: { execution_id: '' },
+          }) as Record<string, unknown>,
+          enabled: false,
+        }),
+        expect.objectContaining({
+          refetchInterval: expect.any(Function) as unknown,
+        })
+      )
+
       useExecutionStore.getState = originalGetState
     })
   })

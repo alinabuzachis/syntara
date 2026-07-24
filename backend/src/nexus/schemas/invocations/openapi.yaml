@@ -269,6 +269,49 @@ paths:
 
       security:
         - bearerAuth: []
+  /invocations/{invocation_id}/trace:
+    get:
+      summary: Get Invocation Trace
+      description: Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool calls, and tool results.
+      operationId: get_invocation_trace
+      tags:
+        - Invocation
+      x-app-permission:
+        resource: invocation
+        action: read
+      parameters:
+        - name: invocation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Invocation Id
+      responses:
+        '200':
+          description: Agent execution trace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvocationTraceRead'
+        '400':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/BadRequestError
+        '401':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError
+        '403':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError
+        '404':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
+        '409':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ConflictError
+        '422':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ValidationError
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        '500':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
+      security:
+        - bearerAuth: []
   /invocations/{invocation_id}/cancel:
     post:
       summary: Cancel Invocation
@@ -427,6 +470,15 @@ components:
                 - type: object
                   additionalProperties: true
                 - type: 'null'
+            trace_events:
+              title: Trace Events
+              description: Persisted agent trace steps (reasoning, tool calls, tool results, final answer)
+              anyOf:
+                - type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                - type: 'null'
 
     InvocationRequestWithFile:
       type: object
@@ -550,6 +602,30 @@ components:
           type: string
           title: Message
           description: Human-readable message describing the cancellation result
+
+    InvocationTraceRead:
+      description: Read schema for agent execution trace.
+      type: object
+      required:
+        - invocation_id
+        - status
+      properties:
+        invocation_id:
+          type: string
+          format: uuid
+          title: Invocation Id
+          description: Invocation UUID
+        status:
+          $ref: '#/components/schemas/InvocationStatus'
+          description: Current invocation status
+        agent_trace:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          description: Agent execution trace with model, tokens, duration, and steps
+          title: Agent Trace
+      title: InvocationTraceRead
 
   securitySchemes:
     bearerAuth:

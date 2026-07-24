@@ -20,7 +20,7 @@ from nexus.workflows.workflow_engine.models import AgenticExecutorParameters
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
-from .common import HEARTBEAT_STOP_MONITOR, ActivityExecutionError
+from .common import HEARTBEAT_PARTIAL_OUTPUT_KEY, HEARTBEAT_STOP_MONITOR, ActivityExecutionError
 
 # See - https://github.com/temporalio/sdk-python?tab=readme-ov-file#avoiding-the-sandbox for more detail
 with workflow.unsafe.imports_passed_through():
@@ -192,6 +192,16 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
             logger.info(
                 "Agent invocation created successfully",
                 invocation_id=invocation_id,
+            )
+
+            # Send invocation_id as early partial output so the frontend
+            # can open the invocation WebSocket for live trace streaming
+            # (same pattern as job_id/job_url in AAP job template activity).
+            activity.heartbeat(
+                {
+                    HEARTBEAT_STOP_MONITOR: True,
+                    HEARTBEAT_PARTIAL_OUTPUT_KEY: {"invocation_id": str(invocation_id)},
+                }
             )
 
             activity.raise_complete_async()

@@ -68,6 +68,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/invocations/{invocation_id}/trace': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Invocation Trace
+     * @description Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool calls, and tool results.
+     */
+    get: operations['get_invocation_trace']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/invocations/{invocation_id}/cancel': {
     parameters: {
       query?: never
@@ -165,6 +185,15 @@ export interface components {
       checkpoint_data?: {
         [key: string]: unknown
       } | null
+      /**
+       * Trace Events
+       * @description Persisted agent trace steps (reasoning, tool calls, tool results, final answer)
+       */
+      trace_events?:
+        | {
+            [key: string]: unknown
+          }[]
+        | null
     }
     /**
      * InvocationRequestWithFile
@@ -257,6 +286,27 @@ export interface components {
        * @description Human-readable message describing the cancellation result
        */
       message: string
+    }
+    /**
+     * InvocationTraceRead
+     * @description Read schema for agent execution trace.
+     */
+    InvocationTraceRead: {
+      /**
+       * Invocation Id
+       * Format: uuid
+       * @description Invocation UUID
+       */
+      invocation_id: string
+      /** @description Current invocation status */
+      status: components['schemas']['InvocationStatus']
+      /**
+       * Agent Trace
+       * @description Agent execution trace with model, tokens, duration, and steps
+       */
+      agent_trace?: {
+        [key: string]: unknown
+      } | null
     }
     /**
      * Paginated Response Base
@@ -706,6 +756,36 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['Invocation']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_invocation_trace: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        invocation_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Agent execution trace */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['InvocationTraceRead']
         }
       }
       400: components['responses']['BadRequestError']

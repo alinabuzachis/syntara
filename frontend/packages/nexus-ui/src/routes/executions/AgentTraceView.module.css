@@ -1,0 +1,57 @@
+.scrollContainer {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.headerBar {
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  background: var(--pf-t--global--background--color--secondary--default);
+  border-radius: var(--pf-t--global--border--radius--small);
+  margin-bottom: var(--pf-t--global--spacer--sm);
+}
+
+.statLabel {
+  font-size: var(--pf-t--global--font--size--xs);
+  color: var(--pf-t--global--text--color--subtle);
+}
+
+.statValue {
+  font-size: var(--pf-t--global--font--size--sm);
+}
+
+.stepsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-t--global--spacer--md);
+}
+
+.reasoningBlock {
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.tokensBadge {
+  display: inline-block;
+  font-size: var(--pf-t--global--font--size--xs);
+  color: var(--pf-t--global--text--color--subtle);
+  margin-top: var(--pf-t--global--spacer--xs);
+}
+
+.toolCardFailed {
+  border-color: var(--pf-t--global--color--status--danger--default);
+}
+
+.stepTypeLabel {
+  font-size: var(--pf-t--global--font--size--xs);
+  color: var(--pf-t--global--text--color--subtle);
+  margin-bottom: var(--pf-t--global--spacer--xs);
+}
+
+.finalAnswerBlock {
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  border-left: 3px solid var(--pf-t--global--color--brand--default);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}

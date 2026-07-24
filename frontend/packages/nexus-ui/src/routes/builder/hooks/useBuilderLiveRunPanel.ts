@@ -1,6 +1,6 @@
 import { type ExecutionStatus, ExecutionStatusEnum } from '@ansible/nexus-contracts'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { detachPromise } from '../../../utils/detachPromise'
 import { useExecutionWebSocket } from '../../workflows/hooks/useExecutionWebSocket'
@@ -44,10 +44,13 @@ export function useBuilderLiveRunPanel({
   const [mostRecentSelectedNodeName, setMostRecentSelectedNodeName] = useState<string | null>(null)
   const [mostRecentPanelHeight, setMostRecentPanelHeight] = useState(300)
 
+  const prevExecutionIdRef = useRef<string | null | undefined>(null)
+
   useEffect(() => {
-    if (mostRecentExecutionId) {
+    if (mostRecentExecutionId && prevExecutionIdRef.current !== mostRecentExecutionId) {
       useExecutionStore.getState().reset()
     }
+    prevExecutionIdRef.current = mostRecentExecutionId
   }, [mostRecentExecutionId])
 
   const isActive = mostRecentRunPanelOpen && !!mostRecentExecutionId

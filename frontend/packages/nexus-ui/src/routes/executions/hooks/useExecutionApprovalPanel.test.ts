@@ -139,8 +139,7 @@ describe('useExecutionApprovalPanel', () => {
 
     act(() => result.current.open())
 
-    // dismiss() is fire-and-forget, so call it and advance timers to flush async updates
-    result.current.dismiss()
+    act(() => result.current.dismiss())
     await act(async () => {
       await vi.runAllTimersAsync()
     })
@@ -159,8 +158,7 @@ describe('useExecutionApprovalPanel', () => {
 
     act(() => result.current.open())
 
-    // dismiss() is fire-and-forget, so call it and advance timers to flush async updates
-    result.current.dismiss()
+    act(() => result.current.dismiss())
     await act(async () => {
       await vi.runAllTimersAsync()
     })
@@ -280,8 +278,7 @@ describe('useExecutionApprovalPanel', () => {
     act(() => result.current.open())
     expect(result.current.panelOpen).toBe(true)
 
-    // Call dismiss() and advance timers
-    result.current.dismiss()
+    act(() => result.current.dismiss())
     await act(async () => {
       await vi.runAllTimersAsync()
     })

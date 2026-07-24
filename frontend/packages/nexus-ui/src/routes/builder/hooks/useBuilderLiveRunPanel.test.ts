@@ -288,6 +288,19 @@ describe('useBuilderLiveRunPanel', () => {
 
       expect(mockReset).not.toHaveBeenCalled()
     })
+
+    it('is NOT called when the same executionId is re-set', () => {
+      const { rerender } = renderHook(({ params }: { params: HookParams }) => useBuilderLiveRunPanel(params), {
+        initialProps: { params: defaultParams({ mostRecentExecutionId: 'exec-1' }) },
+        wrapper: makeWrapper(queryClient),
+      })
+
+      expect(mockReset).toHaveBeenCalledTimes(1)
+
+      rerender({ params: defaultParams({ mostRecentExecutionId: 'exec-1' }) })
+
+      expect(mockReset).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('useExecutionWebSocket enabled flag', () => {

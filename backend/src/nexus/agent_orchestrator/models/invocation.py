@@ -2,13 +2,14 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
+from pydantic import ConfigDict
 from sqlalchemy import Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import DateTime
-from sqlmodel import Field
+from sqlmodel import Field, SQLModel
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import UserOwnedResource
@@ -35,7 +36,10 @@ class Invocation(UserOwnedResource, table=True):
     # SQLModel configuration is inherited from base classes
 
     # Define composite indexes
-    __table_args__ = (Index("ix_invocations_created_by_status", "created_by", "status"),)
+    __table_args__ = (
+        Index("ix_invocations_created_by_status", "created_by", "status"),
+        Index("ix_invocations_trace_events_gin", "trace_events", postgresql_using="gin"),
+    )
 
     # Define filterable fields for API endpoints - extend base UserOwnedResource fields
     __filterable_fields__: ClassVar[list[str]] = [
@@ -129,6 +133,12 @@ class Invocation(UserOwnedResource, table=True):
         description="Checkpoint data for pause/resume",
     )
 
+    trace_events: list[dict[str, object]] | None = Field(
+        default=None,
+        sa_type=JSONB,
+        description="Persisted agent trace steps (reasoning, tool calls, tool results, final answer)",
+    )
+
     # Model identification
     model_name: str | None = Field(
         default=None,
@@ -157,3 +167,16 @@ class Invocation(UserOwnedResource, table=True):
 
 class InvocationListResponse(ResourcesResponse[Invocation]):
     """Paginated list response for invocations."""
+
+
+class InvocationTraceRead(SQLModel):
+    """Read schema for agent execution trace."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
+
+    invocation_id: UUID = Field(description="Invocation UUID")
+    status: InvocationStatus = Field(description="Current invocation status")
+    agent_trace: dict[str, Any] | None = Field(
+        default=None,
+        description="Agent execution trace with model, tokens, duration, and steps",
+    )
