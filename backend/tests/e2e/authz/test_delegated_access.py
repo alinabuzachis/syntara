@@ -9,7 +9,7 @@ import pytest
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
-    from nexus_test_sdk.factories import (
+    from orchestrator_test_sdk.factories import (
         AssignProjectRoleFactory,
         ProjectFactory,
         ProjectRoleFactory,
@@ -21,7 +21,7 @@ if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
 
-from nexus_test_sdk.e2e.auth import api_for
+from orchestrator_test_sdk.e2e.auth import api_for
 
 pytestmark = [pytest.mark.e2e]
 

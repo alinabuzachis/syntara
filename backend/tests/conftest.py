@@ -5,20 +5,31 @@ nexus.* imports happen AFTER pytest-cov starts its coverage tracer.
 """
 
 pytest_plugins = [
-    # app/_hooks.py: logging setup, performance marker, worker_id, cleanup
-    "nexus_test_sdk.app._hooks",
-    # app submodules — each registers its own fixtures as a pytest plugin
-    "nexus_test_sdk.app.database",
-    "nexus_test_sdk.app.client",
-    "nexus_test_sdk.app.users",
-    "nexus_test_sdk.app.groups",
-    "nexus_test_sdk.app.temporal",
-    "nexus_test_sdk.app.tools",
-    "nexus_test_sdk.app.workflows",
-    "nexus_test_sdk.app.jwt",
-    "nexus_test_sdk.app.mocks",
-    "nexus_test_sdk.app.settings",
-    "nexus_test_sdk.app.live",
-    # DB-level factory fixtures override the API-level stubs from e2e.factories
-    "nexus_test_sdk.app.factories",
+    # Logging setup, performance marker, worker_id fixture, and cleanup hooks
+    "tests.fixtures.hooks",
+    # Shared fixtures used across unit, integration, performance, and E2E tests
+    "tests.fixtures.database",
+    "tests.fixtures.users",
+    "tests.fixtures.tools",
+    "tests.fixtures.mocks",
+    "tests.fixtures.settings",
+    "tests.fixtures.factories",
+    # Unit-specific fixtures
+    "tests.unit.fixtures.mocks",
+    "tests.unit.fixtures.settings",
+    "tests.unit.fixtures.tools",
+    "tests.unit.fixtures.jwt",
+    # Integration-specific fixtures (FastAPI client, Temporal, group/user helpers, etc.)
+    # Registered here so unit tests that depend on them transitively still resolve correctly.
+    "tests.integration.fixtures.database",
+    "tests.integration.fixtures.client",
+    "tests.integration.fixtures.groups",
+    "tests.integration.fixtures.temporal",
+    "tests.integration.fixtures.workflows",
+    "tests.integration.fixtures.factories",
+    "tests.integration.fixtures.jwt",
+    "tests.integration.fixtures.mocks",
+    "tests.integration.fixtures.settings",
+    "tests.integration.fixtures.tools",
+    "tests.integration.fixtures.users",
 ]

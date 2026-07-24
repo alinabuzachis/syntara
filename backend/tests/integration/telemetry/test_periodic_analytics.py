@@ -12,10 +12,6 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from nexus_test_sdk.helpers.credential import CredentialFactory
-from nexus_test_sdk.helpers.execution import ExecutionFactory
-from nexus_test_sdk.helpers.token_usage import TokenUsageFactory
-from nexus_test_sdk.helpers.workflow import WorkflowFactory
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -38,6 +34,10 @@ from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter, W
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
+from tests.integration.helpers.credential import CredentialFactory
+from tests.integration.helpers.execution import ExecutionFactory
+from tests.integration.helpers.token_usage import TokenUsageFactory
+from tests.integration.helpers.workflow import WorkflowFactory
 
 
 class TestPeriodicAnalyticsFlow:

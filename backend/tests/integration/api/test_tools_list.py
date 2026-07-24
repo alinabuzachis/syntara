@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.error_data import assert_error_data
 
 from nexus.tool_manager.models import Tool
+from tests.integration.helpers.error_data import assert_error_data
 
 if TYPE_CHECKING:
-    from nexus_test_sdk.helpers.tool_manager import ToolFactory
+    from tests.integration.helpers.tool_manager import ToolFactory
 
 
 @pytest_asyncio.fixture

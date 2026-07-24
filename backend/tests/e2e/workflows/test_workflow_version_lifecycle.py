@@ -21,13 +21,13 @@ from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.publish_version_request import PublishVersionRequest
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from nexus_api_client.models.workflow_update import WorkflowUpdate
-from nexus_test_sdk.e2e.helpers import poll_execution
+from orchestrator_test_sdk.e2e.helpers import poll_execution
 
 if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
-    from nexus_test_sdk.factories.workflows import WorkflowFactory
+    from orchestrator_test_sdk.factories.workflows import WorkflowFactory
 
 pytestmark = [pytest.mark.e2e]
 

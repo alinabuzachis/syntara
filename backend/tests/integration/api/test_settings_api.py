@@ -39,7 +39,7 @@ async def admin_settings_client(
     async def override_get_current_user() -> User:
         return admin
 
-    from nexus_test_sdk.app.client import _scoped_overrides
+    from tests.integration.fixtures.client import _scoped_overrides
 
     async with _scoped_overrides(session_app):
         session_app.dependency_overrides[get_db] = override_get_db

@@ -5,10 +5,10 @@ Tests group retrieval, 404 handling, and response format.
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.error_data import assert_error_data
 
 from nexus.core.models import User
 from nexus.core.models.group import Group
+from tests.integration.helpers.error_data import assert_error_data
 
 GROUPS_URL = "/api/v1/groups"
 

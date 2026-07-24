@@ -98,7 +98,10 @@ tests/
 - Test directory structure mirrors `src/nexus/` hierarchy within each test category
   - Example: `tests/unit/agent_orchestrator/` maps to `src/nexus/agent_orchestrator/`
 - Domain-specific conftest files provide domain-specific fixtures at appropriate hierarchy levels
-- Sample test files (PDFs, images, documents) live in `test-sdk/src/nexus_test_sdk/fixtures/files/` and are accessed via `get_fixtures_dir()` from `nexus_test_sdk.app.files`
+- Sample test files (PDFs, images, documents) live in `tests/fixtures/files/` and are accessed via `get_fixtures_dir()` from `tests.fixtures.files`
+- Shared unit/integration fixtures live in `tests/fixtures/` (settings, files, encryption, tls, temporal helpers)
+- Integration-only factory helpers (e.g. `WorkflowFactory`, `ApprovalsFactory`) live in `tests/integration/helpers/`
+- Unit-only fixtures and mocks (e.g. `MockMCPProvider`) live in `tests/unit/fixtures/`
 - Reusable test utilities go in `tests/helpers/`
 
 ## File Naming
@@ -276,17 +279,31 @@ async def test_workflow_execution_performance(base_client: AsyncClient) -> None:
 
 ## conftest.py Hierarchy
 
-The project uses a two-level conftest structure. Base fixtures come from the `nexus-test-sdk` plugin (installed as a `pytest11` entry point) — no root `tests/conftest.py` is needed.
+The project uses a two-level conftest structure. Base fixtures come from the `orchestrator-test-sdk` plugin (installed as a `pytest11` entry point) — no root `tests/conftest.py` is needed.
 
-**`nexus-test-sdk` plugin (registered via `pytest_plugins` in `plugin.py`):**
+**`orchestrator-test-sdk` plugin (registered via `pytest_plugins` in `plugin.py`):**
 - Session-scoped database engine and Redis cache (testcontainers)
 - Temporal test environment and worker fixtures
 - FastAPI test clients (`base_client`, `auth_client`, `jwt_client`, `session_app`)
 - Model factories: users, workflows, groups, tools, credentials, executions
-- Mock fixtures: `mock_openrouter_llm`, `mock_websocket`, `FakeSettingsCache`
-- Settings overrides: `override_settings`, `override_runtime_settings`
+- Mock fixtures: `mock_openrouter_llm`, `mock_websocket`
 - Pytest hooks: performance test filtering, lock file cleanup, `worker_id`
-- Shared helpers: `MockMCPProvider`, `ExampleMCPServer`, test fixture files
+- E2E helpers: `ExecutionsFactory`, `create_minimal_workflow_definition`, `ExampleMCPServer`
+
+**Local shared fixtures (`tests/fixtures/`)** — import directly, no plugin needed:
+- `settings.py` — `FakeSettingsCache`, `override_settings`, `override_runtime_settings`, `fast_retry_settings`
+- `files.py` — `generate_large_file`, `get_fixtures_dir` (sample files in `tests/fixtures/files/`)
+- `encryption.py` — `OLD_KEY`, `NEW_KEY`, `WRONG_KEY`, `ZEROS_KEY` constants
+- `tls.py` — `generate_self_signed_cert`, `generate_server_cert`, `generate_crl`
+- `temporal.py` — `CompleteAsyncError` alias
+
+**Integration-only factory helpers (`tests/integration/helpers/`):**
+- `workflow.py` — `WorkflowFactory`, `ActivitiesFactory` (DB-backed creation)
+- `approval.py` — `ApprovalsFactory` (DB-backed approval creation)
+
+**Unit-only fixtures (`tests/unit/fixtures/`):**
+- `approval.py` — `create_test_approval_request`, `create_approved_approval_request`
+- `mock_mcp_provider.py` — `MockMCPProvider`
 
 **Test-type conftest files:**
 - `tests/integration/conftest.py` — template-based DB isolation (PostgreSQL `TEMPLATE` restore per test), authz evaluator mock, moto S3 mock, `test_project_id`
@@ -311,10 +328,12 @@ The project uses a two-level conftest structure. Base fixtures come from the `ne
 
 **Fixture Location Guidelines:**
 
-1. If used across all test types → root conftest
-2. If specific to a test type (unit, integration, e2e) → type-level conftest
-3. If specific to a domain (workflows, agents, tools) → domain conftest
-4. If used in one test file → define in that file
+1. If used by e2e or performance tests (and possibly integration) → `orchestrator-test-sdk` plugin
+2. If shared between unit and integration tests → `tests/fixtures/` module (import directly)
+3. If only needed by integration tests as a factory helper → `tests/integration/helpers/`
+4. If only needed by unit tests → `tests/unit/fixtures/`
+5. If specific to a domain (workflows, agents, tools) → domain conftest
+6. If used in one test file → define in that file
 
 ## Pytest Markers
 
@@ -617,7 +636,7 @@ async def test_logs_warning(self, mock_emit: Mock) -> None:
 
 **Ruff Overrides for Tests:**
 
-The following lint rules are relaxed for test code:
+The following lint rules are relaxed for test code (`tests/**/*.py` and `test-sdk/**/*.py`):
 
 - `S101` — Allow `assert` statements
 - `ANN001`, `ANN201` — No type annotations required for test args/returns
@@ -626,6 +645,8 @@ The following lint rules are relaxed for test code:
 - `ARG001` — Allow unused fixture arguments
 - `SLF001` — Allow private member access (for unit testing internal state)
 - Additional overrides listed in `pyproject.toml`
+
+`test-sdk/` also relaxes `TC002`/`TC003` (TYPE_CHECKING guard enforcement) because e2e fixtures are imported at runtime, not just for type checking.
 
 ## Make Targets
 

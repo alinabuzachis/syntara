@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
 
 from nexus.credentials.models.credential_type import CredentialType
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 if TYPE_CHECKING:
     from httpx import AsyncClient

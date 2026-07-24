@@ -3,7 +3,8 @@
 from collections.abc import Generator
 
 import pytest
-from nexus_test_sdk.app import FakeSettingsCache
+
+from tests.fixtures.settings import FakeSettingsCache
 
 
 @pytest.fixture(autouse=True)

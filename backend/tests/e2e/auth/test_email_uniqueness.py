@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from nexus_api_client.models.user_create import UserCreate
-from nexus_test_sdk.helpers import (
+from orchestrator_test_sdk.e2e import (
     generate_test_password,
     unique_name,
 )

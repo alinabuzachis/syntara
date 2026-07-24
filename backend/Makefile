@@ -66,10 +66,10 @@ _deps-install-dev: _check-uv
 	@echo "✅ Development dependencies installed successfully"
 
 .PHONY: install-test-sdk
-install-test-sdk: _check-uv ## Install nexus-test-sdk pytest plugin (not managed by uv.lock)
-	@echo "📦 Installing nexus-test-sdk..."
+install-test-sdk: _check-uv ## Install orchestrator-test-sdk pytest plugin (not managed by uv.lock)
+	@echo "📦 Installing orchestrator-test-sdk..."
 	uv pip install --no-deps --editable test-sdk/
-	@echo "✅ nexus-test-sdk installed successfully"
+	@echo "✅ orchestrator-test-sdk installed successfully"
 
 .PHONY: install-integration
 install-integration: _deps-install-dev install-test-sdk ## Install integration test dependencies
@@ -633,6 +633,7 @@ endif
 # Code quality
 # ========================================================
 FORMAT_PATHS := src/ tools/ tests/
+SDK_SRC := test-sdk/src/
 
 .PHONY: reachability
 reachability: ## Verify all standards docs are reachable from CLAUDE.md
@@ -661,13 +662,17 @@ format: ## Format code with ruff and pre-commit formatters
 ruff: ## Format code with ruff
 	uv run ruff format $(FORMAT_PATHS)
 	uv run ruff check $(FORMAT_PATHS) --fix
+	uv run ruff format --config test-sdk/pyproject.toml $(SDK_SRC)
+	uv run ruff check --config test-sdk/pyproject.toml $(SDK_SRC) --fix
 
 .PHONY: lint
 lint: ## Run linters and type checking (no file modifications)
 	@echo "📝 Running ruff linter..."
 	uv run ruff check $(FORMAT_PATHS)
+	uv run ruff check --config test-sdk/pyproject.toml $(SDK_SRC)
 	@echo "📝 Running ruff format check..."
 	uv run ruff format --check $(FORMAT_PATHS)
+	uv run ruff format --check --config test-sdk/pyproject.toml $(SDK_SRC)
 	@echo "📝 Checking file formatting..."
 	uv run python tools/ci/check_file_formatting.py
 	@echo "📝 Running type checking..."
@@ -680,6 +685,7 @@ lint: ## Run linters and type checking (no file modifications)
 typecheck: ## Run type checking only with mypy
 	@echo "🔍 Running type checking..."
 	uv run mypy --strict src/ tests/
+	uv run mypy --config-file test-sdk/pyproject.toml test-sdk/src/
 	@echo "✅ Type checking completed"
 
 .PHONY: typecheck-pyrefly

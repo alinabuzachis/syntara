@@ -15,8 +15,9 @@ from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 from nexus_api_client.models.workflow_update_labels_type_0 import WorkflowUpdateLabelsType0
-from nexus_test_sdk.helpers import unique_name
-from nexus_test_sdk.helpers.workflow import (
+from orchestrator_test_sdk.e2e import unique_name
+
+from tests.helpers.workflow import (
     create_minimal_workflow_definition,
     create_workflow_definition_with_activities,
 )

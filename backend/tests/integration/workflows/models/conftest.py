@@ -3,12 +3,12 @@
 from uuid import UUID, uuid4
 
 import pytest_asyncio
-from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest_asyncio.fixture

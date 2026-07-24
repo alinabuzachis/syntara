@@ -5,9 +5,9 @@ Tests group creation, validation, and conflict handling.
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.error_data import assert_error_data
 
 from nexus.core.models import User
+from tests.integration.helpers.error_data import assert_error_data
 
 GROUPS_URL = "/api/v1/groups"
 

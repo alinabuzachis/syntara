@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from nexus_test_sdk.helpers.tls import generate_ca, generate_service_cert
 
 from nexus.core.tls.http_client import build_internal_ssl_context
 from nexus.core.tls.temporal import build_temporal_tls_config
+from tests.fixtures.tls import generate_ca, generate_service_cert
 
 if TYPE_CHECKING:
     from pathlib import Path

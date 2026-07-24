@@ -24,8 +24,8 @@ from nexus_api_client.models import (
 )
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
-from nexus_test_sdk.e2e.helpers import HTTPBIN_URL as _HTTPBIN_URL
-from nexus_test_sdk.e2e.helpers import requires_httpbin
+from orchestrator_test_sdk.e2e.helpers import HTTPBIN_URL as _HTTPBIN_URL
+from orchestrator_test_sdk.e2e.helpers import requires_httpbin
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)

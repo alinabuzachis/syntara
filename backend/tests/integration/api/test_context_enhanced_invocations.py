@@ -6,9 +6,9 @@ Based on Scenario 1 from quickstart.md.
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.invocations import wait_for_invocation_execution
 
 from nexus.core.models import User
+from tests.integration.helpers.invocations import wait_for_invocation_execution
 
 
 class TestContextEnhancedInvocations:

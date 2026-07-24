@@ -25,14 +25,14 @@ from http import HTTPStatus
 import pytest
 from nexus_api_client import AuthenticatedClient
 from nexus_api_client.api.authentication.get_current_user import sync_detailed as get_user_sync
-from nexus_test_sdk.e2e.auth import (
+from orchestrator_test_sdk.e2e.auth import (
     admin_password,
     assert_refresh_succeeds,
     assert_refresh_unauthorized,
     local_login_session,
     logout_with_session,
 )
-from nexus_test_sdk.e2e.tls import e2e_ssl_context
+from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
 
 pytestmark = [pytest.mark.e2e]
 

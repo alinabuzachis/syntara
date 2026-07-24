@@ -5,7 +5,8 @@ Tests user creation, validation, and conflict handling.
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.error_data import assert_error_data
+
+from tests.integration.helpers.error_data import assert_error_data
 
 USERS_URL = "/api/v1/users"
 

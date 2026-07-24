@@ -17,11 +17,11 @@ import httpx
 import pytest
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509 import load_pem_x509_certificate
-from nexus_test_sdk.helpers.tls import generate_ca, generate_service_cert
 from temporalio.service import TLSConfig
 
 from nexus.core.tls.http_client import build_internal_http_client
 from nexus.core.tls.temporal import build_temporal_tls_config
+from tests.fixtures.tls import generate_ca, generate_service_cert
 
 if TYPE_CHECKING:
     from collections.abc import Callable

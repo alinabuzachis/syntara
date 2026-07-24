@@ -24,7 +24,7 @@ import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead
 from nexus_api_client.models.publish_version_request import PublishVersionRequest
-from nexus_test_sdk.helpers import unique_name
+from orchestrator_test_sdk.e2e import unique_name
 
 pytestmark = [pytest.mark.e2e]
 

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
-    from nexus_test_sdk.factories import RoleFactory, UserFactory, UserRoleAssignmentFactory
+    from orchestrator_test_sdk.factories import RoleFactory, UserFactory, UserRoleAssignmentFactory
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -21,8 +21,8 @@ from nexus_api_client.models.role_create import RoleCreate
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_update import UserUpdate
-from nexus_test_sdk.e2e.auth import api_for
-from nexus_test_sdk.helpers import generate_test_password
+from orchestrator_test_sdk.e2e import generate_test_password
+from orchestrator_test_sdk.e2e.auth import api_for
 
 pytestmark = [pytest.mark.e2e]
 

@@ -9,7 +9,6 @@ Tests the foreign key validation for approver user/group IDs:
 from uuid import uuid4
 
 import pytest
-from nexus_test_sdk.helpers.workflow import ExecutionsFactory
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.approvals.models import (
@@ -20,6 +19,7 @@ from nexus.approvals.models import (
 )
 from nexus.approvals.services.approval_service import ApprovalService
 from nexus.core.models import Group, User
+from tests.helpers.workflow import ExecutionsFactory
 
 
 class TestApprovalFKValidation:

@@ -9,8 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from nexus_test_sdk.helpers.error_data import assert_error_data
-from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
+
+from tests.helpers.workflow import create_minimal_workflow_definition
+from tests.integration.helpers.error_data import assert_error_data
 
 if TYPE_CHECKING:
     from httpx import AsyncClient

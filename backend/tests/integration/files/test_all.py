@@ -20,9 +20,9 @@ from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.app.files import generate_large_file
 
 from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
+from tests.fixtures.files import generate_large_file
 
 
 @pytest.mark.asyncio

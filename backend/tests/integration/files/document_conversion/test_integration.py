@@ -9,10 +9,10 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.app.files import get_fixtures_dir
-from nexus_test_sdk.helpers.invocations import wait_for_invocation_execution
 
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
+from tests.fixtures.files import get_fixtures_dir
+from tests.integration.helpers.invocations import wait_for_invocation_execution
 
 FIXTURES_DIR = get_fixtures_dir()
 

@@ -18,9 +18,10 @@ if not os.environ.get("APP_BASE_URL"):
 
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
-from nexus_test_sdk.e2e.auth import api_for
-from nexus_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
-from nexus_test_sdk.factories import (
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.auth import api_for
+from orchestrator_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
+from orchestrator_test_sdk.factories import (
     AssignProjectRoleFactory,
     ProjectFactory,
     ProjectRoleFactory,
@@ -28,7 +29,6 @@ from nexus_test_sdk.factories import (
     WorkflowFactory,
     get_bearer_token_type_id,
 )
-from nexus_test_sdk.helpers import unique_name
 
 pytestmark = [pytest.mark.e2e]
 

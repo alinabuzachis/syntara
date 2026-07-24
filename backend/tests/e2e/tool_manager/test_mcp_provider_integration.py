@@ -21,8 +21,8 @@ from nexus_api_client.models.mcp_server_configuration_input import MCPServerConf
 from nexus_api_client.models.tool_status import ToolStatus
 from nexus_api_client.models.validate_result import ValidateResult
 from nexus_api_client.types import Response
-from nexus_test_sdk.e2e.helpers import _retry_api_call
-from nexus_test_sdk.helpers import unique_name
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import _retry_api_call
 
 pytestmark = [pytest.mark.e2e]
 
@@ -192,7 +192,7 @@ class TestMCPProviderIntegration:
     async def test_mcp_provider_connection_failure_unauthorized(self, nexus_api: NexusApiRegistry) -> None:
         """Test MCP integration validation fails when the server requires auth."""
         from fastmcp.server.auth import StaticTokenVerifier
-        from nexus_test_sdk.app.mcp_servers import ExampleMCPServer
+        from orchestrator_test_sdk.app.mcp_servers import ExampleMCPServer
 
         test_server = ExampleMCPServer(host="0.0.0.0", auth=StaticTokenVerifier(tokens={"an-api-key": {}}))  # noqa: S104
 
@@ -229,7 +229,7 @@ class TestMCPProviderIntegration:
     @pytest.mark.skip(reason="Validate is a no-op pending MCP ping implementation")
     async def test_mcp_provider_connection_failure_forbidden(self, nexus_api: NexusApiRegistry) -> None:
         """Test MCP integration validation fails when the server returns 403."""
-        from nexus_test_sdk.app.mcp_servers import ForbiddenMCPServer
+        from orchestrator_test_sdk.app.mcp_servers import ForbiddenMCPServer
 
         test_server = ForbiddenMCPServer(host="0.0.0.0")  # noqa: S104
 

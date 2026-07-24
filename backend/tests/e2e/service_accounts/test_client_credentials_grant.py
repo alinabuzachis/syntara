@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING
 import httpx
 import jwt as pyjwt
 import pytest
-from nexus_test_sdk.e2e.auth import admin_password
-from nexus_test_sdk.e2e.tls import e2e_ssl_context
+from orchestrator_test_sdk.e2e.auth import admin_password
+from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
 
 from tests.e2e.service_accounts import create_sa_with_credential, token_request
 

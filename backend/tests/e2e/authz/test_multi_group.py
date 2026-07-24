@@ -15,9 +15,10 @@ if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set -- full stack required", allow_module_level=True)
 
 from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_test_sdk.e2e.auth import api_for
-from nexus_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
-from nexus_test_sdk.factories import (
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.auth import api_for
+from orchestrator_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
+from orchestrator_test_sdk.factories import (
     AssignProjectRoleFactory,
     CredentialFactory,
     GroupFactory,
@@ -28,7 +29,6 @@ from nexus_test_sdk.factories import (
     add_to_group,
     remove_from_group,
 )
-from nexus_test_sdk.helpers import unique_name
 
 pytestmark = [pytest.mark.e2e]
 

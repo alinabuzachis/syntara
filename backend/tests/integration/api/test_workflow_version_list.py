@@ -8,7 +8,8 @@ Tests for:
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
+
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio

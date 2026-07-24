@@ -14,12 +14,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 from nexus_api_client.models.user_update import UserUpdate
-from nexus_test_sdk.e2e.auth import (
+from orchestrator_test_sdk.e2e import generate_test_password
+from orchestrator_test_sdk.e2e.auth import (
     assert_refresh_succeeds,
     assert_refresh_unauthorized,
     local_login_session,
 )
-from nexus_test_sdk.helpers import generate_test_password
 
 if TYPE_CHECKING:
     from collections.abc import Callable

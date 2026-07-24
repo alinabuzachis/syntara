@@ -18,9 +18,9 @@ import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead
 from nexus_api_client.models.publish_version_request import PublishVersionRequest
-from nexus_test_sdk.e2e.helpers import poll_execution_until_complete
-from nexus_test_sdk.e2e.tls import e2e_ssl_context
-from nexus_test_sdk.helpers import unique_name
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import poll_execution_until_complete
+from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
 
 from tests.e2e.service_accounts import create_sa_with_credential, token_request
 

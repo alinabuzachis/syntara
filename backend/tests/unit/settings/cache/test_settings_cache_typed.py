@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import pytest
 
-# FakeSettingsCache mirrors SettingsCache's typed getter interface.
-from nexus_test_sdk.app import FakeSettingsCache
-
 from nexus.settings.exceptions import SettingTypeError
+
+# FakeSettingsCache mirrors SettingsCache's typed getter interface.
+from tests.fixtures.settings import FakeSettingsCache
 
 # ---------------------------------------------------------------------------
 # get_int

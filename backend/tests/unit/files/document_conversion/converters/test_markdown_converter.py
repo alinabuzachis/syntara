@@ -394,7 +394,7 @@ class TestMarkdownConverterWithRealFiles:
 
     @pytest.fixture
     def fixtures_dir(self) -> Path:
-        from nexus_test_sdk.app.files import get_fixtures_dir
+        from tests.fixtures.files import get_fixtures_dir
 
         return get_fixtures_dir()
 

@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "nexus-test-sdk"
+name = "orchestrator-test-sdk"
 version = "0.1.0"
-description = "Reusable pytest fixtures for Nexus E2E tests"
+description = "Reusable pytest fixtures for Orchestrator E2E tests"
 requires-python = ">=3.12"
 dependencies = [
     "nexus-api-client",
@@ -13,7 +13,62 @@ dependencies = [
 ]
 
 [project.entry-points."pytest11"]
-nexus-test-sdk = "nexus_test_sdk.plugin"
+orchestrator-test-sdk = "orchestrator_test_sdk.plugin"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/nexus_test_sdk"]
+packages = ["src/orchestrator_test_sdk"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203",     # conflicts with D211
+    "D213",     # conflicts with D212
+    "COM812",   # conflicts with formatter
+    "PLR0913",  # Allow more than 5 arguments
+    "TRY300",   # Standard exception handling pattern
+    "FIX002",   # Allow TODO comments
+    # All SDK files are test/fixture code — apply test-tier rules globally
+    "S101",     # Allow assert statements
+    "ANN001",   # Don't require type annotations for fixture arguments
+    "ANN201",   # Don't require return type annotations for fixture functions
+    "D102",     # Don't require docstrings for methods
+    "D103",     # Don't require docstrings for functions
+    "PLR2004",  # Allow magic values
+    "TD002",    # TODO formatting
+    "TD003",    # TODO formatting
+    "ARG001",   # Allow unused fixture arguments (functions)
+    "ARG002",   # Allow unused fixture arguments (methods)
+    "SLF001",   # Allow private member access
+    "PERF401",  # Allow append in loops
+    "S110",     # Allow try-except-pass in test cleanup
+    "BLE001",   # Allow catching Exception in test cleanup
+    "SIM105",   # Allow try-except-pass in test cleanup
+    "PLC0415",  # Allow imports within fixture functions
+    "D401",     # Allow non-imperative docstrings
+    "PT011",    # Allow broad pytest.raises
+    "PT012",    # Allow multi-statement pytest.raises blocks
+    "PGH003",   # Allow generic type: ignore comments
+    "SIM117",   # Allow nested with statements
+    "TC002",    # Don't enforce TYPE_CHECKING for third-party imports (e2e fixtures used at runtime)
+    "TC003",    # Don't enforce TYPE_CHECKING for stdlib imports (e2e fixtures used at runtime)
+]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_no_return = true
+# Relaxed for fixture/test code — these mirror the backend's orchestrator_test_sdk.* overrides
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "orchestrator_cli.*"
+ignore_missing_imports = true

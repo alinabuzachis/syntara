@@ -36,9 +36,9 @@ from nexus_api_client.models import (
 )
 from nexus_api_client.models.activity_status import ActivityStatus
 from nexus_api_client.models.execution_status import ExecutionStatus
-from nexus_test_sdk.e2e.helpers import poll_execution_until_complete
-from nexus_test_sdk.factories.workflows import WorkflowFactory
-from nexus_test_sdk.helpers import unique_name
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import poll_execution_until_complete
+from orchestrator_test_sdk.factories.workflows import WorkflowFactory
 
 pytestmark = [pytest.mark.e2e]
 

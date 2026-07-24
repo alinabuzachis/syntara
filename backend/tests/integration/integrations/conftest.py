@@ -23,11 +23,11 @@ if TYPE_CHECKING:
     from unittest.mock import MagicMock as MagicMockType
 
     from httpx import AsyncClient
-    from nexus_test_sdk.helpers.credential import CredentialFactory
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from nexus.core.models import User
     from nexus.integrations.adapters.protocol import DiscoverResult, ValidateResult
+    from tests.integration.helpers.credential import CredentialFactory
 
 BASE_URL = "/api/v1/integrations"
 

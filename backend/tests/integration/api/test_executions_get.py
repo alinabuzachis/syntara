@@ -4,11 +4,11 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.workflow import ExecutionsFactory
 
 from nexus.core.models import User
 from nexus.workflows.models import Workflow
 from nexus.workflows.models.execution import ExecutionStatus
+from tests.helpers.workflow import ExecutionsFactory
 
 # ============================================================================
 # Tests

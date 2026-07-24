@@ -16,12 +16,12 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
 
 from nexus.workflows.models import Workflow, WorkflowVersion, WorkflowVersionRead
 from nexus.workflows.models.execution import ExecutionCreate
 from nexus.workflows.models.query_params import WorkflowVersionListParams
 from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 if TYPE_CHECKING:
     from uuid import UUID

@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.error_data import assert_error_data
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -17,6 +16,7 @@ from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.workflow_engine.models.responses import WorkflowStartResponse
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
+from tests.integration.helpers.error_data import assert_error_data
 
 
 @pytest.fixture

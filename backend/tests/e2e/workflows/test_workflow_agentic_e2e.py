@@ -24,7 +24,7 @@ from nexus_api_client.models.integration_create import IntegrationCreate
 from nexus_api_client.models.integration_type import IntegrationType
 from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
 from nexus_api_client.models.llm_provider_hint import LLMProviderHint
-from nexus_test_sdk.e2e.helpers import create_and_run_workflow
+from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry

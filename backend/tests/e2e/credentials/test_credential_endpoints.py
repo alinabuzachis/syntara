@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.models.execution_read import ExecutionRead
-    from nexus_test_sdk.factories.credentials import CredentialFactory
+    from orchestrator_test_sdk.factories.credentials import CredentialFactory
 
 
 if not os.environ.get("APP_BASE_URL"):
@@ -40,9 +40,9 @@ from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
-from nexus_test_sdk.e2e.helpers import HTTPBIN_URL, create_and_run_workflow, poll_execution, requires_httpbin
-from nexus_test_sdk.factories import get_basic_auth_type_id, get_bearer_token_type_id
-from nexus_test_sdk.helpers import unique_name
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import HTTPBIN_URL, create_and_run_workflow, poll_execution, requires_httpbin
+from orchestrator_test_sdk.factories import get_basic_auth_type_id, get_bearer_token_type_id
 
 pytestmark = [pytest.mark.e2e]
 
@@ -368,7 +368,7 @@ class TestCredentialScrubbing:
         create_credential: CredentialFactory,
     ) -> None:
         """Script node prints credential value to stdout — must be [REDACTED] in execution history."""
-        from nexus_test_sdk.e2e.helpers import create_and_run_workflow
+        from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow
 
         cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, name="e2e-scrub-stdout")
 

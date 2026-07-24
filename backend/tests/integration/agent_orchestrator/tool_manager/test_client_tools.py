@@ -10,7 +10,7 @@ from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManage
 from nexus.tool_manager.models import Tool
 
 if TYPE_CHECKING:
-    from nexus_test_sdk.helpers.tool_manager import ToolFactory
+    from tests.integration.helpers.tool_manager import ToolFactory
 
 
 @pytest_asyncio.fixture

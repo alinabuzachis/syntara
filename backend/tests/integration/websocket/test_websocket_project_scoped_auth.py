@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
 from starlette.websockets import WebSocketDisconnect
 
 from nexus.agent_orchestrator.models.invocation import Invocation
@@ -31,6 +30,7 @@ from nexus.core.websocket.connection import get_connection_manager
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 if TYPE_CHECKING:
     from collections.abc import Generator

@@ -9,8 +9,6 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from nexus_test_sdk.helpers.approval import ApprovalsFactory
-from nexus_test_sdk.helpers.workflow import ExecutionsFactory
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.approvals.audit.approval import (
@@ -35,6 +33,8 @@ from nexus.approvals.models import (
 from nexus.approvals.services.approval_service import ApprovalService
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.models import User
+from tests.helpers.workflow import ExecutionsFactory
+from tests.integration.helpers.approval import ApprovalsFactory
 
 
 class TestApprovalServiceBase:

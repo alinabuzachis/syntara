@@ -1,17 +1,18 @@
 """E2E-level fixtures for backend E2E tests.
 
-Loads nexus_test_sdk.e2e.fixtures which provides:
+Loads orchestrator_test_sdk.e2e.fixtures which provides:
 - autouse fixtures: reset_async_client, _wait_for_api
 - session fixtures: nexus_client (with _AutoRefreshAuth), nexus_api, viewer_*, auditor_*
 - factory fixtures: integration_factory, workflow_factory, cleanup_workflows, local_user_factory
 - helper fixtures: first_project_id, mcp_integration_id, nexus_api_admin_group_id, etc.
 
-These override the API-level stubs from nexus_test_sdk.e2e.factories (which
+These override the API-level stubs from orchestrator_test_sdk.e2e.factories (which
 is registered globally in the plugin) for the backend/tests/e2e/ subtree, and
-also override the DB-level factories from nexus_test_sdk.app.factories
+also override the DB-level factories from orchestrator_test_sdk.app.factories
 (loaded by backend/tests/conftest.py) for this subtree.
 """
 
 pytest_plugins = [
-    "nexus_test_sdk.e2e.fixtures",
+    "orchestrator_test_sdk.app.live",
+    "orchestrator_test_sdk.e2e.fixtures",
 ]

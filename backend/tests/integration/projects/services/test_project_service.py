@@ -9,7 +9,6 @@ Tests cover:
 from uuid import uuid4
 
 import pytest
-from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -28,6 +27,7 @@ from nexus.projects.service import ProjectService
 from nexus.workflows.models.execution import Execution
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest.fixture

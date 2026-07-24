@@ -9,7 +9,7 @@ from uuid import UUID
 import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead, WorkflowUpdate
-from nexus_test_sdk.helpers import unique_name
+from orchestrator_test_sdk.e2e import unique_name
 
 pytestmark = [pytest.mark.e2e]
 

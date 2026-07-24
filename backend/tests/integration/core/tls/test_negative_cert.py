@@ -20,13 +20,13 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 import uvicorn
-from nexus_test_sdk.helpers.tls import generate_ca, generate_service_cert
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from nexus.auth.cert_middleware import ClientCertAuthMiddleware, _validate_client_cert
 from nexus.core.tls.protocol import TLSH11Protocol
+from tests.fixtures.tls import generate_ca, generate_service_cert
 from tests.integration.core.tls.conftest import _health
 
 if TYPE_CHECKING:

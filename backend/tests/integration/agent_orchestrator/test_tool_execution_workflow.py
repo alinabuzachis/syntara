@@ -13,12 +13,12 @@ import httpx
 import pytest
 from httpx import AsyncClient, HTTPStatusError
 from langchain_core.tools import tool
-from nexus_test_sdk.helpers.invocations import wait_for_invocation_execution
-from nexus_test_sdk.helpers.tool_manager import wait_for_tool_status
 
 from nexus.integrations.adapters.mcp_server import MCPServerAdapter
 from nexus.integrations.adapters.protocol import ValidateResult
 from nexus.tool_manager.lib.providers.mcp import MCPProvider
+from tests.integration.helpers.invocations import wait_for_invocation_execution
+from tests.integration.helpers.tool_manager import wait_for_tool_status
 
 
 @pytest.fixture(autouse=True)

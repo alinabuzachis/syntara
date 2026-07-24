@@ -33,8 +33,8 @@ from nexus_api_client.models.integration_type import IntegrationType
 from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
 from nexus_api_client.models.llm_provider_hint import LLMProviderHint
 from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
-from nexus_test_sdk.e2e.fixtures import MCP_PROVIDER_URL
-from nexus_test_sdk.helpers import unique_name
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.fixtures import MCP_PROVIDER_URL
 
 pytestmark = [pytest.mark.e2e]
 

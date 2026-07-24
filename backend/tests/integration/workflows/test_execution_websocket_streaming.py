@@ -23,10 +23,10 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.workflow import create_minimal_workflow_definition
 from starlette.testclient import TestClient
 
 from nexus.core.cache.stream import StreamClient
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 pytestmark = pytest.mark.integration
 

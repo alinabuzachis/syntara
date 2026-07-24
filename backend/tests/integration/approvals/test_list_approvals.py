@@ -11,11 +11,11 @@ Task T026 from AAP-64408 acceptance criteria.
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.approval import ApprovalsFactory
-from nexus_test_sdk.helpers.error_data import assert_error_data
-from nexus_test_sdk.helpers.workflow import ExecutionsFactory
 
 from nexus.approvals.models import ApprovalRequestStatus
+from tests.helpers.workflow import ExecutionsFactory
+from tests.integration.helpers.approval import ApprovalsFactory
+from tests.integration.helpers.error_data import assert_error_data
 
 
 class TestListApprovalsContract:

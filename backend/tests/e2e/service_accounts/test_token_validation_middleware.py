@@ -23,8 +23,8 @@ import pytest
 from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
 from nexus_api_client.models.sa_credential_create import SACredentialCreate
 from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
-from nexus_test_sdk.e2e.tls import e2e_ssl_context
-from nexus_test_sdk.helpers import unique_name
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
 
 from tests.e2e.service_accounts import create_sa, create_sa_with_credential, token_request
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
-    from nexus_test_sdk.factories import ProjectFactory
+    from orchestrator_test_sdk.factories import ProjectFactory
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)

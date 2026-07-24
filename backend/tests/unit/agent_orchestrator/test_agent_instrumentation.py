@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from nexus_test_sdk.app import FakeSettingsCache
 from prometheus_client import CollectorRegistry
 
 from nexus.agent_orchestrator.agents.base_agent import BaseAgent
@@ -22,6 +21,7 @@ from nexus.agent_orchestrator.models.agent_state import AgentState
 from nexus.audit.emitter import AuditActorContext
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
+from tests.fixtures.settings import FakeSettingsCache
 
 INVOCATION_ID = uuid4()
 

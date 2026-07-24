@@ -542,7 +542,7 @@ If `APP_BASE_URL` is not set, the target automatically starts the database and d
 
 Reusable pytest fixtures for integration and E2E tests live in `test-sdk/`. The package is a pytest plugin (`pytest11` entry point), so fixtures are available automatically once installed — no `conftest.py` imports needed.
 
-**Integration/unit test fixtures** (from `nexus_test_sdk.app.*`):
+**Integration fixtures** (from `orchestrator_test_sdk.app.*`):
 
 | Fixture | What it provides |
 |---|---|
@@ -554,11 +554,24 @@ Reusable pytest fixtures for integration and E2E tests live in `test-sdk/`. The 
 | `test_group` / `group_with_members` | Group model fixtures |
 | `test_workflow` / `test_execution` | Workflow model fixtures |
 | `temporal_env` / `temporal_worker` | Temporal time-skipping environment |
-| `override_settings` / `override_runtime_settings` | Settings patch helpers |
 | `mock_openrouter_llm` / `mock_websocket` | Mock infrastructure |
 | `credential_factory` / `integration_factory` | DB-backed factory helpers |
 
-**E2E fixtures** (from `nexus_test_sdk.e2e.*` — module-scoped, auto-cleanup):
+**Local shared fixtures** (import directly — not from the SDK):
+
+| Module | What it provides |
+|---|---|
+| `tests.fixtures.settings` | `FakeSettingsCache`, `override_settings`, `override_runtime_settings`, `fast_retry_settings` |
+| `tests.fixtures.files` | `generate_large_file`, `get_fixtures_dir` (sample files in `tests/fixtures/files/`) |
+| `tests.fixtures.encryption` | `OLD_KEY`, `NEW_KEY`, `WRONG_KEY`, `ZEROS_KEY` constants |
+| `tests.fixtures.tls` | `generate_self_signed_cert`, `generate_server_cert`, `generate_crl` |
+| `tests.fixtures.temporal` | `CompleteAsyncError` alias |
+| `tests.integration.helpers.workflow` | `WorkflowFactory`, `ActivitiesFactory` (DB-backed) |
+| `tests.integration.helpers.approval` | `ApprovalsFactory` (DB-backed) |
+| `tests.unit.fixtures.approval` | `create_test_approval_request`, `create_approved_approval_request` |
+| `tests.unit.fixtures.mock_mcp_provider` | `MockMCPProvider` |
+
+**E2E fixtures** (from `orchestrator_test_sdk.e2e.*` — module-scoped, auto-cleanup):
 
 | Fixture | What it creates |
 |---|---|
@@ -576,13 +589,13 @@ Reusable pytest fixtures for integration and E2E tests live in `test-sdk/`. The 
 
 **Installing in another repository**:
 
-Both `nexus-api-client` (the generated API client) and `nexus-test-sdk` live in this repo and can be installed directly from git using pip's subdirectory syntax:
+Both `nexus-api-client` (the generated API client) and `orchestrator-test-sdk` live in this repo and can be installed directly from git using pip's subdirectory syntax:
 
 ```toml
 # pyproject.toml — uv / pip
 dependencies = [
     "nexus-api-client @ git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/src/api_client",
-    "nexus-test-sdk @ git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/test-sdk",
+    "orchestrator-test-sdk @ git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/test-sdk",
 ]
 ```
 

@@ -160,9 +160,13 @@ class TestToolServices:
         integration = IntegrationRead(**{**integration.model_dump(), "id": integration_id})
 
         # Patch MockMCPProvider to raise exception
-        with patch(
-            "nexus_test_sdk.app.mock_mcp_provider.MockMCPProvider.get_base_tools",
-            side_effect=RuntimeError("Connection failed to MCP server"),
+        with (
+            patch("nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient"),
+            patch("nexus.agent_orchestrator.tool_manager.tool_services.get_provider_factory"),
+            patch(
+                "tests.unit.fixtures.mock_mcp_provider.MockMCPProvider.get_base_tools",
+                side_effect=RuntimeError("Connection failed to MCP server"),
+            ),
         ):
             # Call _process_single_integration
             result = await tool_services._process_single_integration(integration, test_provider_factory)
@@ -176,9 +180,12 @@ class TestToolServices:
         integration = _make_integration("Test Integration")
 
         # Patch MockMCPProvider to raise exception
-        with patch(
-            "nexus_test_sdk.app.mock_mcp_provider.MockMCPProvider.get_base_tools",
-            side_effect=ValueError("Invalid configuration parameter"),
+        with (
+            patch("nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient"),
+            patch(
+                "tests.unit.fixtures.mock_mcp_provider.MockMCPProvider.get_base_tools",
+                side_effect=ValueError("Invalid configuration parameter"),
+            ),
         ):
             # Call _process_single_integration - should not raise exception
             result = await tool_services._process_single_integration(integration, test_provider_factory)

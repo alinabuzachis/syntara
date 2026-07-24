@@ -11,7 +11,7 @@ from nexus_api_client.models.runtime_setting_read import RuntimeSettingRead
 from nexus_api_client.models.setting_bulk_update_item import SettingBulkUpdateItem
 from nexus_api_client.models.setting_bulk_update_request import SettingBulkUpdateRequest
 from nexus_api_client.models.setting_update import SettingUpdate
-from nexus_test_sdk.e2e.helpers import _retry_api_call
+from orchestrator_test_sdk.e2e.helpers import _retry_api_call
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry

@@ -15,15 +15,6 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.encryption import (
-    NEW_KEY,
-    NEW_KEY_HEX,
-    OLD_KEY,
-    OLD_KEY_HEX,
-    WRONG_KEY,
-    ZEROS_KEY,
-    ZEROS_KEY_HEX,
-)
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -44,6 +35,15 @@ from nexus.credentials.cli.rotate_keys import (
 )
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
+from tests.fixtures.encryption import (
+    NEW_KEY,
+    NEW_KEY_HEX,
+    OLD_KEY,
+    OLD_KEY_HEX,
+    WRONG_KEY,
+    ZEROS_KEY,
+    ZEROS_KEY_HEX,
+)
 
 
 @pytest.fixture(autouse=True)

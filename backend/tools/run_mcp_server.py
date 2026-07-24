@@ -6,7 +6,7 @@ import signal
 from contextlib import suppress
 
 import structlog
-from nexus_test_sdk.app.mcp_servers import ExampleMCPServer
+from orchestrator_test_sdk.app.mcp_servers import ExampleMCPServer
 
 logger = structlog.stdlib.get_logger(__name__)
 

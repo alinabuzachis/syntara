@@ -14,12 +14,12 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.approval import ApprovalsFactory
-from nexus_test_sdk.helpers.error_data import assert_error_data
-from nexus_test_sdk.helpers.workflow import ExecutionsFactory
 
 from nexus.approvals.models import ApprovalRequestStatus
 from nexus.core.models import User
+from tests.helpers.workflow import ExecutionsFactory
+from tests.integration.helpers.approval import ApprovalsFactory
+from tests.integration.helpers.error_data import assert_error_data
 
 
 class TestBatchApprovalContract:

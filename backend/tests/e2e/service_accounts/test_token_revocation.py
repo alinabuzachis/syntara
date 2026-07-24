@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
-from nexus_test_sdk.e2e.tls import e2e_ssl_context
+from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)

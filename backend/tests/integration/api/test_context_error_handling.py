@@ -11,12 +11,12 @@ from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
-from nexus_test_sdk.app import FakeSettingsCache
-from nexus_test_sdk.helpers.invocations import wait_for_invocation_execution
 
 from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.core.models import User
+from tests.fixtures.settings import FakeSettingsCache
+from tests.integration.helpers.invocations import wait_for_invocation_execution
 
 
 class TestContextErrorHandling:

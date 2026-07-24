@@ -19,9 +19,9 @@ if not os.environ.get("APP_BASE_URL"):
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_test_sdk.e2e.auth import api_for
-from nexus_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
-from nexus_test_sdk.factories import (
+from orchestrator_test_sdk.e2e.auth import api_for
+from orchestrator_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
+from orchestrator_test_sdk.factories import (
     AssignProjectRoleFactory,
     ProjectFactory,
     ProjectRoleFactory,

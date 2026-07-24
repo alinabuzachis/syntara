@@ -4,13 +4,13 @@ from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 from httpx import AsyncClient
-from nexus_test_sdk.helpers.integration import IntegrationFactory
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models import Project
 from nexus.core.models import User
 from nexus.integrations.models.integration import IntegrationType
 from tests.integration.api.conftest import make_admin, make_project_user, mcp_payload
+from tests.integration.helpers.integration import IntegrationFactory
 
 BASE_URL = "/api/v1/integrations"
 

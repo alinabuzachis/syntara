@@ -7,10 +7,6 @@ default values, and test helper functionality.
 from uuid import uuid4
 
 import pytest
-from nexus_test_sdk.helpers.approval import (
-    create_approved_approval_request,
-    create_test_approval_request,
-)
 from pydantic import ValidationError
 
 from nexus.approvals.models import (
@@ -18,6 +14,10 @@ from nexus.approvals.models import (
     ApprovalRequestStatus,
 )
 from nexus.core.constants import FieldLimits
+from tests.unit.fixtures.approval import (
+    create_approved_approval_request,
+    create_test_approval_request,
+)
 
 
 class TestApprovalRequestValidation:
