@@ -4304,6 +4304,7 @@ export const handlers = [
     const cursor = url.searchParams.get('cursor')
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const includeTotal = url.searchParams.get('include_total') === 'true'
+    const principalId = url.searchParams.get('principal_id')
     const groupId = url.searchParams.get('group_id')
     const principalName = url.searchParams.get('principal_name')
     const roleName = url.searchParams.get('role_name')
@@ -4398,6 +4399,7 @@ export const handlers = [
     let all = [...userEntries, ...groupEntries, ...projectUserEntries, ...projectGroupEntries, ...saEntries]
 
     // Apply filters
+    if (principalId) all = all.filter((a) => a.principal_id === principalId)
     if (groupId != null) {
       all = all.filter((a) => a.group_id === groupId)
     }
@@ -4912,16 +4914,27 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  http.post('/api/v1/service_accounts/:service_account_id/credentials/:credential_id/rotate', ({ params }) => {
-    const cred = mockServiceAccountCredentials.find(
-      (c) => c.id === params.credential_id && c.service_account_id === params.service_account_id
-    )
-    if (!cred) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
-    cred.updated_at = mockDate.now
-    cred.updated_by = 'u-001'
-    const clientSecret = `nxs_rotated_${cred.identifier}`
-    return HttpResponse.json({ ...cred, client_secret: clientSecret })
-  }),
+  http.post(
+    '/api/v1/service_accounts/:service_account_id/credentials/:credential_id/rotate',
+    async ({ params, request }) => {
+      const cred = mockServiceAccountCredentials.find(
+        (c) => c.id === params.credential_id && c.service_account_id === params.service_account_id
+      )
+      if (!cred) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+
+      const body = (await request.json()) as { grace_period_seconds?: number }
+      const gracePeriodSeconds = body?.grace_period_seconds ?? 0
+
+      cred.updated_at = mockDate.now
+      cred.updated_by = 'u-001'
+      cred.grace_period_seconds = gracePeriodSeconds
+      cred.old_secret_valid_until =
+        gracePeriodSeconds > 0 ? new Date(Date.now() + gracePeriodSeconds * 1000).toISOString() : null
+
+      const clientSecret = `nxs_rotated_${cred.identifier}`
+      return HttpResponse.json({ ...cred, client_secret: clientSecret })
+    }
+  ),
 
   http.post('/api/v1/service_accounts/:service_account_id/credentials/:credential_id/enable', ({ params }) => {
     const cred = mockServiceAccountCredentials.find(

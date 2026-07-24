@@ -101,6 +101,14 @@ export async function createTestServiceAccount(
   return sa
 }
 
+/** Navigate to SA detail page and click a specific tab. */
+export async function goToServiceAccountTab(app: Page, sa: { id: string; name: string }, tabName: string) {
+  await goToServiceAccountDetail(app, sa)
+  const tab = app.getByRole('tab', { name: tabName })
+  await tab.click()
+  await expect(tab).toHaveAttribute('aria-selected', 'true')
+}
+
 /** Delete a service account via the UI kebab menu (best-effort). */
 export async function deleteServiceAccountByName(app: Page, name: string) {
   if (app.isClosed()) return
