@@ -1,5 +1,6 @@
 import { Button, Flex, FlexItem, FormGroup, TextInput } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import type { ReactElement } from 'react'
 
 import { generateUUID } from '../../../utils/generateUUID'
 
@@ -18,6 +19,8 @@ type KeyValueFieldsProps = {
   keyPlaceholder?: string
   valuePlaceholder?: string
   addButtonLabel?: string
+  /** Optional PatternFly FormGroup labelHelp (e.g. FieldHelpPopover). */
+  labelHelp?: ReactElement
 }
 
 function addEntry(entries: KeyValueEntry[]): KeyValueEntry[] {
@@ -49,13 +52,14 @@ function KeyValueFields({
   keyPlaceholder,
   valuePlaceholder,
   addButtonLabel,
+  labelHelp,
 }: Readonly<KeyValueFieldsProps>) {
   const resolvedKeyPlaceholder = keyPlaceholder ?? 'Header name'
   const resolvedValuePlaceholder = valuePlaceholder ?? 'Header value'
   const resolvedAddButtonLabel = addButtonLabel ?? 'Add header'
 
   return (
-    <FormGroup label="Headers" fieldId="action-headers">
+    <FormGroup label="Headers" labelHelp={labelHelp} fieldId="action-headers">
       {entries.map((entry, index) => (
         <Flex
           key={entry.id}

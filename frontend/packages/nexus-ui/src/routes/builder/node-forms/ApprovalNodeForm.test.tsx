@@ -64,7 +64,7 @@ describe('ApprovalNodeForm', () => {
     it('renders message field', () => {
       renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByLabelText(/Message/i)).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'Message' })).toBeInTheDocument()
     })
 
     it('renders decision window label', () => {
@@ -297,7 +297,7 @@ describe('ApprovalNodeForm', () => {
       const user = userEvent.setup()
       renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
-      const messageField = screen.getByLabelText(/Message/i)
+      const messageField = screen.getByRole('textbox', { name: 'Message' })
       await user.type(messageField, 'Please approve this deployment')
 
       expect(messageField).toHaveValue('Please approve this deployment')

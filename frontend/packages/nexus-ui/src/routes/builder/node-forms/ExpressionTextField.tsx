@@ -1,4 +1,5 @@
 import { FormGroup, FormHelperText, HelperText, HelperTextItem, TextInput } from '@patternfly/react-core'
+import type { ReactElement } from 'react'
 import type { FieldValues, Path } from 'react-hook-form'
 import { useFormContext } from 'react-hook-form'
 
@@ -18,6 +19,7 @@ type GenericExpressionTextFieldProps<T extends FieldValues> = {
   readonly label: string
   readonly placeholder: string
   readonly isRequired?: boolean
+  readonly labelHelp?: ReactElement
 }
 
 function GenericExpressionTextField<T extends FieldValues>({
@@ -26,11 +28,12 @@ function GenericExpressionTextField<T extends FieldValues>({
   label,
   placeholder,
   isRequired,
+  labelHelp,
 }: GenericExpressionTextFieldProps<T>) {
   const isVersionView = useIsVersionView()
   const { register, getValues, setValue } = useFormContext<T>()
   return (
-    <FormGroup label={label} isRequired={isRequired} fieldId={id}>
+    <FormGroup label={label} labelHelp={labelHelp} isRequired={isRequired} fieldId={id}>
       <DroppableField
         onDropText={(text) => {
           const current = getValues(name)

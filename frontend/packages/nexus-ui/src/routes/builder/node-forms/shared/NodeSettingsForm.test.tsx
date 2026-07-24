@@ -48,7 +48,7 @@ function setup(props: React.ComponentProps<typeof NodeSettingsForm> = {}, defaul
   return { user, ...view }
 }
 
-const cofToggle = () => screen.getByRole('button', { name: /on failure behavior/i })
+const cofToggle = () => screen.getByRole('button', { name: 'On failure behavior' })
 
 describe('NodeSettingsForm', () => {
   describe('continue_on_failure', () => {
@@ -90,7 +90,7 @@ describe('NodeSettingsForm', () => {
 
     it('does not render when supportsContinueOnFailure is false', () => {
       setup({ supportsContinueOnFailure: false })
-      expect(screen.queryByRole('button', { name: /on failure behavior/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'On failure behavior' })).not.toBeInTheDocument()
     })
 
     it('renders custom help text when provided', () => {
@@ -114,6 +114,13 @@ describe('NodeSettingsForm', () => {
     it('does not render timeout when supportsTimeout is false', () => {
       setup({ supportsTimeout: false })
       expect(screen.queryByRole('spinbutton', { name: 'Timeout (seconds)' })).not.toBeInTheDocument()
+    })
+
+    it('clears timeout to undefined when the seconds input is emptied', async () => {
+      const { user } = setup({ timeoutFormat: 'seconds' }, { settings: { timeout: 30 } })
+      const input = screen.getByRole('spinbutton', { name: 'Timeout (seconds)' })
+      await user.clear(input)
+      expect(input).toHaveValue(null)
     })
   })
 
@@ -256,7 +263,7 @@ describe('NodeSettingsForm', () => {
   describe('all sections disabled', () => {
     it('renders empty form when all sections are disabled', () => {
       setup({ supportsContinueOnFailure: false, supportsTimeout: false, supportsRetryPolicy: false })
-      expect(screen.queryByRole('button', { name: /on failure behavior/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'On failure behavior' })).not.toBeInTheDocument()
       expect(screen.queryByRole('spinbutton', { name: 'Timeout (seconds)' })).not.toBeInTheDocument()
       expect(screen.queryByRole('switch', { name: 'Override retry policy' })).not.toBeInTheDocument()
     })

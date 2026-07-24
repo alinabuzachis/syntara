@@ -23,15 +23,16 @@ import { useIsVersionView } from '../VersionViewContext'
 
 import { loopFormSchema, type LoopFormData } from './loopFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
-import { ConditionalExpressionHelp } from './shared/ConditionalExpressionHelp'
 import { conditionValidationRules } from './shared/conditionValidation'
 import { zodResolver } from './shared/formSchemaUtils'
 import { LoopTypeHelp } from './shared/LoopTypeHelp'
 import { MaxIterationsHelp } from './shared/MaxIterationsHelp'
+import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
+import { WhileConditionHelp } from './shared/WhileConditionHelp'
 
 export type { LoopFormData }
 
@@ -127,14 +128,7 @@ function LoopFormFields({
       {!onHeaderContentChange && <ActivityNameField register={register} fieldId="loop-name" />}
 
       <StackItem>
-        <FormGroup
-          label={
-            <>
-              Type <LoopTypeHelp />
-            </>
-          }
-          fieldId="loop-type"
-        >
+        <FormGroup label="Type" labelHelp={<LoopTypeHelp />} fieldId="loop-type">
           <Controller
             control={control}
             name="type"
@@ -148,7 +142,7 @@ function LoopFormFields({
       {type === 'forEach' && (
         <>
           <StackItem>
-            <FormGroup label="Items expression" isRequired fieldId="loop-items">
+            <FormGroup label="Items expression" labelHelp={nodeHelp.loopItems} isRequired fieldId="loop-items">
               <TextInput
                 {...register('items')}
                 id="loop-items"
@@ -173,7 +167,7 @@ function LoopFormFields({
           </StackItem>
 
           <StackItem>
-            <FormGroup label="Item variable" fieldId="loop-itemVariable">
+            <FormGroup label="Item variable" labelHelp={nodeHelp.loopItemVariable} fieldId="loop-itemVariable">
               <TextInput
                 {...register('itemVariable')}
                 id="loop-itemVariable"
@@ -186,7 +180,7 @@ function LoopFormFields({
           </StackItem>
 
           <StackItem>
-            <FormGroup label="Index variable" fieldId="loop-indexVariable">
+            <FormGroup label="Index variable" labelHelp={nodeHelp.loopIndexVariable} fieldId="loop-indexVariable">
               <TextInput
                 {...register('indexVariable')}
                 id="loop-indexVariable"
@@ -201,14 +195,7 @@ function LoopFormFields({
       )}
 
       <StackItem>
-        <FormGroup
-          label={
-            <>
-              Max iterations <MaxIterationsHelp />
-            </>
-          }
-          fieldId="loop-maxIterations"
-        >
+        <FormGroup label="Max iterations" labelHelp={<MaxIterationsHelp />} fieldId="loop-maxIterations">
           <TextInput
             {...register('maxIterations', { valueAsNumber: true })}
             id="loop-maxIterations"
@@ -236,7 +223,7 @@ function LoopFormFields({
         <StackItem>
           <FormGroup
             label="Conditional expression"
-            labelHelp={<ConditionalExpressionHelp />}
+            labelHelp={<WhileConditionHelp />}
             isRequired
             fieldId="loop-condition-while"
           >

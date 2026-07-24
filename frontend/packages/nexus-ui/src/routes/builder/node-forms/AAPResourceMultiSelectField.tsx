@@ -15,7 +15,7 @@ import {
   StackItem,
   type MenuToggleElement,
 } from '@patternfly/react-core'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
 import { DEBOUNCE_MS } from '../../../constants/timing'
@@ -39,6 +39,7 @@ type AAPResourceMultiSelectFieldProps = {
   readonly placeholderText: string
   readonly defaultValues?: readonly AAPDefaultValue[]
   readonly onSearchChange?: (search: string) => void
+  readonly labelHelp?: ReactElement
 }
 
 type MultiSelectToggleProps = {
@@ -253,6 +254,7 @@ export function AAPResourceMultiSelectField({
   placeholderText,
   defaultValues,
   onSearchChange,
+  labelHelp,
 }: AAPResourceMultiSelectFieldProps) {
   const { control, setValue } = useFormContext<AAPJobTemplateFormData>()
   const [isOpen, setIsOpen] = useState(false)
@@ -282,7 +284,7 @@ export function AAPResourceMultiSelectField({
 
   return (
     <StackItem>
-      <FormGroup label={label} fieldId={fieldId}>
+      <FormGroup label={label} labelHelp={labelHelp} fieldId={fieldId}>
         <Controller
           control={control}
           name={nameField}

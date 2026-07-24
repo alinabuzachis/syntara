@@ -280,11 +280,11 @@ describe('AAPWorkflowTemplateForm', () => {
     renderWithHeader(<AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
     // Fields enabled in defaultWorkflowTemplateDetail should be visible
-    expect(screen.getByLabelText(/Extra Variables/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Limit/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Source control branch/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Job tags/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Skip tags/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Extra Variables')).toBeInTheDocument()
+    expect(screen.getByLabelText('Limit')).toBeInTheDocument()
+    expect(screen.getByLabelText('Source control branch')).toBeInTheDocument()
+    expect(screen.getByLabelText('Job tags')).toBeInTheDocument()
+    expect(screen.getByLabelText('Skip tags')).toBeInTheDocument()
 
     // Fields disabled in defaultWorkflowTemplateDetail should NOT be visible
     expect(screen.queryByPlaceholderText(/Use default inventory/i)).not.toBeInTheDocument()
@@ -477,7 +477,7 @@ describe('AAPWorkflowTemplateForm', () => {
       const user = userEvent.setup()
       renderWithHeader(<AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
-      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
       expect(expressionSwitch).not.toBeChecked()
 
       await user.click(expressionSwitch)
@@ -489,7 +489,7 @@ describe('AAPWorkflowTemplateForm', () => {
       const user = userEvent.setup()
       renderWithHeader(<AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
-      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
       await user.click(expressionSwitch)
 
       // Expression mode fields should appear
@@ -511,7 +511,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -527,7 +527,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -542,7 +542,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -557,7 +557,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -572,7 +572,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -591,7 +591,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByLabelText(/Use expressions/i)
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
       expect(expressionSwitch).not.toBeChecked()
     })
   })

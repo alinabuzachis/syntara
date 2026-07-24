@@ -8,6 +8,7 @@ import { isValidAAPTemplateURL } from '../../../utils/urlValidation'
 import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { AAPTypeaheadSelect } from './AAPTypeaheadSelect'
 import { AAPErrorAlert } from './shared/AAPErrorAlert'
+import { nodeHelp } from './shared/nodeFieldHelp'
 
 type AAPResourcePickersProps = {
   readonly browser: ReturnType<typeof useAAPBrowser>
@@ -77,7 +78,7 @@ export function AAPResourcePickers({ browser }: AAPResourcePickersProps) {
 
       {/* Organization */}
       <StackItem>
-        <FormGroup label="Organization" isRequired fieldId="aap-organization">
+        <FormGroup label="Organization" labelHelp={nodeHelp.aapOrganization} isRequired fieldId="aap-organization">
           <Controller
             control={control}
             name="organization_name"
@@ -118,7 +119,7 @@ export function AAPResourcePickers({ browser }: AAPResourcePickersProps) {
 
       {/* Job Template */}
       <StackItem>
-        <FormGroup label="Job template" isRequired fieldId="aap-jobTemplate">
+        <FormGroup label="Job template" labelHelp={nodeHelp.aapJobTemplate} isRequired fieldId="aap-jobTemplate">
           <Controller
             control={control}
             name="job_template_name"

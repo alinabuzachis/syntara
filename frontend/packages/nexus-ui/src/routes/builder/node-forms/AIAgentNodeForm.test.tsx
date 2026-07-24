@@ -163,7 +163,7 @@ describe('AIAgentNodeForm', () => {
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
     expect(screen.getByLabelText('Name')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Prompt/i)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Prompt' })).toBeInTheDocument()
     expect(screen.getByLabelText('Tools')).toBeInTheDocument()
   })
 

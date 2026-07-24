@@ -23,8 +23,8 @@ vi.mock('../../configuration/integrations/useAllIntegrationModels', () => ({
   fetchAllIntegrationModels: vi.fn(),
 }))
 
-vi.mock('../../../components/FormLabelWithHelp', () => ({
-  FormLabelWithHelp: ({ label }: { label: string }) => <span>{label}</span>,
+vi.mock('../../../components/FieldHelpPopover', () => ({
+  FieldHelpPopover: ({ headerContent }: { headerContent?: string }) => <span>{headerContent}</span>,
 }))
 
 vi.mock('../../../components/labels/NxLabel', () => ({

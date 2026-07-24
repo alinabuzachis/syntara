@@ -19,6 +19,7 @@ import { CREDENTIAL_TYPES_BY_INTEGRATION } from '../../configuration/integration
 import { CredentialSelector } from '../components/CredentialSelector'
 
 import styles from './ConnectionsSection.module.css'
+import { AI_INTEGRATION_CONNECTIONS_HELP } from './shared/nodeFieldHelpText'
 import type { IntegrationWithTools, ToolSelection } from './ToolsMultiSelect'
 
 export type IntegrationConnection = {
@@ -143,6 +144,7 @@ function IntegrationConnectionRow({
               label={`Execution credential for ${integration.name}`}
               fieldId={`mcp-credential-${integration.id}`}
               placeholder="Select execution credential"
+              helpText={AI_INTEGRATION_CONNECTIONS_HELP}
             />
           </StackItem>
           <StackItem>

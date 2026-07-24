@@ -307,21 +307,22 @@ describe('AAPNodeForm', () => {
     renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
     // Fields enabled in mockTemplateDetail should be visible
-    expect(screen.getByLabelText(/Extra Variables/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Limit/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Job tags/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Skip tags/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Verbosity/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Run type/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Forks/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Job slicing/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Show changes/i)).toBeInTheDocument()
+    // use exact names so "More info for …" help buttons do not also match
+    expect(screen.getByLabelText('Extra Variables')).toBeInTheDocument()
+    expect(screen.getByLabelText('Limit')).toBeInTheDocument()
+    expect(screen.getByLabelText('Job tags')).toBeInTheDocument()
+    expect(screen.getByLabelText('Skip tags')).toBeInTheDocument()
+    expect(screen.getByLabelText('Verbosity')).toBeInTheDocument()
+    expect(screen.getByLabelText('Run type')).toBeInTheDocument()
+    expect(screen.getByLabelText('Forks')).toBeInTheDocument()
+    expect(screen.getByLabelText('Job slicing')).toBeInTheDocument()
+    expect(screen.getByLabelText('Show changes')).toBeInTheDocument()
 
     // Fields disabled in mockTemplateDetail should NOT be visible
     expect(screen.queryByPlaceholderText(/Use default inventory/i)).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText(/Use default execution environment/i)).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText(/Use default instance groups/i)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/Labels/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Labels')).not.toBeInTheDocument()
   })
 
   it('renders link to view job template in AAP', () => {

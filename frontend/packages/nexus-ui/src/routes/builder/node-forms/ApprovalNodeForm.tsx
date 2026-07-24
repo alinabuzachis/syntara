@@ -16,7 +16,6 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { HelpPopover } from '../../../components/expressions/HelpPopover'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { formatDuration } from '../utils/timeUtils'
@@ -29,7 +28,6 @@ import {
   APPROVER_GROUPS_LABEL,
   APPROVER_GROUPS_LOADING,
   APPROVER_GROUPS_PLACEHOLDER,
-  APPROVER_GROUPS_WARNING,
   APPROVER_USERS_EMPTY,
   APPROVER_USERS_HELPER_TEXT,
   APPROVER_USERS_LABEL,
@@ -40,6 +38,7 @@ import { ApproverMultiSelect } from './ApproverMultiSelect'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { DurationInput } from './shared/DurationInput'
 import { zodResolver } from './shared/formSchemaUtils'
+import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
@@ -222,7 +221,7 @@ function ApprovalFormFields({
   const parametersContent = (
     <Stack hasGutter>
       <StackItem>
-        <FormGroup label={APPROVER_USERS_LABEL} fieldId="approval-approver-users">
+        <FormGroup label={APPROVER_USERS_LABEL} labelHelp={nodeHelp.approverUsers} fieldId="approval-approver-users">
           <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
             <Controller
               name="approver_users"
@@ -241,17 +240,7 @@ function ApprovalFormFields({
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup
-          label={APPROVER_GROUPS_LABEL}
-          fieldId="approval-approver-groups"
-          labelHelp={
-            <HelpPopover
-              ariaLabel="Approver groups help"
-              headerContent="Empty group warning"
-              bodyContent={APPROVER_GROUPS_WARNING}
-            />
-          }
-        >
+        <FormGroup label={APPROVER_GROUPS_LABEL} fieldId="approval-approver-groups" labelHelp={nodeHelp.approverGroups}>
           <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
             <Controller
               name="approver_groups"
@@ -270,7 +259,7 @@ function ApprovalFormFields({
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Message" fieldId="approval-prompt">
+        <FormGroup label="Message" labelHelp={nodeHelp.approvalMessage} fieldId="approval-prompt">
           <TextArea
             {...register('prompt')}
             id="approval-prompt"
@@ -281,7 +270,7 @@ function ApprovalFormFields({
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Fallback decision" fieldId="approval-fallback-decision">
+        <FormGroup label="Fallback decision" labelHelp={nodeHelp.approvalFallback} fieldId="approval-fallback-decision">
           <Controller
             control={control}
             name="fallback_decision"
@@ -302,7 +291,11 @@ function ApprovalFormFields({
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Decision window" fieldId="approval-decision-window">
+        <FormGroup
+          label="Decision window"
+          labelHelp={nodeHelp.approvalDecisionWindow}
+          fieldId="approval-decision-window"
+        >
           <Stack hasGutter>
             <StackItem>
               <DurationInput

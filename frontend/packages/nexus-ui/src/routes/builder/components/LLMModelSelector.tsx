@@ -10,16 +10,16 @@ import {
   SelectOption,
 } from '@patternfly/react-core'
 import { useQueries } from '@tanstack/react-query'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'
-import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { NxLabel } from '../../../components/labels/NxLabel'
 import { projectIdParam } from '../../../utils/queryParams'
 import { fetchAllIntegrationModels } from '../../configuration/integrations/useAllIntegrationModels'
 
 import { IntegrationRequiredHelper } from './IntegrationRequiredHelper'
 import styles from './LLMModelSelector.module.css'
+import { resolveFormGroupLabelHelp } from './resolveFormGroupLabelHelp'
 import { TypeaheadMenuToggle } from './TypeaheadMenuToggle'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
@@ -44,6 +44,8 @@ export type LLMModelSelectorProps = {
   helpText?: React.ReactNode
   /** When provided, filters LLM provider integrations to those that are global or assigned to this project. */
   projectId?: string
+  /** Pre-built label help (takes precedence over helpText) */
+  labelHelp?: ReactElement
 }
 
 type VisibleGroup = {
@@ -86,6 +88,7 @@ export function LLMModelSelector({
   isDisabled = false,
   helpText,
   projectId,
+  labelHelp,
 }: Readonly<LLMModelSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
@@ -209,12 +212,12 @@ export function LLMModelSelector({
     [toggleLabel, label, fieldId, isOpen, isDisabled, isPending, selectedKey, filterText, onChange]
   )
 
-  const formGroupLabel = helpText ? <FormLabelWithHelp label={label} helpText={helpText} /> : label
+  const resolvedLabelHelp = resolveFormGroupLabelHelp(label, labelHelp, helpText)
 
   const hasNoIntegrations = integrations.length === 0 && !isPending
 
   return (
-    <FormGroup label={formGroupLabel} fieldId={fieldId} isRequired>
+    <FormGroup label={label} labelHelp={resolvedLabelHelp} fieldId={fieldId} isRequired>
       <Select
         id={fieldId}
         isOpen={isOpen}

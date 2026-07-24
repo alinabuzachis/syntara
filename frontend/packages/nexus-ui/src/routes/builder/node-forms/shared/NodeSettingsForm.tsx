@@ -20,6 +20,7 @@ import { useWorkflowEngineDefaults } from '../../hooks/useWorkflowEngineDefaults
 import { useIsVersionView } from '../../VersionViewContext'
 
 import { DurationInput } from './DurationInput'
+import { nodeHelp } from './nodeFieldHelp'
 import type { NodeSettingsFormData } from './nodeSettingsSchema'
 
 type FormWithSettings = { settings: NodeSettingsFormData }
@@ -112,34 +113,36 @@ function ContinueOnFailureSection({
     <FormSection title="On failure">
       <Stack hasGutter>
         <StackItem>
-          <Select
-            id="node-settings-cof"
-            isOpen={isOpen}
-            selected={selected}
-            onSelect={handleSelect}
-            onOpenChange={setIsOpen}
-            shouldFocusToggleOnSelect
-            toggle={(ref) => (
-              <MenuToggle
-                ref={ref}
-                onClick={() => setIsOpen((o) => !o)}
-                isExpanded={isOpen}
-                isFullWidth
-                isDisabled={isDisabled}
-                aria-label="On failure behavior"
-              >
-                {selectedLabel}
-              </MenuToggle>
-            )}
-          >
-            <SelectList>
-              {COF_OPTIONS.map((opt) => (
-                <SelectOption key={opt.value} value={opt.value} description={opt.description(cofDefaultLabel)}>
-                  {opt.label}
-                </SelectOption>
-              ))}
-            </SelectList>
-          </Select>
+          <FormGroup label="On failure behavior" labelHelp={nodeHelp.onFailureBehavior} fieldId="node-settings-cof">
+            <Select
+              id="node-settings-cof"
+              isOpen={isOpen}
+              selected={selected}
+              onSelect={handleSelect}
+              onOpenChange={setIsOpen}
+              shouldFocusToggleOnSelect
+              toggle={(ref) => (
+                <MenuToggle
+                  ref={ref}
+                  onClick={() => setIsOpen((o) => !o)}
+                  isExpanded={isOpen}
+                  isFullWidth
+                  isDisabled={isDisabled}
+                  aria-label="On failure behavior"
+                >
+                  {selectedLabel}
+                </MenuToggle>
+              )}
+            >
+              <SelectList>
+                {COF_OPTIONS.map((opt) => (
+                  <SelectOption key={opt.value} value={opt.value} description={opt.description(cofDefaultLabel)}>
+                    {opt.label}
+                  </SelectOption>
+                ))}
+              </SelectList>
+            </Select>
+          </FormGroup>
         </StackItem>
         {continueOnFailureHelp && (
           <StackItem>
@@ -180,18 +183,20 @@ function TimeoutSection({
       <FormSection title="Timeout">
         <Stack hasGutter>
           <StackItem>
-            <Controller
-              control={control}
-              name="settings.timeout"
-              render={({ field }) => (
-                <DurationInput
-                  value={field.value}
-                  onChange={field.onChange}
-                  idPrefix="node-settings-timeout"
-                  isDisabled={isDisabled}
-                />
-              )}
-            />
+            <FormGroup label="Timeout" labelHelp={nodeHelp.timeout} fieldId="node-settings-timeout">
+              <Controller
+                control={control}
+                name="settings.timeout"
+                render={({ field }) => (
+                  <DurationInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    idPrefix="node-settings-timeout"
+                    isDisabled={isDisabled}
+                  />
+                )}
+              />
+            </FormGroup>
           </StackItem>
           <StackItem>
             <HelperText>
@@ -205,15 +210,17 @@ function TimeoutSection({
 
   return (
     <FormSection title="Timeout (seconds)">
-      <TextInput
-        {...register('settings.timeout', { setValueAs: (v) => (v === '' || v === null ? undefined : Number(v)) })}
-        id="node-settings-timeout-seconds"
-        aria-label="Timeout (seconds)"
-        type="number"
-        min={1}
-        placeholder={timeoutPlaceholder}
-        isDisabled={isDisabled}
-      />
+      <FormGroup label="Timeout (seconds)" labelHelp={nodeHelp.timeout} fieldId="node-settings-timeout-seconds">
+        <TextInput
+          {...register('settings.timeout', { setValueAs: (v) => (v === '' || v === null ? undefined : Number(v)) })}
+          id="node-settings-timeout-seconds"
+          aria-label="Timeout (seconds)"
+          type="number"
+          min={1}
+          placeholder={timeoutPlaceholder}
+          isDisabled={isDisabled}
+        />
+      </FormGroup>
     </FormSection>
   )
 }
@@ -237,7 +244,7 @@ function RetryPolicyFields({ register, retryDefaults, isDisabled }: RetryFieldsP
   return (
     <>
       <StackItem>
-        <FormGroup label="Max retries" fieldId="node-settings-max-retries">
+        <FormGroup label="Max retries" labelHelp={nodeHelp.maxRetries} fieldId="node-settings-max-retries">
           <TextInput
             {...register('settings.retry_policy.max_retries', { valueAsNumber: true })}
             id="node-settings-max-retries"
@@ -252,7 +259,11 @@ function RetryPolicyFields({ register, retryDefaults, isDisabled }: RetryFieldsP
         </HelperText>
       </StackItem>
       <StackItem>
-        <FormGroup label="Initial interval (seconds)" fieldId="node-settings-initial-interval">
+        <FormGroup
+          label="Initial interval (seconds)"
+          labelHelp={nodeHelp.initialInterval}
+          fieldId="node-settings-initial-interval"
+        >
           <TextInput
             {...register('settings.retry_policy.initial_interval', {
               setValueAs: (v) => (v === '' || v === null ? undefined : Number(v)),
@@ -266,7 +277,7 @@ function RetryPolicyFields({ register, retryDefaults, isDisabled }: RetryFieldsP
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Max interval (seconds)" fieldId="node-settings-max-interval">
+        <FormGroup label="Max interval (seconds)" labelHelp={nodeHelp.maxInterval} fieldId="node-settings-max-interval">
           <TextInput
             {...register('settings.retry_policy.max_interval', {
               setValueAs: (v) => (v === '' || v === null ? undefined : Number(v)),
@@ -280,7 +291,11 @@ function RetryPolicyFields({ register, retryDefaults, isDisabled }: RetryFieldsP
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Backoff coefficient" fieldId="node-settings-backoff-coefficient">
+        <FormGroup
+          label="Backoff coefficient"
+          labelHelp={nodeHelp.backoffCoefficient}
+          fieldId="node-settings-backoff-coefficient"
+        >
           <TextInput
             {...register('settings.retry_policy.backoff_coefficient', {
               setValueAs: (v) => (v === '' || v === null ? undefined : Number(v)),
@@ -371,13 +386,19 @@ export function NodeSettingsForm({
           <FormSection title="Retry policy">
             <Stack hasGutter>
               <StackItem>
-                <Switch
-                  id="node-settings-retry-override"
+                <FormGroup
                   label="Override retry policy"
-                  isChecked={overrideRetry}
-                  onChange={handleRetryOverrideToggle}
-                  isDisabled={isVersionView}
-                />
+                  labelHelp={nodeHelp.retryToggle}
+                  fieldId="node-settings-retry-override"
+                >
+                  <Switch
+                    id="node-settings-retry-override"
+                    aria-label="Override retry policy"
+                    isChecked={overrideRetry}
+                    onChange={handleRetryOverrideToggle}
+                    isDisabled={isVersionView}
+                  />
+                </FormGroup>
                 <HelperText>
                   <HelperTextItem>{retryHelp}</HelperTextItem>
                 </HelperText>

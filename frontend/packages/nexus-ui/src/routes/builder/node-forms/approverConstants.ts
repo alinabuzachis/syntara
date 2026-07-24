@@ -11,5 +11,3 @@ export const APPROVER_GROUPS_EMPTY = 'No groups available'
 export const APPROVER_GROUPS_LOADING = 'Loading groups...'
 export const APPROVER_GROUPS_HELPER_TEXT =
   'Groups whose members can approve this request. Leave empty for any authorized user.'
-export const APPROVER_GROUPS_WARNING =
-  'If you select a group with no members who have approval:decide permission, no one will be able to approve the request.'

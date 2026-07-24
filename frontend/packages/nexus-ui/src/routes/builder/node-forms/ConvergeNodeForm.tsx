@@ -25,6 +25,7 @@ import { ActivityNameField } from './shared/ActivityNameField'
 import { ContinueWhenCriteriaHelp } from './shared/ContinueWhenCriteriaHelp'
 import { DurationInput } from './shared/DurationInput'
 import { zodResolver } from './shared/formSchemaUtils'
+import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
@@ -196,7 +197,11 @@ function ConvergeFormFields({
       )}
 
       <StackItem>
-        <FormGroup label="Wait duration" fieldId="converge-wait-duration-days">
+        <FormGroup
+          label="Wait duration"
+          labelHelp={nodeHelp.convergeWaitDuration}
+          fieldId="converge-wait-duration-days"
+        >
           <Stack hasGutter>
             <StackItem>
               <DurationInput

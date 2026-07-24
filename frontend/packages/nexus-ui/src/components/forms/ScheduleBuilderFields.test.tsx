@@ -119,10 +119,10 @@ describe('ScheduleBuilderFields', () => {
   it('renders help popover buttons for all fields', () => {
     render(<ScheduleBuilderFields value="R/2024-01-15T10:00:00Z/P1D" />)
 
-    expect(screen.getByRole('button', { name: 'Start date and time help' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'End date help' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Frequency help' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Interval help' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More info for Start date and time' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More info for End date' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More info for Frequency' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More info for Interval' })).toBeInTheDocument()
   })
 
   it('changes frequency via dropdown', async () => {

@@ -95,7 +95,7 @@ async function configureApprovalNode(
   }
 
   if (config.fallbackDecision) {
-    const fallbackToggle = page.getByRole('button', { name: 'Fallback decision' })
+    const fallbackToggle = page.getByRole('button', { name: 'Fallback decision', exact: true })
     await expect(fallbackToggle).toBeVisible()
     await fallbackToggle.click()
     const optionLabel = config.fallbackDecision === 'reject' ? 'Reject (default)' : 'Approve'
@@ -180,7 +180,7 @@ test.describe('Approval Node Configuration', () => {
       await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Initial approval')
       await expect(app.getByRole('textbox', { name: 'Message' })).toHaveValue('Please review this change')
       await expect(app.getByLabel('Hours')).toHaveValue('2')
-      await expect(app.getByRole('button', { name: 'Fallback decision' })).toContainText('Approve')
+      await expect(app.getByRole('button', { name: 'Fallback decision', exact: true })).toContainText('Approve')
 
       // Close the panel to verify workflow state
       // When editing (vs creating), the node details panel must close before the editor drawer
@@ -272,7 +272,7 @@ test.describe('Approval Node Configuration', () => {
       // Assert - Verify all configured values are present
       await expect(app.getByRole('textbox', { name: 'Message' })).toHaveValue('Please approve this deployment')
       await expect(app.getByLabel('Minutes')).toHaveValue('30')
-      await expect(app.getByRole('button', { name: 'Fallback decision' })).toContainText('Approve')
+      await expect(app.getByRole('button', { name: 'Fallback decision', exact: true })).toContainText('Approve')
 
       // Close the panel
       await closeNodeEditorPanel(app)
@@ -299,7 +299,7 @@ test.describe('Approval Node Configuration', () => {
     await expect(app.getByText('Approver groups')).toBeVisible()
     await expect(app.getByRole('textbox', { name: 'Message' })).toBeVisible()
 
-    const fallbackToggle = app.getByRole('button', { name: 'Fallback decision' })
+    const fallbackToggle = app.getByRole('button', { name: 'Fallback decision', exact: true })
     await expect(fallbackToggle).toBeVisible()
 
     // Verify the fallback decision dropdown has both options

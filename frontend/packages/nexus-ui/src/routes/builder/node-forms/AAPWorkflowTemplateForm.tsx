@@ -1,4 +1,4 @@
-import { Stack, StackItem, Switch, Title } from '@patternfly/react-core'
+import { Stack, StackItem, Switch, Title, FormGroup } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
@@ -16,6 +16,7 @@ import { aapWorkflowTemplateSchema, type AAPWorkflowTemplateFormData } from './a
 import { WorkflowExpressionTextField } from './ExpressionTextField'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
+import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
@@ -84,16 +85,18 @@ function AAPFormFields({
   const parametersContent = (
     <Stack hasGutter>
       <StackItem>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Title headingLevel="h3">AAP Controller</Title>
+        <Title headingLevel="h3">AAP Controller</Title>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Use expressions" labelHelp={nodeHelp.aapUseExpressions} fieldId="aap-wf-expression-mode">
           <Switch
             id="aap-wf-expression-mode"
-            label="Use expressions"
+            aria-label="Use expressions"
             isChecked={expressionMode}
             onChange={(_e, checked) => setExpressionMode(checked)}
             isDisabled={isVersionView}
           />
-        </div>
+        </FormGroup>
       </StackItem>
 
       <StackItem>
@@ -117,6 +120,7 @@ function AAPFormFields({
                     label="Organization"
                     placeholder="org name or drag expression"
                     isRequired
+                    labelHelp={nodeHelp.aapOrganization}
                   />
                 </StackItem>
                 <StackItem>
@@ -126,6 +130,7 @@ function AAPFormFields({
                     label="Workflow template"
                     placeholder="template name or drag expression"
                     isRequired
+                    labelHelp={nodeHelp.aapWorkflowTemplate}
                   />
                 </StackItem>
                 <StackItem>
@@ -134,6 +139,7 @@ function AAPFormFields({
                     id="aap-wf-inventory-expr"
                     label="Inventory"
                     placeholder="inventory name or drag expression"
+                    labelHelp={nodeHelp.aapInventory}
                   />
                 </StackItem>
                 <StackItem>
@@ -142,6 +148,7 @@ function AAPFormFields({
                     id="aap-wf-limit-expr"
                     label="Limit"
                     placeholder="host pattern or drag expression"
+                    labelHelp={nodeHelp.aapLimit}
                   />
                 </StackItem>
                 <StackItem>
@@ -150,14 +157,16 @@ function AAPFormFields({
                     id="aap-wf-scmBranch-expr"
                     label="Source control branch"
                     placeholder="branch name or drag expression"
+                    labelHelp={nodeHelp.aapScmBranch}
                   />
                 </StackItem>
                 <StackItem>
                   <WorkflowExpressionTextField
                     name="tags"
                     id="aap-wf-tags-expr"
-                    label="Tags"
+                    label="Job tags"
                     placeholder="tags or drag expression"
+                    labelHelp={nodeHelp.aapWfTags}
                   />
                 </StackItem>
                 <StackItem>
@@ -166,6 +175,7 @@ function AAPFormFields({
                     id="aap-wf-skipTags-expr"
                     label="Skip tags"
                     placeholder="skip tags or drag expression"
+                    labelHelp={nodeHelp.aapWfSkipTags}
                   />
                 </StackItem>
                 <StackItem>
@@ -174,6 +184,7 @@ function AAPFormFields({
                     id="aap-wf-extraVars-expr"
                     label="Extra variables"
                     placeholder='{"key": "value"} or drag expression'
+                    labelHelp={nodeHelp.aapExtraVars}
                   />
                 </StackItem>
               </>

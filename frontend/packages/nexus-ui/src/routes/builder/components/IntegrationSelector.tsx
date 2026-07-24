@@ -11,13 +11,14 @@ import {
   Spinner,
 } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiCloseCircleIcon, RhUiSyncIcon } from '@patternfly/react-icons'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'
-import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { NxLabel } from '../../../components/labels/NxLabel'
 import { detachPromise } from '../../../utils/detachPromise'
 import { projectIdParam } from '../../../utils/queryParams'
+
+import { resolveFormGroupLabelHelp } from './resolveFormGroupLabelHelp'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 type IntegrationStatus = (typeof IntegrationStatusEnum)[keyof typeof IntegrationStatusEnum]
@@ -61,6 +62,7 @@ export type IntegrationSelectorProps = {
   helpText?: React.ReactNode
   /** When provided, filters integrations to those that are global or assigned to this project. */
   projectId?: string
+  labelHelp?: ReactElement
 }
 
 function IntegrationMenuToggle(
@@ -111,6 +113,7 @@ export function IntegrationSelector({
   placeholder = 'Select an MCP server integration...',
   helpText,
   projectId,
+  labelHelp,
 }: Readonly<IntegrationSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -158,10 +161,10 @@ export function IntegrationSelector({
     [label, toggleLabel, isOpen, isDisabled, isPending, isError]
   )
 
-  const formGroupLabel = helpText ? <FormLabelWithHelp label={label} helpText={helpText} /> : label
+  const resolvedLabelHelp = resolveFormGroupLabelHelp(label, labelHelp, helpText)
 
   return (
-    <FormGroup label={formGroupLabel} fieldId={fieldId}>
+    <FormGroup label={label} labelHelp={resolvedLabelHelp} fieldId={fieldId}>
       <Select
         id={fieldId}
         isOpen={isOpen}

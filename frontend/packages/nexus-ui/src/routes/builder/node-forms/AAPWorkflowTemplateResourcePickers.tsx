@@ -8,6 +8,7 @@ import { isValidAAPTemplateURL } from '../../../utils/urlValidation'
 import { AAPTypeaheadSelect } from './AAPTypeaheadSelect'
 import type { AAPWorkflowTemplateFormData } from './aapWorkflowTemplateSchema'
 import { AAPErrorAlert } from './shared/AAPErrorAlert'
+import { nodeHelp } from './shared/nodeFieldHelp'
 
 type AAPWorkflowTemplateResourcePickersProps = {
   readonly browser: ReturnType<typeof useAAPBrowser>
@@ -49,7 +50,7 @@ export function AAPWorkflowTemplateResourcePickers({ browser }: AAPWorkflowTempl
     <>
       {/* Organization */}
       <StackItem>
-        <FormGroup label="Organization" isRequired fieldId="aap-wf-organization">
+        <FormGroup label="Organization" labelHelp={nodeHelp.aapOrganization} isRequired fieldId="aap-wf-organization">
           <Controller
             control={control}
             name="organization_name"
@@ -98,7 +99,12 @@ export function AAPWorkflowTemplateResourcePickers({ browser }: AAPWorkflowTempl
 
       {/* Workflow Template */}
       <StackItem>
-        <FormGroup label="Workflow template" isRequired fieldId="aap-wf-workflowTemplate">
+        <FormGroup
+          label="Workflow template"
+          labelHelp={nodeHelp.aapWorkflowTemplate}
+          isRequired
+          fieldId="aap-wf-workflowTemplate"
+        >
           <Controller
             control={control}
             name="workflow_job_template_name"

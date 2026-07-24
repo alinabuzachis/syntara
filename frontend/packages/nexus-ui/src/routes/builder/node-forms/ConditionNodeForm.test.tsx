@@ -80,7 +80,7 @@ describe('ConditionNodeForm', () => {
     it('renders help icon', () => {
       renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('button', { name: /Conditional expression help/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /more info/i })).toBeInTheDocument()
     })
   })
 

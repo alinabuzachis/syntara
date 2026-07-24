@@ -285,7 +285,7 @@ test.describe('Workflow Import/Export', () => {
       await panel.getByRole('button', { name: 'REST API', exact: true }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('API Call')
-      await app.getByLabel('URL').fill('https://api.example.com/test')
+      await app.getByRole('textbox', { name: 'URL', exact: true }).fill('https://api.example.com/test')
       await credentialsLoaded
 
       const credToggle = app.getByRole('button', { name: 'Authentication credential', exact: true })

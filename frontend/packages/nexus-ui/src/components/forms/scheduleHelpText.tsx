@@ -3,23 +3,8 @@ import { Content, List, ListItem } from '@patternfly/react-core'
 export const START_DATE_HELP =
   'The first calendar day and time your automation is eligible to run. If this field is left empty, the schedule will start upon publishing.'
 
-export const END_DATE_HELP = (
-  <>
-    <Content component="p">
-      The final calendar day this automation is authorized to run. If this field is left empty, the schedule will not
-      have an end date.
-    </Content>
-    <List>
-      <ListItem>
-        <strong>Automatic stop</strong>: Once this date passes, the trigger will expire and no further actions will be
-        taken.
-      </ListItem>
-    </List>
-    <Content component="p">
-      If you leave this blank, the workflow will run indefinitely until you manually disable it.
-    </Content>
-  </>
-)
+export const END_DATE_HELP =
+  'The final calendar day this schedule is active. The end date must be on or after the start date. Once this date passes, the trigger expires and no further runs are scheduled. If you do not set an end date, the schedule continues until you manually disable it.'
 
 export const FREQUENCY_HELP = (
   <>
@@ -75,7 +60,7 @@ export const INTERVAL_HELP = (
 export const SCHEDULE_EXPRESSION_HELP = 'Set a schedule by using a visual schedule builder or a cron expression.'
 
 export const CRON_EXPRESSION_HELP =
-  'A cron expression defines a time-based schedule using five fields. Each field specifies a unit of time.'
+  'A cron expression defines a time-based schedule using five fields: [Minute] [Hour] [Day of the Month] [Month] [Day of the Week]. For example, 0 9 * * 1-5 runs at 9:00 AM Monday through Friday. The cron schedule uses the timezone of the browser session that created it.'
 
 export const EXECUTION_CONFLICT_HELP = (
   <>

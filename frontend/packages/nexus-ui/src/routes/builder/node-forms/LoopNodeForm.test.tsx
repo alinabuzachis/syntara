@@ -52,9 +52,9 @@ describe('LoopNodeForm', () => {
     it('renders help icons for while loop parameters', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
 
-      const helpButtons = screen.getAllByRole('button', { name: /help/i })
-      // Should have 4 help buttons: loop type, max iterations, behavior, conditional expression
-      expect(helpButtons.length).toBeGreaterThanOrEqual(4)
+      const helpButtons = screen.getAllByRole('button', { name: /more info/i })
+      // Parameters tab: loop type, max iterations, while conditional expression
+      expect(helpButtons.length).toBeGreaterThanOrEqual(3)
     })
   })
 
@@ -135,9 +135,9 @@ describe('LoopNodeForm', () => {
       await user.click(screen.getByRole('option', { name: /For each/i }))
 
       // Now should show forEach fields
-      expect(screen.getByLabelText(/Items expression/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Item variable/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Index variable/i)).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /Items expression/i })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /Item variable/i })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /Index variable/i })).toBeInTheDocument()
       expect(screen.queryByRole('group', { name: /Expression builder/i })).not.toBeInTheDocument()
     })
   })

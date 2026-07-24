@@ -1,5 +1,5 @@
 import { FormGroup, FormHelperText, HelperText, HelperTextItem, StackItem } from '@patternfly/react-core'
-import { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactElement, useEffect, useRef } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
 import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
@@ -8,8 +8,10 @@ import { JsonEditorControls } from '../components/JsonEditorToolbar'
 import type { TriggerFormData } from './triggerFormSchema'
 
 type JsonSchemaFieldProps = {
-  /** Label displayed above the editor — plain string or a help-popover element. */
-  label: ReactNode
+  /** Plain string label for the field. */
+  label: string
+  /** Optional PatternFly labelHelp popover. */
+  labelHelp?: ReactElement
   /** Placeholder code shown when the field value is empty. */
   defaultCode: string
   /** Example code injected by the "Load example" toolbar action. */
@@ -35,6 +37,7 @@ type JsonSchemaFieldProps = {
  */
 export function JsonSchemaField({
   label,
+  labelHelp,
   defaultCode,
   exampleCode,
   modalTitle,
@@ -53,7 +56,7 @@ export function JsonSchemaField({
 
   return (
     <StackItem>
-      <FormGroup label={label} fieldId={fieldId}>
+      <FormGroup label={label} labelHelp={labelHelp} fieldId={fieldId}>
         <Controller
           control={control}
           name="inputSchema"

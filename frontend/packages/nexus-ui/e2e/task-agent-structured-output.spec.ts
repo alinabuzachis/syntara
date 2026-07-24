@@ -65,7 +65,7 @@ test.describe('Task Agent Structured Output', () => {
 
       // Fill required fields
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('TestAgent')
-      await app.getByLabel('Prompt').fill('Analyze the data')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Analyze the data')
 
       // Select LLM credential (required by Zod validation)
       await selectLlmCredential(app, credName)
@@ -114,7 +114,7 @@ test.describe('Task Agent Structured Output', () => {
       await panel.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('SchemaAgent')
-      await app.getByLabel('Prompt').fill('Generate report')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Generate report')
 
       // Select LLM credential (required by Zod validation)
       await selectLlmCredential(app, credName)
@@ -165,7 +165,7 @@ test.describe('Task Agent Structured Output', () => {
 
       // Fill required fields but leave schema empty
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('EmptySchemaAgent')
-      await app.getByLabel('Prompt').fill('Test prompt')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Test prompt')
 
       // Select LLM credential (required by Zod validation)
       await selectLlmCredential(app, credName)

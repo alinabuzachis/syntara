@@ -35,7 +35,7 @@ test.describe('AI Agent Node @pr-check', () => {
       await panel.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('TestAgent')
-      await app.getByLabel('Prompt').fill('Analyze the input data')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Analyze the input data')
       await selectLlmCredential(app, credName)
 
       await app.getByRole('button', { name: 'Create' }).click()
@@ -61,7 +61,7 @@ test.describe('AI Agent Node @pr-check', () => {
       await panel.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('PromptAgent')
-      await app.getByLabel('Prompt').fill('Analyze this data')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Analyze this data')
       await selectLlmCredential(app, credName)
 
       await app.getByRole('button', { name: 'Create' }).click()
@@ -73,7 +73,9 @@ test.describe('AI Agent Node @pr-check', () => {
 
       const form = app.getByTestId('ai-agent-node-form')
       await expect(form).toBeVisible({ timeout: 10_000 })
-      await expect(form.getByLabel('Prompt')).toHaveValue('Analyze this data', { timeout: 30_000 })
+      await expect(form.getByRole('textbox', { name: 'Prompt', exact: true })).toHaveValue('Analyze this data', {
+        timeout: 30_000,
+      })
     } finally {
       await deleteWorkflow(app, workflowName)
 
@@ -123,7 +125,7 @@ test.describe('AI Agent Node @pr-check', () => {
       await panel.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('SchemaAgent')
-      await app.getByLabel('Prompt').fill('Generate structured output')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Generate structured output')
       await selectLlmCredential(app, credName)
 
       const validSchema = JSON.stringify({
@@ -182,7 +184,9 @@ test.describe('AI Agent Node @pr-check', () => {
       await panel.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('ToolsSchemaAgent')
-      await app.getByLabel('Prompt').fill('Generate structured output with tools available')
+      await app
+        .getByRole('textbox', { name: 'Prompt', exact: true })
+        .fill('Generate structured output with tools available')
       await selectLlmCredential(app, credName)
 
       // Configure ALL tool selection (non-default) so persistence is meaningful.
@@ -244,7 +248,7 @@ test.describe('AI Agent Node @pr-check', () => {
       await panel.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('EditableAgent')
-      await app.getByLabel('Prompt').fill('Original prompt')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Original prompt')
       await selectLlmCredential(app, credName)
 
       await app.getByRole('button', { name: 'Create' }).click()
@@ -254,7 +258,7 @@ test.describe('AI Agent Node @pr-check', () => {
       await openWorkflowInBuilder(app, workflowName)
       await openNodeForEditing(app, 'EditableAgent')
 
-      await app.getByLabel('Prompt').fill('Updated prompt')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Updated prompt')
       await app.getByRole('button', { name: 'Update' }).click()
       await expect(app.getByRole('button', { name: 'Update' })).not.toBeAttached({ timeout: 15_000 })
 
@@ -265,7 +269,9 @@ test.describe('AI Agent Node @pr-check', () => {
 
       const form = app.getByTestId('ai-agent-node-form')
       await expect(form).toBeVisible({ timeout: 10_000 })
-      await expect(form.getByLabel('Prompt')).toHaveValue('Updated prompt', { timeout: 30_000 })
+      await expect(form.getByRole('textbox', { name: 'Prompt', exact: true })).toHaveValue('Updated prompt', {
+        timeout: 30_000,
+      })
     } finally {
       await deleteWorkflow(app, workflowName)
 
@@ -287,7 +293,7 @@ test.describe('AI Agent Node @pr-check', () => {
       await panel1.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Agent1')
-      await app.getByLabel('Prompt').fill('First agent prompt')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('First agent prompt')
       await selectLlmCredential(app, credName)
 
       await app.getByRole('button', { name: 'Create' }).click()
@@ -297,7 +303,7 @@ test.describe('AI Agent Node @pr-check', () => {
       await panel2.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Agent2')
-      await app.getByLabel('Prompt').fill('Second agent prompt')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Second agent prompt')
       await selectLlmCredential(app, credName)
 
       await app.getByRole('button', { name: 'Create' }).click()

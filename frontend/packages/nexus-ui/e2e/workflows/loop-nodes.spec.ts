@@ -95,9 +95,9 @@ test.describe('Loop Node Configuration [UI-16]', () => {
 
       await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Process items')
       await expect(app.getByRole('button', { name: 'Type', exact: true })).toContainText('For each')
-      await expect(app.getByLabel('Items expression')).toHaveValue('${input.records}')
-      await expect(app.getByLabel('Item variable')).toHaveValue('record')
-      await expect(app.getByLabel('Index variable')).toHaveValue('recordIndex')
+      await expect(app.getByRole('textbox', { name: 'Items expression', exact: true })).toHaveValue('${input.records}')
+      await expect(app.getByRole('textbox', { name: 'Item variable', exact: true })).toHaveValue('record')
+      await expect(app.getByRole('textbox', { name: 'Index variable', exact: true })).toHaveValue('recordIndex')
 
       await closeNodeEditorPanel(app)
     } finally {
@@ -162,7 +162,7 @@ test.describe('Loop Node Configuration [UI-16]', () => {
       await openNodeForEditing(app, 'Switchable loop')
 
       await expect(app.getByRole('button', { name: 'Type', exact: true })).toContainText('For each')
-      await expect(app.getByLabel('Items expression')).toHaveValue('${input.data}')
+      await expect(app.getByRole('textbox', { name: 'Items expression', exact: true })).toHaveValue('${input.data}')
       await expect(app.getByLabel(/Raw expression/i)).not.toBeVisible()
 
       await closeNodeEditorPanel(app)
@@ -189,11 +189,11 @@ test.describe('Loop Node Configuration [UI-16]', () => {
     await configureLoopNode(app, { type: 'forEach' })
 
     await expect(app.getByText('Items expression', { exact: true })).toBeVisible()
-    await expect(app.getByLabel('Items expression')).toBeVisible()
+    await expect(app.getByRole('textbox', { name: 'Items expression', exact: true })).toBeVisible()
     await expect(app.getByText('Item variable', { exact: true })).toBeVisible()
-    await expect(app.getByLabel('Item variable')).toBeVisible()
+    await expect(app.getByRole('textbox', { name: 'Item variable', exact: true })).toBeVisible()
     await expect(app.getByText('Index variable', { exact: true })).toBeVisible()
-    await expect(app.getByLabel('Index variable')).toBeVisible()
+    await expect(app.getByRole('textbox', { name: 'Index variable', exact: true })).toBeVisible()
     await expect(app.getByRole('button', { name: /Expression editor mode/i })).not.toBeVisible()
 
     await app.getByRole('button', { name: 'Cancel' }).click()
@@ -285,9 +285,9 @@ test.describe('Loop Node Configuration [UI-16]', () => {
       // Verify all changes persisted
       await openNodeForEditing(app, 'Initial loop')
 
-      await expect(app.getByLabel('Items expression')).toHaveValue('${trigger.data}')
-      await expect(app.getByLabel('Item variable')).toHaveValue('element')
-      await expect(app.getByLabel('Index variable')).toHaveValue('idx')
+      await expect(app.getByRole('textbox', { name: 'Items expression', exact: true })).toHaveValue('${trigger.data}')
+      await expect(app.getByRole('textbox', { name: 'Item variable', exact: true })).toHaveValue('element')
+      await expect(app.getByRole('textbox', { name: 'Index variable', exact: true })).toHaveValue('idx')
       await expect(app.getByRole('spinbutton', { name: /Max iterations/i })).toHaveValue('50')
 
       await closeNodeEditorPanel(app)

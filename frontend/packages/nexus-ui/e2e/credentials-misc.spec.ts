@@ -264,14 +264,11 @@ test.describe('Dynamic Field Renderer — Help Text', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Test 39: Credential Selector — FormLabelWithHelp
-// ---------------------------------------------------------------------------
-test.describe('Credential Selector — FormLabelWithHelp', () => {
+test.describe('Credential Selector — FieldHelpPopover', () => {
   test('credential selector label shows help popover icon', async ({ app }) => {
     await navigateToApiActionForm(app)
 
-    const helpButton = app.getByRole('button', { name: 'Authentication credential help' })
+    const helpButton = app.getByRole('button', { name: 'More info for Authentication credential' })
     await expect(helpButton).toBeVisible()
 
     await helpButton.click()

@@ -25,7 +25,7 @@ import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
+import { FieldHelpPopover } from '../../../components/FieldHelpPopover'
 import { ScheduleBuilderFields } from '../../../components/forms/ScheduleBuilderFields'
 import {
   CRON_EXPRESSION_HELP,
@@ -44,6 +44,14 @@ import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { normalizeWebhookPath, triggerFormSchema, type TriggerFormData } from './triggerFormSchema'
 import { WebhookFields } from './WebhookTriggerFields'
+
+const executionConflictLabelHelp = (
+  <FieldHelpPopover headerContent="Execution conflict policy" helpText={EXECUTION_CONFLICT_HELP} />
+)
+const scheduleExpressionLabelHelp = (
+  <FieldHelpPopover headerContent="Schedule expression" helpText={SCHEDULE_EXPRESSION_HELP} />
+)
+const cronExpressionLabelHelp = <FieldHelpPopover headerContent="Cron expression" helpText={CRON_EXPRESSION_HELP} />
 
 export type { TriggerFormData }
 
@@ -128,7 +136,8 @@ function ExecutionConflictPolicyField({
   return (
     <StackItem>
       <FormGroup
-        label={<FormLabelWithHelp label="Execution conflict policy" helpText={EXECUTION_CONFLICT_HELP} />}
+        label="Execution conflict policy"
+        labelHelp={executionConflictLabelHelp}
         fieldId="execution-conflict-policy"
         isRequired
       >
@@ -273,7 +282,8 @@ function TriggerFormFields({
 
           <StackItem>
             <FormGroup
-              label={<FormLabelWithHelp label="Schedule expression" helpText={SCHEDULE_EXPRESSION_HELP} />}
+              label="Schedule expression"
+              labelHelp={scheduleExpressionLabelHelp}
               fieldId="schedule-expression"
               isRequired
             >
@@ -334,7 +344,8 @@ function TriggerFormFields({
               <Stack hasGutter>
                 <StackItem>
                   <FormGroup
-                    label={<FormLabelWithHelp label="Cron expression" helpText={CRON_EXPRESSION_HELP} />}
+                    label="Cron expression"
+                    labelHelp={cronExpressionLabelHelp}
                     fieldId="cron-expression"
                     isRequired
                   >

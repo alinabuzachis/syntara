@@ -102,7 +102,7 @@ test.describe('Switch Node — UI-15', () => {
         // Form opens with at least one path visible
         await expect(app.getByLabel('Path 1 name')).toBeVisible()
         // Fallback path section is always rendered
-        await expect(app.getByRole('button', { name: 'Fallback path' })).toBeVisible()
+        await expect(app.getByRole('button', { name: 'Fallback path details' })).toBeVisible()
         // "Add path" action is present
         await expect(app.getByRole('button', { name: 'Add path' })).toBeVisible()
       } finally {
@@ -379,7 +379,7 @@ test.describe('Switch Node — UI-15', () => {
         await expect(app.getByLabel('Path 2 name')).toHaveValue('Staging')
 
         // Fallback path section persists
-        await expect(app.getByRole('button', { name: 'Fallback path' })).toBeVisible()
+        await expect(app.getByRole('button', { name: 'Fallback path details' })).toBeVisible()
       } finally {
         await deleteWorkflow(app, wfName)
       }

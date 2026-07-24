@@ -1,6 +1,7 @@
 import { Alert, Content, ContentVariants, FormGroup, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import { Controller, useFormContext } from 'react-hook-form'
 
+import { FieldHelpPopover } from '../../../components/FieldHelpPopover'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { WEBHOOK_BASE_URL } from '../../../utils/backendUrl'
 
@@ -11,6 +12,62 @@ import { DEFAULT_JSON_SCHEMA, EXAMPLE_JSON_SCHEMA, JSON_SCHEMA_DOWNLOAD_FILENAME
 import { useWebhookUrl } from './useWebhookUrl'
 import { WebhookPathField } from './WebhookPathField'
 import { WebhookUrlPreview } from './WebhookUrlPreview'
+
+const WEBHOOK_HTTP_METHOD_HELP = (
+  <Stack hasGutter>
+    <StackItem>The HTTP method specifies the type of request this webhook will accept.</StackItem>
+    <StackItem>
+      <List>
+        <ListItem>
+          <strong>POST (Fixed)</strong>: To ensure consistent and secure data handling, this trigger is restricted to
+          the POST method.
+        </ListItem>
+        <ListItem>
+          <strong>Standardization</strong>: POST is the industry standard for webhooks as it allows for large data
+          payloads to be transmitted securely in the request body.
+        </ListItem>
+        <ListItem>
+          <strong>Incompatibility</strong>: If your external system attempts to call this URL using a different method
+          (such as GET or PUT), it will receive a 405 Method Not Allowed error.
+        </ListItem>
+      </List>
+    </StackItem>
+  </Stack>
+)
+
+const WEBHOOK_URL_HELP =
+  'This is the unique URL for this trigger. Provide this to your external service (e.g., GitHub, Slack, or a custom app). Use the copy button to capture the full URL.'
+
+const WEBHOOK_PATH_HELP =
+  'Enter a unique name or "slug" to identify this endpoint (e.g., /jira-updates). This path helps you identify the trigger in your workflow and will be part of the final generated URL.'
+
+const WEBHOOK_JSON_SCHEMA_HELP = (
+  <Stack hasGutter>
+    <StackItem>
+      Define a structure that all incoming POST requests must follow. This acts as a security and quality gate for your
+      workflow.
+    </StackItem>
+    <StackItem>
+      <List>
+        <ListItem>
+          <strong>Enforcement</strong>: If incoming data does not match the schema, the trigger will reject the request
+          with a 400 Bad Request error and the workflow will not run.
+        </ListItem>
+        <ListItem>
+          <strong>Default behavior</strong>: The placeholder schema is a &quot;pass-through&quot; that allows all data.
+          Edit the properties block to enforce specific fields.
+        </ListItem>
+      </List>
+    </StackItem>
+  </Stack>
+)
+
+const webhookHttpMethodLabelHelp = <FieldHelpPopover headerContent="HTTP method" helpText={WEBHOOK_HTTP_METHOD_HELP} />
+const webhookUrlLabelHelp = <FieldHelpPopover headerContent="URL" helpText={WEBHOOK_URL_HELP} />
+const webhookPathLabelHelp = <FieldHelpPopover headerContent="Webhook path" helpText={WEBHOOK_PATH_HELP} />
+const webhookJsonSchemaLabelHelp = (
+  <FieldHelpPopover headerContent="JSON schema validation" helpText={WEBHOOK_JSON_SCHEMA_HELP} />
+)
 
 // ---------------------------------------------------------------------------
 // Connection instructions
@@ -68,47 +125,13 @@ export function WebhookFields({
 
       <WebhookUrlPreview
         url={fullWebhookUrl}
-        httpMethodLabel={
-          <FormLabelWithHelp
-            label="HTTP method"
-            helpText={
-              <Stack hasGutter>
-                <StackItem>The HTTP method specifies the type of request this webhook will accept.</StackItem>
-                <StackItem>
-                  <List>
-                    <ListItem>
-                      <strong>POST (Fixed)</strong>: To ensure consistent and secure data handling, this trigger is
-                      restricted to the POST method.
-                    </ListItem>
-                    <ListItem>
-                      <strong>Standardization</strong>: POST is the industry standard for webhooks as it allows for
-                      large data payloads to be transmitted securely in the request body.
-                    </ListItem>
-                    <ListItem>
-                      <strong>Incompatibility</strong>: If your external system attempts to call this URL using a
-                      different method (such as GET or PUT), it will receive a 405 Method Not Allowed error.
-                    </ListItem>
-                  </List>
-                </StackItem>
-              </Stack>
-            }
-          />
-        }
-        urlLabel={
-          <FormLabelWithHelp
-            label="URL"
-            helpText="This is the unique URL for this trigger. Provide this to your external service (e.g., GitHub, Slack, or a custom app). Use the copy button to capture the full URL."
-          />
-        }
+        httpMethodLabelHelp={webhookHttpMethodLabelHelp}
+        urlLabelHelp={webhookUrlLabelHelp}
       />
 
       <WebhookPathField
-        label={
-          <FormLabelWithHelp
-            label="Webhook path"
-            helpText='Enter a unique name or "slug" to identify this endpoint (e.g., /jira-updates). This path helps you identify the trigger in your workflow and will be part of the final generated URL.'
-          />
-        }
+        label="Webhook path"
+        labelHelp={webhookPathLabelHelp}
         placeholder="/jira-updates"
         helperText="A unique slug for this endpoint (e.g., /jira-updates)."
         error={errors.webhookPath?.message}
@@ -139,31 +162,8 @@ export function WebhookFields({
       </StackItem>
 
       <JsonSchemaField
-        label={
-          <FormLabelWithHelp
-            label="JSON schema validation"
-            helpText={
-              <Stack hasGutter>
-                <StackItem>
-                  Define a structure that all incoming POST requests must follow. This acts as a security and quality
-                  gate for your workflow.
-                </StackItem>
-                <StackItem>
-                  <List>
-                    <ListItem>
-                      <strong>Enforcement</strong>: If incoming data does not match the schema, the trigger will reject
-                      the request with a 400 Bad Request error and the workflow will not run.
-                    </ListItem>
-                    <ListItem>
-                      <strong>Default behavior</strong>: The placeholder schema is a &quot;pass-through&quot; that
-                      allows all data. Edit the properties block to enforce specific fields.
-                    </ListItem>
-                  </List>
-                </StackItem>
-              </Stack>
-            }
-          />
-        }
+        label="JSON schema validation"
+        labelHelp={webhookJsonSchemaLabelHelp}
         defaultCode={DEFAULT_JSON_SCHEMA}
         exampleCode={EXAMPLE_JSON_SCHEMA}
         modalTitle="Edit JSON schema"

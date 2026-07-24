@@ -15,13 +15,14 @@ import {
   Spinner,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiErrorIcon } from '@patternfly/react-icons'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
 
 import { credentialsClient } from '../../../client'
-import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { detachPromise } from '../../../utils/detachPromise'
 import type { Credential, CredentialType } from '../../configuration/credentials/credentialConstants'
 import { CredentialFormModal } from '../../configuration/credentials/form/CredentialFormModal'
+
+import { resolveFormGroupLabelHelp } from './resolveFormGroupLabelHelp'
 
 export type CredentialSelectorProps = {
   /** Currently selected credential ID */
@@ -44,6 +45,8 @@ export type CredentialSelectorProps = {
   placeholder?: string
   /** Help text shown in a popover next to the label */
   helpText?: React.ReactNode
+  /** Pre-built label help (takes precedence over helpText) */
+  labelHelp?: ReactElement
   /** Filter credentials to this project */
   projectId?: string
   /** Whether the credential field is required */
@@ -208,6 +211,7 @@ export function CredentialSelector({
   preSelectedTypeId,
   placeholder = 'Select a credential...',
   helpText,
+  labelHelp,
   projectId,
   isRequired = false,
   errorMessage,
@@ -285,7 +289,7 @@ export function CredentialSelector({
     [onChange, refetch]
   )
 
-  const formGroupLabel = helpText ? <FormLabelWithHelp label={label} helpText={helpText} /> : label
+  const resolvedLabelHelp = resolveFormGroupLabelHelp(label, labelHelp, helpText)
 
   const hasGroups = credentialTypes.length > 0
   const hasDanger = [isError, errorMessage].some(Boolean)
@@ -320,7 +324,7 @@ export function CredentialSelector({
   )
 
   return (
-    <FormGroup label={formGroupLabel} fieldId={fieldId} isRequired={isRequired}>
+    <FormGroup label={label} labelHelp={resolvedLabelHelp} fieldId={fieldId} isRequired={isRequired}>
       <Select
         id={fieldId}
         isOpen={isOpen}

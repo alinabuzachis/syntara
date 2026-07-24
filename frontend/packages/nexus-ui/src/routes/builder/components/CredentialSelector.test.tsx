@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../client'
+import { FieldHelpPopover } from '../../../components/FieldHelpPopover'
 
 import { CredentialSelector, type CredentialSelectorProps } from './CredentialSelector'
 
@@ -419,14 +420,14 @@ describe('CredentialSelector', () => {
       mockUseQueryLegacy()
       renderSelector({ helpText: 'Some help text', label: 'My Credential' })
 
-      expect(screen.getByRole('button', { name: 'My Credential help' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'More info for My Credential' })).toBeInTheDocument()
     })
 
     it('does not render help icon when helpText is not provided', () => {
       mockUseQueryLegacy()
       renderSelector({ label: 'My Credential' })
 
-      expect(screen.queryByRole('button', { name: 'My Credential help' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /More info/i })).not.toBeInTheDocument()
     })
 
     it('shows popover content when help icon is clicked', async () => {
@@ -434,9 +435,23 @@ describe('CredentialSelector', () => {
       mockUseQueryLegacy()
       renderSelector({ helpText: 'This is help content', label: 'My Credential' })
 
-      await user.click(screen.getByRole('button', { name: 'My Credential help' }))
+      await user.click(screen.getByRole('button', { name: 'More info for My Credential' }))
 
       expect(screen.getByText('This is help content')).toBeInTheDocument()
+    })
+
+    it('prefers an explicit labelHelp element over helpText', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector({
+        label: 'My Credential',
+        helpText: 'Should not appear',
+        labelHelp: <FieldHelpPopover headerContent="My Credential" helpText="Explicit label help" />,
+      })
+
+      await user.click(screen.getByRole('button', { name: 'More info for My Credential' }))
+      expect(screen.getByText('Explicit label help')).toBeInTheDocument()
+      expect(screen.queryByText('Should not appear')).not.toBeInTheDocument()
     })
   })
 

@@ -36,7 +36,7 @@ describe('SwitchNodeForm', () => {
     it('renders fallback path section', () => {
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('button', { name: /Fallback path/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Fallback path details' })).toBeInTheDocument()
     })
 
     it('renders add path button', () => {
@@ -114,7 +114,7 @@ describe('SwitchNodeForm', () => {
     it('renders fallback section as collapsible', () => {
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
 
-      const fallbackToggle = screen.getByRole('button', { name: /Fallback path/i })
+      const fallbackToggle = screen.getByRole('button', { name: 'Fallback path details' })
       expect(fallbackToggle).toHaveAttribute('aria-expanded', 'true')
     })
 
@@ -122,7 +122,7 @@ describe('SwitchNodeForm', () => {
       const user = userEvent.setup()
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
 
-      const fallbackToggle = screen.getByRole('button', { name: /Fallback path/i })
+      const fallbackToggle = screen.getByRole('button', { name: 'Fallback path details' })
       await user.click(fallbackToggle)
       expect(fallbackToggle).toHaveAttribute('aria-expanded', 'false')
     })

@@ -1,6 +1,6 @@
 import { Stack, StackItem } from '@patternfly/react-core'
 
-import { HelpPopover } from '../../../../components/expressions/HelpPopover'
+import { FieldHelpPopover } from '../../../../components/FieldHelpPopover'
 
 /**
  * Popover help icon explaining the required branch count parameter.
@@ -9,10 +9,9 @@ import { HelpPopover } from '../../../../components/expressions/HelpPopover'
  */
 export function RequiredBranchCountHelp() {
   return (
-    <HelpPopover
-      ariaLabel="Required branch count help"
+    <FieldHelpPopover
       headerContent="Required number of branches"
-      bodyContent={
+      helpText={
         <Stack hasGutter>
           <StackItem>
             The minimum number of incoming branches that must complete before the workflow continues past this converge

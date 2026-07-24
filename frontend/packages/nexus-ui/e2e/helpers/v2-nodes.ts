@@ -144,7 +144,7 @@ export async function addHttpRequestNode(page: Page, name: string, url = 'https:
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Action', 'REST API')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
-  await page.getByLabel('URL').fill(url)
+  await page.getByRole('textbox', { name: 'URL', exact: true }).fill(url)
   await page.getByRole('button', { name: 'Create', exact: true }).click()
   await closeNodeEditorPanel(page)
 }
@@ -160,7 +160,7 @@ export async function addAgenticNode(page: Page, name: string, prompt = 'Analyze
   await selectDirectNodeType(page, 'Task Agent')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await selectLlmCredential(page, credName)
-  await page.getByLabel('Prompt').fill(prompt)
+  await page.getByRole('textbox', { name: 'Prompt', exact: true }).fill(prompt)
   await page.getByRole('button', { name: 'Create', exact: true }).click()
   await closeNodeEditorPanel(page)
 }
@@ -394,7 +394,7 @@ export async function addLoopNode(page: Page, name: string, items = '${trigger.i
   }
 
   // Fill items expression
-  const itemsInput = page.getByLabel('Items expression')
+  const itemsInput = page.getByRole('textbox', { name: 'Items expression', exact: true })
   const itemsInputVisible = await itemsInput.isVisible().catch(() => false)
   if (itemsInputVisible) {
     await itemsInput.fill(items)

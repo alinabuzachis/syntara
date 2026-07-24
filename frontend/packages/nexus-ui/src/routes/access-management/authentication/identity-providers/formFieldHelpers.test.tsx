@@ -1,9 +1,8 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { FieldErrorMessage, FieldHelpPopover, HintOrError } from './formFieldHelpers'
+import { FieldErrorMessage, HintOrError } from './formFieldHelpers'
 
 describe('FieldErrorMessage', () => {
   it('renders nothing when no error', () => {
@@ -18,22 +17,6 @@ describe('FieldErrorMessage', () => {
 
   it('has no accessibility violations with error', async () => {
     const { container } = render(<FieldErrorMessage error={{ type: 'required', message: 'Field is required' }} />)
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
-  })
-})
-
-describe('FieldHelpPopover', () => {
-  it('opens popover body when help control is activated', async () => {
-    const user = userEvent.setup()
-    render(<FieldHelpPopover helpText="Explanation for this field." />)
-    await user.click(screen.getByRole('button', { name: 'More info' }))
-    expect(screen.getByRole('dialog', { name: 'Field help' })).toBeInTheDocument()
-    expect(screen.getByText('Explanation for this field.')).toBeInTheDocument()
-  })
-
-  it('has no accessibility violations', async () => {
-    const { container } = render(<FieldHelpPopover helpText="Help copy." />)
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })

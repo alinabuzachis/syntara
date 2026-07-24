@@ -2,7 +2,6 @@ import type { IntegrationsAPI, ToolManagerAPI } from '@ansible/nexus-contracts'
 import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
   Alert,
-  Button,
   FormGroup,
   FormHelperText,
   HelperText,
@@ -13,7 +12,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { Control, UseFormSetValue } from 'react-hook-form'
 import { Controller, FormProvider, useForm, useFormContext, useFormState, useWatch } from 'react-hook-form'
 
@@ -25,16 +24,17 @@ import { projectIdParam } from '../../../utils/queryParams'
 import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
 import { FileUpload, type UploadedFile } from '../components/file-upload'
-import { LLMCredentialStatus } from '../components/LLMCredentialStatus'
-import { LLMModelSelector, type LLMModelSelection } from '../components/LLMModelSelector'
 import { DroppableField } from '../panels/fields/DroppableField'
 import { useIsVersionView } from '../VersionViewContext'
 
+import { AIAgentFileContext } from './aiAgentFileContext'
 import { AIAgentFileUploadSection } from './AIAgentFileUploadSection'
 import { aiAgentFormSchema, type AIAgentFormData } from './aiAgentFormSchema'
+import { LLMSection, NO_PROJECT_MESSAGE, ToolsLoadError } from './AIAgentFormSections'
 import { ConnectionsSection } from './ConnectionsSection'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
+import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
@@ -42,7 +42,6 @@ import { NodeSettingsForm } from './shared/NodeSettingsForm'
 import type { IntegrationWithTools, ToolSelection } from './ToolsMultiSelect'
 import { ToolsMultiSelect } from './ToolsMultiSelect'
 import { useFilesMetadata } from './useFilesMetadata'
-import type { FileContextType } from './useFileUploadState'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 type ToolWithParameters = ToolManagerAPI.components['schemas']['ToolWithParameters']
@@ -57,8 +56,6 @@ export type AIAgentFormSubmitData = {
 
 /** Initial data for form fields (file IDs handled separately by parent) */
 export type AIAgentFormInitialData = Partial<AIAgentFormData>
-
-const FileContext = createContext<FileContextType | null>(null)
 
 export type AIAgentNodeFormProps = {
   onSubmit: (data: AIAgentFormSubmitData) => void
@@ -146,64 +143,6 @@ function useToolSelection(control: Control<AIAgentFormData>, setValue: UseFormSe
   return { toolSelection, handleToolSelectionChange }
 }
 
-function ToolsLoadError({ onRetry }: Readonly<{ onRetry: () => void }>) {
-  return (
-    <FormHelperText>
-      <HelperText>
-        <HelperTextItem variant="error" icon={<RhUiErrorIcon />}>
-          Failed to load tools or integrations.{' '}
-          <Button variant="link" isInline onClick={onRetry}>
-            Retry
-          </Button>
-        </HelperTextItem>
-      </HelperText>
-    </FormHelperText>
-  )
-}
-
-type LLMSectionProps = Readonly<{ isVersionView: boolean; projectId?: string }>
-
-function LLMSection({ isVersionView, projectId }: LLMSectionProps) {
-  const { control, setValue } = useFormContext<AIAgentFormData>()
-
-  // useWatch fires synchronously in the same render as setValue — avoids the stale
-  // closure bug that Controller's render prop had when llm_model_id and credential_id
-  // were updated in the same event handler.
-  const [watchedLlmModelId, watchedCredentialId] = useWatch({
-    control,
-    name: ['llm_model_id', 'credential_id'],
-  })
-
-  const selection: LLMModelSelection | undefined = watchedLlmModelId ? { llm_model_id: watchedLlmModelId } : undefined
-
-  return (
-    <>
-      <StackItem>
-        <LLMModelSelector
-          value={selection}
-          onChange={(newSelection) => {
-            setValue('llm_model_id', newSelection?.llm_model_id ?? '', { shouldDirty: true })
-            if (!newSelection) setValue('credential_id', undefined, { shouldDirty: true })
-          }}
-          isDisabled={isVersionView}
-          projectId={projectId}
-        />
-      </StackItem>
-      <StackItem>
-        <LLMCredentialStatus
-          modelSelected={!!watchedLlmModelId}
-          credentialId={watchedCredentialId}
-          onChange={(credentialId) => setValue('credential_id', credentialId, { shouldDirty: true })}
-          isDisabled={isVersionView}
-          projectId={projectId}
-        />
-      </StackItem>
-    </>
-  )
-}
-
-const NO_PROJECT_MESSAGE = 'Select a project in the workflow builder header to upload context files.'
-
 type AIAgentFormFieldsProps = Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
@@ -230,8 +169,8 @@ function AIAgentFormFields({
   const { toolSelection, handleToolSelectionChange } = useToolSelection(control, setValue)
   const { errors } = useFormState({ control })
   const { canCreate: canCreateIntegration } = useIntegrationPermissions()
-  const fileContext = useContext(FileContext)
-  if (!fileContext) throw new Error('AIAgentFormFields must be used within FileContext.Provider')
+  const fileContext = useContext(AIAgentFileContext)
+  if (!fileContext) throw new Error('AIAgentFormFields must be used within AIAgentFileContext.Provider')
   const { isFilesError } = fileContext
 
   const nameField = useMemo(
@@ -252,7 +191,7 @@ function AIAgentFormFields({
     <Stack hasGutter>
       <LLMSection isVersionView={isVersionView} projectId={projectId} />
       <StackItem>
-        <FormGroup label="Prompt" fieldId="agent-prompt" isRequired>
+        <FormGroup label="Prompt" labelHelp={nodeHelp.aiPrompt} fieldId="agent-prompt" isRequired>
           <DroppableField
             onDropText={(text) => {
               const current = getValues('prompt')
@@ -272,7 +211,7 @@ function AIAgentFormFields({
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Tools" fieldId="agent-tools">
+        <FormGroup label="Tools" labelHelp={nodeHelp.aiTools} fieldId="agent-tools">
           <ToolsMultiSelect
             value={toolSelection}
             onChange={handleToolSelectionChange}
@@ -303,21 +242,23 @@ function AIAgentFormFields({
         </FormGroup>
       </StackItem>
       <StackItem>
-        <Controller
-          control={control}
-          name="integration_connections"
-          render={({ field }) => (
-            <ConnectionsSection
-              integrations={integrations}
-              toolSelection={toolSelection}
-              integrationConnections={field.value ?? []}
-              onConnectionChange={field.onChange}
-            />
-          )}
-        />
+        <FormGroup label="Connections" labelHelp={nodeHelp.aiConnections} fieldId="agent-connections">
+          <Controller
+            control={control}
+            name="integration_connections"
+            render={({ field }) => (
+              <ConnectionsSection
+                integrations={integrations}
+                toolSelection={toolSelection}
+                integrationConnections={field.value ?? []}
+                onConnectionChange={field.onChange}
+              />
+            )}
+          />
+        </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Response schema" fieldId="agent-response-schema">
+        <FormGroup label="Response schema" labelHelp={nodeHelp.aiResponseSchema} fieldId="agent-response-schema">
           <Controller
             control={control}
             name="responseSchema"
@@ -352,7 +293,7 @@ function AIAgentFormFields({
         </StackItem>
       )}
       <StackItem>
-        <FormGroup label="Context file upload" fieldId="agent-context">
+        <FormGroup label="Context file upload" labelHelp={nodeHelp.aiContext} fieldId="agent-context">
           {projectId ? (
             <AIAgentFileUploadSection
               projectId={projectId}
@@ -501,7 +442,7 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
   )
 
   return (
-    <FileContext.Provider value={fileContextValue}>
+    <AIAgentFileContext.Provider value={fileContextValue}>
       <FormProvider {...methods}>
         <NodeFormContainer formId="ai-agent-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
           <AIAgentFormFields
@@ -516,6 +457,6 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
           />
         </NodeFormContainer>
       </FormProvider>
-    </FileContext.Provider>
+    </AIAgentFileContext.Provider>
   )
 }

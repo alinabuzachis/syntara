@@ -1,19 +1,17 @@
 import { Stack, StackItem } from '@patternfly/react-core'
 
-import { HelpPopover } from '../../../../components/expressions/HelpPopover'
+import { FieldHelpPopover } from '../../../../components/FieldHelpPopover'
 
 type ExpressionHelpPopoverProps = {
-  ariaLabel: string
   headerContent: string
   description: string
 }
 
-export function ExpressionHelpPopover({ ariaLabel, headerContent, description }: ExpressionHelpPopoverProps) {
+export function ExpressionHelpPopover({ headerContent, description }: ExpressionHelpPopoverProps) {
   return (
-    <HelpPopover
-      ariaLabel={ariaLabel}
+    <FieldHelpPopover
       headerContent={headerContent}
-      bodyContent={
+      helpText={
         <Stack hasGutter>
           <StackItem>{description}</StackItem>
           <StackItem>

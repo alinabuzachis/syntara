@@ -34,6 +34,7 @@ import { HttpCredentialSection, HttpUrlField, type ActionFormMethods } from './h
 import { KeyValueFields } from './KeyValueFields'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
+import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
@@ -172,7 +173,7 @@ function ScriptEnvironmentVariables({
   isDisabled,
 }: ScriptEnvironmentVariablesProps) {
   return (
-    <FormGroup label="Environment variables" fieldId="action-parameters">
+    <FormGroup label="Environment variables" labelHelp={nodeHelp.scriptEnvVars} fieldId="action-parameters">
       <DroppableField
         onDropText={(text) => {
           const current = getValues('parameters')
@@ -222,7 +223,7 @@ function ActionParametersContent(props: ActionParametersContentProps) {
       {executor === ExecutorTypeEnum.SCRIPT && (
         <>
           <StackItem>
-            <FormGroup label="Language" fieldId="action-language">
+            <FormGroup label="Language" labelHelp={nodeHelp.scriptLanguage} fieldId="action-language">
               <Controller
                 control={control}
                 name="language"
@@ -237,7 +238,7 @@ function ActionParametersContent(props: ActionParametersContentProps) {
             </FormGroup>
           </StackItem>
           <StackItem>
-            <FormGroup label="Script" isRequired fieldId="action-code">
+            <FormGroup label="Script" labelHelp={nodeHelp.scriptCode} isRequired fieldId="action-code">
               <Controller
                 control={control}
                 name="code"
@@ -299,7 +300,7 @@ function ActionParametersContent(props: ActionParametersContentProps) {
             projectId={projectId}
           />
           <StackItem>
-            <FormGroup label="HTTP Method" fieldId="action-method">
+            <FormGroup label="HTTP Method" labelHelp={nodeHelp.httpMethod} fieldId="action-method">
               <Controller
                 control={control}
                 name="method"
@@ -314,12 +315,17 @@ function ActionParametersContent(props: ActionParametersContentProps) {
               control={control}
               name="headers"
               render={({ field }) => (
-                <KeyValueFields entries={field.value ?? []} onChange={field.onChange} isDisabled={isVersionView} />
+                <KeyValueFields
+                  entries={field.value ?? []}
+                  onChange={field.onChange}
+                  isDisabled={isVersionView}
+                  labelHelp={nodeHelp.httpHeaders}
+                />
               )}
             />
           </StackItem>
           <StackItem>
-            <FormGroup label="Body" fieldId="action-body">
+            <FormGroup label="Body" labelHelp={nodeHelp.httpBody} fieldId="action-body">
               <DroppableField
                 onDropText={(text) => {
                   const current = getValues('body')

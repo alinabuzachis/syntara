@@ -1,4 +1,4 @@
-import { Stack, StackItem, Switch, Title } from '@patternfly/react-core'
+import { Stack, StackItem, Switch, FormGroup } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
@@ -16,6 +16,7 @@ import { AAPResourcePickers } from './AAPResourcePickers'
 import { ExpressionTextField } from './ExpressionTextField'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
+import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
@@ -103,16 +104,15 @@ function AAPFormFields({
   const parametersContent = (
     <Stack hasGutter>
       <StackItem>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Title headingLevel="h3">AAP Controller</Title>
+        <FormGroup label="Use expressions" labelHelp={nodeHelp.aapUseExpressions} fieldId="aap-expression-mode">
           <Switch
             id="aap-expression-mode"
-            label="Use expressions"
+            aria-label="Use expressions"
             isChecked={expressionMode}
             onChange={(_e, checked) => setExpressionMode(checked)}
             isDisabled={isVersionView}
           />
-        </div>
+        </FormGroup>
       </StackItem>
 
       <StackItem>
@@ -136,6 +136,7 @@ function AAPFormFields({
                     label="Organization"
                     placeholder="org name or drag expression"
                     isRequired
+                    labelHelp={nodeHelp.aapOrganization}
                   />
                 </StackItem>
                 <StackItem>
@@ -145,6 +146,7 @@ function AAPFormFields({
                     label="Job template"
                     placeholder="template name or drag expression"
                     isRequired
+                    labelHelp={nodeHelp.aapJobTemplate}
                   />
                 </StackItem>
                 <StackItem>
@@ -153,6 +155,7 @@ function AAPFormFields({
                     id="aap-inventory-expr"
                     label="Inventory"
                     placeholder="inventory name or drag expression"
+                    labelHelp={nodeHelp.aapInventory}
                   />
                 </StackItem>
                 <StackItem>
@@ -161,6 +164,7 @@ function AAPFormFields({
                     id="aap-limit-expr"
                     label="Limit"
                     placeholder="host pattern or drag expression"
+                    labelHelp={nodeHelp.aapLimit}
                   />
                 </StackItem>
                 <StackItem>
@@ -169,6 +173,7 @@ function AAPFormFields({
                     id="aap-tags-expr"
                     label="Tags"
                     placeholder="tags or drag expression"
+                    labelHelp={nodeHelp.aapTags}
                   />
                 </StackItem>
                 <StackItem>
@@ -177,6 +182,7 @@ function AAPFormFields({
                     id="aap-skipTags-expr"
                     label="Skip tags"
                     placeholder="skip tags or drag expression"
+                    labelHelp={nodeHelp.aapSkipTags}
                   />
                 </StackItem>
                 <StackItem>
@@ -185,6 +191,7 @@ function AAPFormFields({
                     id="aap-extraVars-expr"
                     label="Extra variables"
                     placeholder='{"key": "value"} or drag expression'
+                    labelHelp={nodeHelp.aapExtraVars}
                   />
                 </StackItem>
               </>

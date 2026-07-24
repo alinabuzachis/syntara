@@ -1,4 +1,5 @@
 import { JsonSchemaField } from './JsonSchemaField'
+import { nodeHelp } from './shared/nodeFieldHelp'
 
 const EXAMPLE_INPUT_SCHEMA = JSON.stringify(
   {
@@ -18,6 +19,7 @@ export function ManualTriggerFields({
   return (
     <JsonSchemaField
       label="Input schema"
+      labelHelp={nodeHelp.manualInputSchema}
       defaultCode=""
       exampleCode={EXAMPLE_INPUT_SCHEMA}
       modalTitle="Edit input schema"

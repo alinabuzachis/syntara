@@ -14,7 +14,7 @@ import {
   StackItem,
   type MenuToggleElement,
 } from '@patternfly/react-core'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
 import { DEBOUNCE_MS } from '../../../constants/timing'
@@ -30,6 +30,7 @@ type AAPLabelsFieldProps = {
   readonly helperText: string
   readonly placeholderText: string
   readonly onSearchChange?: (search: string) => void
+  readonly labelHelp?: ReactElement
 }
 
 type MultiSelectToggleProps = {
@@ -120,6 +121,7 @@ export function AAPLabelsField({
   helperText,
   placeholderText,
   onSearchChange,
+  labelHelp,
 }: AAPLabelsFieldProps) {
   const { control } = useFormContext<AAPJobTemplateFormData>()
   const [isOpen, setIsOpen] = useState(false)
@@ -139,7 +141,7 @@ export function AAPLabelsField({
 
   return (
     <StackItem>
-      <FormGroup label={label} fieldId={fieldId}>
+      <FormGroup label={label} labelHelp={labelHelp} fieldId={fieldId}>
         <Controller
           control={control}
           name="labels"

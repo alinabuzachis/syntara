@@ -22,6 +22,7 @@ import {
 } from './AAPPromptFields'
 import { AAPResourceMultiSelectField } from './AAPResourceMultiSelectField'
 import { AAPResourceSelectField } from './AAPResourceSelectField'
+import { nodeHelp } from './shared/nodeFieldHelp'
 
 type PromptOnLaunchFieldsProps = {
   readonly extraVarsEditorRef: React.RefObject<ExpandableCodeEditorHandle | null>
@@ -90,6 +91,7 @@ function InventoryField({ inventories, loadingInventories, defaultName, onSearch
           ? `Override default inventory for the job. Default: ${defaultName}`
           : 'Override default inventory for the job'
       }
+      labelHelp={nodeHelp.aapInventory}
       placeholderText={defaultName ? `${defaultName} (default)` : 'No default inventory'}
       onSearchChange={onSearchInventories}
     />
@@ -123,6 +125,7 @@ function ExecutionEnvironmentField({
           : 'Override default execution environment for the job'
       }
       placeholderText={defaultName ? `${defaultName} (default)` : 'No default execution environment'}
+      labelHelp={nodeHelp.aapExecutionEnvironment}
       onSearchChange={onSearchExecutionEnvironments}
     />
   )
@@ -200,6 +203,7 @@ function PromptOnLaunchFieldList({
           placeholderText="No default credentials"
           defaultValues={templateDetail.default_credentials}
           onSearchChange={onSearchCredentials}
+          labelHelp={nodeHelp.aapJobCredentials}
         />
       )}
       {templateDetail.ask_labels_on_launch && (
@@ -211,14 +215,29 @@ function PromptOnLaunchFieldList({
           helperText="Select or create labels for the job"
           placeholderText="Select or create labels"
           onSearchChange={onSearchLabels}
+          labelHelp={nodeHelp.aapLabels}
         />
       )}
       {templateDetail.ask_verbosity_on_launch && <VerbosityField />}
       {templateDetail.ask_forks_on_launch && (
-        <NumberInputField label="Forks" fieldId="aap-forks" name="forks" placeholder="0" min={0} />
+        <NumberInputField
+          label="Forks"
+          fieldId="aap-forks"
+          name="forks"
+          placeholder="0"
+          min={0}
+          labelHelp={nodeHelp.aapForks}
+        />
       )}
       {templateDetail.ask_job_slice_count_on_launch && (
-        <NumberInputField label="Job slicing" fieldId="aap-jobSlicing" name="job_slice_count" placeholder="1" min={1} />
+        <NumberInputField
+          label="Job slicing"
+          fieldId="aap-jobSlicing"
+          name="job_slice_count"
+          placeholder="1"
+          min={1}
+          labelHelp={nodeHelp.aapJobSliceCount}
+        />
       )}
       {templateDetail.ask_diff_mode_on_launch && <DiffModeField />}
       {templateDetail.ask_instance_groups_on_launch && (
@@ -230,6 +249,7 @@ function PromptOnLaunchFieldList({
           items={instanceGroups}
           isLoading={loadingInstanceGroups}
           helperText="Override default instance groups for the job"
+          labelHelp={nodeHelp.aapInstanceGroup}
           placeholderText="Use default instance groups"
           onSearchChange={onSearchInstanceGroups}
         />
@@ -241,6 +261,7 @@ function PromptOnLaunchFieldList({
           name="tags"
           placeholder="tag1"
           helperText="Type a tag and press Enter or comma to add"
+          labelHelp={nodeHelp.aapTags}
         />
       )}
       {templateDetail.ask_skip_tags_on_launch && (
@@ -250,9 +271,12 @@ function PromptOnLaunchFieldList({
           name="skip_tags"
           placeholder="tag1"
           helperText="Type a tag and press Enter or comma to add"
+          labelHelp={nodeHelp.aapSkipTags}
         />
       )}
-      {templateDetail.ask_limit_on_launch && <TextInputField label="Limit" fieldId="aap-limit" name="limit" />}
+      {templateDetail.ask_limit_on_launch && (
+        <TextInputField label="Limit" fieldId="aap-limit" name="limit" labelHelp={nodeHelp.aapLimit} />
+      )}
       {templateDetail.ask_variables_on_launch && <ExtraVariablesField editorRef={extraVarsEditorRef} />}
     </>
   )

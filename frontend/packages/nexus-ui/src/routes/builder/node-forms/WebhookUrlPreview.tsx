@@ -5,18 +5,22 @@ import {
   DescriptionListGroup,
   DescriptionListTerm,
   Divider,
+  Flex,
+  FlexItem,
   FormGroup,
   StackItem,
 } from '@patternfly/react-core'
-import type { ReactNode } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 
 type WebhookUrlPreviewProps = {
   /** Full webhook URL to display in the ClipboardCopy field. */
   url: string
-  /** Label element for the HTTP method field. */
-  httpMethodLabel: ReactNode
-  /** Label element for the URL field. */
-  urlLabel: ReactNode
+  /** Optional label help shown adjacent to the HTTP method term. */
+  httpMethodLabelHelp?: ReactNode
+  /** Label for the URL field (defaults to "URL"). */
+  urlLabel?: string
+  /** Optional label help for the URL field. */
+  urlLabelHelp?: ReactElement
   /** DOM id prefix for the FormGroup and input elements (defaults to "webhook"). */
   fieldIdPrefix?: string
 }
@@ -27,8 +31,9 @@ type WebhookUrlPreviewProps = {
  */
 export function WebhookUrlPreview({
   url,
-  httpMethodLabel,
-  urlLabel,
+  httpMethodLabelHelp,
+  urlLabel = 'URL',
+  urlLabelHelp,
   fieldIdPrefix = 'webhook',
 }: Readonly<WebhookUrlPreviewProps>) {
   return (
@@ -36,14 +41,23 @@ export function WebhookUrlPreview({
       <StackItem>
         <DescriptionList isCompact>
           <DescriptionListGroup>
-            <DescriptionListTerm>{httpMethodLabel}</DescriptionListTerm>
+            <DescriptionListTerm>
+              <Flex
+                alignItems={{ default: 'alignItemsCenter' }}
+                gap={{ default: 'gapXs' }}
+                flexWrap={{ default: 'nowrap' }}
+              >
+                <FlexItem>HTTP method</FlexItem>
+                {httpMethodLabelHelp ? <FlexItem>{httpMethodLabelHelp}</FlexItem> : null}
+              </Flex>
+            </DescriptionListTerm>
             <DescriptionListDescription>POST</DescriptionListDescription>
           </DescriptionListGroup>
         </DescriptionList>
       </StackItem>
 
       <StackItem>
-        <FormGroup label={urlLabel} fieldId={`${fieldIdPrefix}-url`}>
+        <FormGroup label={urlLabel} labelHelp={urlLabelHelp} fieldId={`${fieldIdPrefix}-url`}>
           <ClipboardCopy isReadOnly aria-label="Webhook URL">
             {url}
           </ClipboardCopy>

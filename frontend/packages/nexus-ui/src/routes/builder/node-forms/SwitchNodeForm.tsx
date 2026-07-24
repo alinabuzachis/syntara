@@ -47,6 +47,8 @@ import { useIsVersionView } from '../VersionViewContext'
 
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
+import { nodeHelp } from './shared/nodeFieldHelp'
+import { SWITCH_FALLBACK_HELP } from './shared/nodeFieldHelpText'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
@@ -149,13 +151,15 @@ function SwitchCaseHeader({
         </DisabledWithTooltip>
       </FlexItem>
       <FlexItem grow={{ default: 'grow' }}>
-        <TextInput
-          value={label}
-          onChange={(_event, val) => onLabelChange(val)}
-          aria-label={`Path ${index + 1} name`}
-          placeholder={`Path ${index + 1}`}
-          isDisabled={isDisabled}
-        />
+        <FormGroup label="Path name" labelHelp={nodeHelp.switchPathName} fieldId={`case-label-${index}`}>
+          <TextInput
+            value={label}
+            onChange={(_event, val) => onLabelChange(val)}
+            aria-label={`Path ${index + 1} name`}
+            placeholder={`Path ${index + 1}`}
+            isDisabled={isDisabled}
+          />
+        </FormGroup>
       </FlexItem>
       {canRemove && !isDisabled && (
         <FlexItem>
@@ -425,17 +429,16 @@ function SwitchFormFields({ onHeaderContentChange }: { onHeaderContentChange?: (
       )}
 
       <StackItem>
-        <ExpandableSection
-          toggleText="Fallback path"
-          isIndented
-          isExpanded={fallbackExpanded}
-          onToggle={(_event, expanded) => setFallbackExpanded(expanded)}
-        >
-          <Content component="p">
-            If the automation does not match any of the path criteria, the automation will route to the fallback path.
-            If no nodes are connected to the fallback path the automation will stop.
-          </Content>
-        </ExpandableSection>
+        <FormGroup label="Fallback path" labelHelp={nodeHelp.switchFallback} fieldId="switch-fallback-path">
+          <ExpandableSection
+            toggleText="Fallback path details"
+            isIndented
+            isExpanded={fallbackExpanded}
+            onToggle={(_event, expanded) => setFallbackExpanded(expanded)}
+          >
+            <Content component="p">{SWITCH_FALLBACK_HELP}</Content>
+          </ExpandableSection>
+        </FormGroup>
       </StackItem>
     </Stack>
   )

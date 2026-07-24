@@ -17,13 +17,14 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import React, { useState } from 'react'
+import React, { type ReactElement, useState } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
 import { TagInput } from '../../../components/forms/TagInput'
 import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
 
 import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
+import { nodeHelp } from './shared/nodeFieldHelp'
 
 // ── Select sub-components ────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ export function RunTypeField() {
 
   return (
     <StackItem>
-      <FormGroup label="Run type" fieldId="aap-jobType">
+      <FormGroup label="Run type" labelHelp={nodeHelp.aapJobType} fieldId="aap-jobType">
         <Controller
           control={control}
           name="job_type"
@@ -140,7 +141,7 @@ export function VerbosityField() {
 
   return (
     <StackItem>
-      <FormGroup label="Verbosity" fieldId="aap-verbosity">
+      <FormGroup label="Verbosity" labelHelp={nodeHelp.aapVerbosity} fieldId="aap-verbosity">
         <Controller
           control={control}
           name="verbosity"
@@ -158,19 +159,20 @@ export function DiffModeField() {
 
   return (
     <StackItem>
-      <Controller
-        control={control}
-        name="diff_mode"
-        render={({ field }) => (
-          <Switch
-            id="aap-diffMode"
-            label="Show changes"
-            isChecked={field.value ?? false}
-            onChange={(_event, checked) => field.onChange(checked)}
-            aria-label="Show changes"
-          />
-        )}
-      />
+      <FormGroup label="Show changes" labelHelp={nodeHelp.aapDiffMode} fieldId="aap-diffMode">
+        <Controller
+          control={control}
+          name="diff_mode"
+          render={({ field }) => (
+            <Switch
+              id="aap-diffMode"
+              aria-label="Show changes"
+              isChecked={field.value ?? false}
+              onChange={(_event, checked) => field.onChange(checked)}
+            />
+          )}
+        />
+      </FormGroup>
     </StackItem>
   )
 }
@@ -190,7 +192,7 @@ export function ExtraVariablesField({ editorRef }: ExtraVariablesFieldProps) {
 
   return (
     <StackItem>
-      <FormGroup label="Extra variables" fieldId="aap-extra_vars">
+      <FormGroup label="Extra variables" labelHelp={nodeHelp.aapExtraVars} fieldId="aap-extra_vars">
         <Controller
           control={control}
           name="extra_vars"
@@ -229,14 +231,15 @@ export type TextInputFieldProps = {
   readonly label: string
   readonly fieldId: string
   readonly name: keyof AAPJobTemplateFormData
+  readonly labelHelp?: ReactElement
 }
 
-export function TextInputField({ label, fieldId, name }: TextInputFieldProps) {
+export function TextInputField({ label, fieldId, name, labelHelp }: TextInputFieldProps) {
   const { register } = useFormContext<AAPJobTemplateFormData>()
 
   return (
     <StackItem>
-      <FormGroup label={label} fieldId={fieldId}>
+      <FormGroup label={label} labelHelp={labelHelp} fieldId={fieldId}>
         <TextInput {...register(name)} id={fieldId} type="text" />
       </FormGroup>
     </StackItem>
@@ -251,14 +254,15 @@ export type NumberInputFieldProps = {
   readonly name: keyof AAPJobTemplateFormData
   readonly placeholder: string
   readonly min: number
+  readonly labelHelp?: ReactElement
 }
 
-export function NumberInputField({ label, fieldId, name, placeholder, min }: NumberInputFieldProps) {
+export function NumberInputField({ label, fieldId, name, placeholder, min, labelHelp }: NumberInputFieldProps) {
   const { register } = useFormContext<AAPJobTemplateFormData>()
 
   return (
     <StackItem>
-      <FormGroup label={label} fieldId={fieldId}>
+      <FormGroup label={label} labelHelp={labelHelp} fieldId={fieldId}>
         <TextInput
           {...register(name, { valueAsNumber: true })}
           id={fieldId}
@@ -279,14 +283,15 @@ export type TagInputFieldProps = {
   readonly name: keyof AAPJobTemplateFormData
   readonly placeholder: string
   readonly helperText: string
+  readonly labelHelp?: ReactElement
 }
 
-export function TagInputField({ label, fieldId, name, placeholder, helperText }: TagInputFieldProps) {
+export function TagInputField({ label, fieldId, name, placeholder, helperText, labelHelp }: TagInputFieldProps) {
   const { control } = useFormContext<AAPJobTemplateFormData>()
 
   return (
     <StackItem>
-      <FormGroup label={label} fieldId={fieldId}>
+      <FormGroup label={label} labelHelp={labelHelp} fieldId={fieldId}>
         <Controller
           control={control}
           name={name}

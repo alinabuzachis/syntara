@@ -57,7 +57,7 @@ export async function configureLoopNode(
     if (config.type === 'while') {
       await expect(page.getByLabel(/Expression editor mode/i)).toBeVisible()
     } else {
-      await expect(page.getByLabel('Items expression')).toBeVisible()
+      await expect(page.getByRole('textbox', { name: 'Items expression', exact: true })).toBeVisible()
     }
   }
 
@@ -75,20 +75,20 @@ export async function configureLoopNode(
 
   // For Each-specific fields
   if (config.items !== undefined) {
-    const itemsInput = page.getByLabel('Items expression')
+    const itemsInput = page.getByRole('textbox', { name: 'Items expression', exact: true })
     await expect(itemsInput).toBeVisible({ timeout: 10_000 })
     await itemsInput.fill(config.items)
   }
 
   if (config.itemVariable !== undefined) {
-    const itemVarInput = page.getByLabel('Item variable')
+    const itemVarInput = page.getByRole('textbox', { name: 'Item variable', exact: true })
     await expect(itemVarInput).toBeVisible({ timeout: 10_000 })
     await itemVarInput.fill(config.itemVariable)
     await expect(itemVarInput).toHaveValue(config.itemVariable)
   }
 
   if (config.indexVariable !== undefined) {
-    const indexVarInput = page.getByLabel('Index variable')
+    const indexVarInput = page.getByRole('textbox', { name: 'Index variable', exact: true })
     await expect(indexVarInput).toBeVisible({ timeout: 10_000 })
     await indexVarInput.fill(config.indexVariable)
     await expect(indexVarInput).toHaveValue(config.indexVariable)

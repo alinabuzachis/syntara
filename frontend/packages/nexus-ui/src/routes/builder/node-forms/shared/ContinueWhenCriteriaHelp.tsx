@@ -1,6 +1,6 @@
 import { List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 
-import { HelpPopover } from '../../../../components/expressions/HelpPopover'
+import { FieldHelpPopover } from '../../../../components/FieldHelpPopover'
 
 /**
  * Popover help icon explaining the continue when criteria parameter.
@@ -9,10 +9,9 @@ import { HelpPopover } from '../../../../components/expressions/HelpPopover'
  */
 export function ContinueWhenCriteriaHelp() {
   return (
-    <HelpPopover
-      ariaLabel="Continue when criteria help"
+    <FieldHelpPopover
       headerContent="Continue when criteria"
-      bodyContent={
+      helpText={
         <Stack hasGutter>
           <StackItem>
             Determine when the workflow should continue past this converge step after parallel branches.

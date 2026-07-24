@@ -1,6 +1,6 @@
 import { List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 
-import { HelpPopover } from '../../../../components/expressions/HelpPopover'
+import { FieldHelpPopover } from '../../../../components/FieldHelpPopover'
 
 /**
  * Popover help icon explaining the loop type parameter.
@@ -9,10 +9,9 @@ import { HelpPopover } from '../../../../components/expressions/HelpPopover'
  */
 export function LoopTypeHelp() {
   return (
-    <HelpPopover
-      ariaLabel="Loop type help"
-      headerContent="Loop type"
-      bodyContent={
+    <FieldHelpPopover
+      headerContent="Type"
+      helpText={
         <Stack hasGutter>
           <StackItem>Determine how the workflow should repeat the tasks contained within this step.</StackItem>
           <StackItem>

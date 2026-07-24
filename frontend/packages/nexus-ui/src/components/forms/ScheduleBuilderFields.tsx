@@ -28,10 +28,15 @@ import {
   parseRepeatingInterval,
   type ScheduleFrequency,
 } from '../../utils/triggerFormatting'
-import { FormLabelWithHelp } from '../FormLabelWithHelp'
+import { FieldHelpPopover } from '../FieldHelpPopover'
 
 import styles from './ScheduleBuilderFields.module.css'
 import { END_DATE_HELP, FREQUENCY_HELP, INTERVAL_HELP, START_DATE_HELP } from './scheduleHelpText'
+
+const startDateLabelHelp = <FieldHelpPopover headerContent="Start date and time" helpText={START_DATE_HELP} />
+const endDateLabelHelp = <FieldHelpPopover headerContent="End date" helpText={END_DATE_HELP} />
+const frequencyLabelHelp = <FieldHelpPopover headerContent="Frequency" helpText={FREQUENCY_HELP} />
+const intervalLabelHelp = <FieldHelpPopover headerContent="Interval" helpText={INTERVAL_HELP} />
 
 export type ScheduleBuilderFieldsProps = Readonly<{
   value?: string
@@ -261,7 +266,8 @@ function StartDateTimeField({
   return (
     <StackItem>
       <FormGroup
-        label={<FormLabelWithHelp label="Start date and time" helpText={START_DATE_HELP} />}
+        label="Start date and time"
+        labelHelp={startDateLabelHelp}
         fieldId="schedule-start-date"
         isRequired={required}
       >
@@ -363,7 +369,7 @@ function EndDateField({
 
   return (
     <StackItem>
-      <FormGroup label={<FormLabelWithHelp label="End date" helpText={END_DATE_HELP} />} fieldId="schedule-end-date">
+      <FormGroup label="End date" labelHelp={endDateLabelHelp} fieldId="schedule-end-date">
         <DatePicker
           value={endDate}
           onChange={(_event, value) => {
@@ -437,11 +443,7 @@ function FrequencySelectField({
 
   return (
     <StackItem>
-      <FormGroup
-        label={<FormLabelWithHelp label="Frequency" helpText={FREQUENCY_HELP} />}
-        fieldId="schedule-frequency"
-        isRequired={required}
-      >
+      <FormGroup label="Frequency" labelHelp={frequencyLabelHelp} fieldId="schedule-frequency" isRequired={required}>
         <Select
           id="schedule-frequency"
           isOpen={isOpen}
@@ -475,11 +477,7 @@ function IntervalCountField({
 }>) {
   return (
     <StackItem>
-      <FormGroup
-        label={<FormLabelWithHelp label="Interval" helpText={INTERVAL_HELP} />}
-        fieldId="schedule-interval"
-        isRequired={required}
-      >
+      <FormGroup label="Interval" labelHelp={intervalLabelHelp} fieldId="schedule-interval" isRequired={required}>
         <div className={styles.intervalInput}>
           <NumberInput
             id="schedule-interval"

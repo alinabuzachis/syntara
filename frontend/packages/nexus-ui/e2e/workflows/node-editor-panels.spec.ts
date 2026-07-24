@@ -1262,7 +1262,7 @@ test.describe('Node editor panels', () => {
       .filter({ hasText: 'T stdout' })
     await expect(stdoutLeaf).toBeVisible()
 
-    const promptField = app.getByLabel('Prompt')
+    const promptField = app.getByRole('textbox', { name: 'Prompt', exact: true })
     await expect(promptField).toBeVisible()
 
     await stdoutLeaf.dragTo(promptField)

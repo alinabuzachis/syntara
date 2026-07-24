@@ -66,7 +66,7 @@ test.describe('Credential Persistence', () => {
       await panel.getByRole('button', { name: 'Task Agent' }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Test Task Agent')
-      await app.getByLabel('Prompt').fill('Analyze the data')
+      await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Analyze the data')
 
       // Select model + credential via the LLM model picker UX
       // (credentials are fetched when "Set up connection" is clicked after model selection)
@@ -110,7 +110,7 @@ test.describe('Credential Persistence', () => {
       await panel.getByRole('button', { name: 'REST API', exact: true }).click()
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Test REST API')
-      await app.getByLabel('URL').fill('https://api.example.com/data')
+      await app.getByRole('textbox', { name: 'URL', exact: true }).fill('https://api.example.com/data')
       await credentialsLoaded
 
       await selectCredential(app, 'Authentication credential', credName)
@@ -167,8 +167,8 @@ test.describe('Credential Persistence', () => {
         .catch(() => false)
       if (hasExpressionMode) {
         await expressionSwitch.click()
-        await app.getByLabel('Organization').fill('${trigger.org}')
-        await app.getByLabel('Job template').fill('${trigger.template}')
+        await app.getByLabel('Organization', { exact: true }).fill('${trigger.org}')
+        await app.getByLabel('Job template', { exact: true }).fill('${trigger.template}')
       }
 
       await app.getByRole('button', { name: 'Create' }).click()

@@ -8,6 +8,7 @@ import { useIsVersionView } from '../VersionViewContext'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { DurationInput } from './shared/DurationInput'
 import { zodResolver } from './shared/formSchemaUtils'
+import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
@@ -50,7 +51,7 @@ function WaitFormFields({ onHeaderContentChange }: WaitFormFieldsProps) {
       {!onHeaderContentChange && <ActivityNameField register={register} fieldId="wait-name" />}
 
       <StackItem>
-        <FormGroup label="Wait duration" fieldId="wait-duration" isRequired>
+        <FormGroup label="Wait duration" labelHelp={nodeHelp.waitDuration} fieldId="wait-duration" isRequired>
           <Controller
             control={control}
             name="duration"

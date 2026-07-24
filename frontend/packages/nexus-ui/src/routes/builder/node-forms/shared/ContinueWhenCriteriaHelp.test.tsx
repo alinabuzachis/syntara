@@ -8,14 +8,14 @@ import { ContinueWhenCriteriaHelp } from './ContinueWhenCriteriaHelp'
 describe('ContinueWhenCriteriaHelp', () => {
   it('renders help icon button', () => {
     render(<ContinueWhenCriteriaHelp />)
-    expect(screen.getByRole('button', { name: /continue when criteria help/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /more info/i })).toBeInTheDocument()
   })
 
   it('shows popover content when clicked', async () => {
     const user = userEvent.setup()
     render(<ContinueWhenCriteriaHelp />)
 
-    await user.click(screen.getByRole('button', { name: /continue when criteria help/i }))
+    await user.click(screen.getByRole('button', { name: /more info/i }))
 
     expect(screen.getByText(/All branches reach this step/i)).toBeInTheDocument()
     expect(screen.getByText(/Any branches reach this step/i)).toBeInTheDocument()

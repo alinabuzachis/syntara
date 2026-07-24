@@ -32,8 +32,7 @@ describe('ConvergeNodeForm', () => {
     it('renders help popovers for strategy and branch count fields', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={{ strategy: 'any' }} />)
 
-      expect(screen.getByRole('button', { name: /Continue when criteria help/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /Required branch count help/i })).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /more info/i }).length).toBeGreaterThanOrEqual(2)
     })
   })
 

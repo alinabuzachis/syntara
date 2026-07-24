@@ -7,16 +7,14 @@ import { PathExpressionHelp } from './PathExpressionHelp'
 describe('PathExpressionHelp', () => {
   it('renders help icon button', () => {
     render(<PathExpressionHelp />)
-    const button = screen.getByRole('button', { name: /path expression help/i })
-    expect(button).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /more info/i })).toBeInTheDocument()
   })
 
   it('shows popover content when clicked', async () => {
     const user = userEvent.setup()
     render(<PathExpressionHelp />)
 
-    const button = screen.getByRole('button', { name: /path expression help/i })
-    await user.click(button)
+    await user.click(screen.getByRole('button', { name: /more info/i }))
 
     expect(screen.getByText(/Visual expression builder/i)).toBeInTheDocument()
     expect(screen.getByText(/Custom expression/i)).toBeInTheDocument()
@@ -26,8 +24,7 @@ describe('PathExpressionHelp', () => {
     const user = userEvent.setup()
     render(<PathExpressionHelp />)
 
-    const button = screen.getByRole('button', { name: /path expression help/i })
-    await user.click(button)
+    await user.click(screen.getByRole('button', { name: /more info/i }))
 
     expect(screen.getByText(/first path whose condition evaluates to true/i)).toBeInTheDocument()
   })

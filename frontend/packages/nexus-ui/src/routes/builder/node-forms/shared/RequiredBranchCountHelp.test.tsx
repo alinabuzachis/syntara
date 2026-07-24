@@ -8,14 +8,14 @@ import { RequiredBranchCountHelp } from './RequiredBranchCountHelp'
 describe('RequiredBranchCountHelp', () => {
   it('renders help icon button', () => {
     render(<RequiredBranchCountHelp />)
-    expect(screen.getByRole('button', { name: /required branch count help/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /more info/i })).toBeInTheDocument()
   })
 
   it('shows popover content when clicked', async () => {
     const user = userEvent.setup()
     render(<RequiredBranchCountHelp />)
 
-    await user.click(screen.getByRole('button', { name: /required branch count help/i }))
+    await user.click(screen.getByRole('button', { name: /more info/i }))
 
     expect(screen.getByText(/minimum number of incoming branches/i)).toBeInTheDocument()
     expect(screen.getByText(/any two of the three branches finish/i)).toBeInTheDocument()

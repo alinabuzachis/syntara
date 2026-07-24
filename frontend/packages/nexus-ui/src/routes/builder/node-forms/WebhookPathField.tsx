@@ -1,12 +1,14 @@
 import { FormGroup, FormHelperText, HelperText, HelperTextItem, StackItem, TextInput } from '@patternfly/react-core'
-import type { ReactNode } from 'react'
+import type { ReactElement } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
 import type { TriggerFormData } from './triggerFormSchema'
 
 type WebhookPathFieldProps = {
-  /** Label element (FormLabelWithHelp or plain string). */
-  label: ReactNode
+  /** Plain string label for the field. */
+  label: string
+  /** Optional PatternFly labelHelp popover. */
+  labelHelp?: ReactElement
   /** Placeholder text for the input (e.g., "/jira-updates" or "/eda-events"). */
   placeholder: string
   /** Default helper text shown when there is no error. */
@@ -24,6 +26,7 @@ type WebhookPathFieldProps = {
  */
 export function WebhookPathField({
   label,
+  labelHelp,
   placeholder,
   helperText,
   error,
@@ -33,7 +36,7 @@ export function WebhookPathField({
 
   return (
     <StackItem>
-      <FormGroup label={label} fieldId={fieldId} isRequired>
+      <FormGroup label={label} labelHelp={labelHelp} fieldId={fieldId} isRequired>
         <Controller
           control={control}
           name="webhookPath"

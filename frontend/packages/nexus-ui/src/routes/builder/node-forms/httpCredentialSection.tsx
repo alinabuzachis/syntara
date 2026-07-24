@@ -10,6 +10,7 @@ import { DroppableField } from '../panels/fields/DroppableField'
 
 import type { ActionFormValues } from './actionFormSchema'
 import { credentialHelpText } from './credentialSelectorHelpText'
+import { nodeHelp } from './shared/nodeFieldHelp'
 
 const CREDENTIAL_TYPE_SECRET_URL = 'Secret URL'
 
@@ -41,7 +42,7 @@ export function HttpUrlField({
   const isFieldDisabled = isDisabled || isUrlManagedByCredential
 
   return (
-    <FormGroup label="URL" isRequired={!isUrlManagedByCredential} fieldId="action-url">
+    <FormGroup label="URL" labelHelp={nodeHelp.httpUrl} isRequired={!isUrlManagedByCredential} fieldId="action-url">
       <DroppableField
         onDropText={(text) => {
           const current = getValues('url')

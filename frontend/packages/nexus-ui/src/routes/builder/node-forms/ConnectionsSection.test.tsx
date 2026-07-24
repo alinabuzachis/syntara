@@ -130,7 +130,7 @@ describe('ConnectionsSection', () => {
       renderSection(ALL)
 
       expect(
-        screen.queryByRole('button', { name: /execution credential for Primary MCP Server/i })
+        screen.queryByRole('button', { name: 'Execution credential for Primary MCP Server' })
       ).not.toBeInTheDocument()
     })
 
@@ -153,7 +153,7 @@ describe('ConnectionsSection', () => {
 
       await user.click(screen.getByRole('button', { name: /set up connection for Primary MCP Server/i }))
 
-      expect(screen.getByRole('button', { name: /execution credential for Primary MCP Server/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Execution credential for Primary MCP Server' })).toBeInTheDocument()
     })
 
     it('collapses current row and expands new row when a second row is opened', async () => {
@@ -161,15 +161,15 @@ describe('ConnectionsSection', () => {
       renderSection(selected('tool-1', 'tool-3'))
 
       await user.click(screen.getByRole('button', { name: /set up connection for Primary MCP Server/i }))
-      expect(screen.getByRole('button', { name: /execution credential for Primary MCP Server/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Execution credential for Primary MCP Server' })).toBeInTheDocument()
 
       await user.click(screen.getByRole('button', { name: /set up connection for Dev MCP Server/i }))
 
       // Only the newly opened row's selector is visible
       expect(
-        screen.queryByRole('button', { name: /execution credential for Primary MCP Server/i })
+        screen.queryByRole('button', { name: 'Execution credential for Primary MCP Server' })
       ).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /execution credential for Dev MCP Server/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Execution credential for Dev MCP Server' })).toBeInTheDocument()
     })
 
     it('collapses without calling onConnectionChange when Cancel is clicked', async () => {
@@ -182,7 +182,7 @@ describe('ConnectionsSection', () => {
 
       expect(onChange).not.toHaveBeenCalled()
       expect(
-        screen.queryByRole('button', { name: /execution credential for Primary MCP Server/i })
+        screen.queryByRole('button', { name: 'Execution credential for Primary MCP Server' })
       ).not.toBeInTheDocument()
     })
 
@@ -196,7 +196,7 @@ describe('ConnectionsSection', () => {
 
       expect(onChange).toHaveBeenCalledWith([])
       expect(
-        screen.queryByRole('button', { name: /execution credential for Primary MCP Server/i })
+        screen.queryByRole('button', { name: 'Execution credential for Primary MCP Server' })
       ).not.toBeInTheDocument()
     })
   })

@@ -204,7 +204,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Extra Variables/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Extra Variables')).toBeInTheDocument()
   })
 
   it('renders inventory field when ask_inventory_on_launch is true', () => {
@@ -359,7 +359,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Limit/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Limit')).toBeInTheDocument()
   })
 
   it('renders tags field when ask_tags_on_launch is true', () => {
@@ -390,7 +390,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Job tags/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Job tags')).toBeInTheDocument()
   })
 
   it('renders skip tags field when ask_skip_tags_on_launch is true', () => {
@@ -421,7 +421,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Skip tags/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Skip tags')).toBeInTheDocument()
   })
 
   it('renders verbosity field when ask_verbosity_on_launch is true', () => {
@@ -452,7 +452,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Verbosity/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Verbosity')).toBeInTheDocument()
   })
 
   it('renders job type field when ask_job_type_on_launch is true', () => {
@@ -483,7 +483,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Run type/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Run type')).toBeInTheDocument()
   })
 
   it('renders diff mode field when ask_diff_mode_on_launch is true', () => {
@@ -514,7 +514,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Show changes/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Show changes')).toBeInTheDocument()
   })
 
   it('renders forks field when ask_forks_on_launch is true', () => {
@@ -545,7 +545,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Forks/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Forks')).toBeInTheDocument()
   })
 
   it('renders job slicing field when ask_job_slice_count_on_launch is true', () => {
@@ -576,7 +576,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Job slicing/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Job slicing')).toBeInTheDocument()
   })
 
   it('renders labels field when ask_labels_on_launch is true', () => {
@@ -676,7 +676,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    const verbosityToggle = screen.getByRole('button', { name: /Verbosity/i })
+    const verbosityToggle = screen.getByRole('button', { name: 'Verbosity' })
     await user.click(verbosityToggle)
     await user.click(screen.getByRole('option', { name: '2 - More Verbose' }))
 
@@ -712,7 +712,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    const diffModeSwitch = screen.getByRole('switch', { name: /Show changes/i })
+    const diffModeSwitch = screen.getByRole('switch', { name: 'Show changes' })
     expect(diffModeSwitch).not.toBeChecked()
 
     await user.click(diffModeSwitch)
@@ -786,10 +786,10 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Extra Variables/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Limit/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Verbosity/i)).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: /Show changes/i })).toBeInTheDocument()
+    expect(screen.getByLabelText('Extra Variables')).toBeInTheDocument()
+    expect(screen.getByLabelText('Limit')).toBeInTheDocument()
+    expect(screen.getByLabelText('Verbosity')).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Show changes' })).toBeInTheDocument()
   })
 
   it('calls search callbacks when typeahead inputs change', async () => {
@@ -1110,7 +1110,7 @@ describe('AAPPromptOnLaunchFields', () => {
       </TestWrapper>
     )
 
-    const jobTypeToggle = screen.getByRole('button', { name: /Run type/i })
+    const jobTypeToggle = screen.getByRole('button', { name: 'Run type' })
     await user.click(jobTypeToggle)
     await user.click(screen.getByRole('option', { name: 'Check (Dry Run)' }))
 
