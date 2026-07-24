@@ -140,20 +140,20 @@ test.describe('Project Admin — Manage Service Accounts in Own Project', () => 
       // Project admin navigates to the SA detail page
       await goToServiceAccountDetail(projectAdminApp, { id: sa.id, name: saName })
 
-      // Verify initially enabled
+      // Verify initially enabled — wait for useCanI so the switch is actionable
       const toggle = projectAdminApp.getByRole('switch', { name: 'Toggle service account status' })
+      await expect(toggle).toBeEnabled()
       await expect(toggle).toBeChecked()
 
-      // Disable via toggle — confirmation dialog should appear
-      // force: true needed — PF Switch's toggle span intercepts pointer events
-      await toggle.click({ force: true })
+      // PF Switch hides the real <input>; native click() fires the change event reliably
+      await toggle.evaluate((el: HTMLElement) => el.click())
 
       const dialog = projectAdminApp.getByRole('dialog')
       await expect(dialog.getByText('Disable service account?')).toBeVisible()
       await dialog.getByRole('button', { name: 'Disable' }).click()
 
       // Verify the toggle is now unchecked (disabled)
-      await expect(toggle).not.toBeChecked()
+      await expect(toggle).not.toBeChecked({ timeout: 10_000 })
     } finally {
       if (saId) await deleteServiceAccountViaApi(app, saId)
     }

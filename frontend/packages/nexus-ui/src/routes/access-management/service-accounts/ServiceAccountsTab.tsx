@@ -130,9 +130,11 @@ function ServiceAccountRow({
           id={`sa-toggle-${sa.id}`}
           label={sa.status === 'active' ? 'Enabled' : 'Disabled'}
           isChecked={sa.status === 'active'}
-          onChange={permissions.canUpdate ? () => onToggleStatus(sa) : undefined}
+          // Gate with isDisabled (not a missing onChange) so useCanI's safe-false
+          // window can't swallow clicks before permission resolves.
+          isDisabled={!permissions.canUpdate}
+          onChange={() => onToggleStatus(sa)}
           aria-label={`Toggle ${sa.name} status`}
-          aria-disabled={!permissions.canUpdate || undefined}
         />
       </Td>
       <Td isActionCell>

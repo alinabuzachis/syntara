@@ -81,47 +81,38 @@ test.describe('UI-5: Service Account Detail — View and Edit', () => {
 })
 
 test.describe('UI-6: Service Account Detail — Disable/Enable Toggle', () => {
-  let sa: { id: string; name: string }
-
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage()
-    try {
-      sa = await createTestServiceAccount(page, { prefix: 'sa-toggle' })
-    } finally {
-      await page.close()
-    }
-  })
-
-  test.afterAll(async ({ browser }) => {
-    const page = await browser.newPage()
-    try {
-      await deleteServiceAccountViaApi(page, sa.id)
-    } finally {
-      await page.close()
-    }
-  })
-
   test('disables with confirmation dialog and re-enables without dialog', async ({ app }) => {
-    await goToServiceAccountDetail(app, sa)
+    // Create inside the test so CI retries get a fresh active SA (beforeAll is not
+    // re-run on retry, which left a disabled SA and compounded flakes).
+    const sa = await createTestServiceAccount(app, { prefix: 'sa-toggle' })
+    try {
+      await goToServiceAccountDetail(app, sa)
 
-    const toggle = app.getByRole('switch', { name: 'Toggle service account status' })
-    await expect(toggle).toBeChecked()
+      const toggle = app.getByRole('switch', { name: 'Toggle service account status' })
+      // useCanI is safe-false until resolved — wait until the switch is enabled so
+      // onChange is live before we click (previously raced and never opened the dialog).
+      await expect(toggle).toBeEnabled()
+      await expect(toggle).toBeChecked()
 
-    // PF Switch hides the real <input>; Playwright's force-click on a hidden/clipped
-    // element doesn't reliably fire the change event. Native click() always works.
-    await toggle.evaluate((el: HTMLElement) => el.click())
+      // PF Switch hides the real <input>; Playwright's force-click on a hidden/clipped
+      // element doesn't reliably fire the change event. Native click() always works.
+      await toggle.evaluate((el: HTMLElement) => el.click())
 
-    const dialog = app.getByRole('dialog')
-    await expect(dialog.getByText('Disable service account?')).toBeVisible()
-    await expect(dialog.getByText(sa.name)).toBeVisible()
-    await dialog.getByRole('button', { name: 'Disable' }).click()
+      const dialog = app.getByRole('dialog')
+      await expect(dialog.getByText('Disable service account?')).toBeVisible()
+      await expect(dialog.getByText(sa.name)).toBeVisible()
+      await dialog.getByRole('button', { name: 'Disable' }).click()
 
-    await expect(toggle).not.toBeChecked({ timeout: 10_000 })
+      await expect(toggle).not.toBeChecked({ timeout: 10_000 })
 
-    await expect(dialog).not.toBeVisible()
-    await toggle.evaluate((el: HTMLElement) => el.click())
+      await expect(dialog).not.toBeVisible()
+      await expect(toggle).toBeEnabled()
+      await toggle.evaluate((el: HTMLElement) => el.click())
 
-    await expect(toggle).toBeChecked({ timeout: 10_000 })
+      await expect(toggle).toBeChecked({ timeout: 10_000 })
+    } finally {
+      await deleteServiceAccountViaApi(app, sa.id)
+    }
   })
 })
 

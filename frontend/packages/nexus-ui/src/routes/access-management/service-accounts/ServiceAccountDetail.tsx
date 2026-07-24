@@ -97,9 +97,11 @@ function ServiceAccountToolbar({
           id="sa-status-toggle"
           label={isEnabled ? 'Enabled' : 'Disabled'}
           isChecked={isEnabled}
-          onChange={permissions.canUpdate ? onToggleStatus : undefined}
+          // Gate with isDisabled (not a missing onChange) so useCanI's safe-false
+          // window can't swallow clicks before permission resolves.
+          isDisabled={!permissions.canUpdate}
+          onChange={onToggleStatus}
           aria-label="Toggle service account status"
-          aria-disabled={!permissions.canUpdate || undefined}
         />
       </DisabledWithTooltip>
       <DisabledWithTooltip isDisabled={!permissions.canUpdate} content={permissions.tooltips.update}>

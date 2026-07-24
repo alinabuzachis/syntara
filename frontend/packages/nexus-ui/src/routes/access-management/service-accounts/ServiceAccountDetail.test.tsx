@@ -410,10 +410,7 @@ describe('ServiceAccountDetail', () => {
     render(<ServiceAccountDetail />, { wrapper })
 
     expect(screen.getByRole('button', { name: 'Edit service account' })).toHaveAttribute('aria-disabled', 'true')
-    expect(screen.getByRole('switch', { name: 'Toggle service account status' })).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    )
+    expect(screen.getByRole('switch', { name: 'Toggle service account status' })).toBeDisabled()
   })
 
   it('disables delete action in kebab menu when canDelete is false', async () => {

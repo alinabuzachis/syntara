@@ -375,8 +375,8 @@ describe('ServiceAccountsTab', () => {
 
     render(<ServiceAccountsTab />, { wrapper })
 
-    expect(screen.getByRole('switch', { name: /toggle deploy-bot status/i })).toHaveAttribute('aria-disabled', 'true')
-    expect(screen.getByRole('switch', { name: /toggle ci-runner status/i })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('switch', { name: /toggle deploy-bot status/i })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: /toggle ci-runner status/i })).toBeDisabled()
   })
 
   it('disables Create service account button when canCreate is false', () => {
