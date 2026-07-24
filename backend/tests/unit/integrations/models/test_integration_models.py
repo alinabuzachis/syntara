@@ -100,6 +100,14 @@ class TestURLValidation:
         with pytest.raises(ValidationError, match="must not contain a query"):
             AAPConfiguration(aap_url="https://gateway.example.com?token=abc")
 
+    def test_aap_rejects_url_with_path(self) -> None:
+        with pytest.raises(ValidationError, match="must not contain a path"):
+            AAPConfiguration(aap_url="https://evil.com/foo/bar/")
+
+    def test_aap_rejects_url_with_path_and_query(self) -> None:
+        with pytest.raises(ValidationError, match="must not contain"):
+            AAPConfiguration(aap_url="https://evil.com/foo/?")
+
     def test_aap_accepts_https(self) -> None:
         config = AAPConfiguration(aap_url="https://gateway.example.com")
         assert config.aap_url == "https://gateway.example.com"

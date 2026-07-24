@@ -19,7 +19,6 @@ from temporalio import activity
 from temporalio.exceptions import ApplicationError, CancelledError
 
 from nexus.core.exceptions import SafeValueError
-from nexus.core.lib.url_validation import validate_host_url
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
 from .common import (
@@ -533,53 +532,36 @@ class AAPCredentialAuth:
 
     headers: dict[str, str]
     basic_auth: httpx.BasicAuth | None
-    host_override: str | None
-    verify_ssl_override: bool | None
 
 
 def get_aap_auth_from_credentials(
     resolved_creds: dict[str, Any],
 ) -> AAPCredentialAuth:
-    """Extract AAP auth headers, host override, and SSL verification from resolved Nexus credentials.
+    """Extract AAP auth headers from resolved Nexus credentials.
 
     Args:
         resolved_creds: Resolved credential data with extra_vars from InjectorResolver.
 
     Returns:
-        AAPCredentialAuth with auth headers, basic auth, host override, and SSL verification override.
+        AAPCredentialAuth with auth headers and basic auth.
 
     """
     extra_vars = resolved_creds.get("extra_vars", {})
-    host = extra_vars.get("aap_host")
-    if host:
-        try:
-            host_override: str | None = validate_host_url(host)
-        except ValueError as e:
-            logger.warning("AAP credential host URL rejected")
-            msg = f"AAP credential has an invalid host URL: {e}"
-            raise AAPActivityExecutionError(msg) from None
-    else:
-        host_override = None
-
-    # Extract SSL verification override from credential (supports per-AAP-instance SSL settings)
-    verify_ssl_override = extra_vars.get("aap_verify_ssl")
-    if verify_ssl_override is not None:
-        verify_ssl_override = bool(verify_ssl_override)
 
     token = extra_vars.get("aap_oauth_token", "")
     if token:
-        return AAPCredentialAuth({"Authorization": f"Bearer {token}"}, None, host_override, verify_ssl_override)
+        return AAPCredentialAuth({"Authorization": f"Bearer {token}"}, None)
 
     username = extra_vars.get("aap_username", "")
     password = extra_vars.get("aap_password", "")
     if username:
-        return AAPCredentialAuth({}, httpx.BasicAuth(username, password), host_override, verify_ssl_override)
+        return AAPCredentialAuth({}, httpx.BasicAuth(username, password))
 
     logger.warning(
         "AAP credential resolved but contains no auth fields (oauth_token or username). "
         "Verify the correct credential type is linked to this activity."
     )
-    return AAPCredentialAuth({}, None, host_override, verify_ssl_override)
+    return AAPCredentialAuth({}, None)
 
 
 @dataclass

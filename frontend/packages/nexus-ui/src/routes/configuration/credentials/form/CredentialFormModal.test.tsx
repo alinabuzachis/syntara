@@ -64,13 +64,11 @@ const mockTypes = [
     description: 'AAP API access',
     inputs: {
       fields: [
-        { id: 'host', label: 'Host', type: 'string', secret: false },
         { id: 'username', label: 'Username', type: 'string', secret: false },
         { id: 'password', label: 'Password', type: 'string', secret: true },
         { id: 'oauth_token', label: 'OAuth Token', type: 'string', secret: true },
-        { id: 'verify_ssl', label: 'Verify SSL', type: 'boolean', secret: false, default: true },
       ],
-      required: ['host'],
+      required: [],
       mutually_exclusive: [['oauth_token'], ['username', 'password']],
       mutually_exclusive_labels: ['OAuth2 Token', 'Basic Auth'],
       mutually_exclusive_help:
@@ -469,13 +467,6 @@ describe('CredentialFormModal', () => {
     expect(screen.getByText('Failed to load projects')).toBeInTheDocument()
   })
 
-  it('applies boolean field defaults when preSelectedTypeId is provided (AAP-81038)', () => {
-    render(<CredentialFormModal isOpen onClose={vi.fn()} preSelectedTypeId="type-aap" />, { wrapper })
-
-    const verifySSLSwitch = screen.getByRole('switch')
-    expect(verifySSLSwitch).toBeChecked()
-  })
-
   it('calls onCreated with the new credential ID on successful create', async () => {
     const onCreated = vi.fn()
     const onClose = vi.fn()
@@ -537,9 +528,6 @@ describe('CredentialFormModal', () => {
       expect(screen.getByLabelText('OAuth Token', { selector: 'input' })).toBeInTheDocument()
       expect(screen.queryByLabelText('Username', { selector: 'input' })).not.toBeInTheDocument()
       expect(screen.queryByLabelText('Password', { selector: 'input' })).not.toBeInTheDocument()
-      // Common fields remain
-      expect(screen.getByLabelText('Host', { selector: 'input' })).toBeInTheDocument()
-      expect(screen.getByRole('switch')).toBeInTheDocument()
     })
 
     it('shows Username + Password fields when Basic Auth selected', async () => {
@@ -576,7 +564,7 @@ describe('CredentialFormModal', () => {
         name: 'My AAP',
         description: '',
         credential_type_id: 'type-aap',
-        inputs: { host: 'https://aap.example.com', username: 'admin', password: '$encrypted$' },
+        inputs: { username: 'admin', password: '$encrypted$' },
         enabled: true,
         labels: {},
         created_by: { id: '550e8400-e29b-41d4-a716-446655440001', name: 'user-1' },
@@ -600,7 +588,6 @@ describe('CredentialFormModal', () => {
       await selectAAPType(user)
       await selectAuthMethod(user, 'Basic Auth')
       await user.type(screen.getByLabelText('Credential name'), 'Test AAP')
-      await user.type(screen.getByLabelText('Host', { selector: 'input' }), 'https://aap.example.com')
       await user.type(screen.getByLabelText('Username', { selector: 'input' }), 'admin')
       await user.click(screen.getByRole('button', { name: 'Create credential' }))
 

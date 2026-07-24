@@ -94,14 +94,6 @@ GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
         "inputs": {
             "fields": [
                 {
-                    "id": "host",
-                    "label": "AAP Host",
-                    "type": "string",
-                    "secret": False,
-                    "help_text": "AAP Controller hostname or URL (e.g., https://controller.example.com)",
-                    "placeholder": "https://controller.example.com",
-                },
-                {
                     "id": "username",
                     "label": "Username",
                     "type": "string",
@@ -125,16 +117,8 @@ GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
                     "help_text": "AAP OAuth2 token (preferred over username/password)",
                     "placeholder": "Enter OAuth2 token",
                 },
-                {
-                    "id": "verify_ssl",
-                    "label": "Verify SSL",
-                    "type": "boolean",
-                    "secret": False,
-                    "default": True,
-                    "help_text": "Verify SSL certificates when connecting to AAP",
-                },
             ],
-            "required": ["host"],
+            "required": [],
             "mutually_exclusive": [
                 ["oauth_token"],
                 ["username", "password"],
@@ -157,11 +141,9 @@ GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
         "injectors": {
             "extra_vars": {
                 "auth_type": "aap",
-                "aap_host": "{{host}}",
                 "aap_username": "{{username}}",
                 "aap_password": "{{password}}",
                 "aap_oauth_token": "{{oauth_token}}",
-                "aap_verify_ssl": "{{verify_ssl}}",
             },
             "env": {},
             "file": {},

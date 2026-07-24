@@ -1,7 +1,7 @@
 """Credential resolution for AAP proxy endpoints.
 
-Resolves Nexus credentials to extract AAP connection details (host, token, username/password).
-Mirrors the pattern used by workflow execution activities but adapted for synchronous FastAPI endpoints.
+Resolves Nexus credentials to extract AAP authentication details (token, username/password).
+Non-sensitive connection details (URL, TLS) come from the integration configuration.
 """
 
 from uuid import UUID
@@ -15,7 +15,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.aap.auth import AAPConnection
 from nexus.aap.exceptions import AAPAuthenticationError, AAPNotConfiguredError
 from nexus.core.lib.encryption import EncryptionError
-from nexus.core.lib.url_validation import validate_host_url
 from nexus.core.services.secret_service import SecretService, create_secret_service
 from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.credentials.models.credential import Credential
@@ -183,38 +182,22 @@ def _resolve_credential_injectors(
 
 def _extract_auth_from_extra_vars(
     extra_vars: dict[str, str | bool | int],
-) -> tuple[httpx.Headers, httpx.BasicAuth | None, bool]:
+) -> tuple[httpx.Headers, httpx.BasicAuth | None]:
     """Extract AAP authentication details from extra_vars.
 
     Args:
         extra_vars: Resolved credential extra_vars.
 
     Returns:
-        Tuple of (auth_headers, basic_auth, verify_ssl).
+        Tuple of (auth_headers, basic_auth).
 
     Raises:
         AAPAuthenticationError: If required fields are missing.
 
     """
-    host = extra_vars.get("aap_host")
-    if not host:
-        msg = "Credential missing required field: aap_host"
-        raise AAPAuthenticationError(msg)
-
     oauth_token = extra_vars.get("aap_oauth_token", "")
     username = extra_vars.get("aap_username", "")
     password = extra_vars.get("aap_password", "")
-
-    # Read verify_ssl from credential (defaults to True for security)
-    # TODO: Enforce verify_ssl=True in production deployments.
-    # For now, allow user-provided verify_ssl to support development/testing
-    verify_ssl = extra_vars.get("aap_verify_ssl", True)
-
-    # Ensure verify_ssl is a boolean
-    if isinstance(verify_ssl, str):
-        verify_ssl = verify_ssl.lower() in ("true", "1", "yes")
-
-    verify_ssl_enforced = bool(verify_ssl)
 
     # Prefer OAuth token, fall back to basic auth
     if oauth_token:
@@ -227,7 +210,7 @@ def _extract_auth_from_extra_vars(
         msg = "Credential must provide either aap_oauth_token or aap_username+aap_password"
         raise AAPAuthenticationError(msg)
 
-    return auth_headers, basic_auth, verify_ssl_enforced
+    return auth_headers, basic_auth
 
 
 async def resolve_aap_connection_from_credential(
@@ -235,7 +218,11 @@ async def resolve_aap_connection_from_credential(
     credential_id: UUID | str,
     user_id: UUID,
 ) -> AAPConnection:
-    """Resolve AAP connection from a Nexus credential.
+    """Resolve AAP auth from a Nexus credential.
+
+    Returns an AAPConnection with authentication fields populated.
+    The caller must supply ``base_url`` and ``verify_ssl`` from the
+    integration configuration (the credential no longer stores them).
 
     Args:
         session: Async database session.
@@ -243,7 +230,9 @@ async def resolve_aap_connection_from_credential(
         user_id: User ID (UUID) for authorization check (required - credential owner must match).
 
     Returns:
-        AAPConnection with decrypted auth and enforced TLS verification.
+        AAPConnection with decrypted auth. ``base_url`` is empty and
+        ``verify_ssl`` defaults to True — callers override both from
+        the integration configuration.
 
     Raises:
         AAPNotConfiguredError: Credential not found, wrong type, or disabled.
@@ -252,8 +241,6 @@ async def resolve_aap_connection_from_credential(
     Security:
         - credential_id is validated as UUID format to prevent SQL injection vectors
         - user_id is required (not optional) to prevent accidental bypass of authorization
-        - verify_ssl is read from credential (defaults to True for security)
-        - Sensitive host URL is logged at DEBUG level only to prevent infrastructure leakage
 
     """
     # Validate and convert credential_id to UUID
@@ -275,33 +262,19 @@ async def resolve_aap_connection_from_credential(
     extra_vars = _resolve_credential_injectors(credential, decrypted_inputs)
 
     # Extract AAP auth from resolved extra_vars
-    auth_headers, basic_auth, verify_ssl_enforced = _extract_auth_from_extra_vars(extra_vars)
-    host = extra_vars.get("aap_host")
+    auth_headers, basic_auth = _extract_auth_from_extra_vars(extra_vars)
 
-    # Log connection resolution (host URL at DEBUG level only for security)
-    # Security: Log at INFO level without sensitive host URL to prevent infrastructure leakage
+    # Log credential auth resolution
+    # Security: Log at INFO level to prevent infrastructure leakage
     logger.info(
-        "AAP connection resolved from credential",
+        "AAP auth details resolved from credential",
         credential_id=str(validated_credential_id),
         credential_name=credential.name,
         auth_method="oauth" if basic_auth is None else "basic",
     )
-    # Security: Log host URL at DEBUG level only (accessible to operators, not end users)
-    logger.debug("AAP connection host resolved", host=host)
-
-    try:
-        validated_base_url = validate_host_url(str(host))
-    except ValueError as e:
-        logger.warning(
-            "AAP credential host URL rejected",
-            credential_id=str(validated_credential_id),
-        )
-        msg = f"Credential '{credential.name}' has an invalid host URL: {e}"
-        raise AAPAuthenticationError(msg) from None
 
     return AAPConnection(
-        base_url=validated_base_url,
+        base_url="",
         headers=dict(auth_headers),
         basic_auth=basic_auth,
-        verify_ssl=verify_ssl_enforced,
     )

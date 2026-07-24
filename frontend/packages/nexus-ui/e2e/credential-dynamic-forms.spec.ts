@@ -174,17 +174,14 @@ test.describe('Dynamic Credential Form Rendering', () => {
     await expect(modal.getByText('API Key is required')).toBeVisible()
   })
 
-  // --- Ansible Automation Platform (mutually exclusive: OAuth2 Token vs Username+Password, plus host + verify_ssl) ---
+  // --- Ansible Automation Platform (mutually exclusive: OAuth2 Token vs Username+Password) ---
 
   test('Ansible Automation Platform: form renders correct fields', async ({ app }) => {
     const modal = await openCreateModal(app)
     await selectCredentialType(modal, 'Ansible Automation Platform')
 
+    // Scope to the form to avoid matching the dialog's own aria-label
     const form = modal.locator('form')
-
-    // Common fields are always visible
-    await expect(form.getByRole('textbox', { name: 'AAP Host' })).toBeVisible()
-    await expect(modal.getByText('Verify SSL', { exact: true })).toBeVisible()
 
     // Auth method selector is visible with OAuth2 Token selected by default
     await expect(form.getByLabel('Auth method', { exact: true })).toBeVisible()
@@ -206,7 +203,6 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
     await selectCredentialType(modal, 'Ansible Automation Platform')
-    await modal.getByRole('textbox', { name: 'AAP Host' }).fill('https://controller.example.com')
     await modal.getByRole('textbox', { name: 'OAuth Token' }).fill('test-oauth-token')
     await modal.getByRole('button', { name: 'Create credential' }).click()
 
@@ -215,16 +211,5 @@ test.describe('Dynamic Credential Form Rendering', () => {
     } finally {
       await deleteCredentialByName(app, name)
     }
-  })
-
-  test('Ansible Automation Platform: validation shows errors for required fields', async ({ app }) => {
-    const modal = await openCreateModal(app)
-    await selectCredentialType(modal, 'Ansible Automation Platform')
-
-    // Fill name so Zod validation passes and dynamic field validation runs
-    await modal.getByRole('textbox', { name: 'Credential name' }).fill('validation-test')
-    await modal.getByRole('button', { name: 'Create credential' }).click()
-
-    await expect(modal.getByText('AAP Host is required')).toBeVisible()
   })
 })

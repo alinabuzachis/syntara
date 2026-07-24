@@ -72,7 +72,6 @@ export const credentialTypes: CredentialTypeRead[] = [
     description: 'Authentication for Ansible Automation Platform Controller API',
     inputs: typeInputs(
       [
-        { id: 'host', type: 'string', label: 'AAP Host', secret: false, help_text: 'AAP Controller hostname or URL' },
         {
           id: 'username',
           type: 'string',
@@ -94,16 +93,8 @@ export const credentialTypes: CredentialTypeRead[] = [
           secret: true,
           help_text: 'AAP OAuth2 token (preferred over username/password)',
         },
-        {
-          id: 'verify_ssl',
-          type: 'boolean',
-          label: 'Verify SSL',
-          secret: false,
-          default: true,
-          help_text: 'Verify SSL certificates',
-        },
       ],
-      ['host'],
+      [],
       {
         mutually_exclusive: [['oauth_token'], ['username', 'password']],
         mutually_exclusive_labels: ['OAuth2 Token', 'Basic Auth'],
@@ -115,11 +106,9 @@ export const credentialTypes: CredentialTypeRead[] = [
     ),
     injectors: typeInjectors({
       auth_type: 'aap',
-      aap_host: '{{host}}',
       aap_username: '{{username}}',
       aap_password: '{{password}}',
       aap_oauth_token: '{{oauth_token}}',
-      aap_verify_ssl: '{{verify_ssl}}',
     }),
     managed: true,
     credential_count: 0,

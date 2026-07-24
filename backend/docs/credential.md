@@ -49,7 +49,7 @@ Credential types define the field schema and injector templates for credentials.
 |------|--------|-----------|---------|
 | HTTP Bearer Token | token(secret) | bearer | Bearer token API authentication |
 | HTTP Basic Auth | username, password(secret) | basic | Username/password API authentication |
-| Ansible Automation Platform | host, username, password(secret), oauth_token(secret), verify_ssl(boolean) | aap | AAP Controller connectivity |
+| Ansible Automation Platform | username, password(secret), oauth_token(secret) | aap | AAP Controller connectivity |
 | LLM Provider | api_key(secret) | api_key | LLM service authentication |
 | SSH Key | username, ssh_private_key(secret, multiline) | ssh | SSH key authentication (non-passphrase-protected) |
 

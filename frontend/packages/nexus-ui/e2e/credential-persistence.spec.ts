@@ -142,7 +142,6 @@ test.describe('Credential Persistence', () => {
         name: credName,
         type: 'Ansible Automation Platform',
         fields: {
-          'AAP Host': 'https://aap.example.com',
           Username: 'admin',
           Password: 'password123',
         },

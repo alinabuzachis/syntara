@@ -231,16 +231,14 @@ describe('validateEditModeRequiredDynamicField', () => {
 })
 
 const aapFields: FieldDefinition[] = [
-  { id: 'host', label: 'AAP Host', type: 'string' },
   { id: 'username', label: 'Username', type: 'string' },
   { id: 'password', label: 'Password', type: 'string', secret: true },
   { id: 'oauth_token', label: 'OAuth Token', type: 'string', secret: true },
-  { id: 'verify_ssl', label: 'Verify SSL', type: 'boolean' },
 ]
 
 const aapTypeInputs = {
   fields: aapFields,
-  required: ['host'],
+  required: [],
   mutually_exclusive: [['oauth_token'], ['username', 'password']],
   mutually_exclusive_labels: ['OAuth2 Token', 'Basic Auth'],
   mutually_exclusive_help:
@@ -350,14 +348,14 @@ describe('getVisibleFields', () => {
     const visible = getVisibleFields(aapTypeInputs, 0)
     const visibleIds = visible.map((f) => f.id)
 
-    expect(visibleIds).toEqual(['host', 'oauth_token', 'verify_ssl'])
+    expect(visibleIds).toEqual(['oauth_token'])
   })
 
   it('shows common fields plus active group fields for group 1', () => {
     const visible = getVisibleFields(aapTypeInputs, 1)
     const visibleIds = visible.map((f) => f.id)
 
-    expect(visibleIds).toEqual(['host', 'username', 'password', 'verify_ssl'])
+    expect(visibleIds).toEqual(['username', 'password'])
   })
 })
 
@@ -379,13 +377,13 @@ describe('getAuthMethodInsertIndex', () => {
   it('returns index of first exclusive field in visible fields for group 0', () => {
     const visible = getVisibleFields(aapTypeInputs, 0)
 
-    expect(getAuthMethodInsertIndex(visible, aapTypeInputs)).toBe(1)
+    expect(getAuthMethodInsertIndex(visible, aapTypeInputs)).toBe(0)
   })
 
   it('returns index of first exclusive field in visible fields for group 1', () => {
     const visible = getVisibleFields(aapTypeInputs, 1)
 
-    expect(getAuthMethodInsertIndex(visible, aapTypeInputs)).toBe(1)
+    expect(getAuthMethodInsertIndex(visible, aapTypeInputs)).toBe(0)
   })
 })
 
@@ -482,7 +480,7 @@ describe('validateAllDynamicFields', () => {
     )
 
     expect(result).toBe(false)
-    expect(setError).toHaveBeenCalledWith('inputs.host', { message: 'AAP Host is required' })
+    expect(setError).toHaveBeenCalledWith('inputs.oauth_token', { message: 'OAuth Token is required' })
   })
 
   it('skips validation for non-visible required fields', () => {
@@ -492,7 +490,7 @@ describe('validateAllDynamicFields', () => {
     validateAllDynamicFields(
       {
         typeInputs: aapTypeInputs,
-        inputs: { host: 'https://aap.example.com', oauth_token: 'tok' },
+        inputs: { oauth_token: 'tok' },
         visibleFields: visible,
         isEditMode: false,
         touchedSecrets: new Set(),
@@ -510,7 +508,7 @@ describe('validateAllDynamicFields', () => {
     const result = validateAllDynamicFields(
       {
         typeInputs: aapTypeInputs,
-        inputs: { host: 'https://aap.example.com' },
+        inputs: {},
         visibleFields: visible,
         isEditMode: false,
         touchedSecrets: new Set(),
@@ -529,7 +527,7 @@ describe('validateAllDynamicFields', () => {
     validateAllDynamicFields(
       {
         typeInputs: aapTypeInputs,
-        inputs: { host: 'https://aap.example.com', oauth_token: 'tok' },
+        inputs: { oauth_token: 'tok' },
         visibleFields: visible,
         isEditMode: false,
         touchedSecrets: new Set(),

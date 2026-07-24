@@ -81,7 +81,7 @@ All config fields support template expressions (e.g., `${trigger.host}`), resolv
 
 ## Authentication
 
-AAP nodes require a **Nexus credential** (`credential_id` on the node config), which provides the base URL and auth headers/token. Without a credential, the node fails with `ConfigError: "AAP host not configured. Attach an AAP credential."`
+AAP nodes require an **AAP integration** (`integration_id` on the node config) for URL and TLS settings, and a **Nexus credential** (`credential_id`) for auth headers/token. Without an integration, the node fails with `ConfigError: "AAP integration not configured. Attach an AAP integration to this node."`
 
 ## Cancellation Propagation
 

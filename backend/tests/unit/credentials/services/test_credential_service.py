@@ -71,13 +71,11 @@ HOST_TYPE_INPUTS = {
 
 AAP_TYPE_INPUTS = {
     "fields": [
-        {"id": "host", "label": "AAP Host", "type": "string", "secret": False},
         {"id": "username", "label": "Username", "type": "string", "secret": False},
         {"id": "password", "label": "Password", "type": "string", "secret": True},
         {"id": "oauth_token", "label": "OAuth Token", "type": "string", "secret": True},
-        {"id": "verify_ssl", "label": "Verify SSL", "type": "boolean", "secret": False},
     ],
-    "required": ["host"],
+    "required": [],
     "mutually_exclusive": [
         ["oauth_token"],
         ["username", "password"],
@@ -170,7 +168,7 @@ def aap_type() -> CredentialType:
         id=uuid4(),
         name="Ansible Automation Platform",
         inputs=AAP_TYPE_INPUTS,
-        injectors={"extra_vars": {"host": "{{host}}"}},
+        injectors={"extra_vars": {}},
         managed=True,
     )
 
@@ -427,7 +425,6 @@ class TestUpdateCredential:
         mock_session.get.return_value = aap_type
 
         mock_secret_service.retrieve_secret.return_value = {
-            "host": "https://aap.example.com",
             "oauth_token": "existing-token",
         }
 
@@ -464,14 +461,13 @@ class TestUpdateCredential:
         mock_session.get.return_value = aap_type
 
         mock_secret_service.retrieve_secret.return_value = {
-            "host": "https://aap.example.com",
             "oauth_token": "tok",
             "username": "admin",
             "password": "secret",
         }
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)
-        patch_data = CredentialUpdate(inputs={"host": "https://new-aap.example.com"})
+        patch_data = CredentialUpdate(inputs={})
 
         with pytest.raises(CredentialValidationError, match="mutually exclusive"):
             await service.update_credential(credential.id, patch_data)
@@ -980,12 +976,12 @@ class TestFieldConstraints:
 
     def test_oauth_token_only_accepted(self) -> None:
         """Credential with only oauth_token passes validation."""
-        _validate_inputs({"host": "https://aap.example.com", "oauth_token": "tok"}, AAP_TYPE_INPUTS)
+        _validate_inputs({"oauth_token": "tok"}, AAP_TYPE_INPUTS)
 
     def test_username_password_only_accepted(self) -> None:
         """Credential with only username+password passes validation."""
         _validate_inputs(
-            {"host": "https://aap.example.com", "username": "admin", "password": "secret"},
+            {"username": "admin", "password": "secret"},
             AAP_TYPE_INPUTS,
         )
 
@@ -994,7 +990,6 @@ class TestFieldConstraints:
         with pytest.raises(CredentialValidationError, match="mutually exclusive"):
             _validate_inputs(
                 {
-                    "host": "https://aap.example.com",
                     "oauth_token": "tok",
                     "username": "admin",
                     "password": "secret",
@@ -1005,13 +1000,13 @@ class TestFieldConstraints:
     def test_no_auth_group_rejected_when_required(self) -> None:
         """Credential with neither auth method is rejected when require_one_group is True."""
         with pytest.raises(CredentialValidationError, match="At least one field group required"):
-            _validate_inputs({"host": "https://aap.example.com"}, AAP_TYPE_INPUTS)
+            _validate_inputs({}, AAP_TYPE_INPUTS)
 
     def test_partial_group_not_counted_as_populated(self) -> None:
         """Username without password triggers required_together, not required_one_of."""
         with pytest.raises(CredentialValidationError, match="must be provided together"):
             _validate_inputs(
-                {"host": "https://aap.example.com", "username": "admin"},
+                {"username": "admin"},
                 AAP_TYPE_INPUTS,
             )
 
@@ -1019,7 +1014,7 @@ class TestFieldConstraints:
         """Empty string values do not count as populated."""
         with pytest.raises(CredentialValidationError, match="At least one field group required"):
             _validate_inputs(
-                {"host": "https://aap.example.com", "oauth_token": "", "username": "", "password": ""},
+                {"oauth_token": "", "username": "", "password": ""},
                 AAP_TYPE_INPUTS,
             )
 
@@ -1027,7 +1022,7 @@ class TestFieldConstraints:
         """Password without username triggers required_together error."""
         with pytest.raises(CredentialValidationError, match=r"must be provided together.*username"):
             _validate_inputs(
-                {"host": "https://aap.example.com", "password": "secret"},
+                {"password": "secret"},
                 AAP_TYPE_INPUTS,
             )
 
@@ -1035,7 +1030,6 @@ class TestFieldConstraints:
         """_validate_inputs allows sentinel values through on PATCH (constraint check deferred to merged state)."""
         _validate_inputs(
             {
-                "host": "https://aap.example.com",
                 "oauth_token": "tok",
                 "username": "admin",
                 "password": ENCRYPTED_SENTINEL,
@@ -1047,7 +1041,6 @@ class TestFieldConstraints:
     def test_merged_state_rejects_conflicting_groups(self) -> None:
         """Merged state with both auth groups populated is rejected by _validate_field_constraints."""
         merged = {
-            "host": "https://aap.example.com",
             "oauth_token": "tok",
             "username": "admin",
             "password": "secret",
@@ -1058,20 +1051,18 @@ class TestFieldConstraints:
     def test_merged_state_accepts_single_group(self) -> None:
         """Merged state with one auth group fully populated and the other absent passes."""
         merged = {
-            "host": "https://aap.example.com",
             "oauth_token": "tok",
         }
         _validate_field_constraints(merged, AAP_TYPE_INPUTS)
 
     def test_patch_switch_from_token_to_basic_auth(self) -> None:
         """Switching auth method by clearing old group and providing new group passes."""
-        merged = {"host": "https://aap.example.com", "oauth_token": "", "username": "admin", "password": "secret"}
+        merged = {"oauth_token": "", "username": "admin", "password": "secret"}
         _validate_field_constraints(merged, AAP_TYPE_INPUTS)
 
     def test_patch_switch_blocked_without_clearing_old_group(self) -> None:
         """Switching auth method without clearing old group is rejected."""
         merged = {
-            "host": "https://aap.example.com",
             "oauth_token": "existing-token",
             "username": "admin",
             "password": "secret",

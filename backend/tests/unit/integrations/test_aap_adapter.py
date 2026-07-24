@@ -47,11 +47,9 @@ def resolved_credential() -> dict[str, Any]:
     """
     return {
         "auth_type": "aap",
-        "aap_host": _GATEWAY_URL,
         "aap_oauth_token": _TEST_TOKEN,
         "aap_username": "",
         "aap_password": "",
-        "aap_verify_ssl": "True",
     }
 
 
@@ -208,11 +206,9 @@ class TestAAPValidateAuthErrors:
         """No token and no username/password returns AUTH_FAILURE without making a request."""
         credential_empty: dict[str, Any] = {
             "auth_type": "aap",
-            "aap_host": _GATEWAY_URL,
             "aap_username": "",
             "aap_password": "",
             "aap_oauth_token": "",
-            "aap_verify_ssl": "True",
         }
 
         adapter = AAPAdapter(aap_config)

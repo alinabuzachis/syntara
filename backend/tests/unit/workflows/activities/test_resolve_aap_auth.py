@@ -106,16 +106,14 @@ class TestResolveAAPAuthWithIntegration:
         with pytest.raises(ApplicationError, match="Authentication failed"):
             resolve_aap_auth({"_resolved_integration": _INTEGRATION}, settings)
 
-    def test_credential_auth_failure_raises_config_error(self) -> None:
+    def test_credential_with_empty_auth_returns_empty_headers(self) -> None:
         settings = _make_settings()
-        creds = {
-            "extra_vars": {
-                "aap_host": "https://evil.com/path/injection",
-                "aap_oauth_token": "tok",
-            },
+        creds: dict[str, dict[str, str]] = {
+            "extra_vars": {},
         }
-        with pytest.raises(ApplicationError, match="Authentication failed"):
-            resolve_aap_auth(
-                {"_resolved_integration": _INTEGRATION, "_resolved_credentials": creds},
-                settings,
-            )
+        result = resolve_aap_auth(
+            {"_resolved_integration": _INTEGRATION, "_resolved_credentials": creds},
+            settings,
+        )
+        assert result.auth_headers == {}
+        assert result.basic_auth is None

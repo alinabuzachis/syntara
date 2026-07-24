@@ -91,7 +91,7 @@ def e2e_aap_credential_id(nexus_api: NexusApiRegistry, first_project_id: UUID) -
         nexus_api,
         "Ansible Automation Platform",
         first_project_id,
-        {"host": "https://aap.example.com", "oauth_token": "test-token"},
+        {"oauth_token": "test-token"},
     )
     yield cred_id
     try:

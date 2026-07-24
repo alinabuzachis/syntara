@@ -1,7 +1,8 @@
 """Tests for AAP credential resolution.
 
 Tests the credential_resolver module which resolves Nexus credentials
-to AAP connection details for proxy endpoint authentication.
+to AAP authentication details for proxy endpoint authentication.
+Non-sensitive connection details (URL, TLS) come from integration configuration.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -47,11 +48,9 @@ def _mock_credential_type(
     if injectors == _DEFAULT_SENTINEL:
         credential_type.injectors = {
             "extra_vars": {
-                "aap_host": "{{ host }}",
                 "aap_oauth_token": "{{ oauth_token }}",
                 "aap_username": "{{ username }}",
                 "aap_password": "{{ password }}",
-                "aap_verify_ssl": "{{ verify_ssl }}",
             }
         }
     else:
@@ -235,7 +234,6 @@ class TestDecryptCredentialInputs:
         """Should return decrypted inputs from SecretService."""
         credential = _mock_credential()
         expected_inputs: dict[str, str | bool | int] = {
-            "host": "https://aap.example.com",
             "oauth_token": "secret-token",
         }
 
@@ -274,11 +272,9 @@ class TestResolveCredentialInjectors:
     def test_resolves_injector_templates(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should resolve injector templates and return extra_vars."""
         decrypted_inputs: dict[str, str | bool | int] = {
-            "host": "https://aap.example.com",
             "oauth_token": "my-token",
         }
         expected_extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
             "aap_oauth_token": "my-token",
         }
 
@@ -323,56 +319,43 @@ class TestExtractAuthFromExtraVars:
     def test_extracts_oauth_token_auth(self) -> None:
         """Should extract OAuth token authentication."""
         extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
             "aap_oauth_token": "my-oauth-token",
         }
 
-        auth_headers, basic_auth, verify_ssl = _extract_auth_from_extra_vars(extra_vars)
+        auth_headers, basic_auth = _extract_auth_from_extra_vars(extra_vars)
 
         assert dict(auth_headers) == {"authorization": "Bearer my-oauth-token"}
         assert basic_auth is None
-        assert verify_ssl is True
 
     def test_extracts_basic_auth(self) -> None:
         """Should extract basic authentication when OAuth token not provided."""
         extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
             "aap_username": "admin",
             "aap_password": "password123",
         }
 
-        auth_headers, basic_auth, verify_ssl = _extract_auth_from_extra_vars(extra_vars)
+        auth_headers, basic_auth = _extract_auth_from_extra_vars(extra_vars)
 
         assert dict(auth_headers) == {}
         assert basic_auth is not None
         assert isinstance(basic_auth, httpx.BasicAuth)
-        # BasicAuth doesn't expose username/password publicly, just verify it's created
-        assert verify_ssl is True
 
     def test_prefers_oauth_over_basic_auth(self) -> None:
         """Should prefer OAuth token when both OAuth and basic auth are provided."""
         extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
             "aap_oauth_token": "my-token",
             "aap_username": "admin",
             "aap_password": "password123",
         }
 
-        auth_headers, basic_auth, _verify_ssl = _extract_auth_from_extra_vars(extra_vars)
+        auth_headers, basic_auth = _extract_auth_from_extra_vars(extra_vars)
 
         assert "authorization" in dict(auth_headers)
         assert basic_auth is None
 
-    def test_raises_when_missing_host(self) -> None:
-        """Should raise AAPAuthenticationError when aap_host is missing."""
-        extra_vars: dict[str, str | bool | int] = {"aap_oauth_token": "token"}
-
-        with pytest.raises(AAPAuthenticationError, match="Credential missing required field: aap_host"):
-            _extract_auth_from_extra_vars(extra_vars)
-
     def test_raises_when_missing_auth_credentials(self) -> None:
         """Should raise when neither OAuth token nor username+password provided."""
-        extra_vars: dict[str, str | bool | int] = {"aap_host": "https://aap.example.com"}
+        extra_vars: dict[str, str | bool | int] = {}
 
         with pytest.raises(
             AAPAuthenticationError,
@@ -383,7 +366,6 @@ class TestExtractAuthFromExtraVars:
     def test_raises_when_only_username_provided(self) -> None:
         """Should raise when username provided without password."""
         extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
             "aap_username": "admin",
         }
 
@@ -393,61 +375,11 @@ class TestExtractAuthFromExtraVars:
     def test_raises_when_only_password_provided(self) -> None:
         """Should raise when password provided without username."""
         extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
             "aap_password": "password123",
         }
 
         with pytest.raises(AAPAuthenticationError, match="must provide either"):
             _extract_auth_from_extra_vars(extra_vars)
-
-    def test_verify_ssl_defaults_to_true(self) -> None:
-        """Should default verify_ssl to True when not provided."""
-        extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
-            "aap_oauth_token": "token",
-        }
-
-        _, _, verify_ssl = _extract_auth_from_extra_vars(extra_vars)
-
-        assert verify_ssl is True
-
-    def test_verify_ssl_respects_boolean_false(self) -> None:
-        """Should respect verify_ssl=False when provided as boolean."""
-        extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
-            "aap_oauth_token": "token",
-            "aap_verify_ssl": False,
-        }
-
-        _, _, verify_ssl = _extract_auth_from_extra_vars(extra_vars)
-
-        assert verify_ssl is False
-
-    def test_verify_ssl_converts_string_true(self) -> None:
-        """Should convert string 'true' to boolean True."""
-        for value in ["true", "True", "TRUE", "1", "yes", "Yes", "YES"]:
-            extra_vars: dict[str, str | bool | int] = {
-                "aap_host": "https://aap.example.com",
-                "aap_oauth_token": "token",
-                "aap_verify_ssl": value,
-            }
-
-            _, _, verify_ssl = _extract_auth_from_extra_vars(extra_vars)
-
-            assert verify_ssl is True, f"Expected True for '{value}'"
-
-    def test_verify_ssl_converts_string_false(self) -> None:
-        """Should convert non-truthy strings to boolean False."""
-        for value in ["false", "False", "FALSE", "0", "no", "No", "NO", "other"]:
-            extra_vars: dict[str, str | bool | int] = {
-                "aap_host": "https://aap.example.com",
-                "aap_oauth_token": "token",
-                "aap_verify_ssl": value,
-            }
-
-            _, _, verify_ssl = _extract_auth_from_extra_vars(extra_vars)
-
-            assert verify_ssl is False, f"Expected False for '{value}'"
 
 
 class TestResolveAAPConnectionFromCredential:
@@ -455,7 +387,7 @@ class TestResolveAAPConnectionFromCredential:
 
     @pytest.mark.asyncio
     async def test_successful_resolution_with_oauth(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Should successfully resolve AAP connection with OAuth token."""
+        """Should successfully resolve AAP auth with OAuth token."""
         credential_id = uuid4()
         user_id = uuid4()
         credential = _mock_credential(credential_id=credential_id, created_by=user_id)
@@ -468,9 +400,7 @@ class TestResolveAAPConnectionFromCredential:
 
         # Mock secret service
         decrypted_inputs: dict[str, str | bool | int] = {
-            "host": "https://aap.example.com",
             "oauth_token": "secret-token",
-            "verify_ssl": True,
         }
         mock_secret_service = AsyncMock()
         mock_secret_service.retrieve_secret.return_value = decrypted_inputs
@@ -481,9 +411,7 @@ class TestResolveAAPConnectionFromCredential:
         # Mock InjectorResolver
         mock_resolved = MagicMock()
         extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
             "aap_oauth_token": "secret-token",
-            "aap_verify_ssl": True,
         }
         mock_resolved.extra_vars = extra_vars
         mock_injector_resolver = MagicMock()
@@ -493,14 +421,13 @@ class TestResolveAAPConnectionFromCredential:
         result = await resolve_aap_connection_from_credential(mock_session, credential_id, user_id)
 
         assert isinstance(result, AAPConnection)
-        assert result.base_url == "https://aap.example.com"
+        assert result.base_url == ""
         assert result.headers == {"authorization": "Bearer secret-token"}
         assert result.basic_auth is None
-        assert result.verify_ssl is True
 
     @pytest.mark.asyncio
     async def test_successful_resolution_with_basic_auth(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Should successfully resolve AAP connection with basic auth."""
+        """Should successfully resolve AAP auth with basic auth."""
         credential_id = uuid4()
         user_id = uuid4()
         credential = _mock_credential(credential_id=credential_id, created_by=user_id)
@@ -511,7 +438,6 @@ class TestResolveAAPConnectionFromCredential:
         mock_session.exec.return_value = mock_result
 
         decrypted_inputs: dict[str, str | bool | int] = {
-            "host": "https://aap.example.com",
             "username": "admin",
             "password": "pass123",
         }
@@ -523,7 +449,6 @@ class TestResolveAAPConnectionFromCredential:
 
         mock_resolved = MagicMock()
         extra_vars_basic: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
             "aap_username": "admin",
             "aap_password": "pass123",
         }
@@ -550,7 +475,7 @@ class TestResolveAAPConnectionFromCredential:
         mock_session = AsyncMock()
         mock_session.exec.return_value = mock_result
 
-        decrypted_inputs: dict[str, str | bool | int] = {"host": "https://aap.example.com", "oauth_token": "token"}
+        decrypted_inputs: dict[str, str | bool | int] = {"oauth_token": "token"}
         mock_secret_service = AsyncMock()
         mock_secret_service.retrieve_secret.return_value = decrypted_inputs
 
@@ -559,7 +484,6 @@ class TestResolveAAPConnectionFromCredential:
 
         mock_resolved = MagicMock()
         extra_vars_str: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com",
             "aap_oauth_token": "token",
         }
         mock_resolved.extra_vars = extra_vars_str
@@ -644,86 +568,4 @@ class TestResolveAAPConnectionFromCredential:
         mock_session.exec.return_value = mock_result
 
         with pytest.raises(AAPAuthenticationError, match="is not authorized"):
-            await resolve_aap_connection_from_credential(mock_session, credential_id, user_id)
-
-    @pytest.mark.asyncio
-    async def test_strips_trailing_slash_from_host_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Should strip trailing slash from host URL in resolved AAPConnection."""
-        credential_id = uuid4()
-        user_id = uuid4()
-        credential = _mock_credential(credential_id=credential_id, created_by=user_id)
-
-        mock_result = MagicMock()
-        mock_result.one_or_none.return_value = credential
-        mock_session = AsyncMock()
-        mock_session.exec.return_value = mock_result
-
-        decrypted_inputs: dict[str, str | bool | int] = {
-            "host": "https://aap.example.com/",
-            "oauth_token": "secret-token",
-            "verify_ssl": True,
-        }
-        mock_secret_service = AsyncMock()
-        mock_secret_service.retrieve_secret.return_value = decrypted_inputs
-
-        mock_create_secret_service = MagicMock(return_value=mock_secret_service)
-        monkeypatch.setattr("nexus.aap.credential_resolver.create_secret_service", mock_create_secret_service)
-
-        mock_resolved = MagicMock()
-        extra_vars: dict[str, str | bool | int] = {
-            "aap_host": "https://aap.example.com/",
-            "aap_oauth_token": "secret-token",
-            "aap_verify_ssl": True,
-        }
-        mock_resolved.extra_vars = extra_vars
-        mock_injector_resolver = MagicMock()
-        mock_injector_resolver.resolve.return_value = mock_resolved
-        monkeypatch.setattr("nexus.aap.credential_resolver.InjectorResolver", mock_injector_resolver)
-
-        result = await resolve_aap_connection_from_credential(mock_session, credential_id, user_id)
-
-        assert isinstance(result, AAPConnection)
-        assert result.base_url == "https://aap.example.com"
-
-    @pytest.mark.parametrize(
-        "malicious_host",
-        [
-            "https://evil.com/foo/bar/",
-            "https://evil.com/foo/?",
-            "https://evil.com?x=1",
-        ],
-    )
-    @pytest.mark.asyncio
-    async def test_rejects_ssrf_host_urls(self, monkeypatch: pytest.MonkeyPatch, malicious_host: str) -> None:
-        """Reject host URLs with paths, query strings, or fragments."""
-        credential_id = uuid4()
-        user_id = uuid4()
-        credential = _mock_credential(credential_id=credential_id, created_by=user_id)
-
-        mock_result = MagicMock()
-        mock_result.one_or_none.return_value = credential
-        mock_session = AsyncMock()
-        mock_session.exec.return_value = mock_result
-
-        decrypted_inputs: dict[str, str | bool | int] = {
-            "host": malicious_host,
-            "oauth_token": "token",
-            "verify_ssl": True,
-        }
-        mock_secret_service = AsyncMock()
-        mock_secret_service.retrieve_secret.return_value = decrypted_inputs
-        mock_create_secret_service = MagicMock(return_value=mock_secret_service)
-        monkeypatch.setattr("nexus.aap.credential_resolver.create_secret_service", mock_create_secret_service)
-
-        mock_resolved = MagicMock()
-        mock_resolved.extra_vars = {
-            "aap_host": malicious_host,
-            "aap_oauth_token": "token",
-            "aap_verify_ssl": True,
-        }
-        mock_injector_resolver = MagicMock()
-        mock_injector_resolver.resolve.return_value = mock_resolved
-        monkeypatch.setattr("nexus.aap.credential_resolver.InjectorResolver", mock_injector_resolver)
-
-        with pytest.raises(AAPAuthenticationError, match="invalid host URL"):
             await resolve_aap_connection_from_credential(mock_session, credential_id, user_id)
