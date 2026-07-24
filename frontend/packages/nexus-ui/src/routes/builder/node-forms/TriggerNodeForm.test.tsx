@@ -311,11 +311,14 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.getByLabelText('Webhook URL')).toBeInTheDocument()
     })
 
-    it('shows JSON schema editor', () => {
+    it('shows JSON schema editor when switching to advanced mode', async () => {
+      const user = userEvent.setup()
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
       )
 
+      expect(screen.queryByRole('textbox', { name: 'JSON schema validation editor' })).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Advanced' }))
       expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toBeInTheDocument()
     })
 
@@ -384,7 +387,8 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.queryByTestId('schedule-builder-fields')).not.toBeInTheDocument()
     })
 
-    it('renders with initial webhook trigger data', () => {
+    it('renders with initial webhook trigger data', async () => {
+      const user = userEvent.setup()
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
@@ -397,6 +401,7 @@ describe('TriggerNodeForm Component', () => {
       )
 
       expect(screen.getByLabelText('Webhook path')).toHaveValue('existing-path')
+      await user.click(screen.getByRole('button', { name: 'Advanced' }))
       expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toHaveValue('{"type": "object"}')
     })
 
@@ -418,16 +423,15 @@ describe('TriggerNodeForm Component', () => {
       )
 
       expect(screen.getByLabelText('Webhook path')).toBeInTheDocument()
-      expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toBeInTheDocument()
       expect(screen.queryByLabelText('Schedule expression')).not.toBeInTheDocument()
     })
 
-    it('shows EDA connection instructions', () => {
+    it('shows EDA webhook activation alert', () => {
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
       )
 
-      expect(screen.getByText('Event-Driven Ansible Connection Instructions')).toBeInTheDocument()
+      expect(screen.getByText('EDA activation')).toBeInTheDocument()
     })
 
     it('auto-generates a valid webhook path for new EDA triggers', () => {
@@ -476,7 +480,8 @@ describe('TriggerNodeForm Component', () => {
       })
     })
 
-    it('renders with initial EDA trigger data', () => {
+    it('renders with initial EDA trigger data', async () => {
+      const user = userEvent.setup()
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
@@ -489,6 +494,7 @@ describe('TriggerNodeForm Component', () => {
       )
 
       expect(screen.getByLabelText('Webhook path')).toHaveValue('existing-eda-path')
+      await user.click(screen.getByRole('button', { name: 'Advanced' }))
       expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toHaveValue('{"type": "object"}')
     })
 

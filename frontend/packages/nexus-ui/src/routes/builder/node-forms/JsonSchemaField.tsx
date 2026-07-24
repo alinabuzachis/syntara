@@ -1,4 +1,4 @@
-import { FormGroup, FormHelperText, HelperText, HelperTextItem, StackItem } from '@patternfly/react-core'
+import { FormGroup, FormHelperText, HelperText, HelperTextItem } from '@patternfly/react-core'
 import { type ReactElement, useEffect, useRef } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
@@ -55,39 +55,37 @@ export function JsonSchemaField({
   }, [error])
 
   return (
-    <StackItem>
-      <FormGroup label={label} labelHelp={labelHelp} fieldId={fieldId}>
-        <Controller
-          control={control}
-          name="inputSchema"
-          render={({ field }) => (
-            <ExpandableCodeEditor
-              ref={editorRef}
-              code={field.value || defaultCode}
-              onCodeChange={field.onChange}
-              onBlur={field.onBlur}
-              language="json"
-              height="150px"
-              modalTitle={modalTitle}
-              ariaLabel={ariaLabel}
-              additionalControls={
-                <JsonEditorControls
-                  code={field.value || defaultCode}
-                  onCodeChange={field.onChange}
-                  defaultCode={defaultCode}
-                  downloadFilename={downloadFilename}
-                  exampleCode={exampleCode}
-                />
-              }
-            />
-          )}
-        />
-        <FormHelperText>
-          <HelperText>
-            <HelperTextItem variant={error ? 'error' : 'default'}>{error ?? helperText}</HelperTextItem>
-          </HelperText>
-        </FormHelperText>
-      </FormGroup>
-    </StackItem>
+    <FormGroup label={label} labelHelp={labelHelp} fieldId={fieldId}>
+      <Controller
+        control={control}
+        name="inputSchema"
+        render={({ field }) => (
+          <ExpandableCodeEditor
+            ref={editorRef}
+            code={field.value || defaultCode}
+            onCodeChange={field.onChange}
+            onBlur={field.onBlur}
+            language="json"
+            height="150px"
+            modalTitle={modalTitle}
+            ariaLabel={ariaLabel}
+            additionalControls={
+              <JsonEditorControls
+                code={field.value || defaultCode}
+                onCodeChange={field.onChange}
+                defaultCode={defaultCode}
+                downloadFilename={downloadFilename}
+                exampleCode={exampleCode}
+              />
+            }
+          />
+        )}
+      />
+      <FormHelperText>
+        <HelperText>
+          <HelperTextItem variant={error ? 'error' : 'default'}>{error ?? helperText}</HelperTextItem>
+        </HelperText>
+      </FormHelperText>
+    </FormGroup>
   )
 }

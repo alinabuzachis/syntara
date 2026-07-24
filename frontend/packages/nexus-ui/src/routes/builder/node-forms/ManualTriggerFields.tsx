@@ -1,3 +1,5 @@
+import { StackItem } from '@patternfly/react-core'
+
 import { JsonSchemaField } from './JsonSchemaField'
 import { nodeHelp } from './shared/nodeFieldHelp'
 
@@ -17,16 +19,18 @@ export function ManualTriggerFields({
   errors,
 }: Readonly<{ errors: Readonly<{ inputSchema?: { message?: string } }> }>) {
   return (
-    <JsonSchemaField
-      label="Input schema"
-      labelHelp={nodeHelp.manualInputSchema}
-      defaultCode=""
-      exampleCode={EXAMPLE_INPUT_SCHEMA}
-      modalTitle="Edit input schema"
-      ariaLabel="Input schema editor"
-      downloadFilename="input-schema.json"
-      helperText="Optional JSON Schema defining the input data required to run this workflow."
-      error={errors.inputSchema?.message}
-    />
+    <StackItem>
+      <JsonSchemaField
+        label="Input schema"
+        labelHelp={nodeHelp.manualInputSchema}
+        defaultCode=""
+        exampleCode={EXAMPLE_INPUT_SCHEMA}
+        modalTitle="Edit input schema"
+        ariaLabel="Input schema editor"
+        downloadFilename="input-schema.json"
+        helperText="Optional JSON Schema defining the input data required to run this workflow."
+        error={errors.inputSchema?.message}
+      />
+    </StackItem>
   )
 }

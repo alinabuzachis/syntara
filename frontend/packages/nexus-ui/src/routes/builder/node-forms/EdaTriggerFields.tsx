@@ -1,13 +1,12 @@
-import { Alert, Content, ContentVariants, FormGroup, List, ListItem, StackItem } from '@patternfly/react-core'
+import { Alert, Content, ContentVariants, FormGroup, StackItem } from '@patternfly/react-core'
 import { Controller, useFormContext } from 'react-hook-form'
 
 import { FieldHelpPopover } from '../../../components/FieldHelpPopover'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { WEBHOOK_BASE_URL } from '../../../utils/backendUrl'
 
-import { JsonSchemaField } from './JsonSchemaField'
+import { PayloadValidationSection } from './PayloadValidationSection'
 import { ServiceAccountSelect } from './ServiceAccountSelect'
-import { nodeHelp } from './shared/nodeFieldHelp'
 import type { TriggerFormData } from './triggerFormSchema'
 import { DEFAULT_JSON_SCHEMA, EXAMPLE_JSON_SCHEMA, JSON_SCHEMA_DOWNLOAD_FILENAME } from './triggerFormSchema'
 import { useWebhookUrl } from './useWebhookUrl'
@@ -15,50 +14,6 @@ import { WebhookPathField } from './WebhookPathField'
 import { WebhookUrlPreview } from './WebhookUrlPreview'
 
 const EDA_WEBHOOK_BASE_URL = `${WEBHOOK_BASE_URL}/eda`
-
-const EDA_WEBHOOK_PATH_HELP =
-  'Enter a unique name or "slug" to identify this endpoint (e.g., /eda-events). This path helps you identify the trigger in your workflow and will be part of the final generated URL.'
-
-const edaWebhookPathLabelHelp = <FieldHelpPopover headerContent="Webhook path" helpText={EDA_WEBHOOK_PATH_HELP} />
-
-// ---------------------------------------------------------------------------
-// Connection instructions
-// ---------------------------------------------------------------------------
-
-function EdaConnectionInstructions() {
-  return (
-    <Alert variant="info" isInline isExpandable title="Event-Driven Ansible Connection Instructions" component="h4">
-      <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--sm)' }}>
-        To successfully trigger this workflow from Event-Driven Ansible, follow these steps:
-      </Content>
-      <List component="ol">
-        <ListItem>
-          <strong>Set a webhook path</strong>: Enter a path in the field below to create your unique endpoint.
-        </ListItem>
-        <ListItem>
-          <strong>Copy the webhook URL</strong>: Locate the URL field and click the copy icon to save the unique
-          endpoint to your clipboard.
-        </ListItem>
-        <ListItem>
-          <strong>Configure your EDA rulebook</strong>:
-          <List>
-            <ListItem>
-              <strong>Destination URL</strong>: Paste the copied URL into the appropriate section of your Event-Driven
-              Ansible rulebook.
-            </ListItem>
-            <ListItem>
-              <strong>Method</strong>: Ensure the action is set to send a POST request.
-            </ListItem>
-          </List>
-        </ListItem>
-      </List>
-    </Alert>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// EDA trigger form fields
-// ---------------------------------------------------------------------------
 
 export function EdaFields({
   errors,
@@ -71,23 +26,37 @@ export function EdaFields({
   return (
     <>
       <StackItem>
-        <EdaConnectionInstructions />
+        <Alert variant="info" isInline title="EDA activation" component="h4">
+          <Content component={ContentVariants.p}>
+            This trigger will only take effect once the workflow is published. Copy the endpoint URL into your EDA
+            rulebook configuration.
+          </Content>
+        </Alert>
       </StackItem>
-
-      <WebhookUrlPreview
-        url={fullEdaUrl}
-        fieldIdPrefix="eda"
-        httpMethodLabelHelp={nodeHelp.edaHttpMethod}
-        urlLabelHelp={nodeHelp.edaUrl}
-      />
 
       <WebhookPathField
         fieldId="eda-webhook-path"
         label="Webhook path"
-        labelHelp={edaWebhookPathLabelHelp}
+        labelHelp={
+          <FieldHelpPopover
+            headerContent="Webhook path"
+            helpText='Enter a unique name or "slug" to identify this endpoint (e.g., /eda-events). This path helps you identify the trigger in your workflow and will be part of the final generated URL.'
+          />
+        }
         placeholder="/eda-events"
         helperText="A unique slug for this endpoint (e.g., /eda-events)."
         error={errors.webhookPath?.message}
+      />
+
+      <WebhookUrlPreview
+        url={fullEdaUrl}
+        fieldIdPrefix="eda"
+        urlLabel={
+          <FormLabelWithHelp
+            label="Endpoint URL"
+            helpText="Your EDA webhook endpoint. Configure your EDA rulebook to send a POST request to this URL. Click the copy icon to capture the full URL."
+          />
+        }
       />
 
       <StackItem>
@@ -114,18 +83,23 @@ export function EdaFields({
         </FormGroup>
       </StackItem>
 
-      <JsonSchemaField
-        fieldId="eda-json-schema"
-        label="JSON schema validation"
-        labelHelp={nodeHelp.edaInputSchema}
-        defaultCode={DEFAULT_JSON_SCHEMA}
-        exampleCode={EXAMPLE_JSON_SCHEMA}
-        modalTitle="Edit JSON schema"
-        ariaLabel="JSON schema validation editor"
-        downloadFilename={JSON_SCHEMA_DOWNLOAD_FILENAME}
-        helperText="Optional JSON Schema for validating incoming EDA event payloads."
-        error={errors.inputSchema?.message}
-      />
+      <StackItem>
+        <PayloadValidationSection
+          label={
+            <FormLabelWithHelp
+              label="Request body"
+              helpText="Define the fields expected in incoming events. If incoming data does not match, the trigger will reject the request and the workflow will not run."
+            />
+          }
+          defaultCode={DEFAULT_JSON_SCHEMA}
+          exampleCode={EXAMPLE_JSON_SCHEMA}
+          modalTitle="Edit JSON schema"
+          ariaLabel="JSON schema validation editor"
+          downloadFilename={JSON_SCHEMA_DOWNLOAD_FILENAME}
+          helperText="Optional JSON Schema for validating incoming EDA payloads."
+          error={errors.inputSchema?.message}
+        />
+      </StackItem>
     </>
   )
 }

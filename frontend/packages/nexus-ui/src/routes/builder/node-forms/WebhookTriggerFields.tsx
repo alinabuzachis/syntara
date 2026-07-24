@@ -1,113 +1,18 @@
-import { Alert, Content, ContentVariants, FormGroup, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
+import { Alert, Content, ContentVariants, FormGroup, StackItem } from '@patternfly/react-core'
 import { Controller, useFormContext } from 'react-hook-form'
 
 import { FieldHelpPopover } from '../../../components/FieldHelpPopover'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { WEBHOOK_BASE_URL } from '../../../utils/backendUrl'
 
-import { JsonSchemaField } from './JsonSchemaField'
+import { PayloadValidationSection } from './PayloadValidationSection'
+import { SampleCurlSection } from './SampleCurlSection'
 import { ServiceAccountSelect } from './ServiceAccountSelect'
 import type { TriggerFormData } from './triggerFormSchema'
 import { DEFAULT_JSON_SCHEMA, EXAMPLE_JSON_SCHEMA, JSON_SCHEMA_DOWNLOAD_FILENAME } from './triggerFormSchema'
 import { useWebhookUrl } from './useWebhookUrl'
 import { WebhookPathField } from './WebhookPathField'
 import { WebhookUrlPreview } from './WebhookUrlPreview'
-
-const WEBHOOK_HTTP_METHOD_HELP = (
-  <Stack hasGutter>
-    <StackItem>The HTTP method specifies the type of request this webhook will accept.</StackItem>
-    <StackItem>
-      <List>
-        <ListItem>
-          <strong>POST (Fixed)</strong>: To ensure consistent and secure data handling, this trigger is restricted to
-          the POST method.
-        </ListItem>
-        <ListItem>
-          <strong>Standardization</strong>: POST is the industry standard for webhooks as it allows for large data
-          payloads to be transmitted securely in the request body.
-        </ListItem>
-        <ListItem>
-          <strong>Incompatibility</strong>: If your external system attempts to call this URL using a different method
-          (such as GET or PUT), it will receive a 405 Method Not Allowed error.
-        </ListItem>
-      </List>
-    </StackItem>
-  </Stack>
-)
-
-const WEBHOOK_URL_HELP =
-  'This is the unique URL for this trigger. Provide this to your external service (e.g., GitHub, Slack, or a custom app). Use the copy button to capture the full URL.'
-
-const WEBHOOK_PATH_HELP =
-  'Enter a unique name or "slug" to identify this endpoint (e.g., /jira-updates). This path helps you identify the trigger in your workflow and will be part of the final generated URL.'
-
-const WEBHOOK_JSON_SCHEMA_HELP = (
-  <Stack hasGutter>
-    <StackItem>
-      Define a structure that all incoming POST requests must follow. This acts as a security and quality gate for your
-      workflow.
-    </StackItem>
-    <StackItem>
-      <List>
-        <ListItem>
-          <strong>Enforcement</strong>: If incoming data does not match the schema, the trigger will reject the request
-          with a 400 Bad Request error and the workflow will not run.
-        </ListItem>
-        <ListItem>
-          <strong>Default behavior</strong>: The placeholder schema is a &quot;pass-through&quot; that allows all data.
-          Edit the properties block to enforce specific fields.
-        </ListItem>
-      </List>
-    </StackItem>
-  </Stack>
-)
-
-const webhookHttpMethodLabelHelp = <FieldHelpPopover headerContent="HTTP method" helpText={WEBHOOK_HTTP_METHOD_HELP} />
-const webhookUrlLabelHelp = <FieldHelpPopover headerContent="URL" helpText={WEBHOOK_URL_HELP} />
-const webhookPathLabelHelp = <FieldHelpPopover headerContent="Webhook path" helpText={WEBHOOK_PATH_HELP} />
-const webhookJsonSchemaLabelHelp = (
-  <FieldHelpPopover headerContent="JSON schema validation" helpText={WEBHOOK_JSON_SCHEMA_HELP} />
-)
-
-// ---------------------------------------------------------------------------
-// Connection instructions
-// ---------------------------------------------------------------------------
-
-function WebhookConnectionInstructions() {
-  return (
-    <Alert variant="info" isInline isExpandable title="Webhook Connection Instructions" component="h4">
-      <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--sm)' }}>
-        To successfully trigger this workflow from an external application (such as GitHub, Jira, or a custom service),
-        follow these steps:
-      </Content>
-      <List component="ol">
-        <ListItem>
-          <strong>Set a webhook path</strong>: Enter a path in the field above to create your unique endpoint.
-        </ListItem>
-        <ListItem>
-          <strong>Copy the webhook URL</strong>: Locate the URL field below and click the copy icon to save the unique
-          endpoint to your clipboard.
-        </ListItem>
-        <ListItem>
-          <strong>Configure your external system</strong>:
-          <List>
-            <ListItem>
-              <strong>Destination URL</strong>: Paste the copied URL into the webhook or listener settings of your
-              external application.
-            </ListItem>
-            <ListItem>
-              <strong>Method</strong>: Ensure the external application is set to send a POST request.
-            </ListItem>
-          </List>
-        </ListItem>
-      </List>
-    </Alert>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Webhook form fields
-// ---------------------------------------------------------------------------
 
 export function WebhookFields({
   errors,
@@ -120,21 +25,35 @@ export function WebhookFields({
   return (
     <>
       <StackItem>
-        <WebhookConnectionInstructions />
+        <Alert variant="info" isInline title="Webhook activation" component="h4">
+          <Content component={ContentVariants.p}>
+            This webhook will only take effect once the workflow is published. Changes to the webhook are applied on the
+            next publish.
+          </Content>
+        </Alert>
       </StackItem>
-
-      <WebhookUrlPreview
-        url={fullWebhookUrl}
-        httpMethodLabelHelp={webhookHttpMethodLabelHelp}
-        urlLabelHelp={webhookUrlLabelHelp}
-      />
 
       <WebhookPathField
         label="Webhook path"
-        labelHelp={webhookPathLabelHelp}
+        labelHelp={
+          <FieldHelpPopover
+            headerContent="Webhook path"
+            helpText='Enter a unique name or "slug" to identify this endpoint (e.g., /jira-updates). This path helps you identify the trigger in your workflow and will be part of the final generated URL.'
+          />
+        }
         placeholder="/jira-updates"
         helperText="A unique slug for this endpoint (e.g., /jira-updates)."
         error={errors.webhookPath?.message}
+      />
+
+      <WebhookUrlPreview
+        url={fullWebhookUrl}
+        urlLabel={
+          <FormLabelWithHelp
+            label="Endpoint URL"
+            helpText="Your webhook endpoint. External services should send a POST request to this URL. Click the copy icon to capture the full URL."
+          />
+        }
       />
 
       <StackItem>
@@ -161,17 +80,25 @@ export function WebhookFields({
         </FormGroup>
       </StackItem>
 
-      <JsonSchemaField
-        label="JSON schema validation"
-        labelHelp={webhookJsonSchemaLabelHelp}
-        defaultCode={DEFAULT_JSON_SCHEMA}
-        exampleCode={EXAMPLE_JSON_SCHEMA}
-        modalTitle="Edit JSON schema"
-        ariaLabel="JSON schema validation editor"
-        downloadFilename={JSON_SCHEMA_DOWNLOAD_FILENAME}
-        helperText="Optional JSON Schema for validating incoming webhook payloads."
-        error={errors.inputSchema?.message}
-      />
+      <StackItem>
+        <PayloadValidationSection
+          label={
+            <FormLabelWithHelp
+              label="Request body"
+              helpText="Define the fields expected in incoming requests. If incoming data does not match, the trigger will reject the request and the workflow will not run."
+            />
+          }
+          defaultCode={DEFAULT_JSON_SCHEMA}
+          exampleCode={EXAMPLE_JSON_SCHEMA}
+          modalTitle="Edit JSON schema"
+          ariaLabel="JSON schema validation editor"
+          downloadFilename={JSON_SCHEMA_DOWNLOAD_FILENAME}
+          helperText="Optional JSON Schema for validating incoming webhook payloads."
+          error={errors.inputSchema?.message}
+        />
+      </StackItem>
+
+      <SampleCurlSection url={fullWebhookUrl} />
     </>
   )
 }
