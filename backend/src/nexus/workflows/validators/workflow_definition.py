@@ -222,6 +222,38 @@ def _check_converge_node_findings(
     return findings
 
 
+def _check_approval_node_findings(
+    workflow_definition: dict[str, Any],
+) -> list[ValidationFinding]:
+    """Warn when fallback_decision is set without continue_on_failure."""
+    findings: list[ValidationFinding] = []
+    for node in workflow_definition.get("nodes", []):
+        if node.get("type") != "approval":
+            continue
+        node_id = node.get("id")
+        if node_id is None:
+            continue
+        params = node.get("parameters", {})
+        settings = node.get("settings") or {}
+        if params.get("fallback_decision") == "approve" and not settings.get("continue_on_failure"):
+            node_name = node.get("name") or node_id
+            findings.append(
+                ValidationFinding(
+                    severity=ValidationSeverity.warning,
+                    category=ValidationCategory.approval_configuration,
+                    message=(
+                        f"Approval step '{node_name}' has fallback_decision set to 'approve' "
+                        f"but continue_on_failure is not enabled. "
+                        f"The fallback will have no effect unless "
+                        f"continue_on_failure is enabled in the step settings."
+                    ),
+                    node_id=node_id,
+                    field_path="parameters.fallback_decision",
+                ),
+            )
+    return findings
+
+
 def _select_best_branch(
     context_errors: list[jsonschema.ValidationError],
 ) -> tuple[Any, dict[Any, list[str]]]:
@@ -480,6 +512,7 @@ class WorkflowValidator:
             findings.extend(_check_cycles_findings(workflow_definition, node_ids))
             findings.extend(_check_orphaned_nodes_findings(workflow_definition, node_ids))
             findings.extend(_check_converge_node_findings(workflow_definition))
+            findings.extend(_check_approval_node_findings(workflow_definition))
             findings.extend(check_template_expressions(workflow_definition, node_ids))
 
         return findings

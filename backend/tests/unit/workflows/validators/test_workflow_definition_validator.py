@@ -792,3 +792,79 @@ class TestConvergeNodeValidation:
         converge_findings = [f for f in result.findings if f.category == ValidationCategory.converge_configuration]
         assert len(converge_findings) == 1
         assert converge_findings[0].node_id == "bad_converge"
+
+
+def _approval_definition(
+    params: dict[str, Any] | None = None,
+    settings: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build a minimal workflow with an approval node."""
+    node: dict[str, Any] = {
+        "id": "approval_1",
+        "name": "Review",
+        "type": "approval",
+        "parameters": params if params is not None else {},
+    }
+    if settings is not None:
+        node["settings"] = settings
+    return {
+        "schema_version": "2.0.0",
+        "name": "approval-test",
+        "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+        "nodes": [node],
+        "edges": [{"from": "t1", "to": "approval_1"}],
+    }
+
+
+class TestApprovalNodeValidation:
+    """Approval node parameter interplay warnings."""
+
+    def test_fallback_without_cof_produces_warning(self, validator: WorkflowValidator) -> None:
+        result = validator.collect_findings(_approval_definition(params={"fallback_decision": "approve"}))
+        warnings = [
+            f
+            for f in result.findings
+            if f.category == ValidationCategory.approval_configuration and f.severity == ValidationSeverity.warning
+        ]
+        assert len(warnings) == 1
+        assert warnings[0].node_id == "approval_1"
+        assert "fallback_decision" in warnings[0].message
+        assert warnings[0].field_path == "parameters.fallback_decision"
+
+    def test_fallback_approve_with_cof_no_warning(self, validator: WorkflowValidator) -> None:
+        result = validator.collect_findings(
+            _approval_definition(
+                params={"fallback_decision": "approve"},
+                settings={"continue_on_failure": True},
+            )
+        )
+        approval_findings = [f for f in result.findings if f.category == ValidationCategory.approval_configuration]
+        assert approval_findings == []
+
+    def test_fallback_reject_without_cof_no_warning(self, validator: WorkflowValidator) -> None:
+        """Reject is the safe default — same outcome as no fallback (workflow fails)."""
+        result = validator.collect_findings(_approval_definition(params={"fallback_decision": "reject"}))
+        approval_findings = [f for f in result.findings if f.category == ValidationCategory.approval_configuration]
+        assert approval_findings == []
+
+    def test_no_fallback_no_warning(self, validator: WorkflowValidator) -> None:
+        result = validator.collect_findings(_approval_definition())
+        approval_findings = [f for f in result.findings if f.category == ValidationCategory.approval_configuration]
+        assert approval_findings == []
+
+    def test_only_misconfigured_node_gets_warning(self, validator: WorkflowValidator) -> None:
+        definition = _approval_definition(params={"fallback_decision": "approve"})
+        definition["nodes"].append(
+            {
+                "id": "approval_2",
+                "name": "Review 2",
+                "type": "approval",
+                "parameters": {"fallback_decision": "reject"},
+                "settings": {"continue_on_failure": True},
+            }
+        )
+        definition["edges"].append({"from": "approval_1", "to": "approval_2", "from_port": "approved"})
+        result = validator.collect_findings(definition)
+        warnings = [f for f in result.findings if f.category == ValidationCategory.approval_configuration]
+        assert len(warnings) == 1
+        assert warnings[0].node_id == "approval_1"

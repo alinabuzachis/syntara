@@ -2136,6 +2136,7 @@ export interface components {
       | 'cycle_detected'
       | 'orphaned_node'
       | 'converge_configuration'
+      | 'approval_configuration'
     /**
      * ValidationFinding
      * @description A single structured validation finding.

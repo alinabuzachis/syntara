@@ -40,9 +40,7 @@ export function BranchHandle(
   const approvalStyles = getApprovalBranchHandleStyles(props.id)
   const isTaken = useIsBranchTaken(props.nodeId, props.id)
 
-  const inlineStyles = approvalStyles
-    ? { ...approvalStyles, ...(isTaken ? { borderColor: undefined } : {}) }
-    : undefined
+  const inlineStyles = approvalStyles ? { ...approvalStyles } : undefined
 
   return (
     <div
@@ -52,7 +50,13 @@ export function BranchHandle(
     >
       <div className={styles.branchHandleContent}>
         {props.children}
-        {isTaken && <RhUiCheckIcon aria-hidden="true" className={styles.takenIcon} />}
+        {isTaken && (
+          <RhUiCheckIcon
+            aria-hidden="true"
+            className={styles.takenIcon}
+            style={approvalStyles ? { color: approvalStyles.color } : undefined}
+          />
+        )}
       </div>
       <Handle
         type="source"
@@ -64,8 +68,8 @@ export function BranchHandle(
           ...sourceHandleStyle,
           pointerEvents: 'auto',
           ...(isTaken && {
-            backgroundColor: 'var(--pf-t--global--color--status--success--default)',
-            borderColor: 'var(--pf-t--global--color--status--success--default)',
+            backgroundColor: approvalStyles?.borderColor ?? 'var(--pf-t--global--color--status--success--default)',
+            borderColor: approvalStyles?.borderColor ?? 'var(--pf-t--global--color--status--success--default)',
           }),
         }}
       />

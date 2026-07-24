@@ -28,6 +28,7 @@ class ValidationCategory(StrEnum):
     cycle_detected = "cycle_detected"
     orphaned_node = "orphaned_node"
     converge_configuration = "converge_configuration"
+    approval_configuration = "approval_configuration"
 
 
 class ValidationFinding(SQLModel):
