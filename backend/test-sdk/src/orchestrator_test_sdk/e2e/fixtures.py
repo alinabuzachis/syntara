@@ -9,20 +9,14 @@ from __future__ import annotations
 import logging
 import os
 import time
-from collections.abc import Callable, Generator
 from http import HTTPStatus
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import httpx
 import pytest
-from click.testing import Result
 from nexus_api_client import AuthenticatedClient
 from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import (
-    WorkflowCreate,
-    WorkflowRead,
-)
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.initial_model_selection import InitialModelSelection
@@ -35,8 +29,6 @@ from nexus_api_client.models.llm_provider_hint import LLMProviderHint
 from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from nexus_api_client.models.user_create import UserCreate
-from nexus_api_client.models.user_info import UserInfo
-from nexus_api_client.models.user_read import UserRead
 from nexus_api_client.types import UNSET, Unset
 from typer.testing import CliRunner
 
@@ -50,6 +42,17 @@ from orchestrator_test_sdk.e2e.helpers import (
     get_first_non_builtin_project_id,
 )
 from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
+    from click.testing import Result
+    from nexus_api_client.models import (
+        WorkflowCreate,
+        WorkflowRead,
+    )
+    from nexus_api_client.models.user_info import UserInfo
+    from nexus_api_client.models.user_read import UserRead
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +158,7 @@ def reset_async_client(nexus_client: AuthenticatedClient) -> Generator[None, Non
     Token refresh is handled transparently by _AutoRefreshAuth on every request.
     """
     yield
-    nexus_client._async_client = None
+    nexus_client._async_client = None  # noqa: SLF001
 
 
 @pytest.fixture(autouse=True)

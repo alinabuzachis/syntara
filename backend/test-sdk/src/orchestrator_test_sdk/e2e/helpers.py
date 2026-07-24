@@ -7,22 +7,24 @@ import os
 import time
 import urllib.parse
 import urllib.request
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import httpx
 import pytest
-from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import (
     ExecutionCreate,
     ExecutionRead,
     WorkflowCreate,
     WorkflowUpdate,
 )
-from nexus_api_client.models.approval_request_read import ApprovalRequestRead
 from nexus_api_client.models.approval_request_status import ApprovalRequestStatus
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
+
+if TYPE_CHECKING:
+    from nexus_api_client.api import NexusApiRegistry
+    from nexus_api_client.models.approval_request_read import ApprovalRequestRead
 
 POLL_INTERVAL = 1
 POLL_TIMEOUT = 20

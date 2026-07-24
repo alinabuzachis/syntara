@@ -16,19 +16,22 @@ Provides three layers:
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Generator
 from http import HTTPStatus
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models.integration_create import IntegrationCreate
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_read import WorkflowRead
 
 from orchestrator_test_sdk.e2e.auth import _login, _make_client, admin_password
 from orchestrator_test_sdk.e2e.helpers import get_first_non_builtin_project_id
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+    from uuid import UUID
+
+    from nexus_api_client.models.integration_create import IntegrationCreate
+    from nexus_api_client.models.workflow_create import WorkflowCreate
+    from nexus_api_client.models.workflow_read import WorkflowRead
 
 # ---------------------------------------------------------------------------
 # Module-scoped admin fixture (fresh token per module — avoids 15-min expiry)

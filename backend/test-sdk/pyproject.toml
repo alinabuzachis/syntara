@@ -29,7 +29,6 @@ ignore = [
     "D213",     # conflicts with D212
     "COM812",   # conflicts with formatter
     "PLR0913",  # Allow more than 5 arguments
-    "TRY300",   # Standard exception handling pattern
     "FIX002",   # Allow TODO comments
     # All SDK files are test/fixture code — apply test-tier rules globally
     "S101",     # Allow assert statements
@@ -42,19 +41,14 @@ ignore = [
     "TD003",    # TODO formatting
     "ARG001",   # Allow unused fixture arguments (functions)
     "ARG002",   # Allow unused fixture arguments (methods)
-    "SLF001",   # Allow private member access
     "PERF401",  # Allow append in loops
     "S110",     # Allow try-except-pass in test cleanup
     "BLE001",   # Allow catching Exception in test cleanup
     "SIM105",   # Allow try-except-pass in test cleanup
     "PLC0415",  # Allow imports within fixture functions
     "D401",     # Allow non-imperative docstrings
-    "PT011",    # Allow broad pytest.raises
-    "PT012",    # Allow multi-statement pytest.raises blocks
     "PGH003",   # Allow generic type: ignore comments
     "SIM117",   # Allow nested with statements
-    "TC002",    # Don't enforce TYPE_CHECKING for third-party imports (e2e fixtures used at runtime)
-    "TC003",    # Don't enforce TYPE_CHECKING for stdlib imports (e2e fixtures used at runtime)
 ]
 
 [tool.mypy]

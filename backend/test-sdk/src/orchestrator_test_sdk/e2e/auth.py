@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import Generator
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 import httpx
@@ -23,12 +22,16 @@ from nexus_api_client.api.authentication.login import sync_detailed as login_syn
 from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
 from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
-from nexus_api_client.models.error_data import ErrorData
 from nexus_api_client.models.login_request import LoginRequest
-from nexus_api_client.models.user_info import UserInfo
-from nexus_api_client.types import Response
 
 from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from nexus_api_client.models.error_data import ErrorData
+    from nexus_api_client.models.user_info import UserInfo
+    from nexus_api_client.types import Response
 
 # ---------------------------------------------------------------------------
 # Cookie / header name constants
@@ -237,10 +240,11 @@ class _AutoRefreshAuth(httpx.Auth):
                 else:
                     self.token = _generate_e2e_token(self._base_url)
                 self._last_refresh = time.monotonic()
-                return
             except RuntimeError as exc:
                 last_exc = exc
                 time.sleep(2 * (attempt + 1))
+            else:
+                return
         raise last_exc  # type: ignore[misc]
 
     def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
@@ -305,7 +309,7 @@ def local_user_login(
 ) -> Response[Any]:
     """Login local user in Unauthenticated client. By default, login built-in admin."""
     resolved_username = username or "admin"
-    resolved_password = password if password else admin_password()
+    resolved_password = password or admin_password()
     unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=e2e_ssl_context())
     return login_sync(client=unauthenticated, body=LoginRequest(username=resolved_username, password=resolved_password))
 
@@ -327,7 +331,7 @@ def client_with_request_id(client: Client, request_id: str) -> Client:
 
 def api_with_request_id(api: NexusApiRegistry, request_id: str) -> NexusApiRegistry:
     """Return an API registry whose client sends the given X-Request-Id header."""
-    return NexusApiRegistry(api._client.with_headers({REQUEST_ID_HEADER: request_id}))
+    return NexusApiRegistry(api._client.with_headers({REQUEST_ID_HEADER: request_id}))  # noqa: SLF001
 
 
 def login_with_request_id(

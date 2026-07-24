@@ -69,7 +69,6 @@ def _generate_live_token(base_url: str) -> str:
             )
             response.raise_for_status()
             token: str = response.json()["access_token"]
-            return token
         except Exception as exc:
             if not _is_retryable(exc):
                 raise
@@ -85,6 +84,8 @@ def _generate_live_token(base_url: str) -> str:
                     backoff,
                 )
                 time.sleep(backoff)
+        else:
+            return token
     raise last_exc  # type: ignore[misc]
 
 
