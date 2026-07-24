@@ -6,12 +6,12 @@ import { fetchAllPages, MAX_PAGE_SIZE } from '../../../utils/fetchAllPages'
 
 type LLMModelRead = IntegrationsAPI.components['schemas']['LLMModelRead']
 
-async function fetchAllIntegrationModels(integrationId: string): Promise<LLMModelRead[]> {
+export async function fetchAllIntegrationModels(integrationId: string): Promise<LLMModelRead[]> {
   return fetchAllPages<LLMModelRead>((cursor) =>
     integrationsFetchClient.GET('/integrations/{integration_id}/models', {
       params: {
         path: { integration_id: integrationId },
-        query: { limit: MAX_PAGE_SIZE, cursor },
+        query: { sort: 'name', limit: MAX_PAGE_SIZE, cursor },
       },
     })
   )

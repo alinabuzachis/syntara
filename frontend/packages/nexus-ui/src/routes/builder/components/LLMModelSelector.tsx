@@ -12,10 +12,11 @@ import {
 import { useQueries } from '@tanstack/react-query'
 import React, { useCallback, useMemo, useState } from 'react'
 
-import { integrationsFetchClient, integrationsClient } from '../../../client'
+import { integrationsClient } from '../../../client'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
 import { NxLabel } from '../../../components/labels/NxLabel'
 import { projectIdParam } from '../../../utils/queryParams'
+import { fetchAllIntegrationModels } from '../../configuration/integrations/useAllIntegrationModels'
 
 import { IntegrationRequiredHelper } from './IntegrationRequiredHelper'
 import styles from './LLMModelSelector.module.css'
@@ -111,21 +112,17 @@ export function LLMModelSelector({
 
   const { modelsByIntegration, isModelsPending, failedIntegrationIds } = useQueries({
     queries: integrations.map((integration) => ({
-      queryKey: ['integrations', integration.id, 'models'],
-      queryFn: async () => {
-        const response = await integrationsFetchClient.GET('/integrations/{integration_id}/models', {
-          params: { path: { integration_id: integration.id }, query: { sort: 'name' } },
-        })
-        if (response.error) {
-          throw new Error(`Failed to fetch models for integration ${integration.name ?? integration.id}`)
-        }
-        return { integrationId: integration.id, models: response.data?.resources ?? [] }
-      },
+      queryKey: ['all-integration-models', integration.id],
+      queryFn: () => fetchAllIntegrationModels(integration.id),
       enabled: !isIntegrationsPending,
       staleTime: 5 * 60 * 1000,
     })),
     combine: (results) => ({
-      modelsByIntegration: new Map(results.filter((r) => r.data).map((r) => [r.data!.integrationId, r.data!.models])),
+      modelsByIntegration: new Map(
+        results
+          .map((r, i) => [integrations[i]?.id, r.data] as const)
+          .filter((entry): entry is [string, LLMModelRead[]] => !!entry[0] && !!entry[1])
+      ),
       isModelsPending: results.some((r) => r.isPending),
       failedIntegrationIds: new Set(
         results.reduce<string[]>((acc, r, i) => {
@@ -140,9 +137,14 @@ export function LLMModelSelector({
 
   const visibleGroups = useMemo((): VisibleGroup[] => {
     const query = filterText.toLowerCase().trim()
+    const defaultFirst = (a: LLMModelRead, b: LLMModelRead) => {
+      if (a.is_default && !b.is_default) return -1
+      if (!a.is_default && b.is_default) return 1
+      return 0
+    }
     return integrations
       .map((integration) => {
-        const models = modelsByIntegration.get(integration.id) ?? []
+        const models = [...(modelsByIntegration.get(integration.id) ?? [])].sort(defaultFirst)
         if (!query) return { integration, models }
         const integrationNameMatches = integration.name.toLowerCase().includes(query)
         const filteredModels = integrationNameMatches

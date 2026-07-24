@@ -5,7 +5,8 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { integrationsClient, integrationsFetchClient } from '../../../client'
+import { integrationsClient } from '../../../client'
+import { fetchAllIntegrationModels } from '../../configuration/integrations/useAllIntegrationModels'
 import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 
 import { LLMModelSelector, type LLMModelSelectorProps } from './LLMModelSelector'
@@ -14,11 +15,12 @@ vi.mock('../../../client', () => ({
   integrationsClient: {
     useQuery: vi.fn(),
   },
-  integrationsFetchClient: {
-    GET: vi.fn(),
-  },
   authMiddleware: { onRequest: vi.fn() },
   interfaceTagMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../../configuration/integrations/useAllIntegrationModels', () => ({
+  fetchAllIntegrationModels: vi.fn(),
 }))
 
 vi.mock('../../../components/FormLabelWithHelp', () => ({
@@ -51,12 +53,33 @@ const mockIntegrations = [
 ]
 
 const mockModelsInt1 = [
-  { id: 'model-1', model_id: 'gpt-4o', name: 'GPT-4o', description: '128k context', is_default: true },
-  { id: 'model-2', model_id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: null, is_default: false },
+  {
+    id: 'model-1',
+    integration_id: 'int-1',
+    model_id: 'gpt-4o',
+    name: 'GPT-4o',
+    description: '128k context',
+    is_default: true,
+  },
+  {
+    id: 'model-2',
+    integration_id: 'int-1',
+    model_id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    description: null,
+    is_default: false,
+  },
 ]
 
 const mockModelsInt2 = [
-  { id: 'model-3', model_id: 'claude-sonnet-4', name: 'Claude Sonnet', description: '200k context', is_default: true },
+  {
+    id: 'model-3',
+    integration_id: 'int-2',
+    model_id: 'claude-sonnet-4',
+    name: 'Claude Sonnet',
+    description: '200k context',
+    is_default: true,
+  },
 ]
 
 function mockClients({ integrations = mockIntegrations, isPending = false } = {}) {
@@ -66,12 +89,10 @@ function mockClients({ integrations = mockIntegrations, isPending = false } = {}
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any)
 
-  const mockGet = integrationsFetchClient.GET as ReturnType<typeof vi.fn>
-  mockGet.mockImplementation((_path: string, options?: { params?: { path?: { integration_id?: string } } }) => {
-    const integrationId = options?.params?.path?.integration_id ?? ''
-    if (integrationId === 'int-1') return Promise.resolve({ data: { resources: mockModelsInt1 } })
-    if (integrationId === 'int-2') return Promise.resolve({ data: { resources: mockModelsInt2 } })
-    return Promise.resolve({ data: { resources: [] } })
+  vi.mocked(fetchAllIntegrationModels).mockImplementation((integrationId: string) => {
+    if (integrationId === 'int-1') return Promise.resolve(mockModelsInt1)
+    if (integrationId === 'int-2') return Promise.resolve(mockModelsInt2)
+    return Promise.resolve([])
   })
 }
 
@@ -241,5 +262,50 @@ describe('LLMModelSelector', () => {
       expect(screen.getByText('GPT-4o')).toBeInTheDocument()
     })
     expect(screen.queryByText('Claude Sonnet')).not.toBeInTheDocument()
+  })
+
+  it('shows all models returned by fetchAllIntegrationModels', async () => {
+    const user = userEvent.setup()
+    const allModels = [
+      {
+        id: 'p1-1',
+        integration_id: 'int-large',
+        model_id: 'model-a',
+        name: 'Model A',
+        description: null,
+        is_default: false,
+      },
+      {
+        id: 'p1-2',
+        integration_id: 'int-large',
+        model_id: 'model-b',
+        name: 'Model B',
+        description: null,
+        is_default: false,
+      },
+      {
+        id: 'p2-1',
+        integration_id: 'int-large',
+        model_id: 'model-c',
+        name: 'Model C',
+        description: null,
+        is_default: true,
+      },
+    ]
+
+    mockClients({ integrations: [{ id: 'int-large', name: 'BigProvider' }] })
+    vi.mocked(fetchAllIntegrationModels).mockResolvedValue(allModels)
+
+    renderSelector()
+
+    await user.click(screen.getByRole('button', { name: /model/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Model A')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Model B')).toBeInTheDocument()
+    expect(screen.getByText('Model C')).toBeInTheDocument()
+
+    expect(fetchAllIntegrationModels).toHaveBeenCalledWith('int-large')
   })
 })
