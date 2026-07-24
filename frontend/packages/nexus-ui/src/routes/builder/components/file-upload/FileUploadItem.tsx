@@ -1,5 +1,16 @@
-import { Button, Content, ContentVariants, Flex, FlexItem, Progress, ProgressSize } from '@patternfly/react-core'
-import { RhUiDocumentFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import {
+  Button,
+  Content,
+  ContentVariants,
+  Flex,
+  FlexItem,
+  Progress,
+  ProgressSize,
+  Truncate,
+} from '@patternfly/react-core'
+import { RhUiDocumentFillIcon, RhUiDownloadIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+
+import styles from './FileUploadItem.module.css'
 
 export type FileUploadItemProps = {
   file: File
@@ -10,8 +21,13 @@ export type FileUploadItemProps = {
   errorMessage?: string
   fileName?: string
   onRemove?: () => void
+  onDownload?: () => void
+  onCancelDownload?: () => void
+  isDownloading?: boolean
   className?: string
   removeButtonAriaLabel?: string
+  downloadButtonAriaLabel?: string
+  cancelDownloadAriaLabel?: string
 }
 
 function formatFileSize(bytes: number): string {
@@ -25,6 +41,75 @@ function getFileExtension(filename: string): string {
   return ext ?? 'FILE'
 }
 
+function getProgressVariant(isError: boolean, isSuccess: boolean) {
+  if (isError) return 'danger' as const
+  if (isSuccess) return 'success' as const
+  return undefined
+}
+
+type FileUploadItemActionsProps = Readonly<{
+  showDownload: boolean
+  showCancelDownload: boolean
+  showRemove: boolean
+  isDownloading: boolean
+  onDownload?: () => void
+  onCancelDownload?: () => void
+  onRemove?: () => void
+  downloadButtonAriaLabel: string
+  cancelDownloadAriaLabel: string
+  removeButtonAriaLabel: string
+}>
+
+function FileUploadItemActions({
+  showDownload,
+  showCancelDownload,
+  showRemove,
+  isDownloading,
+  onDownload,
+  onCancelDownload,
+  onRemove,
+  downloadButtonAriaLabel,
+  cancelDownloadAriaLabel,
+  removeButtonAriaLabel,
+}: FileUploadItemActionsProps) {
+  if (!showDownload && !showCancelDownload && !showRemove) return null
+
+  return (
+    <FlexItem>
+      <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+        {showDownload && (
+          <FlexItem>
+            <Button
+              variant="plain"
+              aria-label={downloadButtonAriaLabel}
+              onClick={onDownload}
+              size="sm"
+              isLoading={isDownloading}
+              isDisabled={isDownloading}
+            >
+              <RhUiDownloadIcon />
+            </Button>
+          </FlexItem>
+        )}
+        {showCancelDownload && (
+          <FlexItem>
+            <Button variant="link" isInline onClick={onCancelDownload} aria-label={cancelDownloadAriaLabel}>
+              Cancel
+            </Button>
+          </FlexItem>
+        )}
+        {showRemove && (
+          <FlexItem>
+            <Button variant="plain" aria-label={removeButtonAriaLabel} onClick={onRemove} size="sm">
+              <RhUiTrashIcon />
+            </Button>
+          </FlexItem>
+        )}
+      </Flex>
+    </FlexItem>
+  )
+}
+
 export function FileUploadItem({
   file,
   fileSize,
@@ -33,73 +118,63 @@ export function FileUploadItem({
   errorMessage,
   fileName,
   onRemove,
+  onDownload,
+  onCancelDownload,
+  isDownloading = false,
   className,
   removeButtonAriaLabel = 'Remove file',
+  downloadButtonAriaLabel = 'Download file',
+  cancelDownloadAriaLabel = 'Cancel download',
 }: FileUploadItemProps) {
   const displayName = fileName ?? file.name
   const isError = status === 'error'
   const isSuccess = status === 'success'
   const fileExtension = getFileExtension(file.name)
-
-  const getProgressVariant = () => {
-    if (isError) return 'danger'
-    if (isSuccess) return 'success'
-    return undefined
-  }
-
+  const showDownload = Boolean(onDownload) && isSuccess
+  const showCancelDownload = showDownload && isDownloading && Boolean(onCancelDownload)
+  // Hide delete while a download is in progress (download occupies that action slot).
+  const showRemove = Boolean(onRemove) && !isDownloading
   const showProgress = progress !== undefined && status !== 'pending'
+  const itemClassName = className ? `${styles.item} ${className}` : styles.item
 
   return (
-    <div
-      className={className}
-      style={{
-        padding: 'var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md)',
-        backgroundColor: 'var(--pf-t--global--background--color--floating--default)',
-        border: '1px solid var(--pf-t--global--border--color--default)',
-        borderRadius: 'var(--pf-t--global--border--radius--small)',
-        marginTop: 'var(--pf-t--global--spacer--sm)',
-      }}
-    >
+    <div className={itemClassName}>
       <Flex alignItems={{ default: 'alignItemsCenter' }}>
         <FlexItem>
-          <RhUiDocumentFillIcon
-            style={{
-              color: isError
-                ? 'var(--pf-t--global--color--status--danger--default)'
-                : 'var(--pf-t--global--color--brand--default)',
-              fontSize: 'var(--pf-t--global--icon--size--lg)',
-            }}
-          />
+          <RhUiDocumentFillIcon className={isError ? `${styles.fileIcon} ${styles.fileIconError}` : styles.fileIcon} />
         </FlexItem>
-        <FlexItem flex={{ default: 'flex_1' }}>
+        <FlexItem flex={{ default: 'flex_1' }} className={styles.fileInfo}>
           <Content
             component={ContentVariants.p}
-            style={{
-              color: isError
-                ? 'var(--pf-t--global--color--status--danger--default)'
-                : 'var(--pf-t--global--text--color--regular)',
-            }}
+            className={isError ? `${styles.fileName} ${styles.fileNameError}` : styles.fileName}
           >
-            {displayName}
+            <Truncate content={displayName} position="middle" />
           </Content>
-          <Content component={ContentVariants.small} style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
+          <Content component={ContentVariants.small} className={styles.fileMeta}>
             {fileExtension} | {formatFileSize(fileSize ?? file.size)}
             {isError && errorMessage && ` - ${errorMessage}`}
           </Content>
         </FlexItem>
-        <FlexItem>
-          <Button variant="plain" aria-label={removeButtonAriaLabel} onClick={onRemove} size="sm">
-            <RhUiTrashIcon />
-          </Button>
-        </FlexItem>
+        <FileUploadItemActions
+          showDownload={showDownload}
+          showCancelDownload={showCancelDownload}
+          showRemove={showRemove}
+          isDownloading={isDownloading}
+          onDownload={onDownload}
+          onCancelDownload={onCancelDownload}
+          onRemove={onRemove}
+          downloadButtonAriaLabel={downloadButtonAriaLabel}
+          cancelDownloadAriaLabel={cancelDownloadAriaLabel}
+          removeButtonAriaLabel={removeButtonAriaLabel}
+        />
       </Flex>
 
       {showProgress && (
-        <div style={{ marginTop: 'var(--pf-t--global--spacer--sm)' }}>
+        <div className={styles.progress}>
           <Progress
             value={progress}
             size={ProgressSize.sm}
-            variant={getProgressVariant()}
+            variant={getProgressVariant(isError, isSuccess)}
             measureLocation="outside"
             aria-label={`${displayName} upload progress`}
           />

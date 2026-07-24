@@ -339,6 +339,7 @@ class TestAgenticOutputDefaults:
         output = AgenticOutput()
         assert output.output is None
         assert output.tool_calls is None
+        assert output.used_tools is None
         assert output.structured_output_metadata is None
         assert output.integration_ids is None
 

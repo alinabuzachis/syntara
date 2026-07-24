@@ -1,5 +1,7 @@
 """Unit tests for OrchestrationService LangGraph streaming integration."""
 
+import logging
+import time
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -697,3 +699,26 @@ class TestApplyToolSelection:
         service = self._make_service(strategy="SELECTED", selections=["uuid-a"])
         tools = cast("list[BaseTool]", [tool_no_meta, tool_with_id])
         assert service._apply_tool_selection(tools) == [tool_with_id]
+
+    def test_selected_strategy_logs_invalid_ids_and_keeps_valid_tools(self, caplog: pytest.LogCaptureFixture) -> None:
+        """T088: invalid selections are reported; valid tools still returned."""
+        tool_a = self._make_tool("uuid-a")
+        service = self._make_service(strategy="SELECTED", selections=["uuid-a", "uuid-missing"])
+        with caplog.at_level(logging.WARNING):
+            result = service._apply_tool_selection([tool_a])
+        assert result == [tool_a]
+        assert any("Invalid or unavailable tool selections" in msg for msg in caplog.messages)
+
+    def test_selected_strategy_filters_large_tool_set_quickly(self) -> None:
+        """T074: SELECTED filtering stays fast for large synchronized tool sets."""
+        tools = [self._make_tool(f"uuid-{i}") for i in range(5_000)]
+        # Mix of valid + invalid selections
+        selections = [f"uuid-{i}" for i in range(0, 5_000, 50)] + ["missing-a", "missing-b"]
+        service = self._make_service(strategy="SELECTED", selections=selections)
+
+        start = time.perf_counter()
+        result = service._apply_tool_selection(tools)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        assert len(result) == 100  # every 50th of 5000
+        assert elapsed_ms < 50, f"Tool filtering took {elapsed_ms:.1f}ms; expected < 50ms"

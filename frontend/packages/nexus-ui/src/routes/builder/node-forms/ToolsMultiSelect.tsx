@@ -268,7 +268,7 @@ export function ToolsMultiSelect({
             No results match &quot;{filterText}&quot;
           </SelectOption>
         )}
-        {totalTools > 0 && !isFiltering && (
+        {!hasNoIntegrations && !isFiltering && (
           <SelectOption hasCheckbox value={ALL_TOOLS_VALUE} isSelected={value.strategy === 'ALL'}>
             <strong>All tools</strong>
           </SelectOption>

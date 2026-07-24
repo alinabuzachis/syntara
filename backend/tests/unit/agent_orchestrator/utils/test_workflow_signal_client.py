@@ -26,6 +26,7 @@ class TestWorkflowSignalClientSendSuccessSignal:
                 "model": "claude-3-5-sonnet-20241022",
                 "source": "streaming",
             },
+            "used_tools": [{"name": "search", "count": 2}],
         }
 
         # Mock the HTTP POST
@@ -44,7 +45,39 @@ class TestWorkflowSignalClientSendSuccessSignal:
         assert "12345678-1234-5678-1234-567812345678" in payload
         assert '"status":"completed"' in payload
         assert '"content":"Analysis complete"' in payload
+        assert '"used_tools"' in payload
+        assert '"search"' in payload
         assert "GenericAgent" in payload
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_send_success_signal_omits_raw_tool_calls(self) -> None:
+        """Raw tool_calls (may include args/secrets) must not be forwarded on the signal."""
+        callback_url = "https://workflow/signal"
+        invocation_id = UUID("12345678-1234-5678-1234-567812345678")
+        result = {
+            "content": "done",
+            "used_tools": [{"name": "search", "count": 1}],
+            "tool_calls": [
+                {
+                    "name": "search",
+                    "args": {"api_key": "secret-token", "query": "users"},
+                    "id": "call_1",
+                }
+            ],
+        }
+
+        route = respx.post(callback_url).mock(return_value=httpx.Response(200))
+
+        await WorkflowSignalClient.send_success_signal(callback_url, invocation_id, result)
+
+        import json
+
+        payload = json.loads(route.calls[0].request.content.decode("utf-8"))
+        signal_result = payload["signal_data"]["result"]
+        assert "tool_calls" not in signal_result
+        assert "secret-token" not in route.calls[0].request.content.decode("utf-8")
+        assert signal_result["used_tools"] == [{"name": "search", "count": 1}]
 
     @pytest.mark.asyncio
     @respx.mock

@@ -71,8 +71,10 @@ class WorkflowSignalClient:
                     "structured_output_metadata": result.get("structured_output_metadata"),
                     "agent_trace": result.get("agent_trace"),
                     "tools_used": result.get("tools_used"),
-                    "tool_calls": result.get("tool_calls"),
                     "tokens_used": result.get("tokens_used"),
+                    # Aggregated name/count for the execution UI — do not forward raw
+                    # tool_calls (may include args/secrets); agent_trace carries step detail.
+                    "used_tools": result.get("used_tools"),
                 },
                 "timestamp": datetime.now(UTC).isoformat(),
                 "agent_type": "GenericAgent",

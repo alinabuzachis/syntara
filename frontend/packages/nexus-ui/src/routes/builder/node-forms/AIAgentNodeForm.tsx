@@ -20,11 +20,6 @@ import { Controller, FormProvider, useForm, useFormContext, useFormState, useWat
 import { AppRoute } from '../../../app/AppRoute'
 import { integrationsClient, toolManagerClient } from '../../../client'
 import { NxLink } from '../../../components/NxLink'
-import {
-  FILE_STORAGE_UNAVAILABLE_MESSAGE,
-  FILE_STORAGE_UNCONFIGURED_MESSAGE,
-  useFileStorageStatus,
-} from '../../../hooks/useFileStorageStatus'
 import { detachPromise } from '../../../utils/detachPromise'
 import { projectIdParam } from '../../../utils/queryParams'
 import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
@@ -35,6 +30,7 @@ import { LLMModelSelector, type LLMModelSelection } from '../components/LLMModel
 import { DroppableField } from '../panels/fields/DroppableField'
 import { useIsVersionView } from '../VersionViewContext'
 
+import { AIAgentFileUploadSection } from './AIAgentFileUploadSection'
 import { aiAgentFormSchema, type AIAgentFormData } from './aiAgentFormSchema'
 import { ConnectionsSection } from './ConnectionsSection'
 import { ActivityNameField } from './shared/ActivityNameField'
@@ -46,7 +42,6 @@ import { NodeSettingsForm } from './shared/NodeSettingsForm'
 import type { IntegrationWithTools, ToolSelection } from './ToolsMultiSelect'
 import { ToolsMultiSelect } from './ToolsMultiSelect'
 import { useFilesMetadata } from './useFilesMetadata'
-import { useFileUploadState } from './useFileUploadState'
 import type { FileContextType } from './useFileUploadState'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
@@ -209,36 +204,6 @@ function LLMSection({ isVersionView, projectId }: LLMSectionProps) {
 
 const NO_PROJECT_MESSAGE = 'Select a project in the workflow builder header to upload context files.'
 
-type FileUploadSectionProps = Readonly<{
-  projectId: string
-  isVersionView: boolean
-  hasExistingFiles: boolean
-}>
-
-function FileUploadSection({ projectId, isVersionView, hasExistingFiles }: FileUploadSectionProps) {
-  const fileContext = useContext(FileContext)
-  if (!fileContext) throw new Error('FileUploadSection must be used within FileContext.Provider')
-  const { uploadedFiles, handleFilesSelected, handleFileRemove } = useFileUploadState(fileContext, projectId)
-  const { isConfigured: isFileStorageConfigured, status: fileStorageStatus } = useFileStorageStatus()
-
-  return (
-    <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
-      <FileUpload
-        files={uploadedFiles}
-        onFilesSelected={handleFilesSelected}
-        onFileRemove={handleFileRemove}
-        acceptedMimeTypes={['.pdf', '.doc', '.docx', '.txt', '.md']}
-        aria-label="Context file upload"
-        disabled={!isFileStorageConfigured}
-        disabledTooltip={
-          fileStorageStatus === 'unconfigured' ? FILE_STORAGE_UNCONFIGURED_MESSAGE : FILE_STORAGE_UNAVAILABLE_MESSAGE
-        }
-        defaultStatusExpanded={!hasExistingFiles}
-      />
-    </fieldset>
-  )
-}
-
 type AIAgentFormFieldsProps = Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
@@ -389,10 +354,11 @@ function AIAgentFormFields({
       <StackItem>
         <FormGroup label="Context file upload" fieldId="agent-context">
           {projectId ? (
-            <FileUploadSection
+            <AIAgentFileUploadSection
               projectId={projectId}
               isVersionView={isVersionView}
               hasExistingFiles={hasExistingFiles}
+              fileContext={fileContext}
             />
           ) : (
             <>

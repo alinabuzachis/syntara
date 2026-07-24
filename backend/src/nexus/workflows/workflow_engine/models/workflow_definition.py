@@ -977,6 +977,7 @@ class AgenticOutput(NodeOutput):
 
     output: str | dict[str, Any] | None = None
     tool_calls: list[Any] | None = None
+    used_tools: list[dict[str, Any]] | None = None
     structured_output_metadata: dict[str, Any] | None = None
     integration_ids: list[str] | None = None
 

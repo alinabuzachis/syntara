@@ -315,6 +315,26 @@ function createExecutionNotFoundResponse(executionId: string, subPath?: string) 
   )
 }
 
+/** In-memory file store for mock upload → download round-trips (retains original filenames). */
+const mockUploadedFiles = new Map<string, { filename: string; content: ArrayBuffer; mime_type: string }>()
+const knownFileMetadata: Record<string, { filename: string; size_bytes: number; mime_type: string }> = {
+  'a1b2c3d4-0001-0001-0001-000000000001': {
+    filename: 'server-config.txt',
+    size_bytes: 2048,
+    mime_type: 'text/plain',
+  },
+  'a1b2c3d4-0001-0001-0001-000000000002': {
+    filename: 'api-docs.md',
+    size_bytes: 15360,
+    mime_type: 'text/markdown',
+  },
+  'a1b2c3d4-0001-0001-0001-000000000003': {
+    filename: 'deploy-runbook.txt',
+    size_bytes: 4096,
+    mime_type: 'text/plain',
+  },
+}
+
 export const handlers = [
   http.get('/api/v1/tool_manager/tools', ({ request }) => {
     const url = new URL(request.url)
@@ -3334,18 +3354,28 @@ export const handlers = [
     return HttpResponse.json(credType)
   }),
 
-  // File upload mock handler
+  // File upload / metadata / download mock handlers
   http.post('/api/v1/files', async ({ request }) => {
     const formData = await request.formData()
     const files = formData.getAll('files').filter((entry): entry is File => entry instanceof File)
 
-    const fileResponses = files.map((file) => ({
-      file_id: uuidv4(),
-      filename: file.name,
-      size_bytes: file.size,
-      mime_type: file.type || 'application/octet-stream',
-      status: 'pending_conversion',
-    }))
+    const fileResponses = await Promise.all(
+      files.map(async (file) => {
+        const file_id = uuidv4()
+        mockUploadedFiles.set(file_id, {
+          filename: file.name,
+          content: await file.arrayBuffer(),
+          mime_type: file.type || 'application/octet-stream',
+        })
+        return {
+          file_id,
+          filename: file.name,
+          size_bytes: file.size,
+          mime_type: file.type || 'application/octet-stream',
+          status: 'pending_conversion',
+        }
+      })
+    )
 
     return HttpResponse.json({
       file_ids: fileResponses.map((f) => f.file_id),
@@ -3356,25 +3386,18 @@ export const handlers = [
   http.get('/api/v1/files/metadata', ({ request }) => {
     const url = new URL(request.url)
     const fileIds = url.searchParams.getAll('file_ids')
-    const knownFiles: Record<string, { filename: string; size_bytes: number; mime_type: string }> = {
-      'a1b2c3d4-0001-0001-0001-000000000001': {
-        filename: 'server-config.txt',
-        size_bytes: 2048,
-        mime_type: 'text/plain',
-      },
-      'a1b2c3d4-0001-0001-0001-000000000002': {
-        filename: 'api-docs.md',
-        size_bytes: 15360,
-        mime_type: 'text/markdown',
-      },
-      'a1b2c3d4-0001-0001-0001-000000000003': {
-        filename: 'deploy-runbook.txt',
-        size_bytes: 4096,
-        mime_type: 'text/plain',
-      },
-    }
     const files = fileIds.map((id) => {
-      const known = knownFiles[id]
+      const uploaded = mockUploadedFiles.get(id)
+      if (uploaded) {
+        return {
+          file_id: id,
+          filename: uploaded.filename,
+          size_bytes: uploaded.content.byteLength,
+          mime_type: uploaded.mime_type,
+          status: 'ready',
+        }
+      }
+      const known = knownFileMetadata[id]
       return {
         file_id: id,
         filename: known?.filename ?? `file-${id.slice(0, 8)}.txt`,
@@ -3384,6 +3407,34 @@ export const handlers = [
       }
     })
     return HttpResponse.json({ files })
+  }),
+
+  http.get('/api/v1/files/:file_id/download', ({ params }) => {
+    const fileId = String(params.file_id)
+    const uploaded = mockUploadedFiles.get(fileId)
+    if (uploaded) {
+      return new HttpResponse(uploaded.content, {
+        status: 200,
+        headers: {
+          'Content-Type': uploaded.mime_type,
+          'Content-Disposition': `attachment; filename="${uploaded.filename}"`,
+        },
+      })
+    }
+
+    const known = knownFileMetadata[fileId]
+    if (known) {
+      const body = `mock contents for ${known.filename}`
+      return new HttpResponse(body, {
+        status: 200,
+        headers: {
+          'Content-Type': known.mime_type,
+          'Content-Disposition': `attachment; filename="${known.filename}"`,
+        },
+      })
+    }
+
+    return HttpResponse.json({ detail: 'File not found' }, { status: 404 })
   }),
 
   // Settings endpoints

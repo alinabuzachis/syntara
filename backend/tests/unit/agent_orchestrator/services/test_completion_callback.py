@@ -147,3 +147,39 @@ class TestSendCompletionCallback:
         ) as mock_signal:
             await orchestration_service._send_completion_callback(final_state, invocation_id, ctx)
             mock_signal.assert_awaited_once_with(callback_url, invocation_id, {"content": "done"})
+
+    @pytest.mark.asyncio
+    async def test_used_tools_attached_without_mutating_result(
+        self, orchestration_service: OrchestrationService
+    ) -> None:
+        """used_tools is included in the signal payload without mutating shared result."""
+        callback_url = "http://nexus/signal/activity/tools"
+        invocation_id = uuid4()
+        shared_result: dict[str, Any] = {"content": "done"}
+        final_state = _make_final_state(
+            metadata={"callback_url": callback_url},
+            result=shared_result,
+        )
+
+        with (
+            patch(
+                "nexus.agent_orchestrator.services.orchestration_service.aggregate_used_tools",
+                return_value=[{"name": "search", "count": 2}, {"name": "fetch", "count": 1}],
+            ),
+            patch(
+                "nexus.agent_orchestrator.services.orchestration_service.WorkflowSignalClient.send_success_signal",
+                new_callable=AsyncMock,
+            ) as mock_signal,
+        ):
+            await orchestration_service._send_completion_callback(final_state, invocation_id)
+
+        mock_signal.assert_awaited_once_with(
+            callback_url,
+            invocation_id,
+            {
+                "content": "done",
+                "used_tools": [{"name": "search", "count": 2}, {"name": "fetch", "count": 1}],
+            },
+        )
+        assert "used_tools" not in shared_result
+        assert final_state["result"] is shared_result

@@ -20,6 +20,11 @@
   font-size: var(--pf-t--global--font--size--sm);
 }
 
+.usedToolsItem {
+  flex-shrink: 0;
+  padding-bottom: var(--pf-t--global--spacer--sm);
+}
+
 .dataPaneControlsWrap {
   /* Must be >= toggle width + search min-width + gap so inner items never wrap while next to the title */
   flex: 1 0 30rem;

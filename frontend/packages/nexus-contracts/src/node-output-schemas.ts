@@ -64,6 +64,7 @@ export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
         'Agent response output - either string (unstructured) or object (structured based on response_schema)',
     },
     { name: 'tool_calls', type: 'array', description: 'List of tool calls made by the agent during execution' },
+    { name: 'used_tools', type: 'array', description: 'Aggregated tool usage with tool names and call counts' },
     {
       name: 'structured_output_metadata',
       type: 'object',

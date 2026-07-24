@@ -95,6 +95,15 @@ describe('ToolsMultiSelect', () => {
     expect(screen.getByRole('menuitem', { name: 'All tools' })).toBeInTheDocument()
   })
 
+  it('renders "All tools" even when no tools are discovered yet', async () => {
+    const user = userEvent.setup()
+    renderComponent(NONE, vi.fn(), [])
+
+    await user.click(screen.getByRole('textbox', { name: 'Select tools' }))
+
+    expect(screen.getByRole('checkbox', { name: 'All tools' })).toBeInTheDocument()
+  })
+
   it('"All tools" checkbox is checked when strategy is ALL', async () => {
     const user = userEvent.setup()
     renderComponent(ALL)

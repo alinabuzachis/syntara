@@ -265,6 +265,65 @@ def test_agentic_with_response_schema(
 
 
 # ---------------------------------------------------------------------------
+# 4b. Agentic with tool selection + response schema (AAP-66977 T089)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.xfail(strict=False, reason="LLM output non-determinism")
+def test_agentic_with_tool_selection_and_response_schema(
+    nexus_api: NexusApiRegistry,
+    llm_credential_id: str,
+    llm_model_id: str,
+    first_project_id: UUID,
+) -> None:
+    """Agentic node with tool_selection_strategy NONE and response_schema produces JSON output."""
+    response_schema = json.dumps(
+        {
+            "type": "object",
+            "properties": {"fruits": {"type": "array", "items": {"type": "string"}}},
+            "required": ["fruits"],
+        }
+    )
+    result = create_and_run_workflow(
+        nexus_api,
+        "e2e-agentic-tools-and-schema",
+        {
+            "name": "agentic-tools-schema",
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                _agentic_node(
+                    "agent",
+                    "Tools Schema Agent",
+                    "List exactly 2 fruits",
+                    llm_credential_id,
+                    llm_model_id,
+                    response_schema=response_schema,
+                    tool_selection_strategy="NONE",
+                ),
+            ],
+            "edges": [{"from": "trigger", "to": "agent"}],
+        },
+        timeout=AGENTIC_POLL_TIMEOUT,
+        project_id=first_project_id,
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    output = activities["agent"].output_data
+    assert output is not None, "Agent should produce output"
+    output_dict = output if isinstance(output, dict) else getattr(output, "additional_properties", {})
+    result_value = output_dict.get("result", "")
+    if isinstance(result_value, str):
+        parsed = json.loads(result_value)
+    elif isinstance(result_value, dict):
+        parsed = result_value
+    else:
+        parsed = output_dict
+    assert "fruits" in parsed, f"Expected 'fruits' key in parsed output, got: {parsed}"
+
+
+# ---------------------------------------------------------------------------
 # 5. Agentic input from upstream node
 # ---------------------------------------------------------------------------
 

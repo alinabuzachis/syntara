@@ -43,6 +43,7 @@ import { extractAgentTrace } from './agentTraceTypes'
 import { AgentTraceView } from './AgentTraceView'
 import { useNodeExecutionDetails } from './hooks/useNodeExecutionDetails'
 import styles from './NodeExecutionDetailsPanel.module.css'
+import { extractUsedTools, type UsedTool } from './utils/extractUsedTools'
 
 type NodeExecutionDetailsPanelProps = {
   nodeId: string
@@ -222,6 +223,75 @@ function AAPJobLink({
   )
 }
 
+function UsedToolsSection({ tools }: Readonly<{ tools: UsedTool[] }>) {
+  return (
+    <StackItem className={styles.usedToolsItem}>
+      <Flex className={styles.auditStrip} gap={{ default: 'gapLg' }} alignItems={{ default: 'alignItemsCenter' }}>
+        <FlexItem>
+          <Stack>
+            <StackItem className={styles.auditLabel}>Tools used</StackItem>
+            <StackItem className={styles.auditValue}>
+              {tools.map((tool) => `${tool.name} (${tool.count})`).join(', ')}
+            </StackItem>
+          </Stack>
+        </FlexItem>
+      </Flex>
+    </StackItem>
+  )
+}
+
+function NodeDetailsHeader({
+  nodeName,
+  nodeStarted,
+  nodeCompleted,
+  nodeElapsedLabel,
+  status,
+}: Readonly<{
+  nodeName: string
+  nodeStarted: string | null
+  nodeCompleted: string | null
+  nodeElapsedLabel?: string
+  status?: ActivityState['status']
+}>) {
+  return (
+    <StackItem className={styles.headerRow}>
+      <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
+        <FlexItem>
+          <Title headingLevel="h2" size={TitleSizes.md} style={{ margin: 0 }}>
+            {nodeName}
+          </Title>
+        </FlexItem>
+        <FlexItem>
+          <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
+            {nodeStarted && (
+              <Content
+                component={ContentVariants.small}
+                style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
+              >
+                {formatExecutionDateTime(nodeStarted)}
+                {nodeCompleted && ` - ${formatExecutionDateTime(nodeCompleted)}`}
+              </Content>
+            )}
+            {nodeElapsedLabel && (
+              <Content
+                component={ContentVariants.small}
+                style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
+              >
+                Elapsed time: {nodeElapsedLabel}
+              </Content>
+            )}
+            {status && (
+              <FlexItem style={{ display: 'flex', alignItems: 'center' }}>
+                <ActivityStatusLabel status={status} />
+              </FlexItem>
+            )}
+          </Flex>
+        </FlexItem>
+      </Flex>
+    </StackItem>
+  )
+}
+
 type NodeContentAreaProps = Readonly<{
   nodeId: string
   inputData: Record<string, unknown> | null
@@ -296,6 +366,7 @@ export function NodeExecutionDetailsPanel({
   )
 
   const approvalAudit = useMemo(() => extractApprovalAudit(outputData), [outputData])
+  const usedTools = useMemo(() => extractUsedTools(outputData), [outputData])
 
   const nodeStarted = nodeState?.startedAt ?? null
   const nodeCompleted = nodeState?.completedAt ?? null
@@ -306,42 +377,13 @@ export function NodeExecutionDetailsPanel({
 
   return (
     <Stack className={styles.contentContainer}>
-      {/* Node-specific header */}
-      <StackItem className={styles.headerRow}>
-        <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
-          <FlexItem>
-            <Title headingLevel="h2" size={TitleSizes.md} style={{ margin: 0 }}>
-              {nodeName}
-            </Title>
-          </FlexItem>
-          <FlexItem>
-            <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
-              {nodeStarted && (
-                <Content
-                  component={ContentVariants.small}
-                  style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
-                >
-                  {formatExecutionDateTime(nodeStarted)}
-                  {nodeCompleted && ` - ${formatExecutionDateTime(nodeCompleted)}`}
-                </Content>
-              )}
-              {nodeElapsedLabel && (
-                <Content
-                  component={ContentVariants.small}
-                  style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
-                >
-                  Elapsed time: {nodeElapsedLabel}
-                </Content>
-              )}
-              {nodeState?.status && (
-                <FlexItem style={{ display: 'flex', alignItems: 'center' }}>
-                  <ActivityStatusLabel status={nodeState.status} />
-                </FlexItem>
-              )}
-            </Flex>
-          </FlexItem>
-        </Flex>
-      </StackItem>
+      <NodeDetailsHeader
+        nodeName={nodeName}
+        nodeStarted={nodeStarted}
+        nodeCompleted={nodeCompleted}
+        nodeElapsedLabel={nodeElapsedLabel}
+        status={nodeState?.status}
+      />
 
       {/* Approval audit strip (shown only for decided approval nodes) */}
       {approvalAudit && (
@@ -349,6 +391,8 @@ export function NodeExecutionDetailsPanel({
           <ApprovalAuditSection audit={approvalAudit} />
         </StackItem>
       )}
+
+      {usedTools && <UsedToolsSection tools={usedTools} />}
 
       <AAPJobLink outputData={outputData} nodeType={nodeType} />
 

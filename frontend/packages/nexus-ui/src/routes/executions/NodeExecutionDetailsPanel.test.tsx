@@ -656,5 +656,36 @@ describe('NodeExecutionDetailsPanel', () => {
       expect(screen.getByRole('tab', { name: /Agent steps/i, selected: false })).toBeInTheDocument()
       expect(screen.getByText('Parameters')).toBeInTheDocument()
     })
+
+    it('renders tools used summary from agentic output_data', () => {
+      mockUseQuery.mockReturnValue({
+        data: {
+          resources: [
+            {
+              activity_name: 'triage_agent',
+              input_data: { prompt: 'hi' },
+              output_data: {
+                result: {
+                  content: 'done',
+                  used_tools: [
+                    { name: 'search', count: 2 },
+                    { name: 'fetch', count: 1 },
+                  ],
+                },
+              },
+              status: 'completed',
+            },
+          ],
+        },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<NodeExecutionDetailsPanel {...agenticProps} />, { wrapper })
+
+      expect(screen.getByText('Tools used')).toBeInTheDocument()
+      expect(screen.getByText('search (2), fetch (1)')).toBeInTheDocument()
+    })
   })
 })

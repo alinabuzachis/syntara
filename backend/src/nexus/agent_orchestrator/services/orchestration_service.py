@@ -45,6 +45,7 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
     create_tool_wrapper,
 )
 from nexus.agent_orchestrator.utils.context_helpers import extract_request_id
+from nexus.agent_orchestrator.utils.used_tools import aggregate_used_tools
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.audit.decorators import audit
 from nexus.audit.emitter import AuditActorContext
@@ -398,12 +399,24 @@ class OrchestrationService:
 
         ALL: return all enabled tools unchanged.
         SELECTED: return only tools whose tool_id is in self._tool_selections.
+            Invalid/unavailable selected IDs are reported via warning log; execution
+            continues with the valid tools.
         None or NONE: return an empty list (NONE is the explicit default).
         """
         strategy = self._tool_selection_strategy
         if strategy == "ALL":
             return tools
         if strategy == "SELECTED":
+            available_ids = {(t.metadata or {}).get("tool_id", "") for t in tools}
+            available_ids.discard("")
+            invalid_ids = sorted(self._tool_selections - available_ids)
+            if invalid_ids:
+                logger.warning(
+                    "Invalid or unavailable tool selections ignored at runtime; proceeding with valid tools only",
+                    invalid_tool_ids=invalid_ids,
+                    selected_count=len(self._tool_selections),
+                    available_count=len(available_ids),
+                )
             return [t for t in tools if (t.metadata or {}).get("tool_id", "") in self._tool_selections]
         # None or "NONE" → no tools
         return []
@@ -968,8 +981,16 @@ class OrchestrationService:
             logger.warning("No result found in final_state for callback", invocation_id=invocation_id)
             return
 
+        # Attach tool-usage summary for execution results.
+        # Shallow-copy so we do not mutate the shared final_state["result"] reference.
+        payload = result
+        if isinstance(result, dict):
+            used_tools = aggregate_used_tools(final_state.get("messages"))
+            if used_tools:
+                payload = {**result, "used_tools": used_tools}
+
         logger.info("CALLBACK: Sending activity signal", callback_url=callback_url, invocation_id=invocation_id)
-        await WorkflowSignalClient.send_success_signal(callback_url, invocation_id, result)
+        await WorkflowSignalClient.send_success_signal(callback_url, invocation_id, payload)
 
     # ===============================
     # Nodes

@@ -27,6 +27,14 @@ export type { UploadedFile } from './fileUploadUtils'
 export type FileUploadProps = {
   onFilesSelected?: (files: File[]) => void
   onFileRemove?: (fileId: string) => void
+  /** Called when the user downloads a successfully uploaded file. */
+  onFileDownload?: (fileId: string, fileName: string) => void
+  /** Called when the user cancels an in-progress download for a file. */
+  onFileDownloadCancel?: (fileId: string) => void
+  /** File ids currently being downloaded (shows spinner on each card's download action). */
+  downloadingFileIds?: ReadonlySet<string>
+  /** When false, hides the remove action on file cards. Default: true. */
+  canRemove?: boolean
   maxFiles?: number
   maxSizeBytes?: number
   maxSizeMB?: number
@@ -94,9 +102,15 @@ function UploadStatusToggle({ variant, text }: { variant: 'danger' | 'success' |
   }
 }
 
+const EMPTY_DOWNLOADING_FILE_IDS: ReadonlySet<string> = new Set()
+
 export function FileUpload({
   onFilesSelected,
   onFileRemove,
+  onFileDownload,
+  onFileDownloadCancel,
+  downloadingFileIds = EMPTY_DOWNLOADING_FILE_IDS,
+  canRemove = true,
   maxFiles,
   maxSizeBytes,
   maxSizeMB,
@@ -204,7 +218,13 @@ export function FileUpload({
               status={uploadedFile.status}
               progress={uploadedFile.progress}
               errorMessage={uploadedFile.errorMessage}
-              onRemove={() => handleFileRemove(uploadedFile.id)}
+              onRemove={canRemove ? () => handleFileRemove(uploadedFile.id) : undefined}
+              onDownload={onFileDownload ? () => onFileDownload(uploadedFile.id, uploadedFile.file.name) : undefined}
+              onCancelDownload={onFileDownloadCancel ? () => onFileDownloadCancel(uploadedFile.id) : undefined}
+              isDownloading={downloadingFileIds.has(uploadedFile.id)}
+              downloadButtonAriaLabel={`Download ${uploadedFile.file.name}`}
+              cancelDownloadAriaLabel={`Cancel download of ${uploadedFile.file.name}`}
+              removeButtonAriaLabel={`Remove ${uploadedFile.file.name}`}
             />
           ))}
         </ExpandableSection>

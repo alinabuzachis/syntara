@@ -14,6 +14,8 @@ import {
   saveWorkflow,
   startWorkflowWithTrigger,
 } from './helpers/workflows'
+import { createIntegrationViaApi, deleteIntegrationViaApi, type SeededIntegration } from './seeds/resources'
+import { getAuthToken } from './utils/api'
 
 function canvasNode(app: Page, name: string) {
   return app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: name })
@@ -151,6 +153,80 @@ test.describe('AI Agent Node @pr-check', () => {
       await deleteWorkflow(app, workflowName)
 
       if (integration) await deleteLlmIntegration(app, integration.id)
+    }
+  })
+
+  test('AI Agent node with tool selection and response schema persists after save/reload', async ({ app }) => {
+    const llmIntegrationName = buildUniqueName('e2e-llm-integ')
+    const mcpIntegrationName = buildUniqueName('e2e-mcp-integ')
+    const workflowName = buildUniqueName('e2e-agent-tools-schema')
+    let llmIntegration: SeededLlmIntegration | undefined
+    let mcpIntegration: SeededIntegration | null = null
+    try {
+      llmIntegration = await createLlmIntegration(app, llmIntegrationName)
+      // Tool selection requires an MCP integration (with tools). Without one the
+      // Tools control stays empty and hides "All tools".
+      const token = await getAuthToken(app)
+      mcpIntegration = await createIntegrationViaApi(app, {
+        name: mcpIntegrationName,
+        token: token ?? undefined,
+        discoveredTools: [{ name: 'e2e_search_tool', enabled: true }],
+      })
+      expect(mcpIntegration).not.toBeNull()
+
+      const { name: credName } = await ensureLlmCredential(app)
+
+      await startWorkflowWithTrigger(app)
+
+      const panel = await clickAddConnectedStep(app)
+      await panel.getByRole('button', { name: 'Task Agent' }).click()
+
+      await app.getByRole('textbox', { name: 'Name', exact: true }).fill('ToolsSchemaAgent')
+      await app.getByLabel('Prompt').fill('Generate structured output with tools available')
+      await selectLlmCredential(app, credName)
+
+      // Configure ALL tool selection (non-default) so persistence is meaningful.
+      const toolsInput = app.getByRole('textbox', { name: 'Select tools' })
+      await expect(toolsInput).toHaveValue('No tools selected', { timeout: 15_000 })
+      await toolsInput.click()
+      const allToolsCheckbox = app.getByRole('checkbox', { name: 'All tools' })
+      await expect(allToolsCheckbox).toBeVisible({ timeout: 15_000 })
+      await allToolsCheckbox.click()
+      await app.keyboard.press('Escape')
+      await expect(toolsInput).toHaveValue('All tools selected')
+
+      const validSchema = JSON.stringify({
+        type: 'object',
+        properties: {
+          summary: { type: 'string' },
+          confidence: { type: 'number' },
+        },
+        required: ['summary'],
+      })
+      await fillCodeEditor(app, { value: validSchema, label: 'Response schema editor' })
+
+      await app.getByRole('button', { name: 'Create' }).click()
+      await closeNodeEditorPanel(app)
+      await saveWorkflow(app, workflowName)
+
+      await openWorkflowInBuilder(app, workflowName)
+      await openNodeForEditing(app, 'ToolsSchemaAgent')
+
+      const form = app.getByTestId('ai-agent-node-form')
+      await expect(form).toBeVisible({ timeout: 10_000 })
+
+      await expect(form.getByRole('textbox', { name: 'Select tools' })).toHaveValue('All tools selected', {
+        timeout: 30_000,
+      })
+
+      const codeEditor = app.getByTestId('inline-code-editor')
+      await expect(codeEditor).toBeVisible({ timeout: 10_000 })
+      await expect(codeEditor).toContainText('summary', { timeout: 30_000 })
+    } finally {
+      await deleteWorkflow(app, workflowName)
+
+      if (mcpIntegration) await deleteIntegrationViaApi(app, mcpIntegration.id)
+      if (llmIntegration) await deleteLlmIntegration(app, llmIntegration.id)
     }
   })
 

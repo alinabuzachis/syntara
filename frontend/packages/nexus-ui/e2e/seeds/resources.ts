@@ -19,23 +19,36 @@ export type SeededIntegration = {
 
 export async function createIntegrationViaApi(
   page: Page,
-  options: { name: string; token?: string }
+  options: {
+    name: string
+    token?: string
+    /** Tools to seed with the MCP integration (enables agent tool selection in E2E). */
+    discoveredTools?: Array<{ name: string; enabled?: boolean }>
+  }
 ): Promise<SeededIntegration | null> {
   try {
     const token = options.token ?? (await getAuthToken(page))
     if (!token) return null
 
+    const data: Record<string, unknown> = {
+      name: options.name,
+      integration_type: 'mcp_server',
+      configuration: {
+        integration_type: 'mcp_server',
+        base_url: `https://${options.name}.example.com/api`,
+      },
+      scope: 'global',
+    }
+    if (options.discoveredTools?.length) {
+      data.discovered_tools = options.discoveredTools.map((tool) => ({
+        name: tool.name,
+        enabled: tool.enabled ?? true,
+      }))
+    }
+
     const resp = await apiRequest(page, 'post', '/integrations', {
       token,
-      data: {
-        name: options.name,
-        integration_type: 'mcp_server',
-        configuration: {
-          integration_type: 'mcp_server',
-          base_url: `https://${options.name}.example.com/api`,
-        },
-        scope: 'global',
-      },
+      data,
     })
     if (!resp.ok()) return null
     const integration = (await resp.json()) as { id: string; name: string }

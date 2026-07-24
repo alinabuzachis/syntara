@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { FileUploadItem } from './FileUploadItem'
 
@@ -14,6 +15,20 @@ describe('FileUploadItem', () => {
       const file = createFile('document.png')
       render(<FileUploadItem file={file} fileId="1" />)
       expect(screen.getByText('document.png')).toBeInTheDocument()
+    })
+
+    it('renders long file names with middle Truncate', () => {
+      const longName = 'very-long-context-filename-that-should-truncate-in-the-middle.pdf'
+      const file = createFile(longName)
+      render(<FileUploadItem file={file} fileId="1" />)
+      // PatternFly middle Truncate splits across start/end segments; assert via combined textContent.
+      expect(
+        screen.getByText(
+          (_content, element) =>
+            element?.classList.contains('pf-v6-c-truncate') === true && element.textContent === longName
+        )
+      ).toBeInTheDocument()
+      expect(screen.getByText(/\.pdf$/)).toBeInTheDocument()
     })
 
     it('renders custom file name when provided', () => {
@@ -87,6 +102,12 @@ describe('FileUploadItem', () => {
       expect(screen.getByLabelText('Remove file')).toBeInTheDocument()
     })
 
+    it('does not render remove button when onRemove is omitted', () => {
+      const file = createFile('test.png')
+      render(<FileUploadItem file={file} fileId="1" />)
+      expect(screen.queryByLabelText('Remove file')).not.toBeInTheDocument()
+    })
+
     it('calls onRemove when clicked', async () => {
       const user = userEvent.setup()
       const onRemove = vi.fn()
@@ -105,11 +126,155 @@ describe('FileUploadItem', () => {
     })
   })
 
+  describe('download button', () => {
+    it('renders download button to the left of remove for successful uploads', () => {
+      const file = createFile('Report_Q2.pdf')
+      render(
+        <FileUploadItem
+          file={file}
+          fileId="1"
+          status="success"
+          onDownload={() => {}}
+          onRemove={() => {}}
+          downloadButtonAriaLabel="Download Report_Q2.pdf"
+        />
+      )
+
+      const allButtons = screen.getAllByRole('button')
+      const downloadIndex = allButtons.findIndex((b) => b.getAttribute('aria-label') === 'Download Report_Q2.pdf')
+      const removeIndex = allButtons.findIndex((b) => b.getAttribute('aria-label') === 'Remove file')
+      expect(downloadIndex).toBeLessThan(removeIndex)
+    })
+
+    it('does not render download button when status is not success', () => {
+      const file = createFile('Report_Q2.pdf')
+      render(<FileUploadItem file={file} fileId="1" status="uploading" onDownload={() => {}} />)
+      expect(screen.queryByLabelText('Download file')).not.toBeInTheDocument()
+    })
+
+    it('calls onDownload when clicked', async () => {
+      const user = userEvent.setup()
+      const onDownload = vi.fn()
+      const file = createFile('Report_Q2.pdf')
+
+      render(<FileUploadItem file={file} fileId="1" status="success" onDownload={onDownload} />)
+
+      await user.click(screen.getByLabelText('Download file'))
+      expect(onDownload).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows loading state while downloading', () => {
+      const file = createFile('Report_Q2.pdf')
+      render(<FileUploadItem file={file} fileId="1" status="success" onDownload={() => {}} isDownloading />)
+      expect(screen.getByLabelText('Download file')).toHaveAttribute('disabled')
+    })
+
+    it('hides remove button while downloading', () => {
+      const file = createFile('Report_Q2.pdf')
+      render(
+        <FileUploadItem
+          file={file}
+          fileId="1"
+          status="success"
+          onDownload={() => {}}
+          onRemove={() => {}}
+          isDownloading
+        />
+      )
+      expect(screen.queryByLabelText('Remove file')).not.toBeInTheDocument()
+    })
+
+    it('shows Cancel link while downloading and calls onCancelDownload', async () => {
+      const user = userEvent.setup()
+      const onCancelDownload = vi.fn()
+      const file = createFile('Report_Q2.pdf')
+
+      render(
+        <FileUploadItem
+          file={file}
+          fileId="1"
+          status="success"
+          onDownload={() => {}}
+          onCancelDownload={onCancelDownload}
+          isDownloading
+          cancelDownloadAriaLabel="Cancel download of Report_Q2.pdf"
+        />
+      )
+
+      const cancel = screen.getByRole('button', { name: 'Cancel download of Report_Q2.pdf' })
+      expect(cancel).toHaveTextContent('Cancel')
+      await user.click(cancel)
+      expect(onCancelDownload).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not show Cancel link when not downloading', () => {
+      const file = createFile('Report_Q2.pdf')
+      render(
+        <FileUploadItem file={file} fileId="1" status="success" onDownload={() => {}} onCancelDownload={() => {}} />
+      )
+      expect(screen.queryByRole('button', { name: 'Cancel download' })).not.toBeInTheDocument()
+    })
+
+    it('does not show Cancel when downloading without onCancelDownload', () => {
+      const file = createFile('Report_Q2.pdf')
+      render(<FileUploadItem file={file} fileId="1" status="success" onDownload={() => {}} isDownloading />)
+      expect(screen.queryByRole('button', { name: 'Cancel download' })).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Download file')).toHaveAttribute('disabled')
+    })
+
+    it('uses provided fileSize over the File object size', () => {
+      const file = createFile('Report_Q2.pdf', 10)
+      render(<FileUploadItem file={file} fileId="1" fileSize={2048} />)
+      expect(screen.getByText(/2\.0 KB/)).toBeInTheDocument()
+    })
+  })
+
   describe('accessibility', () => {
     it('has accessible progress bar with file name', () => {
       const file = createFile('document.png')
       render(<FileUploadItem file={file} fileId="1" status="uploading" progress={50} />)
       expect(screen.getByLabelText('document.png upload progress')).toBeInTheDocument()
+    })
+
+    it('has no accessibility violations with middle Truncate filename', async () => {
+      const longName = 'very-long-context-filename-that-should-truncate-in-the-middle.pdf'
+      const file = createFile(longName)
+      const { container } = render(
+        <FileUploadItem
+          file={file}
+          fileId="1"
+          status="success"
+          onDownload={() => {}}
+          onRemove={() => {}}
+          downloadButtonAriaLabel={`Download ${longName}`}
+          removeButtonAriaLabel={`Remove ${longName}`}
+        />
+      )
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations while downloading with Cancel', async () => {
+      const file = createFile('Report_Q2.pdf')
+      const { container } = render(
+        <FileUploadItem
+          file={file}
+          fileId="1"
+          status="success"
+          onDownload={() => {}}
+          onCancelDownload={() => {}}
+          onRemove={() => {}}
+          isDownloading
+          downloadButtonAriaLabel="Download Report_Q2.pdf"
+          cancelDownloadAriaLabel="Cancel download of Report_Q2.pdf"
+          removeButtonAriaLabel="Remove Report_Q2.pdf"
+        />
+      )
+
+      expect(screen.getByRole('button', { name: 'Cancel download of Report_Q2.pdf' })).toBeInTheDocument()
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
     })
   })
 

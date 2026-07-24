@@ -194,6 +194,26 @@
               }
             }
           },
+          "used_tools": {
+            "type": "array",
+            "description": "Aggregated tool usage with tool names and call counts",
+            "items": {
+              "type": "object",
+              "required": ["name", "count"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Tool name"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Number of times the tool was called"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
           "structured_output_metadata": {
             "type": "object",
             "description": "Metadata about structured output generation when response_schema is defined",
@@ -251,6 +271,12 @@
             ]
           },
           "tool_calls": {
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "used_tools": {
             "type": [
               "array",
               "null"

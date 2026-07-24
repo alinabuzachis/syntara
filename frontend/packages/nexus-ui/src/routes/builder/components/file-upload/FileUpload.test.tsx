@@ -150,10 +150,66 @@ describe('FileUpload', () => {
 
       render(<FileUpload files={files} onFileRemove={onFileRemove} />)
 
-      const removeButton = screen.getByLabelText('Remove file')
+      const removeButton = screen.getByLabelText('Remove test.png')
       await user.click(removeButton)
 
       expect(onFileRemove).toHaveBeenCalledWith('file-1')
+    })
+
+    it('calls onFileDownload when download button is clicked', async () => {
+      const user = userEvent.setup()
+      const onFileDownload = vi.fn()
+      const files: UploadedFile[] = [
+        { id: 'file-1', file: new File([''], 'Report_Q2.pdf'), progress: 100, status: 'success' },
+      ]
+
+      render(<FileUpload files={files} onFileDownload={onFileDownload} />)
+
+      await user.click(screen.getByLabelText('Download Report_Q2.pdf'))
+
+      expect(onFileDownload).toHaveBeenCalledWith('file-1', 'Report_Q2.pdf')
+    })
+
+    it('shows download spinner for each id in downloadingFileIds concurrently', () => {
+      const files: UploadedFile[] = [
+        { id: 'file-1', file: new File([''], 'Report_Q2.pdf'), progress: 100, status: 'success' },
+        { id: 'file-2', file: new File([''], 'Notes.txt'), progress: 100, status: 'success' },
+        { id: 'file-3', file: new File([''], 'Spec.md'), progress: 100, status: 'success' },
+      ]
+
+      render(<FileUpload files={files} onFileDownload={vi.fn()} downloadingFileIds={new Set(['file-1', 'file-3'])} />)
+
+      expect(screen.getByLabelText('Download Report_Q2.pdf')).toHaveAttribute('disabled')
+      expect(screen.getByLabelText('Download Notes.txt')).not.toHaveAttribute('disabled')
+      expect(screen.getByLabelText('Download Spec.md')).toHaveAttribute('disabled')
+    })
+
+    it('hides remove and shows Cancel for downloading files while others stay interactive', async () => {
+      const user = userEvent.setup()
+      const onFileDownloadCancel = vi.fn()
+      const onFileRemove = vi.fn()
+      const files: UploadedFile[] = [
+        { id: 'file-1', file: new File([''], 'Report_Q2.pdf'), progress: 100, status: 'success' },
+        { id: 'file-2', file: new File([''], 'Notes.txt'), progress: 100, status: 'success' },
+      ]
+
+      render(
+        <FileUpload
+          files={files}
+          onFileDownload={vi.fn()}
+          onFileDownloadCancel={onFileDownloadCancel}
+          onFileRemove={onFileRemove}
+          downloadingFileIds={new Set(['file-1'])}
+        />
+      )
+
+      expect(screen.queryByLabelText('Remove Report_Q2.pdf')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Remove Notes.txt')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel download of Report_Q2.pdf' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Cancel download of Notes.txt' })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Cancel download of Report_Q2.pdf' }))
+      expect(onFileDownloadCancel).toHaveBeenCalledWith('file-1')
     })
 
     it('calls onFilesSelected when files are dropped', async () => {
@@ -178,7 +234,7 @@ describe('FileUpload', () => {
 
       render(<FileUpload files={files} onFileRemove={onFileRemove} />)
 
-      const removeButton = screen.getByLabelText('Remove file')
+      const removeButton = screen.getByLabelText('Remove test.png')
       await user.click(removeButton)
 
       expect(onFileRemove).toHaveBeenCalled()
@@ -224,7 +280,7 @@ describe('FileUpload', () => {
       expect(screen.getByText('to-remove.png')).toBeInTheDocument()
 
       // Now remove it
-      const removeButton = screen.getByLabelText('Remove file')
+      const removeButton = screen.getByLabelText('Remove to-remove.png')
       await user.click(removeButton)
 
       // File should be gone
@@ -262,6 +318,26 @@ describe('FileUpload', () => {
 
     it('has no accessibility violations when disabled with tooltip', async () => {
       const { container } = render(<FileUpload disabled disabledTooltip="S3 not configured" />)
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations while downloading with Cancel', async () => {
+      const files: UploadedFile[] = [
+        { id: 'file-1', file: new File([''], 'Report_Q2.pdf'), progress: 100, status: 'success' },
+        { id: 'file-2', file: new File([''], 'Notes.txt'), progress: 100, status: 'success' },
+      ]
+      const { container } = render(
+        <FileUpload
+          files={files}
+          onFileDownload={vi.fn()}
+          onFileDownloadCancel={vi.fn()}
+          onFileRemove={vi.fn()}
+          downloadingFileIds={new Set(['file-1'])}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: 'Cancel download of Report_Q2.pdf' })).toBeInTheDocument()
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })
