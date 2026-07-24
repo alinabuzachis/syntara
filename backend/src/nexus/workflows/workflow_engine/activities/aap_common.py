@@ -22,6 +22,7 @@ from nexus.core.exceptions import SafeValueError
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
 from .common import (
+    DEFAULT_RETRYABLE_ERROR_CODES,
     HEARTBEAT_PARTIAL_OUTPUT_KEY,
     HEARTBEAT_STOP_MONITOR,
     ActivityExecutionError,
@@ -668,15 +669,29 @@ class _TransientPollError(Exception):
 
 
 _HTTP_NOT_FOUND = 404
+_HTTP_INTERNAL_SERVER_ERROR = 500
+
+# HTTP 500 is treated as transient during polling but NOT during launch.
+# Polling is a read-only GET to check job status — safe to retry.
+# Launch-phase 500s use DEFAULT_RETRYABLE_ERROR_CODES (which excludes 500)
+# because a 500 during POST .../launch/ may indicate a real server-side
+# rejection that won't self-resolve.
+_TRANSIENT_POLL_STATUS_CODES = DEFAULT_RETRYABLE_ERROR_CODES | {_HTTP_INTERNAL_SERVER_ERROR}
 
 
 def _is_transient_poll_error(exc: httpx.HTTPError) -> bool:
-    """Return True if a poll HTTP error is transient and should be retried."""
+    """Return True if a poll HTTP error is transient and should be retried.
+
+    Treats HTTP 500 as transient (in addition to 429, 502, 503, 504) because
+    the poll request is an idempotent GET. A transient 500 from AAP Controller
+    (load spike, pod restart, DB contention) should not immediately fail a
+    node whose job may have completed successfully.
+    """
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code
         if status == _HTTP_NOT_FOUND:
             return False
-        return is_retryable_http_status(status)
+        return status in _TRANSIENT_POLL_STATUS_CODES
     # Connection / timeout errors are transient
     return isinstance(exc, httpx.ConnectError | httpx.TimeoutException)
 
@@ -691,7 +706,7 @@ async def fetch_job_status(
 ) -> dict[str, Any]:
     """Fetch current job status from AAP.
 
-    Transient HTTP errors (429, 502, 503, 504, connection/timeout) raise
+    Transient HTTP errors (429, 500, 502, 503, 504, connection/timeout) raise
     _TransientPollError so the poll loop can retry on the next cycle.
     Non-transient errors (404, 401, 403, etc.) raise error_class immediately.
 
@@ -724,6 +739,9 @@ async def fetch_job_status(
         raise error_class(msg, job_id=job_id) from e
 
 
+MAX_CONSECUTIVE_POLL_ERRORS = 5
+
+
 async def poll_until_complete(
     client: httpx.AsyncClient,
     settings: Settings,
@@ -740,9 +758,11 @@ async def poll_until_complete(
 ) -> dict[str, Any]:
     """Poll job status until completion.
 
-    Transient poll errors (429, 502, 503, 504, connection, timeout) are
-    absorbed and retried on the next poll cycle. The existing activity
-    timeout is the backstop — no separate retry counter.
+    Transient poll errors (429, 500, 502, 503, 504, connection, timeout) are
+    absorbed and retried on the next poll cycle. If transient errors occur
+    MAX_CONSECUTIVE_POLL_ERRORS times in a row without a single successful
+    poll, the activity fails early with a "launched but lost contact" message
+    rather than holding the Temporal worker slot until the full timeout.
 
     If the timeout expires while poll errors are occurring, the error
     message distinguishes "job timed out" from "launched but lost contact".
@@ -778,6 +798,7 @@ async def poll_until_complete(
     effective_timeout = max(timeout_seconds - margin, 1)
 
     last_poll_error: str | None = None
+    consecutive_poll_errors = 0
 
     while True:
         elapsed = time.time() - start_time
@@ -800,17 +821,29 @@ async def poll_until_complete(
         try:
             job_data = await fetch_job_status(client, status_url, auth_headers, auth_param, job_id, error_class)
         except _TransientPollError as e:
+            consecutive_poll_errors += 1
             last_poll_error = str(e)
             logger.warning(
                 "Transient error polling %s status, will retry next cycle",
                 job_type,
                 job_id=job_id,
                 error=str(e),
+                consecutive_errors=consecutive_poll_errors,
+                max_consecutive_errors=MAX_CONSECUTIVE_POLL_ERRORS,
             )
+            if consecutive_poll_errors >= MAX_CONSECUTIVE_POLL_ERRORS:
+                msg = (
+                    f"AAP job {job_id} launched successfully but unable to determine completion "
+                    f"status — polling failed {consecutive_poll_errors} consecutive times. "
+                    f"Check the job directly in AAP Controller. "
+                    f"Last error: {last_poll_error}"
+                )
+                raise error_class(msg, job_id=job_id) from e
             activity.heartbeat({HEARTBEAT_STOP_MONITOR: True, HEARTBEAT_PARTIAL_OUTPUT_KEY: partial_output})
             await asyncio.sleep(poll_interval)
             continue
 
+        consecutive_poll_errors = 0
         last_poll_error = None
         status = job_data["status"]
 

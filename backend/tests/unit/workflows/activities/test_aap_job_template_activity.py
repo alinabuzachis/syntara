@@ -674,31 +674,18 @@ class TestAAPJobTemplatePollResilience:
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
     @patch("temporalio.activity.heartbeat")
-    async def test_poll_failure_timeout_message(
+    async def test_poll_failure_consecutive_cap_message(
         self,
         mock_heartbeat: object,
         mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
         aap_settings_overrides: dict[str, object],
     ) -> None:
-        """Test timeout message when poll errors consume the entire timeout window."""
+        """Test that persistent poll errors trigger the consecutive error cap before timeout."""
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
 
-        # time.time() is called multiple times per loop iteration.
-        # First call is in the activity (start_time), rest are in poll loop.
-        # After a few polls with transient errors, jump past timeout.
-        start_time = 1000.0
-        call_count = {"n": 0}
-
-        def mock_time() -> float:
-            call_count["n"] += 1
-            # First 6 calls: within timeout window (polls see transient errors)
-            if call_count["n"] <= 6:
-                return start_time + call_count["n"]
-            # After that: past timeout
-            return start_time + 20
-
-        # Every poll returns 503
+        # Every poll returns 503 — the consecutive error cap (5) should fire
+        # before the generous timeout (3600s) expires.
         poll_error = httpx.HTTPStatusError(
             "503 Service Unavailable",
             request=httpx.Request("GET", "http://test"),
@@ -709,15 +696,63 @@ class TestAAPJobTemplatePollResilience:
             override_settings(**aap_settings_overrides),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, side_effect=poll_error),
-            patch("time.time", side_effect=mock_time),
+        ):
+            activity_config = build_activity_config(job_template_id=42)
+            activity_config[constants.ENGINE_TIMEOUT_SECONDS_KEY] = 3600
+
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_job_template_activity(activity_config, None)
+            assert "launched successfully but unable to determine completion status" in str(exc_info.value)
+            assert "polling failed 5 consecutive times" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_poll_failure_timeout_with_last_error_message(
+        self,
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test that timeout during poll errors produces the 'polling failed repeatedly until timeout' message."""
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+
+        poll_error = httpx.HTTPStatusError(
+            "503 Service Unavailable",
+            request=httpx.Request("GET", "http://test"),
+            response=httpx.Response(503),
+        )
+
+        # We need at least one poll error before timeout fires so that
+        # last_poll_error is set. Use a list long enough to cover all
+        # time.time() calls across both modules (activity start_time +
+        # poll loop elapsed checks). The sequence:
+        #   call 1: activity start_time = 0.0
+        #   call 2: poll loop elapsed = 0.0 (passes, poll fails -> last_poll_error set)
+        #   call 3: poll loop elapsed = 11.0 (exceeds effective_timeout=9 -> timeout with error)
+        # Extra values ensure no StopIteration from unexpected callers.
+        fake_time = MagicMock(side_effect=[0.0, 0.0, 11.0] + [11.0] * 20)
+
+        with (
+            override_settings(**build_aap_settings_overrides(poll_interval=0.01, timeout=10)),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, side_effect=poll_error),
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.time",
+                time=fake_time,
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_common.time",
+                time=fake_time,
+            ),
         ):
             activity_config = build_activity_config(job_template_id=42)
             activity_config[constants.ENGINE_TIMEOUT_SECONDS_KEY] = 10
 
             with pytest.raises(ApplicationError) as exc_info:
                 await execute_aap_job_template_activity(activity_config, None)
-            assert "launched successfully but unable to determine completion status" in str(exc_info.value)
-            assert "10s" in str(exc_info.value)
+            assert "polling failed repeatedly until timeout (10s)" in str(exc_info.value)
+            assert "Last error:" in str(exc_info.value)
 
 
 class TestAAPJobTemplateAuthentication:
