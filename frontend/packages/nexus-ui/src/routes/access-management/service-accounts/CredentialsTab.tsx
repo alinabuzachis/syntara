@@ -336,7 +336,7 @@ export function CredentialsTab({
 
   const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
     initialSortIndex: 1,
-    initialDirection: 'desc',
+    initialDirection: 'asc',
   })
 
   const finalQueryParams = useMemo(() => {
