@@ -3,6 +3,7 @@ name: CI Frontend
 
 on:
   pull_request:
+    branches: [devel]
   merge_group:
     branches: [devel]
   push:

@@ -191,18 +191,36 @@ Nexus uses Snyk for two types of security scanning:
 **SAST (Static Application Security Testing):**
 - Analyzes application code for security vulnerabilities (SQL injection, XSS, hardcoded secrets, etc.)
 - Workflow file: `.github/workflows/sast-snyk.yml` (scans both backend and frontend)
-- Does NOT run on pull requests (informational only on push to devel)
+- **Uses differential scanning**: only blocks PRs on NEW HIGH/CRITICAL vulnerabilities
 - Scheduled daily at 2:23 PM UTC
 
 **When SAST runs:**
-- Scheduled daily at 2:23 PM UTC (catches newly-disclosed code vulnerabilities)
-- On pushes to `devel` branch (post-merge verification)
+- **On pull requests** (differential mode - only blocks on NEW HIGH/CRITICAL findings)
+- On pushes to `devel` branch (blocks on ANY HIGH/CRITICAL)
+- Scheduled daily at 2:23 PM UTC (blocks on ANY HIGH/CRITICAL)
 - On-demand via workflow_dispatch
 
-**Severity thresholds:**
-- **HIGH/CRITICAL**: Fails the workflow with `--severity-threshold=high`
-- **MEDIUM/LOW**: Not reported when using high threshold
-- Note: Since SAST runs post-merge (not on PRs), it does not block PR merges
+**How differential SAST works:**
+
+For pull requests:
+1. Scans code in the **PR branch** (without severity filtering - captures all vulnerabilities)
+2. Scans code in the **base branch** (`devel`) (without severity filtering - captures all vulnerabilities)
+3. Compares SARIF results and **blocks only on NEW HIGH/CRITICAL vulnerabilities**
+   - HIGH/CRITICAL severity is identified by `level: "error"` in Snyk's SARIF output
+   - Vulnerabilities are compared by `ruleId` to identify new vs pre-existing findings
+   - Scans run without `--severity-threshold` to ensure complete comparison (prevents missing cases where severity changes)
+
+This means:
+- ✅ PR passes if it doesn't introduce new code vulnerabilities
+- ❌ PR fails if new code introduces HIGH/CRITICAL vulnerabilities
+- ✅ Pre-existing vulnerabilities in base branch don't block the PR
+- ✅ Correctly handles cases where a vulnerability's severity changes between branches
+
+For push/schedule events: Uses `--severity-threshold=high` to block on ANY HIGH/CRITICAL (traditional behavior)
+
+**CI Integration:**
+- SAST is integrated into the `required-checks` gate in `.github/workflows/ci-backend.yml`
+- If SAST fails, the PR cannot merge
 
 **SCA (Software Composition Analysis):**
 - Scans dependencies for known CVEs
@@ -274,20 +292,44 @@ Auto-merge is disabled to ensure human review of all dependency changes and prev
 
 ### Responding to Vulnerability Alerts
 
-When Snyk SCA detects a HIGH/CRITICAL vulnerability:
+When Snyk (SAST or SCA) detects a HIGH/CRITICAL vulnerability:
 
-1. **Review the security advisory**: understand the impact and affected versions
-2. **Check for available fix**: determine if a patched version exists
-3. **Assess applicability**: confirm if the vulnerability affects your usage
+1. **Review the finding**: understand the impact, affected code/dependency, and severity
+2. **Check for available fix**:
+   - **SAST**: Review remediation guidance in the finding details
+   - **SCA**: Determine if a patched dependency version exists
+3. **Assess applicability**: confirm if the vulnerability affects your code paths
 4. **Remediation options:**
-   - Update to a patched version (preferred)
+   - Fix the code or update to a patched version (preferred)
    - Apply a workaround if no patch is available
-   - Accept the risk if impact is negligible (requires security review)
+   - Request an exception if it's a false positive (see below)
 5. **Document decision**: add comment to PR explaining the chosen approach
 
 For MEDIUM/LOW severity findings:
 - Review during normal PR review process
 - Plan remediation during next dependency update cycle
+
+### Handling False Positives
+
+If a SAST or SCA finding is a false positive:
+
+**For SAST (code vulnerabilities):**
+1. **Verify it's genuinely a false positive** — confirm the code path cannot be exploited
+2. **Comment on the PR** with:
+   - Rule ID (e.g., `SNYK-CODE-0001`)
+   - File and line number
+   - Technical justification for why it's a false positive
+3. **Request maintainer review** — a maintainer with Snyk organization access will review the justification and mark it as ignored in the Snyk dashboard if approved
+
+**For SCA (dependency vulnerabilities):**
+1. **Document why the vulnerability doesn't apply**:
+   - CVE ID
+   - Package name and version
+   - Reason (unused code path, sandboxed environment, etc.)
+   - Remediation timeline if a fix is expected soon
+2. **Request maintainer review** — a maintainer will review the justification and mark it as ignored in the Snyk dashboard if approved
+
+**Important:** False positive exceptions are tracked in the Snyk dashboard, not in code comments. This allows centralized management and prevents exceptions from becoming stale as code evolves.
 
 ## Enforcement
 

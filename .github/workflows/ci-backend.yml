@@ -9,8 +9,6 @@ on:
   push:
     branches: [devel]
 
-
-
 concurrency:
   group: ci-backend-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -978,6 +976,14 @@ jobs:
             }
             core.setFailed(`Timed out after 85 minutes waiting for: ${conformaCheckName}`);
 
+  snyk-sast:
+    uses: ./.github/workflows/sast-snyk.yml
+    secrets: inherit
+
+  snyk-sca:
+    uses: ./.github/workflows/sca-snyk.yml
+    secrets: inherit
+
   required-checks:
     name: (Backend) Required Checks
     runs-on: ubuntu-latest
@@ -1001,6 +1007,8 @@ jobs:
       - e2e-gate
       - konflux-backend-gate
       - shared-checks-gate
+      - snyk-sast
+      - snyk-sca
     if: always()
     steps:
       - name: Check required jobs passed
@@ -1019,7 +1027,7 @@ jobs:
 
           # Check all other required jobs
           ok="success|skipped"
-          for job in api-spec-validation api-spec-bundle api-spec-drift generate-api-client check-api-paths check-dead-code check-cycles check-orphans check-openapi-breaking verify-test-structure mypy test-unit test-cli test-integration test-compose e2e-gate konflux-backend-gate shared-checks-gate; do
+          for job in api-spec-validation api-spec-bundle api-spec-drift generate-api-client check-api-paths check-dead-code check-cycles check-orphans check-openapi-breaking verify-test-structure mypy test-unit test-cli test-integration test-compose e2e-gate konflux-backend-gate shared-checks-gate snyk-sast snyk-sca; do
             case "$job" in
               api-spec-validation)   result="${{ needs.api-spec-validation.result }}" ;;
               api-spec-bundle)       result="${{ needs.api-spec-bundle.result }}" ;;
@@ -1038,7 +1046,9 @@ jobs:
               test-compose)          result="${{ needs.test-compose.result }}" ;;
               e2e-gate)              result="${{ needs.e2e-gate.result }}" ;;
               konflux-backend-gate)  result="${{ needs.konflux-backend-gate.result }}" ;;
-              shared-checks-gate)  result="${{ needs.shared-checks-gate.result }}" ;;
+              shared-checks-gate)    result="${{ needs.shared-checks-gate.result }}" ;;
+              snyk-sast)             result="${{ needs.snyk-sast.result }}" ;;
+              snyk-sca)              result="${{ needs.snyk-sca.result }}" ;;
             esac
             echo "$job: $result"
             if [[ ! "$result" =~ ^($ok)$ ]]; then
