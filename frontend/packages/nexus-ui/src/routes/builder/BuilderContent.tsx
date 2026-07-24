@@ -444,7 +444,10 @@ export function BuilderContent(props: BuilderContentProps) {
     handleNodeClick,
     isLiveRunActive,
   })
-  const builderPermissions = useBuilderPermissions(isNew, currentWorkflow?.is_builtin === true)
+  // UUID only — NodeDetailsPanel / CredentialSelector / integrations filter by project_id.
+  // can_i also accepts UUID (backend resolves to project name).
+  const builderProjectId = workflow?.project_id ?? selectedProject?.id ?? stableProjectId
+  const builderPermissions = useBuilderPermissions(isNew, currentWorkflow?.is_builtin === true, builderProjectId)
   const triggers = currentWorkflow?.triggers ?? []
   const nodeExpandedAllContextValue = useMemo(
     () => ({ expandAllEvent, collapseAllEvent }),
@@ -647,7 +650,7 @@ export function BuilderContent(props: BuilderContentProps) {
                       onClose={handleCloseNodeEditor}
                       onNavigateToNode={handleNavigateToNode}
                       onAddStep={handleAddStepFromPanel}
-                      projectId={workflow?.project_id ?? selectedProject?.id}
+                      projectId={builderProjectId}
                       workflowMetadata={workflowMetadata}
                       onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
                     />

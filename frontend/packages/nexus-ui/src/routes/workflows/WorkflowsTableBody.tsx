@@ -81,7 +81,8 @@ function ProjectGroupSection({
   projectActionCallbacks,
 }: Readonly<ProjectGroupSectionProps>) {
   const permissions = useProjectPermissions({
-    resourceProject: project?.name || project?.id || undefined,
+    // UUID — matches builder / workflows list can_i cache keys (API resolves to name).
+    resourceProject: project?.id,
   })
   const projectActions = projectActionCallbacks
     ? buildProjectRowActions(project, permissions, projectActionCallbacks)

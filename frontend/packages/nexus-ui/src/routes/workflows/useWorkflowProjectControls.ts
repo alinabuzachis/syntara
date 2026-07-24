@@ -14,7 +14,8 @@ export function useWorkflowProjectControls(projects: ProjectRead[], selectedProj
     [projects, selectedProjectId]
   )
   const projectPermissions = useProjectPermissions({
-    resourceProject: selectedProject?.name || selectedProject?.id || undefined,
+    // UUID — matches builder / workflows list can_i cache keys (API resolves to name).
+    resourceProject: selectedProject?.id,
   })
   const projectEditDialog = useDialogState<ProjectRead>()
   const projectDeleteDialog = useDialogState<ProjectRead>()

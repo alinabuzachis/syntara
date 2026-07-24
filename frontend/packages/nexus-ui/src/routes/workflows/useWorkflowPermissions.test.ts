@@ -8,6 +8,8 @@ import { accessFetchClient } from '../access/accessClient'
 
 import { useWorkflowPermissions } from './useWorkflowPermissions'
 
+const CAN_I_ENDPOINT = '/authz/can_i' as const
+
 vi.mock('../access/accessClient', () => ({
   accessFetchClient: { POST: vi.fn() },
 }))
@@ -50,8 +52,8 @@ describe('useWorkflowPermissions', () => {
     vi.clearAllMocks()
   })
 
-  it('returns all permissions as true when granted', async () => {
-    mockCanI({ create: true, update: true, delete: true, run: true })
+  it('uses check_any_project for create and system-scoped update/delete/run without resourceProject', async () => {
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
 
     const { result } = renderHook(() => useWorkflowPermissions(), { wrapper: createWrapper() })
 
@@ -63,12 +65,61 @@ describe('useWorkflowPermissions', () => {
     expect(result.current.canUpdate).toBe(true)
     expect(result.current.canDelete).toBe(true)
     expect(result.current.canRun).toBe(true)
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'create', resource_type: 'workflow', check_any_project: true },
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'update', resource_type: 'workflow' },
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'delete', resource_type: 'workflow' },
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'run', resource_type: 'execution' },
+    })
+  })
+
+  it('scopes create/update/delete/run to resourceProject when provided', async () => {
+    mockCanI({ create: true, update: true, delete: true, run: true })
+
+    const { result } = renderHook(() => useWorkflowPermissions({ resourceProject: 'proj-1' }), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.canCreate).toBe(true)
+    expect(result.current.canUpdate).toBe(true)
+    expect(result.current.canDelete).toBe(true)
+    expect(result.current.canRun).toBe(true)
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'create', resource_type: 'workflow', resource_project: 'proj-1' },
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'update', resource_type: 'workflow', resource_project: 'proj-1' },
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'delete', resource_type: 'workflow', resource_project: 'proj-1' },
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
+      body: { action: 'run', resource_type: 'execution', resource_project: 'proj-1' },
+    })
+    const anyProjectCalls = (
+      vi.mocked(accessFetchClient.POST).mock.calls as unknown as Array<
+        [string, { body?: { check_any_project?: boolean } }]
+      >
+    ).filter(([, options]) => options.body?.check_any_project === true)
+    expect(anyProjectCalls).toHaveLength(0)
   })
 
   it('returns canCreate false when workflow:create is denied', async () => {
     mockCanI({ create: false, update: true, delete: true, run: true })
 
-    const { result } = renderHook(() => useWorkflowPermissions(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useWorkflowPermissions({ resourceProject: 'proj-1' }), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -81,7 +132,9 @@ describe('useWorkflowPermissions', () => {
   it('returns canRun false when execution:run is denied', async () => {
     mockCanI({ create: true, update: true, delete: true, run: false })
 
-    const { result } = renderHook(() => useWorkflowPermissions(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useWorkflowPermissions({ resourceProject: 'proj-1' }), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)

@@ -25,12 +25,25 @@ export type BuilderPermissions = {
  * for existing workflows it reflects `workflow:update`.
  * All values default to `false` (safe-false) until the checks resolve,
  * so the builder starts in read-only mode until permissions confirm edit access.
+ *
+ * Pass `projectId` so project-scoped grants (`workflow:create:project`,
+ * `workflow:update:project`, etc.) are evaluated via `resourceProject`.
+ * For new workflows without a selected project yet, create uses
+ * `checkAnyProject` so project-user/project-admin are not stuck read-only
+ * before picking a project. Update/delete/run stay project-scoped only.
  */
-export function useBuilderPermissions(isNew: boolean, isBuiltin = false): BuilderPermissions {
-  const { allowed: canCreate, isChecking: c1 } = useCanI('create', 'workflow')
-  const { allowed: canUpdate, isChecking: c2 } = useCanI('update', 'workflow')
-  const { allowed: canDelete, isChecking: c3 } = useCanI('delete', 'workflow')
-  const { allowed: canRun, isChecking: c4 } = useCanI('run', 'execution')
+export function useBuilderPermissions(
+  isNew: boolean,
+  isBuiltin = false,
+  projectId?: string | null
+): BuilderPermissions {
+  const createOptions = projectId ? { resourceProject: projectId } : { checkAnyProject: true as const }
+  const scopedOptions = projectId ? { resourceProject: projectId } : undefined
+
+  const { allowed: canCreate, isChecking: c1 } = useCanI('create', 'workflow', createOptions)
+  const { allowed: canUpdate, isChecking: c2 } = useCanI('update', 'workflow', scopedOptions)
+  const { allowed: canDelete, isChecking: c3 } = useCanI('delete', 'workflow', scopedOptions)
+  const { allowed: canRun, isChecking: c4 } = useCanI('run', 'execution', scopedOptions)
 
   return useMemo(() => {
     const isLoading = c1 || c2 || c3 || c4

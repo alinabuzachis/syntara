@@ -83,7 +83,10 @@ export default function Workflows() {
   const setLocation = useCallback((to: string) => detachPromise(navigate({ to })), [navigate])
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector, refetchProjects } =
     useProjectSelector()
-  const permissions = useWorkflowPermissions()
+  // UUID — same as builder `resourceProject` so useCanI cache keys stay aligned.
+  const permissions = useWorkflowPermissions({
+    resourceProject: selectedProjectId ?? undefined,
+  })
   const { projectPermissions, projectEditDialog, projectDeleteDialog, projectActionCallbacks } =
     useWorkflowProjectControls(projects, selectedProjectId)
   // All-projects view hides built-in workflows in the UI. Filter them out in the

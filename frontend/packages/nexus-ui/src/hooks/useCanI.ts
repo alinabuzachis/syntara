@@ -40,6 +40,7 @@ type UseCanIOptions = {
  * ```ts
  * const { allowed: canDelete } = useCanI('delete', 'workflow')
  * const { allowed: canAssign } = useCanI('assign', 'role-assignment', { checkAnyProject: true })
+ * const { allowed: canUpdate } = useCanI('update', 'workflow', { resourceProject: projectId })
  * ```
  */
 export function useCanI(action: string, resourceType: string, options?: UseCanIOptions): UseCanIResult {

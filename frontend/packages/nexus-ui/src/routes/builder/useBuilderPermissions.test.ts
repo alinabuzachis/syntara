@@ -4,8 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useBuilderPermissions } from './useBuilderPermissions'
 
 type CanIResult = { allowed: boolean; isChecking: boolean; isError: boolean }
+type CanIOptions = { resourceProject?: string; checkAnyProject?: boolean }
 
-const mockUseCanI = vi.hoisted(() => vi.fn<(action: string, resourceType: string) => CanIResult>())
+const mockUseCanI = vi.hoisted(() =>
+  vi.fn<(action: string, resourceType: string, options?: CanIOptions) => CanIResult>()
+)
 
 vi.mock('../../hooks/useCanI', () => ({
   useCanI: mockUseCanI,
@@ -43,7 +46,7 @@ describe('useBuilderPermissions', () => {
 
   it('returns all permissions when all granted (existing workflow)', () => {
     mockAllGranted()
-    const { result } = renderHook(() => useBuilderPermissions(false))
+    const { result } = renderHook(() => useBuilderPermissions(false, false, 'proj-1'))
 
     expect(result.current.canEdit).toBe(true)
     expect(result.current.canRun).toBe(true)
@@ -59,7 +62,7 @@ describe('useBuilderPermissions', () => {
 
   it('denies canEdit for existing when update is denied', () => {
     mockDenied('update:workflow')
-    const { result } = renderHook(() => useBuilderPermissions(false))
+    const { result } = renderHook(() => useBuilderPermissions(false, false, 'proj-1'))
     expect(result.current.canEdit).toBe(false)
   })
 
@@ -71,7 +74,7 @@ describe('useBuilderPermissions', () => {
 
   it('overrides canEdit and canDelete to false for builtin, keeps canRun', () => {
     mockAllGranted()
-    const { result } = renderHook(() => useBuilderPermissions(false, true))
+    const { result } = renderHook(() => useBuilderPermissions(false, true, 'proj-1'))
 
     expect(result.current.canEdit).toBe(false)
     expect(result.current.canDelete).toBe(false)
@@ -80,7 +83,7 @@ describe('useBuilderPermissions', () => {
 
   it('tooltips reference update permission for existing workflows', () => {
     mockAllGranted()
-    const { result } = renderHook(() => useBuilderPermissions(false))
+    const { result } = renderHook(() => useBuilderPermissions(false, false, 'proj-1'))
 
     expect(result.current.tooltips.edit).toContain('workflow:update')
     expect(result.current.tooltips.save).toContain('workflow:update')
@@ -96,5 +99,26 @@ describe('useBuilderPermissions', () => {
 
     expect(result.current.tooltips.edit).toContain('workflow:create')
     expect(result.current.tooltips.save).toContain('workflow:create')
+  })
+
+  it('scopes can_i checks to resourceProject when projectId is provided', () => {
+    mockAllGranted()
+    renderHook(() => useBuilderPermissions(false, false, 'proj-1'))
+
+    const expectedOptions = { resourceProject: 'proj-1' }
+    expect(mockUseCanI).toHaveBeenCalledWith('create', 'workflow', expectedOptions)
+    expect(mockUseCanI).toHaveBeenCalledWith('update', 'workflow', expectedOptions)
+    expect(mockUseCanI).toHaveBeenCalledWith('delete', 'workflow', expectedOptions)
+    expect(mockUseCanI).toHaveBeenCalledWith('run', 'execution', expectedOptions)
+  })
+
+  it('uses checkAnyProject for create when projectId is not provided', () => {
+    mockAllGranted()
+    renderHook(() => useBuilderPermissions(true))
+
+    expect(mockUseCanI).toHaveBeenCalledWith('create', 'workflow', { checkAnyProject: true })
+    expect(mockUseCanI).toHaveBeenCalledWith('update', 'workflow', undefined)
+    expect(mockUseCanI).toHaveBeenCalledWith('delete', 'workflow', undefined)
+    expect(mockUseCanI).toHaveBeenCalledWith('run', 'execution', undefined)
   })
 })
