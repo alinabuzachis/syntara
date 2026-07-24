@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto'
 import { type Page } from '@playwright/test'
 
 import { expect, toAppUrl } from '../fixtures'
-import { ensureProject } from '../utils/api'
+import { createBasicWorkflowViaApi, deleteWorkflowViaApi, ensureProject, findWorkflowIdByName } from '../utils/api'
+
+export { createBasicWorkflowViaApi }
 
 export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${randomUUID()}`
 
@@ -351,10 +353,16 @@ async function createProjectViaDropdown(page: Page) {
   await expect(dialog).not.toBeVisible({ timeout: 15_000 })
 }
 
-/** Delete a workflow from the workflows list by its unique name. */
+/** Delete a workflow by unique name. Prefers API delete; falls back to UI kebab flow. */
 export async function deleteWorkflow(page: Page, workflowName: string) {
   if (page.isClosed()) return
   try {
+    const workflowId = await findWorkflowIdByName(page, workflowName)
+    if (workflowId) {
+      await deleteWorkflowViaApi(page, workflowId)
+      return
+    }
+
     await page.goto(toAppUrl('/workflows'))
     await page.getByPlaceholder('Filter by name').fill(workflowName)
     await page.getByRole('button', { name: 'Apply filter' }).click()
@@ -434,8 +442,23 @@ export async function deleteProject(page: Page, projectName: string) {
   }
 }
 
-/** Open a saved workflow in the builder by filtering the workflows list. */
-export async function openWorkflowInBuilder(page: Page, workflowName: string) {
+/** Navigate directly to the builder for a known workflow ID and wait for the canvas to be ready. */
+export async function openBuilderById(page: Page, workflowId: string): Promise<void> {
+  await page.goto(toAppUrl(`/workflow-builder/${workflowId}`))
+  await selectProjectIfRequired(page)
+  await waitForUIReady(page)
+  // Confirm the builder actually loaded this workflow (not a 404 or error state)
+  await expect(page).toHaveURL(new RegExp(`/workflow-builder/${workflowId}`))
+}
+
+/** Open a saved workflow in the builder. Prefer workflowId to skip list filter navigation. */
+export async function openWorkflowInBuilder(page: Page, workflowName: string, workflowId?: string) {
+  if (workflowId) {
+    await openBuilderById(page, workflowId)
+    await expect(page.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
+    return
+  }
+
   await page.goto(toAppUrl('/workflows'))
   await page.getByPlaceholder('Filter by name').fill(workflowName)
   await page.getByRole('button', { name: 'Apply filter' }).click()
@@ -444,15 +467,6 @@ export async function openWorkflowInBuilder(page: Page, workflowName: string) {
   const row = table.getByRole('row', { name: new RegExp(workflowName) })
   await row.getByRole('link', { name: workflowName, exact: true }).click()
   await expect(page.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
-}
-
-/** Navigate directly to the builder for a known workflow ID and wait for the canvas to be ready. */
-export async function openBuilderById(page: Page, workflowId: string): Promise<void> {
-  await page.goto(toAppUrl(`/workflow-builder/${workflowId}`))
-  await selectProjectIfRequired(page)
-  await waitForUIReady(page)
-  // Confirm the builder actually loaded this workflow (not a 404 or error state)
-  await expect(page).toHaveURL(new RegExp(`/workflow-builder/${workflowId}`))
 }
 
 export async function createBasicWorkflow(page: Page, workflowName: string, actionName: string) {

@@ -7,7 +7,7 @@ import { test, expect, toAppUrl } from './fixtures'
 import { createCredentialOfTypeViaUI, deleteCredentialByName, isCredentialsResponse } from './helpers/credentials'
 import {
   buildUniqueName,
-  createBasicWorkflow,
+  createBasicWorkflowViaApi,
   deleteWorkflow,
   openWorkflowInBuilder,
   clickAddConnectedStep,
@@ -101,7 +101,7 @@ test.describe('Workflow Import/Export', () => {
     const reimportedName = `${workflowName}-reimported`
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Test action')
+      await createBasicWorkflowViaApi(app, workflowName, 'Test action')
       const exportedDef = await exportFromWorkflowsList(app, workflowName)
 
       expect(Array.isArray(exportedDef.triggers)).toBe(true)
@@ -118,8 +118,15 @@ test.describe('Workflow Import/Export', () => {
         await app.getByRole('menuitem', { name: 'Export workflow' }).click()
       })
 
-      expect(reexportedDef.triggers).toEqual(exportedDef.triggers)
-      expect(reexportedDef.nodes).toEqual(exportedDef.nodes)
+      // Canvas layout positions are assigned on builder open; ignore them for structure equality.
+      const withoutPositions = <T extends Record<string, unknown>>(steps: T[]) =>
+        steps.map((step) => {
+          const copy = { ...step }
+          delete copy.position
+          return copy
+        })
+      expect(withoutPositions(reexportedDef.triggers ?? [])).toEqual(withoutPositions(exportedDef.triggers ?? []))
+      expect(withoutPositions(reexportedDef.nodes ?? [])).toEqual(withoutPositions(exportedDef.nodes ?? []))
       expect(reexportedDef.edges).toEqual(exportedDef.edges)
     } finally {
       await deleteWorkflow(app, workflowName)
@@ -149,7 +156,7 @@ test.describe('Workflow Import/Export', () => {
   test('exports a workflow from the workflows list page', async ({ app }) => {
     const workflowName = buildUniqueName('export-list')
     try {
-      await createBasicWorkflow(app, workflowName, 'Action 1')
+      await createBasicWorkflowViaApi(app, workflowName, 'Action 1')
       const exportedDef = await exportFromWorkflowsList(app, workflowName)
       expect(Array.isArray(exportedDef.triggers)).toBe(true)
       expect(Array.isArray(exportedDef.nodes)).toBe(true)
@@ -198,8 +205,8 @@ test.describe('Workflow Import/Export', () => {
   test('exports a workflow from the builder toolbar kebab menu', async ({ app }) => {
     const workflowName = buildUniqueName('export-builder')
     try {
-      await createBasicWorkflow(app, workflowName, 'Builder Action')
-      await openWorkflowInBuilder(app, workflowName)
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Builder Action')
+      await openWorkflowInBuilder(app, workflowName, id)
       const exportedDef = await downloadAndParseWorkflow(app, async () => {
         await app.getByLabel('Workflow actions').click()
         await app.getByRole('menuitem', { name: 'Export workflow' }).click()
@@ -317,7 +324,7 @@ test.describe('Workflow Import/Export', () => {
 
   test('rejects malformed JSON import with inline error', async ({ app }) => {
     const seedName = buildUniqueName('seed-malformed')
-    await createBasicWorkflow(app, seedName, 'Seed action')
+    await createBasicWorkflowViaApi(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))
@@ -349,7 +356,7 @@ test.describe('Workflow Import/Export', () => {
 
   test('rejects import with missing required fields', async ({ app }) => {
     const seedName = buildUniqueName('seed-missing')
-    await createBasicWorkflow(app, seedName, 'Seed action')
+    await createBasicWorkflowViaApi(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))
@@ -383,7 +390,7 @@ test.describe('Workflow Import/Export', () => {
 
   test('rejects import with invalid node structure', async ({ app }) => {
     const seedName = buildUniqueName('seed-invalid-node')
-    await createBasicWorkflow(app, seedName, 'Seed action')
+    await createBasicWorkflowViaApi(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))
@@ -420,7 +427,7 @@ test.describe('Workflow Import/Export', () => {
 
   test('rejects import with unsupported schema version', async ({ app }) => {
     const seedName = buildUniqueName('seed-version')
-    await createBasicWorkflow(app, seedName, 'Seed action')
+    await createBasicWorkflowViaApi(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))
@@ -459,7 +466,7 @@ test.describe('Workflow Import/Export', () => {
   test('clears import error and retries successfully with valid file', async ({ app }) => {
     const seedName = buildUniqueName('seed-retry')
     const workflowName = buildUniqueName('retry-import')
-    await createBasicWorkflow(app, seedName, 'Seed action')
+    await createBasicWorkflowViaApi(app, seedName, 'Seed action')
 
     try {
       await app.goto(toAppUrl('/workflows'))

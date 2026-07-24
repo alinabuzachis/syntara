@@ -1,5 +1,5 @@
 import { test, expect, toAppUrl } from './fixtures'
-import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, deleteWorkflow } from './helpers/workflows'
 import {
   createRoleAssignmentViaApi,
   createUserViaApi,
@@ -115,7 +115,7 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
   test('delete workflow modal has Tier 1 pattern: warning icon, acknowledgement checkbox', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-modal-wf')
 
-    await createBasicWorkflow(app, workflowName, 'Modal test action')
+    await createBasicWorkflowViaApi(app, workflowName, 'Modal test action')
 
     try {
       await app.goto(toAppUrl('/workflows'))

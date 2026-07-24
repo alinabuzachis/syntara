@@ -12,7 +12,8 @@
 import { test, expect } from '../fixtures'
 import {
   buildUniqueName,
-  createBasicWorkflow,
+  createBasicWorkflowViaApi,
+  openWorkflowInBuilder,
   deleteWorkflow,
   openBuilderById,
   runSingleWorkflowNode,
@@ -183,7 +184,8 @@ test.skip('failed node details including error messages are displayed', async ({
 test.skip('per-node input and output data can be inspected from run history', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-inspect-per-node')
 
-  await createBasicWorkflow(app, workflowName, 'Say Hello')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Say Hello')
+  await openWorkflowInBuilder(app, workflowName, id)
 
   try {
     await expect(app.getByRole('button', { name: /Run/i })).toBeVisible({ timeout: 15_000 })

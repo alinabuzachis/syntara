@@ -1,5 +1,11 @@
 import { test, expect, toAppUrl } from './fixtures'
-import { buildUniqueName, createBasicWorkflow, createWorkflowWithTrigger, deleteWorkflow } from './helpers/workflows'
+import {
+  buildUniqueName,
+  createBasicWorkflowViaApi,
+  openWorkflowInBuilder,
+  createWorkflowWithTrigger,
+  deleteWorkflow,
+} from './helpers/workflows'
 
 // Skip: publish tests consistently fail in CI — needs investigation
 test.describe.skip('Workflow publish/unpublish', () => {
@@ -7,7 +13,8 @@ test.describe.skip('Workflow publish/unpublish', () => {
     const workflowName = buildUniqueName('e2e-publish-draft')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Draft step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Draft step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await expect(app.getByText('Draft', { exact: true })).toBeVisible()
     } finally {
@@ -20,7 +27,8 @@ test.describe.skip('Workflow publish/unpublish', () => {
     const workflowName = buildUniqueName('e2e-publish-dialog')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Publish step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Publish step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Click Publish button in toolbar
       await app.getByRole('button', { name: /Publish/i }).click()
@@ -52,7 +60,8 @@ test.describe.skip('Workflow publish/unpublish', () => {
     const workflowName = buildUniqueName('e2e-publish-submit')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Publish step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Publish step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Click Publish button in toolbar
       await app.getByRole('button', { name: /Publish/i }).click()
@@ -74,7 +83,8 @@ test.describe.skip('Workflow publish/unpublish', () => {
     const workflowName = buildUniqueName('e2e-unpublish-kebab')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Unpublish step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Unpublish step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Before publishing, Unpublish should NOT be in kebab
       await app.getByRole('button', { name: 'Workflow actions' }).click()
@@ -92,7 +102,7 @@ test.describe.skip('Workflow publish/unpublish', () => {
     const workflowName = buildUniqueName('e2e-list-badge')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'List badge step')
+      await createBasicWorkflowViaApi(app, workflowName, 'List badge step')
 
       // Navigate to workflow list
       await app.goto(toAppUrl('/workflows'))
@@ -113,7 +123,7 @@ test.describe.skip('Workflow publish/unpublish', () => {
     const workflowName = buildUniqueName('e2e-list-publish-action')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'List action step')
+      await createBasicWorkflowViaApi(app, workflowName, 'List action step')
 
       // Navigate to workflow list
       await app.goto(toAppUrl('/workflows'))
@@ -151,7 +161,8 @@ test.describe.skip('Workflow publish/unpublish', () => {
     const workflowName = buildUniqueName('e2e-no-toggle')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'No toggle step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'No toggle step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Verify no switch/toggle exists in the toolbar
       await expect(app.getByRole('switch')).toHaveCount(0)

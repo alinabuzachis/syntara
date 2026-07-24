@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import { test, expect } from '../fixtures'
 import { navigateToApprovalAndOpen } from '../helpers/approvals'
 import { addApprovalNodeWithBranch } from '../helpers/v2-nodes'
-import { buildUniqueName, createBasicWorkflow } from '../helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, openWorkflowInBuilder } from '../helpers/workflows'
 import { apiRequest } from '../utils/api'
 
 /**
@@ -14,7 +14,8 @@ async function createPendingApproval(app: Page): Promise<{ workflowId: string; a
   const workflowName = buildUniqueName('e2e-approval-test')
   const approvalName = buildUniqueName('approval')
 
-  await createBasicWorkflow(app, workflowName, 'Pre-approval step')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Pre-approval step')
+  await openWorkflowInBuilder(app, workflowName, id)
   const workflowId = app.url().match(/workflow-builder\/([^/?]+)/)?.[1]
   if (!workflowId) throw new Error('Failed to extract workflow ID')
 
@@ -69,7 +70,7 @@ test.describe('Approval Workflow E2E', () => {
       // Verify previous step output is displayed
       // The pre-approval script node output should be visible in the panel
       // This is the UNIQUE coverage this test provides - other tests don't verify output display
-      // The createBasicWorkflow helper creates a script that outputs "hello"
+      // The createBasicWorkflowViaApi helper creates a script that outputs "hello"
       await expect(app.getByRole('region', { name: /output/i })).toContainText('hello')
     } finally {
       await apiRequest(app, 'delete', `/workflows/${approval.workflowId}`).catch(() => {})

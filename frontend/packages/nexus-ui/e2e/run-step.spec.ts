@@ -19,8 +19,9 @@ import {
   buildUniqueName,
   clickAddConnectedStep,
   closeNodeEditorPanel,
-  createBasicWorkflow,
+  createBasicWorkflowViaApi,
   deleteWorkflow,
+  openWorkflowInBuilder,
   fillCodeEditor,
   selectProjectIfRequired,
   triggerLayout,
@@ -98,7 +99,8 @@ test.describe('Run Step', () => {
   test('opens "Run step" dialog from step kebab menu', async ({ app }) => {
     // Arrange - Create a workflow with a script node
     const workflowName = buildUniqueName('e2e-run-step')
-    await createBasicWorkflow(app, workflowName, 'Test action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Test action')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     try {
       // Act - Click the kebab menu on the script node
@@ -114,7 +116,8 @@ test.describe('Run Step', () => {
   test('displays choice dialog with correct title and buttons', async ({ app }) => {
     // Arrange - Create workflow and open run step dialog
     const workflowName = buildUniqueName('e2e-run-step-choice')
-    await createBasicWorkflow(app, workflowName, 'Test action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Test action')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     try {
       // Act - Open the Run step dialog
@@ -161,7 +164,8 @@ test.describe('Run Step', () => {
     // Skip: requires POST /workflows/{id}/test backend endpoint (nexus PR #929)
     // Arrange - Create workflow and navigate to mock editor
     const workflowName = buildUniqueName('e2e-run-step-json')
-    await createBasicWorkflow(app, workflowName, 'Test action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Test action')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     try {
       // Act - Open mock editor
@@ -188,7 +192,8 @@ test.describe('Run Step', () => {
   test('closes dialog when Cancel is clicked from choice screen', async ({ app }) => {
     // Arrange - Create workflow and open choice dialog
     const workflowName = buildUniqueName('e2e-run-step-cancel')
-    await createBasicWorkflow(app, workflowName, 'Test action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Test action')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     try {
       // Act - Open run step dialog
@@ -225,7 +230,8 @@ test.describe('Run Step', () => {
     // Skip: requires POST /workflows/{id}/test backend endpoint (nexus PR #929)
     // Arrange - Create workflow and navigate to mock editor
     const workflowName = buildUniqueName('e2e-run-step-empty')
-    await createBasicWorkflow(app, workflowName, 'Test action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Test action')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     try {
       // Act - Open mock editor (JSON is empty by default)
@@ -247,7 +253,8 @@ test.describe('Run Step', () => {
     // Skip: fillCodeEditor with invalid JSON goes through Monaco which may normalize the input
     // Arrange - Create workflow and navigate to mock editor
     const workflowName = buildUniqueName('e2e-run-step-invalid')
-    await createBasicWorkflow(app, workflowName, 'Test action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Test action')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     try {
       // Act - Open mock editor

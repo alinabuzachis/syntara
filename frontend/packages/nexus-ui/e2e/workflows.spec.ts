@@ -1,6 +1,6 @@
 import { test, expect, toAppUrl } from './fixtures'
 import { APP_TITLE } from './helpers/appTitle'
-import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, deleteWorkflow } from './helpers/workflows'
 
 test.skip('workflows page toolbar shows Import workflow before Create workflow', async ({ app }) => {
   await app.goto(toAppUrl('/workflows'))
@@ -39,8 +39,8 @@ test.skip('user searches, views, and deletes a workflow', async ({ app }) => {
   const otherWorkflowName = buildUniqueName('e2e-workflow-control')
 
   try {
-    await createBasicWorkflow(app, workflowName, 'Manage workflow')
-    await createBasicWorkflow(app, otherWorkflowName, 'Control workflow')
+    await createBasicWorkflowViaApi(app, workflowName, 'Manage workflow')
+    await createBasicWorkflowViaApi(app, otherWorkflowName, 'Control workflow')
     // Act - Filter for the target workflow by its unique suffix
     await app.goto(toAppUrl('/workflows'))
     const searchTerm = workflowName.slice(-6)

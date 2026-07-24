@@ -15,21 +15,16 @@
  * - Modal does not appear when the workflow has not been modified
  */
 
-import { test, expect, toAppUrl } from './fixtures'
-import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
+import { test, expect } from './fixtures'
+import { buildUniqueName, createBasicWorkflowViaApi, deleteWorkflow, openWorkflowInBuilder } from './helpers/workflows'
 
 test.describe('builder unsaved changes modal (AAP-75130)', () => {
   test('modal shows correct button order: Save workflow → Exit without saving → Cancel', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-unsaved')
-    await createBasicWorkflow(app, workflowName, 'Unsaved test action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Unsaved test action')
 
     try {
-      // Open the saved workflow in the builder
-      await app.goto(toAppUrl('/workflows'))
-      await app.getByPlaceholder('Filter by name').fill(workflowName)
-      await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('link', { name: workflowName, exact: true }).click()
-      await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Make a change to mark the workflow dirty
       await app.getByPlaceholder('Workflow name').fill(`${workflowName}-dirty`)
@@ -76,13 +71,10 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
 
   test('"Cancel" keeps user in the builder without navigating', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-cancel-modal')
-    await createBasicWorkflow(app, workflowName, 'Cancel test action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Cancel test action')
 
     try {
-      await app.goto(toAppUrl('/workflows'))
-      await app.getByPlaceholder('Filter by name').fill(workflowName)
-      await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('link', { name: workflowName, exact: true }).click()
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Make the workflow dirty
       await app.getByPlaceholder('Workflow name').fill(`${workflowName}-modified`)
@@ -112,13 +104,10 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
 
   test.skip('"Exit without saving" navigates away and discards changes', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-exit-discard')
-    await createBasicWorkflow(app, workflowName, 'Exit discard action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Exit discard action')
 
     try {
-      await app.goto(toAppUrl('/workflows'))
-      await app.getByPlaceholder('Filter by name').fill(workflowName)
-      await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('link', { name: workflowName, exact: true }).click()
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Make the workflow dirty
       await app.getByPlaceholder('Workflow name').fill(`${workflowName}-discarded`)
@@ -150,13 +139,10 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
   test('"Save workflow" saves changes and navigates away', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-save-navigate')
     const updatedName = `${workflowName}-saved`
-    await createBasicWorkflow(app, workflowName, 'Save navigate action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Save navigate action')
 
     try {
-      await app.goto(toAppUrl('/workflows'))
-      await app.getByPlaceholder('Filter by name').fill(workflowName)
-      await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('link', { name: workflowName, exact: true }).click()
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Make the workflow dirty with a new name
       await app.getByPlaceholder('Workflow name').fill(updatedName)
@@ -188,15 +174,11 @@ test.describe('builder unsaved changes modal (AAP-75130)', () => {
 
   test('modal does NOT appear when navigating away with no unsaved changes', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-no-modal')
-    await createBasicWorkflow(app, workflowName, 'No modal action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'No modal action')
 
     try {
       // Open the saved workflow — it's clean (no changes)
-      await app.goto(toAppUrl('/workflows'))
-      await app.getByPlaceholder('Filter by name').fill(workflowName)
-      await app.getByRole('button', { name: 'Apply filter' }).click()
-      await app.getByRole('link', { name: workflowName, exact: true }).click()
-      await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Navigate away without making any changes
       await app

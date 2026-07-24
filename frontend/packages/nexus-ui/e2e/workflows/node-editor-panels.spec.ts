@@ -4,7 +4,8 @@ import {
   buildUniqueName,
   clickAddConnectedStep,
   closeNodeEditorPanel,
-  createBasicWorkflow,
+  createBasicWorkflowViaApi,
+  openWorkflowInBuilder,
   fillCodeEditor,
   selectProjectIfRequired,
 } from '../helpers/workflows'
@@ -46,7 +47,8 @@ async function clickNode(app: import('@playwright/test').Page, nodeText: string)
 test.describe('Node editor panels', () => {
   test('three-panel layout renders with empty states on node click', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-panels')
-    await createBasicWorkflow(app, workflowName, 'Process data')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Process data')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     // Open the script node editor
     await clickNode(app, 'Process data')
@@ -70,7 +72,8 @@ test.describe('Node editor panels', () => {
 
   test('node editor can be opened, closed, and reopened', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-reopen')
-    await createBasicWorkflow(app, workflowName, 'My action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'My action')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     // Click the script node to open the editor
     await clickNode(app, 'My action')
@@ -96,7 +99,8 @@ test.describe('Node editor panels', () => {
 
   test('output panel displays execution data', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-output')
-    await createBasicWorkflow(app, workflowName, 'Run script')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Run script')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     // Extract node IDs and workflow ID
     const scriptNode = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Run script' })
@@ -818,7 +822,8 @@ test.describe('Node editor panels', () => {
 
   test.skip('output panel view switching: Schema, Table, and JSON with execution data', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-out-views')
-    await createBasicWorkflow(app, workflowName, 'Run script')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Run script')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     // Extract node ID and workflow ID
     await layoutCanvas(app)
@@ -922,7 +927,8 @@ test.describe('Node editor panels', () => {
 
   test('run step button is inline with tabs', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-run-btn')
-    await createBasicWorkflow(app, workflowName, 'Run script')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Run script')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     await clickNode(app, 'Run script')
 
@@ -1137,7 +1143,8 @@ test.describe('Node editor panels', () => {
 
   test('output panel "Set mock data" opens and closes editor', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-out-mock')
-    await createBasicWorkflow(app, workflowName, 'Run script')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Run script')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     await clickNode(app, 'Run script')
     await expect(app.getByRole('heading', { name: 'Output', exact: true })).toBeVisible({ timeout: 10_000 })

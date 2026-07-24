@@ -17,7 +17,8 @@ import { test, expect } from './fixtures'
 import { WCAG_TAGS } from './fixtures/accessibility'
 import {
   buildUniqueName,
-  createBasicWorkflow,
+  createBasicWorkflowViaApi,
+  openWorkflowInBuilder,
   createWorkflowWithTrigger,
   addScriptNode,
   addScriptNodeUnconnected,
@@ -80,7 +81,8 @@ test.describe('Verify button in toolbar', () => {
     const workflowName = buildUniqueName('e2e-verify-visible')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Verify step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Verify step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await app.getByRole('button', { name: 'Workflow actions' }).click()
       await expect(app.getByRole('menuitem', { name: /verify workflow/i })).toBeVisible()
@@ -96,7 +98,8 @@ test.describe('Verify button in toolbar', () => {
     const workflowName = buildUniqueName('e2e-verify-errors')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Error step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Error step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await mockValidateEndpoint(app, {
         valid: false,
@@ -116,7 +119,8 @@ test.describe('Verify button in toolbar', () => {
     const workflowName = buildUniqueName('e2e-verify-success')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Valid step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Valid step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await mockValidateEndpoint(app)
 
@@ -135,7 +139,8 @@ test.describe('Validation error panel', () => {
     const workflowName = buildUniqueName('e2e-error-panel')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Panel step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Panel step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await mockValidateEndpoint(app, {
         valid: false,
@@ -159,7 +164,8 @@ test.describe('Validation error panel', () => {
     const workflowName = buildUniqueName('e2e-error-dismiss')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Dismiss step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Dismiss step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await mockValidateEndpoint(app, {
         valid: false,
@@ -186,7 +192,8 @@ test.describe('Validation error panel', () => {
     const stepName = 'Goto step'
 
     try {
-      await createBasicWorkflow(app, workflowName, stepName)
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, stepName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Get the node ID from the canvas so the mock error references it
       const node = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: stepName })
@@ -222,7 +229,8 @@ test.describe('Error indicators on canvas nodes', () => {
     const workflowName = buildUniqueName('e2e-error-badge')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Badge step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Badge step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Get the node ID so the mock error is attributed to a specific node
       const node = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: 'Badge step' })
@@ -252,7 +260,8 @@ test.describe('Block publish when validation errors exist', () => {
     const workflowName = buildUniqueName('e2e-publish-blocked')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Blocked step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Blocked step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await mockValidateEndpoint(app, {
         valid: false,
@@ -276,7 +285,8 @@ test.describe('Block publish when validation errors exist', () => {
     const workflowName = buildUniqueName('e2e-publish-clean')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Clean step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Clean step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await mockValidateEndpoint(app)
 
@@ -302,7 +312,8 @@ test.describe('Save with warnings', () => {
     const workflowName = buildUniqueName('e2e-save-warnings')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'Warn step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Warn step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await mockValidateEndpoint(app, {
         warnings: [{ message: 'Step has no downstream consumers', node_id: null }],
@@ -407,7 +418,8 @@ test.describe('Accessibility', () => {
     const workflowName = buildUniqueName('e2e-accessibility-verify')
 
     try {
-      await createBasicWorkflow(app, workflowName, 'A11y step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'A11y step')
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await mockValidateEndpoint(app, {
         valid: false,

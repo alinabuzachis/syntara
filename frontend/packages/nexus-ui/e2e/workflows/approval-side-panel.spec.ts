@@ -16,7 +16,7 @@
  */
 import { test, expect, toAppUrl } from '../fixtures'
 import { addApprovalNodeWithBranch } from '../helpers/v2-nodes'
-import { buildUniqueName, createBasicWorkflow } from '../helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, openWorkflowInBuilder } from '../helpers/workflows'
 import { apiRequest } from '../utils/api'
 
 const MOCK_APPROVAL_ID = '550e8400-e29b-41d4-a716-446655440050'
@@ -157,7 +157,8 @@ test.describe('Approval Side Panel — deep-link', () => {
 test.describe('Approval Side Panel — self-contained', () => {
   test.skip('UI-28: execution shows Paused status and Waiting for approval indicator', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-approval-panel')
-    await createBasicWorkflow(app, workflowName, 'Pre-approval step')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Pre-approval step')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     const builderUrl = app.url()
     const workflowId = builderUrl.match(/workflow-builder\/([a-f0-9-]{36})/)?.[1]
@@ -198,7 +199,8 @@ test.describe('Approval Side Panel — self-contained', () => {
 
   test.skip('UI-30: rejecting an approval terminates workflow execution', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-reject')
-    await createBasicWorkflow(app, workflowName, 'Pre-rejection step')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Pre-rejection step')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     const builderUrl = app.url()
     const workflowId = builderUrl.match(/workflow-builder\/([a-f0-9-]{36})/)?.[1]

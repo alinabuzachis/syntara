@@ -18,7 +18,7 @@ import type { Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
 import { addScriptNode } from './helpers/v2-nodes'
-import { buildUniqueName, createBasicWorkflow, deleteWorkflow, openWorkflowInBuilder } from './helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, deleteWorkflow, openWorkflowInBuilder } from './helpers/workflows'
 
 /** Locate the undo/redo toolbar rendered by UndoRedoControls. */
 const undoRedoToolbar = (app: Page) => app.getByRole('toolbar', { name: 'Undo and redo' })
@@ -31,12 +31,12 @@ const redoButton = (app: Page) => undoRedoToolbar(app).getByRole('button', { nam
 
 test('undo/redo add node via toolbar buttons', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-undo-toolbar')
-  await createBasicWorkflow(app, workflowName, 'Initial action')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Initial action')
 
   const nodeName = 'Toolbar undo node'
 
   try {
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
     await addScriptNode(app, nodeName)
     await expect(app.getByText(nodeName)).toBeVisible()
 
@@ -52,12 +52,12 @@ test('undo/redo add node via toolbar buttons', async ({ app }) => {
 
 test('undo/redo add node via keyboard shortcuts', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-undo-keyboard')
-  await createBasicWorkflow(app, workflowName, 'Initial action')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Initial action')
 
   const nodeName = 'Keyboard undo node'
 
   try {
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
     await addScriptNode(app, nodeName)
     await expect(app.getByText(nodeName)).toBeVisible()
 
@@ -73,10 +73,10 @@ test('undo/redo add node via keyboard shortcuts', async ({ app }) => {
 
 test('undo and redo buttons are disabled on fresh workflow load', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-undo-fresh')
-  await createBasicWorkflow(app, workflowName, 'Initial action')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Initial action')
 
   try {
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
 
     await expect(undoButton(app)).toBeDisabled()
     await expect(redoButton(app)).toBeDisabled()
@@ -87,19 +87,19 @@ test('undo and redo buttons are disabled on fresh workflow load', async ({ app }
 
 test('undo history resets when navigating away from the builder', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-undo-nav-reset')
-  await createBasicWorkflow(app, workflowName, 'Initial action')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Initial action')
 
   const nodeName = 'Nav reset node'
 
   try {
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
     await addScriptNode(app, nodeName)
     await expect(undoButton(app)).toBeEnabled()
 
     await app.goto(toAppUrl('/workflows'))
     await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
 
     await expect(undoButton(app)).toBeDisabled()
   } finally {
@@ -109,10 +109,10 @@ test('undo history resets when navigating away from the builder', async ({ app }
 
 test('selecting execution from history navigates to execution page', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-undo-exec-view')
-  await createBasicWorkflow(app, workflowName, 'Initial action')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Initial action')
 
   try {
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
 
     // Create an execution by running the workflow through the UI
     await app.getByRole('button', { name: 'Run', exact: true }).click()
@@ -126,7 +126,7 @@ test('selecting execution from history navigates to execution page', async ({ ap
     test.skip(!didNavigate, 'Workflow execution failed — execution engine may not be running')
 
     // Navigate back to the builder
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
 
     // Open run history via kebab menu — the execution we just created should appear
     await app.getByLabel('Workflow actions').click()

@@ -11,7 +11,7 @@
  */
 
 import { test, expect, toAppUrl } from './fixtures'
-import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, deleteWorkflow } from './helpers/workflows'
 
 const ABBREVIATED_MONTH_PATTERN = /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}, \d{4}/
 const NUMERIC_MONTH_PATTERN = /\d{1,2}\/\d{1,2}\/\d{4}/
@@ -20,7 +20,7 @@ test.describe('Date format consistency (AAP-76836)', () => {
   test.skip('workflows table displays dates with abbreviated month names', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-date-fmt')
 
-    await createBasicWorkflow(app, workflowName, 'Date format test')
+    await createBasicWorkflowViaApi(app, workflowName, 'Date format test')
 
     try {
       await app.goto(toAppUrl('/workflows'))

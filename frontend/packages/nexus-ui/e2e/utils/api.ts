@@ -464,6 +464,48 @@ export async function createWorkflowViaApi(
   return body.id
 }
 
+/**
+ * API equivalent of `createBasicWorkflow` — manual trigger + script action.
+ * Prefer this for arrange/cleanup; keep UI creation when the test asserts create UX.
+ */
+export async function createBasicWorkflowViaApi(
+  app: Page,
+  name: string,
+  actionName = 'Script'
+): Promise<{ id: string; name: string }> {
+  const id = await createWorkflowViaApi(
+    app,
+    name,
+    [{ id: 'trigger_1', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
+    [
+      {
+        id: 'action_1',
+        type: 'script',
+        name: actionName,
+        parameters: { language: 'python', code: 'print("hello")' },
+      },
+    ],
+    [{ from: 'trigger_1', to: 'action_1' }]
+  )
+  return { id, name }
+}
+
+/** Look up a workflow ID by exact name (best-effort). */
+export async function findWorkflowIdByName(app: Page, name: string): Promise<string | null> {
+  try {
+    const token = await getAuthToken(app)
+    if (!token) return null
+    const resp = await apiRequest(app, 'get', `/workflows?name[contains]=${encodeURIComponent(name)}&limit=50`, {
+      token,
+    })
+    if (!resp.ok()) return null
+    const body = (await resp.json()) as { resources?: Array<{ id: string; name: string }> }
+    return body.resources?.find((workflow) => workflow.name === name)?.id ?? null
+  } catch {
+    return null
+  }
+}
+
 /** Delete a workflow by ID via the API (best-effort cleanup). */
 export async function deleteWorkflowViaApi(app: Page, workflowId: string): Promise<void> {
   if (app.isClosed()) return

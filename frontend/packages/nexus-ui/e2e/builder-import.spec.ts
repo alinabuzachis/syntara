@@ -5,7 +5,7 @@ import { basename, join } from 'node:path'
 import { test, expect } from './fixtures'
 import {
   buildUniqueName,
-  createBasicWorkflow,
+  createBasicWorkflowViaApi,
   deleteWorkflow,
   openWorkflowInBuilder,
   startWorkflowWithTrigger,
@@ -35,11 +35,11 @@ function createImportFile(name: string): string {
 test.skip('builder import shows confirmation modal for existing workflow', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-import-confirm')
   const importName = buildUniqueName('e2e-imported')
-  await createBasicWorkflow(app, workflowName, 'Original action')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Original action')
   const importFile = createImportFile(importName)
 
   try {
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
 
     const kebab = app.getByRole('button', { name: 'Workflow actions' })
     await kebab.click()
@@ -66,11 +66,11 @@ test.skip('builder import shows confirmation modal for existing workflow', async
 test('import into current workflow overwrites canvas and saves', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-import-current')
   const importName = buildUniqueName('e2e-imported-current')
-  await createBasicWorkflow(app, workflowName, 'Original action')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Original action')
   const importFile = createImportFile(importName)
 
   try {
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
     const originalUrl = app.url()
 
     const kebab = app.getByRole('button', { name: 'Workflow actions' })
@@ -97,11 +97,11 @@ test('import into current workflow overwrites canvas and saves', async ({ app })
 test.skip('import as new workflow creates a new workflow and navigates', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-import-new')
   const importName = buildUniqueName('e2e-imported-new')
-  await createBasicWorkflow(app, workflowName, 'Original action')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Original action')
   const importFile = createImportFile(importName)
 
   try {
-    await openWorkflowInBuilder(app, workflowName)
+    await openWorkflowInBuilder(app, workflowName, id)
     const originalUrl = app.url()
 
     const kebab = app.getByRole('button', { name: 'Workflow actions' })

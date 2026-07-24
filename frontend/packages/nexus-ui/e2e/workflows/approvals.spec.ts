@@ -11,7 +11,7 @@ import type { Page } from '@playwright/test'
 import { test, expect, toAppUrl } from '../fixtures'
 import { APP_TITLE } from '../helpers/appTitle'
 import { addApprovalNodeWithBranch } from '../helpers/v2-nodes'
-import { buildUniqueName, createBasicWorkflow } from '../helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, openWorkflowInBuilder } from '../helpers/workflows'
 import { apiRequest } from '../utils/api'
 
 /**
@@ -29,10 +29,8 @@ async function createPendingApproval(
   const workflowName = buildUniqueName('e2e-batch-test')
   const approvalName = buildUniqueName(namePrefix)
 
-  await createBasicWorkflow(app, workflowName, 'Pre-approval step')
-  // Extract workflow ID with strict UUID validation (defense against path traversal)
-  const workflowId = app.url().match(/workflow-builder\/([a-f0-9-]{36})/)?.[1]
-  if (!workflowId) throw new Error('Failed to extract workflow ID from URL')
+  const { id: workflowId } = await createBasicWorkflowViaApi(app, workflowName, 'Pre-approval step')
+  await openWorkflowInBuilder(app, workflowName, workflowId)
 
   // Add approval node and save
   await addApprovalNodeWithBranch(app, approvalName)
@@ -470,9 +468,8 @@ test('UI-29: self-contained approve flow via approvals queue', async ({ app }) =
   // Create a workflow with an approval node so we control the approval name
   const workflowName = buildUniqueName('e2e-approve')
   const approvalNodeName = buildUniqueName('gate')
-  await createBasicWorkflow(app, workflowName, 'Pre-approval step')
-
-  const workflowId = app.url().match(/workflow-builder\/([a-f0-9-]{36})/)?.[1]
+  const { id: workflowId } = await createBasicWorkflowViaApi(app, workflowName, 'Pre-approval step')
+  await openWorkflowInBuilder(app, workflowName, workflowId)
 
   try {
     // Add approval node with a unique name so we can find it in the approvals list

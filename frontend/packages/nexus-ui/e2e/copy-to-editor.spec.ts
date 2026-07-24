@@ -13,7 +13,7 @@
  */
 
 import { test, expect, toAppUrl } from './fixtures'
-import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, deleteWorkflow } from './helpers/workflows'
 
 /** Run a workflow from the Workflows list page and wait for navigation to the execution detail page. */
 async function runWorkflowFromList(app: import('@playwright/test').Page, workflowName: string) {
@@ -42,7 +42,7 @@ async function runWorkflowFromList(app: import('@playwright/test').Page, workflo
 test.describe.skip('Copy Run to Editor', () => {
   test('replaces current workflow via confirmation dialog', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-copy-to-editor')
-    await createBasicWorkflow(app, workflowName, 'Copy action')
+    await createBasicWorkflowViaApi(app, workflowName, 'Copy action')
 
     try {
       // Run the workflow from the list page (navigates to /executions/<id>)
@@ -72,7 +72,7 @@ test.describe.skip('Copy Run to Editor', () => {
 
   test('forks execution as new workflow', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-copy-fork')
-    await createBasicWorkflow(app, workflowName, 'Fork action')
+    await createBasicWorkflowViaApi(app, workflowName, 'Fork action')
     let forkedWorkflowName: string | undefined
 
     try {
@@ -108,7 +108,7 @@ test.describe.skip('Copy Run to Editor', () => {
 
   test('cancelling the dialog stays on execution page', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-copy-cancel')
-    await createBasicWorkflow(app, workflowName, 'Cancel action')
+    await createBasicWorkflowViaApi(app, workflowName, 'Cancel action')
 
     try {
       // Run the workflow from the list page (navigates to /executions/<id>)

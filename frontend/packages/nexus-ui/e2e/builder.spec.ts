@@ -4,7 +4,7 @@ import {
   buildUniqueName,
   clickAddConnectedStep,
   closeNodeEditorPanel,
-  createBasicWorkflow,
+  createBasicWorkflowViaApi,
   fillCodeEditor,
   selectProjectIfRequired,
 } from './helpers/workflows'
@@ -65,7 +65,7 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
 
 test('user edits an existing workflow and changes persist', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-edit')
-  await createBasicWorkflow(app, workflowName, 'Initial task')
+  await createBasicWorkflowViaApi(app, workflowName, 'Initial task')
 
   const updatedName = `${workflowName}-updated`
 

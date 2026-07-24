@@ -1,14 +1,14 @@
 import { test, expect } from './fixtures'
 import { addScriptNode } from './helpers/v2-nodes'
-import { buildUniqueName, createBasicWorkflow, deleteWorkflow, openWorkflowInBuilder } from './helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, deleteWorkflow, openWorkflowInBuilder } from './helpers/workflows'
 
 test.describe('Execution URL unification', () => {
   test('running a workflow shows inline run panel in builder', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-exec-url-run')
-    await createBasicWorkflow(app, workflowName, 'Run action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Run action')
 
     try {
-      await openWorkflowInBuilder(app, workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await app.getByRole('button', { name: 'Run', exact: true }).click()
       await app.getByRole('button', { name: 'Run now' }).click()
@@ -27,10 +27,10 @@ test.describe('Execution URL unification', () => {
 
   test('run history navigates to execution page', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-exec-url-history')
-    await createBasicWorkflow(app, workflowName, 'History action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'History action')
 
     try {
-      await openWorkflowInBuilder(app, workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await app.getByRole('button', { name: 'Run', exact: true }).click()
       await app.getByRole('button', { name: 'Run now' }).click()
@@ -41,7 +41,7 @@ test.describe('Execution URL unification', () => {
         .catch(() => false)
       test.skip(!didNavigate, 'Workflow execution failed — execution engine may not be running')
 
-      await openWorkflowInBuilder(app, workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await app.getByLabel('Workflow actions').click()
       await app.getByRole('menuitem', { name: 'Run history' }).click()
@@ -65,10 +65,10 @@ test.describe('Execution URL unification', () => {
 
   test('execution page shows workflow name in header', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-exec-url-name')
-    await createBasicWorkflow(app, workflowName, 'Name action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Name action')
 
     try {
-      await openWorkflowInBuilder(app, workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       await app.getByRole('button', { name: 'Run', exact: true }).click()
       await app.getByRole('button', { name: 'Run now' }).click()
@@ -88,10 +88,10 @@ test.describe('Execution URL unification', () => {
 
   test('history card on execution page navigates between executions', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-exec-url-card')
-    await createBasicWorkflow(app, workflowName, 'Card action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Card action')
 
     try {
-      await openWorkflowInBuilder(app, workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Run workflow first time
       await app.getByRole('button', { name: 'Run', exact: true }).click()
@@ -104,7 +104,7 @@ test.describe('Execution URL unification', () => {
       test.skip(!didNavigate, 'Workflow execution failed — execution engine may not be running')
 
       // Run workflow second time to have multiple executions
-      await openWorkflowInBuilder(app, workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
       await app.getByRole('button', { name: 'Run', exact: true }).click()
       await app.getByRole('button', { name: 'Run now' }).click()
 
@@ -134,10 +134,10 @@ test.describe('Execution URL unification', () => {
 
   test('dirty workflow prompts save before navigating to execution', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-exec-url-dirty')
-    await createBasicWorkflow(app, workflowName, 'Dirty action')
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Dirty action')
 
     try {
-      await openWorkflowInBuilder(app, workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Run workflow to create an execution
       await app.getByRole('button', { name: 'Run', exact: true }).click()
@@ -150,7 +150,7 @@ test.describe('Execution URL unification', () => {
       test.skip(!didNavigate, 'Workflow execution failed — execution engine may not be running')
 
       // Go back to builder
-      await openWorkflowInBuilder(app, workflowName)
+      await openWorkflowInBuilder(app, workflowName, id)
 
       // Make the workflow dirty by adding a node
       await addScriptNode(app, 'Dirty node')

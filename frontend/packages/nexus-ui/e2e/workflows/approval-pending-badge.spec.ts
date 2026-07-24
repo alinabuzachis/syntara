@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 
 import { test, expect } from '../fixtures'
 import { addApprovalNodeWithBranch } from '../helpers/v2-nodes'
-import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from '../helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, openWorkflowInBuilder, deleteWorkflow } from '../helpers/workflows'
 
 /**
  * E2E Tests: Approval Pending Badge Display
@@ -26,7 +26,8 @@ async function createPendingApproval(
   const workflowName = buildUniqueName('approval-badge-test')
   const approvalName = buildUniqueName('approval')
 
-  await createBasicWorkflow(app, workflowName, 'Pre-approval step')
+  const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Pre-approval step')
+  await openWorkflowInBuilder(app, workflowName, id)
   const workflowId = app.url().match(/workflow-builder\/([^/?]+)/)?.[1]
   if (!workflowId) throw new Error('Failed to extract workflow ID')
 
@@ -155,11 +156,12 @@ test.describe('Approval Pending Badge', () => {
       workflowName = buildUniqueName('no-approval-badge-test')
 
       // Create a simple workflow WITHOUT approval node
-      await createBasicWorkflow(app, workflowName, 'Simple step')
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Simple step')
+      await openWorkflowInBuilder(app, workflowName, id)
       const workflowId = app.url().match(/workflow-builder\/([^/?]+)/)?.[1]
       if (!workflowId) throw new Error('Failed to extract workflow ID')
 
-      // createBasicWorkflow already saves the workflow, so Run button should be enabled
+      // createBasicWorkflowViaApi already saves the workflow, so Run button should be enabled
       await expect(app.getByRole('button', { name: 'Run', exact: true })).toBeEnabled({ timeout: 15_000 })
 
       // Run the workflow
