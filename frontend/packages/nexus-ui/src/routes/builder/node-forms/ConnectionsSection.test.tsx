@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
@@ -14,6 +16,40 @@ vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
   interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
+
+vi.mock('../../configuration/credentials/form/CredentialFormModal', () => ({
+  CredentialFormModal: ({
+    isOpen,
+    onClose,
+    onCreated,
+    preSelectedTypeId,
+    defaultProjectId,
+  }: {
+    isOpen: boolean
+    onClose: () => void
+    onCreated?: (id: string) => void
+    preSelectedTypeId?: string
+    defaultProjectId?: string
+  }) =>
+    isOpen ? (
+      <div
+        data-testid="credential-form-modal"
+        data-pre-selected-type-id={preSelectedTypeId}
+        data-default-project-id={defaultProjectId}
+      >
+        <button onClick={onClose}>Close modal</button>
+        <button onClick={() => onCreated?.('new-cred-id')}>Simulate create</button>
+      </div>
+    ) : null,
+}))
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+})
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+)
 
 const integrations: IntegrationWithTools[] = [
   {
@@ -49,7 +85,8 @@ const selected = (...ids: string[]): ToolSelection => ({ strategy: 'SELECTED', t
 function renderSection(
   toolSelection: ToolSelection,
   integrationConnections: IntegrationConnection[] = [],
-  onChange = vi.fn()
+  onChange = vi.fn(),
+  projectId?: string
 ) {
   return render(
     <ConnectionsSection
@@ -57,7 +94,9 @@ function renderSection(
       toolSelection={toolSelection}
       integrationConnections={integrationConnections}
       onConnectionChange={onChange}
-    />
+      projectId={projectId}
+    />,
+    { wrapper }
   )
 }
 
@@ -223,5 +262,30 @@ describe('ConnectionsSection', () => {
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  describe('inline credential creation', () => {
+    it('shows "Create new credential" option in the credential dropdown', async () => {
+      const user = userEvent.setup()
+      renderSection(ALL)
+
+      await user.click(screen.getByRole('button', { name: /set up connection for Primary MCP Server/i }))
+      await user.click(screen.getByRole('button', { name: 'Execution credential for Primary MCP Server' }))
+
+      expect(screen.getByText('Create new credential')).toBeInTheDocument()
+    })
+
+    it('passes projectId to filter credentials', async () => {
+      const user = userEvent.setup()
+      renderSection(ALL, [], vi.fn(), 'project-42')
+
+      await user.click(screen.getByRole('button', { name: /set up connection for Primary MCP Server/i }))
+
+      const calls = vi.mocked(credentialsClient.useQuery).mock.calls
+      const credentialCall = calls.find(([method, path]) => method === 'get' && path === '/credentials')
+      expect(credentialCall).toBeDefined()
+      const options = credentialCall![2] as unknown as { params: { query: Record<string, string> } }
+      expect(options.params.query.project_id).toBe('project-42')
+    })
   })
 })

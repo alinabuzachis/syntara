@@ -252,6 +252,7 @@ function AIAgentFormFields({
                 toolSelection={toolSelection}
                 integrationConnections={field.value ?? []}
                 onConnectionChange={field.onChange}
+                projectId={projectId}
               />
             )}
           />

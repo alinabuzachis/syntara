@@ -32,6 +32,7 @@ export type ConnectionsSectionProps = {
   toolSelection: ToolSelection
   integrationConnections: IntegrationConnection[]
   onConnectionChange: (connections: IntegrationConnection[]) => void
+  projectId?: string
 }
 
 type IntegrationRow = {
@@ -76,6 +77,7 @@ type IntegrationConnectionRowProps = {
   onExpand: () => void
   onCollapse: () => void
   onCredentialChange: (credentialId: string | undefined) => void
+  projectId?: string
 }
 
 function IntegrationConnectionRow({
@@ -84,6 +86,7 @@ function IntegrationConnectionRow({
   onExpand,
   onCollapse,
   onCredentialChange,
+  projectId,
 }: Readonly<IntegrationConnectionRowProps>) {
   const { integration, toolCount, connection } = row
 
@@ -145,6 +148,8 @@ function IntegrationConnectionRow({
               fieldId={`mcp-credential-${integration.id}`}
               placeholder="Select execution credential"
               helpText={AI_INTEGRATION_CONNECTIONS_HELP}
+              allowCreate
+              projectId={projectId}
             />
           </StackItem>
           <StackItem>
@@ -180,6 +185,7 @@ export function ConnectionsSection({
   toolSelection,
   integrationConnections,
   onConnectionChange,
+  projectId,
 }: Readonly<ConnectionsSectionProps>) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [sectionExpanded, setSectionExpanded] = useState(true)
@@ -233,6 +239,7 @@ export function ConnectionsSection({
                 onExpand={() => setExpandedId(row.integration.id)}
                 onCollapse={() => setExpandedId(null)}
                 onCredentialChange={(credentialId) => handleCredentialChange(row.integration.id, credentialId)}
+                projectId={projectId}
               />
             </div>
           </Fragment>
