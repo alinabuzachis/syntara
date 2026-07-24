@@ -335,13 +335,15 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
         continue_on_failure: bool = False,
     ) -> None:
         """Record a node failure; skip downstream unless continue_on_failure is set."""
-        # Unwrap Temporal's ActivityError to surface the inner ApplicationError message
-        app_error = None
+        # Unwrap Temporal's ActivityError to surface the inner ApplicationError message.
+        # Also handle bare ApplicationError raised directly from workflow code.
+        app_error: ApplicationError | None = None
         if isinstance(error, ActivityError) and isinstance(error.cause, ApplicationError):
             app_error = error.cause
-            error_message = app_error.message or str(app_error)
-        else:
-            error_message = str(error)
+        elif isinstance(error, ApplicationError):
+            app_error = error
+
+        error_message = (app_error.message or str(app_error)) if app_error is not None else str(error)
 
         self.failed_nodes[node_id] = error_message
 

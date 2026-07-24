@@ -10,7 +10,7 @@ from typing import Any, ClassVar, cast
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
-from temporalio.exceptions import ActivityError
+from temporalio.exceptions import ActivityError, ApplicationError
 from temporalio.exceptions import TimeoutError as TemporalTimeoutError
 
 with workflow.unsafe.imports_passed_through():
@@ -274,19 +274,19 @@ class WorkflowApprovalMixin:
             else None,
         )
         output = approval_output.model_dump(exclude_none=True)
-        if decision in ("approved", "rejected"):
-            workflow.logger.info(
-                "Approval node %s decision: %s by %s",
-                node_id,
-                decision,
-                approval_output.decided_by,
+        if decision not in ("approved", "rejected"):
+            msg = f"Approval node '{node_id}' received invalid decision '{decision}': expected 'approved' or 'rejected'"
+            raise ApplicationError(
+                msg,
+                {"output": output},
+                type="InvalidApprovalDecisionError",
+                non_retryable=True,
             )
-            next_port = decision
-        else:
-            next_port = "rejected"
-            workflow.logger.warning(
-                "Approval node %s received unexpected decision %s, routing to rejected",
-                node_id,
-                decision,
-            )
-        return {"output": output, "control": {"next_port": next_port}}
+
+        workflow.logger.info(
+            "Approval node %s decision: %s by %s",
+            node_id,
+            decision,
+            approval_output.decided_by,
+        )
+        return {"output": output, "control": {"next_port": decision}}

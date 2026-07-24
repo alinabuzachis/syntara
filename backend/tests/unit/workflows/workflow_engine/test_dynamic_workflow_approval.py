@@ -3,6 +3,8 @@
 Tests cover:
 - _get_previous_step_context: building previous step context for approval requests
 - _prepare_approval_args: assembling the full argument list for create_approval_request_activity
+- _execute_approval_node: dispatch routing and error handling for invalid decisions
+- _handle_node_failure: handling bare ApplicationError raised from workflow code
 """
 
 from collections.abc import Generator
@@ -10,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
@@ -456,18 +459,27 @@ class TestDispatchApprovalNode:
         assert result["control"] == {"next_port": "rejected"}
 
     @pytest.mark.asyncio
-    async def test_dispatch_defaults_to_rejected_on_unexpected_status(self) -> None:
-        """Verify unexpected approval status defaults to rejected port."""
+    async def test_dispatch_raises_on_unexpected_decision(self) -> None:
+        """Verify unexpected approval decision raises ApplicationError with output in details."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = graph.get_node("approval")
 
-        mock_activity = AsyncMock(return_value={"output": {"decision": "cancelled"}})
+        mock_activity = AsyncMock(return_value={"output": {"decision": "cancelled", "decided_by": "admin"}})
 
-        with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
+        with (
+            patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity),
+            pytest.raises(ApplicationError, match="invalid decision 'cancelled'") as exc_info,
+        ):
+            await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
-        assert result["control"] == {"next_port": "rejected"}
+        err = exc_info.value
+        assert err.type == "InvalidApprovalDecisionError"
+        assert err.non_retryable
+        details = list(err.details)
+        assert len(details) == 1
+        assert details[0]["output"]["decision"] == "cancelled"
+        assert details[0]["output"]["decided_by"] == "admin"
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("approval_status", ["approved", "rejected"])
@@ -486,18 +498,26 @@ class TestDispatchApprovalNode:
         assert result["control"]["next_port"] == approval_status
 
     @pytest.mark.asyncio
-    async def test_dispatch_routes_unexpected_status_to_rejected(self) -> None:
-        """Verify unexpected approval status defensively routes to rejected."""
+    async def test_dispatch_raises_on_missing_decision(self) -> None:
+        """Verify missing decision field raises ApplicationError with output in details."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = graph.get_node("approval")
 
-        mock_activity = AsyncMock(return_value={"output": {"decision": "pending", "approval_id": "apr-1"}})
+        mock_activity = AsyncMock(return_value={"output": {"approval_id": "apr-1"}})
 
-        with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity):
-            result = await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
+        with (
+            patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_activity),
+            pytest.raises(ApplicationError, match="invalid decision 'None'") as exc_info,
+        ):
+            await wf._dispatch_node_to_executor(node, {}, graph, timeout_seconds=300)
 
-        assert result["control"]["next_port"] == "rejected"
+        err = exc_info.value
+        assert err.type == "InvalidApprovalDecisionError"
+        assert err.non_retryable
+        details = list(err.details)
+        assert len(details) == 1
+        assert "output" in details[0]
 
     @pytest.mark.asyncio
     async def test_dispatch_transforms_output_to_match_result_schema(self) -> None:
@@ -605,3 +625,62 @@ class TestDispatchApprovalNode:
             "approved",
             "jsmith",
         )
+
+
+class TestHandleNodeFailureBareApplicationError:
+    """Tests that _handle_node_failure extracts details from bare ApplicationError.
+
+    When workflow code raises ApplicationError directly (not via an activity),
+    the error is not wrapped in ActivityError. _handle_node_failure must still
+    extract error type, message, and details.
+    """
+
+    def test_bare_application_error_extracts_message(self) -> None:
+        """Bare ApplicationError message is used instead of str(error)."""
+        wf = _make_workflow()
+        graph = _build_approval_graph()
+
+        error = ApplicationError(
+            "Approval node 'approval' received invalid decision 'cancelled'",
+            type="InvalidApprovalDecisionError",
+            non_retryable=True,
+        )
+        wf._handle_node_failure("approval", error, graph)
+
+        assert "approval" in wf.failed_nodes
+        assert "invalid decision 'cancelled'" in wf.failed_nodes["approval"]
+
+    def test_bare_application_error_extracts_output_from_details(self) -> None:
+        """Bare ApplicationError with output in details populates namespace."""
+        wf = _make_workflow()
+        graph = _build_approval_graph()
+
+        output = {"status": "completed", "decision": "cancelled", "decided_by": "admin"}
+        error = ApplicationError(
+            "invalid decision",
+            {"output": output},
+            type="InvalidApprovalDecisionError",
+            non_retryable=True,
+        )
+        wf._handle_node_failure("approval", error, graph)
+
+        ns = wf.resolver.get_namespace("approval")
+        assert ns["status"] == "failed"
+        assert ns["decision"] == "cancelled"
+        assert ns["decided_by"] == "admin"
+
+    def test_bare_application_error_without_details_uses_empty_model(self) -> None:
+        """Bare ApplicationError without details falls back to empty model output."""
+        wf = _make_workflow()
+        graph = _build_approval_graph()
+
+        error = ApplicationError(
+            "something went wrong",
+            type="SomeError",
+            non_retryable=True,
+        )
+        wf._handle_node_failure("approval", error, graph)
+
+        ns = wf.resolver.get_namespace("approval")
+        assert ns["status"] == "failed"
+        assert ns["error"] == "something went wrong"
