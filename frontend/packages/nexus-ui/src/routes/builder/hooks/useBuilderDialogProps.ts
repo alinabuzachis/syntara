@@ -73,7 +73,7 @@ export function useBuilderDialogProps(params: BuilderDialogPropsParams) {
     runStepTriggerNodeId,
     onRunStepExecutionCreated: (executionId: string, { clearMocksOnComplete }: { clearMocksOnComplete: boolean }) => {
       lastRunStepNodeIdRef.current = clearMocksOnComplete ? (runStepDialog.item?.nodeId ?? null) : null
-      dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionId })
+      dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: { executionId } })
     },
     pendingImport,
     setPendingImport,

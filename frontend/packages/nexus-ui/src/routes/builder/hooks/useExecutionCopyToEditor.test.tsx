@@ -11,7 +11,8 @@ vi.mock('../utils/parseImportedDefinition', () => ({
     workflowDef: {
       name: def.name ?? 'parsed-wf',
       description: def.description ?? '',
-      workflow: { activities: [] },
+      workflow: { activities: [{ id: 'copied-task-1' }, { id: 'copied-cond-1' }] },
+      triggers: [{ id: 'copied-trigger-1' }],
     },
     edges: [],
     nodePositions: {},
@@ -75,10 +76,16 @@ describe('useExecutionCopyToEditor', () => {
     expect(opts.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_WORKFLOW_NAME' }) as unknown)
   })
 
-  it('dispatches SET_MOST_RECENT_EXECUTION with execution ID', () => {
+  it('dispatches SET_MOST_RECENT_EXECUTION with execution ID and copied activity allowlist', () => {
     const opts = buildOptions({ executionCopy: buildExecutionCopy({ executionId: 'exec-abc' }) })
     renderHook(() => useExecutionCopyToEditor(opts))
-    expect(opts.dispatch).toHaveBeenCalledWith({ type: 'SET_MOST_RECENT_EXECUTION', payload: 'exec-abc' })
+    expect(opts.dispatch).toHaveBeenCalledWith({
+      type: 'SET_MOST_RECENT_EXECUTION',
+      payload: {
+        executionId: 'exec-abc',
+        copiedRunActivityIds: ['copied-task-1', 'copied-cond-1', 'copied-trigger-1'],
+      },
+    })
   })
 
   it('calls markDirty', () => {
@@ -127,11 +134,24 @@ describe('useExecutionCopyToEditor', () => {
     })
 
     it('still dispatches SET_MOST_RECENT_EXECUTION when preserveWorkflow is true', () => {
+      useWorkflowStore.getState().setWorkflow({
+        schema_version: '2.0.0',
+        name: 'existing',
+        description: '',
+        workflow: { activities: [{ id: 'existing-task' } as never] },
+        triggers: [{ id: 'existing-trigger' } as never],
+      })
       const opts = buildOptions({
         executionCopy: buildExecutionCopy({ executionId: 'exec-fork', preserveWorkflow: true }),
       })
       renderHook(() => useExecutionCopyToEditor(opts))
-      expect(opts.dispatch).toHaveBeenCalledWith({ type: 'SET_MOST_RECENT_EXECUTION', payload: 'exec-fork' })
+      expect(opts.dispatch).toHaveBeenCalledWith({
+        type: 'SET_MOST_RECENT_EXECUTION',
+        payload: {
+          executionId: 'exec-fork',
+          copiedRunActivityIds: ['existing-task', 'existing-trigger'],
+        },
+      })
     })
 
     it('does not mark dirty or show toast when preserveWorkflow is true', () => {

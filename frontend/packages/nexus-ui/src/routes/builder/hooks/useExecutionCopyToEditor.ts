@@ -2,6 +2,7 @@ import { useEffect, useRef, type Dispatch } from 'react'
 
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { BuilderAction } from '../builderReducer'
+import { collectCopiedRunActivityIds } from '../utils/executionState'
 import { parseImportedDefinition } from '../utils/parseImportedDefinition'
 
 export type ExecutionCopyData = {
@@ -30,9 +31,12 @@ export function useExecutionCopyToEditor({
     if (!executionCopy || hasAppliedRef.current || !currentWorkflow) return
     hasAppliedRef.current = true
 
+    let copiedRunActivityIds: string[] | undefined
+
     if (!executionCopy.preserveWorkflow) {
       const { workflowDef, edges, nodePositions } = parseImportedDefinition(executionCopy.workflowDefinition)
       useWorkflowStore.getState().replaceWorkflowContent(workflowDef, edges, nodePositions)
+      copiedRunActivityIds = collectCopiedRunActivityIds(workflowDef)
 
       if (workflowDef.name && typeof workflowDef.name === 'string') {
         dispatch({ type: 'SET_WORKFLOW_NAME', payload: workflowDef.name })
@@ -45,8 +49,18 @@ export function useExecutionCopyToEditor({
         title: 'Run copied to editor',
         description: 'The run has been loaded into the editor with pinned runtime data.',
       })
+    } else {
+      // Link execution to current graph — snapshot IDs so newly added nodes get no status
+      copiedRunActivityIds = collectCopiedRunActivityIds(currentWorkflow)
     }
-    dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionCopy.executionId })
+
+    dispatch({
+      type: 'SET_MOST_RECENT_EXECUTION',
+      payload: {
+        executionId: executionCopy.executionId,
+        copiedRunActivityIds,
+      },
+    })
     const url = new URL(window.location.href)
     url.searchParams.delete('fromExecution')
     url.searchParams.delete('linkExecution')

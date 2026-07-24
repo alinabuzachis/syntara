@@ -79,10 +79,14 @@ export class WorkflowTraversal {
    *
    * This implements cascading skip logic: if a parent is skipped, children are skipped too.
    *
+   * When `skipInferenceActivityIds` is provided (copy-to-editor), only IDs in that set
+   * may be inferred as skipped. Nodes added after the copy keep no execution status.
+   *
    * @param activityId - The activity ID to check
    * @param activityStates - Map of activity states from execution store
    * @param edges - All edges in the workflow
    * @param visited - Set of visited node IDs to prevent infinite loops
+   * @param skipInferenceActivityIds - Optional allowlist of activity IDs from the copied run
    * @returns true if the node should be marked as skipped
    *
    * @example
@@ -96,8 +100,14 @@ export class WorkflowTraversal {
     activityId: string,
     activityStates: Map<string, ActivityState>,
     edges: EdgeConnection[],
-    visited: Set<string> = new Set()
+    visited: Set<string> = new Set(),
+    skipInferenceActivityIds?: ReadonlySet<string>
   ): boolean {
+    // Nodes outside the copied-run allowlist must not inherit inferred Skipped status
+    if (skipInferenceActivityIds && !skipInferenceActivityIds.has(activityId)) {
+      return false
+    }
+
     // Prevent infinite recursion from cycles
     if (visited.has(activityId)) {
       return false
@@ -135,7 +145,8 @@ export class WorkflowTraversal {
       incomingEdges,
       activityStates,
       edges,
-      visited
+      visited,
+      skipInferenceActivityIds
     )
 
     return allIncomingSkippedOrTerminal
@@ -186,7 +197,8 @@ export class WorkflowTraversal {
     incomingEdges: EdgeConnection[],
     activityStates: Map<string, ActivityState>,
     edges: EdgeConnection[],
-    visited: Set<string>
+    visited: Set<string>,
+    skipInferenceActivityIds?: ReadonlySet<string>
   ): boolean {
     return incomingEdges.every((edge) => {
       const sourceState = activityStates.get(edge.source)
@@ -197,7 +209,7 @@ export class WorkflowTraversal {
       }
 
       // If source should be skipped, this counts too (cascading skip)
-      return this.shouldMarkAsSkipped(edge.source, activityStates, edges, new Set(visited))
+      return this.shouldMarkAsSkipped(edge.source, activityStates, edges, new Set(visited), skipInferenceActivityIds)
     })
   }
 }

@@ -128,6 +128,7 @@ export function BuilderContent(props: BuilderContentProps) {
     workflowName,
     workflowDescription,
     mostRecentExecutionId,
+    copiedRunActivityIds,
     mostRecentRunPanelOpen,
     selectedTriggerIndex,
     viewingVersion,
@@ -564,6 +565,7 @@ export function BuilderContent(props: BuilderContentProps) {
                               activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
                               activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
                               executionStatus={canvasExecutionStatus}
+                              copiedRunActivityIds={copiedRunActivityIds}
                               disableDeleteKey={isNodeEditorOpen}
                               disableSpacePanning={isNodeEditorOpen || confirmDialogOpen}
                               onNodeClick={wrappedHandleNodeClick}

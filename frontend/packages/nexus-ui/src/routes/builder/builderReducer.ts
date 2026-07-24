@@ -35,6 +35,8 @@ export type BuilderState = {
   replacementNodeId: string | null
   newNodeDesiredPosition: FlowPosition | null
   mostRecentExecutionId: string | null
+  /** Activity IDs from a copied run; skip inference is limited to this allowlist when set. */
+  copiedRunActivityIds: ReadonlySet<string> | null
   mostRecentRunPanelOpen: boolean
   selectedTriggerIndex: number
   workflowName: string
@@ -89,7 +91,10 @@ export type BuilderAction =
   | { type: 'CLOSE_OTHER_PANELS' }
   | { type: 'NODE_CLICK'; payload: { node: Node<NodeType['data']>; isGeneric: boolean } }
   | { type: 'CLEAR_SELECTED_IF_DELETED'; payload: string[] }
-  | { type: 'SET_MOST_RECENT_EXECUTION'; payload: string }
+  | {
+      type: 'SET_MOST_RECENT_EXECUTION'
+      payload: { executionId: string; copiedRunActivityIds?: readonly string[] }
+    }
   | { type: 'CLOSE_MOST_RECENT_RUN_PANEL' }
   | { type: 'SET_SELECTED_TRIGGER'; payload: number }
   | {
@@ -439,8 +444,10 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
     case 'SET_MOST_RECENT_EXECUTION':
       return {
         ...state,
-        mostRecentExecutionId: action.payload,
+        mostRecentExecutionId: action.payload.executionId,
         mostRecentRunPanelOpen: true,
+        // Restrict skip inference only when copy-to-editor provides an allowlist
+        copiedRunActivityIds: action.payload.copiedRunActivityIds ? new Set(action.payload.copiedRunActivityIds) : null,
       }
     case 'CLOSE_MOST_RECENT_RUN_PANEL':
       return {
@@ -467,6 +474,7 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         viewingVersion: action.payload.initialViewVersion ?? null,
         selectedTriggerIndex: 0,
         mostRecentExecutionId: null,
+        copiedRunActivityIds: null,
         mostRecentRunPanelOpen: false,
         validationErrors: [],
         validationBannerDismissed: false,
@@ -507,6 +515,7 @@ export function getInitialBuilderState(): BuilderState {
     replacementNodeId: null,
     newNodeDesiredPosition: null,
     mostRecentExecutionId: null,
+    copiedRunActivityIds: null,
     mostRecentRunPanelOpen: false,
     selectedTriggerIndex: 0,
     workflowName: '',

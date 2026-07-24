@@ -13,4 +13,10 @@
  */
 
 export type { ActivityTypeValue, ActivityStatusValue, BranchHandle } from './executionHelpers'
-export { ExecutionStateEnricher, type ActivityWithMetadata, type ExecutionState } from './ExecutionStateEnricher'
+export { collectCopiedRunActivityIds } from './collectCopiedRunActivityIds'
+export {
+  ExecutionStateEnricher,
+  type ActivityWithMetadata,
+  type EnrichActivityOptions,
+  type ExecutionState,
+} from './ExecutionStateEnricher'

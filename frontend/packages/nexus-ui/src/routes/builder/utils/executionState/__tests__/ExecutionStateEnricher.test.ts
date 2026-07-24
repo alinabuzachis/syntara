@@ -276,6 +276,80 @@ describe('ExecutionStateEnricher', () => {
       expect(result.__executionState?.status).toBe('skipped')
     })
 
+    it('keeps skipped status for original-run nodes in the copy allowlist', () => {
+      const activity: Activity = {
+        id: 'task-false',
+        name: 'Task False',
+        type: 'script',
+        parameters: { language: 'python', code: '' },
+      }
+      const edges: EdgeConnection[] = [
+        { id: '1', source: 'cond-1', target: 'task-true', sourceHandle: 'true', targetHandle: 'target' },
+        { id: '2', source: 'cond-1', target: 'task-false', sourceHandle: 'false', targetHandle: 'target' },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'cond-1',
+          {
+            activityId: 'cond-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        [
+          'task-true',
+          {
+            activityId: 'task-true',
+            status: 'completed',
+            startedAt: '2024-01-01T00:01:00Z',
+            completedAt: '2024-01-01T00:02:00Z',
+          },
+        ],
+      ])
+      const allowlist = new Set(['cond-1', 'task-true', 'task-false'])
+
+      const result = enricher.enrichActivity(activity, 'completed', activityStates, edges, {
+        skipInferenceActivityIds: allowlist,
+      })
+
+      expect(result.__executionState?.status).toBe('skipped')
+    })
+
+    it('does not attach execution state for nodes added after copy-to-editor', () => {
+      // Newly added nodes after copy-to-editor must have no status / indicators
+      const activity: Activity = {
+        id: 'task-new',
+        name: 'New Task',
+        type: 'script',
+        parameters: { language: 'python', code: '' },
+      }
+      const edges: EdgeConnection[] = [
+        { id: '1', source: 'task-1', target: 'task-new', sourceHandle: 'source', targetHandle: 'target' },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+      ])
+      const allowlist = new Set(['task-1'])
+
+      const result = enricher.enrichActivity(activity, 'completed', activityStates, edges, {
+        skipInferenceActivityIds: allowlist,
+      })
+
+      expect(result.__executionState).toBeUndefined()
+      expect(
+        ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
+      ).toBeUndefined()
+    })
+
     it('does not set pending state for control nodes with no backend state', () => {
       const activity: Activity = {
         id: 'loop-1',
@@ -387,7 +461,7 @@ describe('ExecutionStateEnricher', () => {
       ])
       const edges: EdgeConnection[] = []
 
-      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, preResolvedNodes)
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, { preResolvedNodes })
 
       expect(result.metadata?.__mockDataPinned).toBe(true)
       expect(result.metadata?.__showExecutionBadge).toBe(true)
@@ -404,7 +478,7 @@ describe('ExecutionStateEnricher', () => {
       const activityStates = new Map<string, ActivityState>()
       const edges: EdgeConnection[] = []
 
-      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, preResolvedNodes)
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, { preResolvedNodes })
 
       expect(result.__executionState?.status).toBe('skipped')
       expect(result.metadata?.__mockDataPinned).toBe(true)
@@ -431,7 +505,7 @@ describe('ExecutionStateEnricher', () => {
       ])
       const edges: EdgeConnection[] = []
 
-      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, preResolvedNodes)
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, { preResolvedNodes })
 
       expect(result.__executionState?.status).toBe('completed')
       expect(result.metadata?.__mockDataPinned).toBe(true)
@@ -448,7 +522,7 @@ describe('ExecutionStateEnricher', () => {
       const activityStates = new Map<string, ActivityState>()
       const edges: EdgeConnection[] = []
 
-      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, preResolvedNodes)
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, { preResolvedNodes })
 
       expect(result.metadata?.__mockDataPinned).toBeUndefined()
     })

@@ -51,6 +51,13 @@ export type ActivityWithMetadata = Activity & {
   __executionState?: ExecutionState
 }
 
+/** Optional flags for {@link ExecutionStateEnricher.enrichActivity}. */
+export type EnrichActivityOptions = {
+  preResolvedNodes?: Set<string>
+  /** When set (copy-to-editor), only these IDs may get inferred Skipped status. */
+  skipInferenceActivityIds?: ReadonlySet<string>
+}
+
 /**
  * Orchestrator for enriching workflow activities with execution state.
  *
@@ -89,7 +96,7 @@ export class ExecutionStateEnricher {
    * @param executionStatus - Current execution status (null if not in execution view)
    * @param activityStates - Map of activity IDs to their execution states from backend
    * @param edges - All edges in the workflow
-   * @param preResolvedNodes - Set of node IDs that had mock data pinned (test execution)
+   * @param options - Optional pre-resolved nodes and copy-to-editor skip allowlist
    * @returns Activity enriched with execution metadata
    */
   enrichActivity(
@@ -97,10 +104,20 @@ export class ExecutionStateEnricher {
     executionStatus: string | null | undefined,
     activityStates: Map<string, ActivityState>,
     edges: EdgeConnection[],
-    preResolvedNodes?: Set<string>
+    options?: EnrichActivityOptions
   ): ActivityWithMetadata {
+    const { preResolvedNodes, skipInferenceActivityIds } = options ?? {}
+
     // If not in execution view, return as-is
     if (!executionStatus) {
+      return activity as ActivityWithMetadata
+    }
+
+    // Step 1: Add direct backend state if available
+    const activityState = activityStates.get(activity.id)
+
+    // Nodes added after copy-to-editor were never part of the run — no status indicators
+    if (!activityState && skipInferenceActivityIds && !skipInferenceActivityIds.has(activity.id)) {
       return activity as ActivityWithMetadata
     }
 
@@ -121,9 +138,6 @@ export class ExecutionStateEnricher {
         },
       }
     }
-
-    // Step 1: Add direct backend state if available
-    const activityState = activityStates.get(activity.id)
 
     // Pre-resolved nodes may not have activity records yet (race with backend sync).
     // Force them to SKIPPED if no backend state exists.
@@ -149,8 +163,10 @@ export class ExecutionStateEnricher {
       return enrichedActivity
     }
 
-    // Step 2: Check if node should be marked as skipped
-    if (WorkflowTraversal.shouldMarkAsSkipped(activity.id, activityStates, edges)) {
+    // Step 2: Check if node should be marked as skipped (allowlist-aware after copy-to-editor)
+    if (
+      WorkflowTraversal.shouldMarkAsSkipped(activity.id, activityStates, edges, new Set(), skipInferenceActivityIds)
+    ) {
       enrichedActivity = {
         ...enrichedActivity,
         __executionState: {

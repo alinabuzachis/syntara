@@ -331,6 +331,51 @@ describe('WorkflowTraversal', () => {
       expect(result).toBe(true)
     })
 
+    it('returns true for original-run nodes when allowlist includes them', () => {
+      const edges: EdgeConnection[] = [
+        { id: '1', source: 'task-1', target: 'task-skipped', sourceHandle: 'source', targetHandle: 'target' },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+      ])
+      const allowlist = new Set(['task-1', 'task-skipped'])
+
+      const result = WorkflowTraversal.shouldMarkAsSkipped('task-skipped', activityStates, edges, new Set(), allowlist)
+
+      expect(result).toBe(true)
+    })
+
+    it('returns false for nodes added after copy-to-editor (outside allowlist)', () => {
+      // New nodes after copy must not inherit inferred Skipped status
+      const edges: EdgeConnection[] = [
+        { id: '1', source: 'task-1', target: 'task-new', sourceHandle: 'source', targetHandle: 'target' },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+      ])
+      const allowlist = new Set(['task-1'])
+
+      const result = WorkflowTraversal.shouldMarkAsSkipped('task-new', activityStates, edges, new Set(), allowlist)
+
+      expect(result).toBe(false)
+    })
+
     it('handles cycles without infinite recursion', () => {
       const edges: EdgeConnection[] = [
         { id: '1', source: 'task-1', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },

@@ -564,11 +564,25 @@ describe('builderReducer', () => {
 
   describe('Most recent run panel actions', () => {
     it('SET_MOST_RECENT_EXECUTION sets mostRecentExecutionId and opens the panel', () => {
-      const action: BuilderAction = { type: 'SET_MOST_RECENT_EXECUTION', payload: 'exec-42' }
+      const action: BuilderAction = {
+        type: 'SET_MOST_RECENT_EXECUTION',
+        payload: { executionId: 'exec-42' },
+      }
       const result = builderReducer(initialState, action)
 
       expect(result.mostRecentExecutionId).toBe('exec-42')
       expect(result.mostRecentRunPanelOpen).toBe(true)
+      expect(result.copiedRunActivityIds).toBeNull()
+    })
+
+    it('SET_MOST_RECENT_EXECUTION stores copiedRunActivityIds allowlist when provided', () => {
+      const action: BuilderAction = {
+        type: 'SET_MOST_RECENT_EXECUTION',
+        payload: { executionId: 'exec-42', copiedRunActivityIds: ['task-1', 'cond-1'] },
+      }
+      const result = builderReducer(initialState, action)
+
+      expect(result.copiedRunActivityIds).toEqual(new Set(['task-1', 'cond-1']))
     })
 
     it('CLOSE_MOST_RECENT_RUN_PANEL sets mostRecentRunPanelOpen to false', () => {
@@ -591,6 +605,7 @@ describe('builderReducer', () => {
         ...initialState,
         mostRecentExecutionId: 'exec-old',
         mostRecentRunPanelOpen: true,
+        copiedRunActivityIds: new Set(['task-1']),
       }
 
       const action: BuilderAction = {
@@ -601,6 +616,7 @@ describe('builderReducer', () => {
 
       expect(result.mostRecentExecutionId).toBeNull()
       expect(result.mostRecentRunPanelOpen).toBe(false)
+      expect(result.copiedRunActivityIds).toBeNull()
     })
   })
 

@@ -25,6 +25,11 @@ export type BuilderFlowProps = {
   activeEdgeId?: string | null
   /** Execution status for showing loading indicator */
   executionStatus?: string | null
+  /**
+   * Activity IDs from a copied run. When set, skip inference and execution badges
+   * apply only to these IDs so nodes added after copy-to-editor have no status.
+   */
+  copiedRunActivityIds?: ReadonlySet<string> | null
   /** Handler for node click events */
   onNodeClick?: NodeMouseHandler<NodeType>
   /** Handler for adding a node from an edge; desiredPosition places the new node's left edge at that flow coordinate */

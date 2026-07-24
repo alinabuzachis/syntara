@@ -1,4 +1,4 @@
-// TODO: Refactor into smaller hooks to reduce file size (AAP-74113)
+// TODO: Refactor into smaller hooks to reduce file size
 // Suggested hooks: useWorkflowGraphInit, useExecutionStateEnrichment, useCanvasInteractions
 
 import { Spinner } from '@patternfly/react-core'
@@ -72,6 +72,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     activeEdgeButtonHandle,
     activeEdgeId,
     executionStatus,
+    copiedRunActivityIds,
     onNodeClick,
     onAddNodeFromEdge,
     onNodesDeleted,
@@ -126,6 +127,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     onAddNodeFromEdge,
     workflowVersion,
     preResolvedNodes,
+    skipInferenceActivityIds: copiedRunActivityIds,
   })
 
   // CRITICAL FIX: Use controlled state instead of useNodesState/useEdgesState
@@ -521,7 +523,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
           effectiveExecutionStatus,
           activityStates,
           edgeSnapshot,
-          preResolvedNodes
+          { preResolvedNodes, skipInferenceActivityIds: copiedRunActivityIds ?? undefined }
         )
         return applyEnrichedData(node, enriched, anyChangedRef)
       })
@@ -529,7 +531,15 @@ export function BuilderFlow(props: BuilderFlowProps) {
       // Only return new array if something actually changed
       return anyChangedRef.current ? updatedNodes : currentNodes
     })
-  }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, applyEnrichedData, preResolvedNodes])
+  }, [
+    activityStates,
+    effectiveExecutionStatus,
+    isInitialized,
+    currentWorkflow,
+    applyEnrichedData,
+    preResolvedNodes,
+    copiedRunActivityIds,
+  ])
 
   useValidationEnrichment(validationErrors, isInitialized, setNodes)
 

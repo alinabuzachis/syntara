@@ -34,6 +34,7 @@ type UseBuilderFlowGraphParams = {
   onAddNodeFromEdge: ((sourceNodeId: string, sourceHandle: string) => void) | undefined
   workflowVersion: number
   preResolvedNodes?: Set<string>
+  skipInferenceActivityIds?: ReadonlySet<string> | null
 }
 
 export { executionStateEnricher }
@@ -48,6 +49,7 @@ export function useBuilderFlowGraph({
   onAddNodeFromEdge,
   workflowVersion,
   preResolvedNodes,
+  skipInferenceActivityIds,
 }: UseBuilderFlowGraphParams) {
   return useMemo(() => {
     if (!currentWorkflow) {
@@ -56,6 +58,7 @@ export function useBuilderFlowGraph({
 
     const nodes: NodeType[] = []
     const edges: EdgeType[] = []
+    const inferenceAllowlist = skipInferenceActivityIds ?? undefined
 
     // Build mapping from real trigger IDs to display IDs (trigger-0, trigger-1, ...)
     // Edges from backend use real IDs; React Flow needs display IDs
@@ -107,7 +110,10 @@ export function useBuilderFlowGraph({
         executionStatus,
         activityStates,
         storedEdges,
-        preResolvedNodes
+        {
+          preResolvedNodes,
+          skipInferenceActivityIds: inferenceAllowlist,
+        }
       )
       nodes.push({
         id: activity.id,
@@ -180,7 +186,10 @@ export function useBuilderFlowGraph({
         executionStatus,
         activityStates,
         storedEdges,
-        preResolvedNodes
+        {
+          preResolvedNodes,
+          skipInferenceActivityIds: inferenceAllowlist,
+        }
       )
 
       const node = {
@@ -208,5 +217,6 @@ export function useBuilderFlowGraph({
     activityStates,
     executionStatus,
     preResolvedNodes,
+    skipInferenceActivityIds,
   ])
 }
