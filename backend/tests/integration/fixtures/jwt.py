@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pytest
 import pytest_asyncio
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Callable
+    from collections.abc import AsyncGenerator
 
     from fastapi import FastAPI
     from httpx import AsyncClient
@@ -60,17 +59,3 @@ async def jwt_client(
             headers={"Authorization": f"Bearer {access_token}"},
         ) as client:
             yield client
-
-
-@pytest.fixture
-def create_jwt_for_user(token_service: TokenService) -> Callable[[User], str]:
-    """Factory fixture to create JWT tokens for any user."""
-
-    def _create_token(user: User) -> str:
-        return token_service.create_access_token(
-            subject_id=user.id,
-            username=user.username,
-            email=user.email or "",
-        )
-
-    return _create_token

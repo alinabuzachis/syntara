@@ -41,7 +41,7 @@ from nexus.approvals.models import (
 from nexus.approvals.services.approval_service import ApprovalService
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.models import User
-from tests.helpers.workflow import ExecutionsFactory
+from tests.integration.helpers.workflow import ExecutionsFactory
 
 pytestmark = [pytest.mark.integration]
 

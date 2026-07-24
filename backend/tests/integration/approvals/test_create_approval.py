@@ -17,8 +17,8 @@ from httpx import AsyncClient
 
 from nexus.approvals.models import ApprovalRequestStatus
 from nexus.workflows.models import Workflow
-from tests.helpers.workflow import ExecutionsFactory
 from tests.integration.helpers.error_data import assert_error_data
+from tests.integration.helpers.workflow import ExecutionsFactory
 
 
 class TestCreateApprovalContract:

@@ -8,7 +8,7 @@ from httpx import AsyncClient
 from nexus.core.models import User
 from nexus.workflows.models import Workflow
 from nexus.workflows.models.execution import ExecutionStatus
-from tests.helpers.workflow import ExecutionsFactory
+from tests.integration.helpers.workflow import ExecutionsFactory
 
 # ============================================================================
 # Tests

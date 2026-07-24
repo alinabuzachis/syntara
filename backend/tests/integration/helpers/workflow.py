@@ -3,12 +3,13 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
-from nexus.workflows.models.execution import Execution
+from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
 from tests.helpers.workflow import create_minimal_workflow_definition
 
@@ -118,3 +119,45 @@ class ActivitiesFactory:
         self.session.add_all(activities)
         await self.session.commit()
         return activities
+
+
+class ExecutionsFactory:
+    """Factory class for creating test executions with configurable properties."""
+
+    def __init__(self, session: AsyncSession, workflow: Workflow, user: User) -> None:
+        """Initialize the ExecutionsFactory with database session and required entities."""
+        self.session = session
+        self.workflow = workflow
+        self.user = user
+
+    async def create_executions(
+        self,
+        count: int,
+        status: ExecutionStatus = ExecutionStatus.PENDING,
+        labels: dict[str, str] | None = None,
+    ) -> list[Execution]:
+        """Create multiple test executions."""
+        result = await self.session.exec(
+            select(WorkflowVersion.id).where(
+                WorkflowVersion.workflow_id == self.workflow.id,
+                WorkflowVersion.version == self.workflow.current_version,
+            )
+        )
+        version_id: UUID = result.one()
+
+        executions: list[Execution] = [
+            Execution(
+                workflow_id=self.workflow.id,
+                workflow_version_id=version_id,
+                temporal_workflow_id=f"exec-{uuid4()}",
+                status=status,
+                created_by=self.user.id,
+                input_data={},
+                labels=labels or {},
+                project_id=self.workflow.project_id,
+            )
+            for _ in range(count)
+        ]
+        self.session.add_all(executions)
+        await self.session.commit()
+        return executions

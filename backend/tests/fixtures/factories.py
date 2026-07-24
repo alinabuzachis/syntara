@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest_asyncio
 
-from tests.helpers.workflow import ExecutionsFactory
+from tests.integration.helpers.workflow import ExecutionsFactory
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession

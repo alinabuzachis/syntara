@@ -30,7 +30,7 @@ from nexus.approvals.services.approval_service import ApprovalService
 from nexus.authz.engine import AuthzResult
 from nexus.core.models import Group, User
 from nexus.core.models.group import user_groups
-from tests.helpers.workflow import ExecutionsFactory
+from tests.integration.helpers.workflow import ExecutionsFactory
 
 
 @pytest.fixture(autouse=True)
