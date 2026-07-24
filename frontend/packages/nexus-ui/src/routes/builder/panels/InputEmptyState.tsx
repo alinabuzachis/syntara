@@ -7,14 +7,14 @@ export type InputEmptyStateProps = {
 export function InputEmptyState({ variant }: Readonly<InputEmptyStateProps>) {
   if (variant === 'not-connected') {
     return (
-      <EmptyState headingLevel="h2" titleText="No input data">
+      <EmptyState headingLevel="h3" titleText="No input data" variant="xs">
         <EmptyStateBody>Input data can only be displayed when a step is connected and run</EmptyStateBody>
       </EmptyState>
     )
   }
 
   return (
-    <EmptyState headingLevel="h2" titleText="Input not available">
+    <EmptyState headingLevel="h3" titleText="Input not available" variant="xs">
       <EmptyStateBody>Run previous step to populate input</EmptyStateBody>
     </EmptyState>
   )

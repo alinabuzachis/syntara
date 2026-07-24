@@ -207,7 +207,7 @@ export function FilterBar({
 
         {/* Clear All Filters Button */}
         {effectiveShowClearAll && hasActiveFilters && (
-          <ToolbarItem>
+          <ToolbarItem alignSelf="center">
             <Button variant="link" onClick={handleClearAll} isInline>
               Clear all filters
             </Button>

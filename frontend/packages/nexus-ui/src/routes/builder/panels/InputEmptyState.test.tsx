@@ -12,6 +12,12 @@ describe('InputEmptyState', () => {
       expect(screen.getByText('Input data can only be displayed when a step is connected and run')).toBeInTheDocument()
     })
 
+    it('uses a compact heading level matching the output empty state', () => {
+      render(<InputEmptyState variant="not-connected" />)
+
+      expect(screen.getByRole('heading', { level: 3, name: 'No input data' })).toBeInTheDocument()
+    })
+
     it('has no accessibility violations', async () => {
       const { container } = render(<InputEmptyState variant="not-connected" />)
 
@@ -25,6 +31,12 @@ describe('InputEmptyState', () => {
       render(<InputEmptyState variant="connected-not-run" />)
 
       expect(screen.getByText('Run previous step to populate input')).toBeInTheDocument()
+    })
+
+    it('uses a compact heading level matching the output empty state', () => {
+      render(<InputEmptyState variant="connected-not-run" />)
+
+      expect(screen.getByRole('heading', { level: 3, name: 'Input not available' })).toBeInTheDocument()
     })
 
     it('has no accessibility violations', async () => {

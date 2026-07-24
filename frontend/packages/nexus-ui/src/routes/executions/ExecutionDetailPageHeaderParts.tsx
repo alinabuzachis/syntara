@@ -87,7 +87,7 @@ export function ExecutionDetailHeaderToolbar({
       <Button variant="secondary" onClick={onCopyToEditor}>
         Copy to editor
       </Button>
-      <Button variant="secondary" onClick={onBackToEditor}>
+      <Button variant={showApprovalActionStrip ? 'secondary' : 'primary'} onClick={onBackToEditor}>
         Back to editor
       </Button>
       <RunHistoryToggleButton onClick={onToggleHistory} isActive={historyCardOpen} />
