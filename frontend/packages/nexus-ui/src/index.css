@@ -189,6 +189,11 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
   display: none !important;
 }
 
+/* Remove rounded corners from sticky table headers for visual consistency with footers. */
+.pf-v6-c-table.pf-m-sticky-header {
+  --pf-v6-c-table--m-sticky-header--BorderRadius: 0;
+}
+
 .version-view-readonly .react-flow__handle {
   pointer-events: none !important;
   opacity: 0 !important;
