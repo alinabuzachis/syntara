@@ -4,16 +4,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 import pytest_asyncio
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator
+    from collections.abc import AsyncGenerator, Callable
 
     from fastapi import FastAPI
     from httpx import AsyncClient
     from sqlmodel.ext.asyncio.session import AsyncSession
 
-    from nexus.auth.services.token_service import TokenService
     from nexus.core.models import User
 
 
@@ -22,16 +22,16 @@ async def jwt_client(
     test_db_session: AsyncSession,
     session_app: FastAPI,
     test_user: User,
-    token_service: TokenService,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Create a test client with real JWT authentication."""
     from contextlib import asynccontextmanager
 
     from httpx import ASGITransport, AsyncClient
 
+    from nexus.auth.services.token_service import TokenService
     from nexus.core.database.session import get_db
 
-    access_token = token_service.create_access_token(
+    access_token = TokenService().create_access_token(
         subject_id=test_user.id,
         username=test_user.username,
         email=test_user.email or "",
@@ -59,3 +59,20 @@ async def jwt_client(
             headers={"Authorization": f"Bearer {access_token}"},
         ) as client:
             yield client
+
+
+@pytest.fixture
+def create_jwt_for_user() -> Callable[[User], str]:
+    """Factory fixture to create JWT tokens for any user."""
+    from nexus.auth.services.token_service import TokenService
+
+    _svc = TokenService()
+
+    def _create_token(user: User) -> str:
+        return _svc.create_access_token(
+            subject_id=user.id,
+            username=user.username,
+            email=user.email or "",
+        )
+
+    return _create_token

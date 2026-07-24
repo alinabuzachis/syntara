@@ -24,6 +24,13 @@ if TYPE_CHECKING:
 
     from nexus.core.models import User
 
+pytest_plugins = [
+    "tests.unit.fixtures.mocks",
+    "tests.unit.fixtures.settings",
+    "tests.unit.fixtures.tools",
+    "tests.unit.fixtures.jwt",
+]
+
 
 def pytest_configure(config: pytest.Config) -> None:
     """Build the resource-actions registry once, after coverage tracking starts."""

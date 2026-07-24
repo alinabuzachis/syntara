@@ -14,11 +14,6 @@ pytest_plugins = [
     "tests.fixtures.mocks",
     "tests.fixtures.settings",
     "tests.fixtures.factories",
-    # Unit-specific fixtures
-    "tests.unit.fixtures.mocks",
-    "tests.unit.fixtures.settings",
-    "tests.unit.fixtures.tools",
-    "tests.unit.fixtures.jwt",
     # Integration-specific fixtures (FastAPI client, Temporal, group/user helpers, etc.)
     # Registered here so unit tests that depend on them transitively still resolve correctly.
     "tests.integration.fixtures.database",
