@@ -21,7 +21,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    if: startsWith(github.head_ref, 'konflux/mintmaker') && github.actor == 'red-hat-konflux-kflux-prd-rh03'
+    if: startsWith(github.head_ref, 'konflux/mintmaker') && github.actor == 'red-hat-konflux-kflux-prd-rh03[bot]'
     permissions:
       contents: write
 
