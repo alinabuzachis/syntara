@@ -18,8 +18,8 @@ async function fetchAllPermissions(): Promise<PermissionEntry[]> {
 /**
  * Fetches all permission entries for the current user across all pages.
  *
- * After role or assignment mutations, callers should also invalidate this cache:
- *   queryClient.invalidateQueries({ queryKey: ['all-permissions'] })
+ * After role or assignment mutations, callers should invalidate this cache via
+ * `invalidateAuthzCaches(queryClient)`.
  */
 export function useAllPermissions() {
   const {

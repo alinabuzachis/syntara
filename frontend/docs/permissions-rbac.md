@@ -200,7 +200,9 @@ This is the correct pattern for editor-style pages where many controls are affec
 
 - `staleTime: Infinity` on all `useCanI` queries — permissions are fetched once per session.
 - `queryClient.clear()` on logout wipes all cached permissions (via `useAuthStore`).
-- After role or assignment mutations: `queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })`.
+- After role or assignment mutations: call `invalidateAuthzCaches(queryClient)` from
+  `packages/nexus-ui/src/hooks/invalidateAuthzCaches.ts` (invalidates `['authz', 'can_i']`
+  and `['all-permissions']`).
 
 **Trade-off**: `staleTime: Infinity` means permissions revoked server-side won't take effect in a user's browser until cache invalidation or logout. This is intentional — permission checks are high-frequency and low-change, so we trade freshness for reduced API load. Server-side enforcement remains the ultimate authority; the UI cache is a UX optimization, not a security boundary.
 

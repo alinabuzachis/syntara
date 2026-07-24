@@ -34,8 +34,7 @@ type UseCanIOptions = {
  *
  * Uses TanStack Query for caching and deduplication — two components calling
  * `useCanI('read', 'setting')` share a single API request. Invalidate all
- * permission caches after role changes with:
- * `queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })`
+ * permission caches after role changes with `invalidateAuthzCaches(queryClient)`.
  *
  * @example
  * ```ts

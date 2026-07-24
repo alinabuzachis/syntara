@@ -802,6 +802,47 @@ describe('useAssignmentsData', () => {
       expect(callbacks.onSettled).toBe(onSettled)
     })
 
+    it('invalidates current-user permission caches after deleting an assignment (AAP-81033)', () => {
+      // Arrange — revoke path must refresh useCanI / what_can_i caches (staleTime: Infinity)
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+      const mockDeleteMutate = vi.fn()
+      setupDefaultMocks()
+      vi.mocked(accessClient.useMutation).mockReturnValue({
+        ...mockMutationReturn,
+        mutate: mockDeleteMutate,
+      } as never)
+
+      const { result } = renderHook(() => useAssignmentsData(), { wrapper })
+
+      const row: PermissionRow = {
+        id: 'sur-admin',
+        principalType: 'user',
+        principalId: 'u-self',
+        principalName: 'auditor',
+        assignmentType: 'role',
+        assignmentName: 'Admin',
+        scopeType: 'system',
+        scopeName: 'System',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'role-assignments',
+      }
+
+      // Act — delete succeeds (e.g. user removes own system-wide admin assignment)
+      act(() => {
+        result.current.handleDelete(row, vi.fn())
+      })
+      const callbacks = mockDeleteMutate.mock.calls[0][1] as { onSuccess: () => void }
+      act(() => {
+        callbacks.onSuccess()
+      })
+
+      // Assert — permission-gated UI (e.g. "Add assignment") must re-check can_i
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['authz', 'can_i'] })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['all-permissions'] })
+      invalidateSpy.mockRestore()
+    })
+
     it('early-returns with onSettled when project-role-assignments row has no projectId', () => {
       const mockDeleteMutate = vi.fn()
       setupDefaultMocks()

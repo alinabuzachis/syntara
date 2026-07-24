@@ -2,7 +2,8 @@ import { Alert, Button, Flex, FlexItem, LabelGroup, StackItem, Truncate } from '
 import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
@@ -16,6 +17,7 @@ import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxLoadingState } from '../../components/states/NxLoadingState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
+import { invalidateAuthzCaches } from '../../hooks/invalidateAuthzCaches'
 import { useColumnSortState } from '../../hooks/useColumnSortState'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useAlerts } from '../../providers/alerts'
@@ -240,6 +242,7 @@ export function RoleAssignmentsPanel({
   principalId,
   hiddenColumns,
 }: Readonly<RoleAssignmentsPanelProps>) {
+  const queryClient = useQueryClient()
   const visibleColumns = useMemo(() => getVisibleColumns(hiddenColumns), [hiddenColumns])
   const sortMaps = useMemo(() => buildSortMaps(visibleColumns), [visibleColumns])
   const activeFilterFieldDefinitions = useMemo(() => {
@@ -261,6 +264,11 @@ export function RoleAssignmentsPanel({
     principalType,
     principalId
   )
+
+  const refetchAndInvalidateAuthz = useCallback(() => {
+    invalidateAuthzCaches(queryClient)
+    refetch()
+  }, [queryClient, refetch])
 
   const handleFilterChange = (newFilters: FilterConfig[]) => {
     setAllFilters(newFilters)
@@ -294,7 +302,7 @@ export function RoleAssignmentsPanel({
           variant: 'success',
           autoDismiss: true,
         })
-        refetch()
+        refetchAndInvalidateAuthz()
       },
       onError: (err: unknown) => {
         showAlert({
@@ -335,7 +343,7 @@ export function RoleAssignmentsPanel({
           principalId={principalId}
           isOpen={assignModalOpen}
           onClose={() => setAssignModalOpen(false)}
-          onSuccess={refetch}
+          onSuccess={refetchAndInvalidateAuthz}
         />
       </>
     )
@@ -416,7 +424,7 @@ export function RoleAssignmentsPanel({
         principalId={principalId}
         isOpen={assignModalOpen}
         onClose={() => setAssignModalOpen(false)}
-        onSuccess={refetch}
+        onSuccess={refetchAndInvalidateAuthz}
       />
 
       <NxConfirmationDialog

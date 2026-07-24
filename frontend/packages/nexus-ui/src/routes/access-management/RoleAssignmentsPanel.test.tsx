@@ -729,6 +729,47 @@ describe('RoleAssignmentsPanel', () => {
       expect(screen.getByText('Role unassigned')).toBeInTheDocument()
     })
 
+    it('refetches assignments and invalidates permission caches after successful unassign (AAP-81033)', async () => {
+      // Arrange — revoke path must refresh assignment list and useCanI / what_can_i caches
+      const { mockRefetch } = setupMocks()
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined)
+      const user = userEvent.setup()
+      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+
+      const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabButtons[0])
+
+      const unassignItem = await screen.findByRole('menuitem', { name: /Unassign/i })
+      await user.click(unassignItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Unassign role?')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Unassign' }))
+
+      await waitFor(() => {
+        expect(mockDeleteSystemAssignment).toHaveBeenCalled()
+      })
+
+      const callbacks = mockDeleteSystemAssignment.mock.calls[0][1] as {
+        onSuccess: () => void
+      }
+
+      // Act
+      await waitFor(() => {
+        callbacks.onSuccess()
+      })
+
+      // Assert — refetchAndInvalidateAuthz: refetch list + invalidate can_i / all-permissions
+      expect(mockRefetch).toHaveBeenCalled()
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['authz', 'can_i'] })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['all-permissions'] })
+      expect(screen.getByText('Role unassigned')).toBeInTheDocument()
+
+      invalidateSpy.mockRestore()
+    })
+
     it('shows error alert after failed unassign', async () => {
       const user = userEvent.setup()
       render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
