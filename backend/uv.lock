@@ -2106,6 +2106,7 @@ dev = [
 dev = [
     { name = "psutil" },
     { name = "pypandoc-binary" },
+    { name = "pytest-order" },
     { name = "respx" },
 ]
 
@@ -2203,6 +2204,7 @@ provides-extras = ["dev", "integration"]
 dev = [
     { name = "psutil", specifier = ">=7.1.3" },
     { name = "pypandoc-binary", specifier = ">=1.16.2" },
+    { name = "pytest-order", specifier = ">=1.5.0" },
     { name = "respx", specifier = ">=0.22.0" },
 ]
 
@@ -2959,6 +2961,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5e/f7/c933acc76f5208b3b00089573cf6a2bc26dc80a8aece8f52bb7d6b1855ca/pytest_cov-7.0.0.tar.gz", hash = "sha256:33c97eda2e049a0c5298e91f519302a1334c26ac65c1a483d6206fd458361af1", size = 54328, upload-time = "2025-09-09T10:57:02.113Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ee/49/1377b49de7d0c1ce41292161ea0f721913fa8722c19fb9c1e3aa0367eecb/pytest_cov-7.0.0-py3-none-any.whl", hash = "sha256:3b8e9558b16cc1479da72058bdecf8073661c7f57f7d3c5f22a1c23507f2d861", size = 22424, upload-time = "2025-09-09T10:57:00.695Z" },
+]
+
+[[package]]
+name = "pytest-order"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/d8/82a5dc2aad3392f66c9741960fcbeeb45dd4d62eedb218aed6c52eea36eb/pytest_order-1.5.0.tar.gz", hash = "sha256:96acd7587b5a2855dcaa4a898288103d202894a61afd813adbc9b77aab04d90d", size = 54136, upload-time = "2026-06-13T05:39:41.636Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fd/5c/bd6a85b44beb8bd74c0e86ab699ef0e096e260dc90458b84fc54c28e4335/pytest_order-1.5.0-py3-none-any.whl", hash = "sha256:667ba2b7303fe2c529848663e0a41dfb0cc4d64f09f87272e4a9a1751efb52b2", size = 16634, upload-time = "2026-06-13T05:39:40.431Z" },
 ]
 
 [[package]]

@@ -354,4 +354,5 @@ dev = [
     "psutil>=7.1.3",
     "respx>=0.22.0",
     "pypandoc-binary>=1.16.2",
+    "pytest-order>=1.5.0",
 ]
