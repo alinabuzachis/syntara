@@ -87,6 +87,11 @@ repos:
         entry: npx --prefix frontend eslint --flag v10_config_lookup_from_file --
         language: system
         pass_filenames: true
+        # Type-aware linting (parserOptions.project) loads full TypeScript
+        # programs per ESLint process. Without require_serial, pre-commit
+        # fans file batches out to one process per CPU core, multiplying
+        # that memory footprint until the machine OOMs on large changesets.
+        require_serial: true
         files: ^frontend/packages/.*\.(ts|tsx|js|jsx)$
 
       - id: frontend-tsc
