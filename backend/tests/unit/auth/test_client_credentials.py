@@ -205,6 +205,7 @@ class TestTokenEndpoint:
             subject_id=sa.id,
             username=sa.name,
             token_version=sa.token_version,
+            credential_id=cred.id,
             principal_type=PrincipalType.SERVICE_ACCOUNT,
         )
 
@@ -668,6 +669,34 @@ class TestTokenServiceExtension:
 
         decoded = token_service.decode_token(access_token, token_type="access")  # noqa: S106
         assert decoded.token_type == "access"  # noqa: S105
+
+    def test_sa_token_contains_cred_id(self, token_service: TokenService) -> None:
+        """SA token JWT payload contains cred_id claim when credential_id is provided."""
+        import jwt as pyjwt
+
+        cred_id = uuid4()
+        access_token = token_service.create_access_token(
+            subject_id=uuid4(),
+            username="ci-pipeline",
+            credential_id=cred_id,
+            principal_type=PrincipalType.SERVICE_ACCOUNT,
+        )
+
+        payload = pyjwt.decode(access_token, options={"verify_signature": False})
+        assert payload["cred_id"] == str(cred_id)
+
+    def test_decode_sa_token_preserves_credential_id(self, token_service: TokenService) -> None:
+        """decode_token round-trip: SA cred_id claim maps to credential_id field."""
+        cred_id = uuid4()
+        access_token = token_service.create_access_token(
+            subject_id=uuid4(),
+            username="ci-pipeline",
+            credential_id=cred_id,
+            principal_type=PrincipalType.SERVICE_ACCOUNT,
+        )
+
+        decoded = token_service.decode_token(access_token, token_type="access")  # noqa: S106
+        assert decoded.credential_id == str(cred_id)
 
 
 class TestUserFromPayloadPrincipalType:

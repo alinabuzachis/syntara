@@ -5,8 +5,12 @@ from uuid import uuid4
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.auth.audit.sa_rejection import (
+    DisabledSACredentialRejectionEvent,
+    DisabledSACredentialRejectionHandler,
     DisabledSARejectionEvent,
     DisabledSARejectionHandler,
+    MissingSACredentialClaimEvent,
+    MissingSACredentialClaimHandler,
     StaleSATokenDetectionEvent,
     StaleSATokenDetectionHandler,
 )
@@ -55,6 +59,90 @@ class TestDisabledSARejectionHandler:
 
         assert result.structured_data is not None
         assert result.structured_data.data_type == "disabled-sa-rejection"
+
+
+class TestDisabledSACredentialRejectionHandler:
+    """Tests for DisabledSACredentialRejectionHandler."""
+
+    def test_is_audit_event_handler_subclass(self) -> None:
+        assert issubclass(DisabledSACredentialRejectionHandler, AuditEventHandler)
+
+    def test_maps_event_to_audit_event(self) -> None:
+        sa_id = str(uuid4())
+        cred_id = str(uuid4())
+        event = DisabledSACredentialRejectionEvent(
+            service_account_id=sa_id, credential_id=cred_id, credential_status="disabled"
+        )
+        result = DisabledSACredentialRejectionHandler().handle(event)
+
+        assert result.event_category == EventCategory.SECURITY_EVENT
+        assert result.event_severity == EventSeverity.WARNING
+        assert result.event_status == EventStatus.ERROR
+        assert result.event_action == "disabled_sa_credential_rejected"
+        assert result.actor_type == PrincipalType.SERVICE_ACCOUNT
+        assert result.source_component == "nexus.auth.middleware"
+        assert "disabled" in result.event_message
+        assert cred_id in result.event_message
+
+    def test_resource_fields(self) -> None:
+        sa_id = str(uuid4())
+        cred_id = str(uuid4())
+        event = DisabledSACredentialRejectionEvent(
+            service_account_id=sa_id, credential_id=cred_id, credential_status="disabled"
+        )
+        result = DisabledSACredentialRejectionHandler().handle(event)
+
+        assert result.resource_urn == f"urn:nexus:service-account:{sa_id}"
+        assert result.resource_name == sa_id
+
+    def test_structured_data(self) -> None:
+        sa_id = str(uuid4())
+        cred_id = str(uuid4())
+        event = DisabledSACredentialRejectionEvent(
+            service_account_id=sa_id, credential_id=cred_id, credential_status="deleted"
+        )
+        result = DisabledSACredentialRejectionHandler().handle(event)
+
+        assert result.structured_data is not None
+        assert result.structured_data.data_type == "disabled-sa-credential-rejection"
+        assert result.structured_data.credential_id == cred_id  # type: ignore[attr-defined]
+        assert result.structured_data.credential_status == "deleted"  # type: ignore[attr-defined]
+
+
+class TestMissingSACredentialClaimHandler:
+    """Tests for MissingSACredentialClaimHandler."""
+
+    def test_is_audit_event_handler_subclass(self) -> None:
+        assert issubclass(MissingSACredentialClaimHandler, AuditEventHandler)
+
+    def test_maps_event_to_audit_event(self) -> None:
+        sa_id = str(uuid4())
+        event = MissingSACredentialClaimEvent(service_account_id=sa_id)
+        result = MissingSACredentialClaimHandler().handle(event)
+
+        assert result.event_category == EventCategory.SECURITY_EVENT
+        assert result.event_severity == EventSeverity.WARNING
+        assert result.event_status == EventStatus.ERROR
+        assert result.event_action == "missing_sa_credential_claim_rejected"
+        assert result.actor_type == PrincipalType.SERVICE_ACCOUNT
+        assert result.source_component == "nexus.auth.middleware"
+        assert "cred_id" in result.event_message
+
+    def test_resource_fields(self) -> None:
+        sa_id = str(uuid4())
+        event = MissingSACredentialClaimEvent(service_account_id=sa_id)
+        result = MissingSACredentialClaimHandler().handle(event)
+
+        assert result.resource_urn == f"urn:nexus:service-account:{sa_id}"
+        assert result.resource_name == sa_id
+
+    def test_structured_data(self) -> None:
+        sa_id = str(uuid4())
+        event = MissingSACredentialClaimEvent(service_account_id=sa_id)
+        result = MissingSACredentialClaimHandler().handle(event)
+
+        assert result.structured_data is not None
+        assert result.structured_data.data_type == "missing-sa-credential-claim"
 
 
 class TestStaleSATokenDetectionHandler:

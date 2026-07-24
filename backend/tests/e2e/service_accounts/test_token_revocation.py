@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING
 
 import httpx
 import pytest
+from nexus_api_client.models.sa_credential_create import SACredentialCreate
+from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 
 from tests.e2e.service_accounts import (
     create_sa_with_credential,
@@ -136,6 +138,85 @@ class TestReEnableRestoresAuth:
             )
             assert old_still_dead.status_code == HTTPStatus.UNAUTHORIZED, (
                 "Old token should remain revoked after re-enable (token_version incremented on disable)"
+            )
+        finally:
+            nexus_api.service_accounts.delete(service_account_id=sa.id)
+
+
+class TestCredentialDisableTokenInvalidation:
+    """Disabling a credential invalidates only that credential's tokens."""
+
+    def test_disable_credential_invalidates_its_tokens_only(
+        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+    ) -> None:
+        """Token from credential A is rejected after disable; token from credential B still works."""
+        sa, client_id_a, client_secret_a = create_sa_with_credential(nexus_api, first_project_id)
+
+        try:
+            cred_b = nexus_api.service_account_credentials.create(
+                service_account_id=sa.id,
+                body=SACredentialCreate(credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS),
+            ).assert_and_get()
+
+            token_a = token_request(nexus_base_url, client_id_a, client_secret_a).parsed.access_token
+            token_b = token_request(nexus_base_url, cred_b.identifier, cred_b.client_secret).parsed.access_token
+
+            pre_a = httpx.get(
+                f"{nexus_base_url}/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {token_a}"},
+                verify=e2e_ssl_context(),
+            )
+            assert pre_a.status_code == HTTPStatus.OK, "Token A should work before disable"
+
+            creds = nexus_api.service_account_credentials.list(service_account_id=sa.id).assert_and_get()
+            cred_a_id = next(c.id for c in creds.resources if c.identifier == client_id_a)
+
+            nexus_api.service_account_credentials.disable(
+                service_account_id=sa.id,
+                credential_id=cred_a_id,
+            )
+
+            rejection_a = poll_until_status(nexus_base_url, token_a, HTTPStatus.UNAUTHORIZED)
+            assert rejection_a.status_code == HTTPStatus.UNAUTHORIZED, (
+                f"Token A should be rejected after credential disable, got {rejection_a.status_code}"
+            )
+
+            me_b = httpx.get(
+                f"{nexus_base_url}/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {token_b}"},
+                verify=e2e_ssl_context(),
+            )
+            assert me_b.status_code == HTTPStatus.OK, "Token B should still work — only credential A was disabled"
+        finally:
+            nexus_api.service_accounts.delete(service_account_id=sa.id)
+
+    def test_delete_credential_invalidates_its_tokens(
+        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+    ) -> None:
+        """Token from a deleted credential is rejected."""
+        sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
+
+        try:
+            access_token = token_request(nexus_base_url, client_id, client_secret).parsed.access_token
+
+            pre = httpx.get(
+                f"{nexus_base_url}/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {access_token}"},
+                verify=e2e_ssl_context(),
+            )
+            assert pre.status_code == HTTPStatus.OK, "Token should work before delete"
+
+            creds = nexus_api.service_account_credentials.list(service_account_id=sa.id).assert_and_get()
+            cred_id = next(c.id for c in creds.resources if c.identifier == client_id)
+
+            nexus_api.service_account_credentials.delete(
+                service_account_id=sa.id,
+                credential_id=cred_id,
+            )
+
+            rejection = poll_until_status(nexus_base_url, access_token, HTTPStatus.UNAUTHORIZED)
+            assert rejection.status_code == HTTPStatus.UNAUTHORIZED, (
+                f"Expected 401 after credential delete, got {rejection.status_code}"
             )
         finally:
             nexus_api.service_accounts.delete(service_account_id=sa.id)

@@ -77,6 +77,7 @@ class TokenPayload:
     preferred_username: str | None = None
     groups: list[str] | None = None
     token_version: int | None = None
+    credential_id: str | None = None
     amr: list[str] | None = None
     idp: str | None = None
 
@@ -438,6 +439,7 @@ class TokenService:
         idp: str = "local",
         groups: list[str] | None = None,
         token_version: int = 0,
+        credential_id: UUID | str | None = None,
         *,
         principal_type: PrincipalType = PrincipalType.USER,
     ) -> str:
@@ -453,6 +455,7 @@ class TokenService:
             idp: Identity provider identifier (e.g., "local", "azure-ad-prod")
             groups: Group memberships
             token_version: Token version counter for stale token detection
+            credential_id: SA credential UUID embedded in the JWT for per-credential revocation
             principal_type: Principal type — PrincipalType.USER or PrincipalType.SERVICE_ACCOUNT
 
         Returns:
@@ -472,6 +475,8 @@ class TokenService:
         if groups is None:
             groups = []
 
+        cred_id_str = str(credential_id) if credential_id is not None else None
+
         if is_service_account:
             # SAs get permissions via direct role assignments, not group membership
             payload: dict[str, Any] = {
@@ -484,6 +489,7 @@ class TokenService:
                 "preferred_username": username,
                 "groups": [],
                 "token_ver": token_version,
+                "cred_id": cred_id_str,
             }
         else:
             if amr is None:
@@ -643,6 +649,7 @@ class TokenService:
                 preferred_username=payload.get("preferred_username"),
                 groups=payload.get("groups"),
                 token_version=payload.get("token_ver"),
+                credential_id=payload.get("cred_id"),
                 amr=payload.get("amr"),
                 idp=payload.get("idp"),
             )

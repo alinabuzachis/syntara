@@ -13,6 +13,8 @@ from nexus.audit.models.audit_event import (
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.models.principal import PrincipalType
 
+_SOURCE_COMPONENT = "nexus.auth.middleware"
+
 
 @dataclass
 class DisabledSARejectionEvent:
@@ -40,7 +42,71 @@ class DisabledSARejectionHandler(AuditEventHandler[DisabledSARejectionEvent]):
             event_status=EventStatus.ERROR,
             event_action="disabled_sa_rejected",
             event_message=f"Rejected request from disabled/deleted service account ({event.sa_status})",
-            source_component="nexus.auth.middleware",
+            source_component=_SOURCE_COMPONENT,
+            structured_data=data,
+            actor_type=PrincipalType.SERVICE_ACCOUNT,
+            resource_urn=f"urn:nexus:service-account:{quote(event.service_account_id, safe='')}",
+            resource_name=event.service_account_id,
+        )
+
+
+@dataclass
+class DisabledSACredentialRejectionEvent:
+    """Emitted when a request is rejected because the SA credential is disabled or deleted."""
+
+    service_account_id: str
+    credential_id: str
+    credential_status: str
+
+
+class DisabledSACredentialRejectionHandler(AuditEventHandler[DisabledSACredentialRejectionEvent]):
+    """Maps a DisabledSACredentialRejectionEvent to a normalized AuditEvent."""
+
+    def handle(self, event: DisabledSACredentialRejectionEvent) -> AuditEvent:
+        """Map a DisabledSACredentialRejectionEvent to a normalized AuditEvent."""
+        data = AuditContextData(
+            data_type="disabled-sa-credential-rejection",
+            credential_status=event.credential_status,
+            credential_id=event.credential_id,
+        )
+
+        return AuditEvent(
+            event_category=EventCategory.SECURITY_EVENT,
+            event_severity=EventSeverity.WARNING,
+            event_status=EventStatus.ERROR,
+            event_action="disabled_sa_credential_rejected",
+            event_message=(
+                f"Rejected request: SA credential {event.credential_status} (credential {event.credential_id})"
+            ),
+            source_component=_SOURCE_COMPONENT,
+            structured_data=data,
+            actor_type=PrincipalType.SERVICE_ACCOUNT,
+            resource_urn=f"urn:nexus:service-account:{quote(event.service_account_id, safe='')}",
+            resource_name=event.service_account_id,
+        )
+
+
+@dataclass
+class MissingSACredentialClaimEvent:
+    """Emitted when an SA token is rejected because it lacks the cred_id claim."""
+
+    service_account_id: str
+
+
+class MissingSACredentialClaimHandler(AuditEventHandler[MissingSACredentialClaimEvent]):
+    """Maps a MissingSACredentialClaimEvent to a normalized AuditEvent."""
+
+    def handle(self, event: MissingSACredentialClaimEvent) -> AuditEvent:
+        """Map a MissingSACredentialClaimEvent to a normalized AuditEvent."""
+        data = AuditContextData(data_type="missing-sa-credential-claim")
+
+        return AuditEvent(
+            event_category=EventCategory.SECURITY_EVENT,
+            event_severity=EventSeverity.WARNING,
+            event_status=EventStatus.ERROR,
+            event_action="missing_sa_credential_claim_rejected",
+            event_message="Rejected SA token missing cred_id claim",
+            source_component=_SOURCE_COMPONENT,
             structured_data=data,
             actor_type=PrincipalType.SERVICE_ACCOUNT,
             resource_urn=f"urn:nexus:service-account:{quote(event.service_account_id, safe='')}",
@@ -74,7 +140,7 @@ class StaleSATokenDetectionHandler(AuditEventHandler[StaleSATokenDetectionEvent]
             event_status=EventStatus.SUCCESS,
             event_action="stale_sa_token_detected",
             event_message="Stale service account token detected",
-            source_component="nexus.auth.middleware",
+            source_component=_SOURCE_COMPONENT,
             structured_data=data,
             actor_type=PrincipalType.SERVICE_ACCOUNT,
             resource_urn=f"urn:nexus:service-account:{quote(event.service_account_id, safe='')}",

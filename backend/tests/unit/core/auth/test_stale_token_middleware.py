@@ -18,7 +18,7 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from nexus.auth.exceptions import InvalidTokenError
-from nexus.auth.middleware import StaleTokenMiddleware, _sa_status_cache, _user_status_cache
+from nexus.auth.middleware import StaleTokenMiddleware, _cred_status_cache, _sa_status_cache, _user_status_cache
 from nexus.auth.services.token_service import TokenPayload
 
 
@@ -414,7 +414,11 @@ class TestStaleTokenMiddleware:
         assert response.json()["code"] == "TOKEN_STALE"
 
 
-def _make_sa_payload(sub: str = "sa-456", token_version: int = 0) -> TokenPayload:
+def _make_sa_payload(
+    sub: str = "sa-456",
+    token_version: int = 0,
+    credential_id: str | None = None,
+) -> TokenPayload:
     """Create a service account TokenPayload for testing."""
     now = datetime.now(UTC)
     return TokenPayload(
@@ -424,6 +428,7 @@ def _make_sa_payload(sub: str = "sa-456", token_version: int = 0) -> TokenPayloa
         exp=now,
         token_type="service_account",  # noqa: S106
         token_version=token_version,
+        credential_id=credential_id,
     )
 
 
@@ -455,11 +460,12 @@ class TestStaleTokenMiddlewareSA:
         """Clear caches between tests."""
         _sa_status_cache.clear()
         _user_status_cache.clear()
+        _cred_status_cache.clear()
 
     def ***REMOVED***(self) -> None:
-        """Active SA with matching token_ver passes through."""
+        """Active SA with matching token_ver and active credential passes through."""
         app = _build_app()
-        payload = _make_sa_payload(sub="sa-456", token_version=1)
+        payload = _make_sa_payload(sub="sa-456", token_version=1, credential_id="cred-001")
 
         mock_ts = _mock_token_service(payload=payload)
         mock_ctx = _mock_sa_async_session(sa_status="active", token_version=1)
@@ -467,6 +473,7 @@ class TestStaleTokenMiddlewareSA:
         with (
             patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
             patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+            patch("nexus.auth.middleware._check_cred_status", return_value="active"),
         ):
             client = TestClient(app)
             response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
@@ -545,3 +552,130 @@ class TestStaleTokenMiddlewareSA:
 
         assert response.status_code == 401
         assert response.json()["code"] == "SA_DELETED"
+
+
+class TestStaleTokenMiddlewareSACredential:
+    """Tests for StaleTokenMiddleware SA credential-level checks."""
+
+    def setup_method(self) -> None:
+        """Clear caches between tests."""
+        _sa_status_cache.clear()
+        _user_status_cache.clear()
+        _cred_status_cache.clear()
+
+    def test_disabled_credential_returns_401(self) -> None:
+        """Active SA with disabled credential returns 401 SA_CREDENTIAL_DISABLED."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=1, credential_id="cred-001")
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="active", token_version=1)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+            patch("nexus.auth.middleware._check_cred_status", return_value="disabled"),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "SA_CREDENTIAL_DISABLED"
+
+    def test_deleted_credential_returns_401(self) -> None:
+        """Active SA with deleted credential (not found) returns 401 SA_CREDENTIAL_DISABLED."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=1, credential_id="cred-gone")
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="active", token_version=1)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+            patch("nexus.auth.middleware._check_cred_status", return_value=None),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "SA_CREDENTIAL_DISABLED"
+
+    def test_active_credential_passes(self) -> None:
+        """Active SA with active credential passes through."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=1, credential_id="cred-001")
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="active", token_version=1)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+            patch("nexus.auth.middleware._check_cred_status", return_value="active"),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 200
+
+    def test_missing_cred_id_returns_401(self) -> None:
+        """SA token without cred_id claim is rejected as SA_TOKEN_REVOKED and dispatches audit event."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=1, credential_id=None)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="active", token_version=1)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+            patch("nexus.audit.dispatcher.AuditEventDispatcher.dispatch") as mock_dispatch,
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "SA_TOKEN_REVOKED"
+        mock_dispatch.assert_called_once()
+        dispatched = mock_dispatch.call_args[0][0]
+        from nexus.auth.audit.sa_rejection import MissingSACredentialClaimEvent
+
+        assert isinstance(dispatched, MissingSACredentialClaimEvent)
+        assert dispatched.service_account_id == "sa-456"
+
+    def test_cred_check_failure_passes_through(self) -> None:
+        """When credential status check raises, request passes through (fail-open)."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=1, credential_id="cred-001")
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="active", token_version=1)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+            patch("nexus.auth.middleware._check_cred_status", side_effect=OSError("connection refused")),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 200
+
+    def test_disabled_sa_takes_priority_over_credential(self) -> None:
+        """Disabled SA rejection takes priority over credential check."""
+        app = _build_app()
+        payload = _make_sa_payload(sub="sa-456", token_version=1, credential_id="cred-001")
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_sa_async_session(sa_status="disabled", token_version=1)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer sa-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "SA_DISABLED"

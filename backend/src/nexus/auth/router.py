@@ -432,6 +432,7 @@ async def token(
         subject_id=sa.id,
         username=sa.name,
         token_version=sa.token_version,
+        credential_id=credential.id,
         principal_type=PrincipalType.SERVICE_ACCOUNT,
     )
 
