@@ -25,6 +25,7 @@ import {
   fillCodeEditor,
   selectProjectIfRequired,
   triggerLayout,
+  waitForUIReady,
 } from './helpers/workflows'
 import { ensureProject } from './utils/api'
 
@@ -70,11 +71,16 @@ async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workf
   })
 }
 
-/** Click a React Flow node's kebab menu by its visible text label. */
+/**
+ * Click a React Flow node's kebab menu by its visible text label.
+ * Avoid Reset layout here — layout animation remounts nodes and detaches the menu.
+ */
 async function openNodeKebabMenu(app: import('@playwright/test').Page, nodeText: string) {
-  await triggerLayout(app)
+  await waitForUIReady(app)
   const node = app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: nodeText })
   await expect(node).toBeVisible({ timeout: 15_000 })
+  // Hover so the node is settled before interacting (same pattern as delete-nodes E2E)
+  await node.hover()
 
   // Ensure node is expanded so the kebab is reachable
   const expandToggle = node.getByTestId('node-expand-toggle')
@@ -88,11 +94,27 @@ async function openNodeKebabMenu(app: import('@playwright/test').Page, nodeText:
   await expect(app.getByRole('menuitem', { name: 'Run step' })).toBeVisible({ timeout: 5_000 })
 }
 
-/** Open the Run step choice dialog for a node by its canvas label. */
+/**
+ * Open the Run step choice dialog for a node by its canvas label.
+ * Retries the full kebab → menuitem flow when React Flow remounts mid-click
+ * ("element is not stable" / "element was detached from the DOM").
+ */
 async function openRunStepDialog(app: import('@playwright/test').Page, nodeText: string) {
-  await openNodeKebabMenu(app, nodeText)
-  await app.getByRole('menuitem', { name: 'Run step' }).click()
-  await expect(app.getByRole('heading', { name: `Run ${nodeText}?` })).toBeVisible({ timeout: 15_000 })
+  const dialogHeading = app.getByRole('heading', { name: `Run ${nodeText}?` })
+  await expect(async () => {
+    // Close a leftover menu from a prior attempt so we start from a clean toggle
+    if (
+      await app
+        .getByRole('menuitem', { name: 'Run step' })
+        .isVisible()
+        .catch(() => false)
+    ) {
+      await app.keyboard.press('Escape')
+    }
+    await openNodeKebabMenu(app, nodeText)
+    await app.getByRole('menuitem', { name: 'Run step' }).click({ force: true })
+    await expect(dialogHeading).toBeVisible({ timeout: 5_000 })
+  }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] })
 }
 
 test.describe('Run Step', () => {

@@ -706,17 +706,30 @@ export async function navigateToApiActionForm(page: Page) {
 /**
  * Run a single node of workflow via the kebab menu "Run step" action.
  * Pass mockData (JSON string) to use mock data, or omit to run all previous steps.
+ * Retries kebab → Run step when React Flow remounts the menu mid-click.
  */
 export async function runSingleWorkflowNode(page: Page, nodeName: string, mockData?: string) {
   const node = page.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: nodeName })
   await expect(node).toBeVisible()
+  await waitForUIReady(page)
+  await node.hover()
 
-  const kebabButton = node.getByLabel('Step actions menu')
-  await expect(kebabButton).toBeVisible()
-  await kebabButton.click()
-  await page.getByRole('menuitem', { name: 'Run step' }).click()
-
-  await expect(page.getByRole('heading', { name: /Run /i })).toBeVisible()
+  const dialogHeading = page.getByRole('heading', { name: /Run /i })
+  await expect(async () => {
+    if (
+      await page
+        .getByRole('menuitem', { name: 'Run step' })
+        .isVisible()
+        .catch(() => false)
+    ) {
+      await page.keyboard.press('Escape')
+    }
+    const kebabButton = node.getByLabel('Step actions menu')
+    await expect(kebabButton).toBeVisible()
+    await kebabButton.click()
+    await page.getByRole('menuitem', { name: 'Run step' }).click({ force: true })
+    await expect(dialogHeading).toBeVisible({ timeout: 5_000 })
+  }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] })
 
   if (mockData) {
     await page.getByRole('button', { name: 'Set mock data' }).click()
