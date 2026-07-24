@@ -763,6 +763,10 @@ curl -X PATCH http://localhost:8000/api/v1/settings/metrics.perf_test_mode \
 
 When the setting is toggled back to `false`, the in-memory store is automatically flushed.
 
+## Code Quality
+
+Code quality and coverage are tracked via [SonarCloud](https://sonarcloud.io/project/overview?id=syntara-orchestration_syntara-backend). SonarCloud analysis runs automatically on all PRs with coverage reports from unit, CLI, and integration test suites. View metrics for vulnerabilities, code smells, technical debt, and coverage trends.
+
 ## Further reading
 
 - 📖 **[Developer Getting Started Guide](docs/developer-getting-started.md)** - Architecture deep dive with examples

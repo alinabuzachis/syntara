@@ -1,5 +1,15 @@
 # Nexus Combined Monorepo
 
+[![Backend Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=syntara-orchestration_syntara-backend&metric=alert_status&token=ab9b9591e2b81adf9085452914115439ee7fc73a)](https://sonarcloud.io/summary/new_code?id=syntara-orchestration_syntara-backend)
+[![Backend Coverage](https://sonarcloud.io/api/project_badges/measure?project=syntara-orchestration_syntara-backend&metric=coverage&token=ab9b9591e2b81adf9085452914115439ee7fc73a)](https://sonarcloud.io/summary/new_code?id=syntara-orchestration_syntara-backend)
+[![Backend Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=syntara-orchestration_syntara-backend&metric=vulnerabilities&token=ab9b9591e2b81adf9085452914115439ee7fc73a)](https://sonarcloud.io/summary/new_code?id=syntara-orchestration_syntara-backend)
+[![Backend Code Smells](https://sonarcloud.io/api/project_badges/measure?project=syntara-orchestration_syntara-backend&metric=code_smells&token=ab9b9591e2b81adf9085452914115439ee7fc73a)](https://sonarcloud.io/summary/new_code?id=syntara-orchestration_syntara-backend)
+
+[![Frontend Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=syntara-orchestration_syntara-frontend&metric=alert_status&token=182656dc6cf7c3b4c025fa575367c301342d2a41)](https://sonarcloud.io/summary/new_code?id=syntara-orchestration_syntara-frontend)
+[![Frontend Coverage](https://sonarcloud.io/api/project_badges/measure?project=syntara-orchestration_syntara-frontend&metric=coverage&token=182656dc6cf7c3b4c025fa575367c301342d2a41)](https://sonarcloud.io/summary/new_code?id=syntara-orchestration_syntara-frontend)
+[![Frontend Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=syntara-orchestration_syntara-frontend&metric=vulnerabilities&token=182656dc6cf7c3b4c025fa575367c301342d2a41)](https://sonarcloud.io/summary/new_code?id=syntara-orchestration_syntara-frontend)
+[![Frontend Code Smells](https://sonarcloud.io/api/project_badges/measure?project=syntara-orchestration_syntara-frontend&metric=code_smells&token=182656dc6cf7c3b4c025fa575367c301342d2a41)](https://sonarcloud.io/summary/new_code?id=syntara-orchestration_syntara-frontend)
+
 Monorepo combining the Nexus backend (Python/FastAPI) and frontend (React/TypeScript) into a single development and deployment environment.
 
 ## Repository Structure
@@ -69,6 +79,15 @@ podman-compose up --build
 # Start specific services
 podman-compose up database redis temporal nexus
 ```
+
+## Code Quality
+
+Code quality and coverage are tracked via SonarCloud:
+
+- **Backend**: [SonarCloud Dashboard](https://sonarcloud.io/project/overview?id=syntara-orchestration_syntara-backend)
+- **Frontend**: [SonarCloud Dashboard](https://sonarcloud.io/project/overview?id=syntara-orchestration_syntara-frontend)
+
+SonarCloud analysis runs automatically on all PRs. Quality gate results are **informational only** — pass/fail status is visible in the PR checks list but does not block merges. The required status checks for merge are `(Backend) Required Checks` and `(Frontend) Required Checks`, which cover linting, tests, type-checking, and builds.
 
 ## Contributing
 

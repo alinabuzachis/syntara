@@ -225,6 +225,10 @@ GitHub Actions uses Docker Buildx for automated builds. When you push to `main`:
 
 Multi-arch images automatically select the correct architecture when pulled.
 
+## Code Quality
+
+Code quality and coverage are tracked via [SonarCloud](https://sonarcloud.io/project/overview?id=syntara-orchestration_syntara-frontend). SonarCloud analysis runs automatically on all PRs with coverage reports from unit and integration tests. View metrics for vulnerabilities, code smells, technical debt, and coverage trends.
+
 ## Contributing
 
 We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get started, our development process, and how you can contribute.
