@@ -804,111 +804,87 @@ describe('Integrations Component', () => {
     })
   })
 
-  describe('Sorting Functionality', () => {
-    it('renders sortable column headers', () => {
+  describe('API sorting', () => {
+    it('defaults query sort to name', () => {
       render(<Integrations />, { wrapper })
 
-      // Verify sortable columns have sort buttons
-      const nameHeader = screen.getByRole('columnheader', { name: /server name/i })
-      expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
-
-      const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
-      expect(within(statusHeader).getByRole('button')).toBeInTheDocument()
-
-      const toolsHeader = screen.getByRole('columnheader', { name: /Enabled resources/i })
-      expect(within(toolsHeader).getByRole('button')).toBeInTheDocument()
+      expect(integrationsClient.useQuery).toHaveBeenCalledWith(
+        'get',
+        '/integrations',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              sort: 'name',
+            }) as unknown,
+          }) as unknown,
+        }) as unknown
+      )
     })
 
-    it('changes sort when clicking column headers', async () => {
+    it('renders sortable headers for name, status, type, and state', () => {
+      render(<Integrations />, { wrapper })
+
+      for (const name of [/server name/i, /^Status$/i, /Integration type/i, /^State$/i]) {
+        const header = screen.getByRole('columnheader', { name })
+        expect(within(header).getByRole('button')).toBeInTheDocument()
+      }
+
+      const apiUrlHeader = screen.getByRole('columnheader', { name: /^API URL$/i })
+      expect(within(apiUrlHeader).queryByRole('button')).not.toBeInTheDocument()
+
+      const resourcesHeader = screen.getByRole('columnheader', { name: /Enabled resources/i })
+      expect(within(resourcesHeader).queryByRole('button')).not.toBeInTheDocument()
+
+      const actionsHeader = screen.getByRole('columnheader', { name: 'Actions' })
+      expect(within(actionsHeader).queryByRole('button')).not.toBeInTheDocument()
+    })
+
+    it('writes sort URL param when a column header is clicked', async () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
-      // Click Name header to sort by name
-      const nameHeader = screen.getByRole('columnheader', { name: /server name/i })
-      const sortButton = within(nameHeader).getByRole('button')
-      await user.click(sortButton)
+      const statusHeader = screen.getByRole('columnheader', { name: /^Status$/i })
+      await user.click(within(statusHeader).getByRole('button'))
 
-      // All integrations should still be visible
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
-      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
-      expect(screen.getByText('Development Server')).toBeInTheDocument()
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'sort', 'validation_status')
+      })
     })
 
-    it('can toggle sort direction by clicking the same column header', async () => {
+    it('can sort by integration_type via the Integration type column', async () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
-      const nameHeader = screen.getByRole('columnheader', { name: /server name/i })
-      const sortButton = within(nameHeader).getByRole('button')
-
-      // Click twice to toggle direction
-      await user.click(sortButton)
-      await user.click(sortButton)
-
-      // All integrations should still be visible after sorting
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
-      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
-      expect(screen.getByText('Development Server')).toBeInTheDocument()
-    })
-
-    it('can sort by different columns', async () => {
-      const user = userEvent.setup()
-      render(<Integrations />, { wrapper })
-
-      // Click Tools header
-      const toolsHeader = screen.getByRole('columnheader', { name: /Enabled resources/i })
-      const sortButton = within(toolsHeader).getByRole('button')
-      await user.click(sortButton)
-
-      // All integrations should still be visible
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
-      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
-      expect(screen.getByText('Development Server')).toBeInTheDocument()
-    })
-
-    it('can sort by Status column', async () => {
-      const user = userEvent.setup()
-      render(<Integrations />, { wrapper })
-
-      // Click Status header to sort by status
-      const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
-      const sortButton = within(statusHeader).getByRole('button')
-      await user.click(sortButton)
-
-      // All integrations should still be visible
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
-      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
-      expect(screen.getByText('Development Server')).toBeInTheDocument()
-    })
-
-    it('can sort by Integration type column', async () => {
-      const user = userEvent.setup()
-      render(<Integrations />, { wrapper })
-
-      // Click Integration type header
       const typeHeader = screen.getByRole('columnheader', { name: /Integration type/i })
-      const sortButton = within(typeHeader).getByRole('button')
-      await user.click(sortButton)
+      await user.click(within(typeHeader).getByRole('button'))
 
-      // All integrations should still be visible
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
-      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
-      expect(screen.getByText('Development Server')).toBeInTheDocument()
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'sort', 'integration_type')
+      })
     })
 
-    it('can sort by API URL column', async () => {
+    it('can sort by enabled via the State column', async () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
-      // Click API URL header
-      const urlHeader = screen.getByRole('columnheader', { name: /^API URL$/i })
-      const sortButton = within(urlHeader).getByRole('button')
-      await user.click(sortButton)
+      const stateHeader = screen.getByRole('columnheader', { name: /^State$/i })
+      await user.click(within(stateHeader).getByRole('button'))
 
-      // All integrations should still be visible
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
-      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
-      expect(screen.getByText('Development Server')).toBeInTheDocument()
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'sort', 'enabled')
+      })
+    })
+
+    it('toggles sort direction when clicking the default name column', async () => {
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      const nameHeader = screen.getByRole('columnheader', { name: /server name/i })
+      await user.click(within(nameHeader).getByRole('button'))
+
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'sort', '-name')
+      })
     })
   })
 
@@ -936,7 +912,7 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      // Open actions menu and click validate (first row is ID 3 - Development Server, alphabetically)
+      // Open actions menu and click validate (API order — first row is ID 1)
       const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
       const validateOption = await screen.findByRole('menuitem', { name: /validate integration/i })
@@ -946,10 +922,10 @@ describe('Integrations Component', () => {
       const validateButton = await screen.findByRole('button', { name: 'Validate' })
       await user.click(validateButton)
 
-      // Verify mutation was called with integration_id (first row is ID 3 due to alphabetical sort)
+      // Verify mutation was called with integration_id (first row is ID 1 from API order)
       expect(mockValidateMutate).toHaveBeenCalled()
       const callArgs = mockValidateMutate.mock.calls[0]
-      expect(callArgs[0]).toEqual({ params: { path: { integration_id: '3' } } })
+      expect(callArgs[0]).toEqual({ params: { path: { integration_id: '1' } } })
     })
 
     it('shows success alert and closes dialog on successful validation', { timeout: 15_000 }, async () => {
@@ -1141,7 +1117,7 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      // Open actions menu and click uninstall (first row is ID 3 - Development Server)
+      // Open actions menu and click uninstall (API order — first row is ID 1)
       const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
       const uninstallOption = await screen.findByRole('menuitem', { name: /delete/i })
@@ -1154,10 +1130,10 @@ describe('Integrations Component', () => {
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
 
-      // Verify mutation was called (first row is ID 3 due to alphabetical sort)
+      // Verify mutation was called (first row is ID 1 from API order)
       expect(mockDeleteMutate).toHaveBeenCalled()
       const callArgs = mockDeleteMutate.mock.calls[0]
-      expect(callArgs[0]).toEqual({ params: { path: { integration_id: '3' } } })
+      expect(callArgs[0]).toEqual({ params: { path: { integration_id: '1' } } })
     })
 
     it('shows success alert and closes dialog on successful delete', async () => {

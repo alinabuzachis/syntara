@@ -2,6 +2,7 @@ import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { Badge, Button, Switch, Tooltip, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiCheckCircleIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { ThProps } from '@patternfly/react-table'
 import { useNavigate } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
@@ -22,7 +23,6 @@ import {
 } from '../../../components/panels/list/NxListPanel'
 import { LinkCell } from '../../../components/table/LinkCell'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
-import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
@@ -35,6 +35,7 @@ import {
   getIntegrationStatusFilterDefinition,
   getIntegrationTypeFilterDefinition,
 } from './integrationFilters'
+import { integrationDefaultSort, integrationTableColumns } from './integrationTableColumns'
 import { getBaseUrl, getEnabledResourceCount } from './integrationUtils'
 import { StatusLabel } from './StatusLabel'
 import { useIntegrationActions } from './useIntegrationActions'
@@ -77,7 +78,7 @@ function IntegrationsTableContent({
   permissions,
 }: Readonly<{
   results: IntegrationRead[]
-  getSortParams: (index: number) => ReturnType<ReturnType<typeof useTableSort>['getSortParams']>
+  getSortParams: (columnField: string) => ThProps['sort']
   validateDialog: { open: (item: IntegrationRead) => void }
   deleteDialog: { open: (item: IntegrationRead) => void }
   handleToggleEnabled: (integration: IntegrationRead) => void
@@ -87,12 +88,12 @@ function IntegrationsTableContent({
     <>
       <Thead>
         <Tr>
-          <Th sort={getSortParams(0)}>Server name / ID</Th>
-          <Th sort={getSortParams(1)}>Status</Th>
-          <Th sort={getSortParams(2)}>Integration type</Th>
-          <Th sort={getSortParams(3)}>API URL</Th>
-          <Th sort={getSortParams(4)}>Enabled resources</Th>
-          <Th sort={getSortParams(5)}>State</Th>
+          <Th sort={getSortParams('name')}>Server name / ID</Th>
+          <Th sort={getSortParams('validation_status')}>Status</Th>
+          <Th sort={getSortParams('integration_type')}>Integration type</Th>
+          <Th>API URL</Th>
+          <Th>Enabled resources</Th>
+          <Th sort={getSortParams('enabled')}>State</Th>
           <Th screenReaderText="Actions" />
         </Tr>
       </Thead>
@@ -166,7 +167,11 @@ export default function Integrations() {
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination()
+    getSortParams,
+  } = useCursorPagination({
+    defaultSort: integrationDefaultSort,
+    columns: integrationTableColumns,
+  })
 
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
     () => [
@@ -191,33 +196,10 @@ export default function Integrations() {
     handleDisable,
   } = useIntegrationActions(() => query.refetch())
 
-  const integrations = query.data?.resources ?? []
+  // API order from queryParams.sort — no client-side re-sort
+  const results = query.data?.resources ?? []
 
-  useCursorReset(integrations.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
-
-  const { activeSortIndex, getSortParams, sortData } = useTableSort({
-    initialSortIndex: 0,
-    initialDirection: 'asc',
-  })
-
-  const results = sortData(integrations, (integration) => {
-    switch (activeSortIndex) {
-      case 0:
-        return integration.name ?? ''
-      case 1:
-        return integration.validation_status ?? ''
-      case 2:
-        return integration.integration_type ?? ''
-      case 3:
-        return getBaseUrl(integration)
-      case 4:
-        return 0
-      case 5:
-        return integration.enabled ? 1 : 0
-      default:
-        return integration.name ?? ''
-    }
-  })
+  useCursorReset(results.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
   const isEmpty = results.length === 0
 

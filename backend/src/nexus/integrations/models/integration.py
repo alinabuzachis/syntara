@@ -164,6 +164,7 @@ class Integration(NamedResource, UserOwnedResource, table=True):
     __sortable_fields__: ClassVar[list[str]] = [
         *NamedResource.__sortable_fields__,
         *UserOwnedResource.__sortable_fields__,
+        "integration_type",
         "validation_status",
         "enabled",
     ]

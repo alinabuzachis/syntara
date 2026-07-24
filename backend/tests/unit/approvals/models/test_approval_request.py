@@ -108,6 +108,16 @@ class TestApprovalRequestValidation:
 
         assert approval.status == ApprovalRequestStatus.PENDING
 
+    def test_sortable_fields_contains_correct_fields(self) -> None:
+        assert ApprovalRequest.__sortable_fields__ == [
+            "created_at",
+            "updated_at",
+            "name",
+            "timeout_at",
+            "decided_at",
+            "status",
+        ]
+
 
 class TestApprovalRequestHelperFactories:
     """Test the helper factory functions work correctly."""

@@ -150,6 +150,7 @@ class ApprovalRequest(BaseApprovalRequest, table=True):
         "name",
         "timeout_at",
         "decided_at",
+        "status",
     ]
 
     # Decision field - database stores UUID foreign key to principals (not users)

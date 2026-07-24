@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from nexus.integrations.models.integration import (
+    Integration,
     IntegrationCreate,
     IntegrationPatch,
     IntegrationScope,
@@ -257,3 +258,19 @@ class TestIntegrationEnums:
     def test_integration_scope_values(self) -> None:
         assert IntegrationScope.GLOBAL.value == "global"
         assert IntegrationScope.PROJECT.value == "project"
+
+
+class TestIntegrationSortableFields:
+    """Tests for Integration.__sortable_fields__."""
+
+    def test_sortable_fields_contains_correct_fields(self) -> None:
+        assert Integration.__sortable_fields__ == [
+            "created_at",
+            "updated_at",
+            "name",
+            "created_at",
+            "updated_at",
+            "integration_type",
+            "validation_status",
+            "enabled",
+        ]

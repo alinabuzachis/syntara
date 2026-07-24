@@ -377,11 +377,12 @@ export const handlers = [
     const integrationType = url.searchParams.get('integration_type')
     const validationStatus = url.searchParams.get('validation_status')
     const enabledParam = url.searchParams.get('enabled')
+    const sort = url.searchParams.get('sort')
     const cursor = url.searchParams.get('cursor')
     const limit = parseInt(url.searchParams.get('limit') || '20', 10)
     const includeTotal = url.searchParams.get('include_total') === 'true'
 
-    let filtered = integrations
+    let filtered = [...integrations]
     if (nameContains) {
       const lower = nameContains.toLowerCase()
       filtered = filtered.filter((i) => (i.name ?? '').toLowerCase().includes(lower))
@@ -403,6 +404,46 @@ export const handlers = [
     const projectId = url.searchParams.get('project_id')
     if (projectId) {
       filtered = filtered.filter((i) => i.scope === 'global' || (i.project_ids && i.project_ids.includes(projectId)))
+    }
+
+    if (sort) {
+      const isDesc = sort.startsWith('-')
+      const field = isDesc ? sort.slice(1) : sort
+      filtered.sort((a, b) => {
+        let aVal = ''
+        let bVal = ''
+        switch (field) {
+          case 'name':
+            aVal = a.name ?? ''
+            bVal = b.name ?? ''
+            break
+          case 'validation_status':
+            aVal = a.validation_status ?? ''
+            bVal = b.validation_status ?? ''
+            break
+          case 'integration_type':
+            aVal = a.integration_type ?? ''
+            bVal = b.integration_type ?? ''
+            break
+          case 'enabled':
+            aVal = a.enabled ? '1' : '0'
+            bVal = b.enabled ? '1' : '0'
+            break
+          case 'created_at':
+            aVal = a.created_at ?? ''
+            bVal = b.created_at ?? ''
+            break
+          case 'updated_at':
+            aVal = a.updated_at ?? ''
+            bVal = b.updated_at ?? ''
+            break
+          default:
+            aVal = a.name ?? ''
+            bVal = b.name ?? ''
+        }
+        const cmp = aVal.localeCompare(bVal)
+        return isDesc ? -cmp : cmp
+      })
     }
 
     return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
