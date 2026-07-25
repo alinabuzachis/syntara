@@ -67,8 +67,7 @@ describe('useApprovalSelection', () => {
 
   const mockApprovals = [mockPendingApproval, mockApprovedApproval, mockRejectedApproval]
   const mockFilters = {}
-  const mockActiveSortIndex = 0
-  const mockSortDirection = 'asc'
+  const mockSortParam = '-created_at'
   const mockApprovalPermissions = new Map([
     ['approval-1', true],
     ['approval-2', true],
@@ -81,8 +80,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: mockSelectableApprovalIds,
@@ -96,8 +94,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: mockSelectableApprovalIds,
@@ -112,8 +109,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: mockSelectableApprovalIds,
@@ -132,8 +128,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: mockSelectableApprovalIds,
@@ -158,8 +153,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: mockSelectableApprovalIds,
@@ -178,8 +172,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: mockSelectableApprovalIds,
@@ -200,8 +193,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: mockSelectableApprovalIds,
@@ -225,8 +217,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: mockSelectableApprovalIds,
@@ -246,8 +237,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: mockSelectableApprovalIds,
@@ -272,8 +262,7 @@ describe('useApprovalSelection', () => {
       ({ enrichedApprovals }) =>
         useApprovalSelection(enrichedApprovals, enrichedApprovals, {
           filters: mockFilters,
-          activeSortIndex: mockActiveSortIndex,
-          sortDirection: mockSortDirection,
+          sortParam: mockSortParam,
           approvalPermissions: mockApprovalPermissions,
           isLoadingPermissions: mockIsLoadingPermissions,
           selectableApprovalIds: mockSelectableApprovalIds,
@@ -304,8 +293,7 @@ describe('useApprovalSelection', () => {
       ({ enrichedApprovals }) =>
         useApprovalSelection(enrichedApprovals, enrichedApprovals, {
           filters: mockFilters,
-          activeSortIndex: mockActiveSortIndex,
-          sortDirection: mockSortDirection,
+          sortParam: mockSortParam,
           approvalPermissions: mockApprovalPermissions,
           isLoadingPermissions: mockIsLoadingPermissions,
           selectableApprovalIds: mockSelectableApprovalIds,
@@ -336,8 +324,7 @@ describe('useApprovalSelection', () => {
       ({ filters }) =>
         useApprovalSelection(mockApprovals, mockApprovals, {
           filters,
-          activeSortIndex: mockActiveSortIndex,
-          sortDirection: mockSortDirection,
+          sortParam: mockSortParam,
           approvalPermissions: mockApprovalPermissions,
           isLoadingPermissions: mockIsLoadingPermissions,
           selectableApprovalIds: mockSelectableApprovalIds,
@@ -362,17 +349,16 @@ describe('useApprovalSelection', () => {
 
   it('clears selections when sort changes', () => {
     const { result, rerender } = renderHook(
-      ({ sortIndex, sortDirection }) =>
+      ({ sortParam }) =>
         useApprovalSelection(mockApprovals, mockApprovals, {
           filters: mockFilters,
-          activeSortIndex: sortIndex,
-          sortDirection,
+          sortParam,
           approvalPermissions: mockApprovalPermissions,
           isLoadingPermissions: mockIsLoadingPermissions,
           selectableApprovalIds: mockSelectableApprovalIds,
         }),
       {
-        initialProps: { sortIndex: 0, sortDirection: 'asc' },
+        initialProps: { sortParam: '-created_at' as string | undefined },
       }
     )
 
@@ -383,7 +369,7 @@ describe('useApprovalSelection', () => {
     expect(result.current.selectedApprovalIds.size).toBe(1)
 
     // Change sort
-    rerender({ sortIndex: 1, sortDirection: 'asc' })
+    rerender({ sortParam: 'name' })
 
     expect(result.current.selectedApprovalIds.size).toBe(0)
   })
@@ -392,8 +378,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection([], [], {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: new Map(),
         isLoadingPermissions: mockIsLoadingPermissions,
         selectableApprovalIds: new Set(),
@@ -421,8 +406,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(approvals, approvals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: permissionMap,
         isLoadingPermissions: false,
         selectableApprovalIds: selectableSet,
@@ -443,8 +427,7 @@ describe('useApprovalSelection', () => {
     const { result } = renderHook(() =>
       useApprovalSelection(mockApprovals, mockApprovals, {
         filters: mockFilters,
-        activeSortIndex: mockActiveSortIndex,
-        sortDirection: mockSortDirection,
+        sortParam: mockSortParam,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: true,
         selectableApprovalIds: new Set(), // Empty when loading

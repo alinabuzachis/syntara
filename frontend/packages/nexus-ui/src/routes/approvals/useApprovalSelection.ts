@@ -29,13 +29,12 @@ type SelectionState = {
   selectedIds: Set<string>
   lastApprovals: ApprovalWithDetails[]
   lastFilters: unknown
-  lastSortIndex: number
-  lastSortDirection: string
+  lastSortParam: string | undefined
 }
 
 type SelectionAction =
   | { type: 'SYNC_APPROVALS'; approvals: ApprovalWithDetails[] }
-  | { type: 'RESET_ON_FILTER_CHANGE'; filters: unknown; sortIndex: number; sortDirection: string }
+  | { type: 'RESET_ON_FILTER_CHANGE'; filters: unknown; sortParam: string | undefined }
   | {
       type: 'SELECT_ALL'
       approvals: ApprovalWithDetails[]
@@ -56,10 +55,7 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
       }
     }
     case 'RESET_ON_FILTER_CHANGE': {
-      const filtersChanged =
-        state.lastFilters !== action.filters ||
-        state.lastSortIndex !== action.sortIndex ||
-        state.lastSortDirection !== action.sortDirection
+      const filtersChanged = state.lastFilters !== action.filters || state.lastSortParam !== action.sortParam
 
       if (!filtersChanged) return state
 
@@ -67,8 +63,7 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
         ...state,
         selectedIds: new Set(),
         lastFilters: action.filters,
-        lastSortIndex: action.sortIndex,
-        lastSortDirection: action.sortDirection,
+        lastSortParam: action.sortParam,
       }
     }
     case 'SELECT_ALL': {
@@ -110,21 +105,19 @@ export function useApprovalSelection(
   sortedApprovals: ApprovalWithDetails[],
   options: {
     filters: unknown
-    activeSortIndex: number
-    sortDirection: string
+    sortParam: string | undefined
     approvalPermissions: Map<string, boolean>
     isLoadingPermissions: boolean
     selectableApprovalIds: Set<string>
   }
 ) {
-  const { filters, activeSortIndex, sortDirection, selectableApprovalIds } = options
+  const { filters, sortParam, selectableApprovalIds } = options
 
   const [state, dispatch] = useReducer(selectionReducer, {
     selectedIds: new Set<string>(),
     lastApprovals: enrichedApprovals,
     lastFilters: filters,
-    lastSortIndex: activeSortIndex,
-    lastSortDirection: sortDirection,
+    lastSortParam: sortParam,
   })
 
   // Sync selection when approvals change - dispatch in render is safe with useReducer
@@ -132,13 +125,9 @@ export function useApprovalSelection(
     dispatch({ type: 'SYNC_APPROVALS', approvals: enrichedApprovals })
   }
 
-  // Clear selection when filters change - dispatch in render is safe with useReducer
-  if (
-    state.lastFilters !== filters ||
-    state.lastSortIndex !== activeSortIndex ||
-    state.lastSortDirection !== sortDirection
-  ) {
-    dispatch({ type: 'RESET_ON_FILTER_CHANGE', filters, sortIndex: activeSortIndex, sortDirection })
+  // Clear selection when filters or sort change - dispatch in render is safe with useReducer
+  if (state.lastFilters !== filters || state.lastSortParam !== sortParam) {
+    dispatch({ type: 'RESET_ON_FILTER_CHANGE', filters, sortParam })
   }
 
   const handleSelectAll = useCallback(

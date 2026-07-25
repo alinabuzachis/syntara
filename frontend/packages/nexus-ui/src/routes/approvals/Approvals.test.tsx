@@ -250,6 +250,7 @@ describe('Approvals Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSetSearchParams.mockClear()
     // Reset useFilterState to its default implementation (not mocked)
     vi.mocked(useFilterState).mockRestore?.()
 
@@ -360,105 +361,80 @@ describe('Approvals Component', () => {
     expect(screen.getByText('No approvals found')).toBeInTheDocument()
   })
 
-  describe('Sorting Functionality', () => {
-    it('renders sortable column headers', () => {
+  describe('API sorting', () => {
+    it('defaults query sort to -created_at', () => {
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
-      // Verify sortable columns have sort buttons
-      const approvalNameHeader = screen.getByRole('columnheader', { name: /Approval name/i })
-      expect(within(approvalNameHeader).getByRole('button')).toBeInTheDocument()
-
-      const workflowHeader = screen.getByRole('columnheader', { name: /Workflow/i })
-      expect(within(workflowHeader).getByRole('button')).toBeInTheDocument()
-
-      const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
-      expect(within(statusHeader).getByRole('button')).toBeInTheDocument()
+      expect(approvalsClient.useQuery).toHaveBeenCalledWith(
+        'get',
+        '/approvals',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              sort: '-created_at',
+            }) as unknown,
+          }) as unknown,
+        }) as unknown,
+        expect.anything()
+      )
     })
 
-    it('changes sort when clicking column headers', async () => {
+    it('renders sortable headers for name, initiated, actioned, and status', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      for (const name of [/Approval name/i, /Approval initiated/i, /Actioned on/i, /^Status$/i]) {
+        const header = screen.getByRole('columnheader', { name })
+        expect(within(header).getByRole('button')).toBeInTheDocument()
+      }
+
+      const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow$/i })
+      expect(within(workflowHeader).queryByRole('button')).not.toBeInTheDocument()
+    })
+
+    it('writes sort URL param when a column header is clicked', async () => {
       const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
-      // Click Approval name header to sort by name
-      const approvalNameHeader = screen.getByRole('columnheader', { name: /Approval name/i })
-      const sortButton = within(approvalNameHeader).getByRole('button')
-      await user.click(sortButton)
+      const statusHeader = screen.getByRole('columnheader', { name: /^Status$/i })
+      await user.click(within(statusHeader).getByRole('button'))
 
-      // All approvals should still be visible
-      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
-      expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
-      expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'sort', 'status')
+      })
     })
 
-    it('can toggle sort direction by clicking the same column header', async () => {
+    it('can sort by decided_at via the Actioned on column', async () => {
       const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
-      const approvalNameHeader = screen.getByRole('columnheader', { name: /Approval name/i })
-      const sortButton = within(approvalNameHeader).getByRole('button')
-
-      // Click twice to toggle direction
-      await user.click(sortButton)
-      await user.click(sortButton)
-
-      // All approvals should still be visible after sorting
-      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
-      expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
-      expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
-    })
-
-    it('can sort by different columns', async () => {
-      const user = userEvent.setup()
-      mockApprovalsQuery(mockApprovals)
-
-      render(<Approvals />)
-
-      // Click Status header
-      const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
-      const statusSortButton = within(statusHeader).getByRole('button')
-      await user.click(statusSortButton)
-
-      // All approvals should still be visible
-      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
-      expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
-      expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
-    })
-
-    it('can sort by Actioned on (decided_at) column', async () => {
-      const user = userEvent.setup()
-      mockApprovalsQuery(mockApprovals)
-
-      render(<Approvals />)
-
-      // Click Actioned on header
       const actionedOnHeader = screen.getByRole('columnheader', { name: /Actioned on/i })
-      const sortButton = within(actionedOnHeader).getByRole('button')
-      await user.click(sortButton)
+      await user.click(within(actionedOnHeader).getByRole('button'))
 
-      // All approvals should still be visible
-      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
-      expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
-      expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'sort', 'decided_at')
+      })
     })
 
-    it('can sort by Workflow column', async () => {
+    it('can sort by name via the Approval name column', async () => {
       const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
-      const workflowHeader = screen.getByRole('columnheader', { name: /Workflow/i })
-      const sortButton = within(workflowHeader).getByRole('button')
-      await user.click(sortButton)
+      const approvalNameHeader = screen.getByRole('columnheader', { name: /Approval name/i })
+      await user.click(within(approvalNameHeader).getByRole('button'))
 
-      expect(screen.getByText('Another Workflow')).toBeInTheDocument()
-      expect(screen.getByText('Test Workflow')).toBeInTheDocument()
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'sort', 'name')
+      })
     })
   })
 

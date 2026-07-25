@@ -7,7 +7,7 @@ import { permissionTooltip } from '../../hooks/permissionUtils'
 const DECIDE_TOOLTIP = permissionTooltip('approve or reject approvals', 'approval:decide')
 
 export type ApprovalsTableHeadProps = {
-  getSortParams: (columnIndex: number) => ThProps['sort']
+  getSortParams: (columnField: string) => ThProps['sort']
   allRowsExpanded: boolean
   collapseAllAriaLabel: string
   onCollapseAll: (event: unknown, rowIndex: number, isOpen: boolean) => void
@@ -71,19 +71,17 @@ export function ApprovalsTableHead(props: Readonly<ApprovalsTableHeadProps>) {
           }}
           aria-label="Row expansion"
         />
-        <Th modifier="nowrap" sort={getSortParams(0)}>
+        <Th modifier="nowrap" sort={getSortParams('name')}>
           Approval name
         </Th>
-        <Th modifier="nowrap" sort={getSortParams(1)}>
-          Workflow
-        </Th>
-        <Th modifier="nowrap" sort={getSortParams(2)}>
+        <Th modifier="nowrap">Workflow</Th>
+        <Th modifier="nowrap" sort={getSortParams('created_at')}>
           Approval initiated
         </Th>
-        <Th modifier="nowrap" sort={getSortParams(3)}>
+        <Th modifier="nowrap" sort={getSortParams('decided_at')}>
           Actioned on
         </Th>
-        <Th modifier="nowrap" sort={getSortParams(4)}>
+        <Th modifier="nowrap" sort={getSortParams('status')}>
           Status
         </Th>
       </Tr>

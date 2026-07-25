@@ -18,7 +18,6 @@ import type { PaginationFooterProps } from '../../components/table/PaginationFoo
 import { permissionTooltip } from '../../hooks/permissionUtils'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
-import { useTableSort } from '../../hooks/useTableSort'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 
@@ -26,6 +25,7 @@ import { getApprovalNameFilterDefinition, getApprovalStatusFilterDefinition } fr
 import { ApprovalsBulkActions } from './ApprovalsBulkActions'
 import { FlatApprovalsTableBody, GroupedApprovalsTableBody } from './ApprovalsTableBody'
 import { ApprovalsTableHead } from './ApprovalsTableHead'
+import { approvalDefaultSort, approvalTableColumns } from './approvalTableColumns'
 import { BulkApproveDialog } from './BulkApproveDialog'
 import { BulkRejectDialog } from './BulkRejectDialog'
 import { canDecideOnApproval } from './canDecideOnApproval'
@@ -42,9 +42,6 @@ export type ApprovalWithDetails = Approval & {
   workflowId?: string
   description?: string | null
 }
-
-// Column indices for sorting (excluding the expand column)
-const SORT_COLUMNS = ['approvalName', 'workflowName', 'requested_at', 'decided_at', 'status'] as const
 
 type ApprovalsAction = { type: 'SET_EXPANDED_ROWS'; payload: Set<string> } | { type: 'TOGGLE_ROW'; payload: string }
 
@@ -114,7 +111,7 @@ type ApprovalsContentProps = {
   handleClearAllFilters: () => void
   expandedRows: Set<string>
   onToggleRow: (approvalId: string) => void
-  getSortParams: (columnIndex: number) => ThProps['sort']
+  getSortParams: (columnField: string) => ThProps['sort']
   allRowsExpanded: boolean
   collapseAllAriaLabel: string
   onCollapseAll: (event: unknown, rowIndex: number, isOpen: boolean) => void
@@ -202,7 +199,7 @@ type ApprovalsTableContentProps = {
   sortedApprovals: ApprovalWithDetails[]
   expandedRows: Set<string>
   onToggleRow: (approvalId: string) => void
-  getSortParams: (columnIndex: number) => ThProps['sort']
+  getSortParams: (columnField: string) => ThProps['sort']
   allRowsExpanded: boolean
   collapseAllAriaLabel: string
   onCollapseAll: (event: unknown, rowIndex: number, isOpen: boolean) => void
@@ -339,21 +336,19 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination({ extraParams: projectExtraParams })
+    getSortParams,
+    sortParam,
+  } = useCursorPagination({
+    extraParams: projectExtraParams,
+    defaultSort: approvalDefaultSort,
+    columns: approvalTableColumns,
+  })
 
   // Define filter field definitions for FilterBar
   const filterFieldDefinitions = useMemo(
     () => [getApprovalNameFilterDefinition(), getApprovalStatusFilterDefinition()],
     []
   )
-
-  // Use the table sort hook - default to 'requested_at' (index 2) descending
-  const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
-    initialSortIndex: 2,
-    initialDirection: 'desc',
-    onSortChange: resetPagination,
-  })
-  const sortColumn = SORT_COLUMNS[activeSortIndex]
 
   // Query approvals data
   const projectSelectorReady = isAllProjects || !!stableProjectId
@@ -363,8 +358,6 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
     stableProjectId,
     queryParams,
     projects,
-    sortColumn: sortColumn,
-    sortDirection,
   })
 
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
@@ -408,8 +401,7 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
     allPendingSelected,
   } = useApprovalSelection(enrichedApprovals, sortedApprovals, {
     filters,
-    activeSortIndex,
-    sortDirection,
+    sortParam,
     approvalPermissions,
     isLoadingPermissions: isLoadingDecideProjects,
     selectableApprovalIds,

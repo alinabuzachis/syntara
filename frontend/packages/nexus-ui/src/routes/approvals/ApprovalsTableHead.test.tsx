@@ -7,14 +7,15 @@ import { ApprovalsTableHead } from './ApprovalsTableHead'
 
 describe('ApprovalsTableHead', () => {
   it('has no accessibility violations', async () => {
-    const getSortParams = vi.fn((columnIndex: number) => ({
+    const getSortParams = vi.fn((columnField: string) => ({
       sortBy: {
         index: 0,
         direction: 'asc' as const,
         defaultDirection: 'asc' as const,
       },
       onSort: vi.fn(),
-      columnIndex,
+      columnIndex: 0,
+      'aria-label': columnField,
     }))
 
     const { container } = render(
@@ -29,5 +30,10 @@ describe('ApprovalsTableHead', () => {
     )
 
     expect(await axe(container)).toHaveNoViolations()
+    expect(getSortParams).toHaveBeenCalledWith('name')
+    expect(getSortParams).toHaveBeenCalledWith('created_at')
+    expect(getSortParams).toHaveBeenCalledWith('decided_at')
+    expect(getSortParams).toHaveBeenCalledWith('status')
+    expect(getSortParams).not.toHaveBeenCalledWith('workflowName')
   })
 })

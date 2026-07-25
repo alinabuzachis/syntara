@@ -15,33 +15,12 @@ const getApprovalDetails = (approval: ApprovalWithDetails) => {
   }
 }
 
-type SortColumn = 'approvalName' | 'workflowName' | 'requested_at' | 'decided_at' | 'status'
-
-const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => {
-  switch (sortColumn) {
-    case 'approvalName':
-      return approval.approvalName || approval.id
-    case 'workflowName':
-      return approval.workflowName ?? ''
-    case 'requested_at':
-      return approval.created_at ? new Date(approval.created_at).getTime() : 0
-    case 'decided_at': {
-      const decidedAt = approval.decided_at
-      return decidedAt ? new Date(decidedAt).getTime() : undefined
-    }
-    case 'status':
-      return approval.status ?? ''
-  }
-}
-
 type UseApprovalsDataParams = {
   projectSelectorReady: boolean
   isAllProjects: boolean
   stableProjectId: string | null | undefined
   queryParams: Record<string, unknown>
   projects: ProjectRead[]
-  sortColumn: SortColumn
-  sortDirection: 'asc' | 'desc'
 }
 
 export function useApprovalsData({
@@ -50,8 +29,6 @@ export function useApprovalsData({
   stableProjectId,
   queryParams,
   projects,
-  sortColumn,
-  sortDirection,
 }: UseApprovalsDataParams) {
   const allApprovalsQuery = approvalsClient.useQuery(
     'get',
@@ -111,27 +88,8 @@ export function useApprovalsData({
     return groups
   }, [enrichedApprovals, projects, isAllProjects])
 
-  // Client-side sorting of current page only
-  const sortedApprovals = useMemo(() => {
-    const sorted = [...enrichedApprovals]
-    sorted.sort((a, b) => {
-      const aValue = getSortValue(a, sortColumn)
-      const bValue = getSortValue(b, sortColumn)
-
-      if (aValue === undefined && bValue === undefined) return 0
-      if (aValue === undefined) return 1
-      if (bValue === undefined) return -1
-
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        const comparison = aValue.localeCompare(bValue)
-        return sortDirection === 'asc' ? comparison : -comparison
-      }
-
-      const comparison = (aValue as number) - (bValue as number)
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-    return sorted
-  }, [enrichedApprovals, sortColumn, sortDirection])
+  // API order from queryParams.sort — no client-side re-sort
+  const sortedApprovals = enrichedApprovals
 
   return {
     approvalsQuery,

@@ -111,8 +111,6 @@ describe('useApprovalsData', () => {
           stableProjectId: null,
           queryParams: {},
           projects: mockProjects,
-          sortColumn: 'approvalName',
-          sortDirection: 'asc',
         }),
       { wrapper: createWrapper() }
     )
@@ -158,8 +156,6 @@ describe('useApprovalsData', () => {
           stableProjectId: null,
           queryParams: {},
           projects: mockProjects,
-          sortColumn: 'approvalName',
-          sortDirection: 'asc',
         }),
       { wrapper: createWrapper() }
     )
@@ -199,8 +195,6 @@ describe('useApprovalsData', () => {
           stableProjectId: null,
           queryParams: {},
           projects: mockProjects,
-          sortColumn: 'approvalName',
-          sortDirection: 'asc',
         }),
       { wrapper: createWrapper() }
     )
@@ -213,77 +207,7 @@ describe('useApprovalsData', () => {
     expect(enriched[0]?.workflowName).toBe('Unknown')
   })
 
-  it('sorts approvals by approval name ascending', async () => {
-    const { approvalsClient } = await import('../../client')
-
-    vi.mocked(approvalsClient.useQuery).mockReturnValue({
-      data: { resources: [mockApproval2, mockApproval1] }, // Reversed order
-      isLoading: false,
-      isError: false,
-      error: null,
-      isFetching: false,
-      refetch: vi.fn(),
-    } as never)
-
-    const { result } = renderHook(
-      () =>
-        useApprovalsData({
-          projectSelectorReady: true,
-          isAllProjects: true,
-          stableProjectId: null,
-          queryParams: {},
-          projects: mockProjects,
-          sortColumn: 'approvalName',
-          sortDirection: 'asc',
-        }),
-      { wrapper: createWrapper() }
-    )
-
-    await waitFor(() => {
-      expect(result.current.sortedApprovals).toHaveLength(2)
-    })
-
-    const sorted = result.current.sortedApprovals as ApprovalWithDetails[]
-    expect(sorted[0]?.approvalName).toBe('Test Approval 1')
-    expect(sorted[1]?.approvalName).toBe('Test Approval 2')
-  })
-
-  it('sorts approvals by approval name descending', async () => {
-    const { approvalsClient } = await import('../../client')
-
-    vi.mocked(approvalsClient.useQuery).mockReturnValue({
-      data: { resources: [mockApproval1, mockApproval2] },
-      isLoading: false,
-      isError: false,
-      error: null,
-      isFetching: false,
-      refetch: vi.fn(),
-    } as never)
-
-    const { result } = renderHook(
-      () =>
-        useApprovalsData({
-          projectSelectorReady: true,
-          isAllProjects: true,
-          stableProjectId: null,
-          queryParams: {},
-          projects: mockProjects,
-          sortColumn: 'approvalName',
-          sortDirection: 'desc',
-        }),
-      { wrapper: createWrapper() }
-    )
-
-    await waitFor(() => {
-      expect(result.current.sortedApprovals).toHaveLength(2)
-    })
-
-    const sorted = result.current.sortedApprovals as ApprovalWithDetails[]
-    expect(sorted[0]?.approvalName).toBe('Test Approval 2')
-    expect(sorted[1]?.approvalName).toBe('Test Approval 1')
-  })
-
-  it('sorts approvals by created date', async () => {
+  it('preserves API order in sortedApprovals', async () => {
     const { approvalsClient } = await import('../../client')
 
     vi.mocked(approvalsClient.useQuery).mockReturnValue({
@@ -301,10 +225,8 @@ describe('useApprovalsData', () => {
           projectSelectorReady: true,
           isAllProjects: true,
           stableProjectId: null,
-          queryParams: {},
+          queryParams: { sort: '-created_at' },
           projects: mockProjects,
-          sortColumn: 'requested_at',
-          sortDirection: 'asc',
         }),
       { wrapper: createWrapper() }
     )
@@ -314,43 +236,9 @@ describe('useApprovalsData', () => {
     })
 
     const sorted = result.current.sortedApprovals as ApprovalWithDetails[]
-    expect(sorted[0]?.id).toBe('approval-1') // Earlier date
-    expect(sorted[1]?.id).toBe('approval-2') // Later date
-  })
-
-  it('sorts approvals with undefined decided_at to the end', async () => {
-    const { approvalsClient } = await import('../../client')
-
-    vi.mocked(approvalsClient.useQuery).mockReturnValue({
-      data: { resources: [mockApproval2, mockApproval1] },
-      isLoading: false,
-      isError: false,
-      error: null,
-      isFetching: false,
-      refetch: vi.fn(),
-    } as never)
-
-    const { result } = renderHook(
-      () =>
-        useApprovalsData({
-          projectSelectorReady: true,
-          isAllProjects: true,
-          stableProjectId: null,
-          queryParams: {},
-          projects: mockProjects,
-          sortColumn: 'decided_at',
-          sortDirection: 'asc',
-        }),
-      { wrapper: createWrapper() }
-    )
-
-    await waitFor(() => {
-      expect(result.current.sortedApprovals).toHaveLength(2)
-    })
-
-    const sorted = result.current.sortedApprovals as ApprovalWithDetails[]
-    expect(sorted[0]?.id).toBe('approval-2') // Has decided_at
-    expect(sorted[1]?.id).toBe('approval-1') // No decided_at
+    expect(sorted[0]?.id).toBe('approval-2')
+    expect(sorted[1]?.id).toBe('approval-1')
+    expect(sorted).toEqual(result.current.enrichedApprovals)
   })
 
   it('groups approvals by project when isAllProjects is true', async () => {
@@ -376,8 +264,6 @@ describe('useApprovalsData', () => {
           stableProjectId: null,
           queryParams: {},
           projects: mockProjects,
-          sortColumn: 'approvalName',
-          sortDirection: 'asc',
         }),
       { wrapper: createWrapper() }
     )
@@ -414,8 +300,6 @@ describe('useApprovalsData', () => {
           stableProjectId: 'project-1',
           queryParams: {},
           projects: mockProjects,
-          sortColumn: 'approvalName',
-          sortDirection: 'asc',
         }),
       { wrapper: createWrapper() }
     )
@@ -445,8 +329,6 @@ describe('useApprovalsData', () => {
           stableProjectId: 'project-1',
           queryParams: {},
           projects: mockProjects,
-          sortColumn: 'approvalName',
-          sortDirection: 'asc',
         }),
       { wrapper: createWrapper() }
     )
@@ -467,8 +349,6 @@ describe('useApprovalsData', () => {
           stableProjectId: null,
           queryParams: {},
           projects: mockProjects,
-          sortColumn: 'approvalName',
-          sortDirection: 'asc',
         }),
       { wrapper: createWrapper() }
     )
