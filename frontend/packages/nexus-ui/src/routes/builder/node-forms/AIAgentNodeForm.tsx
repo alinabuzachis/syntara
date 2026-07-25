@@ -1,5 +1,4 @@
 import type { IntegrationsAPI, ToolManagerAPI } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
   Alert,
   FormGroup,
@@ -17,10 +16,8 @@ import type { Control, UseFormSetValue } from 'react-hook-form'
 import { Controller, FormProvider, useForm, useFormContext, useFormState, useWatch } from 'react-hook-form'
 
 import { AppRoute } from '../../../app/AppRoute'
-import { integrationsClient, toolManagerClient } from '../../../client'
 import { NxLink } from '../../../components/NxLink'
 import { detachPromise } from '../../../utils/detachPromise'
-import { projectIdParam } from '../../../utils/queryParams'
 import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
 import { FileUpload, type UploadedFile } from '../components/file-upload'
@@ -41,6 +38,8 @@ import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
 import type { IntegrationWithTools, ToolSelection } from './ToolsMultiSelect'
 import { ToolsMultiSelect } from './ToolsMultiSelect'
+import { useAllEnabledMcpIntegrations } from './useAllEnabledMcpIntegrations'
+import { useAllTools } from './useAllTools'
 import { useFilesMetadata } from './useFilesMetadata'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
@@ -333,27 +332,14 @@ function AIAgentFormFields({
 }
 
 export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
-  const {
-    data: toolsData,
-    isPending: isLoadingTools,
-    isError: isToolsError,
-    refetch: refetchTools,
-  } = toolManagerClient.useQuery('get', '/tool_manager/tools')
+  const { tools: allTools, isLoading: isLoadingTools, isError: isToolsError, refetch: refetchTools } = useAllTools()
 
   const {
-    data: integrationsData,
-    isPending: isLoadingIntegrationsQuery,
+    integrations: allMcpIntegrations,
+    isLoading: isLoadingIntegrationsQuery,
     isError: isIntegrationsError,
     refetch: refetchIntegrations,
-  } = integrationsClient.useQuery('get', '/integrations', {
-    params: {
-      query: {
-        integration_type: IntegrationTypeEnum.MCP_SERVER,
-        enabled: true,
-        ...projectIdParam(props.projectId),
-      },
-    },
-  })
+  } = useAllEnabledMcpIntegrations(props.projectId)
 
   const isLoadingIntegrations = isLoadingTools || isLoadingIntegrationsQuery
   const isAnyToolsError = isToolsError || isIntegrationsError
@@ -363,9 +349,8 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
   }
 
   const integrations = useMemo<IntegrationWithTools[]>(
-    () =>
-      groupToolsByIntegration((toolsData?.resources ?? []) as ToolWithParameters[], integrationsData?.resources ?? []),
-    [toolsData, integrationsData]
+    () => groupToolsByIntegration(allTools, allMcpIntegrations),
+    [allTools, allMcpIntegrations]
   )
   const hasNoIntegrations = integrations.length === 0 && !isLoadingIntegrations
 

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
+import { credentialsClient, integrationsClient } from '../../../client'
 import { useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { useAllProjects } from '../../access/useAllProjects'
@@ -11,8 +11,10 @@ import { useIntegrationPermissions } from '../../configuration/integrations/useI
 
 import { AIAgentNodeForm } from './AIAgentNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
+import { useAllEnabledMcpIntegrations } from './useAllEnabledMcpIntegrations'
+import { useAllTools } from './useAllTools'
 
-// Mock clients used by CredentialSelector, LLMModelSelector, and integrations query
+// Mock clients used by CredentialSelector, LLMModelSelector
 vi.mock('../../../client', () => ({
   credentialsClient: {
     useQuery: vi.fn(),
@@ -25,12 +27,21 @@ vi.mock('../../../client', () => ({
   integrationsFetchClient: {
     GET: vi.fn(() => Promise.resolve({ data: { resources: [] } })),
   },
-  toolManagerClient: {
-    useQuery: vi.fn(() => ({ data: { resources: [] }, isPending: false, isError: false, refetch: vi.fn() })),
-    useMutation: vi.fn(),
-  },
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
   interfaceTagMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('./useAllTools', () => ({
+  useAllTools: vi.fn(() => ({ tools: [], isLoading: false, isError: false, refetch: vi.fn() })),
+}))
+
+vi.mock('./useAllEnabledMcpIntegrations', () => ({
+  useAllEnabledMcpIntegrations: vi.fn(() => ({
+    integrations: [],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  })),
 }))
 
 vi.mock('../../access/useAllProjects', () => ({
@@ -434,16 +445,16 @@ describe('AIAgentNodeForm', () => {
       const refetchTools = vi.fn().mockResolvedValue({})
       const refetchIntegrations = vi.fn().mockResolvedValue({})
 
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
-        data: { resources: tools },
-        isPending: false,
+      vi.mocked(useAllTools).mockReturnValue({
+        tools,
+        isLoading: false,
         isError: isToolsError,
         refetch: refetchTools,
       } as never)
 
-      vi.mocked(integrationsClient.useQuery).mockReturnValue({
-        data: { resources: integrations },
-        isPending: false,
+      vi.mocked(useAllEnabledMcpIntegrations).mockReturnValue({
+        integrations,
+        isLoading: false,
         isError: isIntegrationsError,
         refetch: refetchIntegrations,
       } as never)
@@ -577,16 +588,16 @@ describe('AIAgentNodeForm', () => {
     })
 
     it('shows loading state while integrations query is still pending', () => {
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
-        data: { resources: mockTools },
-        isPending: false,
+      vi.mocked(useAllTools).mockReturnValue({
+        tools: mockTools,
+        isLoading: false,
         isError: false,
         refetch: vi.fn().mockResolvedValue({}),
       } as never)
 
-      vi.mocked(integrationsClient.useQuery).mockReturnValue({
-        data: undefined,
-        isPending: true,
+      vi.mocked(useAllEnabledMcpIntegrations).mockReturnValue({
+        integrations: [],
+        isLoading: true,
         isError: false,
         refetch: vi.fn().mockResolvedValue({}),
       } as never)
@@ -672,16 +683,12 @@ describe('AIAgentNodeForm', () => {
   })
 
   describe('project scoping', () => {
-    it('passes project_id to the MCP integrations query when projectId is provided', () => {
+    it('passes projectId to the MCP integrations hook when provided', () => {
       renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="proj-abc" />)
-      expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
-        params: {
-          query: { integration_type: 'mcp_server', enabled: true, project_id: 'proj-abc' },
-        },
-      })
+      expect(useAllEnabledMcpIntegrations).toHaveBeenCalledWith('proj-abc')
     })
 
-    it('passes project_id to the LLM integrations query when projectId is provided', () => {
+    it('passes projectId to the LLM integrations query when projectId is provided', () => {
       renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="proj-abc" />)
       expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
         params: {
@@ -692,11 +699,7 @@ describe('AIAgentNodeForm', () => {
 
     it('does not include project_id in integration queries when projectId is omitted', () => {
       renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
-      expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
-        params: {
-          query: { integration_type: 'mcp_server', enabled: true },
-        },
-      })
+      expect(useAllEnabledMcpIntegrations).toHaveBeenCalledWith(undefined)
       expect(integrationsClient.useQuery).toHaveBeenCalledWith('get', '/integrations', {
         params: {
           query: { integration_type: 'llm_provider', enabled: true },
