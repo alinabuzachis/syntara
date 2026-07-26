@@ -156,7 +156,7 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
             </FlexItem>
           )}
         </Flex>
-        <Stack className={styles.historyRowStack}>
+        <Stack className={styles.historyMetaStack}>
           <Content component={ContentVariants.small} className={styles.historyRowMeta}>
             {elapsedLabel}
           </Content>
@@ -179,7 +179,7 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
             </Content>
           )}
           {execution.retried_from_execution_id && (
-            <Content component={ContentVariants.small} className={styles.retriedFrom}>
+            <Content component={ContentVariants.small} className={`${styles.historyRowMeta} ${styles.retriedFrom}`}>
               {`Retried from: ${execution.retried_from_execution_id.slice(0, TRUNCATED_ID_LENGTH)}`}
             </Content>
           )}

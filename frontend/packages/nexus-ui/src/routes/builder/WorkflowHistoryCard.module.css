@@ -7,6 +7,18 @@
   gap: var(--pf-t--global--spacer--sm);
 }
 
+.historyMetaStack {
+  --pf-v6-c-content--small--MarginBlockEnd: 0;
+  --pf-v6-c-content--MarginBlockEnd: 0;
+  gap: var(--pf-t--global--spacer--xs);
+}
+
+.historyRowMeta {
+  margin: 0;
+  font-size: var(--pf-t--global--font--size--xs);
+  color: var(--pf-t--global--text--color--subtle);
+}
+
 .historyRowTitle {
   min-width: 0;
 }
@@ -19,10 +31,6 @@
 
 .historyRowKebab {
   flex-shrink: 0;
-}
-
-.historyRowMeta {
-  margin: 0;
 }
 
 .simpleList {
