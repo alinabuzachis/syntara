@@ -50,6 +50,7 @@ import { useRunStepDialog } from './hooks/useRunStepDialog'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { useWorkflowMetadata } from './hooks/useWorkflowMetadata'
 import { NodeActionsContext } from './NodeActionsContext'
+import { runHistoryDefaultSort, runHistoryTableColumns } from './runHistoryTableColumns'
 import type { BuilderContentProps } from './types/builderContent'
 import { useBuilderPermissions } from './useBuilderPermissions'
 import { createAddStepHandler } from './utils/panelActions'
@@ -99,14 +100,20 @@ export function BuilderContent(props: BuilderContentProps) {
     [requestNavigation]
   )
 
+  const executionExtraParams = useMemo(() => ({ workflow_id: workflowId ?? '' }), [workflowId])
   const {
     filters: executionFilters,
-    cursor: executionsCursor,
-    perPage: executionsPerPage,
+    queryParams: executionsQueryParams,
     handleFilterChange: handleExecutionFilterChange,
     handleClearAllFilters: clearExecutionFilters,
     getFooterProps: getExecutionPaginationFooterProps,
-  } = useCursorPagination({ limit: 20 })
+    getSortParams: getExecutionSortParams,
+  } = useCursorPagination({
+    limit: 20,
+    extraParams: executionExtraParams,
+    defaultSort: runHistoryDefaultSort,
+    columns: runHistoryTableColumns,
+  })
   const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
   const {
     confirmDialogOpen,
@@ -147,11 +154,9 @@ export function BuilderContent(props: BuilderContentProps) {
   const { executionsQuery, mostRecentExecutionQuery, workflowsListQuery } = useBuilderContentQueries({
     workflowId,
     isNew,
-    executionFilters,
+    executionsQueryParams,
     mostRecentExecutionId,
     mostRecentRunPanelOpen,
-    executionsCursor,
-    executionsPerPage,
   })
 
   useBuilderWorkflowLifecycle({
@@ -611,6 +616,7 @@ export function BuilderContent(props: BuilderContentProps) {
                       executionFilters={executionFilters}
                       onFilterChange={handleExecutionFilterChange}
                       executionPaginationFooterProps={executionPaginationFooterProps}
+                      getSortParams={getExecutionSortParams}
                       detailsOpen={detailsOpen}
                       workflow={workflow}
                       workflowName={workflowName}

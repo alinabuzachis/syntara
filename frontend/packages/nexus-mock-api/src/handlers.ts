@@ -1528,13 +1528,14 @@ export const handlers = [
     const cursor = url.searchParams.get('cursor')
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const includeTotal = url.searchParams.get('include_total') === 'true'
+    const sort = url.searchParams.get('sort')
 
     const project_id = url.searchParams.get('project_id')
 
     const status = url.searchParams.get('status')
     const workflow_version_id = url.searchParams.get('workflow_version_id')
 
-    let filtered = workflow_id ? executions.filter((e) => e.workflow_id === workflow_id) : executions
+    let filtered = workflow_id ? executions.filter((e) => e.workflow_id === workflow_id) : [...executions]
 
     if (status) {
       filtered = filtered.filter((e) => e.status === status)
@@ -1568,6 +1569,50 @@ export const handlers = [
           (e as { workflow_version_created_at?: string }).workflow_version_created_at ?? e.created_at ?? null,
       }
     })
+
+    if (sort) {
+      const isDesc = sort.startsWith('-')
+      const field = isDesc ? sort.slice(1) : sort
+      // Allowlist matches Execution.__sortable_fields__; unknown fields are ignored.
+      enriched.sort((a, b) => {
+        let aVal = ''
+        let bVal = ''
+        switch (field) {
+          case 'id':
+            aVal = a.id ?? ''
+            bVal = b.id ?? ''
+            break
+          case 'workflow_version_id':
+            aVal = a.workflow_version_id ?? ''
+            bVal = b.workflow_version_id ?? ''
+            break
+          case 'created_at':
+            aVal = a.created_at ?? ''
+            bVal = b.created_at ?? ''
+            break
+          case 'updated_at':
+            aVal = a.updated_at ?? ''
+            bVal = b.updated_at ?? ''
+            break
+          case 'completed_at':
+            aVal = a.completed_at ?? ''
+            bVal = b.completed_at ?? ''
+            break
+          case 'status':
+            aVal = a.status ?? ''
+            bVal = b.status ?? ''
+            break
+          case 'deleted_at':
+            aVal = (a as { deleted_at?: string | null }).deleted_at ?? ''
+            bVal = (b as { deleted_at?: string | null }).deleted_at ?? ''
+            break
+          default:
+            return 0
+        }
+        const cmp = aVal.localeCompare(bVal)
+        return isDesc ? -cmp : cmp
+      })
+    }
 
     const body = paginate(enriched, cursor, limit, includeTotal)
     return HttpResponse.json(body)

@@ -106,6 +106,17 @@ class TestWorkflowFields:
 class TestExecutionFields:
     """Exercise Execution model field declarations."""
 
+    def test_sortable_fields_include_run_history_fields(self) -> None:
+        assert Execution.__sortable_fields__ == [
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "id",
+            "workflow_version_id",
+            "completed_at",
+            "status",
+        ]
+
     def test_retried_from_execution_id_in_execution_model_fields(self) -> None:
         assert "retried_from_execution_id" in Execution.model_fields
 

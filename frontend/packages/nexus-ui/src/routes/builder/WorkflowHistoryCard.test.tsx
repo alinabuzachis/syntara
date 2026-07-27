@@ -208,6 +208,31 @@ describe('WorkflowHistoryCard', () => {
     expect(screen.getByRole('list')).toBeInTheDocument()
   })
 
+  describe('sorting', () => {
+    it('renders compact sort headers when getSortParams is provided', () => {
+      const getSortParams = vi.fn((field: string) =>
+        field === 'duration'
+          ? undefined
+          : {
+              sortBy: { index: 2, direction: 'desc' as const, defaultDirection: 'asc' as const },
+              onSort: vi.fn(),
+              columnIndex: 2,
+            }
+      )
+
+      renderCard(<WorkflowHistoryCard {...defaultProps} getSortParams={getSortParams} />)
+
+      expect(screen.getByRole('columnheader', { name: /Started/i })).toBeInTheDocument()
+      expect(getSortParams).toHaveBeenCalledWith('created_at')
+      expect(getSortParams).toHaveBeenCalledWith('status')
+    })
+
+    it('does not render sort headers when getSortParams is omitted', () => {
+      renderCard(<WorkflowHistoryCard {...defaultProps} />)
+      expect(screen.queryByRole('columnheader', { name: /Started/i })).not.toBeInTheDocument()
+    })
+  })
+
   describe('status filter', () => {
     it('renders filter bar when onFilterChange is provided', () => {
       const onFilterChange = vi.fn()

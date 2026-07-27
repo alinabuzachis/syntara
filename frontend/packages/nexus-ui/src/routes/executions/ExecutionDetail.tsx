@@ -1,5 +1,6 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Flex, FlexItem, TitleSizes } from '@patternfly/react-core'
+import type { ThProps } from '@patternfly/react-table'
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type React from 'react'
 import '@xyflow/react/dist/style.css'
@@ -13,7 +14,6 @@ import { NxReactFlowViewportGuard } from '../../components/layout/NxReactFlowVie
 import { NxPageTitle } from '../../components/NxPageTitle'
 import { ResizableDivider } from '../../components/ResizableDivider'
 import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
-import { useCursorPagination } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useAlerts } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
@@ -38,6 +38,7 @@ import { executionRefetchInterval } from './executionPolling'
 import { useApprovalNavigation } from './hooks/useApprovalNavigation'
 import { useExecutionApprovalPanel } from './hooks/useExecutionApprovalPanel'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
+import { useExecutionRunHistory } from './hooks/useExecutionRunHistory'
 import { useExecutionStreaming, useSyncActivityStore } from './hooks/useExecutionStreaming'
 import { useExecutionWorkflow } from './hooks/useExecutionWorkflow'
 import { useForkWorkflow } from './hooks/useForkWorkflow'
@@ -99,6 +100,7 @@ function ExecutionDetailContent({
   filters,
   onFilterChange,
   paginationFooterProps,
+  getSortParams,
   onNodeClick,
   selectedNodeId,
   selectedNodeName,
@@ -121,6 +123,7 @@ function ExecutionDetailContent({
   filters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
   paginationFooterProps: PaginationFooterProps
+  getSortParams: (columnField: string) => ThProps['sort']
   onNodeClick?: (event: React.MouseEvent, node: { id: string; type?: string; data: Record<string, unknown> }) => void
   selectedNodeId: string | null
   selectedNodeName: string | null
@@ -257,6 +260,7 @@ function ExecutionDetailContent({
             filters={filters}
             onFilterChange={onFilterChange}
             paginationFooterProps={paginationFooterProps}
+            getSortParams={getSortParams}
           />
         </FlexItem>
       )}
@@ -297,30 +301,12 @@ export default function ExecutionDetail() {
   }, [searchParams])
 
   const {
-    filters: executionFilters,
-    queryParams: executionsQueryParams,
-    handleFilterChange: handleExecutionFilterChange,
-    getFooterProps: getExecutionPaginationFooterProps,
-  } = useCursorPagination({
-    limit: 20,
-    extraParams: { workflow_id: execution?.workflow_id ?? '' },
-  })
-
-  const executionsQuery = executionsClient.useQuery(
-    'get',
-    '/executions',
-    {
-      params: { query: executionsQueryParams },
-    },
-    {
-      enabled: !!execution?.workflow_id,
-    }
-  )
-
-  const executionPaginationFooterProps = useMemo(
-    () => getExecutionPaginationFooterProps(executionsQuery.data),
-    [getExecutionPaginationFooterProps, executionsQuery.data]
-  )
+    executionFilters,
+    handleExecutionFilterChange,
+    getExecutionSortParams,
+    executionsQuery,
+    executionPaginationFooterProps,
+  } = useExecutionRunHistory(execution?.workflow_id)
 
   const { workflow, activities } = useExecutionWorkflow(execution)
 
@@ -442,6 +428,7 @@ export default function ExecutionDetail() {
             filters={executionFilters}
             onFilterChange={handleExecutionFilterChange}
             paginationFooterProps={executionPaginationFooterProps}
+            getSortParams={getExecutionSortParams}
             onNodeClick={handleNodeClick}
             selectedNodeId={selectedNodeId}
             selectedNodeName={selectedNodeName}

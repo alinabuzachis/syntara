@@ -50,3 +50,19 @@
   color: var(--pf-t--global--text--color--subtle);
   margin: 0;
 }
+
+.sortHeaderItem {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.sortHeader {
+  overflow-x: auto;
+  border-block-end: var(--pf-t--global--border--width--divider--default) solid
+    var(--pf-t--global--border--color--default);
+}
+
+.sortTable {
+  width: 100%;
+  min-width: max-content;
+}
