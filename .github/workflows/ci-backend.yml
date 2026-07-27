@@ -847,11 +847,42 @@ jobs:
             } else {
               sha = context.payload.pull_request.head.sha;
             }
-            const timeout = 70 * 60 * 1000; // 70 minutes
+            const timeout = 100 * 60 * 1000; // 100 minutes (total wall-clock)
+            const startupWindow = 30 * 60 * 1000; // 30 minutes for runner allocation
             const interval = 30 * 1000; // poll every 30s
             const start = Date.now();
             const required = ['E2E Tests (AO Operator)'];
 
+            // Phase 1: wait for E2E to post a commit status (pending/success/failure).
+            // The e2e-ao-operator workflow posts 'pending' as its first step once a
+            // runner is allocated. If no status appears within the startup window the
+            // workflow_run event was not delivered or the runner pool is exhausted.
+            console.log('Waiting for E2E Tests (AO Operator) to start...');
+            while (true) {
+              const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha,
+                per_page: 100,
+              });
+              const found = required.every(name => statuses.find(s => s.context === name));
+              if (found) {
+                console.log('E2E status appeared — waiting for completion...');
+                break;
+              }
+              if (Date.now() - start > startupWindow) {
+                core.setFailed(
+                  `E2E Tests (AO Operator) never posted a commit status after ${startupWindow / 60000} minutes — ` +
+                  `the workflow_run may not have fired or no runner was allocated`
+                );
+                return;
+              }
+              const elapsed = Math.round((Date.now() - start) / 1000);
+              console.log(`Waiting for E2E to start... (${elapsed}s elapsed)`);
+              await new Promise(r => setTimeout(r, interval));
+            }
+
+            // Phase 2: status appeared — poll until success or failure.
             while (Date.now() - start < timeout) {
               const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
                 owner: context.repo.owner,
