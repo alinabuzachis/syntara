@@ -14,7 +14,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.audit.models.audit_event import AuditEvent, EventCategory
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.outbox.models import AuditEventSource, AuditOutboxRecord
-from nexus.audit.outbox.worker import AuditOutboxWorker, _emit_otel_log_entry, publish_outbox_events
+from nexus.audit.outbox.worker import (
+    AuditOutboxWorker,
+    _emit_otel_log_entry,
+    _handle_crud_audit_records,
+    publish_outbox_events,
+)
+from nexus.audit.sanitization import REDACTED
 
 # ------------------------------------------------------------------ #
 # Helpers
@@ -771,6 +777,78 @@ class TestOtelEventSourceDiscriminator:
             assert AuditEventSource.BUSINESS_EVENT in event_sources
             assert AuditEventSource.CRUD_EVENT in event_sources
             assert len(event_sources) == 2
+
+
+# ------------------------------------------------------------------ #
+# CRUD sanitize path (AAP-83644)
+# ------------------------------------------------------------------ #
+
+
+class TestCrudOutboxSanitization:
+    """CRUD outbox records are sanitized before OTEL emit (trigger path is unsanitized)."""
+
+    def test_crud_outbox_redacts_nested_password_hash_changes(self) -> None:
+        """AAP-83644: worker sanitize redacts password_hash old/new on real CRUD shape."""
+        event = _make_event(
+            event_action="user_update",
+            source_component="database.trigger",
+            structured_data=AuditContextData(
+                data_type="crud_operation",
+                operation="update",
+                model_name="User",
+                changes={
+                    "password_hash": {
+                        "old": "$argon2id$v=19$m=65536,t=3,p=4$oldhash",
+                        "new": "$argon2id$v=19$m=65536,t=3,p=4$newhash",
+                    },
+                    "username": "alice",
+                },
+            ),
+        )
+        record = AuditOutboxRecord(
+            event_source=AuditEventSource.CRUD_EVENT,
+            event_payload=event.model_dump(mode="json"),
+        )
+
+        with patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit:
+            _handle_crud_audit_records([record])
+
+            mock_emit.assert_called_once()
+            emitted_event = mock_emit.call_args[0][0]
+            assert mock_emit.call_args.kwargs["event_source"] == AuditEventSource.CRUD_EVENT
+
+            changes = emitted_event.structured_data.changes
+            assert changes["password_hash"] == {"old": REDACTED, "new": REDACTED}
+            assert changes["username"] == "alice"
+            assert "$argon2id$" not in str(changes)
+
+    def test_crud_outbox_redacts_nested_secret_id_changes(self) -> None:
+        """AAP-83644: same worker path for identityprovider.secret_id diffs."""
+        event = _make_event(
+            event_action="identityprovider_update",
+            source_component="database.trigger",
+            structured_data=AuditContextData(
+                data_type="crud_operation",
+                operation="update",
+                model_name="IdentityProvider",
+                changes={
+                    "secret_id": {
+                        "old": "old-secret-uuid",
+                        "new": "new-secret-uuid",
+                    }
+                },
+            ),
+        )
+        record = AuditOutboxRecord(
+            event_source=AuditEventSource.CRUD_EVENT,
+            event_payload=event.model_dump(mode="json"),
+        )
+
+        with patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit:
+            _handle_crud_audit_records([record])
+
+            changes = mock_emit.call_args[0][0].structured_data.changes
+            assert changes["secret_id"] == {"old": REDACTED, "new": REDACTED}
 
 
 # ------------------------------------------------------------------ #

@@ -15,6 +15,9 @@ from nexus.audit.sanitization import (
     redact_by_partial_key,
     redact_email,
 )
+from nexus.audit.sanitization import (
+    sanitizer as default_sanitizer,
+)
 
 
 class TestRedactByKey:
@@ -587,6 +590,75 @@ class TestEventSanitizer:
         # Nothing should be redacted
         assert sanitized_data.function_args is not None
         assert sanitized_data.function_args == original_args
+
+    def test_crud_nested_password_hash_changes_are_redacted(self) -> None:
+        """AAP-83644: CRUD diffs keep {old,new} shape but redact nested secret values.
+
+        Uses the real trigger payload shape: data_type=crud_operation with top-level
+        changes (see audit trigger jsonb_build_object / outbox worker sanitize path).
+        """
+        data = AuditContextData(
+            data_type="crud_operation",
+            operation="update",
+            model_name="User",
+            changes={
+                "password_hash": {
+                    "old": "$argon2id$v=19$m=65536,t=3,p=4$oldhash",
+                    "new": "$argon2id$v=19$m=65536,t=3,p=4$newhash",
+                },
+                "username": "alice",
+            },
+        )
+
+        sanitized_data = default_sanitizer.sanitize(data)
+
+        changes = sanitized_data.changes
+        # Preserve DB-trigger changeset shape; redact leaf values via parent key.
+        assert changes["password_hash"] == {"old": REDACTED, "new": REDACTED}
+        assert changes["username"] == "alice"
+        assert "$argon2id$" not in str(changes)
+
+    def test_crud_nested_secret_id_changes_are_redacted(self) -> None:
+        """AAP-83644: same nesting leak for identityprovider.secret_id diffs."""
+        data = AuditContextData(
+            data_type="crud_operation",
+            operation="update",
+            model_name="IdentityProvider",
+            changes={
+                "secret_id": {
+                    "old": "old-secret-uuid",
+                    "new": "new-secret-uuid",
+                }
+            },
+        )
+
+        sanitized_data = default_sanitizer.sanitize(data)
+
+        assert sanitized_data.changes["secret_id"] == {
+            "old": REDACTED,
+            "new": REDACTED,
+        }
+
+    def test_non_crud_nested_fields_are_not_redacted_via_parent_key(self) -> None:
+        """Parent credential-like keys must not redact unrelated nested fields.
+
+        Only mapping children named old/new inherit the parent field name for
+        detector matching — not arbitrary nests under keys like credentials.
+        """
+        data = AuditContextData(
+            data_type="test",
+            credentials={
+                "username": "alice",
+                "extra": "metadata",
+            },
+        )
+
+        sanitized_data = default_sanitizer.sanitize(data)
+
+        assert sanitized_data.credentials == {
+            "username": "alice",
+            "extra": "metadata",
+        }
 
 
 class TestBooleanPreservation:

@@ -186,6 +186,7 @@ class EventSanitizer:
         obj: Any,  # noqa: ANN401
         key: str = "",
         traversal_stack: set[int] | None = None,
+        ancestor_keys: tuple[str, ...] = (),
     ) -> Any:  # noqa: ANN401
         """Recursively convert and sanitize an object."""
         if traversal_stack is None:
@@ -207,42 +208,73 @@ class EventSanitizer:
 
             try:
                 # Process the object
-                return self._convert_by_type(obj, key, traversal_stack)
+                return self._convert_by_type(obj, key, traversal_stack, ancestor_keys)
             finally:
                 # Remove from traversal stack after processing
                 traversal_stack.remove(obj_id)
         else:
             # Primitives don't need stack tracking
-            return self._convert_by_type(obj, key, traversal_stack)
+            return self._convert_by_type(obj, key, traversal_stack, ancestor_keys)
+
+    def _sanitize_primitive(
+        self,
+        obj: Any,  # noqa: ANN401
+        key: str,
+        ancestor_keys: tuple[str, ...],
+    ) -> Any:  # noqa: ANN401
+        """Apply detectors using the leaf key and any inherited ancestor keys.
+
+        Ancestors are populated only for mapping children named old/new (diff
+        wrappers), so password_hash: {old, new} redacts leaf values without
+        collapsing the wrapper or sweeping unrelated nests under keys like
+        credentials. This is structural (not gated on data_type / CRUD paths).
+        """
+        for candidate_key in (key, *ancestor_keys):
+            if not candidate_key:
+                continue
+            detected = self._apply_detectors(obj, candidate_key)
+            if detected is not obj:
+                return detected
+        return obj
+
+    def _convert_mapping(
+        self,
+        obj: Mapping[Any, Any],
+        key: str,
+        traversal_stack: set[int],
+        ancestor_keys: tuple[str, ...],
+    ) -> dict[str, Any]:
+        """Convert a mapping, propagating parent key only into old/new wrappers."""
+        result: dict[str, Any] = {}
+        for raw_key, value in obj.items():
+            child_key = str(raw_key)
+            child_ancestors = (key, *ancestor_keys) if child_key in {"old", "new"} and key else ancestor_keys
+            result[child_key] = self._convert(value, child_key, traversal_stack, child_ancestors)
+        return result
 
     def _convert_by_type(
         self,
         obj: Any,  # noqa: ANN401
         key: str,
         traversal_stack: set[int],
+        ancestor_keys: tuple[str, ...] = (),
     ) -> Any:  # noqa: ANN401
         """Convert object based on its type."""
-        # primitives
         if isinstance(obj, (str, int, float, bool)) or obj is None:
-            return self._apply_detectors(obj, key)
+            return self._sanitize_primitive(obj, key, ancestor_keys)
 
-        # Pydantic models
         if isinstance(obj, BaseModel):
-            return self._convert(obj.model_dump(), key, traversal_stack)
+            return self._convert(obj.model_dump(), key, traversal_stack, ancestor_keys)
 
-        # mappings
         if isinstance(obj, Mapping):
-            return {str(k): self._convert(v, str(k), traversal_stack) for k, v in obj.items()}
+            return self._convert_mapping(obj, key, traversal_stack, ancestor_keys)
 
-        # sequences (excluding string-like types)
         if isinstance(obj, Sequence) and not isinstance(obj, (str, bytes, bytearray)):
-            return [self._convert(item, key, traversal_stack) for item in obj]
+            return [self._convert(item, key, traversal_stack, ancestor_keys) for item in obj]
 
-        # bytes and bytearray
         if isinstance(obj, (bytes, bytearray)):
             return obj.decode("utf-8", errors="replace")
 
-        # fallback for all other types
         return str(obj)
 
     def sanitize[T: BaseModel](self, data: T) -> T:
