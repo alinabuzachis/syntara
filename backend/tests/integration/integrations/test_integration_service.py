@@ -682,8 +682,9 @@ class TestCredentialTypeValidation:
             )
         )
 
+        patch = IntegrationPatch(management_credential_id=None)
         with pytest.raises(IntegrationCredentialRequiredError):
-            await integration_service.patch_integration(created.id, IntegrationPatch(management_credential_id=None))
+            await integration_service.patch_integration(created.id, patch)
 
     @pytest.mark.asyncio
     async def test_patch_clearing_credential_on_non_required_type_succeeds(

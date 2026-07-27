@@ -1154,7 +1154,76 @@ async def _run_bidirectional_message_loop(
             break
 
 
-def create_websocket_endpoint(  # noqa: PLR0915, C901
+async def _guard_authn_authz(
+    websocket: WebSocket,
+    channel_name: str,
+    component_name: str,
+    client_ip: str,
+) -> User | None:
+    """Authenticate and authorize the WebSocket connection. Returns the user or None (already closed)."""
+    user = await _authenticate_websocket(websocket, channel_name)
+    if user is None:
+        AuditEventDispatcher.dispatch(
+            WebSocketAuthFailureEvent(
+                channel=channel_name,
+                component=component_name,
+                client_ip=client_ip,
+                failure_reason="authentication_failed",
+            )
+        )
+        await websocket.close(code=POLICY_VIOLATION)
+        return None
+
+    authz_result = await _check_websocket_authorization(websocket, user, channel_name, component_name)
+    if not authz_result:
+        AuditEventDispatcher.dispatch(
+            WebSocketAuthFailureEvent(
+                channel=channel_name,
+                component=component_name,
+                client_ip=client_ip,
+                failure_reason="unauthorized",
+                user_id=user.id,
+                username=user.username,
+            )
+        )
+        await websocket.close(code=POLICY_VIOLATION)
+        return None
+
+    return user
+
+
+def _start_on_connect_task(
+    on_connect_func: Callable[..., Any] | None,
+    websocket: WebSocket,
+    connection_id_str: str,
+    user: User,
+    channel_name: str,
+    *,
+    on_connect_wants_user: bool,
+) -> asyncio.Task[None] | None:
+    """Start the on_connect background task if a handler exists."""
+    if on_connect_func is None or not callable(on_connect_func):
+        return None
+
+    if on_connect_wants_user:
+        user_kwargs: dict[str, Any] = {"user_id": user.id, "username": user.username}
+        if "actor_type" in inspect.signature(on_connect_func).parameters:
+            user_kwargs["actor_type"] = user.__principal_type__
+        task = asyncio.create_task(on_connect_func(websocket, connection_id_str, **user_kwargs))
+    else:
+        task = asyncio.create_task(on_connect_func(websocket, connection_id_str))
+
+    logger.debug(
+        "Started background task for channel, connection",
+        channel=channel_name,
+        connection_id=connection_id_str,
+        user_id=str(user.id),
+        username=user.username,
+    )
+    return task
+
+
+def create_websocket_endpoint(  # noqa: PLR0915
     channel_name: str, spec: dict[str, Any], component_name: str
 ) -> Callable[[WebSocket], Any]:
     """Create a WebSocket endpoint handler for a channel.
@@ -1221,34 +1290,9 @@ def create_websocket_endpoint(  # noqa: PLR0915, C901
             await websocket.close(code=TRY_AGAIN_LATER)
             return
 
-        # Guard 2: Authentication (JWT validation)
-        user = await _authenticate_websocket(websocket, channel_name)
+        # Guards 2+3: Authentication then authorization
+        user = await _guard_authn_authz(websocket, channel_name, component_name, client_ip)
         if user is None:
-            AuditEventDispatcher.dispatch(
-                WebSocketAuthFailureEvent(
-                    channel=channel_name,
-                    component=component_name,
-                    client_ip=client_ip,
-                    failure_reason="authentication_failed",
-                )
-            )
-            await websocket.close(code=POLICY_VIOLATION)
-            return
-
-        # Guard 3: Authorization (OPA policy check)
-        authz_result = await _check_websocket_authorization(websocket, user, channel_name, component_name)
-        if not authz_result:
-            AuditEventDispatcher.dispatch(
-                WebSocketAuthFailureEvent(
-                    channel=channel_name,
-                    component=component_name,
-                    client_ip=client_ip,
-                    failure_reason="unauthorized",
-                    user_id=user.id,
-                    username=user.username,
-                )
-            )
-            await websocket.close(code=POLICY_VIOLATION)
             return
 
         await websocket.accept()
@@ -1284,23 +1328,14 @@ def create_websocket_endpoint(  # noqa: PLR0915, C901
         lifecycle_manager.activate_connection(lifecycle_conn_id)
         _connection_id_context.set(connection_id_str)
 
-        # Start background task if on_connect handler exists
-        background_task: asyncio.Task[None] | None = None
-        if on_connect_func is not None and callable(on_connect_func):
-            if on_connect_wants_user:
-                user_kwargs: dict[str, Any] = {"user_id": user.id, "username": user.username}
-                if "actor_type" in inspect.signature(on_connect_func).parameters:
-                    user_kwargs["actor_type"] = user.__principal_type__
-                background_task = asyncio.create_task(on_connect_func(websocket, connection_id_str, **user_kwargs))
-            else:
-                background_task = asyncio.create_task(on_connect_func(websocket, connection_id_str))
-            logger.debug(
-                "Started background task for channel, connection",
-                channel=channel_name,
-                connection_id=connection_id_str,
-                user_id=str(user.id),
-                username=user.username,
-            )
+        background_task = _start_on_connect_task(
+            on_connect_func,
+            websocket,
+            connection_id_str,
+            user,
+            channel_name,
+            on_connect_wants_user=on_connect_wants_user,
+        )
 
         try:
             if is_receive_only:

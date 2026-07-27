@@ -11,6 +11,8 @@ from sqlmodel import Field
 
 from nexus.telemetry.events.base import BaseTelemetryEvent
 
+_WORKFLOW_NAME_DESC = "Human-readable workflow name"
+
 
 class WorkflowVersionCreatedEvent(BaseTelemetryEvent):
     """Telemetry event emitted when a new workflow version is created.
@@ -45,7 +47,7 @@ class WorkflowVersionPublishedEvent(BaseTelemetryEvent):
 
     workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
     version: int = Field(ge=1, description="Version number published")
-    workflow_name: str = Field(description="Human-readable workflow name")
+    workflow_name: str = Field(description=_WORKFLOW_NAME_DESC)
     project_id: str | None = Field(default=None, description="Project identifier")
     error_type: str | None = Field(default=None, description="Error type if operation failed")
 
@@ -55,7 +57,7 @@ class WorkflowVersionUnpublishedEvent(BaseTelemetryEvent):
 
     workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
     version: int = Field(ge=1, description="Version number that was unpublished")
-    workflow_name: str = Field(description="Human-readable workflow name")
+    workflow_name: str = Field(description=_WORKFLOW_NAME_DESC)
     project_id: str | None = Field(default=None, description="Project identifier")
     error_type: str | None = Field(default=None, description="Error type if operation failed")
 
@@ -65,4 +67,4 @@ class WorkflowVersionExportedEvent(BaseTelemetryEvent):
 
     workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
     version: int = Field(ge=1, description="Version number exported")
-    workflow_name: str = Field(description="Human-readable workflow name")
+    workflow_name: str = Field(description=_WORKFLOW_NAME_DESC)

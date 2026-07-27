@@ -117,8 +117,9 @@ class TestResolveLlmModelAndIntegration:
         executor, session = _make_executor()
         session.get = AsyncMock(return_value=None)
 
+        model_id = str(uuid4())
         with pytest.raises(LLMConfigurationError, match="not found"):
-            await executor._resolve_llm_model_and_integration(str(uuid4()))
+            await executor._resolve_llm_model_and_integration(model_id)
 
     @pytest.mark.asyncio
     async def test_model_disabled(self) -> None:
@@ -126,8 +127,9 @@ class TestResolveLlmModelAndIntegration:
         mock_model, mock_integration = _mock_model_and_integration(model_enabled=False)
         session.get = _session_get_dispatch(mock_model, mock_integration)
 
+        model_id = str(uuid4())
         with pytest.raises(LLMConfigurationError, match="disabled"):
-            await executor._resolve_llm_model_and_integration(str(uuid4()))
+            await executor._resolve_llm_model_and_integration(model_id)
 
     @pytest.mark.asyncio
     async def test_integration_not_found(self) -> None:
@@ -135,8 +137,9 @@ class TestResolveLlmModelAndIntegration:
         mock_model, _ = _mock_model_and_integration()
         session.get = _session_get_dispatch(mock_model, None)
 
+        model_id = str(uuid4())
         with pytest.raises(LLMConfigurationError, match="not found"):
-            await executor._resolve_llm_model_and_integration(str(uuid4()))
+            await executor._resolve_llm_model_and_integration(model_id)
 
     @pytest.mark.asyncio
     async def test_integration_disabled(self) -> None:
@@ -144,8 +147,9 @@ class TestResolveLlmModelAndIntegration:
         mock_model, mock_integration = _mock_model_and_integration(integration_enabled=False)
         session.get = _session_get_dispatch(mock_model, mock_integration)
 
+        model_id = str(uuid4())
         with pytest.raises(LLMConfigurationError, match="disabled"):
-            await executor._resolve_llm_model_and_integration(str(uuid4()))
+            await executor._resolve_llm_model_and_integration(model_id)
 
     @pytest.mark.asyncio
     async def test_not_llm_provider(self) -> None:
@@ -155,8 +159,9 @@ class TestResolveLlmModelAndIntegration:
         )
         session.get = _session_get_dispatch(mock_model, mock_integration)
 
+        model_id = str(uuid4())
         with pytest.raises(LLMConfigurationError, match="not an LLM provider"):
-            await executor._resolve_llm_model_and_integration(str(uuid4()))
+            await executor._resolve_llm_model_and_integration(model_id)
 
 
 class TestResolveLlmApiKey:
@@ -213,8 +218,9 @@ class TestResolveLlmApiKey:
         executor, session = _make_executor()
         session.get = AsyncMock(return_value=None)
 
+        cred_id = str(uuid4())
         with pytest.raises(LLMConfigurationError, match="not found"):
-            await executor._resolve_llm_api_key(str(uuid4()))
+            await executor._resolve_llm_api_key(cred_id)
 
     @pytest.mark.asyncio
     async def test_disabled(self) -> None:
@@ -224,8 +230,9 @@ class TestResolveLlmApiKey:
         mock_credential.enabled = False
         session.get = AsyncMock(return_value=mock_credential)
 
+        cred_id = str(uuid4())
         with pytest.raises(LLMConfigurationError, match="disabled"):
-            await executor._resolve_llm_api_key(str(uuid4()))
+            await executor._resolve_llm_api_key(cred_id)
 
     @pytest.mark.asyncio
     async def test_no_secret_id(self) -> None:
@@ -236,8 +243,9 @@ class TestResolveLlmApiKey:
         mock_credential.secret_id = None
         session.get = AsyncMock(return_value=mock_credential)
 
+        cred_id = str(uuid4())
         with pytest.raises(LLMConfigurationError, match="no stored secret"):
-            await executor._resolve_llm_api_key(str(uuid4()))
+            await executor._resolve_llm_api_key(cred_id)
 
     @pytest.mark.asyncio
     async def test_decryption_failure(self) -> None:
@@ -248,12 +256,13 @@ class TestResolveLlmApiKey:
         mock_credential.secret_id = uuid4()
         session.get = AsyncMock(return_value=mock_credential)
 
+        cred_id = str(uuid4())
         with (
             patch("nexus.agent_orchestrator.executor.invocation_executor.create_secret_service") as mock_secret_svc,
             pytest.raises(LLMConfigurationError, match="Failed to decrypt"),
         ):
             mock_secret_svc.return_value.retrieve_secret = AsyncMock(side_effect=RuntimeError("decrypt failed"))
-            await executor._resolve_llm_api_key(str(uuid4()))
+            await executor._resolve_llm_api_key(cred_id)
 
     @pytest.mark.asyncio
     async def test_no_api_key_in_resolved(self) -> None:
@@ -282,6 +291,7 @@ class TestResolveLlmApiKey:
         mock_resolved = MagicMock()
         mock_resolved.extra_vars = {}  # no llm_api_key
 
+        cred_id = str(uuid4())
         with (
             patch("nexus.agent_orchestrator.executor.invocation_executor.create_secret_service") as mock_secret_svc,
             patch("nexus.agent_orchestrator.executor.invocation_executor.InjectorResolver") as mock_injector,
@@ -289,4 +299,4 @@ class TestResolveLlmApiKey:
         ):
             mock_secret_svc.return_value.retrieve_secret = AsyncMock(return_value={"api_key": "encrypted"})
             mock_injector.resolve.return_value = mock_resolved
-            await executor._resolve_llm_api_key(str(uuid4()))
+            await executor._resolve_llm_api_key(cred_id)

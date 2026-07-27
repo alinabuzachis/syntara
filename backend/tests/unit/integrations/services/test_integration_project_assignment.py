@@ -111,8 +111,9 @@ class TestAssignProject:
         created = await integration_service.create_integration(_mcp_create(scope=IntegrationScope.PROJECT))
         integration_id = created.id
 
+        fake_project_id = uuid4()
         with pytest.raises(ProjectNotFoundError):
-            await integration_service.assign_project(integration_id, uuid4())
+            await integration_service.assign_project(integration_id, fake_project_id)
 
     @pytest.mark.asyncio
     async def test_assign_soft_deleted_project_raises(
@@ -177,8 +178,9 @@ class TestUnassignProject:
         integration_id = created.id
 
         assert created.scope == IntegrationScope.GLOBAL
+        fake_project_id = uuid4()
         with pytest.raises(IntegrationScopeError, match="global-scoped"):
-            await integration_service.unassign_project(integration_id, uuid4())
+            await integration_service.unassign_project(integration_id, fake_project_id)
 
     @pytest.mark.asyncio
     async def test_unassign_nonexistent_integration_raises(

@@ -371,18 +371,17 @@ class TestLLMProviderCredentialResolution:
         from nexus.integrations.exceptions import IntegrationCredentialRequiredError
 
         service = IntegrationService(test_db_session, test_user)
+        create_req = IntegrationCreate(
+            name=f"llm-no-cred-{uuid4().hex[:8]}",
+            integration_type=IntegrationType.LLM_PROVIDER,
+            configuration={
+                "integration_type": "llm_provider",
+                "base_url": "https://api.openai.com",
+                "provider_hint": "openai",
+            },
+        )
         with pytest.raises(IntegrationCredentialRequiredError):
-            await service.create_integration(
-                IntegrationCreate(
-                    name=f"llm-no-cred-{uuid4().hex[:8]}",
-                    integration_type=IntegrationType.LLM_PROVIDER,
-                    configuration={
-                        "integration_type": "llm_provider",
-                        "base_url": "https://api.openai.com",
-                        "provider_hint": "openai",
-                    },
-                )
-            )
+            await service.create_integration(create_req)
 
     async def test_refresh_with_incomplete_credential(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User

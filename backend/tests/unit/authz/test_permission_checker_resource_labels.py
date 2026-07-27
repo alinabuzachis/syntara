@@ -325,6 +325,7 @@ class TestCallPassesResourceLabels:
         checker = PermissionChecker("credential", "read")
         request = _mock_request()
         current_user = _mock_user()
+        mock_session = AsyncMock()
 
         with (
             patch.object(
@@ -340,7 +341,7 @@ class TestCallPassesResourceLabels:
             ),
             pytest.raises(AuthorizationDeniedError),
         ):
-            await checker(request, current_user, AsyncMock())
+            await checker(request, current_user, mock_session)
 
 
 class TestProjectScopeFilter:

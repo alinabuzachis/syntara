@@ -838,6 +838,31 @@ def test_create_user_with_required_fields() -> None:
 
 ## Common Patterns
 
+**Exception Test Pattern:**
+
+Only one invocation that could throw should appear inside a `pytest.raises` block.
+Move object construction, `uuid4()`, `AsyncMock()`, and other setup calls
+outside the block so the test pinpoints exactly which call raised.
+
+```python
+# Bad — uuid4() and MyModel() could also raise inside the block
+with pytest.raises(NotFoundError):
+    await service.get(uuid4())
+
+with pytest.raises(ValidationError):
+    await service.create(MyModel(name="x"), project_id=uuid4())
+
+# Good — only the method under test can raise
+fake_id = uuid4()
+with pytest.raises(NotFoundError):
+    await service.get(fake_id)
+
+model = MyModel(name="x")
+project_id = uuid4()
+with pytest.raises(ValidationError):
+    await service.create(model, project_id=project_id)
+```
+
 **Database Test Pattern:**
 
 ```python

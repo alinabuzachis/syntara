@@ -210,6 +210,24 @@ class WorkflowService(BaseService):
         self.session.add(new_version)
         return new_version
 
+    async def _create_and_flush_version(
+        self,
+        workflow: Workflow,
+        fallback: WorkflowVersion,
+        workflow_definition: dict[str, Any],
+        change_description: str | None,
+    ) -> WorkflowVersion:
+        """Create a new version and flush, returning it or *fallback* if unchanged."""
+        new_version = await self._create_version_record(
+            workflow,
+            workflow_definition=workflow_definition,
+            change_description=change_description,
+        )
+        if new_version:
+            await self.session.flush()
+            return new_version
+        return fallback
+
     @staticmethod
     async def _sync_scheduled_triggers(
         workflow_id: UUID,
@@ -1115,14 +1133,9 @@ class WorkflowService(BaseService):
             raise WorkflowVersionNotFoundError(workflow_id, version)
 
         if workflow_definition is not None:
-            new_version = await self._create_version_record(
-                workflow,
-                workflow_definition=workflow_definition,
-                change_description=change_description,
+            target_version = await self._create_and_flush_version(
+                workflow, target_version, workflow_definition, change_description
             )
-            if new_version:
-                await self.session.flush()
-                target_version = new_version
 
         definition = target_version.workflow_definition
         result = workflow_validator.collect_findings(definition)

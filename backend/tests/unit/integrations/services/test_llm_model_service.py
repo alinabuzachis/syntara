@@ -83,14 +83,16 @@ class TestGetModel:
     @pytest.mark.asyncio
     async def test_get_not_found(self, model_service: LLMModelService, llm_integration: Integration) -> None:
         """Get a non-existent model raises."""
+        fake_model_id = uuid4()
         with pytest.raises(LLMModelNotFoundError):
-            await model_service.get_model_detail(llm_integration.id, uuid4())
+            await model_service.get_model_detail(llm_integration.id, fake_model_id)
 
     @pytest.mark.asyncio
     async def test_get_wrong_integration(self, model_service: LLMModelService, test_model: LLMModel) -> None:
         """Get a model with wrong integration_id raises."""
+        fake_integration_id = uuid4()
         with pytest.raises(LLMModelNotFoundError):
-            await model_service.get_model_detail(uuid4(), test_model.id)
+            await model_service.get_model_detail(fake_integration_id, test_model.id)
 
 
 # ---------------------------------------------------------------------------
@@ -238,14 +240,18 @@ class TestUpdateModel:
     @pytest.mark.asyncio
     async def test_update_not_found(self, model_service: LLMModelService, llm_integration: Integration) -> None:
         """Update a non-existent model raises."""
+        fake_model_id = uuid4()
+        update = LLMModelUpdate(enabled=False)
         with pytest.raises(LLMModelNotFoundError):
-            await model_service.update_model(llm_integration.id, uuid4(), LLMModelUpdate(enabled=False))
+            await model_service.update_model(llm_integration.id, fake_model_id, update)
 
     @pytest.mark.asyncio
     async def test_update_wrong_integration(self, model_service: LLMModelService, test_model: LLMModel) -> None:
         """Update a model with wrong integration_id raises."""
+        fake_integration_id = uuid4()
+        update = LLMModelUpdate(enabled=False)
         with pytest.raises(LLMModelNotFoundError):
-            await model_service.update_model(uuid4(), test_model.id, LLMModelUpdate(enabled=False))
+            await model_service.update_model(fake_integration_id, test_model.id, update)
 
     @pytest.mark.asyncio
     async def test_set_default_on_disabled_model_raises(
@@ -259,8 +265,9 @@ class TestUpdateModel:
         test_model.enabled = False
         await test_db_session.flush()
 
+        update = LLMModelUpdate(is_default=True)
         with pytest.raises(SafeValueError, match="Cannot set a disabled model as default"):
-            await model_service.update_model(llm_integration.id, test_model.id, LLMModelUpdate(is_default=True))
+            await model_service.update_model(llm_integration.id, test_model.id, update)
 
     @pytest.mark.asyncio
     async def test_disable_and_set_default_simultaneously_raises(
@@ -270,12 +277,9 @@ class TestUpdateModel:
         test_model: LLMModel,
     ) -> None:
         """Sending enabled=False and is_default=True in one request raises."""
+        update = LLMModelUpdate(enabled=False, is_default=True)
         with pytest.raises(SafeValueError, match="Cannot set a disabled model as default"):
-            await model_service.update_model(
-                llm_integration.id,
-                test_model.id,
-                LLMModelUpdate(enabled=False, is_default=True),
-            )
+            await model_service.update_model(llm_integration.id, test_model.id, update)
 
     @pytest.mark.asyncio
     async def test_disable_default_model_clears_default_flag(

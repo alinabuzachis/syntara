@@ -89,19 +89,18 @@ def _emit_invocation_agent_metrics(
     emitted_any = False
 
     # AGENT_ROUTING_DURATION from persisted orchestrator timing
-    if isinstance(meta, dict):
-        routing_ms = meta.get("routing_duration_ms")
-        if isinstance(routing_ms, (int, float)):
-            recorder.record(
-                MetricType.AGENT_ROUTING_DURATION,
-                float(routing_ms),
-                unit="ms",
-                labels={
-                    "invocation_id": inv_id,
-                    "target_agent": str(meta.get("routed_to_agent", "unknown")),
-                },
-            )
-            emitted_any = True
+    routing_ms = meta.get("routing_duration_ms") if isinstance(meta, dict) else None
+    if isinstance(routing_ms, (int, float)):
+        recorder.record(
+            MetricType.AGENT_ROUTING_DURATION,
+            float(routing_ms),
+            unit="ms",
+            labels={
+                "invocation_id": inv_id,
+                "target_agent": str(meta.get("routed_to_agent", "unknown") if isinstance(meta, dict) else "unknown"),
+            },
+        )
+        emitted_any = True
 
     # AGENT_INVOCATION_DURATION from DB timestamps
     if invocation.started_at and invocation.completed_at:

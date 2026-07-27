@@ -172,13 +172,14 @@ async def ***REMOVED***(test_db_session: AsyncSession, test_project_id: str) -> 
 @pytest.mark.asyncio
 async def test_file_metadata_size_bytes_must_be_non_negative(test_db_session: AsyncSession) -> None:
     """Test that size_bytes field must be non-negative (ge=0)."""
+    project_id = uuid4()
     with pytest.raises((ValueError, TypeError)):
         FileMetadata(
             filename="test.txt",
             mime_type="text/plain",
             size_bytes=-1,  # Negative size should fail
             file_path="/storage/test.txt",
-            project_id=uuid4(),
+            project_id=project_id,
         )
 
 

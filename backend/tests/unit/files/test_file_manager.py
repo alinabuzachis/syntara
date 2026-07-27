@@ -98,8 +98,9 @@ async def test_validate_and_save_raises_when_unconfigured() -> None:
     mock_file.seek = AsyncMock()
 
     fm = FileManager()
+    project_id = uuid4()
     with pytest.raises(FileStorageUnavailableError, match="File storage is not configured"):
-        await fm.validate_and_save_files([mock_file], project_id=uuid4())
+        await fm.validate_and_save_files([mock_file], project_id=project_id)
 
 
 @pytest.mark.asyncio
@@ -185,8 +186,9 @@ async def test_storage_failure_cleans_up_saved_files() -> None:
     mock_retriever.delete_file = AsyncMock()
     fm._retriever = mock_retriever
 
+    project_id = uuid4()
     with pytest.raises(OSError, match="Disk full"):
-        await fm.validate_and_save_files(cast("list[UploadFile]", files), project_id=uuid4())
+        await fm.validate_and_save_files(cast("list[UploadFile]", files), project_id=project_id)
 
     mock_retriever.delete_file.assert_called_once_with("nexus-1-file0.pdf")
 

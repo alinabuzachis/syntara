@@ -327,12 +327,13 @@ class TestCredentialMaxLifetime:
     ) -> None:
         mock_session.exec.return_value = _mock_count_result(0)
         past = datetime.now(tz=UTC) - timedelta(hours=1)
+        sa_id = uuid4()
         with (
             override_settings(sa_credential_max_lifetime_days=180),
             pytest.raises(CredentialExpirationInPastError, match="future"),
         ):
             await service.create_credential(
-                service_account_id=uuid4(),
+                service_account_id=sa_id,
                 credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
                 expires_at=past,
             )
@@ -346,12 +347,13 @@ class TestCredentialMaxLifetime:
     ) -> None:
         mock_session.exec.return_value = _mock_count_result(0)
         past = datetime.now(tz=UTC) - timedelta(days=5)
+        sa_id = uuid4()
         with (
             override_settings(sa_credential_max_lifetime_days=-1),
             pytest.raises(CredentialExpirationInPastError, match="future"),
         ):
             await service.create_credential(
-                service_account_id=uuid4(),
+                service_account_id=sa_id,
                 credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
                 expires_at=past,
             )
@@ -402,12 +404,13 @@ class TestCredentialMaxLifetime:
     ) -> None:
         mock_session.exec.return_value = _mock_count_result(0)
         requested = datetime.now(tz=UTC) + timedelta(days=60)
+        sa_id = uuid4()
         with (
             override_settings(sa_credential_max_lifetime_days=30),
             pytest.raises(CredentialExpirationExceededError, match="30 days"),
         ):
             await service.create_credential(
-                service_account_id=uuid4(),
+                service_account_id=sa_id,
                 credential_type=ServiceAccountCredentialType.CLIENT_CREDENTIALS,
                 expires_at=requested,
             )

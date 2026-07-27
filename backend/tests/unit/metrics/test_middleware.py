@@ -773,8 +773,9 @@ class TestMetricsMiddlewareInterfaceTagging:
         middleware = MetricsMiddleware(raising_app, recorder=recorder)  # type: ignore[arg-type]
         scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
 
+        receive, send = AsyncMock(), AsyncMock()
         with pytest.raises(RuntimeError, match=msg):
-            await middleware(scope, AsyncMock(), AsyncMock())
+            await middleware(scope, receive, send)
 
         results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
         assert results[0].labels["interface"] == INTERFACE_UI

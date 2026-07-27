@@ -446,11 +446,8 @@ async def _scan_authorized_users(
     batch_cursor_id = cursor_id
     batch_sort_value = cursor_sort_value
     is_backward = direction == PaginationDirection.PREV
-    actual_direction = (
-        (SortDirection.ASC if sort_direction == SortDirection.DESC else SortDirection.DESC)
-        if is_backward
-        else sort_direction
-    )
+    reversed_direction = SortDirection.ASC if sort_direction == SortDirection.DESC else SortDirection.DESC
+    actual_direction = reversed_direction if is_backward else sort_direction
 
     while len(authorized) < target_count:
         query = select(User).where(
@@ -489,6 +486,14 @@ async def _scan_authorized_users(
     if is_backward:
         authorized.reverse()
     return authorized, checked_ids
+
+
+def _log_scan_cap_exceeded(count_so_far: int) -> None:
+    logger.warning(
+        "who_can total count scan exceeded safety cap",
+        cap=_WHO_CAN_MAX_TOTAL_SCAN,
+        count_so_far=count_so_far,
+    )
 
 
 async def _count_authorized_users(
@@ -537,11 +542,7 @@ async def _count_authorized_users(
         for user in batch:
             users_scanned += 1
             if users_scanned > _WHO_CAN_MAX_TOTAL_SCAN:
-                logger.warning(
-                    "who_can total count scan exceeded safety cap",
-                    cap=_WHO_CAN_MAX_TOTAL_SCAN,
-                    count_so_far=count,
-                )
+                _log_scan_cap_exceeded(count)
                 return None
             if user.id in already_checked:
                 continue

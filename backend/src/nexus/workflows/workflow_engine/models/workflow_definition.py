@@ -28,6 +28,8 @@ logger = structlog.stdlib.get_logger(__name__)
 # Template expression pattern - matches ${...} expressions
 TEMPLATE_PATTERN = re.compile(r"\$\{[^}]+\}")
 
+_CONFIG_VALIDATION_FAILED = "Config validation failed"
+
 
 def validate_tool_selection_coherence(
     strategy: str | None,
@@ -45,7 +47,7 @@ def validate_tool_selection_coherence(
     if strategy == "SELECTED" and not selections:
         msg = "tool_selections must not be empty when tool_selection_strategy is 'SELECTED'"
         logger.warning(
-            "Config validation failed",
+            _CONFIG_VALIDATION_FAILED,
             source=source,
             field="tool_selection_strategy",
             strategy=strategy,
@@ -57,7 +59,7 @@ def validate_tool_selection_coherence(
         label = f"'{strategy}'" if strategy else "not set"
         msg = f"tool_selections must be empty when tool_selection_strategy is {label}"
         logger.warning(
-            "Config validation failed",
+            _CONFIG_VALIDATION_FAILED,
             source=source,
             field="tool_selection_strategy",
             strategy=strategy,
@@ -78,7 +80,7 @@ def validate_uuid_or_template(value: str, field_label: str) -> str:
         uuid.UUID(value)
     except ValueError as err:
         msg = f"Invalid UUID format for {field_label}: '{value}'. Must be a valid UUID."
-        logger.warning("Config validation failed", field=field_label, reason="invalid_uuid")
+        logger.warning(_CONFIG_VALIDATION_FAILED, field=field_label, reason="invalid_uuid")
         raise SafeValueError(msg) from err
     return value
 
@@ -513,7 +515,7 @@ class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
         except ValueError as e:
             msg = f"response_schema: {e}"
             logger.warning(
-                "Config validation failed", source="AgenticExecutorParameters", field="response_schema", reason=str(e)
+                _CONFIG_VALIDATION_FAILED, source="AgenticExecutorParameters", field="response_schema", reason=str(e)
             )
             raise SafeValueError(msg) from None
         return v

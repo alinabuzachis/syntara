@@ -4,6 +4,7 @@ Resolution chain: user → groups (GroupMembership) → role assignments
 → role names → policies (builtins from code, custom from DB).
 """
 
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -66,6 +67,13 @@ async def _resolve_roles_to_policies(
         await _resolve_custom_roles(db, custom_role_names, seen, result, project, project_id, action_accept)
 
 
+def _scope_entry_to_project(entry: dict[str, Any], project: str) -> dict[str, Any]:
+    """Return a copy of *entry* scoped to *project*."""
+    if entry.get("scope") == "self":
+        return {**entry, "project": project}
+    return {**entry, "scope": "project", "project": project}
+
+
 def _add_builtin_role_statements(
     role_name: str,
     seen: set[str],
@@ -81,13 +89,9 @@ def _add_builtin_role_statements(
             if not _action_matches(stmt, action_accept):
                 continue
             entry = {**stmt, "name": policy_name}
-            name = policy_name
+            name = f"{policy_name}@{project}" if project else policy_name
             if project:
-                if entry.get("scope") != "self":
-                    entry = {**entry, "scope": "project", "project": project}
-                else:
-                    entry = {**entry, "project": project}
-                name = f"{name}@{project}"
+                entry = _scope_entry_to_project(entry, project)
             if name not in seen:
                 seen.add(name)
                 result.append(entry)
@@ -163,16 +167,23 @@ def _expand_role_policies(
 ) -> None:
     """Expand a single role's policy names into statement entries."""
     for pn in role.policy_names:
-        if is_builtin_policy(pn):
-            for stmt in resolve_builtin_policy_statements(pn):
-                if not _action_matches(stmt, action_accept):
-                    continue
-                _add_stmt(stmt, pn, seen, result, project)
-        elif pn in custom_policies:
-            for stmt in custom_policies[pn].to_statement_dicts():
-                if not _action_matches(stmt, action_accept):
-                    continue
-                _add_stmt(stmt, "", seen, result, project)
+        stmts, fallback = _resolve_policy_statements(pn, custom_policies)
+        for stmt in stmts:
+            if not _action_matches(stmt, action_accept):
+                continue
+            _add_stmt(stmt, fallback, seen, result, project)
+
+
+def _resolve_policy_statements(
+    policy_name: str,
+    custom_policies: dict[str, Policy],
+) -> tuple[Sequence[dict[str, Any]], str]:
+    """Return (statements, fallback_name) for a policy name."""
+    if is_builtin_policy(policy_name):
+        return resolve_builtin_policy_statements(policy_name), policy_name
+    if policy_name in custom_policies:
+        return custom_policies[policy_name].to_statement_dicts(), ""
+    return (), ""
 
 
 def _add_stmt(
@@ -183,13 +194,8 @@ def _add_stmt(
     project: str,
 ) -> None:
     name = stmt.get("name", fallback_name)
-    entry = stmt
-    if project:
-        if stmt.get("scope") != "self":
-            entry = {**stmt, "scope": "project", "project": project}
-        else:
-            entry = {**stmt, "project": project}
-        name = f"{name}@{project}"
+    entry = _scope_entry_to_project(stmt, project) if project else stmt
+    name = f"{name}@{project}" if project else name
     if name not in seen:
         seen.add(name)
         result.append(entry)
@@ -220,6 +226,20 @@ async def get_user_group_ids(db: AsyncSession, user_id: UUID) -> list[UUID]:
     return group_ids
 
 
+def _partition_assignments(
+    assignments: Sequence[RoleAssignment],
+    project_roles: dict[UUID, list[str]],
+) -> tuple[list[str], dict[UUID, list[str]]]:
+    """Split assignments into global role names and per-project role names."""
+    global_names: list[str] = []
+    for a in assignments:
+        if a.project_id is None:
+            global_names.append(a.role_name)
+        else:
+            project_roles.setdefault(a.project_id, []).append(a.role_name)
+    return global_names, project_roles
+
+
 async def resolve_effective_policies(
     db: AsyncSession,
     principal_id: UUID,
@@ -247,7 +267,6 @@ async def resolve_effective_policies(
 
     group_ids = await get_user_group_ids(db, principal_id)
 
-    global_group_role_names: list[str] = []
     project_role_names: dict[UUID, list[str]] = {}
 
     if group_ids:
@@ -256,27 +275,16 @@ async def resolve_effective_policies(
                 RoleAssignment.group_id.in_(group_ids),  # type: ignore[union-attr]
             )
         )
-        for ga in group_assignments.all():
-            if ga.project_id is None:
-                global_group_role_names.append(ga.role_name)
-            else:
-                project_role_names.setdefault(ga.project_id, []).append(ga.role_name)
-
-    await _resolve_roles_to_policies(db, global_group_role_names, seen, result)
+        global_group, project_role_names = _partition_assignments(group_assignments.all(), project_role_names)
+        await _resolve_roles_to_policies(db, global_group, seen, result)
 
     direct_assignments = await db.exec(
         select(RoleAssignment).where(
             RoleAssignment.principal_id == principal_id,
         )
     )
-    direct_global_role_names: list[str] = []
-    for ua in direct_assignments.all():
-        if ua.project_id is None:
-            direct_global_role_names.append(ua.role_name)
-        else:
-            project_role_names.setdefault(ua.project_id, []).append(ua.role_name)
-
-    await _resolve_roles_to_policies(db, direct_global_role_names, seen, result)
+    direct_global, project_role_names = _partition_assignments(direct_assignments.all(), project_role_names)
+    await _resolve_roles_to_policies(db, direct_global, seen, result)
 
     if project_role_names:
         projects_result = await db.exec(

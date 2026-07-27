@@ -2798,8 +2798,9 @@ class TestUpdateVersionMetadata(TestWorkflowServiceBase):
         """Test that a nonexistent workflow_id raises WorkflowNotFoundError."""
         service = WorkflowService(test_db_session, test_user)
 
+        nonexistent_id = uuid4()
         with pytest.raises(WorkflowNotFoundError):
-            await service.update_version_metadata(uuid4(), 1, name="x")
+            await service.update_version_metadata(nonexistent_id, 1, name="x")
 
     @pytest.mark.asyncio
     async def test_version_not_found_raises(self, test_db_session: AsyncSession, test_user: User) -> None:

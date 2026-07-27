@@ -27,5 +27,6 @@ class TestAssertProjectIdUnchanged:
         assert_project_id_unchanged(None, None)
 
     def test_raises_when_current_is_none_but_requested_is_set(self) -> None:
+        requested = uuid4()
         with pytest.raises(SafeValueError, match="immutable"):
-            assert_project_id_unchanged(None, uuid4())
+            assert_project_id_unchanged(None, requested)

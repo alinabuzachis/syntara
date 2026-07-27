@@ -66,11 +66,9 @@ class TestValidateClientCert:
         assert cn == "backend.ao.svc"
 
     def test_revoked_serial_rejected(self) -> None:
+        cert = _make_peercert(serial="0A")
         with pytest.raises(CertificateValidationError, match="revoked") as exc_info:
-            _validate_client_cert(
-                _make_peercert(serial="0A"),
-                revoked_serials=frozenset({0x0A}),
-            )
+            _validate_client_cert(cert, revoked_serials=frozenset({0x0A}))
         assert exc_info.value.reason == "certificate_revoked"
 
     def test_non_revoked_serial_accepted(self) -> None:
@@ -88,11 +86,9 @@ class TestValidateClientCert:
         assert cn == "worker.ao.svc"
 
     def test_revoked_cert_rejected_regardless_of_cn(self) -> None:
+        cert = _make_peercert("backend.ao.svc", serial="0A")
         with pytest.raises(CertificateValidationError) as exc_info:
-            _validate_client_cert(
-                _make_peercert("backend.ao.svc", serial="0A"),
-                revoked_serials=frozenset({0x0A}),
-            )
+            _validate_client_cert(cert, revoked_serials=frozenset({0x0A}))
         assert exc_info.value.reason == "certificate_revoked"
 
     def test_no_cn_in_peercert_raises(self) -> None:

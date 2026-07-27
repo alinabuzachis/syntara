@@ -264,6 +264,49 @@ class ApprovalService(BaseService):
 
         return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 
+    @staticmethod
+    def _check_eager_loads(approval: ApprovalRequest) -> None:
+        """Ensure approver relationships were eagerly loaded to avoid MissingGreenlet."""
+        inspector = sa_inspect(approval)
+        approver_users_loaded = inspector is not None and "approver_user_records" not in inspector.unloaded
+        approver_groups_loaded = inspector is not None and "approver_group_records" not in inspector.unloaded
+
+        if not approver_users_loaded or not approver_groups_loaded:
+            msg = (
+                "_is_user_authorized_approver requires approval to be fetched with "
+                "eager loading of approver_user_records and approver_group_records. "
+                "Use _get_approval_by_id() or selectinload() when fetching."
+            )
+            raise RuntimeError(msg)
+
+    async def _has_decide_permission(self, approval: ApprovalRequest) -> bool:
+        """Check evaluator for approval:decide permission (project-scoped or system-level)."""
+        from nexus.authz.engine import AuthzRequest, authorize  # noqa: PLC0415
+        from nexus.authz.models.project import Project  # noqa: PLC0415
+
+        evaluator = self.evaluator
+        if evaluator is None:
+            return False
+
+        project_name = ""
+        if approval.project_id:
+            result = await self.session.exec(select(Project.name).where(Project.id == approval.project_id))
+            project_name = result.first() or ""
+
+        authz_request = AuthzRequest(
+            user_id=self.user.id,
+            action="decide",
+            resource_type="approval",
+            resource_id=str(approval.id),
+            resource_project=project_name,
+            resource_labels={},
+            user_labels=self.user.labels,
+            user_metadata=self.user.authz_metadata,
+        )
+
+        authz_result = await authorize(self.session, evaluator, authz_request)
+        return authz_result.allowed
+
     async def _is_user_authorized_approver(self, approval: ApprovalRequest) -> bool:
         """Check if current user is authorized to approve this request.
 
@@ -279,23 +322,7 @@ class ApprovalService(BaseService):
         to support users with project-scoped (not system-level) approval:decide permission.
 
         """
-        # Defensive check: Ensure relationships were eagerly loaded to avoid MissingGreenlet
-        # in async context. This catches caller bugs that skip selectinload().
-        inspector = sa_inspect(approval)
-        if inspector is not None:
-            approver_users_loaded = "approver_user_records" not in inspector.unloaded
-            approver_groups_loaded = "approver_group_records" not in inspector.unloaded
-        else:
-            approver_users_loaded = False
-            approver_groups_loaded = False
-
-        if not approver_users_loaded or not approver_groups_loaded:
-            msg = (
-                "_is_user_authorized_approver requires approval to be fetched with "
-                "eager loading of approver_user_records and approver_group_records. "
-                "Use _get_approval_by_id() or selectinload() when fetching."
-            )
-            raise RuntimeError(msg)
+        self._check_eager_loads(approval)
 
         # Cert-authenticated service principals bypass OPA — they are internal
         # S2S callers (e.g. workflow engine cancelling approvals). This mirrors
@@ -309,29 +336,9 @@ class ApprovalService(BaseService):
         # This is required for batch_decide which doesn't have endpoint-level permission check.
         if self.evaluator is None:
             return False
-        if self.evaluator is not None:
-            from nexus.authz.engine import AuthzRequest, authorize  # noqa: PLC0415
-            from nexus.authz.models.project import Project  # noqa: PLC0415
 
-            project_name = ""
-            if approval.project_id:
-                result = await self.session.exec(select(Project.name).where(Project.id == approval.project_id))
-                project_name = result.first() or ""
-
-            authz_request = AuthzRequest(
-                user_id=self.user.id,
-                action="decide",
-                resource_type="approval",
-                resource_id=str(approval.id),
-                resource_project=project_name,
-                resource_labels={},
-                user_labels=self.user.labels,
-                user_metadata=self.user.authz_metadata,
-            )
-
-            authz_result = await authorize(self.session, self.evaluator, authz_request)
-            if not authz_result.allowed:
-                return False
+        if not await self._has_decide_permission(approval):
+            return False
 
         # SECURITY: When no specific approvers configured (both lists empty), allow if user
         # has approval:decide permission (checked above via evaluator or at endpoint level).

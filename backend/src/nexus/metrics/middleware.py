@@ -22,6 +22,8 @@ from nexus.metrics.interface_tag import detect_interface, interface_context_var
 from nexus.metrics.types import ComponentLabel, MetricType
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
     from nexus.metrics.recorder import MetricsRecorder
@@ -80,6 +82,23 @@ def _resolve_endpoint(scope: Scope, raw_path: str) -> str:
 
 
 # ---- Middleware ------------------------------------------------------------------
+
+
+def _process_response_headers(
+    headers: list[tuple[bytes, bytes]],
+    request_id: UUID | None,
+) -> tuple[list[tuple[bytes, bytes]], str | None]:
+    """Inject request-id header and extract/strip the auth-failure signaling header."""
+    if request_id is not None:
+        headers.append((_REQUEST_ID_HEADER, str(request_id).encode()))
+    auth_failure_type: str | None = None
+    filtered: list[tuple[bytes, bytes]] = []
+    for name, value in headers:
+        if name == _AUTH_FAILURE_HEADER:
+            auth_failure_type = value.decode("latin-1")
+        else:
+            filtered.append((name, value))
+    return filtered, auth_failure_type
 
 
 class MetricsMiddleware:
@@ -145,16 +164,9 @@ class MetricsMiddleware:
             nonlocal status_code, auth_failure_type
             if message["type"] == "http.response.start":
                 status_code = message["status"]
-                existing_headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
-                if request_id is not None:
-                    existing_headers.append((_REQUEST_ID_HEADER, str(request_id).encode()))
-                # Extract and strip the internal auth-failure signaling header.
-                filtered_headers: list[tuple[bytes, bytes]] = []
-                for name, value in existing_headers:
-                    if name == _AUTH_FAILURE_HEADER:
-                        auth_failure_type = value.decode("latin-1")
-                    else:
-                        filtered_headers.append((name, value))
+                filtered_headers, auth_failure_type = _process_response_headers(
+                    list(message.get("headers", [])), request_id
+                )
                 message = {**message, "headers": filtered_headers}
             await send(message)
 
