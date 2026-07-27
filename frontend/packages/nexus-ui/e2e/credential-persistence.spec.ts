@@ -160,7 +160,7 @@ test.describe('Credential Persistence', () => {
 
       // Toggle expression mode to bypass organization/job template dropdowns
       // which depend on a real AAP connection the test environment may not have
-      const expressionSwitch = app.getByRole('switch', { name: 'Use expressions' })
+      const expressionSwitch = app.getByRole('switch', { name: 'Use input variables' })
       const hasExpressionMode = await expressionSwitch
         .waitFor({ state: 'visible', timeout: 5_000 })
         .then(() => true)

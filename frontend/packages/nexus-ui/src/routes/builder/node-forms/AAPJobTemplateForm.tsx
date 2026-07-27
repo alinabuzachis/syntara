@@ -1,4 +1,4 @@
-import { Stack, StackItem, Switch, FormGroup } from '@patternfly/react-core'
+import { FormGroup, Stack, StackItem, Switch } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
@@ -104,10 +104,10 @@ function AAPFormFields({
   const parametersContent = (
     <Stack hasGutter>
       <StackItem>
-        <FormGroup label="Use expressions" labelHelp={nodeHelp.aapUseExpressions} fieldId="aap-expression-mode">
+        <FormGroup label="Use input variables" labelHelp={nodeHelp.aapUseExpressions} fieldId="aap-expression-mode">
           <Switch
             id="aap-expression-mode"
-            aria-label="Use expressions"
+            aria-label="Use input variables"
             isChecked={expressionMode}
             onChange={(_e, checked) => setExpressionMode(checked)}
             isDisabled={isVersionView}

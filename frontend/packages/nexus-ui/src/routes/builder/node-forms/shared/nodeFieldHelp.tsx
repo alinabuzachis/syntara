@@ -70,7 +70,7 @@ export const nodeHelp = {
   aapOrganization: nodeFieldHelp('Organization', T.AAP_ORGANIZATION_HELP),
   aapJobTemplate: nodeFieldHelp('Job template', T.AAP_JOB_TEMPLATE_HELP),
   aapWorkflowTemplate: nodeFieldHelp('Workflow template', T.AAP_WORKFLOW_TEMPLATE_HELP),
-  aapUseExpressions: nodeFieldHelp('Use expressions', T.AAP_USE_EXPRESSIONS_HELP),
+  aapUseExpressions: nodeFieldHelp('Use input variables', T.AAP_USE_EXPRESSIONS_HELP),
   aapJobType: nodeFieldHelp('Run type', T.AAP_JOB_TYPE_HELP),
   aapInventory: nodeFieldHelp('Inventory', T.AAP_INVENTORY_HELP),
   aapJobCredentials: nodeFieldHelp('Credentials', T.AAP_JOB_CREDENTIALS_HELP),

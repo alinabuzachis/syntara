@@ -521,6 +521,48 @@ describe('TextFilter', () => {
     })
   })
 
+  describe('select menu constraints', () => {
+    it('opens a scrollable value select with many options', async () => {
+      const user = userEvent.setup()
+      const manyOptionsField: FilterFieldDefinition = {
+        key: 'category',
+        label: 'Category',
+        type: FilterTypeEnum.SELECT,
+        options: Array.from({ length: SEARCH_THRESHOLD }, (_, i) => ({
+          label: `Category ${i + 1}`,
+          value: String(i + 1),
+        })),
+        placeholder: 'Filter by category',
+      }
+
+      render(<TextFilter fieldDefinitions={[manyOptionsField]} filters={[]} onFilterChange={vi.fn()} />)
+
+      await user.click(screen.getByText('Filter by category'))
+
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+      expect(screen.getByText('Category 1')).toBeInTheDocument()
+      expect(screen.getByText(`Category ${SEARCH_THRESHOLD}`)).toBeInTheDocument()
+    })
+
+    it('opens the value select in compact mode', async () => {
+      const user = userEvent.setup()
+      const selectOnlyProps = {
+        fieldDefinitions: [selectFieldDefinition],
+        filters: [] as FilterConfig[],
+        onFilterChange: vi.fn(),
+        isCompact: true,
+      }
+
+      render(<TextFilter {...selectOnlyProps} />)
+
+      await user.click(screen.getByText('Filter by status'))
+
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+      expect(screen.getByText('Enabled')).toBeInTheDocument()
+      expect(screen.getByText('Disabled')).toBeInTheDocument()
+    })
+  })
+
   describe('select search threshold', () => {
     it('hides search input when static options are fewer than the threshold', async () => {
       const user = userEvent.setup()

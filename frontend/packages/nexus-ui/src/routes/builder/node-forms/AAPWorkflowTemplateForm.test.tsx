@@ -477,7 +477,7 @@ describe('AAPWorkflowTemplateForm', () => {
       const user = userEvent.setup()
       renderWithHeader(<AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
-      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use input variables' })
       expect(expressionSwitch).not.toBeChecked()
 
       await user.click(expressionSwitch)
@@ -489,7 +489,7 @@ describe('AAPWorkflowTemplateForm', () => {
       const user = userEvent.setup()
       renderWithHeader(<AAPWorkflowTemplateForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
-      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use input variables' })
       await user.click(expressionSwitch)
 
       // Expression mode fields should appear
@@ -511,7 +511,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use input variables' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -527,7 +527,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use input variables' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -542,7 +542,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use input variables' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -557,7 +557,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use input variables' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -572,7 +572,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use input variables' })
       expect(expressionSwitch).toBeChecked()
     })
 
@@ -591,7 +591,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      const expressionSwitch = screen.getByRole('switch', { name: 'Use expressions' })
+      const expressionSwitch = screen.getByRole('switch', { name: 'Use input variables' })
       expect(expressionSwitch).not.toBeChecked()
     })
   })

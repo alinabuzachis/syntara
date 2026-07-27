@@ -15,6 +15,8 @@ import React, { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
+import { LONG_SELECT_MAX_MENU_HEIGHT, longSelectMenuPopperProps } from '../longSelectMenu'
+import longSelectMenuStyles from '../longSelectMenu.module.css'
 
 import styles from './textFilterSelectControls.module.css'
 
@@ -397,7 +399,14 @@ export function SelectFilterInput({
         selected={activeOption?.value}
         onSelect={handleSelect}
         onOpenChange={handleOpenChange}
-        popperProps={popperProps}
+        isScrollable
+        maxMenuHeight={LONG_SELECT_MAX_MENU_HEIGHT}
+        popperProps={{
+          ...longSelectMenuPopperProps,
+          ...popperProps,
+          maxWidth: typeof popperProps?.maxWidth === 'string' ? popperProps.maxWidth : '20rem',
+        }}
+        className={longSelectMenuStyles.containScroll}
         toggle={renderValueToggle}
       >
         {showSearch && (
