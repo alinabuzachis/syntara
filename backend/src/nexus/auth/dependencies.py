@@ -23,6 +23,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.emitter import VERIFIED_ACTOR_STATE_KEY, AuditActorContext, actor_context_var
 from nexus.auth.cookies import get_refresh_token_from_cookie
 from nexus.auth.exceptions import (
     AuthenticationRequiredError,
@@ -120,12 +121,55 @@ async def _check_global_revocation(payload: TokenPayload, *, token_type: str, db
                 token_issued_at=payload.iat.isoformat(),
                 revocation_timestamp=revocation_ts.isoformat(),
                 token_type=token_type,
-                principal_type=PrincipalType.SERVICE_ACCOUNT
-                if payload.token_type == "service_account"  # noqa: S105
-                else None,
+                principal_type=PrincipalType.SERVICE_ACCOUNT if _is_service_account_token(payload) else None,
             )
         )
         raise TokenGloballyRevokedError
+
+
+def _is_service_account_token(payload: TokenPayload) -> bool:
+    return payload.token_type == "service_account"  # noqa: S105
+
+
+def _set_verified_actor_context(request: Request, actor_ctx: AuditActorContext) -> None:
+    """Propagate verified actor identity to the audit system.
+
+    Sets both ``actor_context_var`` (for use within the current async
+    task) and ``request.state`` (which survives the ``BaseHTTPMiddleware``
+    task boundary so the outer ``AuditMiddleware`` can read it).
+    """
+    actor_context_var.set(actor_ctx)
+    setattr(request.state, VERIFIED_ACTOR_STATE_KEY, actor_ctx)
+
+
+def _set_verified_actor_context_from_user(request: Request, user: User) -> None:
+    """Set audit actor context from a verified ``User``."""
+    from nexus.audit.context_managers import build_actor_context  # noqa: PLC0415
+
+    _set_verified_actor_context(request, build_actor_context(user))
+
+
+def _set_verified_actor_context_from_payload(request: Request, payload: TokenPayload) -> None:
+    """Set audit actor context from a verified ``TokenPayload``."""
+    from nexus.audit.utils import sanitize_actor_username  # noqa: PLC0415
+
+    actor_claims = extract_actor_claims(
+        {
+            "sub": payload.sub,
+            "preferred_username": payload.preferred_username,
+        }
+    )
+
+    actor_type = PrincipalType.SERVICE_ACCOUNT if _is_service_account_token(payload) else PrincipalType.USER
+
+    _set_verified_actor_context(
+        request,
+        AuditActorContext(
+            actor_id=actor_claims.actor_id,
+            actor_username=sanitize_actor_username(actor_claims.actor_username),
+            actor_type=actor_type,
+        ),
+    )
 
 
 def _user_from_payload(payload: TokenPayload) -> User:
@@ -177,7 +221,7 @@ def _user_from_payload(payload: TokenPayload) -> User:
         last_name=last_name,
         is_enabled=True,
     )
-    if payload.token_type == "service_account":  # noqa: S105
+    if _is_service_account_token(payload):
         object.__setattr__(user, "__principal_type__", PrincipalType.SERVICE_ACCOUNT)
     return user
 
@@ -244,23 +288,29 @@ async def get_current_user(
     """
     if not credentials:
         if getattr(request.state, "is_cert_authenticated", False):
-            return _user_from_cert(request, request.state.cert_cn)
+            user = _user_from_cert(request, request.state.cert_cn)
+            _set_verified_actor_context_from_user(request, user)
+            return user
         raise AuthenticationRequiredError
 
-    # Validate token
+    # Validate token — set actor context immediately after verified decode
+    # so audit attribution survives even if revocation checks reject the token.
     token_service = _get_token_service()
     payload: TokenPayload = token_service.decode_token(
         credentials.credentials,
         token_type="access",  # noqa: S106
     )
+    _set_verified_actor_context_from_payload(request, payload)
 
     await _check_global_revocation(payload, token_type="access", db=db)  # noqa: S106
 
-    return _user_from_payload(payload)
+    user = _user_from_payload(payload)
+    _set_verified_actor_context_from_user(request, user)
+    return user
 
 
 async def get_token_payload(
-    request: Request,  # noqa: ARG001
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
 ) -> TokenPayload:
@@ -289,6 +339,7 @@ async def get_token_payload(
         credentials.credentials,
         token_type="access",  # noqa: S106
     )
+    _set_verified_actor_context_from_payload(request, payload)
 
     await _check_global_revocation(payload, token_type="access", db=db)  # noqa: S106
 
@@ -344,6 +395,8 @@ async def get_refresh_token(
         raise
     except Exception as e:
         raise AuthenticationRequiredError from e
+
+    _set_verified_actor_context_from_payload(request, payload)
 
     await _check_global_revocation(payload, token_type="refresh", db=db)  # noqa: S106
 

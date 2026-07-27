@@ -3,11 +3,17 @@
 Enforces a global per-user token bucket rate limit using Redis.
 When unconfigured (default), all requests pass through unrestricted.
 
-Depends on :class:`~nexus.audit.middleware.AuditMiddleware` having
-already set ``actor_context_var`` -- the rate limit middleware must
-execute *after* the audit middleware in the ASGI chain (i.e. it must
-be registered *before* ``AuditMiddleware`` in ``add_middleware`` calls,
-since Starlette inverts the registration order).
+Reads ``actor_context_var`` for per-user rate limit keys.  For
+mTLS-authenticated requests the audit middleware sets this from the
+client certificate; for JWT-authenticated requests the FastAPI auth
+dependency sets it after cryptographic verification.  Because auth
+dependencies run *inside* the downstream app, the rate limit check
+(which runs before the downstream call) sees an empty actor for JWT
+requests and falls back to IP-based rate limiting.
+
+Must execute after the audit middleware in the ASGI chain (registered
+*before* ``AuditMiddleware`` in ``add_middleware`` calls, since
+Starlette inverts the registration order).
 """
 
 from __future__ import annotations

@@ -329,8 +329,9 @@ app.add_middleware(
 app.add_middleware(StaleTokenMiddleware)
 
 # Register rate limiting middleware.
-# Executes after AuditMiddleware (which sets actor_context_var) and
-# before MetricsMiddleware (so 429s appear in metrics).
+# Executes after AuditMiddleware. Actor identity is resolved by downstream
+# auth dependencies (not by the middleware itself). Rate limiting falls back
+# to IP-based keys for unauthenticated requests.
 # Components are initialised during lifespan and stored on app.state.
 app.add_middleware(RateLimitMiddleware, fastapi_app=app)
 

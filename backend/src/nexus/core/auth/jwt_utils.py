@@ -1,7 +1,7 @@
 """Shared JWT claim extraction utilities.
 
 Defines the canonical mapping between JWT claims and actor/user attributes.
-Used by both verified (auth) and unverified (audit) JWT processing.
+Used by verified auth processing and audit actor context building.
 """
 
 from dataclasses import dataclass

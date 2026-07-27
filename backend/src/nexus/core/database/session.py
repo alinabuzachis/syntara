@@ -11,6 +11,7 @@ from sqlalchemy.orm import Query, Session
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.config.base import get_settings
+from nexus.core.constants import FieldLimits
 from nexus.core.database.ssl import build_ssl_connect_args
 
 settings = get_settings()
@@ -96,8 +97,9 @@ def set_audit_context(session: Session, _flush_context: object, _instances: obje
     if actor and actor.actor_id:
         session.execute(text(f"SET LOCAL app.actor_id = '{actor.actor_id}'"))
     if actor and actor.actor_username:
-        # Escape single quotes in username (PostgreSQL string literal escaping)
-        escaped_username = actor.actor_username.replace("'", "''")
+        # Defense-in-depth: cap username length before SQL interpolation
+        capped_username = actor.actor_username[: FieldLimits.NAME_MAX_LENGTH]
+        escaped_username = capped_username.replace("'", "''")
         session.execute(text(f"SET LOCAL app.actor_username = '{escaped_username}'"))
     if actor and actor.actor_type:
         session.execute(text(f"SET LOCAL app.actor_type = '{actor.actor_type.value}'"))

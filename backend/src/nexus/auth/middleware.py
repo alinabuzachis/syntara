@@ -19,6 +19,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
+from nexus.auth.dependencies import _set_verified_actor_context_from_payload
 from nexus.auth.services.token_service import TokenPayload, TokenService
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
@@ -225,6 +226,8 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
         except Exception:  # noqa: BLE001
             logger.debug("Token decode failed, skipping middleware checks", exc_info=True)
             return await call_next(request)
+
+        _set_verified_actor_context_from_payload(request, payload)
 
         is_sa_token = payload.token_type == "service_account"  # noqa: S105
 

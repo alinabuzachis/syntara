@@ -17,7 +17,7 @@ from nexus.audit.emitter import (
 from nexus.audit.events.audit_context import AuditContextEvent
 from nexus.audit.models.audit_event import EventCategory, EventSeverity
 from nexus.audit.models.structured_data import AuditContextData
-from nexus.audit.utils import escalate_severity, resolve_actor_type
+from nexus.audit.utils import escalate_severity, resolve_actor_type, sanitize_actor_username
 from nexus.core.models.user import User
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 _RESERVED_AUDIT_FIELDS = frozenset(AuditContextData.model_fields.keys())
 
 
-def _build_actor_context(actor: User | ServiceAccount | None) -> AuditActorContext:
+def build_actor_context(actor: User | ServiceAccount | None) -> AuditActorContext:
     """Build an AuditActorContext from a principal model.
 
     For ``User`` objects, actor_type is determined by checking if the user ID
@@ -48,13 +48,14 @@ def _build_actor_context(actor: User | ServiceAccount | None) -> AuditActorConte
         )
         return AuditActorContext(
             actor_id=actor.id,
-            actor_username=actor.username,
+            actor_username=sanitize_actor_username(actor.username),
             actor_type=actor_type,
         )
 
+    raw_username = getattr(actor, "username", None) or getattr(actor, "name", None)
     return AuditActorContext(
         actor_id=actor.id,
-        actor_username=getattr(actor, "username", None) or getattr(actor, "name", None),
+        actor_username=sanitize_actor_username(raw_username),
         actor_type=getattr(actor, "__principal_type__", None),
     )
 
@@ -88,7 +89,7 @@ def actor_context(
             propagated through non-HTTP contexts (e.g. Temporal workflow metadata)
 
     """
-    _actor_context = actor if isinstance(actor, AuditActorContext) else _build_actor_context(actor)
+    _actor_context = actor if isinstance(actor, AuditActorContext) else build_actor_context(actor)
 
     # Set new context using context variables for async-safe operations
     token_actor = actor_context_var.set(_actor_context)
@@ -143,7 +144,7 @@ def audit_context(
         msg = f"Reserved audit field names cannot be passed as context_data: {overlap}"
         raise ValueError(msg)
 
-    _actor_context = _build_actor_context(actor)
+    _actor_context = build_actor_context(actor)
 
     # Set actor context for this audit operation
     token_actor = actor_context_var.set(_actor_context)

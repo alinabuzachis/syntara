@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import pytest
 
-from nexus.audit.context_managers import _build_actor_context, actor_context, audit_context
+from nexus.audit.context_managers import actor_context, audit_context, build_actor_context
 from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
@@ -229,7 +229,7 @@ class TestActorContextServicePrincipalClassification:
 
 
 class TestBuildActorContextDuckTyping:
-    """Test _build_actor_context duck-typing branch for non-User principals."""
+    """Test build_actor_context duck-typing branch for non-User principals."""
 
     def test_service_account_uses_principal_type_and_name(self) -> None:
         """ServiceAccount has __principal_type__ and name but no username."""
@@ -242,7 +242,7 @@ class TestBuildActorContextDuckTyping:
             project_id=uuid4(),
             created_by=uuid4(),
         )
-        ctx = _build_actor_context(sa)
+        ctx = build_actor_context(sa)
 
         assert ctx.actor_id == sa.id
         assert ctx.actor_type == PrincipalType.SERVICE_ACCOUNT
@@ -260,7 +260,7 @@ class TestBuildActorContextDuckTyping:
             created_by=uuid4(),
         )
         sa.__dict__["username"] = ""
-        ctx = _build_actor_context(sa)
+        ctx = build_actor_context(sa)
 
         assert ctx.actor_username == "fallback-name"
         assert ctx.actor_type == PrincipalType.SERVICE_ACCOUNT
@@ -275,14 +275,14 @@ class TestBuildActorContextDuckTyping:
             is_enabled=True,
         )
         object.__setattr__(sa_user, "__principal_type__", PrincipalType.SERVICE_ACCOUNT)
-        ctx = _build_actor_context(sa_user)
+        ctx = build_actor_context(sa_user)
 
         assert ctx.actor_id == sa_user.id
         assert ctx.actor_username == "my-sa"
         assert ctx.actor_type == PrincipalType.SERVICE_ACCOUNT
 
     def test_none_actor_returns_all_none(self) -> None:
-        ctx = _build_actor_context(None)
+        ctx = build_actor_context(None)
         assert ctx.actor_id is None
         assert ctx.actor_username is None
         assert ctx.actor_type is None

@@ -35,6 +35,11 @@ class AuditActorContext(NamedTuple):
     actor_type: PrincipalType | None = None
 
 
+# Key used in scope["state"] / request.state to propagate verified actor
+# identity across the BaseHTTPMiddleware task boundary.  Imported by both
+# the auth dependencies (writer) and the audit middleware (reader).
+VERIFIED_ACTOR_STATE_KEY = "verified_actor_context"
+
 # Context variables for async-safe actor context management
 actor_context_var: ContextVar[AuditActorContext | None] = ContextVar("actor", default=None)
 workflow_id_context_var: ContextVar[UUID | None] = ContextVar("workflow_id", default=None)

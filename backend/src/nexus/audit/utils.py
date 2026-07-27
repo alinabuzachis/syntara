@@ -6,6 +6,8 @@ from uuid import UUID
 import structlog
 
 from nexus.audit.models.audit_event import EventSeverity
+from nexus.core.constants import FieldLimits
+from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models.principal import KNOWN_SERVICE_CNS, PrincipalType, service_principal_id
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -60,6 +62,19 @@ def escalate_actor_type(actor_id: UUID) -> PrincipalType:
         return PrincipalType.SERVICE
 
     return PrincipalType.USER
+
+
+def sanitize_actor_username(username: str | None) -> str | None:
+    """Sanitize and cap an actor username for audit context.
+
+    Strips ASCII control characters and truncates to ``NAME_MAX_LENGTH``
+    to prevent unbounded values from reaching audit logs or PostgreSQL
+    session variables.
+    """
+    if username is None:
+        return None
+    sanitized = strip_control_chars(username)
+    return sanitized[: FieldLimits.NAME_MAX_LENGTH] if sanitized else None
 
 
 def resolve_actor_type(

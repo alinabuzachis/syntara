@@ -6,7 +6,8 @@ from uuid import UUID, uuid4
 import pytest
 
 from nexus.audit.models.audit_event import EventSeverity
-from nexus.audit.utils import escalate_actor_type, escalate_severity, resolve_actor_type
+from nexus.audit.utils import escalate_actor_type, escalate_severity, resolve_actor_type, sanitize_actor_username
+from nexus.core.constants import FieldLimits
 from nexus.core.models.principal import PrincipalType, service_principal_id
 
 
@@ -137,3 +138,36 @@ class TestResolveActorType:
             )
             == PrincipalType.SERVICE
         )
+
+
+class TestSanitizeActorUsername:
+    """Unit tests for ``sanitize_actor_username``."""
+
+    def test_none_returns_none(self) -> None:
+        assert sanitize_actor_username(None) is None
+
+    def test_empty_string_returns_none(self) -> None:
+        assert sanitize_actor_username("") is None
+
+    def test_normal_username_unchanged(self) -> None:
+        assert sanitize_actor_username("admin") == "admin"
+
+    def test_strips_control_characters(self) -> None:
+        assert sanitize_actor_username("user\r\n.name") == "user.name"
+
+    def test_truncates_to_max_length(self) -> None:
+        long_name = "a" * 500
+        result = sanitize_actor_username(long_name)
+        assert result is not None
+        assert len(result) == FieldLimits.NAME_MAX_LENGTH
+
+    def test_exactly_max_length_unchanged(self) -> None:
+        name = "b" * FieldLimits.NAME_MAX_LENGTH
+        assert sanitize_actor_username(name) == name
+
+    def test_control_chars_only_returns_none(self) -> None:
+        assert sanitize_actor_username("\r\n\t") is None
+
+    def test_idempotent(self) -> None:
+        result = sanitize_actor_username("admin")
+        assert sanitize_actor_username(result) == result

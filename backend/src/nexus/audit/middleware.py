@@ -20,13 +20,13 @@ from typing import TYPE_CHECKING, NamedTuple
 from urllib.parse import parse_qs, unquote
 from uuid import UUID
 
-import jwt
 import structlog
 from starlette.routing import Match
 
 from nexus.api.constants import EXCLUDED_PATH_PREFIXES, EXCLUDED_PATHS
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
+    VERIFIED_ACTOR_STATE_KEY,
     AuditActorContext,
     activity_id_context_var,
     actor_context_var,
@@ -35,7 +35,7 @@ from nexus.audit.emitter import (
     workflow_id_context_var,
 )
 from nexus.audit.events.http_request import HTTPRequestEvent
-from nexus.core.auth.jwt_utils import extract_actor_claims
+from nexus.audit.utils import sanitize_actor_username
 from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models.principal import PrincipalType
 from nexus.metrics.interface_tag import interface_context_var
@@ -142,75 +142,30 @@ class AuditMiddleware:
         return normalized[:_MAX_PATH_LENGTH]
 
     @staticmethod
-    def _extract_bearer_token(scope: Scope) -> str | None:
-        """Extract the Bearer token from ASGI scope headers."""
-        for header_name, header_value in scope.get("headers", []):
-            if header_name.lower() == b"authorization":
-                try:
-                    authorization_header = header_value.decode("latin-1")
-                except UnicodeDecodeError:
-                    return None
-                parts = authorization_header.split()
-                if len(parts) == 2 and parts[0].lower() == "bearer":  # noqa: PLR2004
-                    return str(parts[1])
-                return None
-        return None
+    def _extract_user(scope: Scope) -> AuditActorContext:
+        """Extract actor information from client certificate.
 
-    @staticmethod
-    def _actor_from_jwt(token: str) -> AuditActorContext:
-        """Decode a JWT (unverified) and return actor context for audit logging."""
-        try:
-            claims = jwt.decode(
-                token,
-                options={"verify_signature": False},
-                algorithms=["ES256"],
-            )
-        except (jwt.DecodeError, ValueError, KeyError):
-            return AuditActorContext()
-
-        actor_claims = extract_actor_claims(claims)
-        if not (actor_claims.actor_id or actor_claims.actor_username):
-            return AuditActorContext()
-
-        if claims.get("token_type") == "service_account":
-            actor_type = PrincipalType.SERVICE_ACCOUNT
-        else:
-            actor_type = PrincipalType.USER
-
-        return AuditActorContext(
-            actor_id=actor_claims.actor_id,
-            actor_username=actor_claims.actor_username,
-            actor_type=actor_type,
-        )
-
-    def _extract_user(self, scope: Scope) -> AuditActorContext:
-        """Extract actor information from client cert or JWT token.
-
-        Checks for mTLS client certificate authentication first (set by
-        ClientCertAuthMiddleware in scope state), then falls back to
-        unverified JWT decode for audit logging.
+        Only trusts verified client certificate authentication (set by
+        ClientCertAuthMiddleware). JWT-based identity is resolved by
+        downstream auth dependencies which set ``actor_context_var``
+        after cryptographic verification.
 
         Args:
             scope: ASGI connection scope.
 
         Returns:
-            AuditActorContext with actor identity, or empty context if
-            neither cert nor token is present.
+            AuditActorContext with cert identity, or empty context for
+            non-cert requests (populated later by auth dependencies).
 
         """
         state = scope.get("state", {})
         if state.get("is_cert_authenticated") and state.get("cert_cn"):
             return AuditActorContext(
                 actor_id=None,
-                actor_username=strip_control_chars(state["cert_cn"]),
+                actor_username=sanitize_actor_username(state["cert_cn"]),
                 actor_type=PrincipalType.SERVICE,
             )
-
-        token = self._extract_bearer_token(scope)
-        if not token:
-            return AuditActorContext()
-
-        return self._actor_from_jwt(token)
+        return AuditActorContext()
 
     def _parse_query_params(self, query_string: bytes) -> dict[str, str | list[str]]:
         """Parse query string into a dictionary.
@@ -342,7 +297,7 @@ class AuditMiddleware:
                         request_payload_size = size
         request_id_token = request_id_context_var.set(request_id)
 
-        # Extract actor information from JWT (unverified decode for audit logging only)
+        # Extract actor from cert auth; JWT identity set by downstream auth dependencies
         _actor_context = self._extract_user(scope)
         actor_token = actor_context_var.set(_actor_context)
 
@@ -374,6 +329,7 @@ class AuditMiddleware:
             status_code = HTTPStatus.INTERNAL_SERVER_ERROR
             raise
         finally:
+            self._apply_verified_actor(scope)
             response_time_ms = int((time.monotonic() - start_time) * 1000)
             # Emit audit event for request completion (success or error)
             self._emit_completed(scope, path, status_code, response_time_ms, request_payload_size)
@@ -384,6 +340,19 @@ class AuditMiddleware:
             activity_id_context_var.reset(activity_token)
             execution_id_context_var.reset(execution_token)
             request_id_context_var.reset(request_id_token)
+
+    @staticmethod
+    def _apply_verified_actor(scope: Scope) -> None:
+        """Copy verified actor from scope state into the ContextVar.
+
+        Auth dependencies write to ``request.state.verified_actor_context``
+        which is backed by ``scope["state"]``.  This survives the
+        ``BaseHTTPMiddleware`` task boundary that ``StaleTokenMiddleware``
+        introduces; ``ContextVar.set()`` alone does not.
+        """
+        verified = scope.get("state", {}).get(VERIFIED_ACTOR_STATE_KEY)
+        if verified is not None:
+            actor_context_var.set(verified)
 
     def _emit_completed(
         self,
