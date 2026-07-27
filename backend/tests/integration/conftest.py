@@ -37,6 +37,20 @@ from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.models.group import Group
 from nexus.core.websocket.router import build_websocket_router
 
+pytest_plugins = [
+    "tests.integration.fixtures.database",
+    "tests.integration.fixtures.client",
+    "tests.integration.fixtures.groups",
+    "tests.integration.fixtures.temporal",
+    "tests.integration.fixtures.workflows",
+    "tests.integration.fixtures.factories",
+    "tests.integration.fixtures.jwt",
+    "tests.integration.fixtures.mocks",
+    "tests.integration.fixtures.settings",
+    "tests.integration.fixtures.tools",
+    "tests.integration.fixtures.users",
+]
+
 _MOTO_BUCKET = "nexus-integration-test"
 _MOTO_REGION = "us-east-1"
 

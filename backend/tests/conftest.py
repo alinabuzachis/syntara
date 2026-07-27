@@ -14,17 +14,8 @@ pytest_plugins = [
     "tests.fixtures.mocks",
     "tests.fixtures.settings",
     "tests.fixtures.factories",
-    # Integration-specific fixtures (FastAPI client, Temporal, group/user helpers, etc.)
-    # Registered here so unit tests that depend on them transitively still resolve correctly.
-    "tests.integration.fixtures.database",
-    "tests.integration.fixtures.client",
-    "tests.integration.fixtures.groups",
-    "tests.integration.fixtures.temporal",
+    # Cross-layer fixtures: used by shared factories (tests.fixtures.factories)
+    # which are consumed by both unit and integration tests.
     "tests.integration.fixtures.workflows",
-    "tests.integration.fixtures.factories",
-    "tests.integration.fixtures.jwt",
-    "tests.integration.fixtures.mocks",
-    "tests.integration.fixtures.settings",
     "tests.integration.fixtures.tools",
-    "tests.integration.fixtures.users",
 ]
