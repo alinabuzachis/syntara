@@ -38,7 +38,7 @@ from nexus.service_accounts.models.service_account import ServiceAccount
 
 logger = structlog.stdlib.get_logger(__name__)
 
-_SORTABLE_FIELDS = {"created_at", "principal_name", "role_name", "project_name"}
+_SORTABLE_FIELDS = {"created_at", "principal_name", "principal_type", "role_name", "project_name", "scope"}
 
 
 def _sort_value_from_row(row: Any, sort_field: str) -> str | None:  # noqa: ANN401
@@ -49,6 +49,10 @@ def _sort_value_from_row(row: Any, sort_field: str) -> str | None:  # noqa: ANN4
         return serialize_sort_value(row[1])
     if sort_field == "project_name":
         return serialize_sort_value(row[2])
+    if sort_field == "principal_type":
+        return serialize_sort_value(row[3])
+    if sort_field == "scope":
+        return serialize_sort_value("project" if row[0].project_id else "system")
     return serialize_sort_value(getattr(row[0], sort_field, None))
 
 
@@ -189,7 +193,7 @@ class RoleAssignmentService:
         await self._enrich_with_role_info([row])
         return row
 
-    async def list(  # noqa: C901, PLR0912, PLR0915
+    async def list(
         self,
         *,
         limit: int = 20,
@@ -202,6 +206,8 @@ class RoleAssignmentService:
         role_name: str | None = None,
         role_name_contains: str | None = None,
         project_id: UUID | None = None,
+        principal_type: str | None = None,
+        scope: str | None = None,
         include_total: bool = False,
         restrict_user_id: UUID | None = None,
         restrict_group_ids: builtins.list[UUID] | None = None,
@@ -213,38 +219,39 @@ class RoleAssignmentService:
         allowed_project_ids.  When all are None the caller sees everything.
         """
         principal_name_col = self._principal_name_col()
+
+        principal_type_col = self._principal_type_col()
+
+        scope_col = case(
+            (RoleAssignment.project_id.is_not(None), "project"),  # type: ignore[union-attr]
+            else_="system",
+        ).label("scope")
+
         base = self._base_assignment_query()
 
         # Visibility filter
-        if restrict_user_id is not None or restrict_group_ids is not None or allowed_project_ids is not None:
-            visibility_clauses: builtins.list[Any] = []
-            if restrict_user_id is not None:
-                visibility_clauses.append(RoleAssignment.principal_id == restrict_user_id)
-            if restrict_group_ids:
-                visibility_clauses.append(
-                    RoleAssignment.group_id.in_(restrict_group_ids)  # type: ignore[union-attr]
-                )
-            if allowed_project_ids:
-                visibility_clauses.append(
-                    RoleAssignment.project_id.in_(allowed_project_ids)  # type: ignore[union-attr]
-                )
-            base = base.where(or_(*visibility_clauses)) if visibility_clauses else base.where(false())
+        base = self._apply_visibility_filter(
+            base,
+            restrict_user_id=restrict_user_id,
+            restrict_group_ids=restrict_group_ids,
+            allowed_project_ids=allowed_project_ids,
+        )
 
         # Attribute filters
-        if principal_id is not None:
-            base = base.where(RoleAssignment.principal_id == principal_id)
-        if group_id is not None:
-            base = base.where(RoleAssignment.group_id == group_id)
-        if principal_name is not None:
-            base = base.where(principal_name_col == principal_name)
-        if principal_name_contains is not None:
-            base = base.where(principal_name_col.ilike(f"%{principal_name_contains}%"))
-        if role_name is not None:
-            base = base.where(RoleAssignment.role_name == role_name)
-        if role_name_contains is not None:
-            base = base.where(RoleAssignment.role_name.ilike(f"%{role_name_contains}%"))  # type: ignore[attr-defined]
-        if project_id is not None:
-            base = base.where(RoleAssignment.project_id == project_id)
+        base = self._apply_attribute_filters(
+            base,
+            principal_id=principal_id,
+            group_id=group_id,
+            principal_name=principal_name,
+            principal_name_col=principal_name_col,
+            principal_name_contains=principal_name_contains,
+            role_name=role_name,
+            role_name_contains=role_name_contains,
+            project_id=project_id,
+            principal_type=principal_type,
+            principal_type_col=principal_type_col,
+            scope=scope,
+        )
 
         total: int | None = None
         if include_total:
@@ -252,12 +259,7 @@ class RoleAssignmentService:
             total = count_result.one()
 
         sort_field, descending = self._parse_sort(sort)
-        if sort_field == "principal_name":
-            sort_col = principal_name_col
-        elif sort_field == "project_name":
-            sort_col = Project.name
-        else:
-            sort_col = getattr(RoleAssignment, sort_field)
+        sort_col = self._resolve_sort_col(sort_field, principal_name_col, scope_col, principal_type_col)
 
         id_col = RoleAssignment.id
         created_at_col = RoleAssignment.created_at
@@ -265,10 +267,11 @@ class RoleAssignmentService:
         base, is_backward = self._apply_cursor(base, cursor, sort_col, created_at_col, id_col, descending, sort_field)
 
         effective_desc = descending ^ is_backward
+        sort_expr = self._build_sort_expr(sort_col, effective_desc, is_backward)
         if effective_desc:
-            base = base.order_by(sort_col.desc(), created_at_col.desc(), id_col.desc())  # type: ignore[attr-defined]
+            base = base.order_by(sort_expr, created_at_col.desc(), id_col.desc())  # type: ignore[attr-defined]
         else:
-            base = base.order_by(sort_col.asc(), created_at_col.asc(), id_col.asc())  # type: ignore[attr-defined]
+            base = base.order_by(sort_expr, created_at_col.asc(), id_col.asc())  # type: ignore[attr-defined]
 
         base = base.limit(limit + 1)
         result = await self.session.exec(base)
@@ -448,6 +451,70 @@ class RoleAssignmentService:
             .outerjoin(Project, RoleAssignment.project_id == Project.id)  # type: ignore[arg-type]
         )
 
+    @staticmethod
+    def _apply_visibility_filter(
+        base: Any,  # noqa: ANN401
+        *,
+        restrict_user_id: UUID | None,
+        restrict_group_ids: builtins.list[UUID] | None,
+        allowed_project_ids: builtins.list[UUID] | None,
+    ) -> Any:  # noqa: ANN401
+        """Apply visibility-scoping WHERE clauses based on caller permissions."""
+        if restrict_user_id is None and restrict_group_ids is None and allowed_project_ids is None:
+            return base
+        visibility_clauses: builtins.list[Any] = []
+        if restrict_user_id is not None:
+            visibility_clauses.append(RoleAssignment.principal_id == restrict_user_id)
+        if restrict_group_ids:
+            visibility_clauses.append(
+                RoleAssignment.group_id.in_(restrict_group_ids)  # type: ignore[union-attr]
+            )
+        if allowed_project_ids:
+            visibility_clauses.append(
+                RoleAssignment.project_id.in_(allowed_project_ids)  # type: ignore[union-attr]
+            )
+        return base.where(or_(*visibility_clauses)) if visibility_clauses else base.where(false())
+
+    @staticmethod
+    def _apply_attribute_filters(  # noqa: C901
+        base: Any,  # noqa: ANN401
+        *,
+        principal_id: UUID | None,
+        group_id: UUID | None,
+        principal_name: str | None,
+        principal_name_col: Any,  # noqa: ANN401
+        principal_name_contains: str | None,
+        role_name: str | None,
+        role_name_contains: str | None,
+        project_id: UUID | None,
+        principal_type: str | None,
+        principal_type_col: Any,  # noqa: ANN401
+        scope: str | None,
+    ) -> Any:  # noqa: ANN401
+        """Apply attribute-based WHERE clauses to filter the assignment query."""
+        if principal_id is not None:
+            base = base.where(RoleAssignment.principal_id == principal_id)
+        if group_id is not None:
+            base = base.where(RoleAssignment.group_id == group_id)
+        if principal_name is not None:
+            base = base.where(principal_name_col == principal_name)
+        if principal_name_contains is not None:
+            base = base.where(principal_name_col.ilike(f"%{principal_name_contains}%"))
+        if role_name is not None:
+            base = base.where(RoleAssignment.role_name == role_name)
+        if role_name_contains is not None:
+            base = base.where(RoleAssignment.role_name.ilike(f"%{role_name_contains}%"))  # type: ignore[attr-defined]
+        if project_id is not None:
+            base = base.where(RoleAssignment.project_id == project_id)
+        if principal_type is not None:
+            base = base.where(principal_type_col == principal_type)
+        if scope is not None:
+            if scope == "system":
+                base = base.where(RoleAssignment.project_id.is_(None))  # type: ignore[union-attr]
+            elif scope == "project":
+                base = base.where(RoleAssignment.project_id.is_not(None))  # type: ignore[union-attr]
+        return base
+
     async def _query_one(self, assignment_id: UUID) -> dict[str, Any] | None:
         """Fetch a single assignment with resolved names."""
         stmt = self._base_assignment_query().where(RoleAssignment.id == assignment_id)
@@ -600,6 +667,35 @@ class RoleAssignmentService:
         }
 
     @staticmethod
+    def _resolve_sort_col(
+        sort_field: str,
+        principal_name_col: Any,  # noqa: ANN401
+        scope_col: Any,  # noqa: ANN401
+        principal_type_col: Any,  # noqa: ANN401
+    ) -> Any:  # noqa: ANN401
+        """Map a sort field name to the corresponding SQLAlchemy column expression."""
+        if sort_field == "principal_name":
+            return principal_name_col
+        if sort_field == "principal_type":
+            return principal_type_col
+        if sort_field == "project_name":
+            return Project.name
+        if sort_field == "scope":
+            return scope_col
+        return getattr(RoleAssignment, sort_field)
+
+    @staticmethod
+    def _build_sort_expr(
+        sort_col: Any,  # noqa: ANN401
+        effective_desc: bool,  # noqa: FBT001
+        is_backward: bool,  # noqa: FBT001
+    ) -> Any:  # noqa: ANN401
+        """Build a sort expression with correct NULL ordering for cursor pagination."""
+        if effective_desc:
+            return sort_col.desc().nulls_first() if is_backward else sort_col.desc().nulls_last()  # type: ignore[attr-defined, unused-ignore]
+        return sort_col.asc().nulls_first() if is_backward else sort_col.asc().nulls_last()  # type: ignore[attr-defined, unused-ignore]
+
+    @staticmethod
     def _parse_sort(sort: str | None) -> tuple[str, bool]:
         if not sort:
             return "created_at", True
@@ -608,6 +704,46 @@ class RoleAssignmentService:
         if field not in _SORTABLE_FIELDS:
             return "created_at", True
         return field, descending
+
+    @staticmethod
+    def _sort_col_where_clause(
+        sort_col: Any,  # noqa: ANN401
+        created_at_col: Any,  # noqa: ANN401
+        id_col: Any,  # noqa: ANN401
+        cursor_sv: str,
+        cursor_dt: datetime,
+        rid: str,
+        go_forward: bool,  # noqa: FBT001
+        is_backward: bool,  # noqa: FBT001
+    ) -> Any:  # noqa: ANN401
+        """Build a WHERE clause for 3-column keyset pagination with NULLS LAST."""
+        cursor_sv_is_null = cursor_sv == ""
+
+        if cursor_sv_is_null:
+            if go_forward:
+                tiebreaker = (created_at_col < cursor_dt) | ((created_at_col == cursor_dt) & (id_col < rid))
+            else:
+                tiebreaker = (created_at_col > cursor_dt) | ((created_at_col == cursor_dt) & (id_col > rid))
+            null_match = (sort_col.is_(None)) & tiebreaker
+            if is_backward:
+                return null_match | (sort_col.is_not(None))
+            return null_match
+
+        if go_forward:
+            clause = (
+                (sort_col < cursor_sv)
+                | ((sort_col == cursor_sv) & (created_at_col < cursor_dt))
+                | ((sort_col == cursor_sv) & (created_at_col == cursor_dt) & (id_col < rid))
+            )
+        else:
+            clause = (
+                (sort_col > cursor_sv)
+                | ((sort_col == cursor_sv) & (created_at_col > cursor_dt))
+                | ((sort_col == cursor_sv) & (created_at_col == cursor_dt) & (id_col > rid))
+            )
+        if not is_backward:
+            clause = clause | (sort_col.is_(None))
+        return clause
 
     @staticmethod
     def _apply_cursor(
@@ -631,7 +767,6 @@ class RoleAssignmentService:
         direction = cursor_data.get("direction", "next")
         is_backward = direction == PaginationDirection.PREV.value
 
-        # New-style cursor with sort_value: 3-column keyset (sort_col, created_at, id)
         use_sort_col = (
             cursor_sv is not None
             and cursor_sort_field is not None
@@ -648,21 +783,13 @@ class RoleAssignmentService:
 
             go_forward = descending ^ is_backward
 
-            if use_sort_col:
-                # Raises SafeValueError on malformed sort_value → API 422.
-                typed_sv = deserialize_column_sort_value(str(cursor_sv), sort_col)
-                if go_forward:
-                    stmt = stmt.where(
-                        (sort_col < typed_sv)
-                        | ((sort_col == typed_sv) & (created_at_col < cursor_dt))
-                        | ((sort_col == typed_sv) & (created_at_col == cursor_dt) & (id_col < rid))
+            if use_sort_col and cursor_sv is not None:
+                typed_sv = deserialize_column_sort_value(str(cursor_sv), sort_col) if cursor_sv != "" else cursor_sv
+                stmt = stmt.where(
+                    RoleAssignmentService._sort_col_where_clause(
+                        sort_col, created_at_col, id_col, typed_sv, cursor_dt, rid, go_forward, is_backward
                     )
-                else:
-                    stmt = stmt.where(
-                        (sort_col > typed_sv)
-                        | ((sort_col == typed_sv) & (created_at_col > cursor_dt))
-                        | ((sort_col == typed_sv) & (created_at_col == cursor_dt) & (id_col > rid))
-                    )
+                )
             elif go_forward:
                 stmt = stmt.where((created_at_col < cursor_dt) | ((created_at_col == cursor_dt) & (id_col < rid)))
             else:

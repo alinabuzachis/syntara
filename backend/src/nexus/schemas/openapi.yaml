@@ -6588,6 +6588,18 @@ paths:
               - type: string
               - type: 'null'
             title: Principal Name
+        - name: principal_type
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                enum:
+                  - user
+                  - group
+                  - service_account
+              - type: 'null'
+            title: Principal Type
         - name: role_name
           in: query
           required: false
@@ -6605,6 +6617,17 @@ paths:
                 format: uuid
               - type: 'null'
             title: Project Id
+        - name: scope
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                enum:
+                  - system
+                  - project
+              - type: 'null'
+            title: Scope
       responses:
         '200':
           description: List of role assignments

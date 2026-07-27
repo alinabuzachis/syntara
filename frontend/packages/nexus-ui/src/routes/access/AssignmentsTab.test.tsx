@@ -1,53 +1,22 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within, waitFor } from '@testing-library/react'
+import { render, screen, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../providers/alerts'
-import type { FilterConfig } from '../../types/filters'
 
 import { accessClient, accessFetchClient } from './accessClient'
 import { AssignmentsTab } from './AssignmentsTab'
-import type { PermissionRow } from './types'
-import { useAssignmentsData } from './useAssignmentsData'
+import type { RoleAssignmentRead } from './types'
 
-// ── Mocks ────────────────────────────────────────────────────────────────────
+vi.mock('../../app/routerFlag', () => ({
+  isTanStackRouter: () => false,
+}))
 
-const mockHandleFilterChange = vi.fn()
-const mockGetSortParams = vi.fn()
-const mockRefetchAll = vi.fn()
-const mockHandleDelete = vi.fn()
-
-const mockClearAllFilters = vi.fn()
-
-const defaultHookReturn: ReturnType<typeof useAssignmentsData> = {
-  filters: [] as FilterConfig[],
-  handleFilterChange: mockHandleFilterChange,
-  clearAllFilters: mockClearAllFilters,
-  getSortParams: mockGetSortParams,
-  projects: [
-    {
-      id: 'p1',
-      name: 'Project Alpha',
-      description: null,
-      labels: {},
-      is_default: true,
-    },
-  ],
-  projectNameMap: new Map([['p1', 'Project Alpha']]),
-  allRows: [] as PermissionRow[],
-  sortedRows: [] as PermissionRow[],
-  hasActiveFilters: false,
-  refetchAll: mockRefetchAll,
-  handleDelete: mockHandleDelete,
-  isPending: false,
-  error: null,
-}
-
-vi.mock('./useAssignmentsData', () => ({
-  useAssignmentsData: vi.fn(),
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('./accessClient', () => ({
@@ -57,7 +26,6 @@ vi.mock('./accessClient', () => ({
   },
   accessFetchClient: {
     GET: vi.fn(),
-    use: vi.fn(),
   },
 }))
 
@@ -66,13 +34,43 @@ vi.mock('../../client', () => ({
   interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
-vi.mock('./useAssignmentPermissions', () => ({
-  useAssignmentPermissions: () => ({
-    canAssign: true,
-    canRevoke: true,
+vi.mock('./useProjectNameMap', () => ({
+  useProjectNameMap: () => ({
+    projectNameMap: new Map([['p1', 'Project Alpha']]),
     isLoading: false,
-    tooltips: { assign: '', revoke: '' },
   }),
+}))
+
+const mockPermissionsState = {
+  canAssign: true,
+  canRevoke: true,
+  isLoading: false,
+  tooltips: { assign: 'No assign permission', revoke: 'No revoke permission' },
+}
+
+vi.mock('./useAssignmentPermissions', () => ({
+  useAssignmentPermissions: () => mockPermissionsState,
+}))
+
+vi.mock('./AssignRoleDialog', () => ({
+  AssignRoleDialog: (props: { onClose: () => void; onSuccess: () => void }) => (
+    <div data-testid="assign-role-dialog">
+      <span>Add Assignment</span>
+      <button onClick={props.onClose}>Close assign</button>
+      <button onClick={props.onSuccess}>Save assign</button>
+    </div>
+  ),
+}))
+
+vi.mock('./EditAssignmentDialog', () => ({
+  EditAssignmentDialog: (props: { displayName: string; onClose: () => void; onSuccess: () => void }) => (
+    <div data-testid="edit-assignment-dialog">
+      <span>Edit Assignment</span>
+      <span>{props.displayName}</span>
+      <button onClick={props.onClose}>Close edit</button>
+      <button onClick={props.onSuccess}>Save edit</button>
+    </div>
+  ),
 }))
 
 const queryClient = new QueryClient({
@@ -85,113 +83,107 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-// ── Test data ────────────────────────────────────────────────────────────────
+const mockRefetch = vi.fn().mockResolvedValue({})
+const mockDeleteMutate = vi.fn()
 
-const sampleRows: PermissionRow[] = [
+const sampleAssignments: RoleAssignmentRead[] = [
   {
     id: 'pr1',
-    principalType: 'user',
-    principalId: 'u1',
-    principalName: 'alice',
-    assignmentType: 'role',
-    assignmentName: 'Admin',
-    scopeType: 'project',
-    scopeName: 'Project Alpha',
-    projectId: 'p1',
-    roleDescription: null,
-    rolePolicies: [],
-    sourceEndpoint: 'project-role-assignments',
+    principal_id: 'u1',
+    group_id: null,
+    principal_type: 'user',
+    principal_name: 'alice',
+    role_name: 'Admin',
+    role_description: null,
+    role_policies: [],
+    project_id: 'p1',
+    project_name: 'Project Alpha',
+    created_at: '2024-01-01T00:00:00Z',
   },
   {
     id: 'pgr1',
-    principalType: 'group',
-    principalId: 'g1',
-    principalName: 'Devs',
-    assignmentType: 'role',
-    assignmentName: 'Editor',
-    scopeType: 'project',
-    scopeName: 'Project Alpha',
-    projectId: 'p1',
-    roleDescription: null,
-    rolePolicies: [],
-    sourceEndpoint: 'project-role-assignments',
+    principal_id: null,
+    group_id: 'g1',
+    principal_type: 'group',
+    principal_name: 'Devs',
+    role_name: 'Editor',
+    role_description: null,
+    role_policies: [],
+    project_id: 'p1',
+    project_name: 'Project Alpha',
+    created_at: '2024-02-01T00:00:00Z',
   },
   {
     id: 'sur1',
-    principalType: 'user',
-    principalId: 'u2',
-    principalName: 'bob',
-    assignmentType: 'role',
-    assignmentName: 'Viewer',
-    scopeType: 'system',
-    scopeName: 'System',
-    roleDescription: null,
-    rolePolicies: [],
-    sourceEndpoint: 'role-assignments',
+    principal_id: 'u2',
+    group_id: null,
+    principal_type: 'user',
+    principal_name: 'bob',
+    role_name: 'Viewer',
+    role_description: 'Basic read access',
+    role_policies: undefined,
+    project_id: null,
+    project_name: null,
+    created_at: '2024-03-01T00:00:00Z',
   },
   {
     id: 'sar1',
-    principalType: 'service_account',
-    principalId: 'sa-1',
-    principalName: 'my-service-account',
-    assignmentType: 'role',
-    assignmentName: 'Project Editor',
-    scopeType: 'project',
-    scopeName: 'Project Alpha',
-    projectId: 'p1',
-    roleDescription: 'Edit project resources',
-    rolePolicies: ['project.edit'],
-    sourceEndpoint: 'project-role-assignments',
+    principal_id: 'sa-1',
+    group_id: null,
+    principal_type: 'service_account',
+    principal_name: 'my-service-account',
+    role_name: 'Project Editor',
+    role_description: 'Edit project resources',
+    role_policies: ['project.edit'],
+    project_id: 'p1',
+    project_name: 'Project Alpha',
+    created_at: '2024-04-01T00:00:00Z',
   },
-]
+] as unknown as RoleAssignmentRead[]
 
-// ── Tests ────────────────────────────────────────────────────────────────────
+function setupAssignmentsQuery(assignments: RoleAssignmentRead[], options?: { total?: number; next?: string | null }) {
+  vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+    if (path === '/role_assignments') {
+      return {
+        data: {
+          resources: assignments,
+          total: options?.total ?? assignments.length,
+          next: options?.next ?? null,
+          prev: null,
+        },
+        isPending: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never
+    }
+    return {
+      data: undefined,
+      isPending: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+      refetch: mockRefetch,
+    } as never
+  })
+}
 
 describe('AssignmentsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetSortParams.mockReturnValue({
-      sortBy: { index: undefined, direction: 'asc', defaultDirection: 'asc' as const },
-      onSort: vi.fn(),
-      columnIndex: 0,
-    })
-    vi.mocked(useAssignmentsData).mockReturnValue({ ...defaultHookReturn })
-    vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-      if (path === '/projects') {
-        return {
-          data: [{ id: 'p1', name: 'Project Alpha' }],
-          isPending: false,
-          isError: false,
-          error: null,
-          isFetching: false,
-          refetch: vi.fn(),
-        }
-      }
-      if (path === '/roles') {
-        return {
-          data: {
-            resources: [
-              { id: 'r1', name: 'Admin' },
-              { id: 'r2', name: 'Viewer' },
-            ],
-          },
-          isPending: false,
-          isError: false,
-          error: null,
-          isFetching: false,
-          refetch: vi.fn(),
-        }
-      }
-      return { data: undefined, isPending: false, isError: false, error: null, isFetching: false, refetch: vi.fn() }
-    })
+    mockPermissionsState.canAssign = true
+    mockPermissionsState.canRevoke = true
+    setupAssignmentsQuery([])
+
     vi.mocked(accessClient.useMutation).mockReturnValue({
-      mutate: vi.fn(),
-      mutateAsync: vi.fn().mockResolvedValue({}),
+      mutate: mockDeleteMutate,
       isPending: false,
       isError: false,
       error: null,
       data: null,
       reset: vi.fn(),
+      mutateAsync: vi.fn(),
       isIdle: true,
       isSuccess: false,
       failureCount: 0,
@@ -202,6 +194,7 @@ describe('AssignmentsTab', () => {
       status: 'idle',
       isPaused: false,
     } as never)
+
     vi.mocked(accessFetchClient.GET).mockResolvedValue({ data: { resources: [] } } as never)
   })
 
@@ -220,20 +213,13 @@ describe('AssignmentsTab', () => {
 
       const addButton = screen.getByRole('button', { name: 'Add assignment' })
       expect(addButton).toBeInTheDocument()
-      // Clicking the button sets isAddDialogOpen, but the early return in
-      // the component prevents the dialog from rendering when allRows is empty.
-      // This verifies the button is present and clickable.
       await user.click(addButton)
     })
   })
 
   describe('Table Rendering', () => {
     beforeEach(() => {
-      vi.mocked(useAssignmentsData).mockReturnValue({
-        ...defaultHookReturn,
-        allRows: sampleRows,
-        sortedRows: sampleRows,
-      })
+      setupAssignmentsQuery(sampleAssignments)
     })
 
     it('renders table with data rows', () => {
@@ -259,7 +245,6 @@ describe('AssignmentsTab', () => {
 
       const table = screen.getByRole('grid', { name: 'Role assignments' })
       const rows = within(table).getAllByRole('row')
-      // Row 1 is alice (user)
       expect(within(rows[1]).getByText('User')).toBeInTheDocument()
     })
 
@@ -268,7 +253,6 @@ describe('AssignmentsTab', () => {
 
       const table = screen.getByRole('grid', { name: 'Role assignments' })
       const rows = within(table).getAllByRole('row')
-      // Row 2 is Devs (group)
       expect(within(rows[2]).getByText('Group')).toBeInTheDocument()
     })
 
@@ -301,8 +285,72 @@ describe('AssignmentsTab', () => {
 
       const table = screen.getByRole('grid', { name: 'Role assignments' })
       const rows = within(table).getAllByRole('row')
-      // Row 3 is bob (system-scoped) — scope column should show 'System' label
       expect(within(rows[3]).getByText('System')).toBeInTheDocument()
+    })
+
+    it('renders policies as labels when present', () => {
+      const withPolicies = [
+        {
+          ...sampleAssignments[0],
+          role_policies: ['read-only', 'write-access'],
+        },
+      ] as unknown as RoleAssignmentRead[]
+      setupAssignmentsQuery(withPolicies)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('read-only')).toBeInTheDocument()
+      expect(screen.getByText('write-access')).toBeInTheDocument()
+    })
+
+    it('renders dash when no policies', () => {
+      setupAssignmentsQuery(sampleAssignments)
+      render(<AssignmentsTab />, { wrapper })
+
+      const dashes = screen.getAllByText('-')
+      expect(dashes.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('renders User label when group_id is null', () => {
+      const userOnly = [
+        {
+          ...sampleAssignments[0],
+          id: 'sa1',
+          group_id: null,
+          principal_name: 'bot-runner',
+        },
+      ] as unknown as RoleAssignmentRead[]
+      setupAssignmentsQuery(userOnly)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('bot-runner')).toBeInTheDocument()
+      expect(screen.getByText('User')).toBeInTheDocument()
+    })
+
+    it('renders role description tooltip when present', () => {
+      const withDescription = [
+        {
+          ...sampleAssignments[0],
+          role_description: 'Full system access',
+        },
+      ] as unknown as RoleAssignmentRead[]
+      setupAssignmentsQuery(withDescription)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('Admin')).toBeInTheDocument()
+    })
+
+    it('renders project id as fallback when project name is missing', () => {
+      const withMissingProjectName = [
+        {
+          ...sampleAssignments[0],
+          project_name: null,
+          project_id: 'orphan-project-id',
+        },
+      ] as unknown as RoleAssignmentRead[]
+      setupAssignmentsQuery(withMissingProjectName)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('orphan-project-id')).toBeInTheDocument()
     })
 
     it('renders Add assignment button', () => {
@@ -312,48 +360,97 @@ describe('AssignmentsTab', () => {
     })
   })
 
-  describe('Filter Empty State', () => {
-    it('shows filter empty state when filters active but no matching rows', () => {
-      vi.mocked(useAssignmentsData).mockReturnValue({
-        ...defaultHookReturn,
-        allRows: sampleRows,
-        sortedRows: [],
-        hasActiveFilters: true,
-        filters: [{ key: 'name', value: 'nonexistent' }],
+  describe('Loading and error states', () => {
+    it('displays loading state when query is pending', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/role_assignments') {
+          return {
+            data: undefined,
+            isPending: true,
+            isFetching: true,
+            isError: false,
+            error: null,
+            refetch: mockRefetch,
+          } as never
+        }
+        return {
+          data: undefined,
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never
       })
 
       render(<AssignmentsTab />, { wrapper })
 
-      expect(screen.getByText('No results found')).toBeInTheDocument()
+      expect(screen.getByTestId('loading-state')).toBeInTheDocument()
     })
 
-    it('clears all filters from filter empty state', async () => {
-      const user = userEvent.setup()
-      vi.mocked(useAssignmentsData).mockReturnValue({
-        ...defaultHookReturn,
-        allRows: sampleRows,
-        sortedRows: [],
-        hasActiveFilters: true,
-        filters: [{ key: 'name', value: 'nonexistent' }],
+    it('displays error state when query fails', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/role_assignments') {
+          return {
+            data: undefined,
+            isPending: false,
+            isFetching: false,
+            isError: true,
+            error: new Error('Failed to load assignments'),
+            refetch: mockRefetch,
+          } as never
+        }
+        return {
+          data: undefined,
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never
       })
 
       render(<AssignmentsTab />, { wrapper })
 
-      // There may be multiple "Clear all filters" buttons (FilterBar + EmptyStateFilter)
-      const clearButtons = screen.getAllByRole('button', { name: /Clear all filters/i })
-      await user.click(clearButtons[clearButtons.length - 1])
+      expect(screen.getByTestId('error-state')).toBeInTheDocument()
+    })
+  })
 
-      expect(mockClearAllFilters).toHaveBeenCalled()
+  describe('Filter empty state', () => {
+    it('shows filter empty state when filters are active but no results', async () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
+        const opts = args[2] as { params?: { query?: Record<string, unknown> } } | undefined
+        const hasNameFilter = opts?.params?.query?.['principal_name[contains]']
+        return {
+          data: {
+            resources: hasNameFilter ? [] : sampleAssignments,
+            next: null,
+            total: hasNameFilter ? 0 : 3,
+          },
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never
+      })
+
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const textInput = screen.getByRole('textbox', { name: /principal name filter/i })
+      await user.type(textInput, 'nonexistent')
+      await user.keyboard('{Enter}')
+
+      await waitFor(() => {
+        expect(screen.getByText('No results found')).toBeInTheDocument()
+      })
     })
   })
 
   describe('Row Actions', () => {
     beforeEach(() => {
-      vi.mocked(useAssignmentsData).mockReturnValue({
-        ...defaultHookReturn,
-        allRows: sampleRows,
-        sortedRows: sampleRows,
-      })
+      setupAssignmentsQuery(sampleAssignments)
     })
 
     it('opens edit dialog when Edit action is clicked', async () => {
@@ -389,11 +486,7 @@ describe('AssignmentsTab', () => {
 
   describe('Delete Confirmation Modal', () => {
     beforeEach(() => {
-      vi.mocked(useAssignmentsData).mockReturnValue({
-        ...defaultHookReturn,
-        allRows: sampleRows,
-        sortedRows: sampleRows,
-      })
+      setupAssignmentsQuery(sampleAssignments)
     })
 
     it('shows the delete modal with Remove and Cancel buttons', async () => {
@@ -428,7 +521,7 @@ describe('AssignmentsTab', () => {
       })
     })
 
-    it('calls handleDelete when Remove button is clicked', async () => {
+    it('calls delete mutation when Remove button is clicked', async () => {
       const user = userEvent.setup()
       render(<AssignmentsTab />, { wrapper })
 
@@ -441,7 +534,7 @@ describe('AssignmentsTab', () => {
       const removeButton = await screen.findByRole('button', { name: 'Remove' })
       await user.click(removeButton)
 
-      expect(mockHandleDelete).toHaveBeenCalledWith(sampleRows[0], expect.any(Function))
+      expect(mockDeleteMutate).toHaveBeenCalled()
     })
 
     it('closes delete modal when Cancel is clicked', async () => {
@@ -466,11 +559,7 @@ describe('AssignmentsTab', () => {
 
   describe('Add Assignment Dialog', () => {
     beforeEach(() => {
-      vi.mocked(useAssignmentsData).mockReturnValue({
-        ...defaultHookReturn,
-        allRows: sampleRows,
-        sortedRows: sampleRows,
-      })
+      setupAssignmentsQuery(sampleAssignments)
     })
 
     it('opens add dialog when Add assignment button is clicked', async () => {
@@ -480,18 +569,802 @@ describe('AssignmentsTab', () => {
       await user.click(screen.getByRole('button', { name: /Add assignment/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Add Assignment')).toBeInTheDocument()
+        expect(screen.getByTestId('assign-role-dialog')).toBeInTheDocument()
       })
+    })
+
+    it('closes add dialog when Close is clicked', async () => {
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: /Add assignment/i }))
+      await waitFor(() => {
+        expect(screen.getByTestId('assign-role-dialog')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Close assign' }))
+      await waitFor(() => {
+        expect(screen.queryByTestId('assign-role-dialog')).not.toBeInTheDocument()
+      })
+    })
+
+    it('refetches on successful assignment', async () => {
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: /Add assignment/i }))
+      await waitFor(() => {
+        expect(screen.getByTestId('assign-role-dialog')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Save assign' }))
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+  })
+
+  describe('Sorting', () => {
+    beforeEach(() => {
+      setupAssignmentsQuery(sampleAssignments)
+    })
+
+    it('renders sortable Principal Name column', () => {
+      render(<AssignmentsTab />, { wrapper })
+
+      const nameHeader = screen.getByRole('columnheader', { name: /Principal Name/i })
+      expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
+    })
+
+    it('passes sort parameter to the API', () => {
+      render(<AssignmentsTab />, { wrapper })
+
+      const callArgs = vi
+        .mocked(accessClient.useQuery)
+        .mock.calls.find((call) => call[0] === 'get' && call[1] === '/role_assignments')
+      expect(callArgs).toBeDefined()
+      const queryOptions = callArgs![2] as unknown as {
+        params: { query: Record<string, unknown> }
+      }
+      expect(queryOptions.params.query).toMatchObject({
+        sort: 'principal_name',
+        limit: 20,
+        include_total: true,
+      })
+    })
+
+    it('sends sort parameter when column header is clicked', async () => {
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const nameHeader = screen.getByRole('columnheader', { name: /Principal Name/i })
+      await user.click(within(nameHeader).getByRole('button'))
+
+      await waitFor(() => {
+        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('sort')
+      })
+    })
+
+    it('sends descending sort parameter when already-sorted column is clicked', async () => {
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const nameHeader = screen.getByRole('columnheader', { name: /Principal Name/i })
+      const sortButton = within(nameHeader).getByRole('button')
+
+      await user.click(sortButton)
+
+      await waitFor(() => {
+        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('sort', '-principal_name')
+      })
+    })
+
+    it('sorts by Role Name column when its header is clicked', async () => {
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const roleHeader = screen.getByRole('columnheader', { name: /Role Name/i })
+      await user.click(within(roleHeader).getByRole('button'))
+
+      await waitFor(() => {
+        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('sort')
+      })
+    })
+
+    it('sorts by Scope column when its header is clicked', async () => {
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const scopeHeader = screen.getByRole('columnheader', { name: /^Scope$/i })
+      await user.click(within(scopeHeader).getByRole('button'))
+
+      await waitFor(() => {
+        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('sort')
+      })
+    })
+  })
+
+  describe('Pagination', () => {
+    it('renders footer with item count', () => {
+      setupAssignmentsQuery(sampleAssignments)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
+    })
+
+    it('navigates to next page when next cursor is available', async () => {
+      setupAssignmentsQuery(sampleAssignments, { total: 25, next: 'next-cursor' })
+
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const nextButton = screen.getByRole('button', { name: /next page/i })
+      await user.click(nextButton)
+
+      await waitFor(() => {
+        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('cursor', 'next-cursor')
+      })
+    })
+  })
+
+  describe('Delete flow', () => {
+    async function openDeleteDialog() {
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const deleteOption = await screen.findByRole('menuitem', { name: /Delete assignment/i })
+      await user.click(deleteOption)
+
+      await waitFor(() => {
+        expect(screen.getByText('Remove assignment?')).toBeInTheDocument()
+      })
+      return user
+    }
+
+    it('calls delete mutation for project-scoped assignment', async () => {
+      const user = await openDeleteDialog()
+
+      await user.click(screen.getByRole('button', { name: 'Remove' }))
+
+      expect(mockDeleteMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: { path: { project_id: 'p1', assignment_id: 'pr1' } },
+        }),
+        expect.any(Object)
+      )
+    })
+
+    it('refetches assignments on successful delete', async () => {
+      const user = await openDeleteDialog()
+
+      await user.click(screen.getByRole('button', { name: 'Remove' }))
+
+      const callbacks = mockDeleteMutate.mock.calls[0][1] as {
+        onSuccess: () => void
+        onSettled: () => void
+      }
+      act(() => {
+        callbacks.onSuccess()
+        callbacks.onSettled()
+      })
+
+      expect(mockRefetch).toHaveBeenCalled()
+      await waitFor(() => {
+        expect(screen.queryByText('Remove assignment?')).not.toBeInTheDocument()
+      })
+    })
+
+    it('closes dialog on failed delete', async () => {
+      const user = await openDeleteDialog()
+
+      await user.click(screen.getByRole('button', { name: 'Remove' }))
+
+      const callbacks = mockDeleteMutate.mock.calls[0][1] as {
+        onError: (error: unknown) => void
+        onSettled: () => void
+      }
+      act(() => {
+        callbacks.onError(new Error('Server error'))
+        callbacks.onSettled()
+      })
+
+      await waitFor(() => {
+        expect(screen.queryByText('Remove assignment?')).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('System-scoped delete', () => {
+    it('calls system delete mutation for non-project assignment', async () => {
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[2])
+
+      const deleteOption = await screen.findByRole('menuitem', { name: /Delete assignment/i })
+      await user.click(deleteOption)
+
+      await waitFor(() => {
+        expect(screen.getByText('Remove assignment?')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Remove' }))
+
+      expect(mockDeleteMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ params: { path: { assignment_id: 'sur1' } } }),
+        expect.any(Object)
+      )
+    })
+  })
+
+  describe('Edit dialog', () => {
+    it('opens edit dialog with row data', async () => {
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const editOption = await screen.findByRole('menuitem', { name: /Edit assignment/i })
+      await user.click(editOption)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-assignment-dialog')).toBeInTheDocument()
+      })
+    })
+
+    it('closes edit dialog', async () => {
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const editOption = await screen.findByRole('menuitem', { name: /Edit assignment/i })
+      await user.click(editOption)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-assignment-dialog')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Close edit' }))
+      await waitFor(() => {
+        expect(screen.queryByTestId('edit-assignment-dialog')).not.toBeInTheDocument()
+      })
+    })
+
+    it('refetches on successful edit', async () => {
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const editOption = await screen.findByRole('menuitem', { name: /Edit assignment/i })
+      await user.click(editOption)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-assignment-dialog')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Save edit' }))
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+
+    it('opens edit dialog for system-scoped assignment', async () => {
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[2])
+
+      const editOption = await screen.findByRole('menuitem', { name: /Edit assignment/i })
+      await user.click(editOption)
+
+      await waitFor(() => {
+        const dialog = screen.getByTestId('edit-assignment-dialog')
+        expect(dialog).toBeInTheDocument()
+        expect(within(dialog).getByText('bob')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Filter transformation', () => {
+    it('transforms project filter to project_id for API', async () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
+        const opts = args[2] as { params?: { query?: Record<string, unknown> } } | undefined
+        const hasProjectFilter = opts?.params?.query?.['project_id']
+        return {
+          data: {
+            resources: hasProjectFilter ? [sampleAssignments[0]] : sampleAssignments,
+            next: null,
+            total: hasProjectFilter ? 1 : 3,
+          },
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never
+      })
+
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const toolbar = screen.getByRole('search', { name: /filters/i })
+      const filterSelect = within(toolbar).getAllByRole('button', { name: /Principal Name/i })[0]
+      await user.click(filterSelect)
+      const projectOption = await screen.findByRole('option', { name: /Project/i })
+      await user.click(projectOption)
+
+      const selectToggle = screen.getByRole('button', { name: /Filter by project/i })
+      await user.click(selectToggle)
+
+      const firstProject = await screen.findByRole('option', { name: 'Project Alpha' })
+      await user.click(firstProject)
+
+      await waitFor(() => {
+        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('project_id')
+      })
+    })
+
+    it('passes through role_name filter unchanged', async () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
+        const opts = args[2] as { params?: { query?: Record<string, unknown> } } | undefined
+        const hasRoleFilter = opts?.params?.query?.['role_name[contains]']
+        return {
+          data: {
+            resources: hasRoleFilter ? [sampleAssignments[0]] : sampleAssignments,
+            next: null,
+            total: hasRoleFilter ? 1 : 3,
+          },
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never
+      })
+
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const toolbar = screen.getByRole('search', { name: /filters/i })
+      const filterSelect = within(toolbar).getAllByRole('button', { name: /Principal Name/i })[0]
+      await user.click(filterSelect)
+      const roleOption = await screen.findByRole('option', { name: /Role Name/i })
+      await user.click(roleOption)
+
+      const textInput = screen.getByRole('textbox', { name: /role name filter/i })
+      await user.type(textInput, 'Admin')
+      await user.keyboard('{Enter}')
+
+      await waitFor(() => {
+        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('role_name[contains]')
+      })
+    })
+
+    it('transforms type filter to principal_type for API', async () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
+        const opts = args[2] as { params?: { query?: Record<string, unknown> } } | undefined
+        const hasTypeFilter = opts?.params?.query?.['principal_type']
+        return {
+          data: {
+            resources: hasTypeFilter ? [sampleAssignments[0]] : sampleAssignments,
+            next: null,
+            total: hasTypeFilter ? 1 : 3,
+          },
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never
+      })
+
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const toolbar = screen.getByRole('search', { name: /filters/i })
+      const filterSelect = within(toolbar).getAllByRole('button', { name: /Principal Name/i })[0]
+      await user.click(filterSelect)
+      const typeOption = await screen.findByRole('option', { name: /Principal Type/i })
+      await user.click(typeOption)
+
+      const selectToggle = screen.getByRole('button', { name: /Filter by principal type/i })
+      await user.click(selectToggle)
+
+      const userOption = await screen.findByRole('option', { name: 'User' })
+      await user.click(userOption)
+
+      await waitFor(() => {
+        const lastCall = vi.mocked(accessClient.useQuery).mock.calls.at(-1)
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('principal_type')
+      })
+    })
+  })
+
+  describe('Disabled permissions', () => {
+    beforeEach(() => {
+      mockPermissionsState.canAssign = false
+      mockPermissionsState.canRevoke = false
+      setupAssignmentsQuery(sampleAssignments)
+    })
+
+    it('disables Add assignment button when canAssign is false', () => {
+      render(<AssignmentsTab />, { wrapper })
+
+      const addButton = screen.getByRole('button', { name: /Add assignment/i })
+      expect(addButton).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables row edit action when canAssign is false', async () => {
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const editOption = await screen.findByRole('menuitem', { name: /Edit assignment/i })
+      expect(editOption).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables row delete action when canRevoke is false', async () => {
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const deleteOption = await screen.findByRole('menuitem', { name: /Delete assignment/i })
+      expect(deleteOption).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('does not open edit dialog when canAssign is false and action is clicked', async () => {
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const editOption = await screen.findByRole('menuitem', { name: /Edit assignment/i })
+      await user.click(editOption)
+
+      expect(screen.queryByText('Edit Assignment')).not.toBeInTheDocument()
+    })
+
+    it('does not show empty state add button when canAssign is false', () => {
+      setupAssignmentsQuery([])
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('No assignments found')).toBeInTheDocument()
+    })
+  })
+
+  describe('Delete dialog project scope message', () => {
+    it('shows project name in delete dialog for project-scoped assignment', async () => {
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+      const deleteOption = await screen.findByRole('menuitem', { name: /Delete assignment/i })
+      await user.click(deleteOption)
+
+      await waitFor(() => {
+        expect(screen.getByText(/in project/)).toBeInTheDocument()
+      })
+    })
+
+    it('does not show project info for system-scoped delete', async () => {
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[2])
+      const deleteOption = await screen.findByRole('menuitem', { name: /Delete assignment/i })
+      await user.click(deleteOption)
+
+      await waitFor(() => {
+        expect(screen.getByText('Remove assignment?')).toBeInTheDocument()
+        expect(screen.queryByText(/in project/)).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Content description', () => {
+    it('renders the assignments description text', () => {
+      setupAssignmentsQuery(sampleAssignments)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText(/Assignments connect principals to roles/)).toBeInTheDocument()
+    })
+  })
+
+  describe('Mixed row data', () => {
+    it('renders rows with all optional fields populated', () => {
+      const fullRow: RoleAssignmentRead[] = [
+        {
+          id: 'full1',
+          principal_id: 'u1',
+          group_id: null,
+          principal_name: 'full-user',
+          role_name: 'SuperAdmin',
+          role_description: 'Has all permissions',
+          role_policies: ['policy-a', 'policy-b', 'policy-c', 'policy-d'],
+          project_id: 'p1',
+          project_name: 'Project Alpha',
+          created_at: '2024-01-01T00:00:00Z',
+        },
+        {
+          id: 'full2',
+          principal_id: null,
+          group_id: 'g2',
+          principal_name: 'ops-team',
+          role_name: 'Operator',
+          role_description: null,
+          role_policies: ['ops-policy'],
+          project_id: null,
+          project_name: null,
+          created_at: '2024-06-01T00:00:00Z',
+        },
+      ] as unknown as RoleAssignmentRead[]
+      setupAssignmentsQuery(fullRow)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('full-user')).toBeInTheDocument()
+      expect(screen.getByText('ops-team')).toBeInTheDocument()
+      expect(screen.getByText('SuperAdmin')).toBeInTheDocument()
+      expect(screen.getByText('Operator')).toBeInTheDocument()
+      expect(screen.getByText('policy-a')).toBeInTheDocument()
+      expect(screen.getByText('ops-policy')).toBeInTheDocument()
+    })
+
+    it('renders single row with no project and empty policies', () => {
+      const minimalRow: RoleAssignmentRead[] = [
+        {
+          id: 'min1',
+          principal_id: 'u99',
+          group_id: null,
+          principal_name: 'solo-user',
+          role_name: 'Minimal',
+          role_description: null,
+          role_policies: [],
+          project_id: null,
+          project_name: null,
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      ] as unknown as RoleAssignmentRead[]
+      setupAssignmentsQuery(minimalRow)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('solo-user')).toBeInTheDocument()
+      expect(screen.getByText('System')).toBeInTheDocument()
+      const dashes = screen.getAllByText('-')
+      expect(dashes.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Null/undefined data handling', () => {
+    it('handles undefined resources gracefully', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/role_assignments') {
+          return {
+            data: { resources: undefined, total: 0, next: null },
+            isPending: false,
+            isFetching: false,
+            isError: false,
+            error: null,
+            refetch: mockRefetch,
+          } as never
+        }
+        return {
+          data: undefined,
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never
+      })
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('No assignments found')).toBeInTheDocument()
+    })
+
+    it('handles null data gracefully', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/role_assignments') {
+          return {
+            data: null,
+            isPending: false,
+            isFetching: false,
+            isError: false,
+            error: null,
+            refetch: mockRefetch,
+          } as never
+        }
+        return {
+          data: undefined,
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never
+      })
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('No assignments found')).toBeInTheDocument()
+    })
+
+    it('renders dash for rows with undefined role_policies', () => {
+      setupAssignmentsQuery(sampleAssignments)
+      render(<AssignmentsTab />, { wrapper })
+
+      const table = screen.getByRole('grid', { name: 'Role assignments' })
+      const rows = within(table).getAllByRole('row')
+      const policiesCell = within(rows[3]).getAllByText('-')
+      expect(policiesCell.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Background refetch', () => {
+    it('renders data while isFetching is true', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/role_assignments') {
+          return {
+            data: {
+              resources: sampleAssignments,
+              total: sampleAssignments.length,
+              next: null,
+              prev: null,
+            },
+            isPending: false,
+            isFetching: true,
+            isError: false,
+            error: null,
+            refetch: mockRefetch,
+          } as never
+        }
+        return {
+          data: undefined,
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never
+      })
+
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('alice')).toBeInTheDocument()
+      expect(screen.getByText('Devs')).toBeInTheDocument()
+    })
+  })
+
+  describe('Partial permission states', () => {
+    it('disables only edit when canAssign is false but canRevoke is true', async () => {
+      mockPermissionsState.canAssign = false
+      mockPermissionsState.canRevoke = true
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const editOption = await screen.findByRole('menuitem', { name: /Edit assignment/i })
+      const deleteOption = await screen.findByRole('menuitem', { name: /Delete assignment/i })
+      expect(editOption).toHaveAttribute('aria-disabled', 'true')
+      expect(deleteOption).not.toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables only delete when canRevoke is false but canAssign is true', async () => {
+      mockPermissionsState.canAssign = true
+      mockPermissionsState.canRevoke = false
+      setupAssignmentsQuery(sampleAssignments)
+      const user = userEvent.setup()
+      render(<AssignmentsTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const editOption = await screen.findByRole('menuitem', { name: /Edit assignment/i })
+      const deleteOption = await screen.findByRole('menuitem', { name: /Delete assignment/i })
+      expect(editOption).not.toHaveAttribute('aria-disabled', 'true')
+      expect(deleteOption).toHaveAttribute('aria-disabled', 'true')
+    })
+  })
+
+  describe('buildPermissionRow edge cases via rendering', () => {
+    it('renders System scope for assignment without project_id', () => {
+      const systemOnly: RoleAssignmentRead[] = [
+        {
+          id: 'sys1',
+          principal_id: 'u1',
+          group_id: null,
+          principal_name: 'sys-user',
+          role_name: 'SysAdmin',
+          role_description: undefined,
+          role_policies: undefined,
+          project_id: undefined,
+          project_name: undefined,
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      ] as unknown as RoleAssignmentRead[]
+      setupAssignmentsQuery(systemOnly)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('sys-user')).toBeInTheDocument()
+      expect(screen.getByText('System')).toBeInTheDocument()
+      expect(screen.getByText('User')).toBeInTheDocument()
+    })
+
+    it('renders group assignment with policies', () => {
+      const groupRow: RoleAssignmentRead[] = [
+        {
+          id: 'grp1',
+          principal_id: null,
+          group_id: 'g99',
+          principal_name: 'QA Team',
+          role_name: 'Tester',
+          role_description: 'Run tests',
+          role_policies: ['test-read', 'test-write'],
+          project_id: 'p1',
+          project_name: 'Project Alpha',
+          created_at: '2024-05-01T00:00:00Z',
+        },
+      ] as unknown as RoleAssignmentRead[]
+      setupAssignmentsQuery(groupRow)
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByText('QA Team')).toBeInTheDocument()
+      expect(screen.getByText('Group')).toBeInTheDocument()
+      expect(screen.getByText('Tester')).toBeInTheDocument()
+      expect(screen.getByText('test-read')).toBeInTheDocument()
+      expect(screen.getByText('test-write')).toBeInTheDocument()
     })
   })
 
   describe('Accessibility', () => {
     it('has no accessibility violations with data', async () => {
-      vi.mocked(useAssignmentsData).mockReturnValue({
-        ...defaultHookReturn,
-        allRows: sampleRows,
-        sortedRows: sampleRows,
-      })
+      setupAssignmentsQuery(sampleAssignments)
 
       const { container } = render(<AssignmentsTab />, { wrapper })
 

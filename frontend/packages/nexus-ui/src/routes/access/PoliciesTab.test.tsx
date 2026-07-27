@@ -325,6 +325,42 @@ describe('PoliciesTab', () => {
     expect(vi.mocked(accessClient.useQuery)).toHaveBeenCalled()
   })
 
+  it('sorts by Scope column when its header is clicked', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    const scopeHeader = screen.getByRole('columnheader', { name: /scope/i })
+    await user.click(within(scopeHeader).getByRole('button'))
+
+    expect(vi.mocked(accessClient.useQuery)).toHaveBeenCalled()
+  })
+
+  it('sorts by Type column when its header is clicked', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    const typeHeader = screen.getByRole('columnheader', { name: /type/i })
+    await user.click(within(typeHeader).getByRole('button'))
+
+    expect(vi.mocked(accessClient.useQuery)).toHaveBeenCalled()
+  })
+
+  it('sorts by Project column when its header is clicked', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    const projectHeader = screen.getByRole('columnheader', { name: /project/i })
+    await user.click(within(projectHeader).getByRole('button'))
+
+    expect(vi.mocked(accessClient.useQuery)).toHaveBeenCalled()
+  })
+
   it('has no accessibility violations in empty state', async () => {
     setupPoliciesQuery([])
 
@@ -414,5 +450,145 @@ describe('PoliciesTab', () => {
     const nextButton = screen.getByRole('button', { name: /next page/i })
     expect(prevButton).toBeDisabled()
     expect(nextButton).toBeEnabled()
+  })
+
+  describe('Additional coverage', () => {
+    it('renders description text', () => {
+      setupPoliciesQuery(samplePolicies)
+      render(<PoliciesTab />, { wrapper })
+
+      expect(screen.getByText(/Policies define what actions are allowed or denied/)).toBeInTheDocument()
+    })
+
+    it('handles undefined resources gracefully', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue({
+        data: { resources: undefined, total: 0, next: null },
+        isPending: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+      render(<PoliciesTab />, { wrapper })
+
+      expect(screen.getByText('No policies found')).toBeInTheDocument()
+    })
+
+    it('handles null data gracefully', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue({
+        data: null,
+        isPending: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+      render(<PoliciesTab />, { wrapper })
+
+      expect(screen.getByText('No policies found')).toBeInTheDocument()
+    })
+
+    it('opens JSON dialog for second policy', async () => {
+      const user = userEvent.setup()
+      setupPoliciesQuery(samplePolicies)
+      render(<PoliciesTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[1])
+
+      const viewAction = await screen.findByRole('menuitem', { name: /View policy definition/i })
+      await user.click(viewAction)
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'viewer-policy policy definition' })).toBeInTheDocument()
+    })
+
+    it('renders mixed policy types with multiple statements and scopes', () => {
+      const mixedPolicies: PolicyRead[] = [
+        {
+          id: 'mix1',
+          name: 'deny-policy',
+          description: null,
+          statements: [{ scope: 'self', effect: 'deny', actions: ['workflow:delete'] }],
+          is_builtin: false,
+          is_project_eligible: true,
+          is_system_scoped: false,
+          project_id: 'proj-1',
+          scope: 'project',
+          labels: {},
+          created_at: '2024-03-01T00:00:00Z',
+          updated_at: null,
+        },
+        {
+          id: 'mix2',
+          name: 'multi-statement-policy',
+          description: 'Has multiple statements',
+          statements: [
+            { scope: 'any', effect: 'allow', actions: ['workflow:read'] },
+            { scope: 'self', effect: 'deny', actions: ['workflow:delete', 'workflow:write'] },
+          ],
+          is_builtin: true,
+          is_project_eligible: false,
+          is_system_scoped: true,
+          project_id: null,
+          scope: 'any',
+          labels: {},
+          created_at: '2024-04-01T00:00:00Z',
+          updated_at: '2024-05-01T00:00:00Z',
+        },
+      ]
+      setupPoliciesQuery(mixedPolicies)
+      render(<PoliciesTab />, { wrapper })
+
+      expect(screen.getByText('deny-policy')).toBeInTheDocument()
+      expect(screen.getByText('multi-statement-policy')).toBeInTheDocument()
+      expect(screen.getByText('Has multiple statements')).toBeInTheDocument()
+      expect(screen.getAllByText('Deny').length).toBeGreaterThan(0)
+    })
+
+    it('opens and closes JSON dialog sequentially for different policies', async () => {
+      const user = userEvent.setup()
+      setupPoliciesQuery(samplePolicies)
+      render(<PoliciesTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+      await user.click(await screen.findByRole('menuitem', { name: /view policy definition/i }))
+      expect(screen.getByRole('heading', { name: 'admin-policy policy definition' })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Close policy definition' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      await user.click(kebabs[1])
+      await user.click(await screen.findByRole('menuitem', { name: /view policy definition/i }))
+      expect(screen.getByRole('heading', { name: 'viewer-policy policy definition' })).toBeInTheDocument()
+    })
+
+    it('renders data while background refetching', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue({
+        data: {
+          resources: samplePolicies,
+          total: samplePolicies.length,
+          next: null,
+          prev: null,
+        },
+        isPending: false,
+        isFetching: true,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+      render(<PoliciesTab />, { wrapper })
+
+      expect(screen.getByText('admin-policy')).toBeInTheDocument()
+      expect(screen.getByText('viewer-policy')).toBeInTheDocument()
+    })
+
+    it('renders project name from projectNameMap', () => {
+      setupPoliciesQuery(samplePolicies)
+      render(<PoliciesTab />, { wrapper })
+
+      expect(screen.getByText('Project One')).toBeInTheDocument()
+    })
   })
 })

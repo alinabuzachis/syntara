@@ -85,8 +85,12 @@ class RoleAssignmentListParams(BaseListParams):
     principal_id: UUID | None = Field(default=None, description="Filter by principal ID (user or service account)")
     group_id: UUID | None = Field(default=None, description="Filter by group ID")
     principal_name: str | None = Field(default=None, description="Filter by principal name")
+    principal_type: Literal["user", "group", "service_account"] | None = Field(
+        default=None, description="Filter by principal type"
+    )
     role_name: str | None = Field(default=None, description="Filter by role name")
     project_id: UUID | None = Field(default=None, description="Filter by project ID")
+    scope: Literal["system", "project"] | None = Field(default=None, description="Filter by scope")
 
 
 class ProjectRoleAssignmentListParams(BaseListParams):
@@ -316,6 +320,8 @@ async def list_role_assignments(
         role_name=params.role_name,
         role_name_contains=contains.get("role_name_contains"),
         project_id=params.project_id,
+        principal_type=params.principal_type,
+        scope=params.scope,
         include_total=params.include_total,
         restrict_user_id=visibility.self_user_id if not visibility.unrestricted else None,
         restrict_group_ids=(

@@ -7,20 +7,18 @@ import { useCallback, useMemo } from 'react'
 import { IconLabel } from '../../components/IconLabel'
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
+import { useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
-import { useTableSort } from '../../hooks/useTableSort'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
-import { buildFilterParams } from '../../utils/filterUtils'
 
 import { accessClient } from './accessClient'
 import { PolicyJsonModal } from './PolicyJsonModal'
 import { toPolicyRead } from './policyUtils'
-import { buildProjectFilterDefs, POLICY_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
+import { POLICY_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
 import { PolicyTypeLabel, ProjectLabel, ScopeLabel, StatementsCell } from './ScopeLabel'
 import type { PolicyRead } from './types'
-import { useProjectNameMap } from './useProjectNameMap'
+import { useAccessTabQuery } from './useAccessTabQuery'
 
 const BASE_FILTER_FIELD_DEFS = [
   {
@@ -149,29 +147,16 @@ export function PoliciesTab() {
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-    perPage,
-  } = useCursorPagination()
-
-  const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
-    initialDirection: 'asc',
-    onSortChange: resetPagination,
+    getSortParams,
+    projectNameMap,
+    filterFieldDefinitions,
+    queryParams,
+  } = useAccessTabQuery({
+    baseFilterDefs: BASE_FILTER_FIELD_DEFS,
+    sortFields: SORT_FIELDS,
+    defaultSortField: 'name',
+    transformFilters: transformFiltersForApi,
   })
-
-  const { projectNameMap } = useProjectNameMap()
-
-  const filterFieldDefinitions = useMemo(
-    () => buildProjectFilterDefs([...BASE_FILTER_FIELD_DEFS], projectNameMap),
-    [projectNameMap]
-  )
-
-  const queryParams = useMemo(() => {
-    const field = SORT_FIELDS[activeSortIndex] ?? 'name'
-    const sort = sortDirection === 'desc' ? `-${field}` : field
-    const params: Record<string, unknown> = { limit: perPage, include_total: true, sort }
-    if (cursor) params.cursor = cursor
-    Object.assign(params, buildFilterParams(transformFiltersForApi(filters)))
-    return params
-  }, [activeSortIndex, sortDirection, perPage, cursor, filters])
 
   const policiesQuery = accessClient.useQuery('get', '/policies', {
     params: { query: queryParams },
@@ -182,6 +167,9 @@ export function PoliciesTab() {
   const refetch = useCallback(() => detachPromise(policiesQuery.refetch()), [policiesQuery])
 
   useCursorReset(policies.length, hasActiveFilters, cursor, policiesQuery.isFetching, resetPagination)
+
+  const showToolbar = policies.length > 0 || hasActiveFilters
+  const policyJsonItem = policyJsonDialog.item
 
   return (
     <>
@@ -197,7 +185,7 @@ export function PoliciesTab() {
         onClearAllFilters={handleClearAllFilters}
         noDataState={<NxEmptyStateNoData title="No policies found" description="No policies are available." />}
         toolbar={
-          policies.length > 0 || hasActiveFilters ? (
+          showToolbar ? (
             <NxListPanelToolbar
               filters={filters}
               filterDefinitions={filterFieldDefinitions}
@@ -225,12 +213,8 @@ export function PoliciesTab() {
         }
       />
 
-      {policyJsonDialog.item != null && (
-        <PolicyJsonModal
-          isOpen={policyJsonDialog.isOpen}
-          policy={policyJsonDialog.item}
-          onClose={policyJsonDialog.close}
-        />
+      {policyJsonItem != null && (
+        <PolicyJsonModal isOpen={policyJsonDialog.isOpen} policy={policyJsonItem} onClose={policyJsonDialog.close} />
       )}
     </>
   )

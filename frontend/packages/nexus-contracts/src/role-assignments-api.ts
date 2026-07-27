@@ -421,8 +421,10 @@ export interface operations {
         /** @description Filter by group ID */
         group_id?: string | null
         principal_name?: string | null
+        principal_type?: ('user' | 'group' | 'service_account') | null
         role_name?: string | null
         project_id?: string | null
+        scope?: ('system' | 'project') | null
       }
       header?: never
       path?: never

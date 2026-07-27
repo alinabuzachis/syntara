@@ -133,9 +133,10 @@ async def test_assign_duplicate_rejected(seeded_db: AsyncSession, test_user: Use
 async def test_assign_nonexistent_user(seeded_db: AsyncSession, test_user: User) -> None:
     """Assigning to a nonexistent user raises SafeValueError."""
     svc = RoleAssignmentService(seeded_db, test_user)
+    nonexistent_id = uuid4()
     with pytest.raises(SafeValueError, match=r"Principal .* not found"):
         await svc.assign(
-            principal_id=uuid4(),
+            principal_id=nonexistent_id,
             role_name="admin",
         )
 
@@ -202,8 +203,9 @@ async def test_get_existing_assignment(seeded_db: AsyncSession, test_user: User)
 async def test_get_nonexistent_assignment(seeded_db: AsyncSession, test_user: User) -> None:
     """Getting a nonexistent assignment raises SafeValueError."""
     svc = RoleAssignmentService(seeded_db, test_user)
+    nonexistent_id = uuid4()
     with pytest.raises(SafeValueError, match="not found"):
-        await svc.get(uuid4())
+        await svc.get(nonexistent_id)
 
 
 # ============================================================================
@@ -346,8 +348,9 @@ async def test_revoke_existing_assignment(seeded_db: AsyncSession, test_user: Us
 async def test_revoke_nonexistent_assignment(seeded_db: AsyncSession, test_user: User) -> None:
     """Revoking a nonexistent assignment raises SafeValueError."""
     svc = RoleAssignmentService(seeded_db, test_user)
+    nonexistent_id = uuid4()
     with pytest.raises(SafeValueError, match="not found"):
-        await svc.revoke(uuid4())
+        await svc.revoke(nonexistent_id)
 
 
 # ============================================================================
@@ -664,8 +667,9 @@ async def test_revoke_with_project_id_validation(seeded_db: AsyncSession, test_u
         role_name="project-admin",
         project_id=project.id,
     )
+    wrong_project_id = uuid4()
     with pytest.raises(SafeValueError, match="not found"):
-        await svc.revoke(created["id"], project_id=uuid4())
+        await svc.revoke(created["id"], project_id=wrong_project_id)
     await svc.revoke(created["id"], project_id=project.id)
     with pytest.raises(SafeValueError, match="not found"):
         await svc.get(created["id"])
@@ -680,9 +684,10 @@ async def test_revoke_with_project_id_validation(seeded_db: AsyncSession, test_u
 async def test_assign_nonexistent_group(seeded_db: AsyncSession, test_user: User) -> None:
     """Assigning to a nonexistent group raises SafeValueError."""
     svc = RoleAssignmentService(seeded_db, test_user)
+    nonexistent_id = uuid4()
     with pytest.raises(SafeValueError, match=r"Group .* not found"):
         await svc.assign(
-            group_id=uuid4(),
+            group_id=nonexistent_id,
             role_name="user",
         )
 
@@ -842,9 +847,10 @@ async def test_assign_service_account_role_project_scoped(seeded_db: AsyncSessio
 async def test_assign_nonexistent_service_account(seeded_db: AsyncSession, test_user: User) -> None:
     """Assigning to a nonexistent service account raises SafeValueError."""
     svc = RoleAssignmentService(seeded_db, test_user)
+    nonexistent_id = uuid4()
     with pytest.raises(SafeValueError, match=r"Principal .* not found"):
         await svc.assign(
-            principal_id=uuid4(),
+            principal_id=nonexistent_id,
             role_name="user",
         )
 
@@ -921,7 +927,6 @@ async def test_is_visible_own_service_account_assignment(seeded_db: AsyncSession
 # ============================================================================
 
 
-@pytest.mark.asyncio
 async def test_assign_user_returns_principal_type_user(seeded_db: AsyncSession, test_user: User) -> None:
     """User assignment returns principal_type='user'."""
     svc = RoleAssignmentService(seeded_db, test_user)
@@ -976,3 +981,302 @@ async def test_list_returns_principal_type_for_all_types(seeded_db: AsyncSession
     assert types_by_name[test_user.username] == "user"
     assert types_by_name[group.name] == "group"
     assert types_by_name["pt-list-sa"] == "service_account"
+
+
+# ============================================================================
+# List — sort by scope
+# ============================================================================
+
+
+async def test_list_sort_by_scope(seeded_db: AsyncSession, test_user: User) -> None:
+    """Sort by scope returns project and system assignments in consistent order."""
+    project = await _create_project(seeded_db, name="scope-sort-project")
+    svc = RoleAssignmentService(seeded_db, test_user)
+    await svc.assign(
+        principal_id=test_user.id,
+        role_name="admin",
+    )
+    await svc.assign(
+        principal_id=test_user.id,
+        role_name="project-admin",
+        project_id=project.id,
+    )
+    result = await svc.list(sort="scope")
+    resources = result["resources"]
+    assert len(resources) >= 2
+    scopes = ["project" if r["project_id"] else "system" for r in resources]
+    assert scopes == sorted(scopes)
+
+
+@pytest.mark.asyncio
+async def test_list_sort_by_scope_descending(seeded_db: AsyncSession, test_user: User) -> None:
+    """Sort by -scope returns system before project."""
+    project = await _create_project(seeded_db, name="scope-desc-project")
+    svc = RoleAssignmentService(seeded_db, test_user)
+    await svc.assign(
+        principal_id=test_user.id,
+        role_name="admin",
+    )
+    await svc.assign(
+        principal_id=test_user.id,
+        role_name="project-admin",
+        project_id=project.id,
+    )
+    result = await svc.list(sort="-scope")
+    resources = result["resources"]
+    assert len(resources) >= 2
+    scopes = ["project" if r["project_id"] else "system" for r in resources]
+    assert scopes == sorted(scopes, reverse=True)
+
+
+# ============================================================================
+# List — cursor pagination with sort column containing NULLs
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_pagination_with_null_sort_values(seeded_db: AsyncSession, test_user: User) -> None:
+    """Paginating with sort=project_name handles NULL project_name rows correctly.
+
+    Rows with NULL project_name (system-scoped assignments) must not
+    disappear when paginating past page 1 with NULLS LAST ordering.
+    """
+    project = await _create_project(seeded_db, name="null-page-project")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(
+        principal_id=test_user.id,
+        role_name="project-admin",
+        project_id=project.id,
+    )
+    for i in range(3):
+        group = await _create_group(seeded_db, name=f"null-page-group-{i}")
+        await svc.assign(
+            group_id=group.id,
+            role_name="user",
+        )
+
+    all_ids: list[str] = []
+    cursor = None
+    while True:
+        result = await svc.list(limit=2, cursor=cursor, sort="project_name")
+        all_ids.extend(r["id"] for r in result["resources"])
+        if not result["next"]:
+            break
+        cursor = result["next"]
+
+    assert len(all_ids) >= 4, f"Expected all rows including NULLs, got {len(all_ids)}"
+    assert len(all_ids) == len(set(all_ids)), "Duplicate rows in pagination"
+
+
+@pytest.mark.asyncio
+async def test_list_pagination_backward_with_null_sort_values(seeded_db: AsyncSession, test_user: User) -> None:
+    """Backward pagination with NULL sort values returns correct results.
+
+    Creates enough data to guarantee at least 3 pages so that going
+    backward from page 3 reliably returns page 2 results.
+    """
+    project = await _create_project(seeded_db, name="null-back-project")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(
+        principal_id=test_user.id,
+        role_name="project-admin",
+        project_id=project.id,
+    )
+    for i in range(4):
+        group = await _create_group(seeded_db, name=f"null-back-group-{i}")
+        await svc.assign(
+            group_id=group.id,
+            role_name="user",
+        )
+
+    all_ids: list[str] = []
+    cursors: list[str] = []
+    cursor = None
+    while True:
+        page = await svc.list(limit=2, cursor=cursor, sort="project_name")
+        all_ids.extend(r["id"] for r in page["resources"])
+        if not page["next"]:
+            break
+        cursors.append(page["next"])
+        cursor = page["next"]
+
+    assert len(cursors) >= 2, f"Need at least 3 pages, got {len(cursors) + 1}"
+
+    forward_pages: list[list[str]] = []
+    page_ids: list[str] = []
+    cursor2 = None
+    while True:
+        page = await svc.list(limit=2, cursor=cursor2, sort="project_name")
+        page_ids = [r["id"] for r in page["resources"]]
+        forward_pages.append(page_ids)
+        if not page["next"]:
+            break
+        cursor2 = page["next"]
+
+    last_page = await svc.list(limit=2, cursor=cursors[-1], sort="project_name")
+    assert last_page["prev"] is not None
+    back = await svc.list(limit=2, cursor=last_page["prev"], sort="project_name")
+    back_ids = {r["id"] for r in back["resources"]}
+    expected_ids = set(forward_pages[-2])
+    assert back_ids == expected_ids, f"Backward navigation returned wrong rows: {back_ids!r}, expected {expected_ids!r}"
+
+
+@pytest.mark.asyncio
+async def test_list_pagination_desc_forward_includes_nulls(seeded_db: AsyncSession, test_user: User) -> None:
+    """DESC forward pagination includes NULL rows (NULLS LAST).
+
+    With sort=-project_name, system assignments (NULL project_name) come
+    after all project-scoped assignments. Paginating forward must not
+    silently exclude them.
+    """
+    project = await _create_project(seeded_db, name="desc-null-project")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(
+        principal_id=test_user.id,
+        role_name="project-admin",
+        project_id=project.id,
+    )
+    for i in range(3):
+        group = await _create_group(seeded_db, name=f"desc-null-group-{i}")
+        await svc.assign(
+            group_id=group.id,
+            role_name="user",
+        )
+
+    all_ids: list[str] = []
+    cursor = None
+    while True:
+        result = await svc.list(limit=2, cursor=cursor, sort="-project_name")
+        all_ids.extend(r["id"] for r in result["resources"])
+        if not result["next"]:
+            break
+        cursor = result["next"]
+
+    assert len(all_ids) >= 4, f"Expected all rows including NULLs, got {len(all_ids)}"
+    assert len(all_ids) == len(set(all_ids)), "Duplicate rows in DESC pagination"
+
+
+# ============================================================================
+# List — sort by principal_type
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_sort_by_principal_type(seeded_db: AsyncSession, test_user: User) -> None:
+    """Sort by principal_type returns assignments in alphabetical order of type."""
+    group = await _create_group(seeded_db, name="pt-sort-group")
+    project = await _create_project(seeded_db, name="pt-sort-project")
+    sa = await _create_service_account(seeded_db, project, created_by=test_user.id, name="pt-sort-sa")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(principal_id=test_user.id, role_name="admin")
+    await svc.assign(group_id=group.id, role_name="user")
+    await svc.assign(principal_id=sa.id, role_name="project-user", project_id=project.id)
+
+    result = await svc.list(sort="principal_type")
+    types = [r["principal_type"] for r in result["resources"]]
+    assert types == sorted(types)
+
+
+@pytest.mark.asyncio
+async def test_list_sort_by_principal_type_descending(seeded_db: AsyncSession, test_user: User) -> None:
+    """Sort by -principal_type returns assignments in reverse alphabetical order."""
+    group = await _create_group(seeded_db, name="pt-sort-desc-group")
+    project = await _create_project(seeded_db, name="pt-sort-desc-project")
+    sa = await _create_service_account(seeded_db, project, created_by=test_user.id, name="pt-sort-desc-sa")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(principal_id=test_user.id, role_name="admin")
+    await svc.assign(group_id=group.id, role_name="user")
+    await svc.assign(principal_id=sa.id, role_name="project-user", project_id=project.id)
+
+    result = await svc.list(sort="-principal_type")
+    types = [r["principal_type"] for r in result["resources"]]
+    assert types == sorted(types, reverse=True)
+
+
+# ============================================================================
+# List — filter by principal_type
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_principal_type_user(seeded_db: AsyncSession, test_user: User) -> None:
+    """Filter by principal_type=user returns only user assignments."""
+    group = await _create_group(seeded_db, name="pt-filter-group")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(principal_id=test_user.id, role_name="admin")
+    await svc.assign(group_id=group.id, role_name="user")
+
+    result = await svc.list(principal_type="user")
+    for r in result["resources"]:
+        assert r["principal_type"] == "user"
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_principal_type_group(seeded_db: AsyncSession, test_user: User) -> None:
+    """Filter by principal_type=group returns only group assignments."""
+    group = await _create_group(seeded_db, name="pt-filter-group-only")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(principal_id=test_user.id, role_name="admin")
+    await svc.assign(group_id=group.id, role_name="user")
+
+    result = await svc.list(principal_type="group")
+    assert len(result["resources"]) >= 1
+    for r in result["resources"]:
+        assert r["principal_type"] == "group"
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_principal_type_service_account(seeded_db: AsyncSession, test_user: User) -> None:
+    """Filter by principal_type=service_account returns only service account assignments."""
+    project = await _create_project(seeded_db, name="pt-filter-sa-project")
+    sa = await _create_service_account(seeded_db, project, created_by=test_user.id, name="pt-filter-sa")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(principal_id=test_user.id, role_name="admin")
+    await svc.assign(principal_id=sa.id, role_name="project-user", project_id=project.id)
+
+    result = await svc.list(principal_type="service_account")
+    assert len(result["resources"]) >= 1
+    for r in result["resources"]:
+        assert r["principal_type"] == "service_account"
+
+
+# ============================================================================
+# List — filter by scope
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_scope_system(seeded_db: AsyncSession, test_user: User) -> None:
+    """Filter by scope=system returns only system-scoped assignments."""
+    project = await _create_project(seeded_db, name="scope-filter-project")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(principal_id=test_user.id, role_name="admin")
+    await svc.assign(principal_id=test_user.id, role_name="project-admin", project_id=project.id)
+
+    result = await svc.list(scope="system")
+    for r in result["resources"]:
+        assert r["project_id"] is None, f"Expected system scope, got project_id={r['project_id']}"
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_scope_project(seeded_db: AsyncSession, test_user: User) -> None:
+    """Filter by scope=project returns only project-scoped assignments."""
+    project = await _create_project(seeded_db, name="scope-filter-proj")
+    svc = RoleAssignmentService(seeded_db, test_user)
+
+    await svc.assign(principal_id=test_user.id, role_name="admin")
+    await svc.assign(principal_id=test_user.id, role_name="project-admin", project_id=project.id)
+
+    result = await svc.list(scope="project")
+    assert len(result["resources"]) >= 1
+    for r in result["resources"]:
+        assert r["project_id"] is not None, "Expected project scope, got system"
