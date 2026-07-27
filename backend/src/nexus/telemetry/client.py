@@ -164,6 +164,8 @@ class TelemetryClientRegistry:
 
         """
         try:
+            if not self.is_initialized():
+                return
             client = self.get_client()
             segment_event = event.to_segment_event()
 
