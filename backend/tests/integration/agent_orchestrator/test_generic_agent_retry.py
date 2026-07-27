@@ -7,7 +7,6 @@ makes LLM calls through the retry decorator.
 # ruff: noqa: ANN401, TRY003, EM101
 
 import asyncio
-import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
@@ -166,21 +165,15 @@ class TestExhaustedRetriesAfterMultipleFailures:
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
 
-        start_time = time.time()
-
         with pytest.raises(openai.APIStatusError) as exc_info:
             await agent._execute(sample_agent_state)
 
-        elapsed = time.time() - start_time
-
-        # Verify retries exhausted
+        # Verify retries exhausted and the final 500 error propagates.
+        # Backoff scheduling (0.1s, 0.2s, 0.4s with jitter) is covered
+        # deterministically by test_retry_decorator.test_exponential_backoff_delays;
+        # asserting wall-clock time here is flaky under CI load.
         assert call_count == 4  # Initial + 3 retries
-        assert "Internal server error" in str(exc_info.value)
-
-        # Verify delays applied (0.1s, 0.2s, 0.4s with jitter)
-        # Total should be ~0.7s + jitter + execution time; upper bound raised to 2s
-        # to accommodate resource-constrained CI runners without false flakes.
-        assert 0.5 <= elapsed <= 2.0
+        assert exc_info.value.status_code == 500
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("fast_retry_settings")

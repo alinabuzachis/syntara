@@ -7,7 +7,6 @@ They validate error classification, backoff calculation, and retry behavior.
 # ruff: noqa: ANN401, B017, ERA001
 
 import asyncio
-import time
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from typing import Any
@@ -675,7 +674,6 @@ class TestRetryDecorator:
             await asyncio.sleep(1.0)  # Simulate slow response (exceeds timeout)
             return "success"
 
-        start_time = time.time()
         with (
             override_settings(
                 adapter_max_retries=3,
@@ -685,12 +683,12 @@ class TestRetryDecorator:
             pytest.raises((asyncio.TimeoutError, openai.APIStatusError)),
         ):
             await mock_llm_call(invocation_id=uuid4())
-        elapsed = time.time() - start_time
 
-        # Should timeout on each attempt: 4 attempts x 0.5s + backoff delays
-        # Expected: ~2s-3s total (4 x 0.5s timeouts + backoff delays)
+        # Each attempt's 1.0s response exceeds the 0.5s per-attempt timeout, so
+        # every attempt times out and retries. The call count proves the timeout
+        # fired independently on all 4 attempts; asserting wall-clock elapsed time
+        # here is flaky under CI load.
         assert call_count == 4  # Initial + 3 retries
-        assert elapsed == pytest.approx(3.0, abs=1.0)
 
     @pytest.mark.asyncio
     async def test_httpx_fallback_exceptions(
