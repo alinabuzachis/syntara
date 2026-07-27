@@ -1,0 +1,65 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+
+import { CredentialTypeSelect, ProjectSelect } from './CredentialFormSelects'
+
+describe('CredentialFormSelects', () => {
+  describe('ProjectSelect', () => {
+    const projects = Array.from({ length: 20 }, (_, i) => ({
+      id: `proj-${i + 1}`,
+      name: `Project ${i + 1}`,
+    }))
+
+    it('opens a menu with many project options', async () => {
+      const user = userEvent.setup()
+      render(<ProjectSelect value="" onChange={vi.fn()} projects={projects} />)
+
+      await user.click(screen.getByRole('button', { name: 'Credential project' }))
+
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Project 1' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Project 20' })).toBeInTheDocument()
+    })
+
+    it('calls onChange when a project is selected', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      render(<ProjectSelect value="" onChange={onChange} projects={projects.slice(0, 3)} />)
+
+      await user.click(screen.getByRole('button', { name: 'Credential project' }))
+      await user.click(screen.getByRole('option', { name: 'Project 2' }))
+
+      expect(onChange).toHaveBeenCalledWith('proj-2')
+    })
+  })
+
+  describe('CredentialTypeSelect', () => {
+    const types = Array.from({ length: 20 }, (_, i) => ({
+      id: `type-${i + 1}`,
+      name: `Credential Type ${i + 1}`,
+    }))
+
+    it('opens a menu with many credential type options', async () => {
+      const user = userEvent.setup()
+      render(<CredentialTypeSelect types={types} selectedTypeId="" onSelect={vi.fn()} />)
+
+      await user.click(screen.getByRole('button', { name: 'Credential type' }))
+
+      expect(screen.getByRole('listbox', { name: 'Credential type options' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Credential Type 1' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Credential Type 20' })).toBeInTheDocument()
+    })
+
+    it('calls onSelect when a type is selected', async () => {
+      const user = userEvent.setup()
+      const onSelect = vi.fn()
+      render(<CredentialTypeSelect types={types.slice(0, 3)} selectedTypeId="" onSelect={onSelect} />)
+
+      await user.click(screen.getByRole('button', { name: 'Credential type' }))
+      await user.click(screen.getByRole('option', { name: 'Credential Type 2' }))
+
+      expect(onSelect).toHaveBeenCalledWith(expect.anything(), 'type-2')
+    })
+  })
+})

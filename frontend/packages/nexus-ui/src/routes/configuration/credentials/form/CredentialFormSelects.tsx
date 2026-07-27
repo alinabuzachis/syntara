@@ -1,6 +1,9 @@
 import { MenuToggle, type MenuToggleElement, Select, SelectList, SelectOption, Spinner } from '@patternfly/react-core'
 import { useState, type Ref } from 'react'
 
+import { LONG_SELECT_MAX_MENU_HEIGHT, longSelectMenuPopperProps } from '../../../../components/longSelectMenu'
+import longSelectMenuStyles from '../../../../components/longSelectMenu.module.css'
+
 export function ProjectSelect({
   value,
   onChange,
@@ -29,6 +32,10 @@ export function ProjectSelect({
         setIsOpen(false)
       }}
       onOpenChange={setIsOpen}
+      isScrollable
+      maxMenuHeight={LONG_SELECT_MAX_MENU_HEIGHT}
+      popperProps={longSelectMenuPopperProps}
+      className={longSelectMenuStyles.containScroll}
       toggle={(toggleRef: Ref<MenuToggleElement>) => (
         <MenuToggle
           ref={toggleRef}
@@ -70,7 +77,6 @@ export function CredentialTypeSelect({
   isDisabled,
   isLoading,
   hasError,
-  popperProps,
 }: {
   types: CredentialType[]
   selectedTypeId: string
@@ -78,7 +84,6 @@ export function CredentialTypeSelect({
   isDisabled?: boolean
   isLoading?: boolean
   hasError?: boolean
-  popperProps?: { appendTo: 'inline' | HTMLElement | (() => HTMLElement) }
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const selectedLabel = types.find((t) => t.id === selectedTypeId)?.name
@@ -95,7 +100,10 @@ export function CredentialTypeSelect({
       }}
       onOpenChange={setIsOpen}
       shouldFocusToggleOnSelect
-      popperProps={popperProps}
+      isScrollable
+      maxMenuHeight={LONG_SELECT_MAX_MENU_HEIGHT}
+      popperProps={longSelectMenuPopperProps}
+      className={longSelectMenuStyles.containScroll}
       toggle={(toggleRef: Ref<MenuToggleElement>) => (
         <MenuToggle
           ref={toggleRef}

@@ -9,13 +9,15 @@ import { buildUniqueName, selectFirstProject } from './workflows'
  * Select a credential type from the PF6 Select dropdown.
  *
  * The credential type field uses a PF6 `Select` component (button toggle +
- * dropdown menu) instead of a native `<select>`.  Interaction requires
+ * dropdown menu) instead of a native `<select>`. Interaction requires
  * clicking the toggle button to open the menu, then clicking the desired
- * option.
+ * option. The menu is portaled to the document body (PatternFly default),
+ * so options are queried from the page rather than the modal container.
  */
 export async function selectCredentialType(container: Locator, typeName: string): Promise<void> {
+  const page = container.page()
   await container.getByRole('button', { name: 'Credential type', exact: true }).click()
-  const option = container.getByRole('option', { name: typeName })
+  const option = page.getByRole('option', { name: typeName, exact: true })
   await option.waitFor({ state: 'visible', timeout: 10_000 })
   await option.click()
 }

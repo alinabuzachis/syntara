@@ -169,6 +169,18 @@ describe('CredentialFormModal', () => {
     expect(within(listbox).getByText('HTTP Basic Auth')).toBeInTheDocument()
   })
 
+  it('portals the credential type menu outside the modal (avoids modal body scroll)', async () => {
+    const user = userEvent.setup()
+    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+    await user.click(screen.getByLabelText('Credential type'))
+
+    const dialog = screen.getByRole('dialog')
+    const listbox = screen.getByRole('listbox', { name: 'Credential type options' })
+    expect(within(dialog).queryByRole('listbox', { name: 'Credential type options' })).not.toBeInTheDocument()
+    expect(listbox).toBeInTheDocument()
+  })
+
   it('shows dynamic fields when type is selected', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 

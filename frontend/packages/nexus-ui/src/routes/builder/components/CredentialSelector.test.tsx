@@ -223,6 +223,29 @@ describe('CredentialSelector', () => {
     expect(screen.getByText('Dev Bearer Token')).toBeInTheDocument()
   })
 
+  it('opens a menu with many credential options', async () => {
+    const user = userEvent.setup()
+    const manyCredentials = Array.from({ length: 20 }, (_, i) => ({
+      id: `cred-${i + 1}`,
+      name: `Credential ${i + 1}`,
+      description: null,
+      credential_type_id: 'type-1',
+      enabled: true,
+      inputs: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      created_by: 'user-1',
+    }))
+    mockUseQueryLegacy({ data: { resources: manyCredentials } })
+    renderSelector()
+
+    await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+    expect(screen.getByRole('listbox', { name: 'Credential options' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Credential 1' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Credential 20' })).toBeInTheDocument()
+  })
+
   it('calls onChange with credential ID when selecting a credential', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

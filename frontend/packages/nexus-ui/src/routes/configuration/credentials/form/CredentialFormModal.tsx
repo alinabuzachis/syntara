@@ -54,8 +54,6 @@ type CredentialFormModalProps = {
   defaultProjectId?: string
 }
 
-const INLINE_POPPER_PROPS = { appendTo: 'inline' } as const
-
 // eslint-disable-next-line max-lines-per-function
 export function CredentialFormModal({
   isOpen,
@@ -405,7 +403,6 @@ export function CredentialFormModal({
               isDisabled={isTypeSelectDisabled}
               isLoading={typesQuery.isLoading}
               hasError={!!errors.credential_type_id}
-              popperProps={INLINE_POPPER_PROPS}
             />
             {typesQuery.error && (
               <FormHelperText>

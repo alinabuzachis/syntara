@@ -109,6 +109,21 @@ describe('DynamicFieldRenderer', () => {
     expect(screen.getByRole('button', { name: 'Provider' })).toHaveTextContent('openai')
   })
 
+  it('opens a choices menu with many options', async () => {
+    const user = userEvent.setup()
+    const longChoicesField: FieldDefinition = {
+      ...choicesField,
+      choices: Array.from({ length: 20 }, (_, i) => `choice-${i + 1}`),
+    }
+    render(<DynamicFieldRenderer field={longChoicesField} value="" onChange={onChange} />)
+
+    await user.click(screen.getByRole('button', { name: 'Provider' }))
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'choice-1' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'choice-20' })).toBeInTheDocument()
+  })
+
   it('renders a textarea for multiline fields', () => {
     render(<DynamicFieldRenderer field={multilineField} value="key-content" onChange={onChange} />)
 

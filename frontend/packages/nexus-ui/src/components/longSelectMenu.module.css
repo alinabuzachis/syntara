@@ -1,0 +1,5 @@
+/* Applied via Select className (PatternFly places it on the Menu root). */
+.containScroll :global(.pf-v6-c-menu__content),
+.containScroll :global(.pf-v6-c-menu__list) {
+  overscroll-behavior: contain;
+}

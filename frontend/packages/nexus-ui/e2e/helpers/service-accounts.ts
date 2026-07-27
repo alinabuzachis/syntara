@@ -52,9 +52,9 @@ export async function createServiceAccountViaUI(
   const modal = app.getByRole('dialog')
   await expect(modal).toBeVisible()
 
-  // Select project
+  // Select project — menu is portaled to document body (PatternFly default)
   await modal.getByRole('button', { name: 'Select a project' }).click()
-  await modal.getByRole('option', { name: projectName }).click()
+  await app.getByRole('option', { name: projectName, exact: true }).click()
 
   // Fill name
   await modal.getByLabel('Name').fill(name)

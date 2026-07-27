@@ -122,6 +122,7 @@ describe('CreateServiceAccountModal', () => {
       await user.click(screen.getByRole('button', { name: 'Select a project' }))
 
       await waitFor(() => {
+        expect(screen.getByRole('listbox')).toBeInTheDocument()
         expect(screen.getByRole('option', { name: 'Project Alpha' })).toBeInTheDocument()
         expect(screen.getByRole('option', { name: 'Project Beta' })).toBeInTheDocument()
       })

@@ -18,6 +18,8 @@ import { PlusIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
 
 import { credentialsClient } from '../../../client'
+import { LONG_SELECT_MAX_MENU_HEIGHT, longSelectMenuPopperProps } from '../../../components/longSelectMenu'
+import longSelectMenuStyles from '../../../components/longSelectMenu.module.css'
 import { detachPromise } from '../../../utils/detachPromise'
 import type { Credential, CredentialType } from '../../configuration/credentials/credentialConstants'
 import { CredentialFormModal } from '../../configuration/credentials/form/CredentialFormModal'
@@ -332,6 +334,10 @@ export function CredentialSelector({
         onSelect={handleSelect}
         onOpenChange={setIsOpen}
         toggle={renderToggle}
+        isScrollable
+        maxMenuHeight={LONG_SELECT_MAX_MENU_HEIGHT}
+        popperProps={longSelectMenuPopperProps}
+        className={longSelectMenuStyles.containScroll}
       >
         <SelectList aria-label={`${label} options`}>
           <NoCredentialOption isRequired={isRequired} value={value} />
