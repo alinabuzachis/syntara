@@ -1,4 +1,7 @@
 import {
+  Alert,
+  Content,
+  ContentVariants,
   FormGroup,
   FormHelperText,
   HelperText,
@@ -136,6 +139,25 @@ function ConvergeFormFields({
   const parametersContent = (
     <Stack hasGutter>
       {!onHeaderContentChange && <ActivityNameField register={register} fieldId="converge-name" />}
+
+      <StackItem>
+        <Alert
+          variant="info"
+          isInline
+          isExpandable
+          component="h4"
+          title="Converge waits for parallel branches to finish executing before continuing"
+        >
+          <Content component={ContentVariants.p}>
+            Use this step when multiple branches run at the same time and the workflow should wait before continuing.
+            For example, after fanning out from one step into tasks that execute in parallel.
+          </Content>
+          <Content component={ContentVariants.p}>
+            You do not need Converge after Conditional, Switch, or Approval steps. Those steps route execution to one
+            branch only, so there are no concurrent paths to synchronize. Connect each branch directly to the next step.
+          </Content>
+        </Alert>
+      </StackItem>
 
       <StackItem>
         <FormGroup

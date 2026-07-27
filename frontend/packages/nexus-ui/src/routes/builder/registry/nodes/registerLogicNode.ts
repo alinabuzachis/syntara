@@ -102,7 +102,7 @@ export default function registerLogicNode() {
             id: RegistryNodeId.LOGIC_CONVERGE,
             label: 'Converge',
             icon: RhUiMergeNodesIcon,
-            description: 'Converge workflow to single path.',
+            description: 'Wait for steps that run in parallel to finish before continuing.',
             formTitle: 'Configure Converge Logic',
             initialData: { logicType: ActivityTypeEnum.CONVERGE },
           },

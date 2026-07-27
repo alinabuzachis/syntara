@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { ConvergeNodeForm, type ConvergeFormData } from './ConvergeNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
@@ -14,6 +15,53 @@ describe('ConvergeNodeForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  describe('Info Alert', () => {
+    it('renders the alert title, collapsed by default', () => {
+      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
+
+      expect(
+        screen.getByText('Converge waits for parallel branches to finish executing before continuing')
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/Use this step when multiple branches run at the same time/i)).not.toBeInTheDocument()
+      expect(
+        screen.queryByText(/You do not need Converge after Conditional, Switch, or Approval steps/i)
+      ).not.toBeInTheDocument()
+    })
+
+    it('expands to reveal body text mentioning Conditional, Switch, and Approval steps', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
+
+      await user.click(screen.getByRole('button', { name: /info alert details/i }))
+
+      expect(screen.getByText(/Use this step when multiple branches run at the same time/i)).toBeInTheDocument()
+      const bodyText = screen.getByText(/You do not need Converge after Conditional, Switch, or Approval steps/i)
+      expect(bodyText).toBeInTheDocument()
+      expect(bodyText).toHaveTextContent('Conditional')
+      expect(bodyText).toHaveTextContent('Switch')
+      expect(bodyText).toHaveTextContent('Approval')
+    })
+
+    it('has no accessibility violations when collapsed', async () => {
+      const { container } = renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
+
+      // Exclude aria-valid-attr-value: PF6 Tabs renders aria-controls pointing to
+      // a panel ID that may not exist in the DOM when only the active tab is rendered
+      const results = await axe(container, { rules: { 'aria-valid-attr-value': { enabled: false } } })
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations when expanded', async () => {
+      const user = userEvent.setup()
+      const { container } = renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
+
+      await user.click(screen.getByRole('button', { name: /info alert details/i }))
+
+      const results = await axe(container, { rules: { 'aria-valid-attr-value': { enabled: false } } })
+      expect(results).toHaveNoViolations()
+    })
   })
 
   describe('Rendering', () => {
