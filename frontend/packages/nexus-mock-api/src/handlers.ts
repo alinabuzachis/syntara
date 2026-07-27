@@ -1153,6 +1153,45 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  http.post('/api/v1/workflows/:workflowId/test', async ({ request, params }) => {
+    const workflowId = params.workflowId as string
+    const workflow = workflows.find((w) => w.id === workflowId)
+
+    if (!workflow) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/workflow-not-found',
+          title: 'Workflow Not Found',
+          detail: `Workflow with id '${workflowId}' not found`,
+          code: 'WORKFLOW_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/workflows/${workflowId}/test`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await request.json()) as ExecutionsAPI.components['schemas']['TestExecutionCreate']
+
+    // Create a test execution
+    const execution = {
+      id: uuidv4(),
+      created_at: mockDate.now,
+      updated_at: mockDate.now,
+      workflow_id: workflowId,
+      status: 'completed' as const,
+      started_at: mockDate.now,
+      completed_at: mockDate.now,
+      started_by: 'user-1',
+      input_data: body.trigger_inputs ?? {},
+      mode: 'test' as ExecutionsAPI.components['schemas']['ExecutionMode'],
+    }
+
+    executions.push(execution)
+
+    return HttpResponse.json({ id: execution.id }, { status: 201 })
+  }),
+
   http.post('/api/v1/workflows/validate', async (request) => {
     const body = await request.request.json()
     const nodes: unknown[] = body?.workflow_definition?.nodes ?? []

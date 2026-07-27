@@ -182,8 +182,7 @@ test.describe('Run Step', () => {
     }
   })
 
-  test.skip('allows entering JSON and clicking Run', async ({ app }) => {
-    // Skip: requires POST /workflows/{id}/test backend endpoint (nexus PR #929)
+  test('allows entering JSON and clicking Run', async ({ app }) => {
     // Arrange - Create workflow and navigate to mock editor
     const workflowName = buildUniqueName('e2e-run-step-json')
     const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Test action')
@@ -248,8 +247,7 @@ test.describe('Run Step', () => {
     }
   })
 
-  test.skip('accepts empty JSON input and runs successfully', async ({ app }) => {
-    // Skip: requires POST /workflows/{id}/test backend endpoint (nexus PR #929)
+  test('accepts empty JSON input and runs successfully', async ({ app }) => {
     // Arrange - Create workflow and navigate to mock editor
     const workflowName = buildUniqueName('e2e-run-step-empty')
     const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Test action')
@@ -266,6 +264,26 @@ test.describe('Run Step', () => {
 
       // Assert - Dialog closes without error
       await expect(app.getByRole('heading', { name: 'Set mock data for Test action' })).not.toBeVisible()
+    } finally {
+      await deleteWorkflow(app, workflowName)
+    }
+  })
+
+  test('executes workflow when "Run all previous steps" is clicked', async ({ app }) => {
+    // Arrange - Create workflow with two nodes
+    const workflowName = buildUniqueName('e2e-run-step-all')
+    await createTwoNodeWorkflow(app, workflowName)
+
+    try {
+      // Act - Open Run step dialog on second node
+      await openRunStepDialog(app, 'Second action')
+
+      // Act - Click "Run all previous steps"
+      const runAllButton = app.getByRole('button', { name: 'Run all previous steps' })
+      await runAllButton.click()
+
+      // Assert - Dialog closes after execution completes (dialog closing IS the success signal)
+      await expect(app.getByRole('heading', { name: 'Run Second action?' })).not.toBeVisible()
     } finally {
       await deleteWorkflow(app, workflowName)
     }
@@ -291,7 +309,7 @@ test.describe('Run Step', () => {
       await runButton.click()
 
       // Assert - Error message appears (JSON parse error)
-      await expect(app.locator('[class*="alert"]').filter({ hasText: /Unexpected|expected/i })).toBeVisible()
+      await expect(app.getByRole('alert').filter({ hasText: /Unexpected|expected/i })).toBeVisible()
 
       // Assert - Dialog remains open
       await expect(app.getByRole('heading', { name: 'Set mock data for Test action' })).toBeVisible()
