@@ -59,7 +59,7 @@ Records are synced from Temporal history by `activity_sync_service.py` and persi
 
 **`GET /executions`** — filterable by `workflow_id`, `project_id`, `status`, `mode`, `completed_at`, `created_at`, `created_by`, `labels`. Status values: `pending`, `running`, `paused`, `completed`, `completed_with_errors`, `failed`, `cancelled`. Mode values: `standard`, `test`, `debug`.
 
-Sortable by `created_at`, `updated_at`, `completed_at`, `status`, `deleted_at` — per `Execution.__sortable_fields__`; `created_by`/`updated_by` are filterable but **not** sortable.
+Sortable by `created_at`, `updated_at`, `completed_at`, `status`, `deleted_at`, `workflow_id` — per `Execution.__sortable_fields__`; `created_by`/`updated_by` are filterable but **not** sortable.
 
 ## Signal / Callback
 

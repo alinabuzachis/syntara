@@ -100,6 +100,23 @@ def column_python_type(column: Any) -> type | None:  # noqa: ANN401
         return None
 
 
+def _deserialize_bool_sort_value(value: str) -> bool:
+    """Parse a cursor boolean ``sort_value``.
+
+    Raises:
+        ValueError: If ``value`` is not ``true``/``false`` (case-insensitive).
+            Callers wrap this as ``SafeValueError``; do not raise
+            ``SafeValueError`` here (it subclasses ``ValueError`` and would
+            double-wrap).
+
+    """
+    normalized = value.lower()
+    if normalized not in ("true", "false"):
+        msg = f"invalid boolean: {value}"
+        raise ValueError(msg)
+    return normalized == "true"
+
+
 def deserialize_sort_value(value: str, python_type: type | None) -> Any:  # noqa: ANN401
     """Deserialize a cursor ``sort_value`` string back to a typed Python value.
 
@@ -130,7 +147,7 @@ def deserialize_sort_value(value: str, python_type: type | None) -> Any:  # noqa
         if python_type is UUID:
             return UUID(value)
         if python_type is bool:
-            return value.lower() == "true"
+            return _deserialize_bool_sort_value(value)
         if python_type is int:
             return int(value)
     except (ValueError, TypeError) as e:

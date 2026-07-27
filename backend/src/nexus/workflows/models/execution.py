@@ -123,6 +123,7 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
                 *SoftDeletableResource.__sortable_fields__,
                 "id",
                 "workflow_version_id",
+                "workflow_id",
                 "completed_at",
                 "status",
             ]

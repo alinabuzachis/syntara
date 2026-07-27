@@ -113,6 +113,7 @@ class TestExecutionFields:
             "deleted_at",
             "id",
             "workflow_version_id",
+            "workflow_id",
             "completed_at",
             "status",
         ]

@@ -17,7 +17,6 @@ import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
-import { useTableSort } from '../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
@@ -30,7 +29,7 @@ import {
   getExecutionVersionFilterFromExecutions,
 } from './executionFilters'
 import { FlatExecutionsTableBody, GroupedExecutionsTableBody } from './ExecutionsTableBody'
-import { getExecutionSortValue } from './getExecutionSortValue'
+import { executionDefaultSort, executionTableColumns } from './executionTableColumns'
 
 function buildFilterFieldDefinitions(executions: Execution[]): FilterFieldDefinition[] {
   return [
@@ -69,7 +68,13 @@ export default function Executions() {
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination({ defaultFilters, extraParams: projectExtraParams })
+    getSortParams,
+  } = useCursorPagination({
+    defaultFilters,
+    extraParams: projectExtraParams,
+    defaultSort: executionDefaultSort,
+    columns: executionTableColumns,
+  })
 
   const executionsQuery = executionsClient.useQuery('get', '/executions', {
     params: {
@@ -77,30 +82,21 @@ export default function Executions() {
     },
   })
 
-  const showWorkflowColumn = true
   const executions = useMemo(() => (executionsQuery.data?.resources ?? []) as Execution[], [executionsQuery.data])
 
   useCursorReset(executions.length, hasActiveFilters, cursor, executionsQuery.isFetching, resetPagination)
 
   const filterFieldDefinitions = useMemo(() => buildFilterFieldDefinitions(executions), [executions])
 
-  const { activeSortIndex, getSortParams, sortData } = useTableSort({
-    initialSortIndex: 4, // Default sort by Created at
-    initialDirection: 'desc',
-  })
-
   const builtinProjectIds = useMemo(() => new Set(projects.filter((p) => p.is_builtin).map((p) => p.id)), [projects])
 
-  const sortedExecutions = useMemo(() => {
-    const sorted = sortData(executions, (execution) =>
-      getExecutionSortValue(execution, activeSortIndex, showWorkflowColumn)
-    )
-    if (!isAllProjects) return sorted
-    return sorted.filter((e) => {
+  const visibleExecutions = useMemo(() => {
+    if (!isAllProjects) return executions
+    return executions.filter((e) => {
       const pid = e.project_id ?? 'unknown'
       return !builtinProjectIds.has(pid)
     })
-  }, [executions, sortData, activeSortIndex, showWorkflowColumn, isAllProjects, builtinProjectIds])
+  }, [executions, isAllProjects, builtinProjectIds])
 
   // Group executions by project when viewing all projects
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
@@ -108,7 +104,7 @@ export default function Executions() {
   const groupedExecutions = useMemo(() => {
     if (!isAllProjects) return null
     const groups = new Map<string, { project: (typeof projects)[number] | null; executions: Execution[] }>()
-    for (const execution of sortedExecutions) {
+    for (const execution of visibleExecutions) {
       const projectId = execution.project_id ?? 'unknown'
       if (builtinProjectIds.has(projectId)) continue
       if (!groups.has(projectId)) {
@@ -120,7 +116,7 @@ export default function Executions() {
       groups.get(projectId)!.executions.push(execution)
     }
     return groups
-  }, [sortedExecutions, projects, isAllProjects, builtinProjectIds])
+  }, [visibleExecutions, projects, isAllProjects, builtinProjectIds])
 
   const toggleProjectCollapsed = (projectId: string) => {
     setCollapsedProjects((prev) => {
@@ -156,7 +152,7 @@ export default function Executions() {
       <NxPageHeader title="Workflow Runs" docLink={executionsDocLink} projectSelector={ProjectSelector} />
       <NxPageBody>
         <NxPanel isFullHeight>
-          {sortedExecutions.length === 0 && !hasActiveFilters ? (
+          {visibleExecutions.length === 0 && !hasActiveFilters ? (
             <NxPageBody isCentered>
               <NxEmptyStateNoData title="No executions found" description="No executions found." />
             </NxPageBody>
@@ -171,7 +167,7 @@ export default function Executions() {
                 />
               </StackItem>
 
-              {sortedExecutions.length === 0 ? (
+              {visibleExecutions.length === 0 ? (
                 <NxPageBody isCentered>
                   <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </NxPageBody>
@@ -179,16 +175,14 @@ export default function Executions() {
                 <NxScrollableTableContainer caption="Executions table" footer={getFooterProps(executionsQuery.data)}>
                   <Thead>
                     <Tr>
-                      <Th modifier="nowrap" sort={getSortParams(0)}>
+                      <Th modifier="nowrap" sort={getSortParams('workflow_id')}>
                         Workflow name
                       </Th>
-                      <Th modifier="nowrap" sort={getSortParams(1)}>
-                        Run ID
-                      </Th>
-                      <Th sort={getSortParams(2)}>Status</Th>
+                      <Th modifier="nowrap">Run ID</Th>
+                      <Th sort={getSortParams('status')}>Status</Th>
                       <Th modifier="nowrap">Version</Th>
-                      <Th sort={getSortParams(4)}>Created at</Th>
-                      <Th sort={getSortParams(5)}>Completed at</Th>
+                      <Th sort={getSortParams('created_at')}>Created at</Th>
+                      <Th sort={getSortParams('completed_at')}>Completed at</Th>
                       <Th screenReaderText="Actions" />
                     </Tr>
                   </Thead>
@@ -199,7 +193,7 @@ export default function Executions() {
                       onToggleProject={toggleProjectCollapsed}
                     />
                   ) : (
-                    <FlatExecutionsTableBody executions={sortedExecutions} />
+                    <FlatExecutionsTableBody executions={visibleExecutions} />
                   )}
                 </NxScrollableTableContainer>
               )}

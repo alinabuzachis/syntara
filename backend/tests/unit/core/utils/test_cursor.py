@@ -630,6 +630,16 @@ class TestDeserializeSortValue:
         assert deserialize_sort_value("true", bool) is True
         assert deserialize_sort_value("false", bool) is False
 
+    def test_deserialize_bool_case_insensitive(self) -> None:
+        assert deserialize_sort_value("TRUE", bool) is True
+        assert deserialize_sort_value("False", bool) is False
+
+    def test_invalid_bool_raises_safe_value_error(self) -> None:
+        with pytest.raises(SafeValueError, match=r"^Invalid cursor format: invalid boolean: garbage$") as exc_info:
+            deserialize_sort_value("garbage", bool)
+        # Ensure we do not double-wrap (SafeValueError is a ValueError subclass).
+        assert str(exc_info.value).count("Invalid cursor format") == 1
+
     def test_deserialize_int(self) -> None:
         assert deserialize_sort_value("42", int) == 42
 
