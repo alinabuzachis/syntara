@@ -22,5 +22,13 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "vitest.browser.config.ts", "scripts/**/*.ts", "types/**/*.d.ts"]
+  "include": [
+    "currents.config.ts",
+    "playwright.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.browser.config.ts",
+    "scripts/**/*.ts",
+    "types/**/*.d.ts"
+  ]
 }

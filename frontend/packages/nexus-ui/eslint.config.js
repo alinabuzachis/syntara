@@ -312,6 +312,13 @@ export default tseslint.config(
     },
   },
   {
+    // Currents requires a default export for its config file — exempt from the default-export ban
+    files: ['currents.config.ts'],
+    rules: {
+      'no-restricted-exports': 'off',
+    },
+  },
+  {
     // Storybook CSF requires `export default meta`; Storybook config files require a default export —
     // exempt both from the default-export ban
     files: ['**/*.stories.{ts,tsx}', '**/.storybook/**/*.{ts,tsx}'],

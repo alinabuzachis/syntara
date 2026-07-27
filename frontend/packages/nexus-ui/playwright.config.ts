@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test'
+import { currentsReporter } from '@currents/playwright'
 import { config } from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -36,11 +37,15 @@ export default defineConfig({
     [process.env.CI ? 'line' : 'list'],
     ['json', { outputFile: 'test-results/results.json' }],
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ...(process.env.CURRENTS_PROJECT_ID && process.env.CURRENTS_RECORD_KEY ? [currentsReporter()] : []),
   ],
   use: {
     baseURL,
     viewport: { width: 1280, height: 720 },
+    // Limit artifacts to genuinely failing tests only — retries that eventually pass do
+    // not produce uploads. Mirrors the ansible-ui Currents integration pattern.
     trace: 'retain-on-failure',
+    video: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: useWebServer
