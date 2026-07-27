@@ -1,11 +1,15 @@
 """Tests for AAPOIDCSetupService."""
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 import respx
+from pydantic import HttpUrl
 
+from nexus.core.config.base import get_settings
 from nexus.identity_providers.exceptions import (
     AAPAuthenticationError,
     AAPConnectionError,
@@ -19,12 +23,13 @@ _AAP_URL = "https://aap.example.com"
 _AAP_API = f"{_AAP_URL}/api/gateway/v1"
 
 
-def _mock_settings() -> MagicMock:
-    settings = MagicMock()
-    settings.jwt_issuer = "https://example.com"
-    settings.post_logout_redirect_uri = "https://example.com"
-    settings.cors_allow_origins = ["https://example.com"]
-    return settings
+@pytest.fixture(autouse=True)
+def _aap_settings(override_settings: Callable[..., AbstractContextManager[object]]) -> object:
+    with override_settings(
+        server_public_url=HttpUrl("https://example.com"),
+        cors_allow_origins=["https://example.com"],
+    ):
+        yield
 
 
 def _mock_idp_service() -> MagicMock:
@@ -75,11 +80,10 @@ def _make_pat_request(
 
 def _make_service(
     idp_service: MagicMock | None = None,
-    settings: MagicMock | None = None,
 ) -> AAPOIDCSetupService:
     return AAPOIDCSetupService(
         idp_service=idp_service or _mock_idp_service(),
-        settings=settings or _mock_settings(),
+        settings=get_settings(),
     )
 
 
@@ -384,18 +388,19 @@ class TestOAuth2AppPayload:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_post_logout_redirect_uris_deduplicated_with_slashes(self) -> None:
+    async def test_post_logout_redirect_uris_deduplicated_with_slashes(
+        self, override_settings: Callable[..., AbstractContextManager[object]]
+    ) -> None:
         respx.get(f"{_AAP_API}/organizations/").mock(return_value=httpx.Response(200, json=_org_response()))
         app_route = respx.post(f"{_AAP_API}/applications/").mock(return_value=httpx.Response(201, json=_app_response()))
 
         import json
 
-        settings = _mock_settings()
-        settings.post_logout_redirect_uri = "https://example.com"
-        settings.cors_allow_origins = ["https://example.com", "https://frontend.example.com"]
-
-        service = _make_service(settings=settings)
-        await service.setup(_make_request())
+        with override_settings(
+            cors_allow_origins=["https://example.com", "https://frontend.example.com"],
+        ):
+            service = _make_service()
+            await service.setup(_make_request())
 
         body = json.loads(app_route.calls[0].request.content.decode())
         uris = set(body["post_logout_redirect_uris"].split())
