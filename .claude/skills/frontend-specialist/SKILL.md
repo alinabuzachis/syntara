@@ -45,7 +45,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 
 - Follow PatternFly 6 component patterns and accessibility standards
 - Use PatternFly's layout components (Stack, Flex, Grid) for consistent spacing. Re-usable components should never have their own baked-in margin.
-- ESLint enforces PF6 design tokens (`nexus/use-design-tokens-not-hardcoded`) and PF text/list components (`nexus/prefer-pf-text-components`, `nexus/prefer-pf-list-components`) at error level
+- ESLint enforces PF6 design tokens (`syntara/use-design-tokens-not-hardcoded`) and PF text/list components (`syntara/prefer-pf-text-components`, `syntara/prefer-pf-list-components`) at error level
 
 ### Vitest Testing
 

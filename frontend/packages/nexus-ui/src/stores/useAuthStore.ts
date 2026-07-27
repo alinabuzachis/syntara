@@ -125,7 +125,7 @@ async function revokeServerSession(accessToken: string | null, csrfToken: string
     const logoutUrl = new URL(AUTH_LOGOUT_URL, window.location.origin)
     logoutUrl.searchParams.set('post_logout_redirect_uri', `${window.location.origin}/`)
 
-    // eslint-disable-next-line nexus/no-raw-http-calls -- auth: logout before token middleware teardown
+    // eslint-disable-next-line syntara/no-raw-http-calls -- auth: logout before token middleware teardown
     const response = await fetch(logoutUrl.toString(), {
       method: 'POST',
       headers: buildAuthHeaders(accessToken, csrfToken),
@@ -194,7 +194,7 @@ async function throwResponseError(response: Response): Promise<never> {
 async function fetchCsrfToken(): Promise<string>
 async function fetchCsrfToken(returnNullOn404: true): Promise<string | null>
 async function fetchCsrfToken(returnNullOn404 = false): Promise<string | null> {
-  // eslint-disable-next-line nexus/no-raw-http-calls -- auth: CSRF token fetch before client is initialized
+  // eslint-disable-next-line syntara/no-raw-http-calls -- auth: CSRF token fetch before client is initialized
   const response = await fetch(AUTH_CSRF_TOKEN_URL, {
     method: 'POST',
     headers: nexusUiClientHeaders(),
@@ -209,7 +209,7 @@ async function fetchCsrfToken(returnNullOn404 = false): Promise<string | null> {
 }
 
 async function postAuth(url: string, body?: object, extraHeaders?: Record<string, string>): Promise<LoginResponse> {
-  // eslint-disable-next-line nexus/no-raw-http-calls -- auth: login/token exchange before client is initialized
+  // eslint-disable-next-line syntara/no-raw-http-calls -- auth: login/token exchange before client is initialized
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...nexusUiClientHeaders(), ...extraHeaders },

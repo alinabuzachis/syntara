@@ -1,6 +1,6 @@
-# ESLint Plugin Nexus
+# ESLint Plugin Syntara
 
-Custom ESLint rules for the Nexus UI project to enforce project-specific patterns and best practices.
+Custom ESLint rules for the Syntara UI project to enforce project-specific patterns and best practices.
 
 ## Rules
 
@@ -74,7 +74,7 @@ const fn = window.fetch
 
 ```javascript
 // eslint.config.js
-'nexus/no-raw-http-calls': [
+'syntara/no-raw-http-calls': [
   'error',
   {
     allowedFiles: ['**/useFileUploadWithProgress.ts'],
@@ -87,7 +87,7 @@ Used for `useFileUploadWithProgress.ts`, where `XMLHttpRequest` is required for 
 **Inline disable with justification** — for one-off pre-auth calls and similar cases:
 
 ```typescript
-// eslint-disable-next-line nexus/no-raw-http-calls -- pre-auth: fetching providers before token middleware is available
+// eslint-disable-next-line syntara/no-raw-http-calls -- pre-auth: fetching providers before token middleware is available
 const response = await fetch('/api/auth/providers')
 ```
 
@@ -118,13 +118,13 @@ Disallows browser-locale date formatting methods (`toLocaleDateString`, `toLocal
 Run the test suite:
 
 ```bash
-npx vitest run packages/nexus-ui/eslint-plugin-nexus/__tests__/
+npx vitest run packages/nexus-ui/eslint-plugin-syntara/__tests__/
 ```
 
 Run tests for a specific rule:
 
 ```bash
-npx vitest run eslint-plugin-nexus/__tests__/no-raw-http-calls.test.js
+npx vitest run eslint-plugin-syntara/__tests__/no-raw-http-calls.test.js
 ```
 
 ### `require-page-title`

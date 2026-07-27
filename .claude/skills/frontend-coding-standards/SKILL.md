@@ -783,7 +783,7 @@ The `NxErrorState` component automatically shows a retry button for retryable er
 
 ## 12. `NxConfirmationDialog` — Never Inline Modal Boilerplate
 
-Use `NxConfirmationDialog` for all confirmation prompts. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`. ESLint rule `nexus/prefer-confirmation-dialog` (error) catches raw destructive Modal patterns automatically; the guidance below teaches the correct tier selection and content patterns.
+Use `NxConfirmationDialog` for all confirmation prompts. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`. ESLint rule `syntara/prefer-confirmation-dialog` (error) catches raw destructive Modal patterns automatically; the guidance below teaches the correct tier selection and content patterns.
 
 > **Check Storybook first:** Before implementing any confirmation dialog, call the Storybook MCP `get-documentation` tool with id `"components-dialogs-nxconfirmationdialog"`. The stories are the primary source of truth for tier selection, correct prop usage, title format, body copy, checkbox labels, and button labels — and take precedence over the static examples below.
 
@@ -1040,7 +1040,7 @@ The object parameter form (`{ title, description? }`) is enforced by ESLint `no-
 
 ## 20. No Raw HTML Elements for Text Content
 
-Enforced by ESLint rules `nexus/prefer-pf-text-components` and `nexus/prefer-pf-list-components` at error level. Use PF `Content`, `HelperText`, `Label`, `Title` instead of raw `<span>`/`<p>`/`<div>`, and PF `List`/`ListItem` instead of raw `<ul>`/`<ol>`/`<li>`.
+Enforced by ESLint rules `syntara/prefer-pf-text-components` and `syntara/prefer-pf-list-components` at error level. Use PF `Content`, `HelperText`, `Label`, `Title` instead of raw `<span>`/`<p>`/`<div>`, and PF `List`/`ListItem` instead of raw `<ul>`/`<ol>`/`<li>`.
 
 **PF Content automatic margin:** PF6 `<Content>` adds automatic margin when rendered as `<p>`, `<small>`, or other block elements. When Content is inside a Flex row, popover header, or other tight layout context, reset it with `margin: 0` via a CSS module class. Prefer a CSS module class over inline `style={{ margin: 0 }}`.
 

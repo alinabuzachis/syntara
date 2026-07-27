@@ -1,6 +1,6 @@
 import picomatch from 'picomatch'
 
-const RULE_ID = 'nexus/no-raw-http-calls'
+const RULE_ID = 'syntara/no-raw-http-calls'
 
 /** @param {string} commentText */
 function disablesRawHttpRule(commentText) {
@@ -115,7 +115,7 @@ export default {
       noAxiosImport:
         'Use a typed API client (workflowClient, credentialsClient, etc.) instead of importing axios directly. Direct axios calls bypass type safety and centralized request configuration.',
       missingDisableJustification:
-        'eslint-disable comments for nexus/no-raw-http-calls must include a justification after "--" (e.g. eslint-disable-next-line nexus/no-raw-http-calls -- pre-auth call before token middleware).',
+        'eslint-disable comments for syntara/no-raw-http-calls must include a justification after "--" (e.g. eslint-disable-next-line syntara/no-raw-http-calls -- pre-auth call before token middleware).',
     },
     schema: [
       {

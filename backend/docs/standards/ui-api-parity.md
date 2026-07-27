@@ -38,7 +38,7 @@ All clients apply `authMiddleware` from `client.tsx`, which handles token inject
 | `allowedFiles` config | ESLint config | Exempts specific files (e.g., `useFileUploadWithProgress.ts` for upload progress via XMLHttpRequest) |
 | Inline `eslint-disable-next-line` | Per-call | Requires justification after `--` (e.g., `-- pre-auth call before token middleware`) |
 
-**Rule source:** `frontend/packages/nexus-ui/eslint-plugin-nexus/rules/no-raw-http-calls.js`
+**Rule source:** `frontend/packages/nexus-ui/eslint-plugin-syntara/rules/no-raw-http-calls.js`
 
 ## Contract Generation
 
@@ -154,7 +154,7 @@ The scheduled workflow auto-closes drift issues when the drift is resolved.
 | What | Path |
 |------|------|
 | Typed API clients | `frontend/packages/nexus-ui/src/client.tsx`, `frontend/packages/nexus-ui/src/routes/access/accessClient.ts` |
-| ESLint rule (no raw HTTP) | `frontend/packages/nexus-ui/eslint-plugin-nexus/rules/no-raw-http-calls.js` |
+| ESLint rule (no raw HTTP) | `frontend/packages/nexus-ui/eslint-plugin-syntara/rules/no-raw-http-calls.js` |
 | Generated contracts | `frontend/packages/nexus-contracts/src/*.ts` |
 | Contract generation scripts | `frontend/packages/nexus-contracts/package.json` (`gen:local:*`) |
 | Backend domain sub-specs | `backend/src/nexus/schemas/` (see `gen:local:*` for paths) |

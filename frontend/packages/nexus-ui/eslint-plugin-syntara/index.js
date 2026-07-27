@@ -8,7 +8,7 @@ import useDesignTokensNotHardcoded from './rules/use-design-tokens-not-hardcoded
 
 /** @type {import('eslint').ESLint.Plugin} */
 export default {
-  meta: { name: 'eslint-plugin-nexus', version: '0.1.0' },
+  meta: { name: 'eslint-plugin-syntara', version: '0.1.0' },
   rules: {
     'no-locale-date-format': noLocaleDateFormat,
     'no-raw-http-calls': noRawHttpCalls,

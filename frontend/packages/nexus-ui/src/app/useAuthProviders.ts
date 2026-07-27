@@ -37,7 +37,7 @@ export function useAuthProviders(): UseAuthProvidersResult {
 
     const loadProviders = async () => {
       try {
-        // eslint-disable-next-line nexus/no-raw-http-calls -- pre-auth: fetching providers before token middleware is available
+        // eslint-disable-next-line syntara/no-raw-http-calls -- pre-auth: fetching providers before token middleware is available
         const response = await fetch('/api/v1/auth/providers', {
           headers: nexusUiClientHeaders(),
           signal: controller.signal,

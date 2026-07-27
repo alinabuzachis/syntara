@@ -1,6 +1,6 @@
 import { ESLint, RuleTester } from 'eslint'
 import { describe, expect, it } from 'vitest'
-import nexusPlugin from '../index.js'
+import syntaraPlugin from '../index.js'
 import rule from '../rules/no-raw-http-calls.js'
 
 RuleTester.describe = describe
@@ -8,7 +8,7 @@ RuleTester.it = it
 
 const ruleTester = new RuleTester({
   plugins: {
-    nexus: nexusPlugin,
+    syntara: syntaraPlugin,
   },
   languageOptions: {
     ecmaVersion: 2022,
@@ -22,20 +22,20 @@ function createEslint() {
     overrideConfig: [
       {
         files: ['**/*.{js,ts}'],
-        plugins: { nexus: nexusPlugin },
+        plugins: { syntara: syntaraPlugin },
         languageOptions: {
           ecmaVersion: 2022,
           sourceType: 'module',
         },
         rules: {
-          'nexus/no-raw-http-calls': 'error',
+          'syntara/no-raw-http-calls': 'error',
         },
       },
     ],
   })
 }
 
-ruleTester.run('nexus/no-raw-http-calls', rule, {
+ruleTester.run('syntara/no-raw-http-calls', rule, {
   valid: [
     // Using typed API client is allowed
     {
@@ -75,28 +75,28 @@ ruleTester.run('nexus/no-raw-http-calls', rule, {
     // Disable comment with required justification
     {
       code: `
-        // eslint-disable-next-line nexus/no-raw-http-calls -- pre-auth call before token middleware
+        // eslint-disable-next-line syntara/no-raw-http-calls -- pre-auth call before token middleware
         const value = 1;
       `,
     },
     // Block comment disable with justification
     {
       code: `
-        /* eslint-disable-next-line nexus/no-raw-http-calls -- XMLHttpRequest required for upload progress */
+        /* eslint-disable-next-line syntara/no-raw-http-calls -- XMLHttpRequest required for upload progress */
         const value = 2;
       `,
     },
     // Combined rule disable with shared justification
     {
       code: `
-        // eslint-disable-next-line nexus/no-raw-http-calls, no-console -- auth retry with refreshed token
+        // eslint-disable-next-line syntara/no-raw-http-calls, no-console -- auth retry with refreshed token
         const value = 3;
       `,
     },
     // File-level disable with justification
     {
       code: `
-        /* eslint-disable nexus/no-raw-http-calls -- test fixture uses raw fetch mocks */
+        /* eslint-disable syntara/no-raw-http-calls -- test fixture uses raw fetch mocks */
         const value = 4;
       `,
     },
@@ -188,7 +188,7 @@ ruleTester.run('nexus/no-raw-http-calls', rule, {
     // eslint-disable without justification
     {
       code: `
-        // eslint-disable-next-line nexus/no-raw-http-calls
+        // eslint-disable-next-line syntara/no-raw-http-calls
         const value = 1;
       `,
       errors: [{ messageId: 'missingDisableJustification' }],
@@ -196,7 +196,7 @@ ruleTester.run('nexus/no-raw-http-calls', rule, {
     // Block comment disable without justification
     {
       code: `
-        /* eslint-disable-next-line nexus/no-raw-http-calls */
+        /* eslint-disable-next-line syntara/no-raw-http-calls */
         const value = 1;
       `,
       errors: [{ messageId: 'missingDisableJustification' }],
@@ -234,11 +234,11 @@ ruleTester.run('nexus/no-raw-http-calls', rule, {
   ],
 })
 
-describe('nexus/no-raw-http-calls eslint integration', () => {
+describe('syntara/no-raw-http-calls eslint integration', () => {
   it('allows raw fetch when disable includes a justification', async () => {
     const eslint = createEslint()
     const code = `
-      // eslint-disable-next-line nexus/no-raw-http-calls -- pre-auth call before token middleware
+      // eslint-disable-next-line syntara/no-raw-http-calls -- pre-auth call before token middleware
       const response = await fetch('/api/v1/auth/providers')
     `
 
@@ -250,14 +250,14 @@ describe('nexus/no-raw-http-calls eslint integration', () => {
   it('rejects disable without justification and does not report the suppressed fetch call', async () => {
     const eslint = createEslint()
     const code = `
-      // eslint-disable-next-line nexus/no-raw-http-calls
+      // eslint-disable-next-line syntara/no-raw-http-calls
       const response = await fetch('/api/v1/auth/providers')
     `
 
     const [result] = await eslint.lintText(code, { filePath: 'src/example.ts' })
 
     expect(result.messages).toHaveLength(1)
-    expect(result.messages[0].ruleId).toBe('nexus/no-raw-http-calls')
+    expect(result.messages[0].ruleId).toBe('syntara/no-raw-http-calls')
     expect(result.messages[0].messageId).toBe('missingDisableJustification')
   })
 
@@ -267,13 +267,13 @@ describe('nexus/no-raw-http-calls eslint integration', () => {
       overrideConfig: [
         {
           files: ['**/*.{js,ts}'],
-          plugins: { nexus: nexusPlugin },
+          plugins: { syntara: syntaraPlugin },
           languageOptions: {
             ecmaVersion: 2022,
             sourceType: 'module',
           },
           rules: {
-            'nexus/no-raw-http-calls': ['error', { allowedFiles: ['**/useFileUploadWithProgress.ts'] }],
+            'syntara/no-raw-http-calls': ['error', { allowedFiles: ['**/useFileUploadWithProgress.ts'] }],
           },
         },
       ],
@@ -290,14 +290,14 @@ describe('nexus/no-raw-http-calls eslint integration', () => {
     expect(result.messages).toEqual([])
   })
 
-  it('blocks axios imports via nexus/no-raw-http-calls', async () => {
+  it('blocks axios imports via syntara/no-raw-http-calls', async () => {
     const eslint = createEslint()
     const code = `import axios from 'axios'`
 
     const [result] = await eslint.lintText(code, { filePath: 'src/example.ts' })
 
     expect(result.messages).toHaveLength(1)
-    expect(result.messages[0].ruleId).toBe('nexus/no-raw-http-calls')
+    expect(result.messages[0].ruleId).toBe('syntara/no-raw-http-calls')
     expect(result.messages[0].messageId).toBe('noAxiosImport')
   })
 })

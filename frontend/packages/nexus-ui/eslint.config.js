@@ -15,7 +15,7 @@ import pluginQuery from '@tanstack/eslint-plugin-query'
 import reactUseEffect from 'eslint-plugin-react-you-might-not-need-an-effect'
 import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
-import nexusPlugin from './eslint-plugin-nexus/index.js'
+import syntaraPlugin from './eslint-plugin-syntara/index.js'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 
@@ -31,7 +31,7 @@ export default tseslint.config(
       'test-results/**',
       'playwright-report/**',
       'scripts/**',
-      'eslint-plugin-nexus/**',
+      'eslint-plugin-syntara/**',
     ],
   },
   js.configs.recommended,
@@ -97,7 +97,7 @@ export default tseslint.config(
       ],
       // axios restriction merged into the icon/wouter no-restricted-imports block below
       // to avoid flat-config rule shadowing (the last matching block wins for a given rule).
-      // Raw HTTP calls are handled by nexus/no-raw-http-calls (fetch, XMLHttpRequest) below
+      // Raw HTTP calls are handled by syntara/no-raw-http-calls (fetch, XMLHttpRequest) below
       'no-restricted-properties': [
         'error',
         {
@@ -190,7 +190,7 @@ export default tseslint.config(
       'no-only-tests': noOnlyTests,
       sonarjs,
       unicorn,
-      nexus: nexusPlugin,
+      syntara: syntaraPlugin,
       reactYouMightNotNeedAnEffect: reactUseEffect,
     },
     rules: {
@@ -270,21 +270,21 @@ export default tseslint.config(
       // Do not include file extensions in imports — TypeScript resolves them automatically.
       'import-x/extensions': ['warn', 'never'],
       '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
-      // -- nexus custom rules (PR checklist + UX design system enforcement) --
+      // -- syntara custom rules (PR checklist + UX design system enforcement) --
       // no-switch-is-reversed, require-alert-object-param, and require-query-state-object
       // are enforced via no-restricted-syntax AST selectors above (no custom plugin needed).
-      'nexus/no-raw-http-calls': [
+      'syntara/no-raw-http-calls': [
         'error',
         {
           // XMLHttpRequest required for upload progress (fetch lacks upload progress events)
           allowedFiles: ['**/useFileUploadWithProgress.ts', '**/useFileStorageStatus.ts'],
         },
       ],
-      'nexus/prefer-pf-list-components': 'error',
-      'nexus/prefer-pf-text-components': 'error',
-      'nexus/use-design-tokens-not-hardcoded': 'error',
-      'nexus/prefer-confirmation-dialog': 'error',
-      'nexus/no-locale-date-format': 'error',
+      'syntara/prefer-pf-list-components': 'error',
+      'syntara/prefer-pf-text-components': 'error',
+      'syntara/use-design-tokens-not-hardcoded': 'error',
+      'syntara/prefer-confirmation-dialog': 'error',
+      'syntara/no-locale-date-format': 'error',
       // Catch unnecessary useEffect patterns. Aligns with https://react.dev/learn/you-might-not-need-an-effect
       'reactYouMightNotNeedAnEffect/no-derived-state': 'warn',
       'reactYouMightNotNeedAnEffect/no-chain-state-updates': 'warn',
@@ -335,11 +335,11 @@ export default tseslint.config(
       'max-nested-callbacks': 'off',
       complexity: 'off',
       'sonarjs/cognitive-complexity': 'off',
-      'nexus/prefer-pf-list-components': 'off',
-      'nexus/prefer-pf-text-components': 'off',
-      'nexus/use-design-tokens-not-hardcoded': 'off',
-      'nexus/prefer-confirmation-dialog': 'off',
-      'nexus/no-locale-date-format': 'off',
+      'syntara/prefer-pf-list-components': 'off',
+      'syntara/prefer-pf-text-components': 'off',
+      'syntara/use-design-tokens-not-hardcoded': 'off',
+      'syntara/prefer-confirmation-dialog': 'off',
+      'syntara/no-locale-date-format': 'off',
       'reactYouMightNotNeedAnEffect/no-derived-state': 'off',
       'reactYouMightNotNeedAnEffect/no-chain-state-updates': 'off',
       'reactYouMightNotNeedAnEffect/no-event-handler': 'off',
@@ -468,7 +468,7 @@ export default tseslint.config(
     files: ['**/routes/**/*.tsx'],
     ignores: ['**/*.stories.tsx'],
     rules: {
-      'nexus/require-page-title': 'error',
+      'syntara/require-page-title': 'error',
     },
   },
   {

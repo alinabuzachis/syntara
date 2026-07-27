@@ -15,7 +15,7 @@ const ruleTester = new RuleTester({
   },
 })
 
-ruleTester.run('nexus/require-page-title', rule, {
+ruleTester.run('syntara/require-page-title', rule, {
   valid: [
     // Page component using NxPageTitle — preferred pattern
     {
