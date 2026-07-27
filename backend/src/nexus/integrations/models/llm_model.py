@@ -174,15 +174,11 @@ class LLMModelUpdate(SQLModel):
         return self
 
 
-_MAX_BULK_UPDATE_MODELS = 1000
-
-
 class LLMModelBulkUpdate(SQLModel):
     """Schema for bulk-updating LLM models."""
 
     model_ids: list[UUID] = Field(
-        max_length=_MAX_BULK_UPDATE_MODELS,
-        description=f"Model IDs to update (max {_MAX_BULK_UPDATE_MODELS})",
+        description="Model IDs to update",
     )
     enabled: bool = Field(description="New enabled state")
 

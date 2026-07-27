@@ -957,7 +957,6 @@ components:
             - type: array
               items:
                 $ref: '#/components/schemas/InitialModelSelection'
-              maxItems: 1000
             - type: "null"
           title: Discovered Models
           description: Models discovered during setup with enabled/disabled selections
@@ -1767,8 +1766,7 @@ components:
           items:
             type: string
             format: uuid
-          maxItems: 1000
-          description: Model IDs to update (max 1000)
+          description: Model IDs to update
         enabled:
           type: boolean
           title: Enabled

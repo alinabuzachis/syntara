@@ -7,6 +7,7 @@ import pytest
 
 from nexus.integrations.models.llm_model import (
     LLMModel,
+    LLMModelBulkUpdate,
     LLMModelRead,
     LLMModelUpdate,
     ModelCapabilityProfile,
@@ -120,6 +121,19 @@ class TestLLMModelUpdate:
         update = LLMModelUpdate(is_default=True)
         assert update.is_default is True
         assert update.enabled is None
+
+
+class TestLLMModelBulkUpdate:
+    """Tests for LLMModelBulkUpdate with large model counts (AAP-82457)."""
+
+    def test_accepts_more_than_1000_model_ids(self) -> None:
+        ids = [uuid4() for _ in range(1500)]
+        update = LLMModelBulkUpdate(model_ids=ids, enabled=True)
+        assert len(update.model_ids) == 1500
+
+    def test_accepts_empty_model_ids(self) -> None:
+        update = LLMModelBulkUpdate(model_ids=[], enabled=False)
+        assert update.model_ids == []
 
 
 class TestLLMModelRead:

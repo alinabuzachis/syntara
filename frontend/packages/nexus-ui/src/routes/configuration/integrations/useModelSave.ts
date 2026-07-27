@@ -7,6 +7,7 @@ import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 
 type LLMModelRead = IntegrationsAPI.components['schemas']['LLMModelRead']
+type BulkUpdateResponse = IntegrationsAPI.components['schemas']['LLMModelBulkUpdateResponse']
 
 export type SaveParams = {
   models: LLMModelRead[]
@@ -14,6 +15,33 @@ export type SaveParams = {
   defaultModelId: string | null
   serverDefaultId: string | null
   isDefaultDirty: boolean
+}
+
+const BULK_UPDATE_BATCH_SIZE = 1000
+
+type BulkUpdateArgs = {
+  params: { path: { integration_id: string } }
+  body: { model_ids: string[]; enabled: boolean }
+}
+
+export async function chunkedBulkUpdate(
+  bulkUpdateFn: (args: BulkUpdateArgs) => Promise<BulkUpdateResponse>,
+  integrationId: string,
+  modelIds: string[],
+  enabled: boolean
+): Promise<{ updated_count: number; skipped_count: number }> {
+  let totalUpdated = 0
+  let totalSkipped = 0
+  for (let i = 0; i < modelIds.length; i += BULK_UPDATE_BATCH_SIZE) {
+    const batch = modelIds.slice(i, i + BULK_UPDATE_BATCH_SIZE)
+    const result = await bulkUpdateFn({
+      params: { path: { integration_id: integrationId } },
+      body: { model_ids: batch, enabled },
+    })
+    totalUpdated += result.updated_count
+    totalSkipped += result.skipped_count
+  }
+  return { updated_count: totalUpdated, skipped_count: totalSkipped }
 }
 
 async function invalidateModelQueries(queryClient: ReturnType<typeof useQueryClient>, integrationId: string) {
@@ -51,16 +79,8 @@ export function useModelSave(integrationId: string) {
       const toEnable = models.filter((m) => enabledModelIds.has(m.id)).map((m) => m.id)
       const toDisable = models.filter((m) => !enabledModelIds.has(m.id)).map((m) => m.id)
 
-      if (toEnable.length > 0)
-        await bulkUpdateModels({
-          params: { path: { integration_id: integrationId } },
-          body: { model_ids: toEnable, enabled: true },
-        })
-      if (toDisable.length > 0)
-        await bulkUpdateModels({
-          params: { path: { integration_id: integrationId } },
-          body: { model_ids: toDisable, enabled: false },
-        })
+      if (toEnable.length > 0) await chunkedBulkUpdate(bulkUpdateModels, integrationId, toEnable, true)
+      if (toDisable.length > 0) await chunkedBulkUpdate(bulkUpdateModels, integrationId, toDisable, false)
 
       if (isDefaultDirty && defaultModelId)
         await updateModel({

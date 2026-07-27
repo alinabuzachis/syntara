@@ -326,7 +326,6 @@ class IntegrationCreate(SQLModel):
 
     discovered_models: list[InitialModelSelection] | None = Field(
         default=None,
-        max_length=1000,
         description="Models discovered during setup with enabled/disabled selections",
     )
 

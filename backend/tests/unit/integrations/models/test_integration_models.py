@@ -241,6 +241,40 @@ class TestIntegrationSystemUpdate:
         assert update.validation_error == "Connection refused"
 
 
+class TestIntegrationCreateDiscoveredModels:
+    """Tests for IntegrationCreate.discovered_models with large model counts (AAP-82457)."""
+
+    def test_accepts_more_than_1000_discovered_models(self) -> None:
+        models = [
+            {"model_id": f"model-{i}", "name": f"Model {i}", "enabled": True, "is_default": False} for i in range(1500)
+        ]
+        data = IntegrationCreate(
+            name="Large Provider",
+            integration_type=IntegrationType.LLM_PROVIDER,
+            configuration={
+                "integration_type": "llm_provider",
+                "base_url": "http://localhost:11434",
+                "provider_hint": "custom",
+            },
+            discovered_models=models,
+        )
+        assert data.discovered_models
+        assert len(data.discovered_models) == 1500
+
+    def test_accepts_zero_discovered_models(self) -> None:
+        data = IntegrationCreate(
+            name="Empty Provider",
+            integration_type=IntegrationType.LLM_PROVIDER,
+            configuration={
+                "integration_type": "llm_provider",
+                "base_url": "http://localhost:11434",
+                "provider_hint": "custom",
+            },
+            discovered_models=[],
+        )
+        assert data.discovered_models == []
+
+
 class TestIntegrationEnums:
     """Tests for integration enum values."""
 

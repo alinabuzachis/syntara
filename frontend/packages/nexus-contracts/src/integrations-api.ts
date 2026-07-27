@@ -878,7 +878,7 @@ export interface components {
     LLMModelBulkUpdate: {
       /**
        * Model Ids
-       * @description Model IDs to update (max 1000)
+       * @description Model IDs to update
        */
       model_ids: string[]
       /**

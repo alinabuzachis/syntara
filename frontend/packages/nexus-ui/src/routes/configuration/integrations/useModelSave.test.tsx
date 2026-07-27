@@ -7,7 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { integrationsClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
 
-import { useModelSave, type SaveParams } from './useModelSave'
+import { chunkedBulkUpdate, useModelSave, type SaveParams } from './useModelSave'
 
 vi.mock('../../../client', () => ({
   integrationsClient: {
@@ -60,6 +60,90 @@ function makeSaveParams(overrides: Partial<SaveParams> = {}): SaveParams {
     ...overrides,
   }
 }
+
+describe('chunkedBulkUpdate', () => {
+  const mockFn = vi.fn()
+
+  beforeEach(() => {
+    mockFn.mockReset()
+    mockFn.mockResolvedValue({ updated_count: 0, skipped_count: 0 })
+  })
+
+  it('sends all IDs in a single call when under batch size', async () => {
+    const ids = ['a', 'b', 'c']
+    mockFn.mockResolvedValue({ updated_count: 3, skipped_count: 0 })
+
+    const result = await chunkedBulkUpdate(mockFn, 'int-1', ids, true)
+
+    expect(mockFn).toHaveBeenCalledTimes(1)
+    expect(mockFn).toHaveBeenCalledWith({
+      params: { path: { integration_id: 'int-1' } },
+      body: { model_ids: ['a', 'b', 'c'], enabled: true },
+    })
+    expect(result).toEqual({ updated_count: 3, skipped_count: 0 })
+  })
+
+  it('splits into batches of 1000 and aggregates results', async () => {
+    const ids = Array.from({ length: 2500 }, (_, i) => `id-${i}`)
+    mockFn
+      .mockResolvedValueOnce({ updated_count: 1000, skipped_count: 0 })
+      .mockResolvedValueOnce({ updated_count: 1000, skipped_count: 0 })
+      .mockResolvedValueOnce({ updated_count: 500, skipped_count: 0 })
+
+    const result = await chunkedBulkUpdate(mockFn, 'int-1', ids, false)
+
+    expect(mockFn).toHaveBeenCalledTimes(3)
+    expect(mockFn).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ body: { model_ids: ids.slice(0, 1000), enabled: false } })
+    )
+    expect(mockFn).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ body: { model_ids: ids.slice(1000, 2000), enabled: false } })
+    )
+    expect(mockFn).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ body: { model_ids: ids.slice(2000, 2500), enabled: false } })
+    )
+    expect(result).toEqual({ updated_count: 2500, skipped_count: 0 })
+  })
+
+  it('aggregates skipped counts across batches', async () => {
+    const ids = Array.from({ length: 1500 }, (_, i) => `id-${i}`)
+    mockFn
+      .mockResolvedValueOnce({ updated_count: 990, skipped_count: 10 })
+      .mockResolvedValueOnce({ updated_count: 495, skipped_count: 5 })
+
+    const result = await chunkedBulkUpdate(mockFn, 'int-1', ids, true)
+
+    expect(result).toEqual({ updated_count: 1485, skipped_count: 15 })
+  })
+
+  it('handles exactly 1000 IDs without splitting', async () => {
+    const ids = Array.from({ length: 1000 }, (_, i) => `id-${i}`)
+    mockFn.mockResolvedValue({ updated_count: 1000, skipped_count: 0 })
+
+    await chunkedBulkUpdate(mockFn, 'int-1', ids, true)
+
+    expect(mockFn).toHaveBeenCalledTimes(1)
+    expect(mockFn).toHaveBeenCalledWith(expect.objectContaining({ body: { model_ids: ids, enabled: true } }))
+  })
+
+  it('handles empty array without calling the API', async () => {
+    const result = await chunkedBulkUpdate(mockFn, 'int-1', [], true)
+
+    expect(mockFn).not.toHaveBeenCalled()
+    expect(result).toEqual({ updated_count: 0, skipped_count: 0 })
+  })
+
+  it('propagates errors from the bulk update function', async () => {
+    const ids = Array.from({ length: 1500 }, (_, i) => `id-${i}`)
+    mockFn.mockResolvedValueOnce({ updated_count: 1000, skipped_count: 0 }).mockRejectedValueOnce(new Error('fail'))
+
+    await expect(chunkedBulkUpdate(mockFn, 'int-1', ids, true)).rejects.toThrow('fail')
+    expect(mockFn).toHaveBeenCalledTimes(2)
+  })
+})
 
 describe('useModelSave', () => {
   beforeEach(() => {
