@@ -327,7 +327,6 @@ export function UserFormFields({
         label="First Name"
         fieldId="user-first-name"
         placeholder="Enter first name"
-        isRequired
         isDisabled={isBuiltinUser}
       />
       <ControlledTextField

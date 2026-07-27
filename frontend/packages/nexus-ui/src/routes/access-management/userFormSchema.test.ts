@@ -49,12 +49,9 @@ describe('userFormSchema', () => {
   })
 
   describe('name validation', () => {
-    it('rejects empty first_name', () => {
+    it('accepts empty first_name (optional)', () => {
       const result = userFormSchema.safeParse({ ...validData, first_name: '' })
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(result.error.issues[0].message).toBe('First name is required')
-      }
+      expect(result.success).toBe(true)
     })
 
     it('accepts empty last_name', () => {
