@@ -8,6 +8,8 @@ import {
   ExpandableSection,
   Flex,
   FlexItem,
+  List,
+  ListItem,
   Spinner,
   Stack,
   StackItem,
@@ -21,13 +23,74 @@ import { NxLabel } from '../../components/labels/NxLabel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 
 import {
+  formatTraceFieldLabel,
+  formatTraceFieldValue,
+  formatTraceText,
   groupToolSteps,
+  isPrimitiveArray,
+  isStructuredTraceContent,
   isToolCallGroup,
   type AgentTrace,
+  type AgentTraceContent,
   type AgentTraceStep,
   type ToolCallGroup,
 } from './agentTraceTypes'
 import styles from './AgentTraceView.module.css'
+
+function TraceFieldValue({ value }: Readonly<{ value: unknown }>) {
+  if (isPrimitiveArray(value)) {
+    if (value.length === 0) return '—'
+
+    // Build stable keys outside .map() so duplicates stay unique without array-index keys.
+    const items: Array<{ key: string; label: string }> = []
+    const counts = new Map<string, number>()
+    for (const item of value) {
+      const label = String(item)
+      const n = counts.get(label) ?? 0
+      counts.set(label, n + 1)
+      items.push({ key: `${label}-${n}`, label })
+    }
+
+    return (
+      <List className={styles.fieldValueList} isPlain>
+        {items.map(({ key, label }) => (
+          <ListItem key={key}>{label}</ListItem>
+        ))}
+      </List>
+    )
+  }
+  return formatTraceFieldValue(value)
+}
+
+function StructuredStepBody({ data }: Readonly<{ data: Record<string, unknown> }>) {
+  return (
+    <Stack hasGutter className={styles.structuredContent}>
+      <StackItem>
+        <NxDetailList>
+          {Object.entries(data).map(([key, value]) => (
+            <NxDetail key={key} label={formatTraceFieldLabel(key)}>
+              <TraceFieldValue value={value} />
+            </NxDetail>
+          ))}
+        </NxDetailList>
+      </StackItem>
+      <StackItem>
+        <Content component={ContentVariants.small} className={styles.stepTypeLabel}>
+          JSON
+        </Content>
+        {/* PatternFly CodeBlock (via NxCodeBlock): read-only display + copy, aligned with schema JSON. */}
+        <NxCodeBlock enableCopy jsonObject={data} />
+      </StackItem>
+    </Stack>
+  )
+}
+
+function StepBody({ content }: Readonly<{ content: AgentTraceContent }>) {
+  if (isStructuredTraceContent(content)) {
+    return <StructuredStepBody data={content} />
+  }
+  return <Content component={ContentVariants.p}>{formatTraceText(content)}</Content>
+}
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`
@@ -84,7 +147,7 @@ function ReasoningBlock({ step }: Readonly<{ step: AgentTraceStep }>) {
       <Content component={ContentVariants.small} className={styles.stepTypeLabel}>
         Reasoning
       </Content>
-      <Content component={ContentVariants.p}>{step.content}</Content>
+      <StepBody content={step.content} />
       {metrics && <span className={styles.tokensBadge}>{metrics}</span>}
     </div>
   )
@@ -130,8 +193,8 @@ function ToolCallCard({ group }: Readonly<{ group: ToolCallGroup }>) {
           </NxCodeBlock>
         </ExpandableSection>
         <NxDetailList>
-          <NxDetail label="Request">{group.content}</NxDetail>
-          <NxDetail label="Response">{group.toolOutput}</NxDetail>
+          <NxDetail label="Request">{formatTraceText(group.content)}</NxDetail>
+          <NxDetail label="Response">{formatTraceText(group.toolOutput)}</NxDetail>
         </NxDetailList>
       </CardBody>
     </Card>
@@ -145,7 +208,7 @@ function FinalAnswerBlock({ step }: Readonly<{ step: AgentTraceStep }>) {
       <Content component={ContentVariants.small} className={styles.stepTypeLabel}>
         Final answer
       </Content>
-      <Content component={ContentVariants.p}>{step.content}</Content>
+      <StepBody content={step.content} />
       {metrics && <span className={styles.tokensBadge}>{metrics}</span>}
     </div>
   )

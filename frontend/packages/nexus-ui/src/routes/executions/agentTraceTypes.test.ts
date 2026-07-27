@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   extractAgentTrace,
+  formatTraceFieldValue,
+  formatTraceText,
   groupToolSteps,
+  isPrimitiveArray,
   isToolCallGroup,
   type AgentTrace,
   type AgentTraceStep,
@@ -82,6 +85,68 @@ describe('extractAgentTrace', () => {
       total_duration_ms: 0,
       steps: [{ type: 'reasoning', timestamp: '2026-01-01T00:00:00Z', content: 'step' }],
     })
+  })
+
+  it('preserves structured response-schema objects in step content', () => {
+    const structured = {
+      incident_id: 'INC-4520',
+      service: 'web-frontend',
+      severity: 'high',
+      summary: 'SSL errors with unpatched OpenSSL',
+      likely_root_cause: 'OpenSSL patch lag',
+      impacted_hosts: ['web1.example.com', 'web2.example.com'],
+      recommended_next_steps: ['Patch OpenSSL'],
+      needs_remediation_approval: true,
+    }
+    const result = extractAgentTrace({
+      agent_trace: {
+        model: 'test-model',
+        total_tokens: 10,
+        total_duration_ms: 100,
+        steps: [
+          {
+            type: 'final_answer',
+            timestamp: '2026-01-01T00:00:00Z',
+            content: structured,
+          },
+        ],
+      },
+    })
+    expect(result?.steps[0]?.content).toEqual(structured)
+  })
+})
+
+describe('formatTraceText', () => {
+  it('returns strings unchanged', () => {
+    expect(formatTraceText('hello')).toBe('hello')
+  })
+
+  it('pretty-prints objects', () => {
+    expect(formatTraceText({ a: 1 })).toBe('{\n  "a": 1\n}')
+  })
+})
+
+describe('formatTraceFieldValue', () => {
+  it('joins primitive arrays with commas for text fallback', () => {
+    expect(formatTraceFieldValue(['web1', 'web2'])).toBe('web1, web2')
+  })
+
+  it('returns an em dash for empty primitive arrays', () => {
+    expect(formatTraceFieldValue([])).toBe('—')
+  })
+
+  it('pretty-prints nested objects', () => {
+    expect(formatTraceFieldValue({ region: 'us-east' })).toContain('"region": "us-east"')
+  })
+})
+
+describe('isPrimitiveArray', () => {
+  it('accepts arrays of strings, numbers, and booleans', () => {
+    expect(isPrimitiveArray(['a', 1, true])).toBe(true)
+  })
+
+  it('rejects nested objects', () => {
+    expect(isPrimitiveArray([{ a: 1 }])).toBe(false)
   })
 })
 

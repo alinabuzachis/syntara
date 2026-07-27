@@ -1,9 +1,13 @@
 export type AgentTraceStepType = 'reasoning' | 'tool_call' | 'tool_result' | 'final_answer'
 
+/** Plain text, or a response-schema object from the backend. */
+export type AgentTraceContent = string | Record<string, unknown>
+
 export type AgentTraceStep = {
   type: AgentTraceStepType
   timestamp: string
-  content: string
+  /** Backend may send structured response-schema objects for final/reasoning content. */
+  content: AgentTraceContent
   call_id?: string
   duration_ms?: number
   tokens?: number
@@ -11,6 +15,58 @@ export type AgentTraceStep = {
   tool_input?: Record<string, unknown>
   tool_output?: string
   status?: 'success' | 'failed'
+}
+
+/** Coerce trace step text fields so React never receives a raw object child. */
+export function formatTraceText(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return '[unserializable]'
+  }
+}
+
+export function isStructuredTraceContent(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** Preserve response-schema objects; stringify everything else for safe React text. */
+function normalizeTraceContent(value: unknown): AgentTraceContent {
+  if (isStructuredTraceContent(value)) return value
+  return formatTraceText(value)
+}
+
+export function formatTraceFieldLabel(key: string): string {
+  return key.replaceAll('_', ' ')
+}
+
+export function isPrimitiveArray(value: unknown): value is Array<string | number | boolean> {
+  return (
+    Array.isArray(value) &&
+    value.every((item) => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean')
+  )
+}
+
+export function formatTraceFieldValue(value: unknown): string {
+  if (value == null) return '—'
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (isPrimitiveArray(value)) {
+    if (value.length === 0) return '—'
+    return value.map(String).join(', ')
+  }
+  return formatTraceText(value)
+}
+
+function normalizeTraceStep(step: AgentTraceStep): AgentTraceStep {
+  return {
+    ...step,
+    content: normalizeTraceContent(step.content),
+    tool_output: step.tool_output === undefined ? undefined : formatTraceText(step.tool_output),
+  }
 }
 
 export type AgentTrace = {
@@ -44,7 +100,7 @@ export function extractAgentTrace(outputData: Record<string, unknown> | null | u
     model: typeof candidate.model === 'string' ? candidate.model : 'unknown',
     total_tokens: typeof candidate.total_tokens === 'number' ? candidate.total_tokens : 0,
     total_duration_ms: typeof candidate.total_duration_ms === 'number' ? candidate.total_duration_ms : 0,
-    steps: candidate.steps,
+    steps: candidate.steps.map((step) => normalizeTraceStep(step)),
   }
 }
 
@@ -69,7 +125,7 @@ function registerToolCall(
   const group: ToolCallGroup = {
     callId: step.call_id,
     toolName: step.tool_name ?? 'unknown',
-    content: step.content,
+    content: formatTraceText(step.content),
     toolInput: step.tool_input ?? {},
     toolOutput: '',
     tokens: step.tokens,
@@ -100,7 +156,7 @@ export function groupToolSteps(steps: AgentTraceStep[]): Array<AgentTraceStep | 
       if (matchIndex !== undefined) {
         const match = grouped[matchIndex]
         if (isToolCallGroup(match)) {
-          match.toolOutput = step.tool_output ?? step.content
+          match.toolOutput = formatTraceText(step.tool_output ?? step.content)
           match.durationMs = step.duration_ms
           match.status = step.status
           continue

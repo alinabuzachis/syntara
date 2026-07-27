@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import type { AgentTrace } from './agentTraceTypes'
+import { extractAgentTrace } from './agentTraceTypes'
 import { AgentTraceView } from './AgentTraceView'
 
 const sampleTrace: AgentTrace = {
@@ -93,6 +94,100 @@ describe('AgentTraceView', () => {
     render(<AgentTraceView agentTrace={sampleTrace} />)
 
     expect(screen.getByText('Analysis complete. 3 hosts require critical patches.')).toBeInTheDocument()
+  })
+
+  it('renders structured response-schema final answer as key/value fields', () => {
+    const trace = extractAgentTrace({
+      agent_trace: {
+        model: 'test-model',
+        total_tokens: 10,
+        total_duration_ms: 100,
+        steps: [
+          {
+            type: 'final_answer',
+            timestamp: '2026-01-01T00:00:00Z',
+            content: {
+              incident_id: 'INC-4520',
+              severity: 'high',
+              summary: 'SSL incident triage',
+              impacted_hosts: ['web1.example.com', 'web2.example.com'],
+            },
+          },
+        ],
+      },
+    })
+
+    render(<AgentTraceView agentTrace={trace} />)
+
+    expect(screen.getByText('Final answer')).toBeInTheDocument()
+    expect(screen.getByText('incident id')).toBeInTheDocument()
+    expect(screen.getByText('INC-4520')).toBeInTheDocument()
+    expect(screen.getByText('severity')).toBeInTheDocument()
+    expect(screen.getByText('high')).toBeInTheDocument()
+    expect(screen.getByText('SSL incident triage')).toBeInTheDocument()
+    expect(screen.getByText('web1.example.com')).toBeInTheDocument()
+    expect(screen.getByText('web2.example.com')).toBeInTheDocument()
+    expect(screen.getByRole('list')).toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getByText('JSON')).toBeInTheDocument()
+    expect(screen.getByText(/"incident_id": "INC-4520"/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy to clipboard' })).toBeInTheDocument()
+  })
+
+  it('renders structured response-schema reasoning as key/value fields', () => {
+    const trace = extractAgentTrace({
+      agent_trace: {
+        model: 'test-model',
+        total_tokens: 10,
+        total_duration_ms: 100,
+        steps: [
+          {
+            type: 'reasoning',
+            timestamp: '2026-01-01T00:00:00Z',
+            content: {
+              status: 'investigating',
+              note: 'Gathering host inventory',
+            },
+          },
+        ],
+      },
+    })
+
+    render(<AgentTraceView agentTrace={trace} />)
+
+    expect(screen.getByText('Reasoning')).toBeInTheDocument()
+    expect(screen.getByText('status')).toBeInTheDocument()
+    expect(screen.getByText('investigating')).toBeInTheDocument()
+    expect(screen.getByText('note')).toBeInTheDocument()
+    expect(screen.getByText('Gathering host inventory')).toBeInTheDocument()
+    expect(screen.getByText('JSON')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy to clipboard' })).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations for structured response-schema content', async () => {
+    const trace = extractAgentTrace({
+      agent_trace: {
+        model: 'test-model',
+        total_tokens: 10,
+        total_duration_ms: 100,
+        steps: [
+          {
+            type: 'final_answer',
+            timestamp: '2026-01-01T00:00:00Z',
+            content: {
+              incident_id: 'INC-4520',
+              severity: 'high',
+              summary: 'SSL incident triage',
+              impacted_hosts: ['web1.example.com', 'web2.example.com'],
+            },
+          },
+        ],
+      },
+    })
+
+    const { container } = render(<AgentTraceView agentTrace={trace} />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
   })
 
   it('shows empty state when no trace', () => {
