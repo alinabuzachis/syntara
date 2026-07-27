@@ -1,0 +1,691 @@
+# Resilient Background Execution
+
+Nexus originally processed system operations — document conversion, agent execution — inside
+FastAPI `BackgroundTasks`. These are fire-and-forget callbacks that run in the same process as the
+HTTP request that triggered them: no retry, no durability, no visibility, and critically, they share
+a single-process execution slot with user workflows. A burst of file uploads could saturate the
+worker pool and stall every user-initiated workflow run until the backlog cleared.
+
+This document describes the architecture built to fix that: a dedicated Temporal task queue and
+worker for built-in workflows, with CPU-based horizontal autoscaling, Prometheus observability,
+and operator-managed lifecycle from a single CRD field.
+
+## The Problem in Detail
+
+FastAPI's `BackgroundTasks` runs callbacks in the request's lifespan context — the same thread
+pool that handles HTTP requests. The failure modes were:
+
+- **No retry**: a transient Temporal connection error or database blip silently drops the job.
+- **No durability**: process restart during a document conversion means the conversion never
+  completes and the caller gets no signal.
+- **No queue isolation**: bulk file uploads generating many conversions could fill the Temporal
+  worker's activity pool, delaying user-initiated workflows waiting for the same pool.
+- **No observability**: no queue depth metric, no way to know how many system jobs were
+  queued or in-flight, no Prometheus gauge to alert on.
+
+The fix is to replace `BackgroundTasks` usage with built-in Temporal workflows that run on their
+own dedicated queue, served by their own dedicated worker deployment.
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Nexus API (FastAPI)                                                        │
+│                                                                             │
+│  POST /executions  →  ExecutionService.start_workflow(is_builtin=False)    │
+│       ↓ task_queue = nexus-workflow-queue                                   │
+│                                                                             │
+│  Built-in trigger  →  ExecutionService.start_workflow(is_builtin=True)     │
+│       ↓ task_queue = nexus-background-queue                                 │
+└──────────────────────────┬──────────────────────────────────────────────────┘
+                           │
+              ┌────────────▼─────────────┐
+              │   Temporal Server        │
+              │  (NUM_HISTORY_SHARDS=512)│
+              │                          │
+              │  nexus-workflow-queue    ◄──── nexus-workflow-worker pod(s)
+              │  nexus-background-queue  ◄──── nexus-background-worker pod(s) ← HPA
+              └──────────────────────────┘
+```
+
+The API server determines the queue at dispatch time by reading `is_builtin` from the `Workflow`
+database row (see [Built-in Workflow Routing](#built-in-workflow-routing)). Once dispatched, the
+Temporal server's own queue isolation guarantees that a spike on `nexus-background-queue` never
+touches `nexus-workflow-queue` and vice versa.
+
+## Built-in Workflow Routing
+
+### The `is_builtin` Flag
+
+`Workflow.is_builtin` (`src/nexus/workflows/models/workflow.py`) is a boolean column on the
+`Workflow` database table, defaulting `false` and indexed for fast queue-routing lookups:
+
+```python
+is_builtin: bool = Field(
+    default=False,
+    index=True,
+    sa_column_kwargs={"server_default": text("false")},
+)
+```
+
+Built-in workflows (Document Conversion, Agent Execution) are seeded into the database by
+`seed_builtin_workflows()` (`src/nexus/workflows/seed_builtin.py`) with `is_builtin=True`. The
+seeder is idempotent — re-running it updates the workflow definition if it changed, and is a
+no-op if nothing changed. It runs at startup, so the database always reflects the latest
+built-in workflow definition without manual intervention.
+
+### Routing at Dispatch Time
+
+`TemporalExecutionService.start_workflow()` (`src/nexus/workflows/workflow_engine/services/temporal_execution_service.py`)
+accepts an `is_builtin: bool = False` keyword argument. The queue selection is a single
+conditional at the Temporal client call:
+
+```python
+handle = await self.temporal_client.start_workflow(
+    NexusWorkflow.run,
+    args=[...],
+    id=temporal_workflow_id,
+    task_queue=self.background_task_queue if is_builtin else self.task_queue,
+)
+```
+
+`self.background_task_queue` defaults to `nexus-background-queue` (constant
+`TEMPORAL_DEFAULT_BACKGROUND_TASK_QUEUE` in `src/nexus/core/config/base.py`) but is
+overridable via the `APP_BACKGROUND_TASK_QUEUE` environment variable. `create_temporal_execution_service()`
+reads both queue names from settings and wires them into the service at construction time, so
+nothing downstream of the service needs to know about queue names.
+
+### Configuration
+
+| Setting | Env var | Default |
+|---|---|---|
+| `task_queue` | `APP_TASK_QUEUE` | `nexus-workflow-queue` |
+| `background_task_queue` | `APP_BACKGROUND_TASK_QUEUE` | `nexus-background-queue` |
+| `metrics_worker_port` | `APP_METRICS_WORKER_PORT` | `9090` |
+
+## The Background Worker
+
+### Entrypoint and Lifecycle
+
+`src/nexus/workflows/background_worker.py` is the background worker process entrypoint:
+
+```
+python -m nexus.workflows.background_worker
+```
+
+It calls the same `run_worker()` lifecycle function as the main workflow worker
+(`src/nexus/workflows/worker_lifecycle.py`). `run_worker()` is not a background task or
+a thread — it is the main event loop of the worker process, blocking on
+`asyncio.Event.wait()` until a `SIGTERM` or `SIGINT` arrives, then draining in-flight
+activities before exit.
+
+The shared `run_worker()` function handles:
+
+1. Signal registration (`SIGTERM` / `SIGINT` → graceful drain).
+2. `SettingsCache` initialization for runtime-configurable settings (log level, telemetry key).
+3. **Prometheus metrics server startup** on `settings.metrics_worker_port` (port 9090). This
+   is a daemon thread started before the Temporal connection, so a metrics scrape works even
+   during Temporal outages. Port-binding failures are logged as warnings and ignored — a
+   missing metrics endpoint must never prevent the worker from starting.
+4. `discover_and_register_all_handlers()` for audit event watchers.
+5. Calling the caller-supplied `start_fn()` to connect to Temporal and begin polling.
+
+### Reduced Activity Surface
+
+The background worker runs a smaller activity registry than the main workflow worker
+(`src/nexus/workflows/workflow_engine/activities/registry.py`):
+
+| Registry | Used by | Activities |
+|---|---|---|
+| `ACTIVITY_REGISTRY` | `nexus-workflow-worker` | All ~24 activities (HTTP, script, agentic, AAP, approvals, triggers, …) |
+| `BACKGROUND_ACTIVITY_REGISTRY` | `nexus-background-worker` | `register_activity_monitoring`, `fetch_workflow_runtime_settings`, `manual_trigger`, `execute_internal_activity` |
+
+This is not just an optimisation — it is a security boundary. The background worker cannot
+execute user-facing activities (HTTP requests, scripts, AAP jobs) even if someone managed to
+route a workflow to `nexus-background-queue`. Built-in workflows use `execute_internal_activity`
+which dispatches only to pre-registered internal handlers, not arbitrary user code.
+
+## Kubernetes Infrastructure (Operator)
+
+### CRD: `spec.backgroundWorker`
+
+The operator exposes background worker configuration under `spec.backgroundWorker` as a
+dedicated `BackgroundWorkerConfig` type (`api/v1alpha1/automationorchestrator_types.go`):
+
+```go
+type BackgroundWorkerConfig struct {
+    ComponentConfig `json:",inline"`
+
+    // HPA is always enabled.
+    HPA HPAConfig `json:"hpa,omitempty"`
+}
+```
+
+`ComponentConfig` is the same struct used by every other component: `replicas`, `resources`,
+`additionalLabels`, `additionalAnnotations`, `affinity`, etc. This means the background worker
+is fully configurable via the same CRD fields as the backend or the main worker, with one
+difference: `spec.backgroundWorker.replicas` is intentionally ignored with a logged warning and
+a Kubernetes Event — the HPA, not the operator, owns replica count.
+
+### The HPA is Always On
+
+The HPA is not optional. `HPAConfig` is a value type (not a pointer) inside
+`BackgroundWorkerConfig`, which means there is no `nil` state representing "disabled". The
+operator reconciles the HPA unconditionally on every reconcile loop. The design decision was
+deliberate:
+
+- An HPA with `minReplicas=1` and no metrics-server is effectively a no-op: it keeps one pod
+  running and does nothing else. The risk of harm from an HPA with no metrics data is zero.
+- Making HPA opt-in via `spec.backgroundWorker.hpa.enabled: true` creates a class of silent
+  failures: operators who forget the field, or upgrade paths that lose the field, end up with
+  no autoscaling and no indication of why.
+- The background worker is a long-running daemon that processes potentially bursty built-in
+  workflow activity. Scaling it up under load is almost always the right behavior.
+
+Defaults (`api/v1alpha1/automationorchestrator_types.go` `+kubebuilder:default` markers, also
+applied as zero-value fallbacks in `buildBackgroundWorkerHPA`):
+
+| Field | Default | Rationale |
+|---|---|---|
+| `minReplicas` | 1 | Guarantee at least one pod always ready |
+| `maxReplicas` | 5 | Sensible ceiling; tunable per deployment |
+| `targetCPUUtilization` | 80% | Conservative for I/O-bound Temporal polling; raise if CPU-bound activities dominate |
+
+The Deployment's `spec.replicas` field is left nil — intentionally omitted from the SSA patch.
+This transfers ownership of the replica count field to the HPA controller, which then sets it
+to the computed value. If the operator were to set `spec.replicas` explicitly on every
+reconcile, the HPA and the operator would fight each other on every scaling event.
+
+### HPA Config Validation
+
+`validateBackgroundWorkerHPAConfig()` (`automationorchestrator_controller.go:879`) runs in
+`validateSpec()` before any reconciliation. If `minReplicas > maxReplicas`, it sets
+`ConfigurationValid=False` with `reason=ConfigInvalid` and a message naming both field values.
+The reconciler exits early — no existing resources are touched, no HPA is mutated, and the
+currently-running pods continue serving. The condition self-heals as soon as the CR is updated
+with a valid configuration.
+
+### Upgrade Scale-Down Conflict
+
+During version upgrades, `ensureUpgradeScaleDown()` patches the background worker Deployment's
+`spec.replicas` to `0` so migration jobs can run without competing with a live worker. This
+creates a conflict: an HPA with `minReplicas=1` will immediately attempt to fight the
+`replicas=0` patch by restoring replicas to 1 — the HPA's minReplicas is a hard floor.
+
+The resolution is `deleteBackgroundWorkerHPAForUpgrade()`, called unconditionally before any
+upgrade scale-down:
+
+```go
+// Deleted unconditionally — spec may have changed during the upgrade window,
+// leaving an orphaned HPA even when hpa is no longer in spec.
+// The reconciler recreates it once the upgrade migration completes.
+func (r *...) deleteBackgroundWorkerHPAForUpgrade(ctx, ao) error {
+    // verify ownership first; skip if not owned by this CR
+    // delete; NotFound is a no-op
+}
+```
+
+After migrations finish, the main reconcile loop restores the HPA from its desired state.
+`ensureBackgroundWorkerMinReplicas()` bridges the gap between HPA deletion and restoration: if
+the Deployment is still at `replicas=0` after upgrade (because the HPA was deleted and
+metrics-server hasn't kicked in yet), the operator patches it to `minReplicas` directly so
+the pod comes back up without waiting for the HPA control loop to settle.
+
+```mermaid
+sequenceDiagram
+    participant Op as Operator
+    participant HPA
+    participant Dep as Deployment
+    participant Job as Migration Job
+
+    Op->>HPA: delete (before scale-down)
+    Op->>Dep: patch replicas=0
+    Op->>Job: create migration job
+    Job-->>Op: migration complete
+    Op->>Dep: ensureBackgroundWorkerMinReplicas (replicas=1 if still 0)
+    Op->>HPA: recreate (normal reconcile)
+    HPA-->>Dep: owns replicas field again
+```
+
+### Server-Side Apply
+
+All operator-managed resources — the Deployment, Service, HPA, ServiceMonitors, and metrics
+Services — are applied via `applyResource()`, which uses SSA with the field manager
+`automation-orchestrator-operator`. SSA makes in-place updates idempotent and safe under
+concurrent controllers: the HPA's ownership of `spec.replicas` is declared at the field
+manager level, not by convention.
+
+## Observability
+
+### Prometheus Metrics Architecture
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│  Prometheus                                                               │
+│    scrapes: /metrics every 30s                                            │
+│                                                                           │
+│  ┌─────────────────┐  ServiceMonitor  ┌────────────────────────────────┐  │
+│  │ <cr>-backend    │◄────────────────│ <cr>-backend ServiceMonitor    │  │
+│  │   port: https   │   HTTPS + mTLS  │   scheme: https, port: https   │  │
+│  └─────────────────┘                 └────────────────────────────────┘  │
+│                                                                           │
+│  ┌─────────────────┐  ServiceMonitor  ┌────────────────────────────────┐  │
+│  │ <cr>-worker-    │◄────────────────│ <cr>-worker ServiceMonitor     │  │
+│  │ metrics svc     │   HTTP          │   scheme: http, port: metrics  │  │
+│  │   port: 9090    │                 └────────────────────────────────┘  │
+│  └─────────────────┘                                                     │
+│           ↑ selector: component=worker                                    │
+│    ┌──────┴───────┐                                                       │
+│    │ worker pods  │  (no existing Service; metrics Service is dedicated)  │
+│    └──────────────┘                                                       │
+│                                                                           │
+│  (same pattern for background-worker and temporal-server)                 │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### ServiceMonitors
+
+`reconcileServiceMonitors()` (`internal/controller/service_monitors.go`) creates four
+ServiceMonitor objects in the app namespace on every reconcile:
+
+| Component | Port | Scheme | Notes |
+|---|---|---|---|
+| `<cr>-backend` | `https` (8000) | HTTPS | Uses operator-managed or customer-provided CA |
+| `<cr>-worker` | `metrics` (9090) | HTTP | Targets dedicated metrics Service |
+| `<cr>-background-worker` | `metrics` (9090) | HTTP | Targets dedicated metrics Service |
+| `<cr>-temporal-server` | `metrics` (9090) | HTTP | Temporal built-in Prometheus endpoint |
+
+ServiceMonitors are built as `*unstructured.Unstructured` objects rather than typed
+`monitoringv1.ServiceMonitor` structs. This avoids adding
+`github.com/prometheus-operator/prometheus-operator` as a Go module dependency — the operator
+only needs to manage the resource via SSA, not import the entire Prometheus Operator SDK. The
+GVK is `monitoring.coreos.com/v1/ServiceMonitor`.
+
+The operator checks for the ServiceMonitor CRD at startup via the manager's REST mapper:
+
+```go
+func (r *...) isMonitoringAPIAvailable(mgr ctrl.Manager) bool {
+    _, err := mgr.GetRESTMapper().RESTMapping(serviceMonitorGVK.GroupKind(), serviceMonitorGVK.Version)
+    return err == nil
+}
+```
+
+If the CRD is absent (Prometheus Operator not installed), `reconcileServiceMonitors()` is a
+no-op — the operator degrades gracefully. The result is stored as `r.monitoringAPIAvailable`
+at `SetupWithManager` time so the REST mapper is not called on every reconcile.
+
+### Dedicated Metrics Services for Workers
+
+Workers pull tasks from Temporal — they have no inbound HTTP traffic and therefore no existing
+Kubernetes Service. Prometheus's scrape path is `ServiceMonitor → Service → Pod`: without a
+Service, the ServiceMonitor has nothing to discover. The operator creates a dedicated
+`ClusterIP` metrics Service for each worker (`<cr>-worker-metrics`, `<cr>-background-worker-metrics`):
+
+```
+Service: <cr>-worker-metrics
+  selector: app.kubernetes.io/component=worker, app.kubernetes.io/instance=<cr>
+  port: metrics/9090 → pod port named "metrics"
+```
+
+### Worker Prometheus Endpoint
+
+Both worker processes call `prometheus_client.start_http_server(settings.metrics_worker_port)`
+inside `run_worker()` before connecting to Temporal. The HTTP server runs in a daemon thread —
+it does not participate in the asyncio event loop and does not block startup if the port is
+already in use. The port (`9090`, `APP_METRICS_WORKER_PORT`) is the same for both workers
+because they run in separate pods; there is no port collision.
+
+The endpoint exposes standard `prometheus_client` default collectors (GC stats, process metrics)
+plus any application-level gauges registered against the default registry.
+
+### Backend ServiceMonitor: mTLS
+
+The backend FastAPI app serves `/metrics` over HTTPS on port 8000 alongside its API traffic.
+The ServiceMonitor's `tlsConfig` references the CA certificate from the operator-managed
+internal CA Secret (`<cr>-internal-ca`) unless the CR has `spec.tls.caSecretRef` set, in which
+case the customer-provided CA is used. This mirrors the same CA selection logic used in
+`tlsCAVolume()` for pod certificate mounting — both agree on the same source.
+
+### Temporal Server Prometheus Endpoint
+
+Temporal exposes its own Prometheus metrics at `:9090/metrics` via:
+
+```yaml
+# temporal-config.yaml.tmpl (rendered into <cr>-temporal-config ConfigMap)
+global:
+  metrics:
+    prometheus:
+      listenAddress: "0.0.0.0:9090"
+```
+
+The Temporal Service's existing `metrics` port (named `metrics`, port 9090) carries this
+traffic. The `<cr>-temporal-server` ServiceMonitor targets this Service port directly — no
+dedicated metrics Service is needed because Temporal's Service already exists.
+
+### Queue Depth Metric
+
+`src/nexus/metrics/queue_depth_poller.py` runs as a `PeriodicWorker` inside the API server
+process, polling Temporal's `DescribeTaskQueue` RPC every 5 seconds for both queues:
+
+```python
+task_queues = list(dict.fromkeys([settings.task_queue, settings.background_task_queue]))
+```
+
+Each poll emits a `TEMPORAL_QUEUE_DEPTH` gauge record labelled with the queue name:
+
+```python
+recorder.record(
+    MetricType.TEMPORAL_QUEUE_DEPTH,
+    float(depth),
+    labels={"task_queue": task_queue},  # "nexus-workflow-queue" or "nexus-background-queue"
+)
+```
+
+This produces two Prometheus time series from the same metric name, distinguished only by the
+`task_queue` label. A Prometheus query for the background queue depth:
+
+```promql
+temporal_queue_depth{task_queue="nexus-background-queue"}
+```
+
+This label is what makes it possible to configure HPA rules targeting specifically the background
+queue's backlog count rather than the aggregate depth of both queues combined.
+
+The poller uses `coordinate=False` so that every API server replica independently polls
+Temporal. Prometheus aggregates across replicas at scrape time; they should all see the same
+queue depth, and any disagreement averages out.
+
+## Infrastructure Tuning
+
+### PostgreSQL max_connections
+
+Before this work, the default PostgreSQL `max_connections` was sized for the API server alone.
+Adding a second Temporal worker deployment — both workers maintain their own SQLAlchemy
+connection pools for activity execution — would exceed the default under concurrent load. The
+operator was updated to inject `max_connections=200` (configurable) into the PostgreSQL
+StatefulSet so the database can serve the extended connection demand from:
+
+- The API server pool (`APP_DB_POOL_SIZE` connections, overflows, audit worker pool)
+- The workflow worker's activity pool
+- The background worker's activity pool
+- Temporal's own PostgreSQL connections (persistence backend)
+
+### Temporal NUM_HISTORY_SHARDS
+
+`TEMPORAL_NUM_HISTORY_SHARDS=512` is now injected into the Temporal Server Deployment. This is
+a write-once setting — it cannot be changed after the Temporal namespace is created without a
+full data migration. 512 shards is the production-grade value. The default of 4 shards becomes
+a performance bottleneck at scale because all workflow history events for a namespace hash into
+only 4 shard buckets, serializing writes under concurrent workflow execution.
+
+**Caution**: this value is set at cluster creation time and cannot be changed later. Any new
+Temporal namespace should have this set from the beginning.
+
+## How to Verify Everything is Working
+
+### 1. Verify Both Worker Deployments Exist
+
+```bash
+kubectl get deployments -l app.kubernetes.io/instance=<cr-name> -n <namespace>
+```
+
+You should see `<cr>-worker` and `<cr>-background-worker` both with `AVAILABLE` replicas.
+
+### 2. Verify the HPA is Active and Sane
+
+```bash
+kubectl get hpa <cr>-background-worker -n <namespace>
+kubectl describe hpa <cr>-background-worker -n <namespace>
+```
+
+Expected:
+- `MINPODS`: 1, `MAXPODS`: 5, `TARGETS`: `<current>%/80%`
+- `AbleToScale=True` in conditions
+- `ScalingActive=True` if metrics-server is present; `ScalingActive=False` (with reason) if not
+
+```bash
+# Verify the Deployment's spec.replicas is nil (owned by HPA):
+kubectl get deployment <cr>-background-worker -n <namespace> \
+  -o jsonpath='{.spec.replicas}'
+# Should return empty string — nil means HPA owns the field
+```
+
+### 3. Verify Worker Metrics Endpoints
+
+```bash
+# Port-forward to a background worker pod and scrape its metrics:
+kubectl port-forward -n <namespace> \
+  $(kubectl get pod -n <namespace> -l app.kubernetes.io/component=background-worker \
+    -o jsonpath='{.items[0].metadata.name}') 9090:9090
+curl http://localhost:9090/metrics
+```
+
+Expected: Prometheus text format with `# HELP python_gc_objects_collected_total` and similar
+standard Python process metrics.
+
+### 4. Verify ServiceMonitors Exist
+
+```bash
+kubectl get servicemonitors -n <namespace> -l app.kubernetes.io/instance=<cr-name>
+```
+
+Expected four monitors: `<cr>-backend`, `<cr>-worker`, `<cr>-background-worker`, `<cr>-temporal-server`.
+
+```bash
+# Verify a worker monitor's endpoint config:
+kubectl get servicemonitor <cr>-background-worker -n <namespace> \
+  -o jsonpath='{.spec.endpoints[0]}'
+# Expected: {"interval":"30s","path":"/metrics","port":"metrics","scheme":"http"}
+```
+
+### 5. Verify Queue Depth Metrics are Flowing
+
+If Prometheus is configured to scrape the backend service:
+
+```promql
+# Both series should be present (value may be 0 when queues are idle)
+temporal_queue_depth{task_queue="nexus-workflow-queue"}
+temporal_queue_depth{task_queue="nexus-background-queue"}
+```
+
+From the API server's internal metrics endpoint:
+
+```bash
+curl -k https://<backend-svc>/api/v1/internal/metrics | jq '.queue_depth'
+```
+
+### 6. Verify Built-in Workflow Routes to Background Queue
+
+Start a document conversion and observe the background worker's Temporal task count rising while
+the main worker remains idle. Alternatively, query the Temporal UI:
+
+- Navigate to the Temporal UI (`http://<cluster>:8081`)
+- Select namespace `default`
+- Filter by Task Queue `nexus-background-queue`
+- A running document conversion should appear here, not under `nexus-workflow-queue`
+
+### 7. Verify HPA Validation Rejects Invalid Config
+
+```bash
+kubectl patch automationorchestrator <cr-name> -n <namespace> --type=merge \
+  -p '{"spec":{"backgroundWorker":{"hpa":{"minReplicas":10,"maxReplicas":5}}}}'
+
+kubectl get automationorchestrator <cr-name> -n <namespace> \
+  -o jsonpath='{.status.conditions[?(@.type=="ConfigurationValid")]}'
+```
+
+Expected: `status=False`, `reason=ConfigInvalid`, `message` containing `minReplicas` and
+`maxReplicas`. The existing HPA and pods remain unchanged.
+
+Restore with:
+```bash
+kubectl patch automationorchestrator <cr-name> -n <namespace> --type=merge \
+  -p '{"spec":{"backgroundWorker":{"hpa":{"minReplicas":1,"maxReplicas":5}}}}'
+```
+
+### 8. Verify HPA Garbage Collection on CR Deletion
+
+Delete the CR and confirm the HPA is garbage-collected alongside other owned resources:
+
+```bash
+kubectl delete automationorchestrator <cr-name> -n <namespace>
+kubectl get hpa,deployment,service -n <namespace> -l app.kubernetes.io/instance=<cr-name>
+# All resources should be absent within ~90 seconds
+```
+
+## Adding a New Built-in Workflow
+
+A built-in workflow is a system operation that runs on `nexus-background-queue`, is seeded
+automatically at startup, and is hidden from regular users. Adding one requires changes in two
+files only.
+
+### Step 1 — Register an internal operation handler
+
+`execute_internal_activity` (`src/nexus/workflows/workflow_engine/activities/internal_activity.py`)
+is the single Temporal activity that all built-in workflows dispatch through. It looks up the
+`activity` parameter from the node config in `_DISPATCH`, a plain dict of
+`str → async callable`:
+
+```python
+_DISPATCH: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {
+    "document_conversion": _run_document_conversion,
+    "invocation_execution": _run_invocation_execution,
+    # your new handler here
+}
+```
+
+Add a handler function and register it:
+
+```python
+async def _run_my_operation(operation_input: dict[str, Any]) -> dict[str, Any]:
+    resource_id = operation_input.get("resource_id")
+    if not resource_id:
+        raise ApplicationError("my_operation requires 'resource_id'", non_retryable=True)
+
+    # Heavy imports go here (lazy, inside the function) to avoid Temporal sandbox warnings
+    from nexus.my_domain.tasks import MyTask  # noqa: PLC0415
+
+    result = await MyTask().run(UUID(resource_id))
+    return {"output": {"status": result.name}}
+
+_DISPATCH = {
+    ...,
+    "my_operation": _run_my_operation,
+}
+```
+
+Two conventions to follow:
+- **Lazy imports** — import heavy dependencies inside the handler, not at module level. Eager
+  imports trigger Temporal sandbox warnings that can affect other activities.
+- **`non_retryable=True` on validation errors** — if the input is structurally wrong (missing
+  required field, invalid UUID), the workflow should fail fast, not retry. Use
+  `non_retryable=False` for transient failures (network, DB) where retry is meaningful.
+
+### Step 2 — Add the workflow definition to the seed
+
+`_BUILTIN_DEFINITIONS` (`src/nexus/workflows/seed_builtin.py`) is a list of V2 workflow
+definition dicts. Add an entry:
+
+```python
+{
+    "schema_version": "2.0.0",
+    "name": "My Operation",            # unique, user-visible name
+    "description": "...",
+    "triggers": [
+        {"id": "trigger_api", "type": "manual_trigger", "parameters": {}}
+    ],
+    "nodes": [
+        {
+            "id": "run",
+            "type": "internal_activity",
+            "name": "Run My Operation",
+            "parameters": {
+                "activity": "my_operation",               # must match _DISPATCH key
+                "input": {"resource_id": "${trigger.resource_id}"},
+            },
+            "settings": {
+                "timeout": 300,                            # per-attempt seconds
+                "retry_policy": {
+                    "max_retries": 2,
+                    "initial_interval": 5,
+                    "backoff_coefficient": 2.0,
+                },
+            },
+        }
+    ],
+    "edges": [{"from": "trigger_api", "to": "run"}],
+}
+```
+
+**Timeout sizing**: `timeout` is a per-attempt `start_to_close_timeout`. With retries, the
+worst-case total wall-clock is `timeout × (max_retries + 1) + sum(backoff intervals)`. Keep
+this below your schedule interval if the workflow is scheduled, or below any caller-side SLA
+if triggered on-demand.
+
+The seeder (`seed_builtin_workflows`) is idempotent — re-running it creates the workflow on
+first boot and bumps the version automatically if the definition changes. No migration is
+needed. The workflow is stored with `is_builtin=True`, hidden from regular users by default,
+and not deletable via the API.
+
+### What you do not need to change
+
+- **`BACKGROUND_ACTIVITY_REGISTRY`** — `execute_internal_activity` is already registered
+  there. Adding a new dispatch key in `_DISPATCH` is enough; no Temporal activity registration
+  is needed.
+- **`ACTIVITY_REGISTRY`** — `execute_internal_activity` is also registered in the main worker
+  registry. Built-in workflows can run on either worker, but will be routed to
+  `nexus-background-queue` when dispatched with `is_builtin=True`.
+- **`is_builtin` routing** — callers pass `is_builtin=True` to
+  `TemporalExecutionService.start_workflow()`. The seeder marks the `Workflow` row with
+  `is_builtin=True` automatically.
+- **Kubernetes** — no operator changes are needed. The background worker Deployment and HPA
+  already exist and pick up work from the queue immediately.
+
+### Triggering the new workflow
+
+Built-in workflows are triggered programmatically, not by users. Pass the workflow name and
+`is_builtin=True` to the execution service from wherever the operation is initiated:
+
+```python
+await execution_service.start_workflow(
+    workflow_def=workflow_version.workflow_definition,
+    workflow_name="My Operation",
+    trigger_node_id="trigger_api",
+    input_data={"resource_id": str(resource_id)},
+    is_builtin=True,
+)
+```
+
+The service looks up `background_task_queue` from settings and routes the Temporal workflow
+there. From this point, execution is identical to any other workflow — visible in the Temporal
+UI under `nexus-background-queue`, status synced to the DB via `ActivitySyncService`, and
+surfaced in the Nexus UI for administrators with the builtin toggle enabled.
+
+## Constraints and Known Gaps
+
+**OOM under sustained load**: the background worker Temporal SDK caches workflow state in
+memory. Under high invocation rates (~10/sec), `max_cached_workflows` (default: 1000) fills
+the cache faster than entries expire, causing heap growth and eventual OOM restart. The fix is
+to cap `max_cached_workflows=50` in the worker constructor call in `background_worker.py`. This
+is not yet in place — the background worker's built-in workflow footprint is small enough that
+cache entries are short-lived, so OOM requires a specific combination of high rate and
+long-running internal activities.
+
+**No CPU-independent HPA metric**: the HPA scales on CPU utilization. This works for CPU-bound
+activities but is a weak proxy for queue backlog depth. A better HPA trigger would be the
+`temporal_queue_depth{task_queue="nexus-background-queue"}` Prometheus metric via a custom
+metrics adapter (e.g. Prometheus Adapter or KEDA). The current setup is safe and correct; the
+CPU trigger just responds to load with some lag rather than immediately to queue depth.
+
+**Temporal service is monolithic**: the Temporal deployment runs all four service roles
+(frontend, history, matching, worker) in a single container. At high shard count (512), the
+history service becomes the bottleneck. Splitting into separate Deployments per service role
+is a post-GA exercise — the operator CRD would need per-role resource and replica fields, and
+the `temporal-server` `--service` flags would need to be parameterized.
+
+## Related Documentation
+
+- [Workflow Engine Architecture](workflow-engine/workflow-engine-overview.md) — how `NexusWorkflow` executes both user and built-in workflows identically
+- [Execution Runtime](execution-runtime.md) — `POST /executions` API, two-phase creation, live status
+- [Observability Standards](standards/observability.md) — `MetricsRecorder` usage, Prometheus gauge patterns
+- [Configuration Standards](standards/configuration.md) — adding new settings, Pydantic Settings patterns
