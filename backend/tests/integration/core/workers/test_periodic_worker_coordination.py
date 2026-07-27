@@ -6,9 +6,8 @@ Transaction-level locks auto-release when the transaction ends (COMMIT or
 ROLLBACK), avoiding the leak risk of session-level locks with connection pools.
 """
 
-import asyncio
-
 import pytest
+from orchestrator_test_sdk.e2e import async_poll_for
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -68,12 +67,9 @@ class TestAdvisoryLockCoordination:
 
         worker_a.start()
         worker_b.start()
-        await asyncio.sleep(0.6)
+        await async_poll_for(lambda: len(calls) >= 2, timeout=5.0, description="at least 2 total executions")
         await worker_a.stop()
         await worker_b.stop()
-
-        total = len(calls)
-        assert total >= 2, f"At least 2 total executions expected, got {total}"
         # The key invariant: both workers ran without deadlocks or crashes,
         # and the advisory lock prevented truly concurrent execution.
         # With real DB round-trips, exact per-cycle exclusion is hard to
@@ -146,11 +142,9 @@ class TestAdvisoryLockCoordination:
             coordinate=True,
         )
         worker.start()
-        await asyncio.sleep(0.5)
-        await worker.stop()
-
-        # If lock wasn't released between cycles, only the first cycle would run.
-        # With 50ms interval and ~20ms DB overhead per cycle, expect multiple runs in 500ms.
-        assert len(executions) >= 2, (
-            f"Lock should be released between cycles, allowing re-acquisition. Got {len(executions)} executions."
+        await async_poll_for(
+            lambda: len(executions) >= 2,
+            timeout=5.0,
+            description="lock to be released between cycles, allowing re-acquisition",
         )
+        await worker.stop()

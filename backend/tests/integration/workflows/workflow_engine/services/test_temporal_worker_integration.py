@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+from orchestrator_test_sdk.e2e import async_poll_for
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
@@ -134,12 +135,11 @@ class TestTemporalWorkerServiceIntegration:
         # Start worker in background
         worker_service._worker_task = asyncio.create_task(worker_service.worker.run())
 
-        # Give it a moment to start
-        await asyncio.sleep(0.1)
-
-        # Verify worker is running
-        assert worker_service._worker_task is not None
-        assert not worker_service._worker_task.done()
+        # Wait for task to be running (not done yet)
+        await async_poll_for(
+            lambda: worker_service._worker_task is not None and not worker_service._worker_task.done(),
+            description="worker task to be running",
+        )
 
         # Stop the worker
         await worker_service.stop()
@@ -299,8 +299,8 @@ class TestTemporalWorkerServiceIntegration:
                 trigger_node_id="trigger_manual",
             )
 
-            # Give workflow a moment to start
-            await asyncio.sleep(0.5)
+            # Yield control so the worker can pick up the workflow
+            await asyncio.sleep(0)
 
             # Note: Worker shutdown cancels the worker task, but Temporal handles
             # workflow state properly. The workflow continues in Temporal's state.
@@ -398,17 +398,17 @@ class TestWorkerSignalHandling:
             # Run main() in a background task
             main_task = asyncio.create_task(main())
 
-            # Give main() time to set up signal handlers
-            await asyncio.sleep(0.1)
+            # Yield control so main() can set up signal handlers
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
 
             # Send signal to our own process
-            # This will be caught by the signal handler registered with loop.add_signal_handler()
             os.kill(os.getpid(), sig)
 
-            # Give the event loop a chance to process the signal
-            await asyncio.sleep(0.1)
+            # Yield control so the event loop can process the signal
+            await asyncio.sleep(0)
 
-            # Give the worker time to shut down gracefully
+            # Wait for the worker to shut down gracefully
             try:
                 await asyncio.wait_for(main_task, timeout=2.0)
             except TimeoutError:

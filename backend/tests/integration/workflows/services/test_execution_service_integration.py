@@ -245,8 +245,8 @@ edges:
             workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
-        # Give it a moment to start
-        await asyncio.sleep(0.5)
+        # Yield control so the worker can pick up the workflow
+        await asyncio.sleep(0)
 
         # Cancel the workflow
         await execution_service.cancel_workflow(

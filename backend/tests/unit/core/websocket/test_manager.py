@@ -14,6 +14,7 @@ from collections.abc import AsyncGenerator, Generator
 from uuid import uuid4
 
 import pytest
+from orchestrator_test_sdk.e2e import async_poll_for
 
 from nexus.core.constants import WebSocketConfig
 from nexus.core.websocket.manager import (
@@ -196,8 +197,10 @@ class TestMonitoringTaskLifecycle:
         assert not manager._monitoring_task.done()
 
         # Clean up
+        task = manager._monitoring_task
         manager.stop_monitoring()
-        await asyncio.sleep(0.1)  # Give task time to cancel
+        if task:
+            await async_poll_for(lambda: task.done(), description="monitoring task to finish")
 
     @pytest.mark.asyncio
     async def test_stop_monitoring_cancels_task(self) -> None:
@@ -238,8 +241,10 @@ class TestMonitoringTaskLifecycle:
         assert first_task is second_task
 
         # Clean up
+        task = first_task
         manager.stop_monitoring()
-        await asyncio.sleep(0.1)
+        if task:
+            await async_poll_for(lambda: task.done(), description="monitoring task to finish")
 
     @pytest.mark.asyncio
     async def test_monitoring_task_runs_cleanup_periodically(self) -> None:
@@ -266,11 +271,12 @@ class TestMonitoringTaskLifecycle:
             # Start monitoring
             manager.start_monitoring()
 
-            # Wait for at least one cleanup cycle
-            await asyncio.sleep(1.5)
-
-            # Verify stale connection was cleaned up
-            assert manager.get_connection(conn_id) is None
+            # Poll until the stale connection is cleaned up
+            await async_poll_for(
+                lambda: manager.get_connection(conn_id) is None,
+                timeout=5.0,
+                description="stale connection to be cleaned up",
+            )
 
         finally:
             # Restore original interval

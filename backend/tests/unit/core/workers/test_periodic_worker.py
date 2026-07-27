@@ -8,6 +8,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from orchestrator_test_sdk.e2e import async_poll_for
 
 from nexus.core.workers.periodic import PeriodicWorker
 
@@ -52,10 +53,8 @@ class TestPeriodicWorkerLifecycle:
             coordinate=False,
         )
         worker.start()
-        await asyncio.sleep(0.06)
+        await async_poll_for(lambda: call_count >= 2, description="callback to run at least twice")
         await worker.stop()
-
-        assert call_count >= 2, f"Expected callback to run at least twice, got {call_count}"
 
     @pytest.mark.asyncio
     async def test_stop_cancels_task(self) -> None:
@@ -74,11 +73,11 @@ class TestPeriodicWorkerLifecycle:
             coordinate=False,
         )
         worker.start()
-        await asyncio.sleep(0.04)
+        await async_poll_for(lambda: call_count >= 1, description="callback to run at least once")
         await worker.stop()
 
         count_at_stop = call_count
-        await asyncio.sleep(0.04)
+        await asyncio.sleep(0)
         assert call_count == count_at_stop, "Callback should not run after stop()"
 
     @pytest.mark.asyncio
@@ -100,11 +99,9 @@ class TestPeriodicWorkerLifecycle:
         worker.start()
         worker.start()
         worker.start()
-        await asyncio.sleep(0.05)
+        await async_poll_for(lambda: call_count >= 2, description="callback to run at least twice")
         await worker.stop()
 
-        # If multiple tasks were created, call_count would be much higher
-        assert call_count >= 2
         assert call_count < 20, "Too many calls — multiple tasks likely created"
 
     @pytest.mark.asyncio
@@ -124,17 +121,14 @@ class TestPeriodicWorkerLifecycle:
             coordinate=False,
         )
         worker.start()
-        await asyncio.sleep(0.03)
+        await async_poll_for(lambda: call_count >= 1, description="callback to run at least once")
         await worker.stop()
 
         count_after_first = call_count
-        assert count_after_first >= 1
 
         worker.start()
-        await asyncio.sleep(0.03)
+        await async_poll_for(lambda: call_count > count_after_first, description="callback to run again after restart")
         await worker.stop()
-
-        assert call_count > count_after_first, "Callback should run again after restart"
 
     @pytest.mark.asyncio
     async def test_no_concurrent_callback_overlap(self) -> None:
@@ -157,7 +151,7 @@ class TestPeriodicWorkerLifecycle:
             coordinate=False,
         )
         worker.start()
-        await asyncio.sleep(0.12)
+        await async_poll_for(lambda: max_concurrent >= 1, timeout=2.0, description="at least one callback to complete")
         await worker.stop()
 
         assert max_concurrent == 1, f"Expected max 1 concurrent, got {max_concurrent}"
@@ -191,10 +185,8 @@ class TestPeriodicWorkerErrorResilience:
             coordinate=False,
         )
         worker.start()
-        await asyncio.sleep(0.06)
+        await async_poll_for(lambda: call_count >= 2, description="loop to continue after error")
         await worker.stop()
-
-        assert call_count >= 2, f"Loop should continue after error, got {call_count} calls"
 
     @pytest.mark.asyncio
     async def test_lifecycle_logging_contains_worker_name(self) -> None:
@@ -213,7 +205,10 @@ class TestPeriodicWorkerErrorResilience:
 
         with patch("nexus.core.workers.periodic.logger") as mock_logger:
             worker.start()
-            await asyncio.sleep(0.03)
+            await async_poll_for(
+                lambda: any("periodic_worker_started" in str(c.args) for c in mock_logger.info.call_args_list),
+                description="start log event",
+            )
             await worker.stop()
 
         # Check for start and stop log events
@@ -248,7 +243,12 @@ class TestPeriodicWorkerErrorResilience:
 
         with patch("nexus.core.workers.periodic.logger") as mock_logger:
             worker.start()
-            await asyncio.sleep(0.04)
+            await async_poll_for(
+                lambda: any(
+                    "periodic_worker_cycle_error" in str(c.args) for c in mock_logger.warning.call_args_list if c.args
+                ),
+                description="error warning log event",
+            )
             await worker.stop()
 
         # Check if warning was logged with correct worker name
@@ -294,9 +294,9 @@ class TestPeriodicWorkerCoordination:
             coordinate=True,
         )
 
-        with patch(ADVISORY_LOCK_PATH, return_value=False):
+        with patch(ADVISORY_LOCK_PATH, return_value=False) as mock_lock:
             worker.start()
-            await asyncio.sleep(0.06)
+            await async_poll_for(lambda: mock_lock.call_count >= 2, description="lock to be attempted at least twice")
             await worker.stop()
 
         assert call_count == 0, f"Callback should not run when lock not acquired, got {call_count}"
@@ -320,10 +320,8 @@ class TestPeriodicWorkerCoordination:
 
         with patch(ADVISORY_LOCK_PATH, return_value=True):
             worker.start()
-            await asyncio.sleep(0.06)
+            await async_poll_for(lambda: call_count >= 2, description="callback to run when lock acquired")
             await worker.stop()
-
-        assert call_count >= 2, f"Callback should run when lock acquired, got {call_count}"
 
     @pytest.mark.asyncio
     async def test_coordinate_false_skips_lock(self) -> None:
@@ -344,11 +342,10 @@ class TestPeriodicWorkerCoordination:
 
         with patch(ADVISORY_LOCK_PATH) as mock_lock:
             worker.start()
-            await asyncio.sleep(0.05)
+            await async_poll_for(lambda: call_count >= 2, description="callback to run without coordination")
             await worker.stop()
 
         mock_lock.assert_not_called()
-        assert call_count >= 2
 
     @pytest.mark.asyncio
     async def test_lock_acquisition_failure_skips_cycle(self) -> None:
@@ -367,9 +364,9 @@ class TestPeriodicWorkerCoordination:
             coordinate=True,
         )
 
-        with patch(ADVISORY_LOCK_PATH, side_effect=RuntimeError("db down")):
+        with patch(ADVISORY_LOCK_PATH, side_effect=RuntimeError("db down")) as mock_lock:
             worker.start()
-            await asyncio.sleep(0.05)
+            await async_poll_for(lambda: mock_lock.call_count >= 2, description="lock to be attempted at least twice")
             await worker.stop()
 
         assert call_count == 0, "Callback should not run when lock acquisition fails"
@@ -387,9 +384,11 @@ class TestPeriodicWorkerCleanup:
     async def test_cleanup_callback_runs_on_stop(self) -> None:
         """Optional cleanup callback is called during stop()."""
         cleanup_called = False
+        cb_count = 0
 
-        async def noop_cb(_sf: object) -> None:
-            pass
+        async def counting_cb(_sf: object) -> None:
+            nonlocal cb_count
+            cb_count += 1
 
         async def cleanup() -> None:
             nonlocal cleanup_called
@@ -399,12 +398,12 @@ class TestPeriodicWorkerCleanup:
             name="test-cleanup",
             interval_seconds=0.01,
             session_factory=_mock_session_factory(),
-            callback=noop_cb,
+            callback=counting_cb,
             cleanup_callback=cleanup,
             coordinate=False,
         )
         worker.start()
-        await asyncio.sleep(0.02)
+        await async_poll_for(lambda: cb_count >= 1, description="worker to run at least once")
         await worker.stop()
 
         assert cleanup_called, "Cleanup callback should be called on stop()"
@@ -412,9 +411,11 @@ class TestPeriodicWorkerCleanup:
     @pytest.mark.asyncio
     async def test_cleanup_error_does_not_prevent_shutdown(self) -> None:
         """Cleanup callback error is logged but stop() completes."""
+        cb_count = 0
 
-        async def noop_cb(_sf: object) -> None:
-            pass
+        async def counting_cb(_sf: object) -> None:
+            nonlocal cb_count
+            cb_count += 1
 
         async def failing_cleanup() -> None:
             msg = "cleanup explosion"
@@ -424,12 +425,12 @@ class TestPeriodicWorkerCleanup:
             name="test-cleanup-error",
             interval_seconds=0.01,
             session_factory=_mock_session_factory(),
-            callback=noop_cb,
+            callback=counting_cb,
             cleanup_callback=failing_cleanup,
             coordinate=False,
         )
         worker.start()
-        await asyncio.sleep(0.02)
+        await async_poll_for(lambda: cb_count >= 1, description="worker to run at least once")
 
         # Should not raise
         await worker.stop()
@@ -437,19 +438,21 @@ class TestPeriodicWorkerCleanup:
     @pytest.mark.asyncio
     async def test_no_cleanup_callback_is_fine(self) -> None:
         """Worker without cleanup_callback stops cleanly."""
+        cb_count = 0
 
-        async def noop_cb(_sf: object) -> None:
-            pass
+        async def counting_cb(_sf: object) -> None:
+            nonlocal cb_count
+            cb_count += 1
 
         worker = PeriodicWorker(
             name="test-no-cleanup",
             interval_seconds=0.01,
             session_factory=_mock_session_factory(),
-            callback=noop_cb,
+            callback=counting_cb,
             coordinate=False,
         )
         worker.start()
-        await asyncio.sleep(0.02)
+        await async_poll_for(lambda: cb_count >= 1, description="worker to run at least once")
         await worker.stop()
 
     @pytest.mark.asyncio

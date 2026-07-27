@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from orchestrator_test_sdk.e2e import async_poll_for
 from prometheus_client import CollectorRegistry
 
 from nexus.metrics.cleanup import cleanup_stale_metrics, get_metrics_cleanup_worker
@@ -173,7 +173,5 @@ class TestCleanupWorkerIntegration:
                 coordinate=False,
             )
             worker.start()
-            await asyncio.sleep(0.05)
+            await async_poll_for(lambda: recorder.store.count() == 0, description="stale metrics to be cleaned up")
             await worker.stop()
-
-        assert recorder.store.count() == 0

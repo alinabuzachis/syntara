@@ -337,8 +337,11 @@ class TestTemporalWorkerServiceStop:
 
         mock_task = asyncio.create_task(error_worker_run())
 
-        # Give the task time to fail
-        await asyncio.sleep(0.01)
+        # Wait for the task to complete (it raises internally)
+        try:
+            await asyncio.wait_for(asyncio.shield(mock_task), timeout=2.0)
+        except RuntimeError:
+            pass
 
         # Now assign the failed task
         service._worker_task = mock_task

@@ -378,16 +378,18 @@ class TestConcurrentOperations:
 
         events_read = []
 
+        reader_started = asyncio.Event()
+
         async def reader() -> None:
             async with StreamClient() as client:
+                reader_started.set()
                 async for event in client.events(test_stream_id):
                     events_read.append(event)
                     if len(events_read) >= 10:
                         break
 
         async def publisher() -> None:
-            # Small delay to let reader start
-            await asyncio.sleep(0.1)
+            await reader_started.wait()
             async with StreamClient() as client:
                 for i in range(5):
                     await client.publish(test_stream_id, {"seq": i + 5, "phase": "concurrent"})
