@@ -41,6 +41,7 @@ export default defineConfig({
   ],
   use: {
     baseURL,
+    ignoreHTTPSErrors: !useWebServer,
     viewport: { width: 1280, height: 720 },
     // Limit artifacts to genuinely failing tests only — retries that eventually pass do
     // not produce uploads. Mirrors the ansible-ui Currents integration pattern.

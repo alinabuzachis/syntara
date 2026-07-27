@@ -42,7 +42,8 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 |---|---|---|
 | UI project path | `$REPO_ROOT/frontend/packages/nexus-ui` | `ls $REPO_ROOT/frontend/packages/nexus-ui/playwright.config.ts` |
 | Admin password path | `$REPO_ROOT/backend/.secrets/admin-password` | `test -f $REPO_ROOT/backend/.secrets/admin-password` |
-| Backend URL | `http://localhost:8000` | `curl -sf http://localhost:8000/health` |
+| CA cert path | `$REPO_ROOT/backend/.secrets/certs/ca.pem` | `test -f $REPO_ROOT/backend/.secrets/certs/ca.pem` |
+| Backend URL | `https://localhost:8000` | `curl -sf --cacert $REPO_ROOT/backend/.secrets/certs/ca.pem https://localhost:8000/health` |
 | Frontend URL | `http://localhost:5173` | `curl -sf http://localhost:5173 -o /dev/null` |
 
 Use the results to inform the wizard — if a check fails, mention it in the question so the user knows something needs attention.
@@ -79,12 +80,12 @@ Present another `AskUserQuestion` showing the detected defaults and asking the u
    - If the file doesn't exist, warn: "File not found — run `make -C backend secrets` to generate it."
 
 2. **Backend URL** — "Backend API URL?"
-   - Default: `http://localhost:8000`
-   - If the health check failed in Step 1, warn: "Backend not responding — start it with `make -C backend dev`."
+   - Default: `https://localhost:8000`
+   - If the health check failed in Step 1, warn: "Backend not responding — start it with `make run-all`."
 
 3. **Frontend URL** — "Frontend dev server URL?"
    - Default: `http://localhost:5173`
-   - If the check failed in Step 1, warn: "Frontend not responding — start it with `VITE_API_URL=http://localhost:8000 npm run start:ui` from `frontend/`."
+   - If the check failed in Step 1, warn: "Frontend not responding — start it with `VITE_API_URL=https://localhost:8000 npm run start:ui` from `frontend/`."
 
 Most of the time the user will accept all defaults by selecting the default option.
 
@@ -99,7 +100,7 @@ Before running, verify the environment is ready. For real backend mode, the skil
 test -f $REPO_ROOT/backend/.secrets/admin-password && echo "OK: password file found" || echo "FAIL: password file not found — run: make -C backend secrets"
 
 # 2. Backend is responding
-curl -sf http://localhost:8000/health -o /dev/null && echo "OK: backend responding" || echo "FAIL: backend not responding — run: make -C backend dev"
+curl -sf --cacert $REPO_ROOT/backend/.secrets/certs/ca.pem https://localhost:8000/health -o /dev/null && echo "OK: backend responding" || echo "FAIL: backend not responding — run: make run-all"
 
 # 3. Frontend is responding — start it if not
 curl -sf http://localhost:5173 -o /dev/null && echo "OK: frontend responding"
@@ -108,7 +109,7 @@ curl -sf http://localhost:5173 -o /dev/null && echo "OK: frontend responding"
 If the frontend is **not** responding, start it automatically:
 
 ```bash
-cd $REPO_ROOT/frontend && VITE_API_URL=http://localhost:8000 npm run start:ui &
+cd $REPO_ROOT/frontend && VITE_API_URL=https://localhost:8000 npm run start:ui &
 ```
 
 Then wait for it to come up (poll every 2 seconds, up to 60 seconds):
@@ -136,7 +137,7 @@ Construct the command based on the wizard answers.
 
 ```bash
 (cd $REPO_ROOT/frontend/packages/nexus-ui && \
-VITE_API_URL=http://localhost:8000 \
+VITE_API_URL=https://localhost:8000 \
 NEXUS_E2E_SKIP_WEB_SERVER=1 \
 NEXUS_E2E_BASE_URL=http://localhost:5173 \
 NEXUS_E2E_PASSWORD=$(cat $REPO_ROOT/backend/.secrets/admin-password) \
@@ -219,8 +220,8 @@ make dev
 
 # Or start individually:
 make services-up              # Infrastructure (DB, Redis, Temporal, OPA)
-make -C backend dev           # Backend API on http://localhost:8000
-cd frontend && VITE_API_URL=http://localhost:8000 npm run start:ui  # Frontend on http://localhost:5173
+make run-all                  # Backend API on https://localhost:8000
+cd frontend && VITE_API_URL=https://localhost:8000 npm run start:ui  # Frontend on http://localhost:5173
 ```
 
 ### Running specific tests
