@@ -37,6 +37,7 @@ type ControlledTextFieldProps = {
   isRequired?: boolean
   isDisabled?: boolean
   type?: 'text' | 'email' | 'password' | 'search' | 'tel' | 'url' | 'date' | 'time' | 'number'
+  autoComplete?: string
 }
 
 function ControlledTextField({
@@ -48,6 +49,7 @@ function ControlledTextField({
   isRequired,
   isDisabled,
   type,
+  autoComplete,
 }: Readonly<ControlledTextFieldProps>) {
   return (
     <Controller
@@ -66,6 +68,7 @@ function ControlledTextField({
             onChange={field.onChange}
             onBlur={field.onBlur}
             name={field.name}
+            autoComplete={autoComplete}
           />
           {fieldState.error && (
             <FormHelperText>
@@ -268,6 +271,7 @@ function PasswordFieldInput({ field, fieldState, isEdit, isDisabled }: Readonly<
             onChange={field.onChange}
             onBlur={field.onBlur}
             name={field.name}
+            autoComplete="new-password"
           />
         </InputGroupItem>
         <InputGroupItem>
@@ -320,6 +324,7 @@ export function UserFormFields({
         placeholder="Enter username"
         isRequired
         isDisabled={isBuiltinUser}
+        autoComplete="off"
       />
       <ControlledTextField
         name="first_name"
