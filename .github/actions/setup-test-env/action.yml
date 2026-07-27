@@ -10,6 +10,18 @@ inputs:
     description: Working directory for make commands (relative to repo root)
     required: false
     default: 'backend'
+  postgres-image:
+    description: >-
+      PostgreSQL testcontainers image to pre-pull. Must match the POSTGRES_IMAGE
+      default in backend/Makefile, which make exports at test runtime.
+    required: false
+    default: 'quay.io/sclorg/postgresql-15-c9s'
+  redis-image:
+    description: >-
+      Redis testcontainers image to pre-pull. Must match the REDIS_IMAGE default
+      in backend/Makefile, which make exports at test runtime.
+    required: false
+    default: 'mirror.gcr.io/library/redis:6'
 
 runs:
   using: composite
@@ -46,3 +58,37 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: make secrets-generate
+
+    # Pre-pull the testcontainers images once, up front, with retry. Without this
+    # each xdist worker (up to 8 for integration tests) pulls the image on demand
+    # during the test run; concurrent pulls of the unpinned :latest tag amplify
+    # transient quay.io 5xx errors into false-positive CI failures. A single
+    # retried pull lands the image in the shared Docker daemon so testcontainers
+    # reuses the local copy instead of pulling per worker.
+    - name: Pre-pull test container images
+      shell: bash
+      env:
+        POSTGRES_IMAGE: ${{ inputs.postgres-image }}
+        REDIS_IMAGE: ${{ inputs.redis-image }}
+      run: |
+        set -euo pipefail
+        pull_with_retry() {
+          local image="$1"
+          local max_attempts=5
+          local delay=5
+          for attempt in $(seq 1 "$max_attempts"); do
+            if docker pull "$image"; then
+              echo "Pulled $image (attempt ${attempt}/${max_attempts})"
+              return 0
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "::warning::Failed to pull ${image} (attempt ${attempt}/${max_attempts}); retrying in ${delay}s"
+              sleep "$delay"
+              delay=$(( delay + 2 ))
+            fi
+          done
+          echo "::error::Failed to pull ${image} after ${max_attempts} attempts"
+          return 1
+        }
+        pull_with_retry "$POSTGRES_IMAGE"
+        pull_with_retry "$REDIS_IMAGE"
