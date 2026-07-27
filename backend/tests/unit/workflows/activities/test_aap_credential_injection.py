@@ -4,8 +4,14 @@ These tests verify the credential override logic in execute_aap_job_template_act
 Full execution requires an AAP instance, so we test the auth setup path only.
 """
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from unittest.mock import MagicMock
 
+import pytest
+from pydantic import SecretStr
+
+from nexus.core.config.base import get_settings
 from nexus.workflows.workflow_engine.activities.aap_common import (
     get_aap_auth_from_credentials,
     get_aap_auth_headers,
@@ -13,26 +19,29 @@ from nexus.workflows.workflow_engine.activities.aap_common import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _aap_settings(override_settings: Callable[..., AbstractContextManager[object]]) -> object:
+    with override_settings(
+        aap_token=None,
+        aap_username=None,
+        aap_password=None,
+    ):
+        yield
+
+
 class TestAAPCredentialInjection:
     """Test AAP activity auth override from resolved credentials."""
 
-    def test_settings_token_auth(self) -> None:
+    def test_settings_token_auth(self, override_settings: Callable[..., AbstractContextManager[object]]) -> None:
         """Default settings-based token auth works."""
-        settings = MagicMock()
-        settings.aap_token.get_secret_value.return_value = "settings-token"
-        settings.aap_username = None
-
-        headers = get_aap_auth_headers(settings)
+        with override_settings(aap_token=SecretStr("settings-token")):
+            headers = get_aap_auth_headers(get_settings())
         assert headers["Authorization"] == "Bearer settings-token"
 
-    def test_settings_basic_auth(self) -> None:
+    def test_settings_basic_auth(self, override_settings: Callable[..., AbstractContextManager[object]]) -> None:
         """Default settings-based basic auth works."""
-        settings = MagicMock()
-        settings.aap_token = None
-        settings.aap_username = "admin"
-        settings.aap_password.get_secret_value.return_value = "pass"
-
-        basic_auth = get_aap_basic_auth(settings)
+        with override_settings(aap_username="admin", aap_password=SecretStr("pass")):
+            basic_auth = get_aap_basic_auth(get_settings())
         assert basic_auth is not None
 
     def test_credential_override_structure(self) -> None:

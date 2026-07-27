@@ -1,30 +1,34 @@
 """Tests for AAPProxyService."""
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from pydantic import SecretStr
 
 from nexus.aap.auth import AAPConnection
 from nexus.aap.exceptions import AAPAuthenticationError, AAPConnectionError, AAPNotConfiguredError, AAPUpstreamError
 from nexus.aap.models.queries import AAPBaseQuery, AAPResourceQuery
 from nexus.aap.services.aap_proxy_service import AAPProxyService
+from nexus.core.config.base import get_settings
 
 
-def _mock_settings() -> MagicMock:
-    settings = MagicMock()
-    settings.aap_base_url = "https://aap.example.com"
-    settings.aap_public_url = "https://aap.example.com"  # Set public URL for tests
-    settings.aap_verify_ssl = True
-    settings.aap_proxy_timeout_seconds = 30
-    mock_token = MagicMock()
-    mock_token.get_secret_value.return_value = "test-token"
-    settings.aap_token = mock_token
-    settings.aap_username = None
-    settings.aap_password = None
-    return settings
+@pytest.fixture(autouse=True)
+def _aap_settings(override_settings: Callable[..., AbstractContextManager[object]]) -> object:
+    with override_settings(
+        aap_base_url="https://aap.example.com",
+        aap_public_url="https://aap.example.com",
+        aap_verify_ssl=True,
+        aap_proxy_timeout_seconds=30,
+        aap_token=SecretStr("test-token"),
+        aap_username=None,
+        aap_password=None,
+    ):
+        yield
 
 
 def _connection() -> AAPConnection:
@@ -38,7 +42,7 @@ def _connection() -> AAPConnection:
 
 def _service() -> AAPProxyService:
     mock_session = AsyncMock()
-    return AAPProxyService(settings=_mock_settings(), session=mock_session)
+    return AAPProxyService(settings=get_settings(), session=mock_session)
 
 
 class TestListOrganizations:
@@ -548,36 +552,38 @@ class TestGetJobTemplatePublicUrl:
     """Tests for get_job_template URL generation."""
 
     @pytest.mark.asyncio
-    async def test_uses_public_url_when_set(self) -> None:
+    async def test_uses_public_url_when_set(
+        self, override_settings: Callable[..., AbstractContextManager[object]]
+    ) -> None:
         """detail.url should use aap_public_url instead of aap_base_url."""
-        settings = _mock_settings()
-        settings.aap_public_url = "https://public-aap.example.com"
-        mock_session = AsyncMock()
-        service = AAPProxyService(settings=settings, session=mock_session)
-        aap_response = {"id": 10, "name": "Deploy App"}
+        with override_settings(aap_public_url="https://public-aap.example.com"):
+            mock_session = AsyncMock()
+            service = AAPProxyService(settings=get_settings(), session=mock_session)
+            aap_response = {"id": 10, "name": "Deploy App"}
 
-        with (
-            patch.object(service, "_resolve_connection", return_value=_connection()),
-            patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
-        ):
-            result = await service.get_job_template(10)
+            with (
+                patch.object(service, "_resolve_connection", return_value=_connection()),
+                patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
+            ):
+                result = await service.get_job_template(10)
 
         assert result.url == "https://public-aap.example.com/execution/templates/job-template/10/details"
 
     @pytest.mark.asyncio
-    async def test_url_none_when_public_url_not_set(self) -> None:
+    async def test_url_none_when_public_url_not_set(
+        self, override_settings: Callable[..., AbstractContextManager[object]]
+    ) -> None:
         """When aap_public_url is not set, url is None to avoid leaking internal addresses."""
-        settings = _mock_settings()
-        settings.aap_public_url = None
-        mock_session = AsyncMock()
-        service = AAPProxyService(settings=settings, session=mock_session)
-        aap_response = {"id": 10, "name": "Deploy App"}
+        with override_settings(aap_public_url=None):
+            mock_session = AsyncMock()
+            service = AAPProxyService(settings=get_settings(), session=mock_session)
+            aap_response = {"id": 10, "name": "Deploy App"}
 
-        with (
-            patch.object(service, "_resolve_connection", return_value=_connection()),
-            patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
-        ):
-            result = await service.get_job_template(10)
+            with (
+                patch.object(service, "_resolve_connection", return_value=_connection()),
+                patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
+            ):
+                result = await service.get_job_template(10)
 
         # URL should be None when aap_public_url is not configured
         assert result.url is None
@@ -978,7 +984,7 @@ class TestResolveConnectionFromIntegration:
         """
         integration = _mock_integration(aap_url="https://aap-gw.example.com/")
         mock_session = _mock_session_with_integration(integration)
-        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+        service = AAPProxyService(settings=get_settings(), session=mock_session)
 
         cred_connection = AAPConnection(
             base_url="https://ignored.example.com",
@@ -1014,7 +1020,7 @@ class TestResolveConnectionFromIntegration:
     async def test_integration_not_found_raises_not_configured(self) -> None:
         """When integration_id does not match any record, AAPNotConfiguredError is raised."""
         mock_session = _mock_session_with_integration(None)
-        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+        service = AAPProxyService(settings=get_settings(), session=mock_session)
 
         missing_id = uuid4()
 
@@ -1029,7 +1035,7 @@ class TestResolveConnectionFromIntegration:
         """When integration is disabled, AAPNotConfiguredError is raised."""
         integration = _mock_integration(enabled=False, name="Disabled AAP")
         mock_session = _mock_session_with_integration(integration)
-        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+        service = AAPProxyService(settings=get_settings(), session=mock_session)
 
         credential_id = uuid4()
         user_id = uuid4()
@@ -1044,7 +1050,7 @@ class TestResolveConnectionFromIntegration:
         """When integration is not type ansible_automation_platform, AAPNotConfiguredError is raised."""
         integration = _mock_integration(integration_type="mcp_server")
         mock_session = _mock_session_with_integration(integration)
-        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+        service = AAPProxyService(settings=get_settings(), session=mock_session)
 
         credential_id = uuid4()
         user_id = uuid4()
@@ -1060,7 +1066,7 @@ class TestResolveConnectionFromIntegration:
         integration_id = uuid4()
         integration = _mock_integration(integration_id=integration_id, aap_url="https://aap-str.example.com")
         mock_session = _mock_session_with_integration(integration)
-        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+        service = AAPProxyService(settings=get_settings(), session=mock_session)
 
         cred_connection = AAPConnection(
             base_url="https://ignored.example.com",
@@ -1089,7 +1095,7 @@ class TestResolveConnectionFromIntegration:
     async def test_integration_id_invalid_string_raises_not_configured(self) -> None:
         """Non-UUID string for integration_id should raise AAPNotConfiguredError."""
         mock_session = AsyncMock()
-        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+        service = AAPProxyService(settings=get_settings(), session=mock_session)
 
         credential_id = uuid4()
         user_id = uuid4()
@@ -1105,7 +1111,7 @@ class TestResolveConnectionFromIntegration:
             insecure_skip_tls_verify=True,
         )
         mock_session = _mock_session_with_integration(integration)
-        service = AAPProxyService(settings=_mock_settings(), session=mock_session)
+        service = AAPProxyService(settings=get_settings(), session=mock_session)
 
         cred_connection = AAPConnection(
             base_url="https://ignored.example.com",
@@ -1159,7 +1165,7 @@ class TestEnforceIntegrationVisibility:
         mock_session = _mock_session_with_integration(integration)
 
         restricted_projects = AllowedProjectsResult(all_projects=False, project_ids=[uuid4()])
-        service = AAPProxyService(settings=_mock_settings(), session=mock_session, allowed_projects=restricted_projects)
+        service = AAPProxyService(settings=get_settings(), session=mock_session, allowed_projects=restricted_projects)
 
         cred_connection = AAPConnection(
             base_url="https://ignored.example.com",
@@ -1199,7 +1205,7 @@ class TestEnforceIntegrationVisibility:
 
         unrelated_project = uuid4()
         restricted_projects = AllowedProjectsResult(all_projects=False, project_ids=[unrelated_project])
-        service = AAPProxyService(settings=_mock_settings(), session=mock_session, allowed_projects=restricted_projects)
+        service = AAPProxyService(settings=get_settings(), session=mock_session, allowed_projects=restricted_projects)
 
         credential_id = uuid4()
         user_id = uuid4()
