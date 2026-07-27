@@ -109,7 +109,10 @@ function IntegrationDetailsTab({
             {INTEGRATION_TYPE_LABELS[integration.integration_type ?? ''] ?? integration.integration_type ?? ''}
           </NxDetail>
           <NxDetail label="Status">
-            <StatusLabel status={integration.validation_status ?? 'unknown'} />
+            <StatusLabel
+              status={integration.validation_status ?? 'unknown'}
+              errorMessage={integration.validation_error}
+            />
           </NxDetail>
           <NxDetail label="Scope">{integration.scope === 'project' ? 'Project' : 'Global'}</NxDetail>
           {integration.scope === 'project' && integration.id && (

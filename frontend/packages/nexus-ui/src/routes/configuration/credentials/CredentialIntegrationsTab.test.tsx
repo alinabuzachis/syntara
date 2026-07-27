@@ -1,3 +1,4 @@
+import { IntegrationStatusEnum } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -51,7 +52,8 @@ const mockIntegrations = [
     id: 'int-2',
     name: 'Jira Integration',
     integration_type: 'mcp_server',
-    validation_status: 'error',
+    validation_status: IntegrationStatusEnum.ERROR,
+    validation_error: 'Connection refused',
     scope: 'global',
   },
   {
@@ -312,6 +314,23 @@ describe('CredentialIntegrationsTab', () => {
 
     expect(screen.getAllByText('MCP Server').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('LLM Provider')).toBeInTheDocument()
+  })
+
+  it('shows validation error tooltip on hover for error status', async () => {
+    const user = userEvent.setup()
+    vi.mocked(integrationsClient.useQuery).mockReturnValue({
+      data: { resources: mockIntegrations },
+      isPending: false,
+      error: null,
+      isFetching: false,
+      refetch: mockRefetch,
+    } as never)
+
+    render(<CredentialIntegrationsTab credentialId="cred-1" />, { wrapper })
+
+    const errorLabels = screen.getAllByText('Error')
+    await user.hover(errorLabels[0])
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Connection refused')
   })
 
   it('displays scope correctly', () => {

@@ -108,7 +108,10 @@ function IntegrationsTableContent({
               </LinkCell>
             </Td>
             <Td dataLabel="Status">
-              <StatusLabel status={integration.validation_status ?? 'unknown'} />
+              <StatusLabel
+                status={integration.validation_status ?? 'unknown'}
+                errorMessage={integration.validation_error}
+              />
             </Td>
             <Td dataLabel="Integration type">
               {INTEGRATION_TYPE_LABELS[integration.integration_type ?? ''] ?? integration.integration_type ?? ''}
@@ -182,9 +185,16 @@ export default function Integrations() {
     []
   )
 
-  const query = integrationsClient.useQuery('get', '/integrations', {
-    params: { query: queryParams },
-  })
+  const query = integrationsClient.useQuery(
+    'get',
+    '/integrations',
+    {
+      params: { query: queryParams },
+    },
+    {
+      refetchInterval: 30_000,
+    }
+  )
 
   const {
     validateDialog,

@@ -119,7 +119,10 @@ export function CredentialIntegrationsTab({ credentialId }: Readonly<CredentialI
                   <Truncate content={integration.created_by ?? DASH} />
                 </Td>
                 <Td dataLabel="Status">
-                  <StatusLabel status={integration.validation_status ?? 'unknown'} />
+                  <StatusLabel
+                    status={integration.validation_status ?? 'unknown'}
+                    errorMessage={integration.validation_error}
+                  />
                 </Td>
                 <Td dataLabel="Scope">{integration.scope === 'project' ? 'Project' : 'Global'}</Td>
               </Tr>

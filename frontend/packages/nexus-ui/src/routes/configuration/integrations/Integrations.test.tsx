@@ -118,6 +118,7 @@ describe('Integrations Component', () => {
       description: 'Testing environment integration',
       integration_type: 'mcp_server',
       validation_status: IntegrationStatusEnum.ERROR,
+      validation_error: 'Connection refused',
       enabled: true,
       scope: 'global',
       configuration: {
@@ -746,6 +747,24 @@ describe('Integrations Component', () => {
       expect(mockSetSearchParams).toHaveBeenCalled()
     })
 
+    it('offers all expected status filter options', async () => {
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      const fieldButtons = screen.getAllByRole('button', { name: 'Name' })
+      const fieldSelector = fieldButtons[0]
+      await user.click(fieldSelector)
+      await user.click(await screen.findByRole('option', { name: /status/i }))
+
+      const statusButton = await screen.findByRole('button', { name: /filter by status/i })
+      await user.click(statusButton)
+
+      expect(screen.getByRole('option', { name: 'Available' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Error' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Unknown' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Validating' })).toBeInTheDocument()
+    })
+
     it('applies integration type filter to API query', async () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
@@ -817,7 +836,8 @@ describe('Integrations Component', () => {
               sort: 'name',
             }) as unknown,
           }) as unknown,
-        }) as unknown
+        }) as unknown,
+        expect.objectContaining({ refetchInterval: 30_000 }) as unknown
       )
     })
 
@@ -973,6 +993,75 @@ describe('Integrations Component', () => {
         expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
       })
       expect(mockRefetch).toHaveBeenCalled()
+    })
+
+    it('updates status badge after successful validation refetch', async () => {
+      const user = userEvent.setup()
+      const mockValidateMutate = vi.fn()
+
+      // Start with error status for integration 2
+      const initialIntegrations = [...mockIntegrations]
+
+      const updatedIntegrations = mockIntegrations.map((i) =>
+        i.id === '2' ? { ...i, validation_status: IntegrationStatusEnum.AVAILABLE, validation_error: null } : i
+      )
+
+      // First call returns error status; subsequent calls return available
+      const mockRefetch = vi.fn().mockResolvedValue({ data: { resources: updatedIntegrations } })
+      vi.mocked(integrationsClient.useQuery)
+        .mockReturnValueOnce({
+          data: { resources: initialIntegrations },
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never)
+        .mockReturnValue({
+          data: { resources: updatedIntegrations },
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+        } as never)
+
+      vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('validate')) {
+          return { mutate: mockValidateMutate, isPending: false } as never
+        }
+        return { mutate: vi.fn(), isPending: false } as never
+      })
+
+      const { rerender } = render(<Integrations />, { wrapper })
+
+      // Verify the error status badge is shown before validation
+      expect(screen.getByText('Error')).toBeInTheDocument()
+
+      // Open actions menu and click validate for the first row (alphabetically sorted)
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
+      await user.click(actionButtons[0])
+      const validateOption = await screen.findByRole('menuitem', { name: /validate integration/i })
+      await user.click(validateOption)
+
+      const validateButton = await screen.findByRole('button', { name: 'Validate' })
+      await user.click(validateButton)
+
+      // Simulate successful validation — triggers refetch
+      const mutationCall = mockValidateMutate.mock.calls[0] as [unknown, MockMutationCallbacks]
+      const callbacks = mutationCall[1]
+      act(() => {
+        callbacks.onSuccess({ success: true, checked_at: new Date().toISOString() })
+        callbacks.onSettled()
+      })
+
+      expect(mockRefetch).toHaveBeenCalled()
+
+      // Re-render with updated data (simulating refetch result)
+      rerender(<Integrations />)
+
+      // Error badge should be gone, replaced by Available
+      await waitFor(() => {
+        expect(screen.queryByText('Error')).not.toBeInTheDocument()
+      })
     })
 
     it('shows error alert when validation returns success: false', async () => {
@@ -1492,6 +1581,28 @@ describe('Integrations Component', () => {
 
       expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Configure integration' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Status tooltip', () => {
+    it('shows validation error tooltip on hover for error status', async () => {
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      const errorLabels = screen.getAllByText('Error')
+      await user.hover(errorLabels[0])
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Connection refused')
+    })
+  })
+
+  describe('Auto-refresh polling', () => {
+    it('configures 30-second polling interval on the integrations query', () => {
+      render(<Integrations />, { wrapper })
+
+      const lastCall = vi.mocked(integrationsClient.useQuery).mock.calls.at(-1)
+      expect(lastCall).toBeDefined()
+      const queryOptions = lastCall?.[3] as { refetchInterval?: number } | undefined
+      expect(queryOptions?.refetchInterval).toBe(30_000)
     })
   })
 

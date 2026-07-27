@@ -57,6 +57,7 @@ export const getIntegrationStatusFilterDefinition = (): FilterFieldDefinition =>
   options: [
     { value: IntegrationStatusEnum.AVAILABLE, label: 'Available' },
     { value: IntegrationStatusEnum.ERROR, label: 'Error' },
+    { value: IntegrationStatusEnum.UNKNOWN, label: 'Unknown' },
     { value: IntegrationStatusEnum.VALIDATING, label: 'Validating' },
   ],
   placeholder: 'Filter by status',
