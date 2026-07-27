@@ -4,7 +4,6 @@ These tests use mocks to avoid requiring a real Temporal server.
 Integration tests with a real Temporal server are in tests/integration/.
 """
 
-from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID
@@ -263,113 +262,6 @@ class TestTriggerSelection:
                 workflow_name="test-workflow",
                 trigger_node_id="nonexistent_trigger",
             )
-
-
-class TestGetWorkflowStatus:
-    """Test getting workflow status."""
-
-    @pytest.mark.asyncio
-    async def test_get_status_running_workflow(self) -> None:
-        """Test getting status of a running workflow."""
-        # Mock workflow handle
-        mock_handle = Mock()
-        mock_description = Mock()
-        mock_description.status.name = "RUNNING"
-        mock_description.run_id = "run-123"
-        mock_description.start_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
-        mock_description.close_time = None
-        mock_handle.describe = AsyncMock(return_value=mock_description)
-
-        # Mock client
-        mock_client = Mock()
-        mock_client.get_workflow_handle = Mock(return_value=mock_handle)
-
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        result = await service.get_workflow_status("workflow-123")
-
-        assert result.temporal_workflow_id == "workflow-123"
-        assert result.temporal_run_id == "run-123"
-        assert result.status == "running"
-        assert result.start_time == "2024-01-01T12:00:00+00:00"
-        assert result.close_time is None
-
-    @pytest.mark.asyncio
-    async def test_get_status_completed_workflow(self) -> None:
-        """Test getting status of a completed workflow."""
-        mock_handle = Mock()
-        mock_description = Mock()
-        mock_description.status.name = "COMPLETED"
-        mock_description.run_id = "run-456"
-        mock_description.start_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
-        mock_description.close_time = datetime(2024, 1, 1, 12, 5, 0, tzinfo=UTC)
-        mock_handle.describe = AsyncMock(return_value=mock_description)
-
-        mock_client = Mock()
-        mock_client.get_workflow_handle = Mock(return_value=mock_handle)
-
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        result = await service.get_workflow_status("workflow-456")
-
-        assert result.status == "completed"
-        assert result.close_time == "2024-01-01T12:05:00+00:00"
-
-    @pytest.mark.asyncio
-    async def test_get_status_workflow_not_found(self) -> None:
-        """Test getting status of non-existent workflow."""
-        mock_client = Mock()
-        mock_client.get_workflow_handle = Mock(side_effect=Exception("Workflow not found"))
-
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        with pytest.raises(Exception, match="Workflow not found"):
-            await service.get_workflow_status("nonexistent-workflow")
-
-
-class TestGetWorkflowResult:
-    """Test getting workflow results."""
-
-    @pytest.mark.asyncio
-    async def test_get_result_success(self) -> None:
-        """Test getting result from completed workflow."""
-        expected_result = {
-            "status": "completed",
-            "execution_id": "exec-123",
-            "activity_outputs": {"task1": {"stdout": "test output", "return_code": 0}},
-            "completed_activities": ["task1"],
-        }
-
-        mock_handle = Mock()
-        mock_handle.result = AsyncMock(return_value=expected_result)
-
-        mock_client = Mock()
-        mock_client.get_workflow_handle = Mock(return_value=mock_handle)
-
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        result = await service.get_workflow_result("workflow-123")
-
-        # Verify result is a Pydantic model with expected values
-        assert result.status == "completed"
-        assert result.execution_id == "exec-123"
-        assert result.activity_outputs == {"task1": {"stdout": "test output", "return_code": 0}}
-        assert result.completed_activities == ["task1"]
-        mock_handle.result.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_get_result_workflow_failed(self) -> None:
-        """Test getting result when workflow failed."""
-        mock_handle = Mock()
-        mock_handle.result = AsyncMock(side_effect=RuntimeError("Workflow execution failed"))
-
-        mock_client = Mock()
-        mock_client.get_workflow_handle = Mock(return_value=mock_handle)
-
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        with pytest.raises(RuntimeError, match="Workflow execution failed"):
-            await service.get_workflow_result("failed-workflow")
 
 
 class TestCreateTemporalExecutionService:

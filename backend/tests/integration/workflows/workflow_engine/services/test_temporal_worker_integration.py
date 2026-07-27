@@ -199,10 +199,13 @@ class TestTemporalWorkerServiceIntegration:
             )
 
             # Wait for workflow to complete
-            workflow_result = await execution_service.get_workflow_result(result.temporal_workflow_id)
+            handle = execution_service.temporal_client.get_workflow_handle(
+                result.temporal_workflow_id, run_id=result.temporal_run_id
+            )
+            workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
 
             # Verify workflow was processed successfully
-            assert workflow_result.status == "completed"
+            assert workflow_result["status"] == "completed"
 
     async def test_multiple_workers_different_queues(self, temporal_env: WorkflowEnvironment) -> None:
         """Test running multiple workers on different queues simultaneously."""
@@ -249,11 +252,17 @@ class TestTemporalWorkerServiceIntegration:
             )
 
             # Both workflows should complete
-            workflow_result1 = await service1.get_workflow_result(result1.temporal_workflow_id)
-            workflow_result2 = await service2.get_workflow_result(result2.temporal_workflow_id)
+            handle1 = service1.temporal_client.get_workflow_handle(
+                result1.temporal_workflow_id, run_id=result1.temporal_run_id
+            )
+            workflow_result1 = await asyncio.wait_for(handle1.result(), timeout=30)
+            handle2 = service2.temporal_client.get_workflow_handle(
+                result2.temporal_workflow_id, run_id=result2.temporal_run_id
+            )
+            workflow_result2 = await asyncio.wait_for(handle2.result(), timeout=30)
 
-            assert workflow_result1.status == "completed"
-            assert workflow_result2.status == "completed"
+            assert workflow_result1["status"] == "completed"
+            assert workflow_result2["status"] == "completed"
 
         # Verify both workers stopped
         worker1_stopped = worker1._worker_task is None
@@ -342,8 +351,11 @@ class TestWorkerServiceConfiguration:
             )
 
             # Should complete successfully
-            workflow_result = await execution_service.get_workflow_result(result.temporal_workflow_id)
-            assert workflow_result.status == "completed"
+            handle = execution_service.temporal_client.get_workflow_handle(
+                result.temporal_workflow_id, run_id=result.temporal_run_id
+            )
+            workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
+            assert workflow_result["status"] == "completed"
 
 
 @pytest.mark.integration

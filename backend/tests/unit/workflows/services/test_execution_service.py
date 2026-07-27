@@ -904,10 +904,6 @@ class TestGetExecution(TestExecutionServiceBase):
 
         # Mock Temporal service
         mock_temporal = Mock()
-        status_response = Mock()
-        status_response.status = "completed"
-        status_response.close_time = "2025-01-31T12:00:00+00:00"
-        mock_temporal.get_workflow_status = AsyncMock(return_value=status_response)
 
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
@@ -917,8 +913,7 @@ class TestGetExecution(TestExecutionServiceBase):
         assert isinstance(result, ExecutionRead)
         assert result.id == execution_id
         assert result.status == ExecutionStatus.RUNNING
-        # Verify status was NOT synced from Temporal (status comes from database now)
-        mock_temporal.get_workflow_status.assert_not_awaited()
+        # Status comes from the database; no commit expected.
         mock_session.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -1268,15 +1263,6 @@ class TestListExecutionsWithTemporalSync(TestExecutionServiceBase):
 
         # Mock Temporal service
         mock_temporal = Mock()
-        status_response1 = Mock()
-        status_response1.status = "completed"
-        status_response1.close_time = "2025-01-31T12:00:00+00:00"
-
-        status_response2 = Mock()
-        status_response2.status = "running"
-        status_response2.close_time = None
-
-        mock_temporal.get_workflow_status = AsyncMock(side_effect=[status_response1, status_response2])
 
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
@@ -1284,9 +1270,7 @@ class TestListExecutionsWithTemporalSync(TestExecutionServiceBase):
         result = await service.list_executions(limit=10)
 
         assert len(result.resources) == 2
-        # Verify Temporal was NOT queried (status comes from database now)
-        assert mock_temporal.get_workflow_status.await_count == 0
-        # Verify no commit (no status changes to persist)
+        # Status comes from the database; no commit expected (no status changes to persist).
         mock_session.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -1307,7 +1291,6 @@ class TestListExecutionsWithTemporalSync(TestExecutionServiceBase):
         mock_session.exec = AsyncMock(return_value=mock_main_result)
 
         mock_temporal = Mock()
-        mock_temporal.get_workflow_status = AsyncMock()
 
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
@@ -1315,9 +1298,7 @@ class TestListExecutionsWithTemporalSync(TestExecutionServiceBase):
         result = await service.list_executions(limit=10)
 
         assert len(result.resources) == 1
-        # Verify no Temporal query for terminal state execution
-        mock_temporal.get_workflow_status.assert_not_called()
-        # Verify no commit when no changes
+        # Status comes from the database; no commit expected when no changes.
         mock_session.commit.assert_not_called()
 
 

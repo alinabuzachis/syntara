@@ -110,12 +110,12 @@ class TestWaitNodeIntegration:
                     trigger_node_id="trigger_manual",
                 )
 
-                workflow_result = await asyncio.wait_for(
-                    execution_service.get_workflow_result(result.temporal_workflow_id),
-                    timeout=30,
+                handle = execution_service.temporal_client.get_workflow_handle(
+                    result.temporal_workflow_id, run_id=result.temporal_run_id
                 )
+                workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
 
-                assert workflow_result.status == "completed"
+                assert workflow_result["status"] == "completed"
         finally:
             set_activity_sync_service(original_service)
             _settings_mod._runtime_settings = original_settings
@@ -147,12 +147,12 @@ class TestWaitNodeIntegration:
                     trigger_node_id="trigger_manual",
                 )
 
-                workflow_result = await asyncio.wait_for(
-                    execution_service.get_workflow_result(result.temporal_workflow_id),
-                    timeout=30,
+                handle = execution_service.temporal_client.get_workflow_handle(
+                    result.temporal_workflow_id, run_id=result.temporal_run_id
                 )
+                workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
 
-                assert workflow_result.status == "failed"
+                assert workflow_result["status"] == "failed"
         finally:
             _settings_mod._runtime_settings = original_settings
 
@@ -188,12 +188,12 @@ class TestWaitNodeIntegration:
                     trigger_node_id="trigger_manual",
                 )
 
-                workflow_result = await asyncio.wait_for(
-                    execution_service.get_workflow_result(result.temporal_workflow_id),
-                    timeout=30,
+                handle = execution_service.temporal_client.get_workflow_handle(
+                    result.temporal_workflow_id, run_id=result.temporal_run_id
                 )
+                workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
 
-                assert workflow_result.status == "completed"
+                assert workflow_result["status"] == "completed"
         finally:
             set_activity_sync_service(original_service)
             _settings_mod._runtime_settings = original_settings

@@ -91,11 +91,13 @@ edges:
         assert result.temporal_run_id is not None
         assert result.status == "running"
 
-        # Wait for completion
-        workflow_result = await execution_service.get_workflow_result(result.temporal_workflow_id)
+        handle = execution_service.temporal_client.get_workflow_handle(
+            result.temporal_workflow_id, run_id=result.temporal_run_id
+        )
+        workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
 
         # Verify completion (activity_outputs are empty when include_node_results=False)
-        assert workflow_result.status == "completed"
+        assert workflow_result["status"] == "completed"
 
     async def test_start_workflow_with_custom_id(self, execution_service: TemporalExecutionService) -> None:
         """Test starting a workflow with a custom workflow ID."""
@@ -132,9 +134,11 @@ edges:
 
         assert result.workflow_id == custom_id
 
-        # Verify it actually ran with that ID
-        workflow_result = await execution_service.get_workflow_result(result.temporal_workflow_id)
-        assert workflow_result.status == "completed"
+        handle = execution_service.temporal_client.get_workflow_handle(
+            result.temporal_workflow_id, run_id=result.temporal_run_id
+        )
+        workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
+        assert workflow_result["status"] == "completed"
 
     async def test_start_workflow_with_inputs(self, execution_service: TemporalExecutionService) -> None:
         """Test starting a workflow with input parameters."""
@@ -169,11 +173,13 @@ edges:
             workflow_metadata=TEST_WORKFLOW_METADATA,
         )
 
-        # Wait for completion
-        workflow_result = await execution_service.get_workflow_result(result.temporal_workflow_id)
+        handle = execution_service.temporal_client.get_workflow_handle(
+            result.temporal_workflow_id, run_id=result.temporal_run_id
+        )
+        workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
 
         # Verify workflow completed (activity_outputs are empty when include_node_results=False)
-        assert workflow_result.status == "completed"
+        assert workflow_result["status"] == "completed"
 
     async def test_invalid_workflow_definition_raises_validation_error(
         self, execution_service: TemporalExecutionService
@@ -205,56 +211,6 @@ edges: []
                 trigger_node_id="trigger_manual",
                 workflow_metadata=TEST_WORKFLOW_METADATA,
             )
-
-    async def test_get_workflow_status(self, execution_service: TemporalExecutionService) -> None:
-        """Test getting workflow status."""
-        workflow_yaml = """
-schema_version: "2.0.0"
-name: status-test
-description: Test status retrieval
-triggers:
-- id: trigger_manual
-  type: manual_trigger
-nodes:
-- id: slow_task
-  type: script
-  parameters:
-    language: bash
-    code: |
-      sleep 1
-      echo "Done"
-  settings:
-    timeout: 1
-edges:
-- from: trigger_manual
-  to: slow_task
-"""
-        workflow_def = yaml.safe_load(workflow_yaml)
-
-        # Start workflow
-        result = await execution_service.start_workflow(
-            workflow_def=workflow_def,
-            workflow_name="status-test",
-            trigger_node_id="trigger_manual",
-            workflow_metadata=TEST_WORKFLOW_METADATA,
-        )
-
-        # Get status while running
-        status = await execution_service.get_workflow_status(result.temporal_workflow_id)
-
-        assert status.temporal_workflow_id == result.temporal_workflow_id
-        assert status.temporal_run_id == result.temporal_run_id
-        assert status.status is not None
-        assert status.start_time is not None
-
-        # Wait for completion
-        await execution_service.get_workflow_result(result.temporal_workflow_id)
-
-        # Get status after completion
-        final_status = await execution_service.get_workflow_status(result.temporal_workflow_id)
-        assert final_status.status in ["completed", "running"]  # May still be transitioning
-        if final_status.status == "completed":
-            assert final_status.close_time is not None
 
     async def test_cancel_workflow(self, execution_service: TemporalExecutionService) -> None:
         """Test cancelling a running workflow."""
@@ -369,5 +325,8 @@ edges:
 
                 assert result.status == "running"
 
-                workflow_result = await service.get_workflow_result(result.temporal_workflow_id)
-                assert workflow_result.status == "completed"
+                handle = service.temporal_client.get_workflow_handle(
+                    result.temporal_workflow_id, run_id=result.temporal_run_id
+                )
+                workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
+                assert workflow_result["status"] == "completed"

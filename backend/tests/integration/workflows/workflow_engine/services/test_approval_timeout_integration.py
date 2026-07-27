@@ -179,12 +179,12 @@ class TestApprovalTimeoutIntegration:
                 trigger_node_id="trigger_manual",
             )
 
-            workflow_result = await asyncio.wait_for(
-                execution_service.get_workflow_result(result.temporal_workflow_id),
-                timeout=30,
+            handle = execution_service.temporal_client.get_workflow_handle(
+                result.temporal_workflow_id, run_id=result.temporal_run_id
             )
+            workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
 
-            assert workflow_result.status == "failed"
+            assert workflow_result["status"] == "failed"
             assert len(_expire_calls) == 1
             execution_id_called, node_id_called = _expire_calls[0]
             assert node_id_called == "approval_node"
@@ -228,13 +228,13 @@ class TestApprovalTimeoutIntegration:
                 trigger_node_id="trigger_manual",
             )
 
-            workflow_result = await asyncio.wait_for(
-                execution_service.get_workflow_result(result.temporal_workflow_id),
-                timeout=30,
+            handle = execution_service.temporal_client.get_workflow_handle(
+                result.temporal_workflow_id, run_id=result.temporal_run_id
             )
+            workflow_result = await asyncio.wait_for(handle.result(), timeout=30)
 
             # Workflow completes with errors: approval node failed but CoF absorbed it
-            assert workflow_result.status == "completed_with_errors"
+            assert workflow_result["status"] == "completed_with_errors"
             # Expire activity should still be called
             assert len(_expire_calls) == 1
             assert _expire_calls[0][1] == "approval_node"

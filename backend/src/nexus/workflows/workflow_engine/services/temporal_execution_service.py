@@ -9,9 +9,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
-from temporalio.api.enums.v1 import EventType
-from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilterType
-from temporalio.exceptions import TemporalError
+from temporalio.client import Client
 from temporalio.service import RPCError
 
 from nexus.core.config.base import TEMPORAL_DEFAULT_BACKGROUND_TASK_QUEUE, get_settings
@@ -19,12 +17,9 @@ from nexus.core.exceptions import SafeValueError
 from nexus.core.tls.temporal import build_temporal_tls_config
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import ComponentLabel, MetricType
-from nexus.workflows.utils.datetime import ensure_timezone_aware
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.models.responses import (
-    WorkflowResultResponse,
     WorkflowStartResponse,
-    WorkflowStatusResponse,
 )
 from nexus.workflows.workflow_engine.models.workflow_definition import resolve_trigger_node
 
@@ -55,34 +50,6 @@ class TemporalExecutionService:
         self.temporal_client = temporal_client
         self.task_queue = task_queue
         self.background_task_queue = background_task_queue
-
-    async def _extract_failure_message(self, handle: WorkflowHandle[Any, Any]) -> str | None:
-        """Extract failure message from workflow history using optimized filtered query.
-
-        Uses filtered history fetch to only retrieve close event, avoiding the overhead
-        of fetching the entire workflow history.
-
-        Args:
-            handle: Temporal workflow handle
-
-        Returns:
-            Failure message if found, None otherwise
-
-        """
-        try:
-            # Fetch only the close event using filter - much more efficient than full history
-            history = await handle.fetch_history(event_filter_type=WorkflowHistoryEventFilterType.CLOSE_EVENT)
-
-            # Look for WorkflowExecutionFailed event in the filtered results
-            for event in history.events:
-                if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
-                    failed_attrs = event.workflow_execution_failed_event_attributes
-                    if failed_attrs and failed_attrs.failure:
-                        return failed_attrs.failure.message
-                    break
-        except TemporalError as e:
-            logger.warning("Failed to fetch workflow history for failure details", error=str(e))
-        return None
 
     async def start_workflow(
         self,
@@ -220,85 +187,6 @@ class TemporalExecutionService:
         except Exception:
             logger.exception("Failed to start workflow", workflow_name=workflow_name)
             raise
-
-    async def get_workflow_status(self, temporal_workflow_id: str) -> WorkflowStatusResponse:
-        """Get the status of a running workflow.
-
-        Args:
-            temporal_workflow_id: Temporal workflow ID
-
-        Returns:
-            WorkflowStatusResponse containing workflow status information
-
-        Raises:
-            Exception: If workflow not found or status check fails
-
-        """
-        try:
-            handle = self.temporal_client.get_workflow_handle(temporal_workflow_id)
-
-            # Get workflow status
-            description = await handle.describe()
-
-            status_name = description.status.name if description.status else "unknown"
-
-            # Extract failure message if workflow failed
-            failure_message = None
-            if status_name.lower() == "failed":
-                failure_message = await self._extract_failure_message(handle)
-
-            # Format timestamps consistently with 'Z' suffix for UTC
-            start_time = None
-            if description.start_time:
-                start_time = ensure_timezone_aware(description.start_time).isoformat()
-
-            close_time = None
-            if description.close_time:
-                close_time = ensure_timezone_aware(description.close_time).isoformat()
-
-            return WorkflowStatusResponse(
-                temporal_workflow_id=temporal_workflow_id,
-                temporal_run_id=description.run_id,
-                status=status_name.lower(),
-                start_time=start_time,
-                close_time=close_time,
-                failure_message=failure_message,
-            )
-
-        except Exception:
-            logger.exception("Failed to get workflow status", temporal_workflow_id=temporal_workflow_id)
-            raise
-
-    async def get_workflow_result(self, temporal_workflow_id: str) -> WorkflowResultResponse:
-        """Wait for workflow to complete and get result.
-
-        Args:
-            temporal_workflow_id: Temporal workflow ID
-
-        Returns:
-            WorkflowResultResponse containing workflow result
-
-        Raises:
-            Exception: If workflow fails or result cannot be retrieved
-
-        """
-        try:
-            handle = self.temporal_client.get_workflow_handle(temporal_workflow_id)
-
-            # Wait for workflow to complete
-            logger.info("Waiting for workflow to complete", temporal_workflow_id=temporal_workflow_id)
-            # TODO: This blocks until workflow completes, which is problematic  # noqa: TD002, TD003
-            # for HITL workflows that may wait indefinitely for human input.
-            # This will be addressed in a future Human-in-the-Loop Approvals ticket.
-            result: dict[str, Any] = await handle.result()
-
-        except Exception:
-            logger.exception("Workflow failed", temporal_workflow_id=temporal_workflow_id)
-            raise
-        else:
-            logger.info("Workflow completed successfully", temporal_workflow_id=temporal_workflow_id)
-            # Convert dict result to typed response
-            return WorkflowResultResponse(**result)
 
     async def cancel_workflow(
         self,
