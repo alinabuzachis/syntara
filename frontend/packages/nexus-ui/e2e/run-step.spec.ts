@@ -231,17 +231,19 @@ test.describe('Run Step', () => {
   })
 
   test('closes dialog when Cancel is clicked from mock editor', async ({ app }) => {
-    // Arrange - Create workflow with two nodes and navigate to mock editor
+    // Use API-created single-node workflow — createTwoNodeWorkflow + Second action
+    // kebab is flaky in CI (same reason the "transitions to mock data editor" test is skipped).
     const workflowName = buildUniqueName('e2e-run-step-cancel-mock')
-    await createTwoNodeWorkflow(app, workflowName)
+    const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Test action')
+    await openWorkflowInBuilder(app, workflowName, id)
 
     try {
-      await openRunStepDialog(app, 'Second action')
+      await openRunStepDialog(app, 'Test action')
       await app.getByRole('button', { name: 'Set mock data' }).click()
-      await expect(app.getByRole('heading', { name: 'Set mock data for Second action' })).toBeVisible()
+      await expect(app.getByRole('heading', { name: 'Set mock data for Test action' })).toBeVisible()
 
       await app.getByRole('button', { name: 'Cancel' }).click()
-      await expect(app.getByRole('heading', { name: 'Set mock data for Second action' })).not.toBeVisible()
+      await expect(app.getByRole('heading', { name: 'Set mock data for Test action' })).not.toBeVisible()
     } finally {
       await deleteWorkflow(app, workflowName)
     }
