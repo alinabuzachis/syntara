@@ -889,7 +889,7 @@ The `POST /identity_providers/setup-aap-oidc` endpoint automates the full AAP OI
 **What happens when the endpoint is called:**
 
 1. The backend resolves the AAP organization by name via `GET /api/gateway/v1/organizations/?name=<name>`.
-2. An OAuth2 application named "Automation Orchestrator" is created on AAP via `POST /api/gateway/v1/applications/` using the admin credentials. The redirect URI is derived from `APP_SERVER_PUBLIC_URL`.
+2. An OAuth2 application named after `APP_PRODUCT_NAME` (defaults to "Syntara") is created on AAP via `POST /api/gateway/v1/applications/` using the admin credentials. The redirect URI is derived from `APP_SERVER_PUBLIC_URL`.
 3. An identity provider is created in Nexus with the following AAP preset defaults:
    - `idp_type` = `"aap"`, `auto_discovery` = `true`
    - `issuer_url` = `{aap_url}/o/`

@@ -990,7 +990,7 @@ def _register_query_commands(sub: argparse._SubParsersAction) -> None:  # type: 
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
-        description="Nexus Authorization CLI",
+        description="Authorization CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--base-url", default=_DEFAULT_BASE_URL, help="API base URL")

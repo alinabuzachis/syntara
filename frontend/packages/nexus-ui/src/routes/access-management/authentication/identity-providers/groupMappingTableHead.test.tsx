@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { APP_TITLE } from '../../../../utils/appTitle'
+
 import { GroupMappingTableHead } from './groupMappingTableHead'
 
 describe('GroupMappingTableHead', () => {
@@ -19,7 +21,7 @@ describe('GroupMappingTableHead', () => {
     )
 
     expect(screen.getByText('IdP group value')).toBeInTheDocument()
-    expect(screen.getByText('Nexus group')).toBeInTheDocument()
+    expect(screen.getByText(`${APP_TITLE} group`)).toBeInTheDocument()
   })
 
   it('does not render Actions column header when showActionsColumn is false', () => {

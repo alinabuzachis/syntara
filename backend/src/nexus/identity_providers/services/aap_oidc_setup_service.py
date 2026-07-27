@@ -37,7 +37,6 @@ if TYPE_CHECKING:
 logger = structlog.stdlib.get_logger(__name__)
 
 _AAP_API_PREFIX = "/api/gateway/v1"
-_OAUTH2_APP_NAME = "Automation Orchestrator"
 _IDP_NAME = "Ansible Automation Platform"
 _IDP_DESCRIPTION = "Auto-configured AAP OIDC provider"
 
@@ -59,7 +58,7 @@ def _is_duplicate_app_error(body: dict[str, Any]) -> bool:
     return False
 
 
-def _extract_aap_error_message(response: httpx.Response) -> str:
+def _extract_aap_error_message(response: httpx.Response, *, app_name: str) -> str:
     """Parse an AAP error response into a human-readable message."""
     try:
         body = response.json()
@@ -71,7 +70,7 @@ def _extract_aap_error_message(response: httpx.Response) -> str:
 
     if _is_duplicate_app_error(body):
         return (
-            f"An OAuth2 application named '{_OAUTH2_APP_NAME}' already exists on this AAP. "
+            f"An OAuth2 application named '{app_name}' already exists on this AAP. "
             "Delete the existing application from AAP before retrying, or configure the identity provider manually."
         )
 
@@ -200,9 +199,10 @@ class AAPOIDCSetupService:
     ) -> tuple[str, str]:
         """Create an OAuth2 application on AAP, returning (client_id, client_secret)."""
         url = f"{aap_url}{_AAP_API_PREFIX}/applications/"
+        oauth2_app_name = self._settings.product_name
         body = {
-            "name": _OAUTH2_APP_NAME,
-            "description": "OAuth2 application for Automation Orchestrator OIDC integration",
+            "name": oauth2_app_name,
+            "description": f"OAuth2 application for {oauth2_app_name} OIDC integration",
             "client_type": "confidential",
             "authorization_grant_type": "authorization-code",
             "redirect_uris": redirect_uri,
@@ -224,7 +224,7 @@ class AAPOIDCSetupService:
 
         logger.info(
             "Created OAuth2 application on AAP",
-            app_name=_OAUTH2_APP_NAME,
+            app_name=oauth2_app_name,
             aap_host=urlparse(aap_url).hostname,
         )
 
@@ -293,8 +293,7 @@ class AAPOIDCSetupService:
             msg = "AAP request failed"
             raise AAPConnectionError(msg) from e
 
-    @staticmethod
-    def _raise_for_aap_status(response: httpx.Response) -> None:
+    def _raise_for_aap_status(self, response: httpx.Response) -> None:
         """Check HTTP response status and raise domain errors for failures."""
         if response.status_code == HTTPStatus.UNAUTHORIZED:
             msg = "AAP authentication failed. Check your admin credentials."
@@ -304,14 +303,16 @@ class AAPOIDCSetupService:
             msg = "AAP authorization failed. The provided account does not have admin privileges."
             raise AAPAuthenticationError(msg)
 
+        app_name = self._settings.product_name
+
         if response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
-            detail = _extract_aap_error_message(response)
+            detail = _extract_aap_error_message(response, app_name=app_name)
             logger.error("AAP server error", status_code=response.status_code, detail=detail)
             msg = "AAP encountered an internal error"
             raise AAPConnectionError(msg)
 
         if response.status_code >= HTTPStatus.BAD_REQUEST:
-            detail = _extract_aap_error_message(response)
+            detail = _extract_aap_error_message(response, app_name=app_name)
             logger.warning("AAP request rejected", status_code=response.status_code, detail=detail)
             if "already exists" in detail:
                 raise AAPSetupError(detail)

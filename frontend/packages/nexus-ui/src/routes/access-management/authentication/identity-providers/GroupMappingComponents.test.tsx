@@ -5,6 +5,8 @@ import { FormProvider, useForm } from 'react-hook-form'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { APP_TITLE } from '../../../../utils/appTitle'
+
 import {
   AdvancedSection,
   EmptyMappingState,
@@ -282,7 +284,7 @@ describe('MappingTable', () => {
     render(<MappingTableFormHarness {...defaultProps} />)
 
     expect(screen.getByText('IdP group value')).toBeInTheDocument()
-    expect(screen.getByText('Nexus group')).toBeInTheDocument()
+    expect(screen.getByText(`${APP_TITLE} group`)).toBeInTheDocument()
   })
 
   it('renders mapping entries with input values', () => {

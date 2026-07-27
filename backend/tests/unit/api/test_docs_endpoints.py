@@ -20,6 +20,8 @@ import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
+from nexus.core.config.base import get_settings
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from contextlib import AbstractContextManager
@@ -36,7 +38,7 @@ def _make_app(*, enable_docs: bool) -> FastAPI:
 
     @app.get("/", tags=["Root"])
     async def root() -> dict[str, str]:
-        response: dict[str, str] = {"message": "Nexus API", "version": "0.1.0"}
+        response: dict[str, str] = {"message": f"{get_settings().product_name} API", "version": "0.1.0"}
         if enable_docs:
             response["docs"] = "/docs"
         return response
@@ -195,7 +197,7 @@ class TestProductionAppWiring:
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert data["message"] == "Nexus API"
+        assert data["message"] == "Syntara API"
         assert "docs" not in data
 
     def test_docs_url_disabled(self) -> None:

@@ -11,27 +11,27 @@ describe('NxPageTitle', () => {
 
   it('sets document.title with a single segment', () => {
     render(<NxPageTitle segments={['Workflows']} />)
-    expect(document.title).toBe('Workflows | Nexus')
+    expect(document.title).toBe('Workflows | Syntara')
   })
 
   it('sets document.title with multiple segments, most-specific first', () => {
     render(<NxPageTitle segments={['My Workflow', 'Workflows']} />)
-    expect(document.title).toBe('My Workflow | Workflows | Nexus')
+    expect(document.title).toBe('My Workflow | Workflows | Syntara')
   })
 
   it('renders just the app title when segments is empty', () => {
     render(<NxPageTitle segments={[]} />)
-    expect(document.title).toBe('Nexus')
+    expect(document.title).toBe('Syntara')
   })
 
   it('filters out null and undefined segments', () => {
     render(<NxPageTitle segments={[null, undefined, 'Workflows']} />)
-    expect(document.title).toBe('Workflows | Nexus')
+    expect(document.title).toBe('Workflows | Syntara')
   })
 
   it('filters out blank/whitespace-only segments', () => {
     render(<NxPageTitle segments={['  ', 'Workflows']} />)
-    expect(document.title).toBe('Workflows | Nexus')
+    expect(document.title).toBe('Workflows | Syntara')
   })
 
   it('has no accessibility violations', async () => {

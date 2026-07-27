@@ -36,7 +36,7 @@ ruleTester.run('syntara/require-page-title', rule, {
         export default function MyPage() {
           return (
             <div>
-              <title>My Page | Nexus</title>
+              <title>My Page | Syntara</title>
               <h1>My Page</h1>
             </div>
           )

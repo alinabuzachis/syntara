@@ -26,6 +26,7 @@ from nexus.agent_orchestrator.models import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState
 from nexus.agent_orchestrator.utils.keyword_association import annotate_tools_with_relevance
 from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.core.config.base import get_settings
 from nexus.core.utils.retry import retry_with_backoff
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.instrumentation import record_llm_call
@@ -159,7 +160,7 @@ class GenericAgent(BaseAgent):
         # state["messages"] which only has the original user input.
         messages: list[AnyMessage] = [
             SystemMessage(
-                content="You are an information assistant for the Nexus automation system. "
+                content=f"You are an information assistant for the {get_settings().product_name} automation system. "
                 "Answer user questions concisely and accurately. "
                 "Focus on providing helpful, direct answers about tools, services, and capabilities."
             ),
@@ -251,9 +252,10 @@ class GenericAgent(BaseAgent):
         try:
             structured_llm = self.llm.with_structured_output(response_schema, method="json_mode")
             schema_str = _json.dumps(response_schema, indent=2)
+            product = get_settings().product_name
             messages = [
                 SystemMessage(
-                    content="You are an information assistant for the Nexus automation system. "
+                    content=f"You are an information assistant for the {product} automation system. "
                     "You MUST respond with ONLY a valid JSON object matching this exact schema:\n\n"
                     f"```json\n{schema_str}\n```\n\n"
                     "Use exactly the property names from the schema. "

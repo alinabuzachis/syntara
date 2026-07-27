@@ -166,7 +166,7 @@ async def _revoke_idp_sessions(idp_name: str, actor: str) -> None:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m nexus.admin",
-        description="Nexus administrative operations.",
+        description="Administrative operations.",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 

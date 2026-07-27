@@ -21,6 +21,7 @@ from nexus.identity_providers.services.aap_oidc_setup_service import AAPOIDCSetu
 
 _AAP_URL = "https://aap.example.com"
 _AAP_API = f"{_AAP_URL}/api/gateway/v1"
+_TEST_PRODUCT_NAME = "TestProduct"
 
 
 @pytest.fixture(autouse=True)
@@ -28,8 +29,18 @@ def _aap_settings(override_settings: Callable[..., AbstractContextManager[object
     with override_settings(
         server_public_url=HttpUrl("https://example.com"),
         cors_allow_origins=["https://example.com"],
+        product_name=_TEST_PRODUCT_NAME,
     ):
         yield
+
+
+def _mock_settings() -> MagicMock:
+    settings = MagicMock()
+    settings.jwt_issuer = "https://example.com"
+    settings.post_logout_redirect_uri = "https://example.com"
+    settings.cors_allow_origins = ["https://example.com"]
+    settings.product_name = _TEST_PRODUCT_NAME
+    return settings
 
 
 def _mock_idp_service() -> MagicMock:
@@ -97,7 +108,7 @@ def _app_response(
 ) -> dict[str, object]:
     return {
         "id": 1,
-        "name": "Automation Orchestrator",
+        "name": _TEST_PRODUCT_NAME,
         "client_id": client_id,
         "client_secret": client_secret,
         "client_type": "confidential",
@@ -378,7 +389,7 @@ class TestOAuth2AppPayload:
         import json
 
         body = json.loads(app_route.calls[0].request.content.decode())
-        assert body["name"] == "Automation Orchestrator"
+        assert body["name"] == _TEST_PRODUCT_NAME
         assert body["client_type"] == "confidential"
         assert body["authorization_grant_type"] == "authorization-code"
         assert body["algorithm"] == "RS256"

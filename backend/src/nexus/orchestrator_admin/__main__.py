@@ -28,14 +28,17 @@ import typer
 
 from nexus.audit.lifecycle import start_audit_subsystems, stop_audit_subsystems
 from nexus.auth.passwords import validate_password_complexity
+from nexus.core.config.base import get_settings as _get_settings
 
 if TYPE_CHECKING:
     from nexus.auth.audit.account_management import AccountEnableEvent, PasswordResetEvent
     from nexus.core.models.user import User
 
+_product_name = _get_settings().product_name
+
 app = typer.Typer(
     name="orchestrator-admin",
-    help="Nexus production administrative operations.",
+    help=f"{_product_name} production administrative operations.",
     no_args_is_help=True,
     add_completion=False,
 )

@@ -19,7 +19,7 @@
     app_version: "1.0.0"
     deployment_env: "development" # Renamed from 'environment' (reserved in Ansible)
     operation: "status"
-    custom_message: "Hello from Nexus Workflow!"
+    custom_message: "Hello from Workflow!"
 
   tasks:
     # Task 1: Basic information (always runs)

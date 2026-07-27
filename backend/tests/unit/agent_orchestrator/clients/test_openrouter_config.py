@@ -1,6 +1,7 @@
 """Unit tests for OpenRouter LLM configuration."""
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -125,13 +126,18 @@ class TestGetOpenRouterLLM:
         assert llm.openai_api_base == "https://custom.example.com/v1"
 
     @pytest.mark.anyio
-    async def test_default_headers_configured(self, mock_runtime_settings_unset: AsyncMock) -> None:
+    async def test_default_headers_configured(
+        self,
+        mock_runtime_settings_unset: AsyncMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that OpenRouter-specific headers are configured."""
-        llm = await get_openrouter_llm(api_key="test-key-123")
+        with override_settings(product_name="TestProduct"):
+            llm = await get_openrouter_llm(api_key="test-key-123")
 
         assert llm.default_headers is not None
         assert llm.default_headers["HTTP-Referer"] == "https://github.com/syntara-orchestration/syntara"
-        assert llm.default_headers["X-Title"] == "Nexus Agent Orchestrator"
+        assert llm.default_headers["X-Title"] == "TestProduct"
 
     @pytest.mark.anyio
     async def test_error_message_references_credential_system(self) -> None:

@@ -5,7 +5,7 @@ import svgr from 'vite-plugin-svgr'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
-  const appTitle = env.VITE_APP_TITLE ?? 'Nexus'
+  const appTitle = env.VITE_APP_TITLE ?? 'Syntara'
 
   const proxyConfig = {
     '/api': {

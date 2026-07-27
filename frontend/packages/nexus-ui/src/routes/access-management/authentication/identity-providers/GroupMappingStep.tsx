@@ -20,6 +20,7 @@ import { PlusIcon, RhUiErrorIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Controller, useFieldArray, useWatch, type Control, type UseFormSetValue } from 'react-hook-form'
 
+import { APP_TITLE } from '../../../../utils/appTitle'
 import { useAllGroups } from '../../../access/useAllGroups'
 
 import {
@@ -72,7 +73,7 @@ function NexusGroupSelect({
           status={validated === 'error' ? 'danger' : undefined}
           aria-label={ariaLabel}
         >
-          {value ? selectedLabel : 'Select a Nexus group...'}
+          {value ? selectedLabel : `Select a ${APP_TITLE} group...`}
         </MenuToggle>
       )}
     >
@@ -121,7 +122,7 @@ function MappingEntryRow({ index, control, nexusGroups, onRemove }: Readonly<Map
               onChange={field.onChange}
               onBlur={field.onBlur}
               nexusGroups={nexusGroups}
-              ariaLabel={`Nexus group ${index + 1}`}
+              ariaLabel={`${APP_TITLE} group ${index + 1}`}
               validated={fieldState.error ? 'error' : 'default'}
             />
           </div>
@@ -229,7 +230,7 @@ export function GroupMappingStep({ control, setValue, providerId }: Readonly<Gro
         <FormHelperText>
           <HelperText>
             <HelperTextItem>
-              Map IdP group values to Nexus groups. Use Discover groups to auto-populate, or add manually.
+              {`Map IdP group values to ${APP_TITLE} groups. Use Discover groups to auto-populate, or add manually.`}
             </HelperTextItem>
           </HelperText>
         </FormHelperText>
@@ -239,7 +240,7 @@ export function GroupMappingStep({ control, setValue, providerId }: Readonly<Gro
               IdP group value
             </Content>
             <Content component={ContentVariants.small} style={{ ...columnHeaderStyle, margin: 0 }}>
-              Nexus group
+              {`${APP_TITLE} group`}
             </Content>
             <div style={actionColumnStyle} />
           </div>

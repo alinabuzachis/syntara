@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { toPageTitle } from './toPageTitle'
 
-const SUFFIX = 'Nexus'
+const SUFFIX = 'Syntara'
 
 describe('toPageTitle', () => {
   it('appends the app title as suffix in upstream builds', () => {

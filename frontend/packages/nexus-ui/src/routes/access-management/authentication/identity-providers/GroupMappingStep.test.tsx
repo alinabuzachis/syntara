@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { usersClient } from '../../../../client'
+import { APP_TITLE } from '../../../../utils/appTitle'
 import * as generateUUIDModule from '../../../../utils/generateUUID'
 import { useAllGroups } from '../../../access/useAllGroups'
 
@@ -158,7 +159,7 @@ describe('GroupMappingStep', () => {
 
       // Column headers appear
       expect(screen.getByText('IdP group value')).toBeInTheDocument()
-      expect(screen.getByText('Nexus group')).toBeInTheDocument()
+      expect(screen.getByText(`${APP_TITLE} group`)).toBeInTheDocument()
       // Input for the new row
       expect(screen.getByRole('textbox', { name: 'IdP group value 1' })).toBeInTheDocument()
     })

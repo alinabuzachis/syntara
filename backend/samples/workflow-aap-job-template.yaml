@@ -10,7 +10,7 @@ description: |
   Prerequisites:
   1. Create a Job Template in AAP based on samples/playbooks/test-aap-parameters.yml
   2. Note the Job Template ID from AAP
-  3. Configure AAP credentials in Nexus (.env file):
+  3. Configure AAP credentials (.env file):
      - APP_AAP_BASE_URL=https://your-aap-controller.example.com
      - APP_AAP_TOKEN=your_api_token (or username/password)
   4. Ensure the Job Template has access to an inventory with target hosts
@@ -58,7 +58,7 @@ triggers:
           custom_message:
             type: string
             description: "Custom message to pass to playbook"
-            default: "Hello from Nexus AAP Workflow Executor!"
+            default: "Hello from AAP Workflow Executor!"
 nodes:
   - id: execute_job_template
     type: aap_job_template
@@ -71,7 +71,7 @@ nodes:
         deployment_env: ${trigger.deployment_env}
         operation: ${trigger.operation}
         custom_message: ${trigger.custom_message}
-        executed_by: "Nexus Workflow Engine"
+        executed_by: "Workflow Engine"
       limit: ${trigger.limit}
       tags: ${trigger.tags}
       skip_tags: ${trigger.skip_tags}

@@ -30,6 +30,7 @@ import { NxEmptyStateNoData } from '../../../../components/states/NxEmptyStateNo
 import { NxScrollableTableContainer } from '../../../../components/table/NxScrollableTableContainer'
 import type { FilterConfig, FilterFieldDefinition } from '../../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../../types/filters'
+import { APP_TITLE } from '../../../../utils/appTitle'
 
 import { HintOrError } from './formFieldHelpers'
 import type { GroupMappingEditFormValues } from './groupMappingEditFormSchema'
@@ -83,7 +84,7 @@ export function EmptyMappingState({ onTestSignIn, onAddManually }: Readonly<Empt
   return (
     <EmptyState headingLevel="h2" titleText="No group mappings configured" variant="lg">
       <EmptyStateBody>
-        Group mappings automatically assign users to Nexus groups based on their identity provider groups.
+        {`Group mappings automatically assign users to ${APP_TITLE} groups based on their identity provider groups.`}
         {(onTestSignIn ?? onAddManually) && ' Discover groups from your IdP, or add mappings manually.'}
       </EmptyStateBody>
       {(onTestSignIn ?? onAddManually) && (

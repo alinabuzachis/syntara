@@ -65,7 +65,7 @@ async def get_openrouter_llm(
         "stream_usage": True,
         "default_headers": {
             "HTTP-Referer": "https://github.com/syntara-orchestration/syntara",
-            "X-Title": "Nexus Agent Orchestrator",
+            "X-Title": settings.product_name,
         },
     }
 

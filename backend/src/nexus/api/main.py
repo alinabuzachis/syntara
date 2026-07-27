@@ -306,7 +306,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
 # Create FastAPI application
 _settings = get_settings()
 app = FastAPI(
-    title="Nexus API",
+    title=f"{_settings.product_name} API",
     description="A distributed multi-agent workflow orchestration system",
     version="0.1.0",
     docs_url="/docs" if _settings.enable_api_docs else None,
@@ -442,7 +442,7 @@ async def root() -> dict[str, str]:
         dict: Welcome message with API information
 
     """
-    response: dict[str, str] = {"message": "Nexus API", "version": "0.1.0"}
+    response: dict[str, str] = {"message": f"{_settings.product_name} API", "version": "0.1.0"}
     if _settings.enable_api_docs:
         response["docs"] = "/docs"
     return response

@@ -558,6 +558,13 @@ class ServerSettings(BaseSettings):
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
+    product_name: str = Field(
+        default="Syntara",
+        description="User-facing product display name (env: APP_PRODUCT_NAME)",
+        max_length=64,
+        pattern=r"^[a-zA-Z0-9 \-_]+$",
+    )
+
     server_scheme: str = Field(
         default="https",
         description="Server URL scheme (https or http). Defaults to https for security. "
@@ -1063,7 +1070,7 @@ class OpenTelemetrySettings(BaseSettings):
     )
 
     otel_service_name: str = Field(
-        default="nexus",
+        default="syntara",
         description="Service name for OpenTelemetry resource attributes",
     )
 
@@ -1932,6 +1939,13 @@ class Settings(
             )
             raise RuntimeError(msg)
         return _read_cert_cn(self.s2s_tls_cert_path)
+
+    @model_validator(mode="after")
+    def _derive_otel_service_name(self) -> "Settings":
+        """Derive otel_service_name from product_name when not explicitly set."""
+        if self.otel_service_name == type(self).model_fields["otel_service_name"].default:
+            self.otel_service_name = self.product_name.lower().replace(" ", "-")
+        return self
 
     @model_validator(mode="after")
     def _validate_cors_production(self) -> "Settings":

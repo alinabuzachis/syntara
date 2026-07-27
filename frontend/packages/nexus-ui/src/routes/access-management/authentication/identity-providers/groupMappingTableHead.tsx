@@ -20,7 +20,7 @@ export function GroupMappingTableHead({
               headerContent="Wildcard patterns"
               bodyContent={
                 <>
-                  Use wildcards to match multiple IdP groups to a single Nexus group:
+                  {`Use wildcards to match multiple IdP groups to a single ${APP_TITLE} group:`}
                   <br />
                   <br />
                   <strong>*</strong> — matches everything (e.g. assign all users)
