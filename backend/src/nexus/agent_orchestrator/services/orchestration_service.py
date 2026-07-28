@@ -874,6 +874,7 @@ class OrchestrationService:
             try:
                 return str(self.llm.model_name)
             except (AttributeError, TypeError, ValueError):
+                logger.debug("Failed to extract model_name from LLM", exc_info=True)
                 return "unknown"
         return "unknown"
 
