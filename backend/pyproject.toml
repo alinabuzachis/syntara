@@ -295,6 +295,8 @@ markers = [
     "e2e: marks tests as end-to-end tests requiring full stack (Syntara API, Temporal, MCP server, OpenRouter)",
     "global_revocation: marks tests that set the global revocation timestamp (must run in an isolated pytest session to avoid poisoning other tests)",
     "compliance: marks tests as compliance tests (auth coverage, API contract enforcement)",
+    "destructive: marks tests that mutate live cluster state (e.g. HPA autoscaling) — excluded from routine runs",
+    "k8s_required: marks tests that need KUBECONFIG + PERF_K8S_NAMESPACE to reach a Kubernetes cluster",
 ]
 
 # Coverage configuration
