@@ -76,12 +76,11 @@ describe('useFetchPendingApprovals', () => {
     } as never)
   })
 
-  it('initializes with empty approvals and not loading', () => {
+  it('initializes with not loading', () => {
     const { result } = renderHook(() => useFetchPendingApprovals('exec-1'), {
       wrapper: createWrapper(),
     })
 
-    expect(result.current.approvals).toEqual([])
     expect(result.current.isLoading).toBe(false)
   })
 
@@ -149,7 +148,7 @@ describe('useFetchPendingApprovals', () => {
     expect(fetchedApprovals).toEqual([])
   })
 
-  it('finds approval index by node ID after fetch', async () => {
+  it('returns approvals that can be used for finding index by node ID', async () => {
     mockRefetch.mockResolvedValue({
       data: { resources: mockApprovals },
     })
@@ -163,34 +162,23 @@ describe('useFetchPendingApprovals', () => {
       approvals = await result.current.fetchApprovals()
     })
 
-    // findIndexByNodeId should work on the returned approvals
     expect(approvals.findIndex((a) => a.approval_node_id === 'node-1')).toBe(0)
     expect(approvals.findIndex((a) => a.approval_node_id === 'node-2')).toBe(1)
     expect(approvals.findIndex((a) => a.approval_node_id === 'node-3')).toBe(2)
+    expect(approvals.findIndex((a) => a.approval_node_id === 'non-existent')).toBe(-1)
   })
 
-  it('returns -1 when approval node ID is not found', () => {
+  it('provides a clear function to reset loading state', () => {
     const { result } = renderHook(() => useFetchPendingApprovals('exec-1'), {
       wrapper: createWrapper(),
     })
 
-    expect(result.current.findIndexByNodeId('non-existent-node')).toBe(-1)
-  })
-
-  it('provides a clear function', () => {
-    const { result } = renderHook(() => useFetchPendingApprovals('exec-1'), {
-      wrapper: createWrapper(),
-    })
-
-    // Verify clear function exists and is callable
     expect(result.current.clear).toBeTypeOf('function')
 
     act(() => {
       result.current.clear()
     })
 
-    // Should not throw
-    expect(result.current.approvals).toEqual([])
     expect(result.current.isLoading).toBe(false)
   })
 

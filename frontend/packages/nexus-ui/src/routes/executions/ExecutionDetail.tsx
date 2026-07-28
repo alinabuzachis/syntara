@@ -43,6 +43,14 @@ import { useExecutionStreaming, useSyncActivityStore } from './hooks/useExecutio
 import { useExecutionWorkflow } from './hooks/useExecutionWorkflow'
 import { useForkWorkflow } from './hooks/useForkWorkflow'
 
+/** Returns true when the page should render a fallback (missing ID, loading, or error) instead of the main content. */
+function shouldShowFallbackState(
+  executionId: string | undefined,
+  query: { isLoading: boolean; error: unknown }
+): boolean {
+  return !executionId || query.isLoading || !!query.error
+}
+
 /** Reset execution store only when the execution ID actually changes. */
 function useResetOnExecutionChange(executionId: string | undefined) {
   const { reset } = useExecutionStore.getState()
@@ -336,28 +344,26 @@ export default function ExecutionDetail() {
     projectId: execution?.project_id,
   })
 
-  const errorState = ExecutionDetailErrorStates({
-    executionId,
-    isLoading: executionQuery.isLoading,
-    error: executionQuery.error,
-    onRetry: executionQuery.refetch,
-  })
-
-  if (errorState) {
-    return errorState
-  }
-
   const toggleHistoryCard = () => {
     const willOpen = !historyCardOpen
-    if (willOpen) {
-      approval.close()
-    }
+    if (willOpen) approval.close()
     detachPromise(
       navigate({
         to: '/executions/$executionId',
         params: { executionId },
         search: (prev: Record<string, unknown>) => ({ ...prev, history: willOpen ? 'open' : 'closed' }),
       })
+    )
+  }
+
+  if (shouldShowFallbackState(executionId, executionQuery)) {
+    return (
+      <ExecutionDetailErrorStates
+        executionId={executionId}
+        isLoading={executionQuery.isLoading}
+        error={executionQuery.error}
+        onRetry={executionQuery.refetch}
+      />
     )
   }
 
@@ -379,9 +385,7 @@ export default function ExecutionDetail() {
               showApprovalActionStrip={Boolean(currentApproval ?? isApprovalLoading)}
               isApprovalLoading={isApprovalLoading}
               isApprovalPanelOpen={approval.panelOpen}
-              onReviewClick={() => {
-                approval.open()
-              }}
+              onReviewClick={approval.open}
               historyCardOpen={historyCardOpen}
               onToggleHistory={toggleHistoryCard}
               onBackToEditor={() => {

@@ -16,14 +16,10 @@ function isValidApproval(item: unknown): item is Approval {
 }
 
 type UseFetchPendingApprovalsResult = {
-  /** All pending approvals for the execution. */
-  approvals: Approval[]
   /** Whether a fetch is currently in progress. */
   isLoading: boolean
   /** Fetch all pending approvals for the execution. */
   fetchApprovals: () => Promise<Approval[]>
-  /** Find the index of an approval by its node ID. Returns -1 if not found. */
-  findIndexByNodeId: (approvalNodeId: string) => number
   /** Reset loading state (e.g., when closing the review view). */
   clear: () => void
 }
@@ -38,7 +34,6 @@ type UseFetchPendingApprovalsResult = {
  */
 export function useFetchPendingApprovals(executionId: string): UseFetchPendingApprovalsResult {
   const [isLoading, setIsLoading] = useState(false)
-  const [approvals, setApprovals] = useState<Approval[]>([])
 
   const { refetch } = approvalsClient.useQuery('get', '/approvals', {
     params: {
@@ -55,25 +50,16 @@ export function useFetchPendingApprovals(executionId: string): UseFetchPendingAp
     try {
       const result = await refetch()
       const resources = result.data?.resources ?? []
-      const fetchedApprovals = resources.filter(isValidApproval)
-      setApprovals(fetchedApprovals)
-      return fetchedApprovals
+      return resources.filter(isValidApproval)
     } finally {
       setIsLoading(false)
     }
   }, [refetch])
 
-  const findIndexByNodeId = useCallback(
-    (approvalNodeId: string): number => {
-      return approvals.findIndex((a) => a.approval_node_id === approvalNodeId)
-    },
-    [approvals]
-  )
-
+  /** Cancels the loading indicator when a fetch is in-flight (e.g., on execution change or panel close). */
   const clear = useCallback(() => {
     setIsLoading(false)
-    setApprovals([])
   }, [])
 
-  return { approvals, isLoading, fetchApprovals, findIndexByNodeId, clear }
+  return { isLoading, fetchApprovals, clear }
 }

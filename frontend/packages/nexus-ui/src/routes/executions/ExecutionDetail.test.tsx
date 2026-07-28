@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useParams, useRouterState } from '@tanstack/react-router'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { executionsClient } from '../../client'
+import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
 import ExecutionDetail from './ExecutionDetail'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
@@ -34,9 +35,11 @@ const mockExecutionQuery = {
     workflow_version_id: 'version-789',
     status: 'running',
     started_at: '2024-01-01T00:00:00Z',
+    project_id: 'project-1',
     activities: [
       {
         id: 'activity-1',
+        activity_id: 'task-1',
         activity_name: 'task-1',
         status: 'completed',
         started_at: '2024-01-01T00:00:00Z',
@@ -67,6 +70,7 @@ const mockExecutionQuery = {
   },
   isLoading: false,
   error: null,
+  refetch: vi.fn(),
 }
 
 const mockExecutionsQuery = {
@@ -241,6 +245,14 @@ vi.mock('./hooks/useAutoApprovalDetection', () => ({
   useAutoApprovalDetection: vi.fn(),
 }))
 
+const mockForkAsNewWorkflow = vi.fn()
+vi.mock('./hooks/useForkWorkflow', () => ({
+  useForkWorkflow: vi.fn(() => ({
+    forkAsNewWorkflow: mockForkAsNewWorkflow,
+    isForkLoading: false,
+  })),
+}))
+
 const mockShowError = vi.fn()
 vi.mock('../../providers/alerts', () => ({
   useAlerts: vi.fn(() => ({
@@ -295,6 +307,21 @@ describe('ExecutionDetail', () => {
     mockNavigate.mockClear()
     vi.mocked(useParams).mockReturnValue({ executionId: 'exec-123' })
     vi.mocked(useRouterState).mockReturnValue('' as never)
+    // Stub matchMedia for PatternFly Modal rendering
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }))
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('renders page with workflow name and status in title', () => {
@@ -380,6 +407,31 @@ describe('ExecutionDetail', () => {
     )
 
     expect(screen.getByTestId('workflow-history-card')).toBeInTheDocument()
+  })
+
+  it('toggles history panel open from closed state', async () => {
+    vi.mocked(useRouterState).mockReturnValue('?history=closed' as never)
+
+    const user = userEvent.setup()
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetail />
+      </QueryClientProvider>
+    )
+
+    // History should be closed initially
+    expect(screen.queryByTestId('workflow-history-card')).not.toBeInTheDocument()
+
+    const historyButton = screen.getByLabelText('Run history')
+    await user.click(historyButton)
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: '/executions/$executionId',
+        params: { executionId: 'exec-123' },
+      })
+    )
   })
 
   it('toggles history panel closed when history button is clicked', async () => {
@@ -895,6 +947,316 @@ describe('ExecutionDetail', () => {
       )
 
       expect(mockShowError).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Error and Loading States', () => {
+    it('renders error state when executionId is undefined', () => {
+      vi.mocked(useParams).mockReturnValue({ executionId: undefined })
+
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.getByText('Invalid execution')).toBeInTheDocument()
+      expect(screen.getByText('No execution ID provided')).toBeInTheDocument()
+      expect(screen.queryByTestId('execution-view-content')).not.toBeInTheDocument()
+    })
+
+    it('renders loading state when query is loading', () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { data: undefined, isLoading: true, error: null }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.getByLabelText('Loading')).toBeInTheDocument()
+      expect(screen.queryByTestId('execution-view-content')).not.toBeInTheDocument()
+    })
+
+    it('renders error state when query has an error', () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { data: undefined, isLoading: false, error: new Error('Network error') }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.getAllByText('Error loading execution').length).toBeGreaterThanOrEqual(1)
+      expect(screen.queryByTestId('execution-view-content')).not.toBeInTheDocument()
+    })
+
+    it('does not render error states when executionId is present and query succeeds', () => {
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.queryByText('Invalid execution')).not.toBeInTheDocument()
+      expect(screen.getByTestId('execution-view-content')).toBeInTheDocument()
+    })
+  })
+
+  describe('Copy to Editor Dialog', () => {
+    it('navigates to workflow builder on replace when execution has workflow_id', async () => {
+      const user = userEvent.setup()
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // Open the copy-to-editor dialog
+      await user.click(screen.getByRole('button', { name: 'Copy to editor' }))
+
+      // Click "Replace current workflow"
+      await user.click(screen.getByRole('button', { name: 'Replace current workflow' }))
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: '/workflow-builder/$workflowId',
+          params: { workflowId: 'wf-456' },
+          search: { fromExecution: 'exec-123' },
+        })
+      )
+    })
+
+    it('does not navigate on replace when workflow_id is missing', async () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return {
+            ...mockExecutionQuery,
+            data: { ...mockExecutionQuery.data, workflow_id: undefined },
+          }
+        }
+        return mockExecutionsQuery
+      })
+
+      const user = userEvent.setup()
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Copy to editor' }))
+      mockNavigate.mockClear()
+      await user.click(screen.getByRole('button', { name: 'Replace current workflow' }))
+
+      expect(mockNavigate).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: '/workflow-builder/$workflowId',
+        })
+      )
+    })
+
+    it('navigates to forked workflow on successful fork', async () => {
+      mockForkAsNewWorkflow.mockResolvedValue('new-wf-id')
+
+      const user = userEvent.setup()
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Copy to editor' }))
+      await user.click(screen.getByRole('button', { name: 'Fork as new workflow' }))
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            to: '/workflow-builder/$workflowId',
+            params: { workflowId: 'new-wf-id' },
+            search: { linkExecution: 'exec-123' },
+          })
+        )
+      })
+    })
+
+    it('does not navigate when fork returns no id', async () => {
+      mockForkAsNewWorkflow.mockResolvedValue(undefined)
+
+      const user = userEvent.setup()
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Copy to editor' }))
+      mockNavigate.mockClear()
+      await user.click(screen.getByRole('button', { name: 'Fork as new workflow' }))
+
+      await waitFor(() => {
+        expect(mockForkAsNewWorkflow).toHaveBeenCalledOnce()
+      })
+
+      expect(mockNavigate).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: '/workflow-builder/$workflowId',
+        })
+      )
+    })
+  })
+
+  describe('Connection Banner', () => {
+    it('shows connection banner when execution store reports stale state', () => {
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // Set stale state AFTER render (useResetOnExecutionChange resets the store on mount)
+      act(() => {
+        useExecutionStore.setState({ isStale: true, isComplete: false })
+      })
+
+      // ConnectionBanner renders with "Live updates paused" alert
+      expect(screen.getByText('Live updates paused')).toBeInTheDocument()
+      expect(screen.getByTestId('execution-view-content')).toBeInTheDocument()
+
+      // Reset store state
+      act(() => {
+        useExecutionStore.setState({ isStale: false, isComplete: false })
+      })
+    })
+
+    it('does not show connection banner when execution is not stale', () => {
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.queryByText('Live updates paused')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('ExecutionDetailContent rendering', () => {
+    it('renders the resizable panel and execution view with node click handler', () => {
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // ExecutionViewContent and ExecutionDetailsPanel should render inside ExecutionDetailContent
+      expect(screen.getByTestId('execution-view-content')).toBeInTheDocument()
+      expect(screen.getByTestId('execution-details-panel')).toBeInTheDocument()
+    })
+
+    it('renders title addons when execution has status and created_at', () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return {
+            ...mockExecutionQuery,
+            data: {
+              ...mockExecutionQuery.data,
+              status: 'running',
+              created_at: '2024-01-01T00:00:00Z',
+            },
+          }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // Status label should be visible (part of title addons)
+      expect(screen.getByText('Running')).toBeInTheDocument()
+    })
+
+    it('renders approval side panel when approval is open with current approval', async () => {
+      vi.mocked(useExecutionNodeClick).mockReturnValue({
+        approvals: [mockPendingApproval] as never,
+        currentIndex: 0,
+        currentApproval: mockPendingApproval as never,
+        isApprovalLoading: false,
+        navigateToIndex: vi.fn(),
+        clearApprovals: mockClearPendingApproval,
+        setApprovalsAndIndex: mockSetPendingApproval,
+        fetchApprovals: mockFetchForNode,
+        selectedNodeId: null,
+        selectedNodeName: null,
+        selectNode: mockSelectNode,
+        deselectNode: mockDeselectNode,
+        handleNodeClick: mockHandleNodeClick,
+      })
+
+      const user = userEvent.setup()
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // Open the approval panel by clicking Review
+      await user.click(screen.getByRole('button', { name: 'Review approval' }))
+
+      // Approval side panel should be rendered
+      expect(screen.getByTestId('approval-side-panel')).toBeInTheDocument()
+      expect(screen.getByText('Approval: Test Approval')).toBeInTheDocument()
+    })
+
+    it('invokes onClose callback when WorkflowHistoryCard close is clicked', async () => {
+      vi.mocked(useRouterState).mockReturnValue('?history=open' as never)
+
+      const user = userEvent.setup()
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // History card should be visible
+      expect(screen.getByTestId('workflow-history-card')).toBeInTheDocument()
+
+      // Click close button inside the history card
+      await user.click(screen.getByLabelText('Close history'))
+
+      // Navigate should be called to close history
+      expect(mockNavigate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: '/executions/$executionId',
+          params: { executionId: 'exec-123' },
+        })
+      )
     })
   })
 

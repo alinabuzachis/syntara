@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { FlowNodeType } from '../../../constants'
 import { useAlerts } from '../../../providers/alerts'
+import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { ACTIVITY_STATUS } from '../../builder/utils/executionState/executionHelpers'
 
@@ -52,9 +53,10 @@ export function useExecutionApprovals(executionId: string | undefined): UseExecu
   const [approvals, setApprovals] = useState<Approval[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const { fetchApprovals: fetchApprovalsFromApi, clear, isLoading } = useFetchPendingApprovals(executionId ?? '')
-  const { showInfo } = useAlerts()
+  const { showInfo, showError } = useAlerts()
   const executionIdRef = useRef(executionId)
   const latestNodeIdRef = useRef<string | null>(null)
+  const lastFetchErrorKeyRef = useRef<string | null>(null)
   const [trackedExecutionId, setTrackedExecutionId] = useState(executionId)
 
   // Derived current approval
@@ -69,11 +71,12 @@ export function useExecutionApprovals(executionId: string | undefined): UseExecu
 
   // Update refs in effect to avoid React Compiler error
   useEffect(() => {
-    executionIdRef.current = executionId
-    if (trackedExecutionId !== executionId) {
+    if (executionIdRef.current !== executionId) {
       latestNodeIdRef.current = null
+      lastFetchErrorKeyRef.current = null
     }
-  }, [executionId, trackedExecutionId])
+    executionIdRef.current = executionId
+  }, [executionId])
 
   // Clear fetched data when execution changes
   useEffect(() => {
@@ -91,6 +94,7 @@ export function useExecutionApprovals(executionId: string | undefined): UseExecu
         fetchApprovalsFromApi()
           .then((fetchedApprovals) => {
             if (executionIdRef.current !== capturedExecutionId || latestNodeIdRef.current !== node.id) return
+            lastFetchErrorKeyRef.current = null
 
             const index = fetchedApprovals.findIndex((a) => a.approval_node_id === node.id)
             if (index >= 0) {
@@ -104,12 +108,20 @@ export function useExecutionApprovals(executionId: string | undefined): UseExecu
               })
             }
           })
-          .catch(() => {
-            // Fetch failed — user can retry by clicking the node again
+          .catch((error: unknown) => {
+            if (executionIdRef.current !== capturedExecutionId || latestNodeIdRef.current !== node.id) return
+            const message = getErrorMessage(error)
+            const key = `${node.id}::Failed to load approval::${message}`
+            if (lastFetchErrorKeyRef.current === key) return
+            lastFetchErrorKeyRef.current = key
+            showError({
+              title: 'Failed to load approval',
+              description: message,
+            })
           })
       )
     },
-    [fetchApprovalsFromApi, showInfo]
+    [fetchApprovalsFromApi, showInfo, showError]
   )
 
   const navigateToIndex = useCallback(
