@@ -45,6 +45,8 @@ if TYPE_CHECKING:
 
 logger = structlog.stdlib.get_logger(__name__)
 
+_PROBLEM_JSON_MEDIA_TYPE = "application/problem+json"
+
 
 def build_validation_problem_response(
     request: Request,
@@ -63,7 +65,7 @@ def build_validation_problem_response(
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=content,
-        media_type="application/problem+json",
+        media_type=_PROBLEM_JSON_MEDIA_TYPE,
     )
 
 
@@ -82,7 +84,7 @@ def publish_validation_handler(request: Request, exc: "WorkflowPublishValidation
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
         content=content,
-        media_type="application/problem+json",
+        media_type=_PROBLEM_JSON_MEDIA_TYPE,
     )
 
 
@@ -229,7 +231,7 @@ def workflow_version_conflict_handler(request: Request, exc: "WorkflowVersionCon
             "created_by_username": exc.created_by_username,
             "created_at": exc.created_at.isoformat(),
         },
-        media_type="application/problem+json",
+        media_type=_PROBLEM_JSON_MEDIA_TYPE,
     )
 
 

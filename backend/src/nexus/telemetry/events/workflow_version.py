@@ -12,6 +12,7 @@ from sqlmodel import Field
 from nexus.telemetry.events.base import BaseTelemetryEvent
 
 _WORKFLOW_NAME_DESC = "Human-readable workflow name"
+_WORKFLOW_ID_DESC = "Unique workflow identifier (UUID v4)"
 
 
 class WorkflowVersionCreatedEvent(BaseTelemetryEvent):
@@ -23,7 +24,7 @@ class WorkflowVersionCreatedEvent(BaseTelemetryEvent):
 
     """
 
-    workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
+    workflow_id: str = Field(description=_WORKFLOW_ID_DESC)
     version: int = Field(ge=1, description="Sequential version number")
 
 
@@ -37,7 +38,7 @@ class WorkflowVersionRestoredEvent(BaseTelemetryEvent):
 
     """
 
-    workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
+    workflow_id: str = Field(description=_WORKFLOW_ID_DESC)
     restored_from_version: int = Field(ge=1, description="Source version restored from")
     new_version: int = Field(ge=1, description="New draft version created by restore")
 
@@ -45,7 +46,7 @@ class WorkflowVersionRestoredEvent(BaseTelemetryEvent):
 class WorkflowVersionPublishedEvent(BaseTelemetryEvent):
     """Telemetry event emitted when a workflow version is published."""
 
-    workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
+    workflow_id: str = Field(description=_WORKFLOW_ID_DESC)
     version: int = Field(ge=1, description="Version number published")
     workflow_name: str = Field(description=_WORKFLOW_NAME_DESC)
     project_id: str | None = Field(default=None, description="Project identifier")
@@ -55,7 +56,7 @@ class WorkflowVersionPublishedEvent(BaseTelemetryEvent):
 class WorkflowVersionUnpublishedEvent(BaseTelemetryEvent):
     """Telemetry event emitted when a workflow is unpublished."""
 
-    workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
+    workflow_id: str = Field(description=_WORKFLOW_ID_DESC)
     version: int = Field(ge=1, description="Version number that was unpublished")
     workflow_name: str = Field(description=_WORKFLOW_NAME_DESC)
     project_id: str | None = Field(default=None, description="Project identifier")
@@ -65,6 +66,6 @@ class WorkflowVersionUnpublishedEvent(BaseTelemetryEvent):
 class WorkflowVersionExportedEvent(BaseTelemetryEvent):
     """Telemetry event emitted when a workflow version is exported."""
 
-    workflow_id: str = Field(description="Unique workflow identifier (UUID v4)")
+    workflow_id: str = Field(description=_WORKFLOW_ID_DESC)
     version: int = Field(ge=1, description="Version number exported")
     workflow_name: str = Field(description=_WORKFLOW_NAME_DESC)
