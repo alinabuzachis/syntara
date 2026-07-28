@@ -300,6 +300,7 @@ PROJECT_SCOPED_CASES: list[PolicyTestCase] = [
     # -- approval --
     PolicyTestCase("approval:read:project", ["project:read:project"], _approval_list),
     PolicyTestCase("approval:decide:project", ["project:read:project", "approval:read:project"], _approval_list),
+    PolicyTestCase("approval:delete:project", ["project:read:project", "approval:read:project"], _approval_list),
     # -- project --
     PolicyTestCase("project:read:project", [], _project_read),
     PolicyTestCase("project:update:project", ["project:read:project"], _project_update),
@@ -409,10 +410,11 @@ E2E_COVERAGE_EXEMPT: set[str] = {
     "workflow:delete:any",
     "project:update:any",
     "project:delete:any",
-    # Approval policies — read/decide/create follow identical authz path
+    # Approval policies — read/decide/create/delete follow identical authz path
     "approval:read:any",
     "approval:decide:any",
     "approval:create:any",
+    "approval:delete:any",
     # Role & policy management (system-level) — CRUD mirrors project-scoped
     "role:create:any",
     "role:update:any",

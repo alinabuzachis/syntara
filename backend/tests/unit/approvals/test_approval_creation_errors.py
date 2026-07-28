@@ -5,6 +5,7 @@ foreign key constraint violations during approval creation.
 """
 
 from collections.abc import Awaitable, Callable
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -49,7 +50,9 @@ def _create_test_approval_request(
 
 
 @pytest.mark.asyncio
+@patch.object(ApprovalService, "_validate_execution_reference", new_callable=AsyncMock)
 async def test_concurrent_approval_creation_race_condition(
+    mock_validate: AsyncMock,
     test_db_session: AsyncSession,
     admin_user: User,
     test_project_id: UUID,
@@ -85,7 +88,9 @@ async def test_concurrent_approval_creation_race_condition(
 
 
 @pytest.mark.asyncio
+@patch.object(ApprovalService, "_validate_execution_reference", new_callable=AsyncMock)
 async def test_approval_creation_with_invalid_user_id(
+    mock_validate: AsyncMock,
     test_db_session: AsyncSession,
     admin_user: User,
     test_project_id: UUID,
@@ -118,7 +123,9 @@ async def test_approval_creation_with_invalid_user_id(
 
 
 @pytest.mark.asyncio
+@patch.object(ApprovalService, "_validate_execution_reference", new_callable=AsyncMock)
 async def test_approval_creation_with_invalid_group_id(
+    mock_validate: AsyncMock,
     test_db_session: AsyncSession,
     admin_user: User,
     test_project_id: UUID,
@@ -151,7 +158,9 @@ async def test_approval_creation_with_invalid_group_id(
 
 
 @pytest.mark.asyncio
+@patch.object(ApprovalService, "_validate_execution_reference", new_callable=AsyncMock)
 async def test_approval_creation_with_mixed_valid_invalid_approvers(
+    mock_validate: AsyncMock,
     test_db_session: AsyncSession,
     admin_user: User,
     user_factory: Callable[..., Awaitable[User]],
@@ -186,7 +195,9 @@ async def test_approval_creation_with_mixed_valid_invalid_approvers(
 
 
 @pytest.mark.asyncio
+@patch.object(ApprovalService, "_validate_execution_reference", new_callable=AsyncMock)
 async def test_approval_already_requested_error_message(
+    mock_validate: AsyncMock,
     test_db_session: AsyncSession,
     admin_user: User,
     test_project_id: UUID,

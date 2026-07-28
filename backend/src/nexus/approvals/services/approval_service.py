@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 
 import structlog
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
@@ -279,8 +280,8 @@ class ApprovalService(BaseService):
             )
             raise RuntimeError(msg)
 
-    async def _has_decide_permission(self, approval: ApprovalRequest) -> bool:
-        """Check evaluator for approval:decide permission (project-scoped or system-level)."""
+    async def _has_permission(self, approval: ApprovalRequest, action: str = "decide") -> bool:
+        """Check evaluator for approval permission (project-scoped or system-level)."""
         from nexus.authz.engine import AuthzRequest, authorize  # noqa: PLC0415
         from nexus.authz.models.project import Project  # noqa: PLC0415
 
@@ -295,7 +296,7 @@ class ApprovalService(BaseService):
 
         authz_request = AuthzRequest(
             user_id=self.user.id,
-            action="decide",
+            action=action,
             resource_type="approval",
             resource_id=str(approval.id),
             resource_project=project_name,
@@ -307,13 +308,17 @@ class ApprovalService(BaseService):
         authz_result = await authorize(self.session, evaluator, authz_request)
         return authz_result.allowed
 
-    async def _is_user_authorized_approver(self, approval: ApprovalRequest) -> bool:
-        """Check if current user is authorized to approve this request.
+    async def _is_user_authorized_approver(self, approval: ApprovalRequest, *, action: str = "decide") -> bool:
+        """Check if current user is authorized to act on this approval.
+
+        Args:
+            approval: The approval request to check authorization for
+            action: The authz action to check (e.g. "decide", "delete")
 
         Authorization logic:
         1. Service principals (cert-authenticated S2S callers) are always authorized
-        2. Check evaluator for approval:decide permission (project-scoped or system-level)
-        3. If no approvers configured, any user with approval:decide permission can approve
+        2. Check evaluator for the specified permission (project-scoped or system-level)
+        3. If no approvers configured, any user with the permission can act
         4. If approver_users configured, current user's username must be in the list
         5. If approver_groups configured, current user must be a member of at least one group
 
@@ -332,17 +337,17 @@ class ApprovalService(BaseService):
         if self.user.id in {service_principal_id(cn) for cn in KNOWN_SERVICE_CNS}:
             return True
 
-        # SECURITY: Check evaluator for approval:decide permission (project-scoped or system-level)
+        # SECURITY: Check evaluator for the specified approval permission (project-scoped or system-level)
         # This is required for batch_decide which doesn't have endpoint-level permission check.
         if self.evaluator is None:
             return False
 
-        if not await self._has_decide_permission(approval):
+        if not await self._has_permission(approval, action):
             return False
 
         # SECURITY: When no specific approvers configured (both lists empty), allow if user
-        # has approval:decide permission (checked above via evaluator or at endpoint level).
-        # Empty lists = AC5 fallback (any user with approval:decide permission can approve).
+        # has the requested permission (checked above via evaluator or at endpoint level).
+        # Empty lists = AC5 fallback (any user with the permission can act).
         if not approval.approver_user_records and not approval.approver_group_records:
             return True
 
@@ -355,6 +360,24 @@ class ApprovalService(BaseService):
             group_ids=[group.id for group in approval.approver_group_records],
         )
         return bool(in_user_list or in_group)
+
+    async def _validate_execution_reference(self, execution_id: UUID, project_id: UUID) -> None:
+        """Validate that the execution exists and belongs to the expected project.
+
+        Raises:
+            ExecutionNotFoundError: If the execution does not exist
+            ValueError: If the execution's project_id does not match
+
+        """
+        from nexus.workflows.exceptions import ExecutionNotFoundError  # noqa: PLC0415
+        from nexus.workflows.models.execution import Execution  # noqa: PLC0415
+
+        execution = await self.session.get(Execution, execution_id)
+        if execution is None:
+            raise ExecutionNotFoundError(execution_id)
+        if execution.project_id != project_id:
+            msg = f"project_id {project_id} does not match execution's project {execution.project_id}"
+            raise ValueError(msg)
 
     async def create(
         self,
@@ -369,6 +392,7 @@ class ApprovalService(BaseService):
             Created approval request
 
         Raises:
+            ExecutionNotFoundError: If the referenced execution does not exist
             ApprovalAlreadyRequestedError: If approval already exists for this execution and approval node
 
         Transaction Boundaries:
@@ -384,13 +408,7 @@ class ApprovalService(BaseService):
             raise ApprovalAlreadyRequestedError(request.execution_id, request.approval_node_id)
 
         project_id = request.project_id
-
-        from nexus.workflows.models.execution import Execution  # noqa: PLC0415
-
-        execution = await self.session.get(Execution, request.execution_id)
-        if execution and execution.project_id != project_id:
-            msg = f"project_id {project_id} does not match execution's project {execution.project_id}"
-            raise ValueError(msg)
+        await self._validate_execution_reference(request.execution_id, project_id)
 
         # Convert typed models to dicts for database storage
         next_step_approved_dict = (
@@ -489,6 +507,54 @@ class ApprovalService(BaseService):
 
         return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 
+    async def delete(
+        self,
+        approval_id: UUID,
+    ) -> None:
+        """Delete a pending approval request.
+
+        Args:
+            approval_id: UUID of the approval request
+
+        Raises:
+            ApprovalNotFoundError: If approval request not found
+            ApprovalNotAuthorizedError: If the user is not authorized
+            ApprovalAlreadyDecidedError: If approval is not in PENDING status
+
+        """
+        approval: ApprovalRequest | None = await self._get_approval_by_id(approval_id)
+        if not approval:
+            raise ApprovalNotFoundError(approval_id)
+
+        if not await self._is_user_authorized_approver(approval, action="delete"):
+            raise ApprovalNotAuthorizedError(approval_id, self.user.id)
+
+        if approval.status != ApprovalRequestStatus.PENDING:
+            raise ApprovalAlreadyDecidedError(approval_id, approval.status)
+
+        # Atomic delete with status guard to prevent TOCTOU race with concurrent decide()
+        stmt = (
+            sa_delete(ApprovalRequest)
+            .where(ApprovalRequest.id == approval_id)  # type: ignore[arg-type]
+            .where(ApprovalRequest.status == ApprovalRequestStatus.PENDING)  # type: ignore[arg-type]
+        )
+        result = await self.session.exec(stmt)
+
+        if result.rowcount == 0:
+            await self.session.rollback()
+            approval = await self._get_approval_by_id(approval_id)
+            if approval:
+                raise ApprovalAlreadyDecidedError(approval_id, approval.status)
+            raise ApprovalNotFoundError(approval_id)
+
+        await self.session.commit()
+
+        logger.info(
+            "Approval deleted",
+            approval_id=approval_id,
+            deleted_by=self.user.id,
+        )
+
     async def decide(
         self,
         approval_id: UUID,
@@ -586,6 +652,7 @@ class ApprovalService(BaseService):
         )
 
         # Send signal to workflow engine (best-effort, never blocks the response)
+        signal_error: str | None = None
         try:
             async with WorkflowApiClient() as client:
                 await client.send_approval_signal(
@@ -597,17 +664,22 @@ class ApprovalService(BaseService):
                     decided_at=(approval.decided_at or datetime.now(UTC)).isoformat(),
                     decision_notes=request.notes,
                 )
-        except Exception as e:
-            logger.exception(
+        except Exception as e:  # noqa: BLE001
+            signal_error = "Workflow signal delivery failed"
+            logger.warning(
                 "Failed to send approval signal",
                 approval_id=approval_id,
+                execution_id=approval.execution_id,
                 error=str(e),
+                exc_info=True,
             )
 
         # Eagerly load relationships to avoid lazy-load in async context
         await self._refresh_approval_relationships(approval)
 
-        return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
+        response = cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
+        response.signal_delivery_error = signal_error
+        return response
 
     async def _process_single_decision(
         self,

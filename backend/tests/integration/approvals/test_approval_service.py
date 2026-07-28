@@ -17,7 +17,12 @@ from nexus.approvals.audit.approval import (
     ApprovalRequestedEvent,
     ApprovalRequestedHandler,
 )
-from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalAlreadyRequestedError, ApprovalNotFoundError
+from nexus.approvals.exceptions import (
+    ApprovalAlreadyDecidedError,
+    ApprovalAlreadyRequestedError,
+    ApprovalNotAuthorizedError,
+    ApprovalNotFoundError,
+)
 from nexus.approvals.models import (
     ActivitySummary,
     ApprovalCreateRequest,
@@ -379,6 +384,229 @@ class TestApprovalServiceCreate(TestApprovalServiceBase):
         # Verify the exception contains the correct execution_id and approval_node_id
         assert exc_info.value.execution_id == execution.id
         assert exc_info.value.approval_node_id == "duplicate_test"
+
+    @pytest.mark.asyncio
+    async def test_create_nonexistent_execution_raises_not_found(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+    ) -> None:
+        """Test that creating an approval with a nonexistent execution_id raises ExecutionNotFoundError."""
+        from nexus.workflows.exceptions import ExecutionNotFoundError
+
+        service = self._create_test_service(test_db_session, test_user)
+
+        fabricated_execution_id = uuid4()
+        request = self._create_approval_request(
+            execution_id=fabricated_execution_id,
+            project_id=uuid4(),
+            name="Orphan Approval",
+        )
+
+        with pytest.raises(ExecutionNotFoundError) as exc_info:
+            await service.create(request)
+
+        assert exc_info.value.execution_id == fabricated_execution_id
+
+    @pytest.mark.asyncio
+    async def test_create_mismatched_project_id_raises_value_error(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        executions_factory: ExecutionsFactory,
+    ) -> None:
+        """Test that creating an approval with wrong project_id raises ValueError."""
+        service = self._create_test_service(test_db_session, test_user)
+
+        executions = await executions_factory.create_executions(count=1)
+        execution = executions[0]
+
+        wrong_project_id = uuid4()
+        request = self._create_approval_request(
+            execution_id=execution.id,
+            project_id=wrong_project_id,
+            name="Wrong Project Approval",
+        )
+
+        with pytest.raises(ValueError, match="does not match"):
+            await service.create(request)
+
+
+class TestApprovalServiceDelete(TestApprovalServiceBase):
+    """Test ApprovalService.delete method."""
+
+    @pytest.mark.asyncio
+    async def test_delete_pending_approval_success(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        approvals_factory: ApprovalsFactory,
+        executions_factory: ExecutionsFactory,
+    ) -> None:
+        """Test that a pending approval can be deleted."""
+        service = self._create_test_service(test_db_session, test_user)
+
+        executions = await executions_factory.create_executions(count=1)
+        execution_id = executions[0].id
+
+        approvals = await approvals_factory.create_approvals(
+            count=1, execution_id=execution_id, name_prefix="Delete Test"
+        )
+        approval = approvals[0]
+
+        await service.delete(approval.id)
+
+        result = await service.list(limit=10, include_total=True)
+        assert all(a.id != approval.id for a in result.resources)
+
+    @pytest.mark.asyncio
+    async def test_delete_already_decided_raises_exception(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        approvals_factory: ApprovalsFactory,
+        executions_factory: ExecutionsFactory,
+    ) -> None:
+        """Test that deleting an already-decided approval raises ApprovalAlreadyDecidedError."""
+        service = self._create_test_service(test_db_session, test_user)
+
+        executions = await executions_factory.create_executions(count=1)
+        execution_id = executions[0].id
+
+        approvals = await approvals_factory.create_approvals(
+            count=1,
+            execution_id=execution_id,
+            name_prefix="Already Decided",
+            statuses=[ApprovalRequestStatus.APPROVED],
+        )
+        approval = approvals[0]
+
+        with pytest.raises(ApprovalAlreadyDecidedError) as exc_info:
+            await service.delete(approval.id)
+
+        assert exc_info.value.approval_id == approval.id
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_approval_raises_not_found(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+    ) -> None:
+        """Test that deleting a nonexistent approval raises ApprovalNotFoundError."""
+        service = self._create_test_service(test_db_session, test_user)
+
+        non_existent_id = uuid4()
+        with pytest.raises(ApprovalNotFoundError):
+            await service.delete(non_existent_id)
+
+    @pytest.mark.asyncio
+    async def test_delete_unauthorized_raises_not_authorized(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        approvals_factory: ApprovalsFactory,
+        executions_factory: ExecutionsFactory,
+    ) -> None:
+        """Test that deleting without authorization raises ApprovalNotAuthorizedError."""
+        service = self._create_test_service(test_db_session, test_user)
+
+        executions = await executions_factory.create_executions(count=1)
+        execution_id = executions[0].id
+
+        approvals = await approvals_factory.create_approvals(
+            count=1, execution_id=execution_id, name_prefix="Unauth Delete"
+        )
+        approval = approvals[0]
+
+        with patch.object(service, "_is_user_authorized_approver", new_callable=AsyncMock, return_value=False):
+            with pytest.raises(ApprovalNotAuthorizedError) as exc_info:
+                await service.delete(approval.id)
+
+        assert exc_info.value.approval_id == approval.id
+        assert exc_info.value.user_id == test_user.id
+
+    @pytest.mark.asyncio
+    async def test_delete_toctou_race_decided_raises_already_decided(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+    ) -> None:
+        """Test TOCTOU: approval decided between status check and DELETE raises AlreadyDecided."""
+        service = self._create_test_service(test_db_session, test_user)
+
+        fake_id = uuid4()
+        pending_approval = MagicMock()
+        pending_approval.id = fake_id
+        pending_approval.status = ApprovalRequestStatus.PENDING
+
+        decided_approval = MagicMock()
+        decided_approval.id = fake_id
+        decided_approval.status = ApprovalRequestStatus.APPROVED
+
+        with (
+            patch.object(
+                service,
+                "_get_approval_by_id",
+                new_callable=AsyncMock,
+                side_effect=[pending_approval, decided_approval],
+            ),
+            patch.object(service, "_is_user_authorized_approver", new_callable=AsyncMock, return_value=True),
+        ):
+            with pytest.raises(ApprovalAlreadyDecidedError):
+                await service.delete(fake_id)
+
+    @pytest.mark.asyncio
+    async def test_delete_toctou_race_vanished_raises_not_found(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+    ) -> None:
+        """Test TOCTOU: approval vanishes between status check and DELETE raises NotFound."""
+        service = self._create_test_service(test_db_session, test_user)
+
+        fake_id = uuid4()
+        pending_approval = MagicMock()
+        pending_approval.id = fake_id
+        pending_approval.status = ApprovalRequestStatus.PENDING
+
+        with (
+            patch.object(
+                service,
+                "_get_approval_by_id",
+                new_callable=AsyncMock,
+                side_effect=[pending_approval, None],
+            ),
+            patch.object(service, "_is_user_authorized_approver", new_callable=AsyncMock, return_value=True),
+        ):
+            with pytest.raises(ApprovalNotFoundError):
+                await service.delete(fake_id)
+
+    @pytest.mark.asyncio
+    async def test_delete_concurrent_decide_race_returns_409(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        approvals_factory: ApprovalsFactory,
+        executions_factory: ExecutionsFactory,
+    ) -> None:
+        """Test TOCTOU: if approval is decided between read and delete, returns 409."""
+        service = self._create_test_service(test_db_session, test_user)
+
+        executions = await executions_factory.create_executions(count=1)
+        execution_id = executions[0].id
+
+        approvals = await approvals_factory.create_approvals(
+            count=1, execution_id=execution_id, name_prefix="Race Test"
+        )
+        approval = approvals[0]
+
+        # Simulate a concurrent decide by updating status directly
+        approval.status = ApprovalRequestStatus.APPROVED
+        test_db_session.add(approval)
+        await test_db_session.commit()
+
+        with pytest.raises(ApprovalAlreadyDecidedError):
+            await service.delete(approval.id)
 
 
 class TestApprovalServiceDecide(TestApprovalServiceBase):

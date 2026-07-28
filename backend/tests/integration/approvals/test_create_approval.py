@@ -500,6 +500,55 @@ class TestCreateApprovalContract:
         )
 
     @pytest.mark.asyncio
+    async def test_create_approval_nonexistent_execution_returns_404(
+        self,
+        auth_client: AsyncClient,
+        test_workflow: Workflow,
+    ) -> None:
+        """Test that creating an approval with a nonexistent execution_id returns 404.
+
+        Validates:
+        - Fabricated execution_id (valid UUID but no corresponding execution) returns 404
+        - Error response follows RFC 9457 format
+        - Orphan approval records are not created
+        """
+        fabricated_execution_id = str(uuid4())
+
+        request_payload = {
+            "execution_id": fabricated_execution_id,
+            "project_id": str(test_workflow.project_id),
+            "approval_node_id": "orphan_test_node",
+            "name": "Orphan Approval Request",
+            "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},
+            "workflow_context": {
+                "workflow_version_id": str(uuid4()),
+                "workflow_name": "Orphan Test Workflow",
+                "inputs": {},
+            },
+        }
+
+        response = await auth_client.post("/api/v1/approvals", json=request_payload)
+
+        assert response.status_code == 404
+        assert_error_data(
+            response,
+            error_type="https://api.example.com/errors/resource-not-found",
+            title="Execution Not Found",
+            detail="The requested execution was not found",
+            code="EXECUTION_NOT_FOUND",
+            retryable=False,
+        )
+
+        # Verify no orphan approval was created
+        list_response = await auth_client.get(
+            "/api/v1/approvals",
+            params={"execution_id": fabricated_execution_id},
+        )
+        assert list_response.status_code == 200
+        data = list_response.json()
+        assert len(data["resources"]) == 0
+
+    @pytest.mark.asyncio
     async def test_create_approval_duplicate_request_returns_409(
         self,
         auth_client: AsyncClient,

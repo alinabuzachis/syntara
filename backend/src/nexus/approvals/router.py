@@ -42,6 +42,12 @@ _approval_perm_decide = PermissionChecker(
     resource_model=ApprovalRequest,
     resource_id_param="approval_id",
 )
+_approval_perm_delete = PermissionChecker(
+    "approval",
+    "delete",
+    resource_model=ApprovalRequest,
+    resource_id_param="approval_id",
+)
 
 # Exception handlers are registered globally in main.py via the exception registry
 # Domain exceptions raised by services automatically bubble up to global handlers
@@ -180,6 +186,26 @@ async def decide_approval(
 
     """
     return await service.decide(approval_id, request)
+
+
+@router.delete(
+    "/{approval_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(_approval_perm_delete)],
+    operation_id="delete_approval",
+    summary="Delete a pending approval request",
+)
+async def delete_approval(
+    approval_id: UUID,
+    service: Annotated[ApprovalService, Depends(get_approval_service)],
+) -> None:
+    """Delete a pending approval request.
+
+    Only pending approval requests can be deleted. Attempting to delete an
+    already-decided approval returns 409 Conflict.
+
+    """
+    await service.delete(approval_id)
 
 
 @router.post(

@@ -121,6 +121,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("approval", "read", roles=("admin", "auditor")),
     PolicyInfo("approval", "decide", roles=("admin",)),
     PolicyInfo("approval", "create", roles=("admin",)),
+    PolicyInfo("approval", "delete", roles=("admin",)),
     # projects
     PolicyInfo("project", "read", roles=("admin", "auditor")),
     PolicyInfo("project", "create", roles=("admin", "user")),
@@ -194,6 +195,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("credential", "use", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("approval", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("approval", "decide", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("approval", "delete", scope="project", roles=("project-admin",)),
     PolicyInfo("project", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("project", "update", scope="project", roles=("project-admin",)),
     PolicyInfo("project", "delete", scope="project", roles=("project-admin",)),

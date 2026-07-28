@@ -1399,6 +1399,11 @@ export interface components {
        * @description Notes provided with decision
        */
       decision_notes?: string | null
+      /**
+       * Signal Delivery Error
+       * @description Error if the workflow signal failed after a decision. Only present in the decide response; null on subsequent reads.
+       */
+      signal_delivery_error?: string | null
     }
     NamedResource: components['schemas']['BaseResource'] & {
       /**

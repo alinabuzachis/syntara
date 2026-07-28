@@ -57,7 +57,14 @@ export interface paths {
     get: operations['get_approval']
     put?: never
     post?: never
-    delete?: never
+    /**
+     * Delete a pending approval request
+     * @description Delete a pending approval request.
+     *
+     *     Only pending approval requests can be deleted. Attempting to delete an
+     *     already-decided approval returns 409 Conflict.
+     */
+    delete: operations['delete_approval']
     options?: never
     head?: never
     /**
@@ -172,6 +179,11 @@ export interface components {
        * @description Notes provided with decision
        */
       decision_notes?: string | null
+      /**
+       * Signal Delivery Error
+       * @description Error if the workflow signal failed after a decision. Only present in the decide response; null on subsequent reads.
+       */
+      signal_delivery_error?: string | null
     }
     /**
      * ApprovalRequestStatus
@@ -890,6 +902,34 @@ export interface operations {
         content: {
           'application/json': components['schemas']['ApprovalRequestRead']
         }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  delete_approval: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        approval_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
       }
       400: components['responses']['BadRequestError']
       401: components['responses']['UnauthorizedError']

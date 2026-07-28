@@ -489,3 +489,61 @@ class TestDecideApprovalContract:
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
+
+    @pytest.mark.asyncio
+    async def test_decide_approval_surfaces_signal_delivery_error(
+        self,
+        auth_client: AsyncClient,
+        approvals_factory: ApprovalsFactory,
+        executions_factory: ExecutionsFactory,
+    ) -> None:
+        """Test that signal delivery failure is surfaced in the response.
+
+        Validates:
+        - Decision still succeeds with 200 (the decision is durable)
+        - signal_delivery_error field contains the error message
+        """
+        executions = await executions_factory.create_executions(count=1)
+        approvals = await approvals_factory.create_pending_approvals(count=1, execution_id=executions[0].id)
+        approval_id = str(approvals[0].id)
+
+        with patch("nexus.approvals.services.approval_service.WorkflowApiClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.send_approval_signal = AsyncMock(side_effect=Exception("Connection refused"))
+
+            response = await auth_client.patch(
+                f"/api/v1/approvals/{approval_id}",
+                json={"status": "approved"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "approved"
+        assert data["signal_delivery_error"] == "Workflow signal delivery failed"
+
+    @pytest.mark.asyncio
+    async def test_decide_approval_signal_success_has_no_error(
+        self,
+        auth_client: AsyncClient,
+        approvals_factory: ApprovalsFactory,
+        executions_factory: ExecutionsFactory,
+    ) -> None:
+        """Test that successful signal delivery leaves signal_delivery_error as null."""
+        executions = await executions_factory.create_executions(count=1)
+        approvals = await approvals_factory.create_pending_approvals(count=1, execution_id=executions[0].id)
+        approval_id = str(approvals[0].id)
+
+        with patch("nexus.approvals.services.approval_service.WorkflowApiClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.send_approval_signal = AsyncMock()
+
+            response = await auth_client.patch(
+                f"/api/v1/approvals/{approval_id}",
+                json={"status": "approved"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["signal_delivery_error"] is None

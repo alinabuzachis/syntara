@@ -218,6 +218,15 @@ class ApprovalRequestRead(BaseApprovalRequest, table=False):
         description="User who made the decision",
     )
 
+    # Signal delivery status (populated only in the decide response, not persisted)
+    signal_delivery_error: str | None = Field(
+        default=None,
+        description=(
+            "Error if the workflow signal failed after a decision."
+            " Only present in the decide response; null on subsequent reads."
+        ),
+    )
+
 
 # ============================================================================
 # List Response

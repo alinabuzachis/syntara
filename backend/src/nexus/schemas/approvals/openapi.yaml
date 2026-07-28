@@ -244,6 +244,49 @@ paths:
       security:
         - bearerAuth: []
 
+    delete:
+      summary: Delete a pending approval request
+      description: |-
+        Delete a pending approval request.
+
+        Only pending approval requests can be deleted. Attempting to delete an
+        already-decided approval returns 409 Conflict.
+      operationId: delete_approval
+      tags:
+        - approvals
+      x-app-permission:
+        resource: approval
+        action: delete
+      parameters:
+        - name: approval_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Approval Id
+      responses:
+        "204":
+          description: Successful Response
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+      security:
+        - bearerAuth: []
+
   /approvals/batch:
     post:
       summary: Batch approve/reject multiple requests
@@ -396,6 +439,12 @@ components:
                 - type: "null"
               description: Notes provided with decision
               title: Decision Notes
+            signal_delivery_error:
+              anyOf:
+                - type: string
+                - type: "null"
+              description: Error if the workflow signal failed after a decision. Only present in the decide response; null on subsequent reads.
+              title: Signal Delivery Error
 
     ApprovalRequestStatus:
       type: string
