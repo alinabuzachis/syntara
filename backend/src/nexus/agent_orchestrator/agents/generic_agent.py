@@ -4,7 +4,8 @@ Handles information queries and questions using LLM via OpenRouter.
 """
 
 import json as _json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
+from uuid import UUID
 
 import structlog
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -35,6 +36,18 @@ if TYPE_CHECKING:
     from langchain.messages import AnyMessage
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+class _InvocationContext(NamedTuple):
+    """Context fields extracted from AgentState for audit events."""
+
+    session_id: str
+    invocation_id: UUID
+    execution_id: UUID | None
+    request_id: UUID | None
+    metadata: dict[str, Any]
+    activity_id: str | None
+    activity_name: str | None
 
 
 class GenericAgent(BaseAgent):
@@ -128,6 +141,28 @@ class GenericAgent(BaseAgent):
             )
             raise
 
+    @staticmethod
+    def _extract_context(state: AgentState) -> _InvocationContext:
+        """Extract common invocation context from AgentState.
+
+        Args:
+            state: LangGraph state containing session/invocation metadata
+
+        Returns:
+            _InvocationContext with all extracted fields
+
+        """
+        metadata = state.get("metadata") or {}
+        return _InvocationContext(
+            session_id=state["session_id"],
+            invocation_id=state["invocation_id"],
+            execution_id=state.get("execution_id", None),
+            request_id=state.get("request_id", None),
+            metadata=metadata,
+            activity_id=metadata.get("activity_id"),
+            activity_name=metadata.get("activity_name"),
+        )
+
     async def _execute_standard(self, state: AgentState) -> AgentState:
         """Execute standard LLM call with tools.
 
@@ -138,14 +173,7 @@ class GenericAgent(BaseAgent):
             Updated state with LLM response
 
         """
-        # Extract context from AgentState
-        session_id = state["session_id"]
-        invocation_id = state["invocation_id"]
-        execution_id = state.get("execution_id", None)
-        request_id = state.get("request_id", None)
-        metadata = state.get("metadata") or {}
-        activity_id = metadata.get("activity_id")
-        activity_name = metadata.get("activity_name")
+        ctx = self._extract_context(state)
 
         # Annotate tools with keyword relevance hints before binding
         # Use original_prompt (raw user input) — the enhanced prompt includes
@@ -182,36 +210,36 @@ class GenericAgent(BaseAgent):
             # Emit EMPTY_RESPONSE event before raising
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
+                    session_id=ctx.session_id,
+                    invocation_id=ctx.invocation_id,
+                    execution_id=ctx.execution_id,
+                    request_id=ctx.request_id,
                     interaction_type=LLMInteractionType.STANDARD,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.EMPTY_RESPONSE,
                     error_type="EmptyLLMResponseError",
-                    activity_id=activity_id,
-                    activity_name=activity_name,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
-            raise EmptyLLMResponseError(invocation_id=str(invocation_id))
+            raise EmptyLLMResponseError(invocation_id=str(ctx.invocation_id))
 
         # Emit SUCCESS event after successful LLM call
         tool_calls_count = len(result_message.tool_calls) if result_message.tool_calls else 0
         AuditEventDispatcher.dispatch(
             LLMInteractionEvent(
-                session_id=session_id,
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=request_id,
+                session_id=ctx.session_id,
+                invocation_id=ctx.invocation_id,
+                execution_id=ctx.execution_id,
+                request_id=ctx.request_id,
                 interaction_type=LLMInteractionType.STANDARD,
                 model_name=getattr(self.llm, "model_name", "unknown"),
                 status=LLMInteractionStatus.SUCCESS,
                 tools_available=len(self.available_tools),
                 tool_calls_made=tool_calls_count,
                 response_schema_provided=bool(state.get("response_schema")),
-                activity_id=activity_id,
-                activity_name=activity_name,
+                activity_id=ctx.activity_id,
+                activity_name=ctx.activity_name,
             )
         )
 
@@ -240,14 +268,7 @@ class GenericAgent(BaseAgent):
             Updated state with structured output
 
         """
-        # Extract context from AgentState
-        session_id = state["session_id"]
-        invocation_id = state["invocation_id"]
-        execution_id = state.get("execution_id", None)
-        request_id = state.get("request_id", None)
-        metadata = state.get("metadata") or {}
-        activity_id = metadata.get("activity_id")
-        activity_name = metadata.get("activity_name")
+        ctx = self._extract_context(state)
 
         try:
             structured_llm = self.llm.with_structured_output(response_schema, method="json_mode")
@@ -273,18 +294,18 @@ class GenericAgent(BaseAgent):
             # Emit ERROR event before fallback
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
+                    session_id=ctx.session_id,
+                    invocation_id=ctx.invocation_id,
+                    execution_id=ctx.execution_id,
+                    request_id=ctx.request_id,
                     interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.ERROR,
                     tools_available=0,
                     response_schema_provided=True,
                     error_type=type(e).__name__,
-                    activity_id=activity_id,
-                    activity_name=activity_name,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
             logger.warning("Structured output failed, falling back to standard execution", exc_info=True)
@@ -294,35 +315,35 @@ class GenericAgent(BaseAgent):
             # Emit EMPTY_RESPONSE event before raising
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
+                    session_id=ctx.session_id,
+                    invocation_id=ctx.invocation_id,
+                    execution_id=ctx.execution_id,
+                    request_id=ctx.request_id,
                     interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.EMPTY_RESPONSE,
                     error_type="EmptyLLMResponseError",
-                    activity_id=activity_id,
-                    activity_name=activity_name,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
-            raise EmptyLLMResponseError(invocation_id=str(invocation_id))
+            raise EmptyLLMResponseError(invocation_id=str(ctx.invocation_id))
 
         # Emit SUCCESS event after successful structured output
         AuditEventDispatcher.dispatch(
             LLMInteractionEvent(
-                session_id=session_id,
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=request_id,
+                session_id=ctx.session_id,
+                invocation_id=ctx.invocation_id,
+                execution_id=ctx.execution_id,
+                request_id=ctx.request_id,
                 interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
                 model_name=getattr(self.llm, "model_name", "unknown"),
                 status=LLMInteractionStatus.SUCCESS,
                 tools_available=0,  # No tools in structured mode
                 response_schema_provided=True,
                 fallback_strategy_used="native",
-                activity_id=activity_id,
-                activity_name=activity_name,
+                activity_id=ctx.activity_id,
+                activity_name=ctx.activity_name,
             )
         )
 
@@ -350,14 +371,7 @@ class GenericAgent(BaseAgent):
             Updated state with structured content
 
         """
-        # Extract context from AgentState
-        session_id = state["session_id"]
-        invocation_id = state["invocation_id"]
-        execution_id = state.get("execution_id", None)
-        request_id = state.get("request_id", None)
-        metadata = state.get("metadata") or {}
-        activity_id = metadata.get("activity_id")
-        activity_name = metadata.get("activity_name")
+        ctx = self._extract_context(state)
 
         try:
             result_dict = state.get("result")
@@ -389,17 +403,17 @@ class GenericAgent(BaseAgent):
             # Emit SUCCESS event after successful extraction
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
+                    session_id=ctx.session_id,
+                    invocation_id=ctx.invocation_id,
+                    execution_id=ctx.execution_id,
+                    request_id=ctx.request_id,
                     interaction_type=LLMInteractionType.EXTRACTION,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.SUCCESS,
                     response_schema_provided=True,
                     fallback_strategy_used="native",
-                    activity_id=activity_id,
-                    activity_name=activity_name,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
 
@@ -410,16 +424,16 @@ class GenericAgent(BaseAgent):
             # Emit ERROR event before fallback
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
+                    session_id=ctx.session_id,
+                    invocation_id=ctx.invocation_id,
+                    execution_id=ctx.execution_id,
+                    request_id=ctx.request_id,
                     interaction_type=LLMInteractionType.EXTRACTION,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.ERROR,
                     error_type=type(e).__name__,
-                    activity_id=activity_id,
-                    activity_name=activity_name,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
             logger.warning("Structured output extraction failed, keeping raw text", exc_info=True)
