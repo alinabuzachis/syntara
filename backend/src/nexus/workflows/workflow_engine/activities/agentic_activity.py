@@ -71,8 +71,48 @@ async def _inject_runtime_settings(input_config: dict[str, Any]) -> None:
             raise ValueError(msg)
 
 
+def _build_agent_metadata(
+    config: AgenticExecutorParameters,
+    input_config: dict[str, Any],
+    *,
+    workflow_id: str | None,
+    activity_id: str,
+    execution_id: str,
+    callback_url: str,
+    request_id: str | None,
+) -> dict[str, Any]:
+    """Build the metadata dict passed to the agent orchestrator."""
+    agent_metadata: dict[str, Any] = {
+        "workflow_id": workflow_id,
+        "activity_id": activity_id,
+        "activity_name": "agentic_v2",
+        "execution_id": execution_id,
+    }
+    if callback_url:
+        agent_metadata["callback_url"] = callback_url
+    if request_id:
+        agent_metadata["request_id"] = request_id
+
+    _inject_llm_credential_metadata(agent_metadata, input_config)
+    if config.llm_model_id:
+        agent_metadata["llm_model_id"] = config.llm_model_id
+
+    if config.integration_connections:
+        agent_metadata["integration_connections"] = [c.model_dump() for c in config.integration_connections]
+
+    if config.tool_selection_strategy:
+        agent_metadata["tool_selection_strategy"] = config.tool_selection_strategy
+    if config.tool_selections:
+        agent_metadata["tool_selections"] = config.tool_selections
+
+    if config.response_schema:
+        agent_metadata["response_schema"] = config.response_schema
+
+    return agent_metadata
+
+
 @activity.defn(name=ActivityName.AGENTIC)
-async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
+async def execute_agentic_activity(  # noqa: PLR0915
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,  # noqa: ARG001  # must match Temporal dispatch signature; agentic completes async via callback, not via return value
     execution_id: str = "",
@@ -106,10 +146,8 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
             msg = "Runtime settings validation failed"
             raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
 
-        # Validate config
         config = AgenticExecutorParameters.model_validate(input_config)
 
-        # Validate prompt
         if not config.prompt.strip():
             msg = "Agentic activity requires non-empty 'prompt' field"
             raise ApplicationError(msg, type="ConfigError", non_retryable=True)  # noqa: TRY301
@@ -118,10 +156,8 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
             msg = "Agentic activity requires non-empty 'project_id'"
             raise ApplicationError(msg, type="ConfigError", non_retryable=True)  # noqa: TRY301
 
-        # Extract file_ids from config
         file_ids = config.file_ids or []
 
-        # Get workflow info for audit trail
         try:
             activity_info = activity.info()
             workflow_id = activity_info.workflow_id
@@ -132,8 +168,6 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
 
         settings = get_settings()
         user_id = created_by_user_id or str(service_principal_id(settings.service_identity))
-
-        # Generate callback URL for the agent orchestrator to signal back results
         callback_url = generate_activity_signal_url(UUID(execution_id), activity_id) if execution_id else ""
 
         logger.info(
@@ -143,47 +177,25 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
             file_count=len(file_ids),
         )
 
+        agent_metadata = _build_agent_metadata(
+            config,
+            input_config,
+            workflow_id=workflow_id,
+            activity_id=activity_id,
+            execution_id=execution_id,
+            callback_url=callback_url,
+            request_id=request_id,
+        )
+
         async with AgentOrchestratorClient(
             base_url=constants.AGENT_ORCHESTRATOR_BASE_URL,
             on_behalf_of_user_id=user_id,
         ) as agent_client:
-            # Build metadata (callback_url is extracted by client into contextData)
-            agent_metadata: dict[str, Any] = {
-                "workflow_id": workflow_id,
-                "activity_id": activity_id,
-                "activity_name": "agentic_v2",
-                "execution_id": execution_id,
-            }
-            if callback_url:
-                agent_metadata["callback_url"] = callback_url
-            if request_id:
-                agent_metadata["request_id"] = request_id
-
-            # Inject LLM credential and integration references
-            _inject_llm_credential_metadata(agent_metadata, input_config)
-            if config.llm_model_id:
-                agent_metadata["llm_model_id"] = config.llm_model_id
-
-            # Pass per-integration execution credentials (credential UUIDs, not secrets)
-            if config.integration_connections:
-                agent_metadata["integration_connections"] = [c.model_dump() for c in config.integration_connections]
-
-            # Pass tool selection through to the executor
-            if config.tool_selection_strategy:
-                agent_metadata["tool_selection_strategy"] = config.tool_selection_strategy
-            if config.tool_selections:
-                agent_metadata["tool_selections"] = config.tool_selections
-
-            # Pass response_schema if defined
-            if config.response_schema:
-                agent_metadata["response_schema"] = config.response_schema
-
-            # Invoke agent asynchronously
             invocation_id = await agent_client.invoke_agent_async(
                 prompt=config.prompt,
                 user_id=user_id,
                 agent=config.agent,
-                input_data={},  # input_data is part of prompt in v2
+                input_data={},
                 file_ids=file_ids,
                 metadata=agent_metadata,
                 project_id=project_id,
@@ -194,9 +206,6 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
                 invocation_id=invocation_id,
             )
 
-            # Send invocation_id as early partial output so the frontend
-            # can open the invocation WebSocket for live trace streaming
-            # (same pattern as job_id/job_url in AAP job template activity).
             activity.heartbeat(
                 {
                     HEARTBEAT_STOP_MONITOR: True,
@@ -212,7 +221,6 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
     except (ApplicationError, CancelledError):
         raise
     except ValidationError as e:
-        # Log full details internally; omit values from user-facing message (may contain credentials)
         logger.warning("Agentic activity config validation failed", error_count=e.error_count())
         fields = [str(err["loc"]) for err in e.errors()]
         msg = f"Invalid configuration: {e.error_count()} error(s) in fields {fields}"
@@ -220,9 +228,6 @@ async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
     except AgentOrchestratorClientConnectionError:
         logger.exception("Failed to connect to Agent Orchestrator")
         msg = "Failed to connect to Agent Orchestrator"
-        # non_retryable=True: this is a pre-invocation failure (dispatch failed before
-        # raise_complete_async). Retrying would re-attempt the entire dispatch and risk
-        # creating a duplicate agent invocation if the first call actually reached the server.
         raise ApplicationError(msg, type="ConnectionError", non_retryable=True) from None
     except Exception as e:
         logger.exception("Unexpected error during agentic activity")
