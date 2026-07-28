@@ -21,7 +21,7 @@ from nexus.agent_orchestrator.token_manager.models import (
     UserTokenConfig,
 )
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class TokenUsageRepository:
