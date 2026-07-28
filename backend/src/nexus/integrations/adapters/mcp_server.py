@@ -58,7 +58,7 @@ class MCPServerAdapter:
         """Initialize with MCP server configuration."""
         self._config = config
 
-    async def validate(  # noqa: C901 — complexity 11 due to SSRF validation + 7 exception handlers
+    async def validate(
         self,
         resolved_credential: dict[str, Any],
         timeout_seconds: int,
@@ -71,14 +71,23 @@ class MCPServerAdapter:
         - Response parsing
         - Protocol validation
 
+        Timeout strategy: httpx.Timeout covers HTTP I/O; asyncio.timeout covers
+        MCP session setup and ping (protocol negotiation can block independently
+        of HTTP I/O). Both are necessary.
+
         Note: This creates a fresh MCP session for each ping. MCPProvider (used by discover())
         manages sessions via MultiServerMCPClient from langchain-mcp-adapters. These two
         session management approaches could be unified in future work.
 
         See AAP-81945 for session reuse optimization investigation.
         """
-        # Initialize with failure state to ensure result is never None, even if
-        # an exception occurs before the try block or during credential extraction
+        ssrf_error = _check_ssrf(self._config.base_url)
+        if ssrf_error:
+            return ssrf_error
+
+        api_key = cast("str | None", resolved_credential.get(_MCP_CREDENTIAL_KEY))
+        http_headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+
         result = ValidateResult(
             success=False,
             checked_at=datetime.now(UTC),
@@ -87,40 +96,6 @@ class MCPServerAdapter:
         )
 
         try:
-            # SECURITY: Validate URL to prevent SSRF attacks, including cloud metadata endpoints.
-            # validate_endpoint_url() (called by MCPServerConfigurationInput.validate_base_url())
-            # only checks URL structure. validate_safe_url() resolves DNS and blocks:
-            # - Cloud metadata endpoints (169.254.169.254, fd00:ec2::254) - ALWAYS blocked
-            # - Private networks (RFC1918, localhost) - allowed via allow_private=True
-            #   since MCP servers are often deployed internally
-            try:
-                validate_safe_url(self._config.base_url, allow_private=True, allow_http=True)
-            except ValueError as e:
-                logger.warning(
-                    "MCP validate blocked by SSRF protection",
-                    base_url=self._config.base_url,
-                    error=str(e),
-                )
-                return ValidateResult(
-                    success=False,
-                    checked_at=datetime.now(UTC),
-                    error="Unable to connect to the service",
-                    error_type=HealthCheckErrorType.CONNECTION_ERROR,
-                )
-
-            api_key = cast("str | None", resolved_credential.get(_MCP_CREDENTIAL_KEY))
-
-            # Prepare httpx client with auth headers and timeout
-            http_headers = {}
-            if api_key:
-                http_headers["Authorization"] = f"Bearer {api_key}"
-
-            # NOTE: http_client must be managed as a context manager here because
-            # streamable_http_client only manages the lifecycle of clients it creates
-            # internally (when http_client=None). Since we pass a pre-configured client
-            # for auth headers/timeout, we own its lifecycle. Nested context managers
-            # ensure http_client is always closed, even if streamable_http_client
-            # construction fails.
             async with (
                 httpx.AsyncClient(
                     headers=http_headers,
@@ -132,8 +107,6 @@ class MCPServerAdapter:
                 ) as (read, write, _get_session_id),
                 ClientSession(read, write) as session,
             ):
-                # Apply timeout only to MCP protocol operations, not context manager setup.
-                # httpx.AsyncClient already has timeout configured for HTTP operations.
                 async with asyncio.timeout(timeout_seconds):
                     await session.initialize()
                     await session.send_ping()
@@ -149,9 +122,9 @@ class MCPServerAdapter:
             )
 
         except* (TimeoutError, httpx.TimeoutException):
-            # NOTE: This handler must come before ConnectError handler because
-            # httpx.ConnectTimeout inherits from TimeoutException only (via NetworkError).
-            # Exception group handlers evaluate in order, so timeout takes precedence.
+            # NOTE: This handler must come before ConnectError handler to ensure
+            # timeout exceptions (including httpx.ConnectTimeout) are classified as
+            # TIMEOUT rather than generic CONNECTION_ERROR.
             logger.warning(
                 "MCP validate timed out",
                 base_url=self._config.base_url,
@@ -181,8 +154,6 @@ class MCPServerAdapter:
             )
 
         except* McpError as eg:
-            # MCP SDK raises McpError when the server returns non-MCP content (e.g., HTML 404 pages)
-            # or when the MCP session terminates unexpectedly
             errors = extract_all_exceptions(eg)
             logger.warning(
                 "MCP validate protocol error",
@@ -210,7 +181,7 @@ class MCPServerAdapter:
                 error_type=HealthCheckErrorType.CONNECTION_ERROR,
             )
 
-        except* (ssl.SSLError, ssl.SSLCertVerificationError) as eg:
+        except* ssl.SSLError as eg:
             errors = extract_all_exceptions(eg)
             logger.warning(
                 "MCP validate SSL error",
@@ -224,7 +195,7 @@ class MCPServerAdapter:
                 error_type=HealthCheckErrorType.SSL_ERROR,
             )
 
-        except* (httpx.ConnectError, ConnectionError, OSError) as eg:
+        except* (httpx.ConnectError, OSError) as eg:
             errors = extract_all_exceptions(eg)
             logger.warning(
                 "MCP validate connection error",
@@ -239,7 +210,6 @@ class MCPServerAdapter:
             )
 
         except* httpx.HTTPError as eg:
-            # Catch other HTTP errors not already handled (e.g., protocol errors, stream errors)
             errors = extract_all_exceptions(eg)
             logger.warning(
                 "MCP validate HTTP transport error",
@@ -253,12 +223,10 @@ class MCPServerAdapter:
                 error_type=HealthCheckErrorType.CONNECTION_ERROR,
             )
 
-        except* Exception as eg:
-            errors = extract_all_exceptions(eg)
+        except* Exception:
             logger.exception(
                 "Unexpected error during MCP validate",
                 base_url=self._config.base_url,
-                error=str(errors[0]) if errors else None,
             )
             result = ValidateResult(
                 success=False,
@@ -281,6 +249,15 @@ class MCPServerAdapter:
         DiscoveredTool list includes parameter information, enabling
         _sync_mcp_tools to perform a full upsert from this result alone.
         """
+        ssrf_error = _check_ssrf(self._config.base_url)
+        if ssrf_error:
+            return DiscoverResult(
+                success=False,
+                checked_at=ssrf_error.checked_at,
+                error=ssrf_error.error,
+                error_type=ssrf_error.error_type,
+            )
+
         api_key = cast("str | None", resolved_credential.get(_MCP_CREDENTIAL_KEY))
 
         success = True
@@ -324,7 +301,7 @@ class MCPServerAdapter:
                 status_codes=[e.response.status_code for e in errors if isinstance(e, HTTPStatusError)],
             )
 
-        except* (ssl.SSLError, ssl.SSLCertVerificationError) as eg:
+        except* ssl.SSLError as eg:
             success = False
             errors = extract_all_exceptions(eg)
             error_msg = "SSL/TLS verification failed"
@@ -335,7 +312,7 @@ class MCPServerAdapter:
                 error=str(errors[0]),
             )
 
-        except* (httpx.ConnectError, ConnectionError, OSError) as eg:
+        except* (httpx.ConnectError, OSError) as eg:
             success = False
             errors = extract_all_exceptions(eg)
             error_msg = "Unable to connect to service"
@@ -365,6 +342,25 @@ class MCPServerAdapter:
             error_type=error_type,
             discovered_tools=discovered,
         )
+
+
+def _check_ssrf(base_url: str) -> ValidateResult | None:
+    """Return a failure result if the URL targets a cloud metadata endpoint, None otherwise."""
+    try:
+        validate_safe_url(base_url, allow_private=True, allow_http=True)
+    except ValueError as e:
+        logger.warning(
+            "MCP validate blocked by SSRF protection",
+            base_url=base_url,
+            error=str(e),
+        )
+        return ValidateResult(
+            success=False,
+            checked_at=datetime.now(UTC),
+            error="Unable to connect to the service",
+            error_type=HealthCheckErrorType.CONNECTION_ERROR,
+        )
+    return None
 
 
 def _tool_param_to_discovered(param: ToolParameter) -> DiscoveredToolParameter:
