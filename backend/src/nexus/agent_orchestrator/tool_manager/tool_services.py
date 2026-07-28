@@ -32,6 +32,21 @@ from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 logger = structlog.stdlib.get_logger(__name__)
 
 
+def _get_tool_manager_client() -> ToolManagerClient:
+    """Create a ToolManagerClient with settings from the application configuration.
+
+    Centralises the 4-parameter construction so that adding a new
+    constructor parameter requires only one change.
+    """
+    settings = get_settings()
+    return ToolManagerClient(
+        base_url=str(settings.tool_manager_base_url),
+        timeout=settings.tool_manager_timeout_seconds,
+        max_connections=settings.tool_manager_max_connections,
+        max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
+    )
+
+
 async def _discover_mcp_integrations() -> list[IntegrationRead]:
     """Discover MCP server integrations from the Integrations API.
 
@@ -42,15 +57,8 @@ async def _discover_mcp_integrations() -> list[IntegrationRead]:
         Returns empty list if the API is unavailable or fails.
 
     """
-    settings = get_settings()
-
     try:
-        async with ToolManagerClient(
-            base_url=str(settings.tool_manager_base_url),
-            timeout=settings.tool_manager_timeout_seconds,
-            max_connections=settings.tool_manager_max_connections,
-            max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
-        ) as client:
+        async with _get_tool_manager_client() as client:
             all_integrations = await client.get_all_mcp_integrations()
             logger.info("Discovered MCP integrations", integration_count=len(all_integrations))
             return all_integrations
@@ -69,15 +77,8 @@ async def _discover_tools() -> ToolDiscoveryResult:
         Returns empty lists if Tool Manager is unavailable or fails.
 
     """
-    settings = get_settings()
-
     try:
-        async with ToolManagerClient(
-            base_url=str(settings.tool_manager_base_url),
-            timeout=settings.tool_manager_timeout_seconds,
-            max_connections=settings.tool_manager_max_connections,
-            max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
-        ) as client:
+        async with _get_tool_manager_client() as client:
             all_tools = await client.get_all_tools()
             enabled_tools = [t for t in all_tools if t.enabled]
             disabled_tools = [t for t in all_tools if not t.enabled]
@@ -101,14 +102,7 @@ async def report_tool_execution_failure(tool_id: UUID, error_message: str) -> No
         error_message: Error message describing the failure
 
     """
-    settings = get_settings()
-
-    async with ToolManagerClient(
-        base_url=str(settings.tool_manager_base_url),
-        timeout=settings.tool_manager_timeout_seconds,
-        max_connections=settings.tool_manager_max_connections,
-        max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
-    ) as client:
+    async with _get_tool_manager_client() as client:
         try:
             await client.update_tool_status(tool_id=tool_id, status=ToolStatus.ERROR, refresh_error=error_message)
             logger.info("Reported tool execution failure", tool_id=tool_id)

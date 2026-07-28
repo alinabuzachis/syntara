@@ -17,7 +17,7 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from nexus.agent_orchestrator.audit.tool_management import ToolInvocationEvent, ToolInvocationStatus
-from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
+from nexus.agent_orchestrator.tool_manager.tool_services import _get_tool_manager_client
 from nexus.agent_orchestrator.utils import retry_with_backoff
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.config.base import get_settings
@@ -588,13 +588,7 @@ async def _disable_tool_by_id(tool_id: UUID, error: Exception) -> None:
 
     """
     try:
-        settings = get_settings()
-        async with ToolManagerClient(
-            base_url=str(settings.tool_manager_base_url),
-            timeout=settings.tool_manager_timeout_seconds,
-            max_connections=settings.tool_manager_max_connections,
-            max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
-        ) as client:
+        async with _get_tool_manager_client() as client:
             error_message = f"Tool execution failed: {error.__class__.__name__}: {error!s}"
             if len(error_message) > MAX_ERROR_MESSAGE_LENGTH:
                 error_message = error_message[:497] + "..."
