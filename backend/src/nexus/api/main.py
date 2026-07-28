@@ -369,7 +369,7 @@ app.add_exception_handler(Exception, generic_exception_handler)
 # See lifespan function above for router registration logic
 
 
-@app.get("/health", tags=["Health"])
+@app.get("/health", tags=["Health"], include_in_schema=False)
 async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
     """Health check endpoint with database connectivity test.
 
@@ -431,10 +431,10 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
     }
 
 
-app.get("/metrics", tags=["Observability"])(openmetrics_endpoint)
+app.get("/metrics", tags=["Observability"], include_in_schema=False)(openmetrics_endpoint)
 
 
-@app.get("/", tags=["Root"])
+@app.get("/", tags=["Root"], include_in_schema=False)
 async def root() -> dict[str, str]:
     """Root endpoint.
 
