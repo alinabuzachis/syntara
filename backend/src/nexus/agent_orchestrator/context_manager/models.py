@@ -52,15 +52,3 @@ class ContextPackage(BaseModel):
         default_factory=dict,
         description="Timing, token counts, compression status, compression_retry_count",
     )
-
-    def __init__(self, **data: Any) -> None:  # noqa: ANN401
-        """Initialize ContextPackage.
-
-        Args:
-            **data: Model field data
-
-        """
-        super().__init__(**data)
-        # Initialize package_metadata if not provided
-        if "package_metadata" not in data or not data["package_metadata"]:
-            self.package_metadata = {}
