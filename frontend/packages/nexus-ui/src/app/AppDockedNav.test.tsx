@@ -4,21 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { authClient } from '../client'
+import { BrandProvider } from '../providers/brand'
 import { COLOR_SCHEME_STORAGE_KEY } from '../providers/theme/colorScheme'
 import { ColorSchemeProvider } from '../providers/theme/ColorSchemeProvider'
 
 import { AppDockedNav } from './AppDockedNav'
 import type { DockState } from './useDockState'
-
-vi.mock('../assets/redhat-hat-icon.svg?react', () => ({
-  default: () => <span data-testid="mock-redhat-hat-icon" />,
-}))
-vi.mock('../assets/AAP2lineDarkMode.svg?react', () => ({
-  default: () => <span data-testid="mock-aap-logo-dark" />,
-}))
-vi.mock('../assets/AAP2LineLightMode.svg?react', () => ({
-  default: () => <span data-testid="mock-aap-logo-light" />,
-}))
 
 const mockOnToggleDock = vi.fn()
 const mockUseDockState = vi.fn<() => DockState>()
@@ -98,9 +89,11 @@ vi.mock('../client', () => ({
 
 function renderDockedNav() {
   return render(
-    <ColorSchemeProvider>
-      <AppDockedNav />
-    </ColorSchemeProvider>
+    <BrandProvider>
+      <ColorSchemeProvider>
+        <AppDockedNav />
+      </ColorSchemeProvider>
+    </BrandProvider>
   )
 }
 
@@ -235,7 +228,7 @@ describe('AppDockedNav', () => {
     expect(screen.getByRole('banner')).toBeInTheDocument()
   })
 
-  it('renders Red Hat logo link to home page', () => {
+  it('renders brand logo link to home page', () => {
     renderDockedNav()
 
     const banner = screen.getByRole('banner')
@@ -329,9 +322,10 @@ describe('AppDockedNav', () => {
       expect(screen.getByText('Credentials')).toBeInTheDocument()
     })
 
-    it('shows the product logo when expanded', () => {
+    it('shows the brand logo when expanded', () => {
       renderDockedNav()
-      expect(screen.getByTestId('mock-aap-logo-dark')).toBeInTheDocument()
+      const logo = within(screen.getByRole('banner')).getByRole('img', { name: 'Syntara' })
+      expect(logo).toBeInTheDocument()
     })
 
     it('navigates to child item when clicked in expanded mode', async () => {
@@ -385,9 +379,10 @@ describe('AppDockedNav', () => {
       expect(screen.getByText('Credentials')).toBeInTheDocument()
     })
 
-    it('shows the product logo when expanded on mobile', () => {
+    it('shows the brand logo when expanded on mobile', () => {
       renderDockedNav()
-      expect(screen.getByTestId('mock-aap-logo-dark')).toBeInTheDocument()
+      const logo = within(screen.getByRole('banner')).getByRole('img', { name: 'Syntara' })
+      expect(logo).toBeInTheDocument()
     })
   })
 

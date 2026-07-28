@@ -36,11 +36,9 @@ import {
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useContext, useMemo, useRef, useState } from 'react'
 
-import AapLogoDark from '../assets/AAP2lineDarkMode.svg?react'
-import AapLogoLight from '../assets/AAP2LineLightMode.svg?react'
-import RedHatHatIcon from '../assets/redhat-hat-icon.svg?react'
 import { authClient } from '../client'
 import { useAlerts } from '../providers/alerts'
+import { useBrand } from '../providers/brand'
 import { useColorScheme } from '../providers/theme/useColorScheme'
 import { useAuthStore } from '../stores/useAuthStore'
 import { getErrorMessage } from '../utils/apiErrors'
@@ -253,6 +251,7 @@ export function AppDockedNav() {
   const location = useRouterState({ select: (s) => s.location.pathname })
   const { requestNavigation } = useUnsavedChanges()
   const { colorScheme, toggleColorScheme } = useColorScheme()
+  const brand = useBrand()
   const docsHomeUrl = useDocLink('home')
   const { isDockExpanded, isDockTextExpanded, isMobile, dockedToggleRef, onToggleDock } = useDockState()
 
@@ -289,11 +288,11 @@ export function AppDockedNav() {
           <MastheadBrand>
             {isExpanded ? (
               <MastheadLogo component={(props) => <Link {...props} to="/" />} aria-label="Home">
-                {colorScheme === 'dark' ? (
-                  <AapLogoDark style={{ height: 28, width: 'auto', marginLeft: 'var(--pf-t--global--spacer--sm)' }} />
-                ) : (
-                  <AapLogoLight style={{ height: 28, width: 'auto', marginLeft: 'var(--pf-t--global--spacer--sm)' }} />
-                )}
+                <img
+                  src={colorScheme === 'dark' ? brand.logoExpandedDark : brand.logoExpandedLight}
+                  alt={brand.appTitle}
+                  className={styles.expandedLogo}
+                />
               </MastheadLogo>
             ) : (
               <MastheadLogo
@@ -301,7 +300,7 @@ export function AppDockedNav() {
                 aria-label="Home"
                 className="pf-m-compact"
               >
-                <RedHatHatIcon style={{ height: 17, width: 22, marginLeft: 'var(--pf-t--global--spacer--sm)' }} />
+                <img src={brand.logoCollapsed} alt={brand.appTitle} className={styles.collapsedLogo} />
               </MastheadLogo>
             )}
           </MastheadBrand>

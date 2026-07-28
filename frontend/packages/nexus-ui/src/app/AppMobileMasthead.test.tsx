@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { BrandProvider } from '../providers/brand'
+
 import { AppMobileMasthead } from './AppMobileMasthead'
 import type { DockState } from './useDockState'
 
@@ -10,10 +12,6 @@ const mockUseDockState = vi.fn<() => DockState>()
 
 vi.mock('./useDockState', () => ({
   useDockState: (): DockState => mockUseDockState(),
-}))
-
-vi.mock('../assets/redhat-hat-icon.svg?react', () => ({
-  default: (props: Record<string, unknown>) => <svg data-testid="hat-icon" {...props} />,
 }))
 
 describe('AppMobileMasthead', () => {
@@ -31,25 +29,41 @@ describe('AppMobileMasthead', () => {
   })
 
   it('renders the hamburger toggle button', () => {
-    render(<AppMobileMasthead />)
+    render(
+      <BrandProvider>
+        <AppMobileMasthead />
+      </BrandProvider>
+    )
     expect(screen.getByRole('button', { name: 'Global navigation' })).toBeInTheDocument()
   })
 
   it('renders the home logo link', () => {
-    render(<AppMobileMasthead />)
+    render(
+      <BrandProvider>
+        <AppMobileMasthead />
+      </BrandProvider>
+    )
     const logoLink = screen.getByRole('link', { name: 'Home' })
     expect(logoLink).toBeInTheDocument()
     expect(logoLink).toHaveAttribute('href', '/')
   })
 
-  it('renders the hat icon SVG', () => {
-    render(<AppMobileMasthead />)
-    expect(screen.getByTestId('hat-icon')).toBeInTheDocument()
+  it('renders the brand logo', () => {
+    render(
+      <BrandProvider>
+        <AppMobileMasthead />
+      </BrandProvider>
+    )
+    expect(screen.getByRole('img', { name: 'Syntara' })).toBeInTheDocument()
   })
 
   it('calls onMobileToggle when hamburger is clicked', async () => {
     const user = userEvent.setup()
-    render(<AppMobileMasthead />)
+    render(
+      <BrandProvider>
+        <AppMobileMasthead />
+      </BrandProvider>
+    )
 
     await user.click(screen.getByRole('button', { name: 'Global navigation' }))
     expect(mockOnMobileToggle).toHaveBeenCalledOnce()
@@ -65,7 +79,11 @@ describe('AppMobileMasthead', () => {
       onToggleDock: vi.fn(),
       onMobileToggle: mockOnMobileToggle,
     })
-    render(<AppMobileMasthead />)
+    render(
+      <BrandProvider>
+        <AppMobileMasthead />
+      </BrandProvider>
+    )
     const toggle = screen.getByRole('button', { name: 'Global navigation' })
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
   })

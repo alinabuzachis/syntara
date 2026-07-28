@@ -15,9 +15,10 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { RETURN_TO_KEY, SESSION_EXPIRED_KEY } from '../components/session/sessionTimeoutConstants'
 import { NxLoadingState } from '../components/states/NxLoadingState'
+import { useBrand } from '../providers/brand'
 import { AuthError, useAuthStore, selectIsAuthenticated, selectIsRefreshing } from '../stores/useAuthStore'
-import { APP_TITLE } from '../utils/appTitle'
 
+import styles from './AppLogin.module.css'
 import { resolveAuthError } from './authErrorMessages'
 import { IdentityProviderButtons } from './IdentityProviderButtons'
 import { useAuthProviders } from './useAuthProviders'
@@ -134,6 +135,7 @@ export function AppLogin(props: { children?: ReactNode }) {
 }
 
 function AppLoginForm() {
+  const brand = useBrand()
   const isRefreshing = useAuthStore(selectIsRefreshing)
   const login = useAuthStore((s) => s.login)
   const refresh = useAuthStore((s) => s.refresh)
@@ -271,7 +273,9 @@ function AppLoginForm() {
     return (
       <LoginPage
         className="bg-deep-space-login"
-        loginTitle={`Log in to ${APP_TITLE}`}
+        brandImgSrc={brand.logoLogin}
+        brandImgProps={{ alt: brand.appTitle, className: styles.loginLogo }}
+        loginTitle={`Log in to ${brand.appTitle}`}
         loginSubtitle="Enter your credentials to continue"
       >
         {sessionExpiredAlert}
@@ -284,9 +288,11 @@ function AppLoginForm() {
   return (
     <LoginPage
       className="bg-deep-space-login"
-      loginTitle={`Log in to ${APP_TITLE}`}
+      brandImgSrc={brand.logoLogin}
+      brandImgAlt={brand.appTitle}
+      loginTitle={`Log in to ${brand.appTitle}`}
       loginSubtitle="Choose your identity provider"
-      textContent={`Select your identity provider to access ${APP_TITLE}. Contact your administrator if you need assistance.`}
+      textContent={`Select your identity provider to access ${brand.appTitle}. Contact your administrator if you need assistance.`}
     >
       {sessionExpiredAlert}
 

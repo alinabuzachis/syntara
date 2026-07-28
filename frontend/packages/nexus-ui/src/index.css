@@ -1,12 +1,10 @@
 /* PatternFly base CSS */
 @import '@patternfly/react-core/dist/styles/base.css';
 
-/* Semantic token for Red Hat logo + shared “deep space” shell (PF primitives only — see
+/* Shared “deep space” shell (PF primitives only — see
    https://www.patternfly.org/tokens/all-patternfly-tokens/ ). Legacy bitmap stops approximated:
    left #092E5C, right #28154B, top #0E417D, bottom #00464C, base #030308 */
 :root {
-  --pf-t--custom--color--redhat-logo: #e00;
-
   --nexus-form-max-width: 600px;
   --nexus-disabled-opacity: 0.5;
 

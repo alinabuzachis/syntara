@@ -4,16 +4,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 
-vi.mock('../assets/redhat-hat-icon.svg?react', () => ({
-  default: () => <span data-testid="mock-redhat-hat-icon" />,
-}))
-vi.mock('../assets/AAP2lineDarkMode.svg?react', () => ({
-  default: () => <span data-testid="mock-aap-logo-dark" />,
-}))
-vi.mock('../assets/AAP2LineLightMode.svg?react', () => ({
-  default: () => <span data-testid="mock-aap-logo-light" />,
-}))
-
 // Stub out the real TanStack router instance (avoids building the full route tree).
 vi.mock('./tanstackRouter', () => ({ tanstackRouter: {} }))
 

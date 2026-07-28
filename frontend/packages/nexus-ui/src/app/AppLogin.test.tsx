@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../providers/alerts'
+import { BrandProvider } from '../providers/brand'
 import { AuthError } from '../stores/useAuthStore'
 
 import { AppLogin } from './AppLogin'
@@ -46,7 +47,11 @@ vi.mock('./useAuthProviders', () => ({
 }))
 
 function renderWithAlerts(ui: React.ReactNode) {
-  return render(<AlertProvider>{ui}</AlertProvider>)
+  return render(
+    <BrandProvider>
+      <AlertProvider>{ui}</AlertProvider>
+    </BrandProvider>
+  )
 }
 
 describe('AppLogin', () => {

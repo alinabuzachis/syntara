@@ -2,6 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
 
 import { AlertProvider } from '../providers/alerts'
+import { BrandProvider } from '../providers/brand'
 import { ColorSchemeProvider } from '../providers/theme/ColorSchemeProvider'
 import { queryClient } from '../queryClient'
 import { TestSignInCallback } from '../routes/access-management/authentication/identity-providers/TestSignInCallback'
@@ -20,13 +21,15 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <DocLinkProvider>
-        <ColorSchemeProvider>
-          <AlertProvider>
-            <RouterProvider router={tanstackRouter} />
-          </AlertProvider>
-        </ColorSchemeProvider>
-      </DocLinkProvider>
+      <BrandProvider>
+        <DocLinkProvider>
+          <ColorSchemeProvider>
+            <AlertProvider>
+              <RouterProvider router={tanstackRouter} />
+            </AlertProvider>
+          </ColorSchemeProvider>
+        </DocLinkProvider>
+      </BrandProvider>
     </QueryClientProvider>
   )
 }

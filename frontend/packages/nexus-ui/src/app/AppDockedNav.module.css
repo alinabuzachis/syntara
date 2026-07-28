@@ -2,3 +2,15 @@
   display: inline-block;
   margin-inline-end: var(--pf-t--global--spacer--sm);
 }
+
+.expandedLogo {
+  height: 28px;
+  width: auto;
+  margin-left: var(--pf-t--global--spacer--sm);
+}
+
+.collapsedLogo {
+  height: 28px;
+  width: auto;
+  margin-left: var(--pf-t--global--spacer--sm);
+}

@@ -11,8 +11,9 @@ import {
 } from '@patternfly/react-core'
 import { Link } from '@tanstack/react-router'
 
-import RedHatHatIcon from '../assets/redhat-hat-icon.svg?react'
+import { useBrand } from '../providers/brand'
 
+import styles from './AppMobileMasthead.module.css'
 import { useDockState } from './useDockState'
 
 /**
@@ -24,6 +25,7 @@ import { useDockState } from './useDockState'
  */
 export function AppMobileMasthead() {
   const { isDockExpanded, onMobileToggle, mobileToggleRef } = useDockState()
+  const brand = useBrand()
 
   /* v8 ignore start -- phantom branches from compiled JSX props */
   return (
@@ -41,7 +43,7 @@ export function AppMobileMasthead() {
         </MastheadToggle>
         <MastheadBrand>
           <MastheadLogo component={(props) => <Link {...props} to="/" />} aria-label="Home">
-            <RedHatHatIcon style={{ height: 28 }} />
+            <img src={brand.logoCollapsed} alt={brand.appTitle} className={styles.collapsedLogo} />
           </MastheadLogo>
         </MastheadBrand>
       </MastheadMain>
