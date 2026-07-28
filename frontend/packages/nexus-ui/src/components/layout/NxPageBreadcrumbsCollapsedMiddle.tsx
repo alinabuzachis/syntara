@@ -1,9 +1,12 @@
 import { Badge, BreadcrumbItem, Dropdown, DropdownItem, DropdownList, MenuToggle } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
+import { useNavigate } from '@tanstack/react-router'
 import type { MouseEvent, Ref } from 'react'
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { AppBreadcrumbItem } from '../../app/breadcrumbs/appBreadcrumbItem'
+import { detachPromise } from '../../utils/detachPromise'
+import { isModifiedClick } from '../../utils/isModifiedClick'
 
 type BreadcrumbDropdownToggleProps = Readonly<{
   toggleRef: Ref<MenuToggleElement | null>
@@ -49,10 +52,7 @@ export type NxPageBreadcrumbsCollapsedMiddleProps = Readonly<{
 export function NxPageBreadcrumbsCollapsedMiddle(props: NxPageBreadcrumbsCollapsedMiddleProps) {
   const { middleItems } = props
   const [isOpen, setIsOpen] = useState(false)
-
-  const onSelect = useCallback(() => {
-    setIsOpen(false)
-  }, [])
+  const navigate = useNavigate()
 
   const middleCount = middleItems.length
 
@@ -66,7 +66,17 @@ export function NxPageBreadcrumbsCollapsedMiddle(props: NxPageBreadcrumbsCollaps
       <Dropdown isOpen={isOpen} onOpenChange={setIsOpen} toggle={renderToggle}>
         <DropdownList>
           {middleItems.map((item) => (
-            <DropdownItem key={item.href ?? item.label} to={item.href} onClick={onSelect}>
+            <DropdownItem
+              key={item.href ?? item.label}
+              to={item.href}
+              onClick={(e: MouseEvent) => {
+                if (item.href && !isModifiedClick(e)) {
+                  e.preventDefault()
+                  detachPromise(navigate({ to: item.href }))
+                }
+                setIsOpen(false)
+              }}
+            >
               {item.label}
             </DropdownItem>
           ))}

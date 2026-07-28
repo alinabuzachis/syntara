@@ -1,11 +1,48 @@
 import { Breadcrumb, BreadcrumbItem } from '@patternfly/react-core'
-import { useSyncExternalStore } from 'react'
+import type { BreadcrumbItemRenderArgs } from '@patternfly/react-core'
+import { useNavigate } from '@tanstack/react-router'
+import type { MouseEvent } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 
 import type { AppBreadcrumbItem } from '../../app/breadcrumbs/appBreadcrumbItem'
+import { detachPromise } from '../../utils/detachPromise'
+import { isModifiedClick } from '../../utils/isModifiedClick'
 
 import { NxPageBreadcrumbsCollapsedMiddle } from './NxPageBreadcrumbsCollapsedMiddle'
 
 export type { AppBreadcrumbItem }
+
+type BreadcrumbLinkProps = Readonly<{
+  href: string
+  label: string
+  className: string
+  ariaCurrent: 'page' | undefined
+  onNavigate: (href: string) => void
+}>
+
+function BreadcrumbLink(props: BreadcrumbLinkProps) {
+  const { href, label, className, ariaCurrent, onNavigate } = props
+  return (
+    <a
+      href={href}
+      className={className}
+      aria-current={ariaCurrent}
+      onClick={(e: MouseEvent) => {
+        if (isModifiedClick(e)) return
+        e.preventDefault()
+        onNavigate(href)
+      }}
+    >
+      {label}
+    </a>
+  )
+}
+
+function renderBreadcrumbLink(href: string, label: string, onNavigate: (href: string) => void) {
+  return ({ className, ariaCurrent }: BreadcrumbItemRenderArgs) => (
+    <BreadcrumbLink href={href} label={label} className={className} ariaCurrent={ariaCurrent} onNavigate={onNavigate} />
+  )
+}
 
 const NARROW_MEDIA_QUERY = '(max-width: 768px)'
 
@@ -39,6 +76,14 @@ type NxPageBreadcrumbsProps = Readonly<{
 export function NxPageBreadcrumbs(props: NxPageBreadcrumbsProps) {
   const { items } = props
   const isNarrow = useNarrowViewportForBreadcrumb()
+  const navigate = useNavigate()
+
+  const handleNavigate = useCallback(
+    (href: string) => {
+      detachPromise(navigate({ to: href }))
+    },
+    [navigate]
+  )
 
   if (items.length < 2) {
     return null
@@ -55,7 +100,7 @@ export function NxPageBreadcrumbs(props: NxPageBreadcrumbsProps) {
       {collapseMiddle ? (
         <>
           {first.href ? (
-            <BreadcrumbItem to={first.href}>{first.label}</BreadcrumbItem>
+            <BreadcrumbItem render={renderBreadcrumbLink(first.href, first.label, handleNavigate)} />
           ) : (
             <BreadcrumbItem isActive>{first.label}</BreadcrumbItem>
           )}
@@ -75,9 +120,7 @@ export function NxPageBreadcrumbs(props: NxPageBreadcrumbsProps) {
           }
           if (item.href) {
             return (
-              <BreadcrumbItem key={item.href} to={item.href}>
-                {item.label}
-              </BreadcrumbItem>
+              <BreadcrumbItem key={item.href} render={renderBreadcrumbLink(item.href, item.label, handleNavigate)} />
             )
           }
           return (
