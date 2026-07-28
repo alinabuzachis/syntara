@@ -22,6 +22,9 @@ import { dirname } from 'node:path'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+const TEST_FILES = ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}']
+const E2E_FILES = ['e2e/**']
+
 export default tseslint.config(
   {
     ignores: [
@@ -115,6 +118,7 @@ export default tseslint.config(
   // would cause the last one to win and silently drop the other.
   {
     files: ['**/*.{ts,tsx}'],
+    ignores: [...TEST_FILES, ...E2E_FILES],
     rules: {
       'no-restricted-imports': [
         'warn',
@@ -328,7 +332,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'e2e/visual-regression/**/*.ts'],
+    files: [...TEST_FILES, 'e2e/visual-regression/**/*.ts'],
     rules: {
       'max-lines': 'off',
       'max-lines-per-function': 'off',
@@ -352,7 +356,7 @@ export default tseslint.config(
   },
   {
     ...testingLibrary.configs['flat/react'],
-    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    files: TEST_FILES,
     ignores: ['e2e/**'],
     rules: {
       ...testingLibrary.configs['flat/react'].rules,
@@ -364,7 +368,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    files: TEST_FILES,
     ignores: ['e2e/**'],
     rules: {
       // Prefer semantic Testing Library queries (getByRole, getByLabelText, etc.) over raw DOM lookups.
@@ -387,7 +391,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    files: TEST_FILES,
     ignores: ['e2e/**'],
     plugins: { vitest },
     rules: {
@@ -432,6 +436,29 @@ export default tseslint.config(
           property: 'first',
           message:
             'Avoid .first() — the locator should be specific enough to match exactly one element. If there are duplicates, scope with a parent locator.',
+        },
+      ],
+    },
+  },
+  {
+    // Separate block so the ignores here don't accidentally drop no-restricted-syntax
+    // or no-restricted-properties from visual-regression specs (those rules live above).
+    // Visual-regression specs intentionally import test from @playwright/test directly
+    // to avoid the app fixture so that page.clock can be controlled for determinism.
+    files: ['e2e/**/*.spec.ts'],
+    ignores: ['e2e/visual-regression/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@playwright/test'],
+              importNamePattern: '^test$',
+              message:
+                "Import `test` from the local fixtures file (e2e/fixtures.ts) instead of @playwright/test directly. The local fixtures extend Playwright's test with Currents action fixtures for automatic flaky test quarantine.",
+            },
+          ],
         },
       ],
     },
