@@ -76,6 +76,7 @@ from nexus.auth.services.idp_group_sync import sync_idp_groups
 from nexus.auth.services.oidc_service import OIDCError, OIDCService, _is_ssl_verification_error
 from nexus.auth.services.token_service import TokenPayload
 from nexus.auth.session import SessionInfo, create_session_store
+from nexus.authz.audit.group_membership import GroupMembershipEvent
 from nexus.authz.dependencies import get_authz_evaluator
 from nexus.authz.engine import AuthzRequest, authorize
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
@@ -1592,7 +1593,13 @@ async def _auto_create_user(
         raise OIDCError(msg) from e
     logger.info("Auto-created user from OIDC", user_id=str(user.id), username=username, provider=provider_name)
 
-    # Add user to the authenticated group
+    await _grant_authenticated_group(db, user)
+
+    return user
+
+
+async def _grant_authenticated_group(db: AsyncSession, user: User) -> None:
+    """Add an auto-created user to the authenticated group and emit a membership audit."""
     auth_group = (
         await db.exec(
             select(Group).where(Group.name == AUTHENTICATED_GROUP_NAME, Group.deleted_at.is_(None))  # type: ignore[union-attr]
@@ -1602,8 +1609,15 @@ async def _auto_create_user(
         msg = f"Required built-in group '{AUTHENTICATED_GROUP_NAME}' is missing from the database"
         raise RuntimeError(msg)
     await db.exec(sa_insert(user_groups).values(user_id=user.id, group_id=auth_group.id))
-
-    return user
+    AuditEventDispatcher.dispatch(
+        GroupMembershipEvent(
+            user_id=user.id,
+            username=user.username,
+            group_id=auth_group.id,
+            group_name=auth_group.name,
+            action="added",
+        ),
+    )
 
 
 # Log-level error messages (used in logger calls, not sent to the frontend)

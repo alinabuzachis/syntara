@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.auth.exceptions import (
     AdminDeleteError,
     AdminDisableNoOtherAdminsError,
@@ -26,6 +27,7 @@ from nexus.auth.exceptions import (
     UserUsernameConflictError,
 )
 from nexus.auth.passwords import hash_password
+from nexus.authz.audit.group_membership import GroupMembershipEvent
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models import User
@@ -201,6 +203,16 @@ class UsersService(BaseService):
                 sa_insert(user_groups).values([{"user_id": user.id, "group_id": g.id} for g in groups])
             )
             await self.session.commit()
+            for group in groups:
+                AuditEventDispatcher.dispatch(
+                    GroupMembershipEvent(
+                        user_id=user.id,
+                        username=user.username,
+                        group_id=group.id,
+                        group_name=group.name,
+                        action="added",
+                    ),
+                )
 
         return user
 

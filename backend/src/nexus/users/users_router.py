@@ -288,7 +288,7 @@ async def list_user_groups(
     operation_id="set_user_groups",
     response_description="Updated group memberships",
 )
-@audit(EventCategory.USER_ACTION, event_action="user_groups_set", capture_args={"user_id"})
+@audit(EventCategory.SECURITY_EVENT, event_action="user_groups_set", capture_args={"user_id", "request"})
 async def set_user_groups(
     user_id: UUID,
     request: UserGroupsSet,

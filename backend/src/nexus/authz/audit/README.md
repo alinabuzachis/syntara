@@ -44,6 +44,35 @@ Tracks role create, update, and delete operations. On delete, captures how many 
 - Severity: `WARNING` when deleting a role that has assignments; `ERROR` on failure; `INFO` otherwise
 - Sets `resource_urn` as `urn:nexus:role:{role_id}`
 
+### GroupMembershipEvent
+
+Tracks adding and removing users from groups — membership grants inherited roles.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user_id` | UUID | User being added or removed |
+| `username` | str | Display username of the user |
+| `group_id` | UUID | Group being modified |
+| `group_name` | str | Name of the group |
+| `action` | str | `"added"` or `"removed"` |
+| `error_type` | str \| None | Error class name if the operation failed |
+
+**Handler:** `GroupMembershipHandler`
+- Category: `SECURITY_EVENT`
+- Action: `group_member_added`, `group_member_removed`
+- Severity: `ERROR` on failure; `INFO` otherwise
+- Sets `resource_urn` as `urn:nexus:group-membership:{group_id}:{user_id}`
+
+**Emitted from:**
+- Admin/API membership changes (`GroupsService`, `UsersService.create_user`)
+- IdP group sync on OIDC login (`idp_group_sync._apply_group_membership_diff`)
+- OIDC auto-created users (`_auto_create_user` → `authenticated` group)
+
+Bulk membership diffs (admin `set_user_groups`, IdP sync) share
+`dispatch_membership_diff_events` in this module.
+
+Not covered: cascading membership cleanup when an identity provider is deleted (no domain event yet).
+
 ### PolicyLifecycleEvent
 
 Tracks policy create, update, and delete operations. On delete, captures how many roles had the policy removed.
@@ -70,9 +99,35 @@ Tracks policy create, update, and delete operations. On delete, captures how man
 | 1. Middleware | Automatic | All authorization endpoints captured by `AuditMiddleware` |
 | 2. `@audit` | Active | All 10 state-changing endpoints (policy/role/assignment CRUD) |
 | 3. CRUD | Pending | Models inherit `BaseResource`, ready for AAP-73776 |
-| 4. Domain Events | Active | `RoleAssignmentEvent`, `RoleLifecycleEvent`, `PolicyLifecycleEvent` |
+| 4. Domain Events | Active | `RoleAssignmentEvent`, `RoleLifecycleEvent`, `PolicyLifecycleEvent`, `GroupMembershipEvent` |
 
 ## Audit Trail Per Operation
+
+**Group member add:** 3 events
+1. `group_member_added` (GroupMembershipEvent, SECURITY_EVENT, INFO)
+2. `group_member_add` (@audit decorator, SECURITY_EVENT; captures `group_id` + `request.user_id`)
+3. `request_completed` (AuditMiddleware, 201)
+
+**Group member remove:** 3 events
+1. `group_member_removed` (GroupMembershipEvent, SECURITY_EVENT, INFO)
+2. `group_member_remove` (@audit decorator, SECURITY_EVENT)
+3. `request_completed` (AuditMiddleware, 204)
+
+**User groups set (declarative replace):** 1 `@audit` + N domain events
+1. One `group_member_added` / `group_member_removed` per membership diff (GroupMembershipEvent, SECURITY_EVENT)
+2. `user_groups_set` (@audit decorator, SECURITY_EVENT; captures `user_id` + `request`)
+3. `request_completed` (AuditMiddleware, 200)
+
+**User create with initial groups:** N domain events (+ user_create `@audit`)
+1. One `group_member_added` per initial membership including `authenticated` (GroupMembershipEvent, SECURITY_EVENT)
+2. `user_create` (@audit decorator)
+3. `request_completed` (AuditMiddleware, 201)
+
+**OIDC auto-create user:** 1 domain event (no `@audit` on the helper)
+1. `group_member_added` for the `authenticated` group (GroupMembershipEvent, SECURITY_EVENT)
+
+**IdP group sync (OIDC login):** N domain events (no HTTP `@audit` on the sync helper)
+1. One `group_member_added` / `group_member_removed` per session-scoped membership diff (GroupMembershipEvent, SECURITY_EVENT)
 
 **Role assign:** 3 events
 1. `role_assigned` (RoleAssignmentEvent, SECURITY_EVENT, INFO)

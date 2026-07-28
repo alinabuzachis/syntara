@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.auth.exceptions import (
     BuiltinGroupDeleteError,
     GroupNameConflictError,
@@ -22,6 +23,10 @@ from nexus.auth.exceptions import (
     LastAdminRemovalError,
     UserAlreadyInGroupError,
     UserNotInGroupError,
+)
+from nexus.authz.audit.group_membership import (
+    GroupMembershipEvent,
+    dispatch_membership_diff_events,
 )
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.exceptions import SafeValueError
@@ -329,8 +334,8 @@ class GroupsService(BaseService):
 
         """
         # Validate group and user exist
-        await self.get_group_by_id(group_id)
-        await get_user_by_id(self.session, user_id)
+        group = await self.get_group_by_id(group_id)
+        user = await get_user_by_id(self.session, user_id)
 
         # Check if membership already exists
         # Race condition note (TOCTOU): a concurrent request could insert the
@@ -354,6 +359,16 @@ class GroupsService(BaseService):
         except IntegrityError as e:
             await self.session.rollback()
             raise UserAlreadyInGroupError(user_id, group_id) from e
+
+        AuditEventDispatcher.dispatch(
+            GroupMembershipEvent(
+                user_id=user_id,
+                username=user.username,
+                group_id=group_id,
+                group_name=group.name,
+                action="added",
+            ),
+        )
 
     async def remove_member(self, group_id: UUID, user_id: UUID) -> None:
         """Remove a user from a group.
@@ -397,6 +412,16 @@ class GroupsService(BaseService):
             )
         )
         await self.session.commit()
+
+        AuditEventDispatcher.dispatch(
+            GroupMembershipEvent(
+                user_id=user_id,
+                username=user.username,
+                group_id=group_id,
+                group_name=group.name,
+                action="removed",
+            ),
+        )
 
     async def list_members(
         self,
@@ -744,8 +769,32 @@ class GroupsService(BaseService):
 
         await self.session.commit()
 
+        await self._dispatch_membership_diff_events(
+            user_id=user_id,
+            username=user.username,
+            added=to_add,
+            removed=to_remove,
+        )
+
         # Return updated group list
         return await self.list_user_groups(user_id)
+
+    async def _dispatch_membership_diff_events(
+        self,
+        *,
+        user_id: UUID,
+        username: str,
+        added: set[UUID],
+        removed: set[UUID],
+    ) -> None:
+        """Emit GroupMembershipEvent for each membership added or removed."""
+        await dispatch_membership_diff_events(
+            self.session,
+            user_id=user_id,
+            username=username,
+            added=added,
+            removed=removed,
+        )
 
     async def _guard_last_admin_removal(self, group_id: UUID, *, exclude_user_id: UUID) -> None:
         """Raise if removing this user would leave no enabled admins in the group.

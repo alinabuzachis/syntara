@@ -14,6 +14,7 @@ from sqlalchemy import delete as sa_delete
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.audit.group_membership import dispatch_membership_diff_events
 from nexus.core.lib.sanitization import escape_control_chars
 from nexus.core.models import Group, User, UserIdentity
 from nexus.core.models.group import user_groups, user_idp_groups
@@ -245,7 +246,7 @@ async def sync_idp_groups(
     has_claim_based = bool(mapping_entries)
     if not has_claim_based and not aap_role_mapping:
         desired = await _resolve_allow_all_groups(db, user.id, config)
-        await _apply_group_membership_diff(db, user.id, provider_id, desired)
+        await _apply_group_membership_diff(db, user.id, provider_id, desired, username=user.username)
         return bool(desired)
 
     desired_group_ids = await _resolve_allow_all_groups(db, user.id, config)
@@ -274,7 +275,7 @@ async def sync_idp_groups(
 
     has_matched = len(desired_group_ids) > 0 or aap_validated or config.allow_all_authenticated
 
-    await _apply_group_membership_diff(db, user.id, provider_id, desired_group_ids)
+    await _apply_group_membership_diff(db, user.id, provider_id, desired_group_ids, username=user.username)
 
     return has_matched
 
@@ -284,6 +285,8 @@ async def _apply_group_membership_diff(
     user_id: UUID,
     provider_id: UUID,
     desired_group_ids: set[UUID],
+    *,
+    username: str,
 ) -> None:
     """Diff desired groups against all IdP-managed groups and apply changes.
 
@@ -291,6 +294,8 @@ async def _apply_group_membership_diff(
     then assigns only the groups resolved from the current login token.
     Groups that exist only in ``user_groups`` (no ``user_idp_groups`` row)
     are manually assigned and left untouched.
+
+    Emits ``GroupMembershipEvent`` for each membership added or removed.
     """
     all_idp_rows = await db.exec(
         select(user_idp_groups.c.group_id, user_idp_groups.c.identity_provider_id).where(
@@ -303,6 +308,7 @@ async def _apply_group_membership_diff(
 
     to_remove = all_idp_group_ids - desired_group_ids
     displaced_provider_ids = {row[1] for row in rows if row[0] in to_remove} - {provider_id}
+    new_memberships: set[UUID] = set()
 
     if desired_group_ids:
         existing_rows = await db.exec(
@@ -360,3 +366,11 @@ async def _apply_group_membership_diff(
             displaced_provider_ids=[str(pid) for pid in displaced_provider_ids],
             groups_removed=removed,
         )
+
+    await dispatch_membership_diff_events(
+        db,
+        user_id=user_id,
+        username=username,
+        added=new_memberships,
+        removed=to_remove,
+    )

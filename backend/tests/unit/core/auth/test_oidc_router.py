@@ -9,6 +9,8 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth.exceptions import OIDCCallbackError, OIDCErrorCode, SessionStoreUnavailableError
 from nexus.auth.router import (
     _auto_create_user,
@@ -29,8 +31,11 @@ from nexus.auth.router import (
     oidc_callback,
 )
 from nexus.auth.services.oidc_service import OIDCError, OIDCService
+from nexus.authz.audit.group_membership import GroupMembershipEvent, GroupMembershipHandler
+from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.constants import FieldLimits
 from nexus.core.models import User, UserIdentity
+from nexus.core.models.group import Group
 from nexus.core.models.user_identity import SUBJECT_MAX_LENGTH
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
@@ -1512,6 +1517,46 @@ class TestResolveOidcUser:
 
 class TestAutoCreateUser:
     """Tests for the _auto_create_user helper function."""
+
+    @pytest.mark.asyncio
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    async def test_emits_group_member_added_for_authenticated_group(
+        self,
+        mock_do_emit: AsyncMock,
+    ) -> None:
+        """OIDC auto-create must audit the authenticated group grant (AAP-83643)."""
+        AuditEventDispatcher.register({GroupMembershipEvent: GroupMembershipHandler()})
+        email = "user@example.com"
+        user_claims = _make_user_claims(email=email, preferred_username="alice", name="Alice Smith")
+        auth_id = uuid4()
+        auth_group = Group(
+            id=auth_id,
+            name=AUTHENTICATED_GROUP_NAME,
+            description="auth",
+            is_builtin=True,
+            labels={},
+        )
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        username_result = MagicMock()
+        username_result.one_or_none.return_value = None
+        auth_group_result = MagicMock()
+        auth_group_result.first.return_value = auth_group
+        insert_result = MagicMock()
+        db.exec.side_effect = [username_result, auth_group_result, insert_result]
+
+        result = await _auto_create_user(db, user_claims, "Google", email=email)
+
+        assert result.username == "alice"
+        assert mock_do_emit.call_count == 1
+        event = mock_do_emit.call_args.args[0]
+        assert event.event_action == "group_member_added"
+        assert event.event_category == EventCategory.SECURITY_EVENT
+        assert event.structured_data.username == "alice"
+        assert event.structured_data.group_name == AUTHENTICATED_GROUP_NAME
+        assert event.structured_data.group_id == str(auth_id)
+        assert event.structured_data.user_id == str(result.id)
 
     @pytest.mark.asyncio
     async def test_creates_user_with_preferred_username(self) -> None:

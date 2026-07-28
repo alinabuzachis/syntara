@@ -187,7 +187,7 @@ async def delete_group(
     operation_id="add_member",
     response_description="Member added",
 )
-@audit(EventCategory.USER_ACTION, event_action="group_member_add", capture_args={"group_id"})
+@audit(EventCategory.SECURITY_EVENT, event_action="group_member_add", capture_args={"group_id", "request"})
 async def add_member(
     group_id: UUID,
     request: GroupMemberAdd,
@@ -209,7 +209,7 @@ async def add_member(
     operation_id="remove_member",
     response_description="Member removed",
 )
-@audit(EventCategory.USER_ACTION, event_action="group_member_remove", capture_args={"group_id", "user_id"})
+@audit(EventCategory.SECURITY_EVENT, event_action="group_member_remove", capture_args={"group_id", "user_id"})
 async def remove_member(
     group_id: UUID,
     user_id: UUID,
