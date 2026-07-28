@@ -427,7 +427,7 @@ class RetrieverService:
                     document, prompt, primary_config, llm_credential_config=llm_credential_config
                 )
                 document.relevancy_score = score
-                self._update_metadata_for_primary(document, primary_config)
+                self._update_metadata(document, primary_config.checker_type, is_primary=True)
                 return document
 
             except (RetrieverServiceError, ValueError, TypeError, RuntimeError) as e:
@@ -445,7 +445,7 @@ class RetrieverService:
                     document, prompt, fallback_config, llm_credential_config=llm_credential_config
                 )
                 document.relevancy_score = score
-                self._update_metadata_for_fallback(document, fallback_config)
+                self._update_metadata(document, fallback_config.checker_type, is_primary=False)
                 return document
 
             except Exception:
@@ -461,21 +461,22 @@ class RetrieverService:
         document.retrieval_metadata.update({"relevancy_checker_used": "default", "relevancy_checker_failed": True})
         return document
 
-    def _update_metadata_for_primary(self, document: RelevantDocument, config: RelevancyConfiguration) -> None:
-        """Update document metadata for primary checker usage."""
-        document.retrieval_metadata.update(
-            {"relevancy_checker_used": "primary", "relevancy_checker_type": config.checker_type}
-        )
+    def _update_metadata(self, document: RelevantDocument, checker_type: str, *, is_primary: bool) -> None:
+        """Update document metadata for relevancy checker usage.
 
-    def _update_metadata_for_fallback(self, document: RelevantDocument, config: RelevancyConfiguration) -> None:
-        """Update document metadata for fallback checker usage."""
-        document.retrieval_metadata.update(
-            {
-                "relevancy_checker_used": "fallback",
-                "relevancy_checker_type": config.checker_type,
-                "primary_checker_failed": True,
-            }
-        )
+        Args:
+            document: Document whose metadata to update
+            checker_type: Type identifier of the relevancy checker
+            is_primary: True for primary checker, False for fallback
+
+        """
+        metadata: dict[str, str | bool] = {
+            "relevancy_checker_used": "primary" if is_primary else "fallback",
+            "relevancy_checker_type": checker_type,
+        }
+        if not is_primary:
+            metadata["primary_checker_failed"] = True
+        document.retrieval_metadata.update(metadata)
 
     def _rank_and_filter_documents(self, documents: list[RelevantDocument]) -> list[RelevantDocument]:
         """Rank documents by relevancy score and apply configuration filters.
