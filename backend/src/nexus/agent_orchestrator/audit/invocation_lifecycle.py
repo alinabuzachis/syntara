@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from nexus.agent_orchestrator.audit import extract_actor_fields
 from nexus.agent_orchestrator.models import InvocationStatus
 from nexus.audit.emitter import AuditActorContext
 from nexus.audit.handler import AuditEventHandler
@@ -63,9 +64,7 @@ class InvocationLifecycleHandler(AuditEventHandler[InvocationLifecycleEvent]):
 
         """
         # Extract actor identity atomically from AuditActorContext
-        actor_id = event.actor_context.actor_id if event.actor_context else None
-        actor_username = event.actor_context.actor_username if event.actor_context else None
-        actor_type = event.actor_context.actor_type if event.actor_context else None
+        actor_id, actor_username, actor_type = extract_actor_fields(event.actor_context)
 
         # Determine severity and status based on invocation status
         if event.status == InvocationStatus.FAILED:

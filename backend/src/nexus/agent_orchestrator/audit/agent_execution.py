@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
+from nexus.agent_orchestrator.audit import extract_actor_fields
 from nexus.audit.emitter import AuditActorContext
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
@@ -63,9 +64,7 @@ class AgentExecutionHandler(AuditEventHandler[AgentExecutionEvent]):
 
         """
         # Extract actor identity atomically from AuditActorContext
-        actor_id = event.actor_context.actor_id if event.actor_context else None
-        actor_username = event.actor_context.actor_username if event.actor_context else None
-        actor_type = event.actor_context.actor_type if event.actor_context else None
+        actor_id, actor_username, actor_type = extract_actor_fields(event.actor_context)
 
         # Determine severity and status
         if event.status == AgentExecutionStatus.FAILED:
