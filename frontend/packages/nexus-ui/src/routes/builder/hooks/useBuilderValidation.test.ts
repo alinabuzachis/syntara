@@ -2,28 +2,10 @@ import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 const mockHandleVerifySilent = vi.fn()
-const mockDispatch = vi.fn()
-const mockSetValidationErrorCount = vi.fn()
 
 vi.mock('../useWorkflowVerification', () => ({
   useWorkflowVerification: () => ({ handleVerifySilent: mockHandleVerifySilent }),
-  extractValidationErrors: vi.fn((err: Record<string, unknown> | undefined) => {
-    if (!err) return null
-    const vr = err.validation_result as { findings?: unknown[] } | undefined
-    if (!vr?.findings) return null
-    return (vr.findings as Array<{ message: string; node_id?: string | null }>).map((f) => ({
-      message: f.message,
-      nodeId: f.node_id ?? null,
-      severity: 'error',
-    }))
-  }),
 }))
-
-vi.mock('../../../stores/useWorkflowStore', () => {
-  const store = (selector: (state: Record<string, unknown>) => unknown) => selector({ validationErrorCount: 0 })
-  store.getState = () => ({ setValidationErrorCount: mockSetValidationErrorCount })
-  return { useWorkflowStore: store }
-})
 
 import { useBuilderValidation } from './useBuilderValidation'
 
@@ -31,44 +13,18 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-const baseParams = {
-  dispatch: mockDispatch,
-  hasValidationIssues: false,
-  isNew: false,
-  isDirty: false,
-  currentWorkflow: { workflow: { activities: [] }, triggers: [] } as never,
-}
-
 describe('useBuilderValidation', () => {
-  describe('auto-validation on load', () => {
-    it('runs silent verification when hasValidationIssues is true and workflow is clean', () => {
-      renderHook(() => useBuilderValidation({ ...baseParams, hasValidationIssues: true }))
+  it('returns handleVerifySilent from useWorkflowVerification', () => {
+    const mockDispatch = vi.fn()
+    const { result } = renderHook(() => useBuilderValidation({ dispatch: mockDispatch }))
 
-      expect(mockHandleVerifySilent).toHaveBeenCalledTimes(1)
-    })
+    expect(result.current.handleVerifySilent).toBe(mockHandleVerifySilent)
+  })
 
-    it('does not run verification when hasValidationIssues is false', () => {
-      renderHook(() => useBuilderValidation({ ...baseParams, hasValidationIssues: false }))
+  it('does not auto-fire validation on render', () => {
+    const mockDispatch = vi.fn()
+    renderHook(() => useBuilderValidation({ dispatch: mockDispatch }))
 
-      expect(mockHandleVerifySilent).not.toHaveBeenCalled()
-    })
-
-    it('does not run verification when workflow is new', () => {
-      renderHook(() => useBuilderValidation({ ...baseParams, hasValidationIssues: true, isNew: true }))
-
-      expect(mockHandleVerifySilent).not.toHaveBeenCalled()
-    })
-
-    it('does not run verification when workflow is dirty', () => {
-      renderHook(() => useBuilderValidation({ ...baseParams, hasValidationIssues: true, isDirty: true }))
-
-      expect(mockHandleVerifySilent).not.toHaveBeenCalled()
-    })
-
-    it('does not run verification when currentWorkflow is null', () => {
-      renderHook(() => useBuilderValidation({ ...baseParams, hasValidationIssues: true, currentWorkflow: null }))
-
-      expect(mockHandleVerifySilent).not.toHaveBeenCalled()
-    })
+    expect(mockHandleVerifySilent).not.toHaveBeenCalled()
   })
 })

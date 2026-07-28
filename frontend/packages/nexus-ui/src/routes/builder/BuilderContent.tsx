@@ -191,10 +191,6 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [initialViewVersion, dispatch, clearExecutionFilters])
   const { handleVerifySilent } = useBuilderValidation({
     dispatch,
-    hasValidationIssues: workflow?.has_validation_issues,
-    isNew,
-    isDirty,
-    currentWorkflow,
   })
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
