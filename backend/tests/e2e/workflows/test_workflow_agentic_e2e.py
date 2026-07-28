@@ -18,6 +18,7 @@ from uuid import UUID
 import pytest
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
+from nexus_api_client.models.credential_update import CredentialUpdate
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.initial_model_selection import InitialModelSelection
 from nexus_api_client.models.integration_create import IntegrationCreate
@@ -808,3 +809,83 @@ def test_agentic_parallel_paths_converge(
     assert activities["agent_b"] == "completed"
     assert activities["join"] == "completed"
     assert activities["final"] == "completed"
+
+
+# ---------------------------------------------------------------------------
+# 13. Disabled MCP credential in integration_connections
+# ---------------------------------------------------------------------------
+
+
+def test_agentic_disabled_mcp_credential_fails_eagerly(
+    nexus_api: NexusApiRegistry,
+    llm_credential_id: str,
+    llm_model_id: str,
+    mcp_integration_id: str,
+    first_project_id: UUID,
+    worker_id: str,
+) -> None:
+    """Agentic node with a disabled MCP credential in integration_connections fails before LLM call."""
+    types_list = nexus_api.credentials.list_types().assert_and_get()
+    bearer_type_id: UUID | None = None
+    for ct in types_list.resources:
+        if ct.name == "HTTP Bearer Token":
+            bearer_type_id = UUID(str(ct.id))
+            break
+    assert bearer_type_id is not None, "HTTP Bearer Token credential type not found"
+
+    disabled_cred_id: str | None = None
+    try:
+        disabled_cred = nexus_api.credentials.create(
+            body=CredentialCreate(
+                name=f"e2e-disabled-mcp-cred-{worker_id}",
+                credential_type_id=bearer_type_id,
+                project_id=first_project_id,
+                inputs=CredentialCreateInputs.from_dict({"token": "fake-token"}),
+            ),
+        ).assert_and_get()
+        disabled_cred_id = str(disabled_cred.id)
+
+        nexus_api.credentials.update(
+            credential_id=disabled_cred.id,
+            body=CredentialUpdate(enabled=False),
+        ).assert_and_get()
+
+        result = create_and_run_workflow(
+            nexus_api,
+            "e2e-agentic-disabled-mcp-cred",
+            {
+                "name": "agentic-disabled-mcp-cred",
+                "schema_version": "2.0.0",
+                "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+                "nodes": [
+                    _agentic_node(
+                        "agent",
+                        "Disabled MCP Cred Agent",
+                        "Say hello",
+                        llm_credential_id,
+                        llm_model_id,
+                        integration_connections=[
+                            {
+                                "integration_id": mcp_integration_id,
+                                "credential_id": disabled_cred_id,
+                            }
+                        ],
+                    ),
+                ],
+                "edges": [{"from": "trigger", "to": "agent"}],
+            },
+            timeout=AGENTIC_POLL_TIMEOUT,
+            project_id=first_project_id,
+        )
+
+        assert result.status in {
+            ExecutionStatus.FAILED,
+            ExecutionStatus.COMPLETED_WITH_ERRORS,
+        }, f"Expected failure with disabled credential, got: {result.status}"
+
+    finally:
+        if disabled_cred_id is not None:
+            try:
+                nexus_api.credentials.delete(credential_id=UUID(disabled_cred_id))
+            except Exception:
+                pass

@@ -16,7 +16,8 @@ if TYPE_CHECKING:
     from nexus.agent_orchestrator.context_manager.compressor import CompressorService
     from nexus.workflows.workflow_engine.models.workflow_definition import IntegrationConnectionConfig
 
-from sqlmodel import update
+from sqlalchemy.orm import selectinload
+from sqlmodel import col, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.audit.invocation_lifecycle import InvocationLifecycleEvent
@@ -27,7 +28,13 @@ from nexus.agent_orchestrator.exceptions import (
     InvocationCancelledError,
     LLMConfigurationError,
 )
-from nexus.agent_orchestrator.models import Invocation, InvocationContextData, InvocationStatus, LLMCredentialConfig
+from nexus.agent_orchestrator.models import (
+    Invocation,
+    InvocationContextData,
+    InvocationMetadata,
+    InvocationStatus,
+    LLMCredentialConfig,
+)
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDetailsResult
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
@@ -50,9 +57,10 @@ from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.files.file_manager import FileManager, get_file_manager
 from nexus.files.models import FileStatus
-from nexus.integrations.models.integration import Integration
+from nexus.integrations.models.integration import Integration, IntegrationType
 from nexus.integrations.models.integration_configuration import LLMProviderConfiguration
 from nexus.integrations.models.llm_model import LLMModel
+from nexus.integrations.services.integration_service import ALLOWED_CREDENTIAL_TYPES
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
@@ -591,6 +599,8 @@ class InvocationExecutor:
         try:
             logger.info("Initializing LLM for invocation", invocation_id=invocation.id)
 
+            await self._validate_credentials_eagerly(meta, invocation.project_id)
+
             raw_credential_id = meta.credential_id.get_secret_value() if meta and meta.credential_id else None
             credential_api_key: str | None = None
             if raw_credential_id:
@@ -718,6 +728,95 @@ class InvocationExecutor:
                     invocation_id=invocation.id,
                     failed_files=[f.filename for f in failed_files],
                 )
+
+    async def _validate_credentials_eagerly(
+        self,
+        meta: InvocationMetadata | None,
+        project_id: UUID,
+    ) -> None:
+        """Validate all referenced credentials before execution starts.
+
+        Checks existence, enabled, project membership, credential type, and
+        secret data for both the LLM credential and MCP integration credentials.
+
+        Raises:
+            CredentialResolutionError: On first validation failure.
+
+        """
+        if meta is None:
+            return
+        expected = self._collect_expected_credentials(meta)
+        if not expected:
+            return
+
+        cred_uuids = self._parse_credential_uuids(expected)
+        found = await self._load_credentials_batch(cred_uuids)
+
+        for (cred_id_str, allowed_types), cred_uuid in zip(expected, cred_uuids, strict=True):
+            self._check_credential(found.get(cred_uuid), cred_id_str, allowed_types, project_id)
+
+    @staticmethod
+    def _collect_expected_credentials(meta: InvocationMetadata) -> list[tuple[str, frozenset[str]]]:
+        expected: list[tuple[str, frozenset[str]]] = []
+        if meta.credential_id:
+            # credential_id is a UUID wrapped in SecretStr to suppress logging —
+            # get_secret_value() just unwraps it, no decryption or secret fetch.
+            expected.append(
+                (
+                    meta.credential_id.get_secret_value(),
+                    ALLOWED_CREDENTIAL_TYPES[IntegrationType.LLM_PROVIDER],
+                )
+            )
+        expected.extend(
+            (conn.credential_id, ALLOWED_CREDENTIAL_TYPES[IntegrationType.MCP_SERVER])
+            for conn in (meta.integration_connections or [])
+        )
+        return expected
+
+    @staticmethod
+    def _parse_credential_uuids(expected: list[tuple[str, frozenset[str]]]) -> list[UUID]:
+        uuids: list[UUID] = []
+        for cred_id_str, _ in expected:
+            try:
+                uuids.append(UUID(cred_id_str))
+            except ValueError as e:
+                msg = f"Invalid credential ID '{cred_id_str}'."
+                raise CredentialResolutionError(msg) from e
+        return uuids
+
+    async def _load_credentials_batch(self, cred_uuids: list[UUID]) -> dict[UUID, Credential]:
+        async with self.get_async_session_context() as session:
+            result = await session.exec(
+                select(Credential)
+                .where(col(Credential.id).in_(cred_uuids))
+                .options(selectinload(Credential.credential_type))  # type: ignore[arg-type]
+            )
+            return {cred.id: cred for cred in result.all()}
+
+    @staticmethod
+    def _check_credential(
+        credential: Credential | None,
+        cred_id_str: str,
+        allowed_types: frozenset[str],
+        project_id: UUID,
+    ) -> None:
+        if not credential:
+            msg = f"Credential '{cred_id_str}' not found."
+            raise CredentialResolutionError(msg)
+        if credential.project_id != project_id:
+            msg = "Credential does not belong to this project."
+            raise CredentialResolutionError(msg)
+        if not credential.enabled:
+            msg = f"Credential '{credential.name}' is disabled."
+            raise CredentialResolutionError(msg)
+        actual = credential.credential_type.name if credential.credential_type else None
+        if not actual or actual not in allowed_types:
+            expected = sorted(allowed_types)
+            msg = f"Credential '{credential.name}' has type '{actual or 'unknown'}', expected one of {expected}."
+            raise CredentialResolutionError(msg)
+        if not credential.secret_id:
+            msg = f"Credential '{credential.name}' has no stored secret data."
+            raise CredentialResolutionError(msg)
 
     def _make_mcp_credential_resolver(
         self,
