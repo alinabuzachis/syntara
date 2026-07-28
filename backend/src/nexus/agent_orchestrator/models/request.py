@@ -8,7 +8,7 @@ from enum import Enum
 from uuid import UUID
 
 from fastapi import UploadFile
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, Field
 from sqlmodel import SQLModel
 
 
@@ -59,10 +59,8 @@ class InvocationCreateRequest(SQLModel, populate_by_name=True):
     )
 
 
-class InvocationRequestWithFile(BaseModel):
+class InvocationRequestWithFile(SQLModel):
     """Multipart form body for POST /invocations/chat (file upload path)."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     prompt: str | None = None
     session_id: str | None = None
