@@ -7,6 +7,7 @@ compression, and assembly phases to produce final context packages.
 import contextlib
 import time
 from collections.abc import AsyncGenerator, Callable
+from typing import NamedTuple
 from uuid import UUID
 
 import structlog
@@ -33,6 +34,17 @@ from .models import ContextPackage
 from .retriever_service.services import RetrieverService, get_retriever_service
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+class _PlanningContext(NamedTuple):
+    """Immutable bundle of identifiers shared across planning call sites."""
+
+    session_id: str
+    invocation_id: UUID
+    execution_id: UUID | None
+    request_id: UUID | None
+    activity_id: str | None
+    activity_name: str | None
 
 
 class ContextManagerPlanner:
@@ -200,19 +212,30 @@ class ContextManagerPlanner:
         logger.info("Starting context planning")
         logger.debug("Context planning", tenant=session_id, query=query)
 
+        # Bundle the identifiers that every cancellation check and audit
+        # dispatch in this method needs so they are stated once.
+        ctx = _PlanningContext(
+            session_id=session_id,
+            invocation_id=invocation_id,
+            execution_id=execution_id,
+            request_id=request_id,
+            activity_id=activity_id,
+            activity_name=activity_name,
+        )
+
         # Initialize timing metadata
         timing_data = {}
 
         # Phase 1: Retrieval
         # Check for cancellation before starting retrieval
         await self._check_cancellation(
-            session_id,
-            invocation_id,
+            ctx.session_id,
+            ctx.invocation_id,
             ContextPlanningPhase.RETRIEVAL,
-            execution_id=execution_id,
-            request_id=request_id,
-            activity_id=activity_id,
-            activity_name=activity_name,
+            execution_id=ctx.execution_id,
+            request_id=ctx.request_id,
+            activity_id=ctx.activity_id,
+            activity_name=ctx.activity_name,
         )
 
         # Emit STARTED event for retrieval phase
@@ -220,12 +243,12 @@ class ContextManagerPlanner:
             ContextPlanningEvent(
                 phase=ContextPlanningPhase.RETRIEVAL,
                 status=ContextPlanningStatus.STARTED,
-                session_id=session_id,
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=request_id,
-                activity_id=activity_id,
-                activity_name=activity_name,
+                session_id=ctx.session_id,
+                invocation_id=ctx.invocation_id,
+                execution_id=ctx.execution_id,
+                request_id=ctx.request_id,
+                activity_id=ctx.activity_id,
+                activity_name=ctx.activity_name,
             )
         )
 
@@ -248,13 +271,13 @@ class ContextManagerPlanner:
                 ContextPlanningEvent(
                     phase=ContextPlanningPhase.RETRIEVAL,
                     status=ContextPlanningStatus.COMPLETED,
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
+                    session_id=ctx.session_id,
+                    invocation_id=ctx.invocation_id,
+                    execution_id=ctx.execution_id,
+                    request_id=ctx.request_id,
                     document_count=len(retrieved_docs),
-                    activity_id=activity_id,
-                    activity_name=activity_name,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
         except Exception as e:
@@ -266,13 +289,13 @@ class ContextManagerPlanner:
                 ContextPlanningEvent(
                     phase=ContextPlanningPhase.RETRIEVAL,
                     status=ContextPlanningStatus.FAILED,
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
+                    session_id=ctx.session_id,
+                    invocation_id=ctx.invocation_id,
+                    execution_id=ctx.execution_id,
+                    request_id=ctx.request_id,
                     error_type=type(e).__name__,
-                    activity_id=activity_id,
-                    activity_name=activity_name,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
             retrieved_docs = []
@@ -280,13 +303,13 @@ class ContextManagerPlanner:
         # Phase 2: Assembly
         # Check for cancellation before starting assembly
         await self._check_cancellation(
-            session_id,
-            invocation_id,
+            ctx.session_id,
+            ctx.invocation_id,
             ContextPlanningPhase.ASSEMBLY,
-            execution_id=execution_id,
-            request_id=request_id,
-            activity_id=activity_id,
-            activity_name=activity_name,
+            execution_id=ctx.execution_id,
+            request_id=ctx.request_id,
+            activity_id=ctx.activity_id,
+            activity_name=ctx.activity_name,
         )
 
         # Emit STARTED event for assembly phase
@@ -294,13 +317,13 @@ class ContextManagerPlanner:
             ContextPlanningEvent(
                 phase=ContextPlanningPhase.ASSEMBLY,
                 status=ContextPlanningStatus.STARTED,
-                session_id=session_id,
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=request_id,
+                session_id=ctx.session_id,
+                invocation_id=ctx.invocation_id,
+                execution_id=ctx.execution_id,
+                request_id=ctx.request_id,
                 document_count=len(retrieved_docs),
-                activity_id=activity_id,
-                activity_name=activity_name,
+                activity_id=ctx.activity_id,
+                activity_name=ctx.activity_name,
             )
         )
 
@@ -338,12 +361,12 @@ class ContextManagerPlanner:
                 ContextPlanningEvent(
                     phase=ContextPlanningPhase.ASSEMBLY,
                     status=ContextPlanningStatus.COMPLETED,
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
-                    activity_id=activity_id,
-                    activity_name=activity_name,
+                    session_id=ctx.session_id,
+                    invocation_id=ctx.invocation_id,
+                    execution_id=ctx.execution_id,
+                    request_id=ctx.request_id,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
 
@@ -356,13 +379,13 @@ class ContextManagerPlanner:
                 ContextPlanningEvent(
                     phase=ContextPlanningPhase.ASSEMBLY,
                     status=ContextPlanningStatus.FAILED,
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
+                    session_id=ctx.session_id,
+                    invocation_id=ctx.invocation_id,
+                    execution_id=ctx.execution_id,
+                    request_id=ctx.request_id,
                     error_type=type(e).__name__,
-                    activity_id=activity_id,
-                    activity_name=activity_name,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
             raise
