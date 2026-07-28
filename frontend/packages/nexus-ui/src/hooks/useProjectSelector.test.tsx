@@ -250,6 +250,52 @@ describe('useProjectSelector', () => {
     })
   })
 
+  // ── clearSelectionOnMount ────────────────────────────────────────────────
+
+  describe('clearSelectionOnMount', () => {
+    it('clears persisted project on mount when clearSelectionOnMount is true', () => {
+      mockSelectedProjectId = 'proj-1'
+      mockSelectedProjectName = 'Alpha'
+
+      renderHook(() => useProjectSelector({ requireProject: true, clearSelectionOnMount: true }), { wrapper })
+
+      expect(mockSetSelectedProjectId).toHaveBeenCalledWith(null)
+    })
+
+    it('does not clear project on mount when clearSelectionOnMount is false', () => {
+      mockSelectedProjectId = 'proj-1'
+      mockSelectedProjectName = 'Alpha'
+
+      renderHook(() => useProjectSelector({ requireProject: true, clearSelectionOnMount: false }), { wrapper })
+
+      expect(mockSetSelectedProjectId).not.toHaveBeenCalledWith(null)
+    })
+
+    it('does not clear project on mount by default (option omitted)', () => {
+      mockSelectedProjectId = 'proj-1'
+      mockSelectedProjectName = 'Alpha'
+
+      renderHook(() => useProjectSelector({ requireProject: true }), { wrapper })
+
+      expect(mockSetSelectedProjectId).not.toHaveBeenCalledWith(null)
+    })
+
+    it('clears only once even after re-renders', () => {
+      mockSelectedProjectId = 'proj-1'
+      mockSelectedProjectName = 'Alpha'
+
+      const { rerender } = renderHook(() => useProjectSelector({ requireProject: true, clearSelectionOnMount: true }), {
+        wrapper,
+      })
+
+      rerender()
+      rerender()
+
+      const nullCalls = mockSetSelectedProjectId.mock.calls.filter(([id]) => id === null)
+      expect(nullCalls).toHaveLength(1)
+    })
+  })
+
   // ── Stale project cleanup ───────────────────────────────────────────────
 
   describe('stale project cleanup', () => {

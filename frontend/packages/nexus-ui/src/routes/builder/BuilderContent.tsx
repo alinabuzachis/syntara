@@ -79,6 +79,7 @@ export function BuilderContent(props: BuilderContentProps) {
     hasValidationError: saveAttemptedWithoutProject,
     onProjectSelect: () => setSaveAttemptedWithoutProject(false),
     isDisabled: !isNew,
+    clearSelectionOnMount: isNew,
   })
 
   const queryClient = useQueryClient()

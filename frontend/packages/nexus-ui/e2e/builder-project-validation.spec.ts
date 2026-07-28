@@ -10,34 +10,23 @@
  *
  * Note: Toast notifications are intentionally NOT asserted here — they are
  * tested in unit tests and are too ephemeral for reliable E2E assertions.
- * The project-validation tests are skipped when the Zustand store has already
- * restored a selected project (e.g. from a previous test in the same browser
- * session), because validation only fires on the no-project path.
+ *
+ * AAP-82756: The builder always clears the project selection on mount for new
+ * workflows, so the project selector is deterministically empty regardless of
+ * any previously persisted selection in Zustand/localStorage.
  */
-
-import { type Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName, selectProjectIfRequired } from './helpers/workflows'
 import { createWorkflowViaApi, deleteWorkflowViaApi, ensureProject } from './utils/api'
 
-/** Returns true if the "Select a project" placeholder is currently visible */
-async function projectIsUnselected(app: Page) {
-  return app
-    .getByPlaceholder('Select a project')
-    .waitFor({ state: 'visible', timeout: 3_000 })
-    .then(() => true)
-    .catch(() => false)
-}
-
 test.describe('Builder save validation — project required', () => {
   /**
    * Core validation flow: save without project → danger state on selector →
    * select project → save succeeds and navigates away.
+   * AAP-82756: Project is always cleared on mount so this is deterministic.
    */
-  test.skip('saving new workflow without project shows error then succeeds after project selection', async ({
-    app,
-  }) => {
+  test('saving new workflow without project shows error then succeeds after project selection', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-proj-validation')
     await ensureProject(app)
 
@@ -49,12 +38,8 @@ test.describe('Builder save validation — project required', () => {
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
     await app.getByRole('button', { name: 'Create' }).click()
 
-    // Skip when the Zustand store has already restored a selected project —
-    // validation will not fire in that case and this test would be a false failure.
-    if (!(await projectIsUnselected(app))) {
-      test.skip()
-      return
-    }
+    // Project selector must always be empty for new workflows (AAP-82756)
+    await expect(app.getByPlaceholder('Select a project')).toBeVisible()
 
     try {
       await app.getByPlaceholder('Workflow name').fill(workflowName)
@@ -68,11 +53,8 @@ test.describe('Builder save validation — project required', () => {
       // Assert: project selector shows aria-invalid danger state
       await expect(app.locator('[aria-invalid="true"]')).toBeVisible()
 
-      // Act: select a project
-      const projectInput = app.getByRole('textbox', { name: 'Project' })
-      await projectInput.click()
-      await expect(app.getByRole('option').nth(0)).toBeVisible({ timeout: 10_000 })
-      await app.getByRole('option').nth(0).click()
+      // Act: select a project (uses helper that skips non-project options like "Create project")
+      await selectProjectIfRequired(app)
 
       // Assert: danger state is cleared
       await expect(app.locator('[aria-invalid="true"]')).not.toBeVisible()
@@ -110,7 +92,8 @@ test.describe('Builder save validation — project required', () => {
   })
 
   /**
-   * Saving a new workflow with a project already selected navigates away from /new.
+   * Saving a new workflow after selecting a project navigates away from /new.
+   * AAP-82756: Project is always cleared on mount, so explicit selection is always required.
    */
   test('saving new workflow with project selected succeeds immediately', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-proj-save-ok')
@@ -125,7 +108,7 @@ test.describe('Builder save validation — project required', () => {
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
       await app.getByRole('button', { name: 'Create' }).click()
 
-      // Select a project if one isn't already selected from the Zustand store
+      // Select a project (always required since AAP-82756 clears on mount)
       await selectProjectIfRequired(app)
 
       // Name and save
@@ -150,7 +133,7 @@ test.describe('Builder save validation — project required', () => {
 
   /**
    * Project required error fires even when the workflow already has steps.
-   * Skipped when the Zustand store has already restored a project selection.
+   * AAP-82756: No skip guard needed — project is always cleared on mount.
    */
   test('project required error fires even when workflow has steps', async ({ app }) => {
     await ensureProject(app)
@@ -162,10 +145,8 @@ test.describe('Builder save validation — project required', () => {
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
     await app.getByRole('button', { name: 'Create' }).click()
 
-    if (!(await projectIsUnselected(app))) {
-      test.skip()
-      return
-    }
+    // Project selector must be empty (AAP-82756)
+    await expect(app.getByPlaceholder('Select a project')).toBeVisible()
 
     // Click Save without selecting a project
     await app.getByRole('button', { name: 'Save' }).click()

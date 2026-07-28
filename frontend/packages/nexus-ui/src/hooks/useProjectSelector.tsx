@@ -1,5 +1,5 @@
 import type { MouseEvent, ReactNode } from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ProjectRead } from '../routes/access/types'
 import { useProjectStore } from '../stores/useProjectStore'
@@ -75,6 +75,8 @@ type UseProjectSelectorOptions = {
   onProjectSelect?: (project: ProjectRead | null) => void
   /** When true, the selector is disabled (greyed out, not interactive). Use for edit mode where project_id is immutable. */
   isDisabled?: boolean
+  /** When true, clears the persisted project selection on first mount. Use for pages that must always start with no project (e.g., new workflow builder). */
+  clearSelectionOnMount?: boolean
 }
 
 type UseProjectSelectorResult = {
@@ -125,6 +127,7 @@ function favoriteProjectsInResults(projects: ProjectRead[], favoriteProjectIds: 
 
 type ProjectSelectorSyncEffectsParams = {
   initialProjectId?: string | null
+  clearSelectionOnMount?: boolean
   selectedProjectId: string | null
   setSelectedProjectId: (id: string | null, name?: string | null) => void
   isInitialPage: boolean
@@ -138,6 +141,7 @@ type ProjectSelectorSyncEffectsParams = {
 /* eslint-disable reactYouMightNotNeedAnEffect/no-event-handler, reactYouMightNotNeedAnEffect/no-pass-data-to-parent -- parameters are Zustand actions / sync helpers, not React child event-handler props */
 function useProjectSelectorSyncEffects({
   initialProjectId,
+  clearSelectionOnMount,
   selectedProjectId,
   setSelectedProjectId,
   isInitialPage,
@@ -146,6 +150,14 @@ function useProjectSelectorSyncEffects({
   selectedProject,
   syncName,
 }: ProjectSelectorSyncEffectsParams): void {
+  const hasClearedOnMount = useRef(false)
+  useEffect(() => {
+    if (clearSelectionOnMount && !hasClearedOnMount.current) {
+      hasClearedOnMount.current = true
+      setSelectedProjectId(null)
+    }
+  }, [clearSelectionOnMount, setSelectedProjectId])
+
   useEffect(() => {
     if (initialProjectId) setSelectedProjectId(initialProjectId)
   }, [initialProjectId, setSelectedProjectId])
@@ -176,6 +188,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
     hasValidationError = false,
     onProjectSelect: onUserProjectSelect,
     isDisabled = false,
+    clearSelectionOnMount = false,
   } = options ?? {}
   const {
     selectedProjectId,
@@ -216,6 +229,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
 
   useProjectSelectorSyncEffects({
     initialProjectId,
+    clearSelectionOnMount,
     selectedProjectId,
     setSelectedProjectId,
     isInitialPage,
