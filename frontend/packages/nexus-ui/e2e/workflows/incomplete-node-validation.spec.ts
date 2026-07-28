@@ -72,13 +72,22 @@ test.describe('UI-32: Workflow Verification — Missing Required Configuration',
 
       // Verification is a separate action from save — trigger it via the kebab menu.
       // Retry the open+click sequence because the menu can close between the two actions.
+      // If a prior attempt already ran verify (banner visible) but the menuitem click
+      // threw on detach, short-circuit so we don't toggle the kebab closed and miss
+      // the item on the next try — same race class as the workflows-run-dialog VR fix.
+      const verificationFailed = app.getByRole('heading', { name: /Verification failed/i })
       await expect(async () => {
-        await app.getByRole('button', { name: 'Workflow actions' }).click()
-        await app.getByRole('menuitem', { name: 'Verify workflow' }).click()
+        if (await verificationFailed.isVisible().catch(() => false)) return
+        const actions = app.getByRole('button', { name: 'Workflow actions' })
+        const verifyItem = app.getByRole('menuitem', { name: 'Verify workflow' })
+        if (!(await verifyItem.isVisible().catch(() => false))) {
+          await actions.click()
+        }
+        await verifyItem.click()
       }).toPass({ timeout: 15_000, intervals: [1_000, 2_000, 3_000] })
 
       // getByRole('heading') is more specific than getByText (avoids matching hidden text)
-      await expect(app.getByRole('heading', { name: /Verification failed/i })).toBeVisible({
+      await expect(verificationFailed).toBeVisible({
         timeout: VERIFY_BANNER_TIMEOUT,
       })
 
