@@ -4,7 +4,7 @@ import { useCallback, useMemo } from 'react'
 import type { SortableColumn, SortConfig, SortDirection } from '../types/sorting'
 import { buildSortParam } from '../utils/sortUtils'
 
-import type { UseSortStateResult } from './useSortState'
+import type { UseSortStateOptions, UseSortStateResult } from './useSortState'
 import { useSortState } from './useSortState'
 
 /**
@@ -130,7 +130,8 @@ export function useSortableTableControls(
  * {@link useFilteredQuery} (or any list query) for API-based sorting.
  *
  * @param columns - Table column definitions (`field`, `label`, optional `isSortable`)
- * @param defaultSort - Optional default sort when the URL has no valid `sort` param
+ * @param defaultSort - Optional default sort when the URL has no valid sort param
+ * @param options - Optional `paramName` when multiple sorts share a route
  * @returns Sort state, PatternFly sort helpers, and API `sortParam`
  *
  * @example
@@ -170,8 +171,12 @@ export function useSortableTableControls(
  * }
  * ```
  */
-export function useSortableTable(columns: SortableColumn[], defaultSort?: SortConfig): UseSortableTableResult {
-  const sortState = useSortState(defaultSort)
+export function useSortableTable(
+  columns: SortableColumn[],
+  defaultSort?: SortConfig,
+  options?: UseSortStateOptions
+): UseSortableTableResult {
+  const sortState = useSortState(defaultSort, options)
   const controls = useSortableTableControls(columns, sortState)
 
   return {

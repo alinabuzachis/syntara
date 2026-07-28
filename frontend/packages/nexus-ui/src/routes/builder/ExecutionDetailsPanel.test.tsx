@@ -71,6 +71,10 @@ vi.mock('../../client', () => ({
   interfaceTagMiddleware: { onRequest: vi.fn() },
 }))
 
+vi.mock('../../hooks/routing/useSearchParams', () => ({
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+}))
+
 vi.mock('./ExecutionStatus', () => ({
   StatusLabel: ({ status }: { status: string }) => <div data-testid="status-label">{status}</div>,
   ActivityStatusLabel: ({ status }: { status: string }) => <div data-testid="activity-status-label">{status}</div>,
@@ -133,6 +137,39 @@ describe('ExecutionDetailsPanel', () => {
       expect(labels).toHaveLength(2)
       expect(labels[0]).toHaveTextContent('completed')
       expect(labels[1]).toHaveTextContent('running')
+    })
+  })
+
+  describe('sorting', () => {
+    it('renders sortable activity table headers with chronological default', () => {
+      renderPanel(WORKFLOW_DEF)
+
+      expect(screen.getByRole('columnheader', { name: /Activity/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Type/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Timestamp/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Duration/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Status/i })).toBeInTheDocument()
+    })
+
+    it('orders activities chronologically by default (earlier started first)', () => {
+      renderPanel(WORKFLOW_DEF)
+
+      const labels = screen.getAllByTestId('activity-status-label')
+      // task-1 started at 00:00, task-2 at 00:01 — chronological keeps that order
+      expect(labels[0]).toHaveTextContent('completed')
+      expect(labels[1]).toHaveTextContent('running')
+    })
+
+    it('keeps chronological order in Details compact list', async () => {
+      const user = userEvent.setup()
+      renderPanel(WORKFLOW_DEF)
+
+      await user.click(screen.getByRole('tab', { name: 'Details' }))
+
+      const activityList = screen.getByRole('grid', { name: 'Activity list' })
+      const rows = within(activityList).getAllByRole('row')
+      expect(rows[0]).toHaveTextContent('Process data')
+      expect(rows[1]).toHaveTextContent('Send notification')
     })
   })
 

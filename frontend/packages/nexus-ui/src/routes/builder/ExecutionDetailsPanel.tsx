@@ -1,6 +1,7 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Alert, Divider, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
-import { useEffect, useMemo, useState } from 'react'
+import type { ThProps } from '@patternfly/react-table'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { executionsClient } from '../../client'
 import { FilterBar } from '../../components/filters/FilterBar'
@@ -8,6 +9,7 @@ import { NxPanel } from '../../components/layout/NxPanel'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
+import { useSortableTable } from '../../hooks/useSortableTable'
 import type { FilterConfig } from '../../types/filters'
 import { formatElapsedTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
@@ -24,8 +26,14 @@ import { ACTIVITY_FILTER_DEFINITIONS } from './activityFilterDefinitions'
 import { CompactActivityList } from './CompactActivityList'
 import { ExecutionActivityTable } from './ExecutionActivityTable'
 import type { ActivityOrderItem } from './ExecutionActivityTable'
+import {
+  ACTIVITY_SORT_PARAM,
+  executionActivityDefaultSort,
+  executionActivityTableColumns,
+} from './executionActivityTableColumns'
 import styles from './ExecutionDetailsPanel.module.css'
 import { HeaderMetadata, LoadingErrorState, NoSelectionState, type ViewMode } from './ExecutionDetailsPanelHeader'
+import { sortExecutionActivities } from './sortExecutionActivities'
 import { useActivityFilters } from './useActivityFilters'
 import { useActivityNameMap, resolveNodeName, type WorkflowDefShape } from './useActivityNameMap'
 
@@ -200,6 +208,7 @@ type SinglePanelLayoutProps = {
   selectedNodeId?: string | null
   headerLabel?: string
   onClosePanel?: () => void
+  getSortParams?: (columnField: string) => ThProps['sort']
 }
 
 function SinglePanelLayout({
@@ -220,6 +229,7 @@ function SinglePanelLayout({
   selectedNodeId,
   headerLabel,
   onClosePanel,
+  getSortParams,
 }: Readonly<SinglePanelLayoutProps>) {
   const resolvedError = useMemo(
     () => resolveErrorDetails(execution.error_details, nameMap),
@@ -281,6 +291,7 @@ function SinglePanelLayout({
               executionError={resolvedError}
               onRowClick={onRowClick}
               selectedNodeId={selectedNodeId}
+              getSortParams={getSortParams}
             />
           )}
         </StackItem>
@@ -344,6 +355,22 @@ export function ExecutionDetailsPanel({
     activityOrder,
     activityStates
   )
+
+  const { sort, getSortParams } = useSortableTable(executionActivityTableColumns, executionActivityDefaultSort, {
+    paramName: ACTIVITY_SORT_PARAM,
+  })
+
+  // Keep a live clock ref for duration sort, but do not list `now` as a memo dep.
+  // Depending on the 1s tick would re-sort (new array) every second, and duration
+  // sort would reshuffle running rows as elapsed times cross. Live elapsed still
+  // updates in the table via the `now` prop; row order freezes until order/states/sort change.
+  const nowRef = useRef(now)
+  nowRef.current = now
+  const sortedActivityOrder = useMemo(() => {
+    const sortNow = sort?.field === 'duration' ? nowRef.current : 0
+    return sortExecutionActivities(filteredActivityOrder, activityStates, sort, sortNow)
+  }, [filteredActivityOrder, activityStates, sort])
+
   const hasFilteredOutActivities = hasActiveFilters && activityOrder.length > 0
   const showFilters = activityOrder.length > 0 || hasActiveFilters
 
@@ -372,7 +399,7 @@ export function ExecutionDetailsPanel({
         elapsedLabel={elapsedLabel}
         isRunning={isRunning}
         activityStates={activityStates}
-        activityOrder={filteredActivityOrder}
+        activityOrder={sortedActivityOrder}
         hasFilteredOutActivities={hasFilteredOutActivities}
         showFilters={showFilters}
         filters={filters}
@@ -397,7 +424,7 @@ export function ExecutionDetailsPanel({
       elapsedLabel={elapsedLabel}
       isRunning={isRunning}
       activityStates={activityStates}
-      activityOrder={filteredActivityOrder}
+      activityOrder={sortedActivityOrder}
       nameMap={nameMap}
       hasFilteredOutActivities={hasFilteredOutActivities}
       showFilters={showFilters}
@@ -410,6 +437,7 @@ export function ExecutionDetailsPanel({
       selectedNodeId={resolvedNodeId}
       headerLabel={headerLabel}
       onClosePanel={onClosePanel}
+      getSortParams={getSortParams}
     />
   )
 }

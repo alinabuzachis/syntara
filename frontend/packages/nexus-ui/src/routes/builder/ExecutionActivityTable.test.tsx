@@ -159,11 +159,40 @@ describe('ExecutionActivityTable', () => {
     it('renders column headers', () => {
       renderTable()
 
-      expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: 'Started' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Activity' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Type' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Timestamp' })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: 'Ended' })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: 'Elapsed time' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Duration' })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
+    })
+  })
+
+  describe('sorting', () => {
+    it('applies getSortParams to sortable column headers', () => {
+      const getSortParams = vi.fn((field: string) =>
+        field === 'timestamp'
+          ? {
+              sortBy: { index: 2, direction: 'asc' as const, defaultDirection: 'asc' as const },
+              onSort: vi.fn(),
+              columnIndex: 2,
+            }
+          : {
+              sortBy: { index: 2, direction: 'asc' as const, defaultDirection: 'asc' as const },
+              onSort: vi.fn(),
+              columnIndex: 0,
+            }
+      )
+
+      render(
+        <ExecutionActivityTable activityStates={new Map()} activityOrder={[]} now={NOW} getSortParams={getSortParams} />
+      )
+
+      expect(getSortParams).toHaveBeenCalledWith('activity')
+      expect(getSortParams).toHaveBeenCalledWith('type')
+      expect(getSortParams).toHaveBeenCalledWith('timestamp')
+      expect(getSortParams).toHaveBeenCalledWith('duration')
+      expect(getSortParams).toHaveBeenCalledWith('status')
     })
   })
 })

@@ -45,13 +45,21 @@ describe('useSortableTable', () => {
 
       renderHook(() => useSortableTable(columns, defaultSort))
 
-      expect(useSortState).toHaveBeenCalledWith(defaultSort)
+      expect(useSortState).toHaveBeenCalledWith(defaultSort, undefined)
     })
 
     it('should call useSortState without default when omitted', () => {
       renderHook(() => useSortableTable(columns))
 
-      expect(useSortState).toHaveBeenCalledWith(undefined)
+      expect(useSortState).toHaveBeenCalledWith(undefined, undefined)
+    })
+
+    it('should pass paramName options through to useSortState', () => {
+      const defaultSort: SortConfig = { field: 'timestamp', direction: 'asc' }
+
+      renderHook(() => useSortableTable(columns, defaultSort, { paramName: 'activity_sort' }))
+
+      expect(useSortState).toHaveBeenCalledWith(defaultSort, { paramName: 'activity_sort' })
     })
 
     it('should return current sort config from useSortState', () => {

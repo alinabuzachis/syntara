@@ -286,4 +286,36 @@ describe('useSortState', () => {
       expect(result.current.sort).toEqual({ field: 'created_at', direction: 'desc' })
     })
   })
+
+  describe('paramName option', () => {
+    it('reads and writes a namespaced query param', () => {
+      mockSearchParams = new URLSearchParams('activity_sort=-timestamp&sort=-created_at')
+
+      const { result } = renderHook(() => useSortState(undefined, { paramName: 'activity_sort' }))
+
+      expect(result.current.sort).toEqual({ field: 'timestamp', direction: 'desc' })
+
+      act(() => {
+        result.current.setSort({ field: 'status', direction: 'asc' })
+      })
+
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('activity_sort')).toBe('status')
+      expect(calledParams.get('sort')).toBe('-created_at')
+    })
+
+    it('clears only the namespaced param', () => {
+      mockSearchParams = new URLSearchParams('activity_sort=timestamp&sort=-created_at')
+
+      const { result } = renderHook(() => useSortState(undefined, { paramName: 'activity_sort' }))
+
+      act(() => {
+        result.current.clearSort()
+      })
+
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.has('activity_sort')).toBe(false)
+      expect(calledParams.get('sort')).toBe('-created_at')
+    })
+  })
 })

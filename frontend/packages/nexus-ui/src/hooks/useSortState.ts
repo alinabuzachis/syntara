@@ -5,7 +5,7 @@ import { buildSortParam, parseSortParam, toggleSortDirection } from '../utils/so
 
 import { useSearchParams } from './routing/useSearchParams'
 
-const SORT_PARAM = 'sort'
+const DEFAULT_SORT_PARAM = 'sort'
 
 /**
  * Result from useSortState hook
@@ -13,9 +13,9 @@ const SORT_PARAM = 'sort'
 export type UseSortStateResult = {
   /** Current sort parsed from the URL, or `defaultSort` when the URL has no valid sort */
   sort: SortConfig | null
-  /** Set sort and sync it to the `sort` URL query parameter */
+  /** Set sort and sync it to the URL query parameter */
   setSort: (sort: SortConfig) => void
-  /** Remove the `sort` query parameter from the URL */
+  /** Remove the sort query parameter from the URL */
   clearSort: () => void
   /**
    * Toggle sort for a field.
@@ -24,14 +24,24 @@ export type UseSortStateResult = {
   toggleSort: (field: string) => void
 }
 
+export type UseSortStateOptions = {
+  /**
+   * URL query param name for this sort control.
+   * Defaults to `sort`. Use a namespaced name (e.g. `activity_sort`) when
+   * multiple sort controls share a page so they do not overwrite each other.
+   */
+  paramName?: string
+}
+
 /**
- * Manages sort state in the URL `sort` query parameter.
+ * Manages sort state in a URL query parameter (default `sort`).
  *
  * Enables bookmarkable/shareable sorted views by syncing `SortConfig` with the
  * Nexus API sort format (`field` ascending, `-field` descending). Browser
  * back/forward updates the hook via `useSearchParams`.
  *
- * @param defaultSort - Optional default sort when the URL has no valid `sort` param
+ * @param defaultSort - Optional default sort when the URL has no valid sort param
+ * @param options - Optional `paramName` when multiple sorts share a route
  * @returns Sort state and management functions
  *
  * @example
@@ -53,11 +63,12 @@ export type UseSortStateResult = {
  * }
  * ```
  */
-export function useSortState(defaultSort?: SortConfig): UseSortStateResult {
+export function useSortState(defaultSort?: SortConfig, options?: UseSortStateOptions): UseSortStateResult {
+  const paramName = options?.paramName ?? DEFAULT_SORT_PARAM
   const [searchParams, setSearchParams] = useSearchParams()
 
   const sort = useMemo(() => {
-    const urlSort = parseSortParam(searchParams.get(SORT_PARAM))
+    const urlSort = parseSortParam(searchParams.get(paramName))
     if (urlSort !== null) {
       return urlSort
     }
@@ -65,16 +76,16 @@ export function useSortState(defaultSort?: SortConfig): UseSortStateResult {
       return defaultSort
     }
     return null
-  }, [searchParams, defaultSort])
+  }, [searchParams, defaultSort, paramName])
 
   const writeSortParam = (nextSort: SortConfig | null) => {
     const newSearchParams = new URLSearchParams(searchParams)
     const param = buildSortParam(nextSort)
 
     if (param === null) {
-      newSearchParams.delete(SORT_PARAM)
+      newSearchParams.delete(paramName)
     } else {
-      newSearchParams.set(SORT_PARAM, param)
+      newSearchParams.set(paramName, param)
     }
 
     setSearchParams(newSearchParams)

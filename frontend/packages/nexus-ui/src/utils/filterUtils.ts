@@ -208,10 +208,16 @@ export function parseFiltersFromUrl(searchParams: URLSearchParams): FilterConfig
  * // → null (invalid operator)
  * ```
  */
-const RESERVED_URL_PARAMS = new Set(['sort', 'page', 'perPage', 'cursor'])
+/** Pagination / sort / page chrome — never treat these as filter fields. */
+const RESERVED_URL_PARAMS = new Set(['sort', 'page', 'perPage', 'cursor', 'history'])
+
+function isReservedUrlParam(key: string): boolean {
+  // Namespaced sorts (e.g. `activity_sort` on execution detail) share the URL with list filters.
+  return RESERVED_URL_PARAMS.has(key) || key.endsWith('_sort')
+}
 
 function parseFilterParam(key: string, value: string): FilterConfig | null {
-  if (RESERVED_URL_PARAMS.has(key)) return null
+  if (isReservedUrlParam(key)) return null
 
   // Match pattern: key[operator] — e.g. "name[contains]"
   // Negated character classes ([^[]+, [^\]]+) prevent backtracking; avoids ReDoS on malformed input like "aaa[aaa"

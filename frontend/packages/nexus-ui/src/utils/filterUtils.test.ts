@@ -528,6 +528,25 @@ describe('filterUtils', () => {
       expect(result).toEqual([])
     })
 
+    it('should skip reserved pagination and sort params', () => {
+      const searchParams = new URLSearchParams(
+        'sort=-created_at&page=2&perPage=20&cursor=abc&status=failed&history=open'
+      )
+
+      const result = parseFiltersFromUrl(searchParams)
+
+      expect(result).toEqual([{ key: 'status', operator: 'eq', value: 'failed' }])
+    })
+
+    it('should skip namespaced sort params so they do not become filter chips', () => {
+      // Execution Details uses `activity_sort` alongside Run History filters on the same URL.
+      const searchParams = new URLSearchParams('activity_sort=-status&status=completed')
+
+      const result = parseFiltersFromUrl(searchParams)
+
+      expect(result).toEqual([{ key: 'status', operator: 'eq', value: 'completed' }])
+    })
+
     it('should handle URL-encoded values', () => {
       const searchParams = new URLSearchParams('name[contains]=my%20workflow')
 
