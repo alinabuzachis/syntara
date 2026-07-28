@@ -37,19 +37,3 @@ class GenericAgentResponse(BaseAgentResponse):
         default="answer",
         description="Response type (always 'answer' for GenericAgent)",
     )
-
-
-class WorkflowResponse(BaseAgentResponse):
-    """Response model for WorkflowGeneratorAgent.
-
-    Used when WorkflowGeneratorAgent creates a workflow.
-    """
-
-    type: Literal["workflow"] = Field(
-        default="workflow",
-        description="Response type (always 'workflow' for WorkflowGeneratorAgent)",
-    )
-    workflow_id: str = Field(
-        ...,
-        description="Unique identifier for the generated workflow",
-    )

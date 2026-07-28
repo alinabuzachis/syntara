@@ -58,7 +58,7 @@ async def test_workflow_complete_lifecycle(jwt_client: AsyncClient, test_project
     assert workflow["is_enabled"] is False
     assert workflow["labels"] == {"env": "test", "purpose": "integration"}
 
-    # Note: POST returns WorkflowResponse (no version data)
+    # Note: POST response does not include version data
     # Use GET to retrieve version data
     get_workflow_response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}")
     assert get_workflow_response.status_code == 200
